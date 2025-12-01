@@ -1,0 +1,56 @@
+# Sample Custom Word List for Codenames
+# Place this file in the same folder as index.html
+# One word per line, blank lines and lines starting with # are ignored
+# You need at least 25 words, but 100+ is recommended for variety
+
+# Example theme: Movies & TV
+HOBBIT
+AVENGERS
+BATMAN
+FROZEN
+JEDI
+HOGWARTS
+MATRIX
+TERMINATOR
+JURASSIC
+TITANIC
+INCEPTION
+AVATAR
+SHREK
+NEMO
+SIMPSONS
+FRIENDS
+STRANGER
+MANDALORIAN
+WAKANDA
+THANOS
+GANDALF
+VOLDEMORT
+YODA
+GODZILLA
+KONG
+MARVEL
+DISNEY
+PIXAR
+NETFLIX
+STREAMING
+POPCORN
+SEQUEL
+TRILOGY
+PREQUEL
+DIRECTOR
+ACTOR
+VILLAIN
+HERO
+SIDEKICK
+CAPE
+MASK
+SHIELD
+SWORD
+MAGIC
+SPELL
+DRAGON
+WIZARD
+QUEST
+ADVENTURE
+TREASURE
