@@ -35,6 +35,32 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
+        .role-banner {
+            text-align: center;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .role-banner.host {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .role-banner.viewer {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            color: #ffc107;
+        }
+
+        .role-banner small {
+            display: block;
+            font-weight: normal;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
         .controls {
             display: flex;
             justify-content: center;
@@ -58,6 +84,12 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn-new-game {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -74,6 +106,11 @@
 
         .btn-settings {
             background: linear-gradient(135deg, #a8a8a8 0%, #6b6b6b 100%);
+            color: white;
+        }
+
+        .btn-host {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             color: white;
         }
 
@@ -134,6 +171,15 @@
             grid-template-columns: repeat(5, 1fr);
             gap: 10px;
             margin-bottom: 20px;
+        }
+
+        .board.viewer-mode .card:not(.revealed) {
+            cursor: default;
+        }
+
+        .board.viewer-mode .card:not(.revealed):hover {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
 
         .card {
@@ -359,6 +405,14 @@
             margin-top: 5px;
         }
 
+        .modal-section .warning {
+            color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
         .modal-buttons {
             display: flex;
             gap: 10px;
@@ -402,6 +456,16 @@
             margin-bottom: 10px;
         }
 
+        /* Confirm dialog */
+        .confirm-dialog {
+            text-align: center;
+        }
+
+        .confirm-dialog p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
         @media (max-width: 600px) {
             .board {
                 gap: 5px;
@@ -428,10 +492,15 @@
             <h1>Codenames Online</h1>
         </header>
 
-        <div class="controls">
-            <button class="btn-new-game" onclick="newGame()">New Game</button>
+        <div class="role-banner" id="role-banner">
+            <!-- Filled by JS -->
+        </div>
+
+        <div class="controls" id="controls">
+            <button class="btn-new-game" onclick="confirmNewGame()">New Game</button>
             <button class="btn-spymaster" onclick="toggleSpymaster()">Spymaster View</button>
-            <button class="btn-end-turn" onclick="endTurn()">End Turn</button>
+            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
+            <button class="btn-host" id="btn-become-host" onclick="becomeHost()">Become Host</button>
             <button class="btn-settings" onclick="openSettings()">Settings</button>
         </div>
 
@@ -449,7 +518,7 @@
         <div class="board" id="board"></div>
 
         <div class="share-section">
-            <strong>Share this link with friends to play the same game:</strong>
+            <strong>Share this link with all players:</strong>
             <input type="text" id="share-link" readonly>
             <br>
             <button class="btn-copy" onclick="copyLink()">Copy Link</button>
@@ -458,11 +527,11 @@
         <div class="instructions">
             <h3>How to Play on Zoom:</h3>
             <ul>
-                <li><strong>Setup:</strong> Share this page's link with all players. Everyone opens the same link.</li>
-                <li><strong>Spymasters:</strong> One person from each team enables "Spymaster View" to see the key (don't share screen!)</li>
-                <li><strong>Host:</strong> One player shares their screen and clicks cards as teams make guesses.</li>
+                <li><strong>Host:</strong> One person creates the game, shares link, and shares their screen. Only the host clicks cards.</li>
+                <li><strong>Spymasters:</strong> One per team clicks "Spymaster View" on their own device to see the key (don't share your screen!).</li>
+                <li><strong>Guessers:</strong> Everyone else watches the host's shared screen and calls out guesses.</li>
                 <li><strong>Gameplay:</strong> Spymasters give one-word clues + a number. Their team guesses that many words.</li>
-                <li><strong>Winning:</strong> Find all your team's words first! Avoid the assassin!</li>
+                <li><strong>Winning:</strong> Find all your team's words first! Avoid the assassin (black card)!</li>
             </ul>
         </div>
     </div>
@@ -470,29 +539,42 @@
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settings-modal">
         <div class="modal">
-            <h2>Settings</h2>
+            <h2>Game Settings</h2>
 
             <div class="modal-section">
                 <h3>Team Names</h3>
                 <label for="red-name-input">Red Team Name:</label>
-                <input type="text" id="red-name-input" placeholder="Red">
+                <input type="text" id="red-name-input" placeholder="Red" maxlength="20">
                 <label for="blue-name-input">Blue Team Name:</label>
-                <input type="text" id="blue-name-input" placeholder="Blue">
-                <p>Team names are saved and persist across games.</p>
+                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20">
+                <p class="warning">Team names are shared with all players via the game link. Changing names will update the link.</p>
             </div>
 
             <div class="modal-section">
-                <h3>Custom Word List</h3>
+                <h3>Custom Word List (Host Only)</h3>
                 <label for="custom-words">Words (one per line):</label>
                 <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
                 <div class="word-count" id="word-count">0 words (need at least 25)</div>
-                <p>Leave empty to use the default word list. You can also place a <code>wordlist.txt</code> file in the same folder as this page.</p>
+                <p>Custom words only apply when YOU start a new game. All players joining your link will see the same board.</p>
+                <p>You can also place a <code>wordlist.txt</code> file alongside this page.</p>
             </div>
 
             <div class="modal-buttons">
-                <button class="btn-save" onclick="saveSettings()">Save Settings</button>
+                <button class="btn-save" onclick="saveSettings()">Save & Apply</button>
                 <button class="btn-reset" onclick="resetWords()">Reset to Default Words</button>
                 <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm New Game Modal -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal confirm-dialog">
+            <h2>Start New Game?</h2>
+            <p>This will end the current game for all players. Are you sure?</p>
+            <div class="modal-buttons">
+                <button class="btn-new-game" onclick="newGame(); closeConfirm();">Yes, New Game</button>
+                <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
             </div>
         </div>
     </div>
@@ -553,15 +635,18 @@
             "WIND", "WITCH", "WORM", "YARD"
         ];
 
-        // Active word list (can be customized)
+        // Active word list for creating NEW games (can be customized by host)
         let activeWords = [...DEFAULT_WORDS];
         let wordSource = 'default';
 
-        // Team names
+        // Team names (stored in URL for consistency across players)
         let teamNames = {
             red: 'Red',
             blue: 'Blue'
         };
+
+        // Host mode - only host can click cards
+        let isHost = false;
 
         let gameState = {
             words: [],
@@ -609,17 +694,20 @@
             return Math.random().toString(36).substring(2, 10);
         }
 
-        function initGame(seed) {
-            if (activeWords.length < 25) {
+        // Initialize game with a specific word list (for consistency)
+        function initGame(seed, wordList) {
+            const words = wordList || activeWords;
+
+            if (words.length < 25) {
                 alert('Not enough words! You need at least 25 words to play. Please add more words in Settings.');
-                return;
+                return false;
             }
 
             gameState.seed = seed;
             const numericSeed = hashString(seed);
 
-            // Select 25 random words
-            const shuffledWords = shuffleWithSeed(activeWords, numericSeed);
+            // Select 25 random words using the provided word list
+            const shuffledWords = shuffleWithSeed(words, numericSeed);
             gameState.words = shuffledWords.slice(0, 25);
 
             // Randomly decide who goes first (gets 9 cards)
@@ -647,15 +735,34 @@
             gameState.gameOver = false;
             gameState.winner = null;
 
-            updateURL();
-            renderBoard();
-            updateScoreboard();
-            updateTurnIndicator();
+            return true;
         }
 
         function newGame() {
             const seed = generateGameSeed();
-            initGame(seed);
+            if (initGame(seed, activeWords)) {
+                isHost = true; // Person who creates game is automatically host
+                updateURL();
+                renderBoard();
+                updateScoreboard();
+                updateTurnIndicator();
+                updateRoleBanner();
+                updateHostControls();
+            }
+        }
+
+        function confirmNewGame() {
+            // If game hasn't really started, just create new game
+            const cardsRevealed = gameState.revealed.filter(r => r).length;
+            if (cardsRevealed === 0) {
+                newGame();
+            } else {
+                document.getElementById('confirm-modal').classList.add('active');
+            }
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-modal').classList.remove('active');
         }
 
         function loadGameFromURL() {
@@ -663,9 +770,23 @@
             const seed = params.get('game');
             const revealed = params.get('r');
             const turn = params.get('t');
+            const redName = params.get('rn');
+            const blueName = params.get('bn');
+
+            // Load team names from URL (ensures consistency across players)
+            if (redName) {
+                teamNames.red = decodeURIComponent(redName);
+            }
+            if (blueName) {
+                teamNames.blue = decodeURIComponent(blueName);
+            }
 
             if (seed) {
-                initGame(seed);
+                // CRITICAL: When loading from URL, ALWAYS use default words
+                // This ensures all players see the same board regardless of their local settings
+                if (!initGame(seed, DEFAULT_WORDS)) {
+                    return;
+                }
 
                 // Restore revealed cards
                 if (revealed) {
@@ -686,13 +807,19 @@
                     gameState.currentTurn = 'red';
                 }
 
-                // Check for game over conditions
+                // Check for game over conditions (including assassin)
                 checkGameOver();
+
+                // Joining via link = viewer by default
+                isHost = false;
 
                 renderBoard();
                 updateScoreboard();
                 updateTurnIndicator();
+                updateRoleBanner();
+                updateHostControls();
             } else {
+                // No game in URL, create new one (this person is host)
                 newGame();
             }
         }
@@ -700,15 +827,57 @@
         function updateURL() {
             const revealed = gameState.revealed.map(r => r ? '1' : '0').join('');
             const turn = gameState.currentTurn === 'blue' ? 'b' : 'r';
-            const url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
+            const redNameEncoded = encodeURIComponent(teamNames.red);
+            const blueNameEncoded = encodeURIComponent(teamNames.blue);
+
+            let url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
+
+            // Only include team names if they're not defaults
+            if (teamNames.red !== 'Red') {
+                url += `&rn=${redNameEncoded}`;
+            }
+            if (teamNames.blue !== 'Blue') {
+                url += `&bn=${blueNameEncoded}`;
+            }
+
             window.history.replaceState({}, '', url);
             document.getElementById('share-link').value = url;
+        }
+
+        function updateRoleBanner() {
+            const banner = document.getElementById('role-banner');
+            if (isHost) {
+                banner.className = 'role-banner host';
+                banner.innerHTML = 'You are the HOST<small>Share your screen and click cards as players guess</small>';
+            } else {
+                banner.className = 'role-banner viewer';
+                banner.innerHTML = 'You are a VIEWER<small>Watch the host\'s shared screen to see card reveals</small>';
+            }
+        }
+
+        function updateHostControls() {
+            const endTurnBtn = document.getElementById('btn-end-turn');
+            const becomeHostBtn = document.getElementById('btn-become-host');
+
+            endTurnBtn.disabled = !isHost || gameState.gameOver;
+            becomeHostBtn.style.display = isHost ? 'none' : 'inline-block';
+        }
+
+        function becomeHost() {
+            isHost = true;
+            updateRoleBanner();
+            updateHostControls();
+            renderBoard();
         }
 
         function renderBoard() {
             const board = document.getElementById('board');
             board.innerHTML = '';
-            board.className = spymasterMode ? 'board spymaster-mode' : 'board';
+
+            let className = 'board';
+            if (spymasterMode) className += ' spymaster-mode';
+            if (!isHost) className += ' viewer-mode';
+            board.className = className;
 
             gameState.words.forEach((word, index) => {
                 const card = document.createElement('div');
@@ -731,6 +900,11 @@
         }
 
         function revealCard(index) {
+            // Only host can reveal cards
+            if (!isHost) {
+                return;
+            }
+
             if (gameState.revealed[index] || gameState.gameOver) return;
 
             gameState.revealed[index] = true;
@@ -748,21 +922,38 @@
                 gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
             }
 
-            // Check for win
+            // Check for win by completing all words
             checkGameOver();
 
-            // End turn if wrong guess
+            // End turn if wrong guess (and game not over)
             if (!gameState.gameOver && type !== gameState.currentTurn) {
-                endTurn();
+                gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
             }
 
             updateURL();
             renderBoard();
             updateScoreboard();
             updateTurnIndicator();
+            updateHostControls();
         }
 
         function checkGameOver() {
+            // Check for assassin reveal
+            const assassinIndex = gameState.types.indexOf('assassin');
+            if (gameState.revealed[assassinIndex]) {
+                gameState.gameOver = true;
+                // Winner is the team that DIDN'T click the assassin
+                // We need to figure out who clicked it - it's the team whose turn it was
+                // But turn might have been restored from URL, so we check current turn
+                // If assassin is revealed and game isn't already marked as over with a winner,
+                // the current turn indicates who clicked it
+                if (!gameState.winner) {
+                    gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+                }
+                return;
+            }
+
+            // Check for completing all words
             if (gameState.redScore >= gameState.redTotal) {
                 gameState.gameOver = true;
                 gameState.winner = 'red';
@@ -773,7 +964,7 @@
         }
 
         function endTurn() {
-            if (gameState.gameOver) return;
+            if (!isHost || gameState.gameOver) return;
             gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
             updateURL();
             updateTurnIndicator();
@@ -878,8 +1069,9 @@
         function parseWords(text) {
             return text
                 .split('\n')
-                .map(w => w.trim().toUpperCase())
-                .filter(w => w.length > 0);
+                .map(w => w.trim())
+                .filter(w => w.length > 0 && !w.startsWith('#')) // Filter comments and empty lines
+                .map(w => w.toUpperCase());
         }
 
         function saveSettings() {
@@ -888,9 +1080,8 @@
             const blueName = document.getElementById('blue-name-input').value.trim() || 'Blue';
             teamNames.red = redName;
             teamNames.blue = blueName;
-            localStorage.setItem('codenames-team-names', JSON.stringify(teamNames));
 
-            // Save custom words
+            // Save custom words to localStorage (for future NEW games only)
             const customWordsText = document.getElementById('custom-words').value.trim();
             if (customWordsText) {
                 const words = parseWords(customWordsText);
@@ -908,6 +1099,8 @@
                 wordSource = 'default';
             }
 
+            // Update URL with new team names
+            updateURL();
             updateWordSourceDisplay();
             updateScoreboard();
             updateTurnIndicator();
@@ -922,27 +1115,16 @@
         function updateWordSourceDisplay() {
             const sourceEl = document.getElementById('word-source');
             if (wordSource === 'custom') {
-                sourceEl.textContent = `Using custom word list (${activeWords.length} words)`;
+                sourceEl.textContent = `Custom words loaded (${activeWords.length}) - will apply to new games`;
             } else if (wordSource === 'file') {
-                sourceEl.textContent = `Using wordlist.txt (${activeWords.length} words)`;
+                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length}) - will apply to new games`;
             } else {
                 sourceEl.textContent = '';
             }
         }
 
-        // Load settings from localStorage
-        function loadSettings() {
-            // Load team names
-            const savedNames = localStorage.getItem('codenames-team-names');
-            if (savedNames) {
-                try {
-                    teamNames = JSON.parse(savedNames);
-                } catch (e) {
-                    console.error('Failed to parse team names:', e);
-                }
-            }
-
-            // Load custom words from localStorage
+        // Load custom words from localStorage (for creating new games)
+        function loadLocalSettings() {
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWords) {
                 const words = parseWords(customWords);
@@ -953,7 +1135,7 @@
             }
         }
 
-        // Try to load wordlist.txt
+        // Try to load wordlist.txt (for creating new games)
         async function tryLoadWordlistFile() {
             // Only try to load file if no custom words in localStorage
             if (localStorage.getItem('codenames-custom-words')) {
@@ -968,7 +1150,6 @@
                     if (words.length >= 25) {
                         activeWords = words;
                         wordSource = 'file';
-                        updateWordSourceDisplay();
                     }
                 }
             } catch (e) {
@@ -981,7 +1162,7 @@
 
         // Initialize game on load
         async function init() {
-            loadSettings();
+            loadLocalSettings();
             await tryLoadWordlistFile();
             updateWordSourceDisplay();
             loadGameFromURL();
