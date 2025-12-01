@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codenames Online</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .btn-new-game {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-spymaster {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-spymaster.active {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .scoreboard {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .score {
+            padding: 10px 30px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .score.red {
+            background: rgba(220, 53, 69, 0.8);
+            border: 3px solid #dc3545;
+        }
+
+        .score.blue {
+            background: rgba(0, 123, 255, 0.8);
+            border: 3px solid #007bff;
+        }
+
+        .turn-indicator {
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .turn-indicator.red-turn {
+            background: rgba(220, 53, 69, 0.3);
+            border: 2px solid #dc3545;
+        }
+
+        .turn-indicator.blue-turn {
+            background: rgba(0, 123, 255, 0.3);
+            border: 2px solid #007bff;
+        }
+
+        .game-over {
+            background: rgba(255, 193, 7, 0.3) !important;
+            border: 2px solid #ffc107 !important;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            aspect-ratio: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-align: center;
+            font-size: clamp(0.7rem, 2vw, 1rem);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(145deg, #e8dcc4, #d4c4a8);
+            color: #333;
+            border: 3px solid #c4b896;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover:not(.revealed) {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        .card.revealed {
+            cursor: default;
+        }
+
+        .card.revealed.red {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            color: white;
+            border-color: #a93226;
+        }
+
+        .card.revealed.blue {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: white;
+            border-color: #1f6391;
+        }
+
+        .card.revealed.neutral {
+            background: linear-gradient(145deg, #bdc3c7, #95a5a6);
+            color: #2c3e50;
+            border-color: #7f8c8d;
+        }
+
+        .card.revealed.assassin {
+            background: linear-gradient(145deg, #2c3e50, #1a252f);
+            color: white;
+            border-color: #17202a;
+        }
+
+        /* Spymaster view highlights */
+        .spymaster-mode .card:not(.revealed) {
+            position: relative;
+        }
+
+        .spymaster-mode .card:not(.revealed)::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .spymaster-mode .card.spy-red:not(.revealed)::before {
+            background: #e74c3c;
+        }
+
+        .spymaster-mode .card.spy-blue:not(.revealed)::before {
+            background: #3498db;
+        }
+
+        .spymaster-mode .card.spy-neutral:not(.revealed)::before {
+            background: #95a5a6;
+        }
+
+        .spymaster-mode .card.spy-assassin:not(.revealed)::before {
+            background: #2c3e50;
+            border-color: #e74c3c;
+        }
+
+        .spymaster-mode .card.spy-red:not(.revealed) {
+            border-color: #e74c3c;
+            box-shadow: inset 0 0 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .spymaster-mode .card.spy-blue:not(.revealed) {
+            border-color: #3498db;
+            box-shadow: inset 0 0 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .spymaster-mode .card.spy-assassin:not(.revealed) {
+            border-color: #e74c3c;
+            box-shadow: inset 0 0 20px rgba(44, 62, 80, 0.5);
+        }
+
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            list-style-position: inside;
+            line-height: 1.8;
+        }
+
+        .share-section {
+            text-align: center;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .share-section input {
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .btn-copy {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            margin-top: 10px;
+        }
+
+        .btn-end-turn {
+            background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+            color: white;
+        }
+
+        @media (max-width: 600px) {
+            .board {
+                gap: 5px;
+            }
+
+            .card {
+                font-size: 0.6rem;
+                padding: 5px;
+            }
+
+            .scoreboard {
+                gap: 20px;
+            }
+
+            .score {
+                padding: 8px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🕵️ Codenames Online</h1>
+        </header>
+
+        <div class="controls">
+            <button class="btn-new-game" onclick="newGame()">New Game</button>
+            <button class="btn-spymaster" onclick="toggleSpymaster()">Spymaster View</button>
+            <button class="btn-end-turn" onclick="endTurn()">End Turn</button>
+        </div>
+
+        <div class="scoreboard">
+            <div class="score red">🔴 Red: <span id="red-score">0</span> / <span id="red-total">9</span></div>
+            <div class="score blue">🔵 Blue: <span id="blue-score">0</span> / <span id="blue-total">8</span></div>
+        </div>
+
+        <div class="turn-indicator" id="turn-indicator">
+            Red Team's Turn
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="share-section">
+            <strong>Share this link with friends to play the same game:</strong>
+            <input type="text" id="share-link" readonly>
+            <br>
+            <button class="btn-copy" onclick="copyLink()">Copy Link</button>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play on Zoom:</h3>
+            <ul>
+                <li><strong>Setup:</strong> Share this page's link with all players. Everyone opens the same link.</li>
+                <li><strong>Spymasters:</strong> One person from each team enables "Spymaster View" to see the key (don't share screen!)</li>
+                <li><strong>Host:</strong> One player shares their screen and clicks cards as teams make guesses.</li>
+                <li><strong>Gameplay:</strong> Spymasters give one-word clues + a number. Their team guesses that many words.</li>
+                <li><strong>Winning:</strong> Find all your team's words first! Avoid the ☠️ assassin!</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Word list for the game
+        const WORDS = [
+            "AFRICA", "AGENT", "AIR", "ALIEN", "ALPS", "AMAZON", "AMBULANCE", "AMERICA",
+            "ANGEL", "ANTARCTICA", "APPLE", "ARM", "ATLANTIS", "AUSTRALIA", "AZTEC",
+            "BACK", "BALL", "BAND", "BANK", "BAR", "BARK", "BAT", "BATTERY", "BEACH",
+            "BEAR", "BEAT", "BED", "BEIJING", "BELL", "BELT", "BERLIN", "BERMUDA",
+            "BERRY", "BILL", "BLOCK", "BOARD", "BOLT", "BOMB", "BOND", "BOOM", "BOOT",
+            "BOTTLE", "BOW", "BOX", "BRIDGE", "BRUSH", "BUCK", "BUFFALO", "BUG",
+            "BUGLE", "BUTTON", "CALF", "CANADA", "CAP", "CAPITAL", "CAR", "CARD",
+            "CARROT", "CASINO", "CAST", "CAT", "CELL", "CENTAUR", "CENTER", "CHAIR",
+            "CHANGE", "CHARGE", "CHECK", "CHEST", "CHICK", "CHINA", "CHOCOLATE",
+            "CHURCH", "CIRCLE", "CLIFF", "CLOAK", "CLUB", "CODE", "COLD", "COMIC",
+            "COMPOUND", "CONCERT", "CONDUCTOR", "CONTRACT", "COOK", "COPPER", "COTTON",
+            "COURT", "COVER", "CRANE", "CRASH", "CRICKET", "CROSS", "CROWN", "CYCLE",
+            "CZECH", "DANCE", "DATE", "DAY", "DEATH", "DECK", "DEGREE", "DIAMOND",
+            "DICE", "DINOSAUR", "DISEASE", "DOCTOR", "DOG", "DRAFT", "DRAGON", "DRESS",
+            "DRILL", "DROP", "DUCK", "DWARF", "EAGLE", "EGYPT", "EMBASSY", "ENGINE",
+            "ENGLAND", "EUROPE", "EYE", "FACE", "FAIR", "FALL", "FAN", "FENCE", "FIELD",
+            "FIGHTER", "FIGURE", "FILE", "FILM", "FIRE", "FISH", "FLUTE", "FLY",
+            "FOOT", "FORCE", "FOREST", "FORK", "FRANCE", "GAME", "GAS", "GENIUS",
+            "GERMANY", "GHOST", "GIANT", "GLASS", "GLOVE", "GOLD", "GRACE", "GRASS",
+            "GREECE", "GREEN", "GROUND", "HAM", "HAND", "HAWK", "HEAD", "HEART",
+            "HELICOPTER", "HIMALAYAS", "HOLE", "HOLLYWOOD", "HONEY", "HOOD", "HOOK",
+            "HORN", "HORSE", "HOSPITAL", "HOTEL", "ICE", "ICE CREAM", "INDIA", "IRON",
+            "IVORY", "JACK", "JAM", "JET", "JUPITER", "KANGAROO", "KETCHUP", "KEY",
+            "KID", "KING", "KIWI", "KNIFE", "KNIGHT", "LAB", "LAP", "LASER", "LAWYER",
+            "LEAD", "LEMON", "LEPRECHAUN", "LIFE", "LIGHT", "LIMOUSINE", "LINE", "LINK",
+            "LION", "LITTER", "LOCH NESS", "LOCK", "LOG", "LONDON", "LUCK", "MAIL",
+            "MAMMOTH", "MAPLE", "MARBLE", "MARCH", "MASS", "MATCH", "MERCURY", "MEXICO",
+            "MICROSCOPE", "MILLIONAIRE", "MINE", "MINT", "MISSILE", "MODEL", "MOLE",
+            "MOON", "MOSCOW", "MOUNT", "MOUSE", "MOUTH", "MUG", "NAIL", "NEEDLE",
+            "NET", "NEW YORK", "NIGHT", "NINJA", "NOTE", "NOVEL", "NURSE", "NUT",
+            "OCTOPUS", "OIL", "OLIVE", "OLYMPUS", "OPERA", "ORANGE", "ORGAN", "PALM",
+            "PAN", "PANDA", "PAPER", "PARACHUTE", "PARK", "PART", "PASS", "PASTE",
+            "PENGUIN", "PHOENIX", "PIANO", "PIE", "PILOT", "PIN", "PIPE", "PIRATE",
+            "PISTOL", "PIT", "PITCH", "PLANE", "PLASTIC", "PLATE", "PLATYPUS",
+            "PLAY", "PLOT", "POINT", "POISON", "POLE", "POLICE", "POOL", "PORT",
+            "POST", "POUND", "PRESS", "PRINCESS", "PUMPKIN", "PUPIL", "PYRAMID",
+            "QUEEN", "RABBIT", "RACKET", "RAY", "REVOLUTION", "RING", "ROBIN", "ROBOT",
+            "ROCK", "ROME", "ROOT", "ROSE", "ROULETTE", "ROUND", "ROW", "RULER",
+            "SATELLITE", "SATURN", "SCALE", "SCHOOL", "SCIENTIST", "SCORPION", "SCREEN",
+            "SCUBA DIVER", "SEAL", "SERVER", "SHADOW", "SHAKESPEARE", "SHARK", "SHIP",
+            "SHOE", "SHOP", "SHOT", "SHOULDER", "SILK", "SINK", "SKYSCRAPER", "SLIP",
+            "SLUG", "SMUGGLER", "SNOW", "SNOWMAN", "SOCK", "SOLDIER", "SOUL", "SOUND",
+            "SPACE", "SPELL", "SPIDER", "SPIKE", "SPINE", "SPOT", "SPRING", "SPY",
+            "SQUARE", "STADIUM", "STAFF", "STAR", "STATE", "STICK", "STOCK", "STRAW",
+            "STREAM", "STRIKE", "STRING", "SUB", "SUIT", "SUPERHERO", "SWING", "SWITCH",
+            "TABLE", "TABLET", "TAG", "TAIL", "TAP", "TEACHER", "TELESCOPE", "TEMPLE",
+            "THIEF", "THUMB", "TICK", "TIE", "TIME", "TOKYO", "TOOTH", "TORCH", "TOWER",
+            "TRACK", "TRAIN", "TRIANGLE", "TRIP", "TRUNK", "TUBE", "TURKEY", "UNDERTAKER",
+            "UNICORN", "VACUUM", "VAN", "VET", "VOLCANO", "WALL", "WAR", "WASHER",
+            "WASHINGTON", "WATCH", "WATER", "WAVE", "WEB", "WELL", "WHALE", "WHIP",
+            "WIND", "WITCH", "WORM", "YARD"
+        ];
+
+        let gameState = {
+            words: [],
+            types: [], // 'red', 'blue', 'neutral', 'assassin'
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null
+        };
+
+        let spymasterMode = false;
+
+        // Seeded random number generator for reproducible games
+        function seededRandom(seed) {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
+        }
+
+        function shuffleWithSeed(array, seed) {
+            const shuffled = [...array];
+            let currentSeed = seed;
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(seededRandom(currentSeed++) * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function generateGameSeed() {
+            return Math.random().toString(36).substring(2, 10);
+        }
+
+        function initGame(seed) {
+            gameState.seed = seed;
+            const numericSeed = hashString(seed);
+
+            // Select 25 random words
+            const shuffledWords = shuffleWithSeed(WORDS, numericSeed);
+            gameState.words = shuffledWords.slice(0, 25);
+
+            // Randomly decide who goes first (gets 9 cards)
+            const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
+            gameState.currentTurn = firstTeam;
+
+            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
+            let types = [];
+            if (firstTeam === 'red') {
+                types = Array(9).fill('red').concat(Array(8).fill('blue'));
+                gameState.redTotal = 9;
+                gameState.blueTotal = 8;
+            } else {
+                types = Array(8).fill('red').concat(Array(9).fill('blue'));
+                gameState.redTotal = 8;
+                gameState.blueTotal = 9;
+            }
+            types = types.concat(Array(7).fill('neutral'), ['assassin']);
+
+            // Shuffle the types
+            gameState.types = shuffleWithSeed(types, numericSeed + 500);
+            gameState.revealed = Array(25).fill(false);
+            gameState.redScore = 0;
+            gameState.blueScore = 0;
+            gameState.gameOver = false;
+            gameState.winner = null;
+
+            updateURL();
+            renderBoard();
+            updateScoreboard();
+            updateTurnIndicator();
+        }
+
+        function newGame() {
+            const seed = generateGameSeed();
+            initGame(seed);
+        }
+
+        function loadGameFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const seed = params.get('game');
+            const revealed = params.get('r');
+            const turn = params.get('t');
+
+            if (seed) {
+                initGame(seed);
+
+                // Restore revealed cards
+                if (revealed) {
+                    for (let i = 0; i < revealed.length && i < 25; i++) {
+                        if (revealed[i] === '1') {
+                            gameState.revealed[i] = true;
+                            const type = gameState.types[i];
+                            if (type === 'red') gameState.redScore++;
+                            if (type === 'blue') gameState.blueScore++;
+                        }
+                    }
+                }
+
+                // Restore turn
+                if (turn === 'b') {
+                    gameState.currentTurn = 'blue';
+                } else {
+                    gameState.currentTurn = 'red';
+                }
+
+                // Check for game over conditions
+                checkGameOver();
+
+                renderBoard();
+                updateScoreboard();
+                updateTurnIndicator();
+            } else {
+                newGame();
+            }
+        }
+
+        function updateURL() {
+            const revealed = gameState.revealed.map(r => r ? '1' : '0').join('');
+            const turn = gameState.currentTurn === 'blue' ? 'b' : 'r';
+            const url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
+            window.history.replaceState({}, '', url);
+            document.getElementById('share-link').value = url;
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            board.className = spymasterMode ? 'board spymaster-mode' : 'board';
+
+            gameState.words.forEach((word, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = word;
+
+                // Add spymaster hints
+                if (spymasterMode) {
+                    card.classList.add(`spy-${gameState.types[index]}`);
+                }
+
+                // Show revealed cards
+                if (gameState.revealed[index]) {
+                    card.classList.add('revealed', gameState.types[index]);
+                }
+
+                card.onclick = () => revealCard(index);
+                board.appendChild(card);
+            });
+        }
+
+        function revealCard(index) {
+            if (gameState.revealed[index] || gameState.gameOver) return;
+
+            gameState.revealed[index] = true;
+            const type = gameState.types[index];
+
+            if (type === 'red') {
+                gameState.redScore++;
+            } else if (type === 'blue') {
+                gameState.blueScore++;
+            }
+
+            // Check for assassin
+            if (type === 'assassin') {
+                gameState.gameOver = true;
+                gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            // Check for win
+            checkGameOver();
+
+            // End turn if wrong guess
+            if (!gameState.gameOver && type !== gameState.currentTurn) {
+                endTurn();
+            }
+
+            updateURL();
+            renderBoard();
+            updateScoreboard();
+            updateTurnIndicator();
+        }
+
+        function checkGameOver() {
+            if (gameState.redScore >= gameState.redTotal) {
+                gameState.gameOver = true;
+                gameState.winner = 'red';
+            } else if (gameState.blueScore >= gameState.blueTotal) {
+                gameState.gameOver = true;
+                gameState.winner = 'blue';
+            }
+        }
+
+        function endTurn() {
+            if (gameState.gameOver) return;
+            gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            updateURL();
+            updateTurnIndicator();
+        }
+
+        function updateScoreboard() {
+            document.getElementById('red-score').textContent = gameState.redScore;
+            document.getElementById('blue-score').textContent = gameState.blueScore;
+            document.getElementById('red-total').textContent = gameState.redTotal;
+            document.getElementById('blue-total').textContent = gameState.blueTotal;
+        }
+
+        function updateTurnIndicator() {
+            const indicator = document.getElementById('turn-indicator');
+
+            if (gameState.gameOver) {
+                indicator.className = 'turn-indicator game-over';
+                if (gameState.types[gameState.revealed.indexOf(true)] === 'assassin' &&
+                    gameState.revealed[gameState.types.indexOf('assassin')]) {
+                    indicator.innerHTML = `☠️ ${gameState.winner.toUpperCase()} TEAM WINS! (Assassin revealed)`;
+                } else {
+                    indicator.innerHTML = `🎉 ${gameState.winner.toUpperCase()} TEAM WINS!`;
+                }
+            } else {
+                indicator.className = `turn-indicator ${gameState.currentTurn}-turn`;
+                const emoji = gameState.currentTurn === 'red' ? '🔴' : '🔵';
+                indicator.innerHTML = `${emoji} ${gameState.currentTurn.charAt(0).toUpperCase() + gameState.currentTurn.slice(1)} Team's Turn`;
+            }
+        }
+
+        function toggleSpymaster() {
+            spymasterMode = !spymasterMode;
+            const btn = document.querySelector('.btn-spymaster');
+            btn.textContent = spymasterMode ? 'Player View' : 'Spymaster View';
+            btn.classList.toggle('active', spymasterMode);
+            renderBoard();
+        }
+
+        function copyLink() {
+            const input = document.getElementById('share-link');
+            input.select();
+            document.execCommand('copy');
+
+            const btn = document.querySelector('.btn-copy');
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = originalText, 2000);
+        }
+
+        // Initialize game on load
+        window.onload = loadGameFromURL;
+    </script>
+</body>
+</html>
