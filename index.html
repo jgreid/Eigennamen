@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Codenames Online</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -35,6 +38,33 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
+        .sync-status {
+            text-align: center;
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .sync-status.connected {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+
+        .sync-status.disconnected {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .sync-status.offline {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+            border: 1px solid #f1c40f;
+        }
+
         .role-banner {
             text-align: center;
             padding: 12px 20px;
@@ -43,19 +73,26 @@
             font-weight: 600;
         }
 
-        .role-banner.host {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        .role-banner.clicker-red {
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+            color: white;
+        }
+
+        .role-banner.clicker-blue {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
             color: white;
         }
 
         .role-banner.spymaster-red {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            background: linear-gradient(135deg, #922b21 0%, #c0392b 100%);
             color: white;
+            border: 3px solid #f1c40f;
         }
 
         .role-banner.spymaster-blue {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
             color: white;
+            border: 3px solid #f1c40f;
         }
 
         .role-banner.viewer {
@@ -78,6 +115,22 @@
             flex-wrap: wrap;
             margin-top: 20px;
             margin-bottom: 20px;
+        }
+
+        .role-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .role-buttons-label {
+            width: 100%;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 5px;
         }
 
         button {
@@ -106,18 +159,38 @@
             color: white;
         }
 
-        .btn-spymaster-red {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        .btn-clicker-red {
+            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
             color: white;
         }
 
-        .btn-spymaster-red.active {
+        .btn-clicker-red.active {
             box-shadow: 0 0 0 3px #fff, 0 0 0 6px #e74c3c;
         }
 
-        .btn-spymaster-blue {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        .btn-clicker-blue {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
             color: white;
+        }
+
+        .btn-clicker-blue.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3498db;
+        }
+
+        .btn-spymaster-red {
+            background: linear-gradient(135deg, #922b21 0%, #c0392b 100%);
+            color: white;
+            border: 2px solid #f1c40f;
+        }
+
+        .btn-spymaster-red.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #f1c40f;
+        }
+
+        .btn-spymaster-blue {
+            background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+            color: white;
+            border: 2px solid #f1c40f;
         }
 
         .btn-spymaster-blue.active {
@@ -129,9 +202,13 @@
             color: white;
         }
 
-        .btn-host {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        .btn-viewer {
+            background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%);
             color: white;
+        }
+
+        .btn-viewer.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #95a5a6;
         }
 
         .scoreboard {
@@ -530,6 +607,26 @@
             margin-bottom: 10px;
         }
 
+        .firebase-setup {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .firebase-setup h4 {
+            color: #ffc107;
+            margin-bottom: 10px;
+        }
+
+        .firebase-setup code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+
         @media (max-width: 600px) {
             .board {
                 gap: 5px;
@@ -547,6 +644,15 @@
             .score {
                 padding: 8px 20px;
             }
+
+            .role-buttons {
+                gap: 5px;
+            }
+
+            .role-buttons button {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -554,6 +660,7 @@
     <div class="container">
         <header>
             <h1>Codenames Online</h1>
+            <div class="sync-status" id="sync-status">Connecting...</div>
         </header>
 
         <div class="scoreboard">
@@ -573,12 +680,18 @@
 
         <div class="board" id="board"></div>
 
+        <div class="role-buttons" id="role-buttons">
+            <div class="role-buttons-label">Choose your role:</div>
+            <button class="btn-clicker-red" id="btn-clicker-red" onclick="setRole('red-clicker')">Red Clicker</button>
+            <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setRole('blue-clicker')">Blue Clicker</button>
+            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setRole('red-spymaster')">Red Spymaster</button>
+            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setRole('blue-spymaster')">Blue Spymaster</button>
+            <button class="btn-viewer" id="btn-viewer" onclick="setRole('viewer')">Viewer</button>
+        </div>
+
         <div class="controls" id="controls">
             <button class="btn-new-game" onclick="confirmNewGame()">New Game</button>
-            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Red Spymaster</button>
-            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Blue Spymaster</button>
             <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
-            <button class="btn-host" id="btn-become-host" onclick="becomeHost()">Become Host</button>
             <button class="btn-settings" onclick="openSettings()">Settings</button>
         </div>
 
@@ -590,12 +703,13 @@
         </div>
 
         <div class="instructions">
-            <h3>How to Play on Zoom:</h3>
+            <h3>How to Play (Real-time Sync!):</h3>
             <ul>
-                <li><strong>Host:</strong> Creates game, shares screen, clicks cards. Click "Become Host" to take this role.</li>
-                <li><strong>Spymasters:</strong> One per team clicks their team's Spymaster button. They see the key but CANNOT click cards.</li>
-                <li><strong>Guessers:</strong> Watch the host's screen and call out guesses verbally.</li>
-                <li><strong>Rotation:</strong> After each game, pick new spymasters! (The game will remind you.)</li>
+                <li><strong>Red/Blue Clicker:</strong> Clicks cards during their team's turn. One clicker per team.</li>
+                <li><strong>Red/Blue Spymaster:</strong> Sees the key and gives clues. Cannot click cards.</li>
+                <li><strong>Viewer:</strong> Watches the game without any special role.</li>
+                <li><strong>Real-time:</strong> All players see updates instantly - no need to share screens!</li>
+                <li><strong>Rotation:</strong> After each game, pick new spymasters and clickers!</li>
             </ul>
         </div>
     </div>
@@ -611,7 +725,6 @@
                 <input type="text" id="red-name-input" placeholder="Red" maxlength="20">
                 <label for="blue-name-input">Blue Team Name:</label>
                 <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20">
-                <p class="warning">Team names are shared via the game link.</p>
             </div>
 
             <div class="modal-section">
@@ -619,8 +732,25 @@
                 <label for="custom-words">Words (one per line):</label>
                 <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
                 <div class="word-count" id="word-count">0 words (need at least 25)</div>
-                <p class="info">Custom words are embedded in the game link when you create a new game. All players will see the same words!</p>
-                <p>You can also place a <code>wordlist.txt</code> file alongside this page.</p>
+                <p class="info">Custom words are embedded in the game when you create a new game.</p>
+            </div>
+
+            <div class="modal-section">
+                <h3>Firebase Configuration</h3>
+                <p>For real-time sync, configure Firebase below. Leave empty for URL-only mode.</p>
+                <label for="firebase-config">Firebase Config (JSON):</label>
+                <textarea id="firebase-config" placeholder='{"apiKey": "...", "databaseURL": "...", ...}'></textarea>
+                <div class="firebase-setup">
+                    <h4>Quick Setup (Free):</h4>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color: #4facfe;">Firebase Console</a></li>
+                        <li>Create a new project (disable Analytics for simplicity)</li>
+                        <li>Go to Build → Realtime Database → Create Database</li>
+                        <li>Choose a location, start in <strong>test mode</strong></li>
+                        <li>Go to Project Settings → General → Your apps → Web app</li>
+                        <li>Copy the <code>firebaseConfig</code> object and paste above</li>
+                    </ol>
+                </div>
             </div>
 
             <div class="modal-buttons">
@@ -635,7 +765,7 @@
     <div class="modal-overlay" id="confirm-modal">
         <div class="modal confirm-dialog">
             <h2>Start New Game?</h2>
-            <p>This will end the current game. Are you sure?</p>
+            <p>This will end the current game for all players. Are you sure?</p>
             <div class="modal-buttons">
                 <button class="btn-new-game" onclick="newGame(); closeConfirm();">Yes, New Game</button>
                 <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
@@ -649,8 +779,8 @@
             <h2>Game Over!</h2>
             <div class="winner" id="winner-display"></div>
             <div class="rotation-reminder">
-                <h4>Time to Rotate Spymasters!</h4>
-                <p>For the next game, choose different players to be spymasters so everyone gets a turn giving clues.</p>
+                <h4>Time to Rotate Roles!</h4>
+                <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
             </div>
             <div class="modal-buttons">
                 <button class="btn-new-game" onclick="newGame(); closeGameOver();">New Game</button>
@@ -660,7 +790,73 @@
     </div>
 
     <script>
-        // Default word list for the game
+        // =====================
+        // Firebase Configuration
+        // =====================
+        let firebaseConfig = null;
+        let database = null;
+        let gameRef = null;
+        let unsubscribeGame = null;
+        let isFirebaseConnected = false;
+
+        function loadFirebaseConfig() {
+            const saved = localStorage.getItem('codenames-firebase-config');
+            if (saved) {
+                try {
+                    firebaseConfig = JSON.parse(saved);
+                    return true;
+                } catch (e) {
+                    console.error('Invalid Firebase config:', e);
+                }
+            }
+            return false;
+        }
+
+        function initFirebase() {
+            if (!firebaseConfig || !firebaseConfig.apiKey || !firebaseConfig.databaseURL) {
+                updateSyncStatus('offline');
+                return false;
+            }
+
+            try {
+                // Check if already initialized
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                database = firebase.database();
+
+                // Monitor connection state
+                const connectedRef = database.ref('.info/connected');
+                connectedRef.on('value', (snap) => {
+                    isFirebaseConnected = snap.val() === true;
+                    updateSyncStatus(isFirebaseConnected ? 'connected' : 'disconnected');
+                });
+
+                return true;
+            } catch (e) {
+                console.error('Firebase init failed:', e);
+                updateSyncStatus('offline');
+                return false;
+            }
+        }
+
+        function updateSyncStatus(status) {
+            const el = document.getElementById('sync-status');
+            if (status === 'connected') {
+                el.textContent = 'Live Sync Active';
+                el.className = 'sync-status connected';
+            } else if (status === 'disconnected') {
+                el.textContent = 'Reconnecting...';
+                el.className = 'sync-status disconnected';
+            } else {
+                el.textContent = 'Offline Mode (URL sharing)';
+                el.className = 'sync-status offline';
+            }
+        }
+
+        // =====================
+        // Default Word List
+        // =====================
         const DEFAULT_WORDS = [
             "AFRICA", "AGENT", "AIR", "ALIEN", "ALPS", "AMAZON", "AMBULANCE", "AMERICA",
             "ANGEL", "ANTARCTICA", "APPLE", "ARM", "ATLANTIS", "AUSTRALIA", "AZTEC",
@@ -715,23 +911,23 @@
             "WIND", "WITCH", "WORM", "YARD"
         ];
 
-        // Active word list for creating NEW games (can be customized by host)
+        // Active word list for creating NEW games
         let activeWords = [...DEFAULT_WORDS];
         let wordSource = 'default';
 
-        // Team names (stored in URL for consistency across players)
+        // Team names
         let teamNames = {
             red: 'Red',
             blue: 'Blue'
         };
 
-        // Role system
-        let isHost = false;
-        let spymasterTeam = null; // null, 'red', or 'blue'
+        // Role system: 'red-clicker', 'blue-clicker', 'red-spymaster', 'blue-spymaster', or null (viewer)
+        let playerRole = null;
 
+        // Game state
         let gameState = {
             words: [],
-            types: [], // 'red', 'blue', 'neutral', 'assassin'
+            types: [],
             revealed: [],
             currentTurn: 'red',
             redScore: 0,
@@ -740,11 +936,12 @@
             blueTotal: 8,
             gameOver: false,
             winner: null,
-            seed: null,
-            customWords: false // Whether this game uses custom words encoded in URL
+            seed: null
         };
 
-        // Seeded random number generator for reproducible games
+        // =====================
+        // Utility Functions
+        // =====================
         function seededRandom(seed) {
             const x = Math.sin(seed) * 10000;
             return x - Math.floor(x);
@@ -774,7 +971,6 @@
             return Math.random().toString(36).substring(2, 10);
         }
 
-        // Compress words for URL (simple encoding)
         function encodeWordsForURL(words) {
             return btoa(words.join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
@@ -789,84 +985,82 @@
             }
         }
 
-        // Initialize game with specific 25 words (no shuffling needed - words are the board)
-        function initGameWithWords(seed, boardWords) {
-            if (boardWords.length !== 25) {
-                alert('Invalid game: need exactly 25 words');
-                return false;
-            }
-
-            gameState.seed = seed;
-            gameState.words = boardWords;
-            gameState.customWords = true;
-
+        // =====================
+        // Game Initialization
+        // =====================
+        function generateTypesFromSeed(seed) {
             const numericSeed = hashString(seed);
-
-            // Randomly decide who goes first (gets 9 cards)
             const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
-            gameState.currentTurn = firstTeam;
 
-            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
             let types = [];
+            let redTotal, blueTotal;
             if (firstTeam === 'red') {
                 types = Array(9).fill('red').concat(Array(8).fill('blue'));
-                gameState.redTotal = 9;
-                gameState.blueTotal = 8;
+                redTotal = 9;
+                blueTotal = 8;
             } else {
                 types = Array(8).fill('red').concat(Array(9).fill('blue'));
-                gameState.redTotal = 8;
-                gameState.blueTotal = 9;
+                redTotal = 8;
+                blueTotal = 9;
             }
             types = types.concat(Array(7).fill('neutral'), ['assassin']);
+            types = shuffleWithSeed(types, numericSeed + 500);
 
-            // Shuffle the types
-            gameState.types = shuffleWithSeed(types, numericSeed + 500);
-            gameState.revealed = Array(25).fill(false);
-            gameState.redScore = 0;
-            gameState.blueScore = 0;
-            gameState.gameOver = false;
-            gameState.winner = null;
-
-            return true;
+            return { types, firstTeam, redTotal, blueTotal };
         }
 
-        // Initialize game with a word list (selects 25 random words)
+        function initGameFromData(data) {
+            gameState.seed = data.seed;
+            gameState.words = data.words;
+            gameState.revealed = data.revealed || Array(25).fill(false);
+            gameState.currentTurn = data.currentTurn || 'red';
+            gameState.gameOver = data.gameOver || false;
+            gameState.winner = data.winner || null;
+
+            // Regenerate types from seed (deterministic)
+            const typeInfo = generateTypesFromSeed(data.seed);
+            gameState.types = typeInfo.types;
+            gameState.redTotal = data.redTotal || typeInfo.redTotal;
+            gameState.blueTotal = data.blueTotal || typeInfo.blueTotal;
+
+            // Calculate scores from revealed
+            gameState.redScore = 0;
+            gameState.blueScore = 0;
+            for (let i = 0; i < 25; i++) {
+                if (gameState.revealed[i]) {
+                    if (gameState.types[i] === 'red') gameState.redScore++;
+                    if (gameState.types[i] === 'blue') gameState.blueScore++;
+                }
+            }
+
+            // Load team names
+            if (data.teamNames) {
+                teamNames.red = data.teamNames.red || 'Red';
+                teamNames.blue = data.teamNames.blue || 'Blue';
+            }
+        }
+
         function initGame(seed, wordList) {
             const words = wordList || activeWords;
 
             if (words.length < 25) {
-                alert('Not enough words! You need at least 25 words to play. Please add more words in Settings.');
+                alert('Not enough words! You need at least 25 words to play.');
                 return false;
             }
 
-            gameState.seed = seed;
-            gameState.customWords = (words !== DEFAULT_WORDS && wordSource !== 'default');
             const numericSeed = hashString(seed);
-
-            // Select 25 random words using the provided word list
             const shuffledWords = shuffleWithSeed(words, numericSeed);
-            gameState.words = shuffledWords.slice(0, 25);
+            const boardWords = shuffledWords.slice(0, 25);
 
-            // Randomly decide who goes first (gets 9 cards)
-            const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
-            gameState.currentTurn = firstTeam;
+            const typeInfo = generateTypesFromSeed(seed);
 
-            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
-            let types = [];
-            if (firstTeam === 'red') {
-                types = Array(9).fill('red').concat(Array(8).fill('blue'));
-                gameState.redTotal = 9;
-                gameState.blueTotal = 8;
-            } else {
-                types = Array(8).fill('red').concat(Array(9).fill('blue'));
-                gameState.redTotal = 8;
-                gameState.blueTotal = 9;
-            }
-            types = types.concat(Array(7).fill('neutral'), ['assassin']);
-
-            // Shuffle the types
-            gameState.types = shuffleWithSeed(types, numericSeed + 500);
+            gameState.seed = seed;
+            gameState.words = boardWords;
+            gameState.types = typeInfo.types;
             gameState.revealed = Array(25).fill(false);
+            gameState.currentTurn = typeInfo.firstTeam;
+            gameState.redTotal = typeInfo.redTotal;
+            gameState.blueTotal = typeInfo.blueTotal;
             gameState.redScore = 0;
             gameState.blueScore = 0;
             gameState.gameOver = false;
@@ -875,17 +1069,169 @@
             return true;
         }
 
-        function newGame() {
+        // =====================
+        // Firebase Sync
+        // =====================
+        function subscribeToGame(gameId) {
+            if (!database) return;
+
+            // Unsubscribe from previous game
+            if (unsubscribeGame) {
+                gameRef.off('value', unsubscribeGame);
+                unsubscribeGame = null;
+            }
+
+            gameRef = database.ref(`games/${gameId}`);
+            unsubscribeGame = gameRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    initGameFromData(data);
+                    renderAll();
+
+                    // Show game over modal if newly over
+                    if (gameState.gameOver && !document.getElementById('game-over-modal').classList.contains('active')) {
+                        showGameOverModal();
+                    }
+                }
+            }, (error) => {
+                console.error('Firebase read error:', error);
+            });
+        }
+
+        async function saveGameToFirebase() {
+            if (!database || !gameState.seed) return;
+
+            const gameData = {
+                seed: gameState.seed,
+                words: gameState.words,
+                revealed: gameState.revealed,
+                currentTurn: gameState.currentTurn,
+                teamNames: teamNames,
+                gameOver: gameState.gameOver,
+                winner: gameState.winner,
+                redTotal: gameState.redTotal,
+                blueTotal: gameState.blueTotal,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            try {
+                await database.ref(`games/${gameState.seed}`).set(gameData);
+            } catch (e) {
+                console.error('Firebase write error:', e);
+            }
+        }
+
+        // =====================
+        // URL State (Fallback)
+        // =====================
+        function updateURL() {
+            const revealed = gameState.revealed.map(r => r ? '1' : '0').join('');
+            const turn = gameState.currentTurn === 'blue' ? 'b' : 'r';
+
+            let url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
+            url += `&w=${encodeWordsForURL(gameState.words)}`;
+
+            if (teamNames.red !== 'Red') {
+                url += `&rn=${encodeURIComponent(teamNames.red)}`;
+            }
+            if (teamNames.blue !== 'Blue') {
+                url += `&bn=${encodeURIComponent(teamNames.blue)}`;
+            }
+
+            window.history.replaceState({}, '', url);
+            document.getElementById('share-link').value = url;
+        }
+
+        function loadGameFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const seed = params.get('game');
+            const revealed = params.get('r');
+            const turn = params.get('t');
+            const redName = params.get('rn');
+            const blueName = params.get('bn');
+            const encodedWords = params.get('w');
+
+            if (redName) teamNames.red = decodeURIComponent(redName);
+            if (blueName) teamNames.blue = decodeURIComponent(blueName);
+
+            if (seed) {
+                // If Firebase is available, subscribe to real-time updates
+                if (database) {
+                    subscribeToGame(seed);
+                    // Set viewer role for joiners
+                    playerRole = null;
+                    return;
+                }
+
+                // Fallback: URL-only mode
+                let boardWords = null;
+                if (encodedWords) {
+                    boardWords = decodeWordsFromURL(encodedWords);
+                }
+
+                if (boardWords && boardWords.length === 25) {
+                    const typeInfo = generateTypesFromSeed(seed);
+                    gameState.seed = seed;
+                    gameState.words = boardWords;
+                    gameState.types = typeInfo.types;
+                    gameState.redTotal = typeInfo.redTotal;
+                    gameState.blueTotal = typeInfo.blueTotal;
+                    gameState.revealed = Array(25).fill(false);
+                    gameState.currentTurn = typeInfo.firstTeam;
+                    gameState.redScore = 0;
+                    gameState.blueScore = 0;
+                    gameState.gameOver = false;
+                    gameState.winner = null;
+
+                    // Restore revealed cards
+                    if (revealed) {
+                        for (let i = 0; i < revealed.length && i < 25; i++) {
+                            if (revealed[i] === '1') {
+                                gameState.revealed[i] = true;
+                                const type = gameState.types[i];
+                                if (type === 'red') gameState.redScore++;
+                                if (type === 'blue') gameState.blueScore++;
+                            }
+                        }
+                    }
+
+                    // Restore turn
+                    if (turn === 'b') {
+                        gameState.currentTurn = 'blue';
+                    } else if (turn === 'r') {
+                        gameState.currentTurn = 'red';
+                    }
+
+                    checkGameOver();
+                    playerRole = null; // Viewer by default
+                    renderAll();
+
+                    if (gameState.gameOver) {
+                        showGameOverModal();
+                    }
+                } else {
+                    newGame();
+                }
+            } else {
+                newGame();
+            }
+        }
+
+        // =====================
+        // Game Actions
+        // =====================
+        async function newGame() {
             const seed = generateGameSeed();
             if (initGame(seed, activeWords)) {
-                isHost = true;
-                spymasterTeam = null; // Reset spymaster role on new game
+                playerRole = 'red-clicker'; // Creator becomes red clicker
+
+                if (database) {
+                    await saveGameToFirebase();
+                    subscribeToGame(seed);
+                }
+
                 updateURL();
-                renderBoard();
-                updateScoreboard();
-                updateTurnIndicator();
-                updateRoleBanner();
-                updateControls();
+                renderAll();
             }
         }
 
@@ -902,233 +1248,69 @@
             document.getElementById('confirm-modal').classList.remove('active');
         }
 
-        function loadGameFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            const seed = params.get('game');
-            const revealed = params.get('r');
-            const turn = params.get('t');
-            const redName = params.get('rn');
-            const blueName = params.get('bn');
-            const encodedWords = params.get('w'); // Custom words encoded in URL
-
-            // Load team names from URL
-            if (redName) {
-                teamNames.red = decodeURIComponent(redName);
-            }
-            if (blueName) {
-                teamNames.blue = decodeURIComponent(blueName);
-            }
-
-            if (seed) {
-                let success = false;
-
-                // Check if custom words are in URL
-                if (encodedWords) {
-                    const boardWords = decodeWordsFromURL(encodedWords);
-                    if (boardWords && boardWords.length === 25) {
-                        success = initGameWithWords(seed, boardWords);
-                    }
-                }
-
-                // Fall back to default words if no custom words or decode failed
-                if (!success) {
-                    success = initGame(seed, DEFAULT_WORDS);
-                }
-
-                if (!success) return;
-
-                // Restore revealed cards
-                if (revealed) {
-                    for (let i = 0; i < revealed.length && i < 25; i++) {
-                        if (revealed[i] === '1') {
-                            gameState.revealed[i] = true;
-                            const type = gameState.types[i];
-                            if (type === 'red') gameState.redScore++;
-                            if (type === 'blue') gameState.blueScore++;
-                        }
-                    }
-                }
-
-                // Restore turn
-                if (turn === 'b') {
-                    gameState.currentTurn = 'blue';
-                } else if (turn === 'r') {
-                    gameState.currentTurn = 'red';
-                }
-
-                // Check for game over conditions
-                checkGameOver();
-
-                // Joining via link = viewer by default
-                isHost = false;
-                spymasterTeam = null;
-
-                renderBoard();
-                updateScoreboard();
-                updateTurnIndicator();
-                updateRoleBanner();
-                updateControls();
-
-                // Show game over modal if game is already over
-                if (gameState.gameOver) {
-                    showGameOverModal();
-                }
-            } else {
-                newGame();
-            }
-        }
-
-        function updateURL() {
-            const revealed = gameState.revealed.map(r => r ? '1' : '0').join('');
-            const turn = gameState.currentTurn === 'blue' ? 'b' : 'r';
-
-            let url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
-
-            // Include custom words in URL if using them
-            if (gameState.customWords && gameState.words.length === 25) {
-                url += `&w=${encodeWordsForURL(gameState.words)}`;
-            }
-
-            // Only include team names if they're not defaults
-            if (teamNames.red !== 'Red') {
-                url += `&rn=${encodeURIComponent(teamNames.red)}`;
-            }
-            if (teamNames.blue !== 'Blue') {
-                url += `&bn=${encodeURIComponent(teamNames.blue)}`;
-            }
-
-            window.history.replaceState({}, '', url);
-            document.getElementById('share-link').value = url;
-        }
-
-        function updateRoleBanner() {
-            const banner = document.getElementById('role-banner');
-
-            if (spymasterTeam === 'red') {
-                banner.className = 'role-banner spymaster-red';
-                banner.innerHTML = `You are the <strong>${teamNames.red}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
-            } else if (spymasterTeam === 'blue') {
-                banner.className = 'role-banner spymaster-blue';
-                banner.innerHTML = `You are the <strong>${teamNames.blue}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
-            } else if (isHost) {
-                banner.className = 'role-banner host';
-                banner.innerHTML = 'You are the HOST<small>Share your screen and click cards as players guess</small>';
-            } else {
-                banner.className = 'role-banner viewer';
-                banner.innerHTML = 'You are a VIEWER<small>Watch the host\'s shared screen to see card reveals</small>';
-            }
-        }
-
-        function updateControls() {
-            const endTurnBtn = document.getElementById('btn-end-turn');
-            const becomeHostBtn = document.getElementById('btn-become-host');
-            const redSpyBtn = document.getElementById('btn-spymaster-red');
-            const blueSpyBtn = document.getElementById('btn-spymaster-blue');
-
-            // Host controls
-            const canClickCards = isHost && !spymasterTeam;
-            endTurnBtn.disabled = !canClickCards || gameState.gameOver;
-            becomeHostBtn.style.display = (isHost || spymasterTeam) ? 'none' : 'inline-block';
-
-            // Spymaster buttons
-            redSpyBtn.classList.toggle('active', spymasterTeam === 'red');
-            blueSpyBtn.classList.toggle('active', spymasterTeam === 'blue');
-        }
-
-        function becomeHost() {
-            isHost = true;
-            spymasterTeam = null; // Can't be both host and spymaster
-            updateRoleBanner();
-            updateControls();
-            renderBoard();
-        }
-
-        function setSpymaster(team) {
-            if (spymasterTeam === team) {
-                // Toggle off
-                spymasterTeam = null;
-            } else {
-                spymasterTeam = team;
-                isHost = false; // Spymasters shouldn't also be hosts
-            }
-            updateRoleBanner();
-            updateControls();
-            renderBoard();
-        }
-
         function canClickCards() {
-            return isHost && !spymasterTeam && !gameState.gameOver;
+            if (gameState.gameOver) return false;
+
+            // Red clicker can click during red's turn
+            if (playerRole === 'red-clicker' && gameState.currentTurn === 'red') return true;
+            // Blue clicker can click during blue's turn
+            if (playerRole === 'blue-clicker' && gameState.currentTurn === 'blue') return true;
+
+            return false;
         }
 
-        function renderBoard() {
-            const board = document.getElementById('board');
-            board.innerHTML = '';
-
-            let className = 'board';
-            if (spymasterTeam) className += ' spymaster-mode';
-            if (!canClickCards()) className += ' no-click';
-            board.className = className;
-
-            gameState.words.forEach((word, index) => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.textContent = word;
-
-                // Add spymaster hints
-                if (spymasterTeam) {
-                    card.classList.add(`spy-${gameState.types[index]}`);
-                }
-
-                // Show revealed cards
-                if (gameState.revealed[index]) {
-                    card.classList.add('revealed', gameState.types[index]);
-                }
-
-                card.onclick = () => revealCard(index);
-                board.appendChild(card);
-            });
+        function isSpymaster() {
+            return playerRole === 'red-spymaster' || playerRole === 'blue-spymaster';
         }
 
-        function revealCard(index) {
+        async function revealCard(index) {
             if (!canClickCards()) return;
-            if (gameState.revealed[index] || gameState.gameOver) return;
+            if (gameState.revealed[index]) return;
 
             gameState.revealed[index] = true;
             const type = gameState.types[index];
 
-            if (type === 'red') {
-                gameState.redScore++;
-            } else if (type === 'blue') {
-                gameState.blueScore++;
-            }
+            if (type === 'red') gameState.redScore++;
+            if (type === 'blue') gameState.blueScore++;
 
-            // Check for assassin
             if (type === 'assassin') {
                 gameState.gameOver = true;
                 gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
             }
 
-            // Check for win by completing all words
             checkGameOver();
 
-            // End turn if wrong guess (and game not over)
+            // End turn if wrong guess
             if (!gameState.gameOver && type !== gameState.currentTurn) {
                 gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
             }
 
-            updateURL();
-            renderBoard();
-            updateScoreboard();
-            updateTurnIndicator();
-            updateControls();
+            // Sync
+            if (database) {
+                await saveGameToFirebase();
+            } else {
+                updateURL();
+                renderAll();
+                if (gameState.gameOver) {
+                    showGameOverModal();
+                }
+            }
+        }
 
-            if (gameState.gameOver) {
-                showGameOverModal();
+        async function endTurn() {
+            if (!canClickCards()) return;
+
+            gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+
+            if (database) {
+                await saveGameToFirebase();
+            } else {
+                updateURL();
+                renderAll();
             }
         }
 
         function checkGameOver() {
-            // Check for assassin reveal
             const assassinIndex = gameState.types.indexOf('assassin');
             if (gameState.revealed[assassinIndex]) {
                 gameState.gameOver = true;
@@ -1138,7 +1320,6 @@
                 return;
             }
 
-            // Check for completing all words
             if (gameState.redScore >= gameState.redTotal) {
                 gameState.gameOver = true;
                 gameState.winner = 'red';
@@ -1148,31 +1329,90 @@
             }
         }
 
-        function showGameOverModal() {
-            const winnerDisplay = document.getElementById('winner-display');
-            const winnerName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
-            const assassinIndex = gameState.types.indexOf('assassin');
-            const assassinRevealed = gameState.revealed[assassinIndex];
-
-            winnerDisplay.className = `winner ${gameState.winner}`;
-            if (assassinRevealed) {
-                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Opponent revealed the assassin)</small>`;
+        // =====================
+        // Role Management
+        // =====================
+        function setRole(role) {
+            if (role === 'viewer') {
+                playerRole = null;
             } else {
-                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Found all their words)</small>`;
+                playerRole = role;
             }
-
-            document.getElementById('game-over-modal').classList.add('active');
+            renderAll();
         }
 
-        function closeGameOver() {
-            document.getElementById('game-over-modal').classList.remove('active');
-        }
-
-        function endTurn() {
-            if (!canClickCards()) return;
-            gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
-            updateURL();
+        // =====================
+        // Rendering
+        // =====================
+        function renderAll() {
+            renderBoard();
+            updateScoreboard();
             updateTurnIndicator();
+            updateRoleBanner();
+            updateControls();
+            updateWordSourceDisplay();
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            let className = 'board';
+            if (isSpymaster()) className += ' spymaster-mode';
+            if (!canClickCards()) className += ' no-click';
+            board.className = className;
+
+            gameState.words.forEach((word, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = word;
+
+                if (isSpymaster()) {
+                    card.classList.add(`spy-${gameState.types[index]}`);
+                }
+
+                if (gameState.revealed[index]) {
+                    card.classList.add('revealed', gameState.types[index]);
+                }
+
+                card.onclick = () => revealCard(index);
+                board.appendChild(card);
+            });
+        }
+
+        function updateRoleBanner() {
+            const banner = document.getElementById('role-banner');
+
+            if (playerRole === 'red-clicker') {
+                banner.className = 'role-banner clicker-red';
+                const canClick = gameState.currentTurn === 'red' && !gameState.gameOver;
+                banner.innerHTML = `You are the <strong>${teamNames.red}</strong> CLICKER<small>${canClick ? 'Your turn! Click cards as your team guesses.' : 'Wait for your team\'s turn...'}</small>`;
+            } else if (playerRole === 'blue-clicker') {
+                banner.className = 'role-banner clicker-blue';
+                const canClick = gameState.currentTurn === 'blue' && !gameState.gameOver;
+                banner.innerHTML = `You are the <strong>${teamNames.blue}</strong> CLICKER<small>${canClick ? 'Your turn! Click cards as your team guesses.' : 'Wait for your team\'s turn...'}</small>`;
+            } else if (playerRole === 'red-spymaster') {
+                banner.className = 'role-banner spymaster-red';
+                banner.innerHTML = `You are the <strong>${teamNames.red}</strong> SPYMASTER<small>You can see the key - give clues to your team!</small>`;
+            } else if (playerRole === 'blue-spymaster') {
+                banner.className = 'role-banner spymaster-blue';
+                banner.innerHTML = `You are the <strong>${teamNames.blue}</strong> SPYMASTER<small>You can see the key - give clues to your team!</small>`;
+            } else {
+                banner.className = 'role-banner viewer';
+                banner.innerHTML = 'You are a VIEWER<small>Choose a role above to participate</small>';
+            }
+        }
+
+        function updateControls() {
+            const endTurnBtn = document.getElementById('btn-end-turn');
+            endTurnBtn.disabled = !canClickCards();
+
+            // Update role button states
+            document.getElementById('btn-clicker-red').classList.toggle('active', playerRole === 'red-clicker');
+            document.getElementById('btn-clicker-blue').classList.toggle('active', playerRole === 'blue-clicker');
+            document.getElementById('btn-spymaster-red').classList.toggle('active', playerRole === 'red-spymaster');
+            document.getElementById('btn-spymaster-blue').classList.toggle('active', playerRole === 'blue-spymaster');
+            document.getElementById('btn-viewer').classList.toggle('active', playerRole === null);
         }
 
         function updateScoreboard() {
@@ -1203,6 +1443,40 @@
             }
         }
 
+        function updateWordSourceDisplay() {
+            const sourceEl = document.getElementById('word-source');
+            if (wordSource === 'custom') {
+                sourceEl.textContent = `Custom words (${activeWords.length})`;
+            } else if (wordSource === 'file') {
+                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length})`;
+            } else {
+                sourceEl.textContent = '';
+            }
+        }
+
+        function showGameOverModal() {
+            const winnerDisplay = document.getElementById('winner-display');
+            const winnerName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
+            const assassinIndex = gameState.types.indexOf('assassin');
+            const assassinRevealed = gameState.revealed[assassinIndex];
+
+            winnerDisplay.className = `winner ${gameState.winner}`;
+            if (assassinRevealed) {
+                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Opponent revealed the assassin)</small>`;
+            } else {
+                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Found all their words)</small>`;
+            }
+
+            document.getElementById('game-over-modal').classList.add('active');
+        }
+
+        function closeGameOver() {
+            document.getElementById('game-over-modal').classList.remove('active');
+        }
+
+        // =====================
+        // Clipboard
+        // =====================
         async function copyLink() {
             const input = document.getElementById('share-link');
             const btn = document.querySelector('.btn-copy');
@@ -1221,18 +1495,20 @@
             }
         }
 
-        // Settings functions
+        // =====================
+        // Settings
+        // =====================
         function openSettings() {
             document.getElementById('settings-modal').classList.add('active');
             document.getElementById('red-name-input').value = teamNames.red;
             document.getElementById('blue-name-input').value = teamNames.blue;
 
             const customWords = localStorage.getItem('codenames-custom-words');
-            if (customWords) {
-                document.getElementById('custom-words').value = customWords;
-            } else {
-                document.getElementById('custom-words').value = '';
-            }
+            document.getElementById('custom-words').value = customWords || '';
+
+            const savedConfig = localStorage.getItem('codenames-firebase-config');
+            document.getElementById('firebase-config').value = savedConfig || '';
+
             updateWordCount();
         }
 
@@ -1269,12 +1545,14 @@
                 .map(w => w.toUpperCase());
         }
 
-        function saveSettings() {
+        async function saveSettings() {
+            // Save team names
             const redName = document.getElementById('red-name-input').value.trim() || 'Red';
             const blueName = document.getElementById('blue-name-input').value.trim() || 'Blue';
             teamNames.red = redName;
             teamNames.blue = blueName;
 
+            // Save custom words
             const customWordsText = document.getElementById('custom-words').value.trim();
             if (customWordsText) {
                 const words = parseWords(customWordsText);
@@ -1292,10 +1570,37 @@
                 wordSource = 'default';
             }
 
+            // Save Firebase config
+            const configText = document.getElementById('firebase-config').value.trim();
+            if (configText) {
+                try {
+                    const config = JSON.parse(configText);
+                    if (config.apiKey && config.databaseURL) {
+                        localStorage.setItem('codenames-firebase-config', configText);
+                        firebaseConfig = config;
+                        initFirebase();
+                    } else {
+                        alert('Firebase config must include apiKey and databaseURL');
+                        return;
+                    }
+                } catch (e) {
+                    alert('Invalid JSON format for Firebase config');
+                    return;
+                }
+            } else {
+                localStorage.removeItem('codenames-firebase-config');
+                firebaseConfig = null;
+                database = null;
+                updateSyncStatus('offline');
+            }
+
+            // Update game state if Firebase is active
+            if (database && gameState.seed) {
+                await saveGameToFirebase();
+            }
+
             updateURL();
-            updateWordSourceDisplay();
-            updateScoreboard();
-            updateTurnIndicator();
+            renderAll();
             closeSettings();
         }
 
@@ -1304,19 +1609,9 @@
             updateWordCount();
         }
 
-        function updateWordSourceDisplay() {
-            const sourceEl = document.getElementById('word-source');
-            if (gameState.customWords) {
-                sourceEl.textContent = 'Using custom words (shared via link)';
-            } else if (wordSource === 'custom') {
-                sourceEl.textContent = `Custom words loaded (${activeWords.length}) - will apply to new games`;
-            } else if (wordSource === 'file') {
-                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length}) - will apply to new games`;
-            } else {
-                sourceEl.textContent = '';
-            }
-        }
-
+        // =====================
+        // Local Settings
+        // =====================
         function loadLocalSettings() {
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWords) {
@@ -1329,9 +1624,7 @@
         }
 
         async function tryLoadWordlistFile() {
-            if (localStorage.getItem('codenames-custom-words')) {
-                return;
-            }
+            if (localStorage.getItem('codenames-custom-words')) return;
 
             try {
                 const response = await fetch('wordlist.txt');
@@ -1344,16 +1637,20 @@
                     }
                 }
             } catch (e) {
-                // File doesn't exist or can't be loaded
+                // File doesn't exist
             }
         }
 
+        // =====================
+        // Initialization
+        // =====================
         document.getElementById('custom-words').addEventListener('input', updateWordCount);
 
         async function init() {
             loadLocalSettings();
+            loadFirebaseConfig();
+            initFirebase();
             await tryLoadWordlistFile();
-            updateWordSourceDisplay();
             loadGameFromURL();
         }
 
