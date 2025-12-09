@@ -76,6 +76,7 @@
             justify-content: center;
             gap: 10px;
             flex-wrap: wrap;
+            margin-top: 20px;
             margin-bottom: 20px;
         }
 
@@ -137,7 +138,7 @@
             display: flex;
             justify-content: center;
             gap: 40px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             font-size: 1.2rem;
         }
 
@@ -164,7 +165,7 @@
         .turn-indicator {
             text-align: center;
             font-size: 1.3rem;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             padding: 10px;
             border-radius: 8px;
             font-weight: 600;
@@ -188,8 +189,7 @@
         .board {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
         }
 
         .board.no-click .card:not(.revealed) {
@@ -202,19 +202,19 @@
         }
 
         .card {
-            aspect-ratio: 1.6;
+            aspect-ratio: 2;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px;
-            border-radius: 12px;
+            padding: 8px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-weight: 600;
+            font-weight: 700;
             text-align: center;
-            font-size: clamp(0.7rem, 2vw, 1rem);
+            font-size: clamp(0.85rem, 2.5vw, 1.2rem);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             background: linear-gradient(145deg, #e8dcc4, #d4c4a8);
             color: #333;
             border: 3px solid #c4b896;
@@ -285,8 +285,8 @@
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed)::before {
-            background: #2c3e50;
-            border-color: #e74c3c;
+            background: #000;
+            border-color: #fff;
         }
 
         .spymaster-mode .card.spy-red:not(.revealed) {
@@ -300,8 +300,10 @@
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed) {
-            border-color: #e74c3c;
-            box-shadow: inset 0 0 20px rgba(44, 62, 80, 0.5);
+            background: linear-gradient(145deg, #1a1a1a, #000);
+            border-color: #000;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+            color: #888;
         }
 
         .instructions {
@@ -534,8 +536,8 @@
             }
 
             .card {
-                font-size: 0.6rem;
-                padding: 5px;
+                font-size: 0.75rem;
+                padding: 4px;
             }
 
             .scoreboard {
@@ -554,21 +556,6 @@
             <h1>Codenames Online</h1>
         </header>
 
-        <div class="role-banner" id="role-banner">
-            <!-- Filled by JS -->
-        </div>
-
-        <div class="controls" id="controls">
-            <button class="btn-new-game" onclick="confirmNewGame()">New Game</button>
-            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Red Spymaster</button>
-            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Blue Spymaster</button>
-            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
-            <button class="btn-host" id="btn-become-host" onclick="becomeHost()">Become Host</button>
-            <button class="btn-settings" onclick="openSettings()">Settings</button>
-        </div>
-
-        <div class="word-source" id="word-source"></div>
-
         <div class="scoreboard">
             <div class="score red"><span id="red-team-name" class="team-name">Red</span>: <span id="red-score">0</span> / <span id="red-total">9</span></div>
             <div class="score blue"><span id="blue-team-name" class="team-name">Blue</span>: <span id="blue-score">0</span> / <span id="blue-total">8</span></div>
@@ -578,7 +565,22 @@
             Red Team's Turn
         </div>
 
+        <div class="role-banner" id="role-banner">
+            <!-- Filled by JS -->
+        </div>
+
+        <div class="word-source" id="word-source"></div>
+
         <div class="board" id="board"></div>
+
+        <div class="controls" id="controls">
+            <button class="btn-new-game" onclick="confirmNewGame()">New Game</button>
+            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Red Spymaster</button>
+            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Blue Spymaster</button>
+            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
+            <button class="btn-host" id="btn-become-host" onclick="becomeHost()">Become Host</button>
+            <button class="btn-settings" onclick="openSettings()">Settings</button>
+        </div>
 
         <div class="share-section">
             <strong>Share this link with all players:</strong>
