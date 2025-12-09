@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codenames Online</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .role-banner {
+            text-align: center;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .role-banner.host {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .role-banner.spymaster-red {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .role-banner.spymaster-blue {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .role-banner.viewer {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            color: #ffc107;
+        }
+
+        .role-banner small {
+            display: block;
+            font-weight: normal;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-new-game {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-spymaster-red {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .btn-spymaster-red.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #e74c3c;
+        }
+
+        .btn-spymaster-blue {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-spymaster-blue.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3498db;
+        }
+
+        .btn-settings {
+            background: linear-gradient(135deg, #a8a8a8 0%, #6b6b6b 100%);
+            color: white;
+        }
+
+        .btn-host {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .scoreboard {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .score {
+            padding: 10px 30px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .score.red {
+            background: rgba(220, 53, 69, 0.8);
+            border: 3px solid #dc3545;
+        }
+
+        .score.blue {
+            background: rgba(0, 123, 255, 0.8);
+            border: 3px solid #007bff;
+        }
+
+        .team-name {
+            font-weight: bold;
+        }
+
+        .turn-indicator {
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .turn-indicator.red-turn {
+            background: rgba(220, 53, 69, 0.3);
+            border: 2px solid #dc3545;
+        }
+
+        .turn-indicator.blue-turn {
+            background: rgba(0, 123, 255, 0.3);
+            border: 2px solid #007bff;
+        }
+
+        .game-over {
+            background: rgba(255, 193, 7, 0.3) !important;
+            border: 2px solid #ffc107 !important;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .board.no-click .card:not(.revealed) {
+            cursor: default;
+        }
+
+        .board.no-click .card:not(.revealed):hover {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            aspect-ratio: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-align: center;
+            font-size: clamp(0.7rem, 2vw, 1rem);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(145deg, #e8dcc4, #d4c4a8);
+            color: #333;
+            border: 3px solid #c4b896;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover:not(.revealed) {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        .card.revealed {
+            cursor: default;
+        }
+
+        .card.revealed.red {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            color: white;
+            border-color: #a93226;
+        }
+
+        .card.revealed.blue {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: white;
+            border-color: #1f6391;
+        }
+
+        .card.revealed.neutral {
+            background: linear-gradient(145deg, #bdc3c7, #95a5a6);
+            color: #2c3e50;
+            border-color: #7f8c8d;
+        }
+
+        .card.revealed.assassin {
+            background: linear-gradient(145deg, #2c3e50, #1a252f);
+            color: white;
+            border-color: #17202a;
+        }
+
+        /* Spymaster view highlights */
+        .spymaster-mode .card:not(.revealed) {
+            position: relative;
+        }
+
+        .spymaster-mode .card:not(.revealed)::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .spymaster-mode .card.spy-red:not(.revealed)::before {
+            background: #e74c3c;
+        }
+
+        .spymaster-mode .card.spy-blue:not(.revealed)::before {
+            background: #3498db;
+        }
+
+        .spymaster-mode .card.spy-neutral:not(.revealed)::before {
+            background: #95a5a6;
+        }
+
+        .spymaster-mode .card.spy-assassin:not(.revealed)::before {
+            background: #2c3e50;
+            border-color: #e74c3c;
+        }
+
+        .spymaster-mode .card.spy-red:not(.revealed) {
+            border-color: #e74c3c;
+            box-shadow: inset 0 0 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .spymaster-mode .card.spy-blue:not(.revealed) {
+            border-color: #3498db;
+            box-shadow: inset 0 0 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .spymaster-mode .card.spy-assassin:not(.revealed) {
+            border-color: #e74c3c;
+            box-shadow: inset 0 0 20px rgba(44, 62, 80, 0.5);
+        }
+
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            list-style-position: inside;
+            line-height: 1.8;
+        }
+
+        .share-section {
+            text-align: center;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .share-section input[type="text"] {
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .btn-copy {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            margin-top: 10px;
+        }
+
+        .btn-end-turn {
+            background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+            color: white;
+        }
+
+        /* Settings Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 2px solid #667eea;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-section {
+            margin-bottom: 25px;
+        }
+
+        .modal-section h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .modal-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .modal-section input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .modal-section textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .modal-section p {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .modal-section .warning {
+            color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .modal-section .info {
+            color: #4facfe;
+            background: rgba(79, 172, 254, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #666 0%, #444 100%);
+            color: white;
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .word-count {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .word-count.warning {
+            color: #f5af19;
+        }
+
+        .word-count.error {
+            color: #e74c3c;
+        }
+
+        .word-source {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        /* Confirm dialog */
+        .confirm-dialog {
+            text-align: center;
+        }
+
+        .confirm-dialog p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        /* Game over modal */
+        .game-over-content {
+            text-align: center;
+        }
+
+        .game-over-content .winner {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .game-over-content .winner.red {
+            background: rgba(231, 76, 60, 0.3);
+            border: 2px solid #e74c3c;
+        }
+
+        .game-over-content .winner.blue {
+            background: rgba(52, 152, 219, 0.3);
+            border: 2px solid #3498db;
+        }
+
+        .game-over-content .rotation-reminder {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .game-over-content .rotation-reminder h4 {
+            color: #ffc107;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .board {
+                gap: 5px;
+            }
+
+            .card {
+                font-size: 0.6rem;
+                padding: 5px;
+            }
+
+            .scoreboard {
+                gap: 20px;
+            }
+
+            .score {
+                padding: 8px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Codenames Online</h1>
+        </header>
+
+        <div class="role-banner" id="role-banner">
+            <!-- Filled by JS -->
+        </div>
+
+        <div class="controls" id="controls">
+            <button class="btn-new-game" onclick="confirmNewGame()">New Game</button>
+            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Red Spymaster</button>
+            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Blue Spymaster</button>
+            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
+            <button class="btn-host" id="btn-become-host" onclick="becomeHost()">Become Host</button>
+            <button class="btn-settings" onclick="openSettings()">Settings</button>
+        </div>
+
+        <div class="word-source" id="word-source"></div>
+
+        <div class="scoreboard">
+            <div class="score red"><span id="red-team-name" class="team-name">Red</span>: <span id="red-score">0</span> / <span id="red-total">9</span></div>
+            <div class="score blue"><span id="blue-team-name" class="team-name">Blue</span>: <span id="blue-score">0</span> / <span id="blue-total">8</span></div>
+        </div>
+
+        <div class="turn-indicator" id="turn-indicator">
+            Red Team's Turn
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="share-section">
+            <strong>Share this link with all players:</strong>
+            <input type="text" id="share-link" readonly>
+            <br>
+            <button class="btn-copy" onclick="copyLink()">Copy Link</button>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play on Zoom:</h3>
+            <ul>
+                <li><strong>Host:</strong> Creates game, shares screen, clicks cards. Click "Become Host" to take this role.</li>
+                <li><strong>Spymasters:</strong> One per team clicks their team's Spymaster button. They see the key but CANNOT click cards.</li>
+                <li><strong>Guessers:</strong> Watch the host's screen and call out guesses verbally.</li>
+                <li><strong>Rotation:</strong> After each game, pick new spymasters! (The game will remind you.)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <h2>Game Settings</h2>
+
+            <div class="modal-section">
+                <h3>Team Names</h3>
+                <label for="red-name-input">Red Team Name:</label>
+                <input type="text" id="red-name-input" placeholder="Red" maxlength="20">
+                <label for="blue-name-input">Blue Team Name:</label>
+                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20">
+                <p class="warning">Team names are shared via the game link.</p>
+            </div>
+
+            <div class="modal-section">
+                <h3>Custom Word List</h3>
+                <label for="custom-words">Words (one per line):</label>
+                <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
+                <div class="word-count" id="word-count">0 words (need at least 25)</div>
+                <p class="info">Custom words are embedded in the game link when you create a new game. All players will see the same words!</p>
+                <p>You can also place a <code>wordlist.txt</code> file alongside this page.</p>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-save" onclick="saveSettings()">Save & Apply</button>
+                <button class="btn-reset" onclick="resetWords()">Reset to Default Words</button>
+                <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm New Game Modal -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal confirm-dialog">
+            <h2>Start New Game?</h2>
+            <p>This will end the current game. Are you sure?</p>
+            <div class="modal-buttons">
+                <button class="btn-new-game" onclick="newGame(); closeConfirm();">Yes, New Game</button>
+                <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div class="modal-overlay" id="game-over-modal">
+        <div class="modal game-over-content">
+            <h2>Game Over!</h2>
+            <div class="winner" id="winner-display"></div>
+            <div class="rotation-reminder">
+                <h4>Time to Rotate Spymasters!</h4>
+                <p>For the next game, choose different players to be spymasters so everyone gets a turn giving clues.</p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-new-game" onclick="newGame(); closeGameOver();">New Game</button>
+                <button class="btn-cancel" onclick="closeGameOver()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default word list for the game
+        const DEFAULT_WORDS = [
+            "AFRICA", "AGENT", "AIR", "ALIEN", "ALPS", "AMAZON", "AMBULANCE", "AMERICA",
+            "ANGEL", "ANTARCTICA", "APPLE", "ARM", "ATLANTIS", "AUSTRALIA", "AZTEC",
+            "BACK", "BALL", "BAND", "BANK", "BAR", "BARK", "BAT", "BATTERY", "BEACH",
+            "BEAR", "BEAT", "BED", "BEIJING", "BELL", "BELT", "BERLIN", "BERMUDA",
+            "BERRY", "BILL", "BLOCK", "BOARD", "BOLT", "BOMB", "BOND", "BOOM", "BOOT",
+            "BOTTLE", "BOW", "BOX", "BRIDGE", "BRUSH", "BUCK", "BUFFALO", "BUG",
+            "BUGLE", "BUTTON", "CALF", "CANADA", "CAP", "CAPITAL", "CAR", "CARD",
+            "CARROT", "CASINO", "CAST", "CAT", "CELL", "CENTAUR", "CENTER", "CHAIR",
+            "CHANGE", "CHARGE", "CHECK", "CHEST", "CHICK", "CHINA", "CHOCOLATE",
+            "CHURCH", "CIRCLE", "CLIFF", "CLOAK", "CLUB", "CODE", "COLD", "COMIC",
+            "COMPOUND", "CONCERT", "CONDUCTOR", "CONTRACT", "COOK", "COPPER", "COTTON",
+            "COURT", "COVER", "CRANE", "CRASH", "CRICKET", "CROSS", "CROWN", "CYCLE",
+            "CZECH", "DANCE", "DATE", "DAY", "DEATH", "DECK", "DEGREE", "DIAMOND",
+            "DICE", "DINOSAUR", "DISEASE", "DOCTOR", "DOG", "DRAFT", "DRAGON", "DRESS",
+            "DRILL", "DROP", "DUCK", "DWARF", "EAGLE", "EGYPT", "EMBASSY", "ENGINE",
+            "ENGLAND", "EUROPE", "EYE", "FACE", "FAIR", "FALL", "FAN", "FENCE", "FIELD",
+            "FIGHTER", "FIGURE", "FILE", "FILM", "FIRE", "FISH", "FLUTE", "FLY",
+            "FOOT", "FORCE", "FOREST", "FORK", "FRANCE", "GAME", "GAS", "GENIUS",
+            "GERMANY", "GHOST", "GIANT", "GLASS", "GLOVE", "GOLD", "GRACE", "GRASS",
+            "GREECE", "GREEN", "GROUND", "HAM", "HAND", "HAWK", "HEAD", "HEART",
+            "HELICOPTER", "HIMALAYAS", "HOLE", "HOLLYWOOD", "HONEY", "HOOD", "HOOK",
+            "HORN", "HORSE", "HOSPITAL", "HOTEL", "ICE", "ICE CREAM", "INDIA", "IRON",
+            "IVORY", "JACK", "JAM", "JET", "JUPITER", "KANGAROO", "KETCHUP", "KEY",
+            "KID", "KING", "KIWI", "KNIFE", "KNIGHT", "LAB", "LAP", "LASER", "LAWYER",
+            "LEAD", "LEMON", "LEPRECHAUN", "LIFE", "LIGHT", "LIMOUSINE", "LINE", "LINK",
+            "LION", "LITTER", "LOCH NESS", "LOCK", "LOG", "LONDON", "LUCK", "MAIL",
+            "MAMMOTH", "MAPLE", "MARBLE", "MARCH", "MASS", "MATCH", "MERCURY", "MEXICO",
+            "MICROSCOPE", "MILLIONAIRE", "MINE", "MINT", "MISSILE", "MODEL", "MOLE",
+            "MOON", "MOSCOW", "MOUNT", "MOUSE", "MOUTH", "MUG", "NAIL", "NEEDLE",
+            "NET", "NEW YORK", "NIGHT", "NINJA", "NOTE", "NOVEL", "NURSE", "NUT",
+            "OCTOPUS", "OIL", "OLIVE", "OLYMPUS", "OPERA", "ORANGE", "ORGAN", "PALM",
+            "PAN", "PANDA", "PAPER", "PARACHUTE", "PARK", "PART", "PASS", "PASTE",
+            "PENGUIN", "PHOENIX", "PIANO", "PIE", "PILOT", "PIN", "PIPE", "PIRATE",
+            "PISTOL", "PIT", "PITCH", "PLANE", "PLASTIC", "PLATE", "PLATYPUS",
+            "PLAY", "PLOT", "POINT", "POISON", "POLE", "POLICE", "POOL", "PORT",
+            "POST", "POUND", "PRESS", "PRINCESS", "PUMPKIN", "PUPIL", "PYRAMID",
+            "QUEEN", "RABBIT", "RACKET", "RAY", "REVOLUTION", "RING", "ROBIN", "ROBOT",
+            "ROCK", "ROME", "ROOT", "ROSE", "ROULETTE", "ROUND", "ROW", "RULER",
+            "SATELLITE", "SATURN", "SCALE", "SCHOOL", "SCIENTIST", "SCORPION", "SCREEN",
+            "SCUBA DIVER", "SEAL", "SERVER", "SHADOW", "SHAKESPEARE", "SHARK", "SHIP",
+            "SHOE", "SHOP", "SHOT", "SHOULDER", "SILK", "SINK", "SKYSCRAPER", "SLIP",
+            "SLUG", "SMUGGLER", "SNOW", "SNOWMAN", "SOCK", "SOLDIER", "SOUL", "SOUND",
+            "SPACE", "SPELL", "SPIDER", "SPIKE", "SPINE", "SPOT", "SPRING", "SPY",
+            "SQUARE", "STADIUM", "STAFF", "STAR", "STATE", "STICK", "STOCK", "STRAW",
+            "STREAM", "STRIKE", "STRING", "SUB", "SUIT", "SUPERHERO", "SWING", "SWITCH",
+            "TABLE", "TABLET", "TAG", "TAIL", "TAP", "TEACHER", "TELESCOPE", "TEMPLE",
+            "THIEF", "THUMB", "TICK", "TIE", "TIME", "TOKYO", "TOOTH", "TORCH", "TOWER",
+            "TRACK", "TRAIN", "TRIANGLE", "TRIP", "TRUNK", "TUBE", "TURKEY", "UNDERTAKER",
+            "UNICORN", "VACUUM", "VAN", "VET", "VOLCANO", "WALL", "WAR", "WASHER",
+            "WASHINGTON", "WATCH", "WATER", "WAVE", "WEB", "WELL", "WHALE", "WHIP",
+            "WIND", "WITCH", "WORM", "YARD"
+        ];
+
+        // Active word list for creating NEW games (can be customized by host)
+        let activeWords = [...DEFAULT_WORDS];
+        let wordSource = 'default';
+
+        // Team names (stored in URL for consistency across players)
+        let teamNames = {
+            red: 'Red',
+            blue: 'Blue'
+        };
+
+        // Role system
+        let isHost = false;
+        let spymasterTeam = null; // null, 'red', or 'blue'
+
+        let gameState = {
+            words: [],
+            types: [], // 'red', 'blue', 'neutral', 'assassin'
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            customWords: false // Whether this game uses custom words encoded in URL
+        };
+
+        // Seeded random number generator for reproducible games
+        function seededRandom(seed) {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash);
+        }
+
+        function shuffleWithSeed(array, seed) {
+            const shuffled = [...array];
+            let currentSeed = seed;
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(seededRandom(currentSeed++) * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function generateGameSeed() {
+            return Math.random().toString(36).substring(2, 10);
+        }
+
+        // Compress words for URL (simple encoding)
+        function encodeWordsForURL(words) {
+            return btoa(words.join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function decodeWordsFromURL(encoded) {
+            try {
+                const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
+                const decoded = atob(padded);
+                return decoded.split('|').filter(w => w.length > 0);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Initialize game with specific 25 words (no shuffling needed - words are the board)
+        function initGameWithWords(seed, boardWords) {
+            if (boardWords.length !== 25) {
+                alert('Invalid game: need exactly 25 words');
+                return false;
+            }
+
+            gameState.seed = seed;
+            gameState.words = boardWords;
+            gameState.customWords = true;
+
+            const numericSeed = hashString(seed);
+
+            // Randomly decide who goes first (gets 9 cards)
+            const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
+            gameState.currentTurn = firstTeam;
+
+            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
+            let types = [];
+            if (firstTeam === 'red') {
+                types = Array(9).fill('red').concat(Array(8).fill('blue'));
+                gameState.redTotal = 9;
+                gameState.blueTotal = 8;
+            } else {
+                types = Array(8).fill('red').concat(Array(9).fill('blue'));
+                gameState.redTotal = 8;
+                gameState.blueTotal = 9;
+            }
+            types = types.concat(Array(7).fill('neutral'), ['assassin']);
+
+            // Shuffle the types
+            gameState.types = shuffleWithSeed(types, numericSeed + 500);
+            gameState.revealed = Array(25).fill(false);
+            gameState.redScore = 0;
+            gameState.blueScore = 0;
+            gameState.gameOver = false;
+            gameState.winner = null;
+
+            return true;
+        }
+
+        // Initialize game with a word list (selects 25 random words)
+        function initGame(seed, wordList) {
+            const words = wordList || activeWords;
+
+            if (words.length < 25) {
+                alert('Not enough words! You need at least 25 words to play. Please add more words in Settings.');
+                return false;
+            }
+
+            gameState.seed = seed;
+            gameState.customWords = (words !== DEFAULT_WORDS && wordSource !== 'default');
+            const numericSeed = hashString(seed);
+
+            // Select 25 random words using the provided word list
+            const shuffledWords = shuffleWithSeed(words, numericSeed);
+            gameState.words = shuffledWords.slice(0, 25);
+
+            // Randomly decide who goes first (gets 9 cards)
+            const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
+            gameState.currentTurn = firstTeam;
+
+            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
+            let types = [];
+            if (firstTeam === 'red') {
+                types = Array(9).fill('red').concat(Array(8).fill('blue'));
+                gameState.redTotal = 9;
+                gameState.blueTotal = 8;
+            } else {
+                types = Array(8).fill('red').concat(Array(9).fill('blue'));
+                gameState.redTotal = 8;
+                gameState.blueTotal = 9;
+            }
+            types = types.concat(Array(7).fill('neutral'), ['assassin']);
+
+            // Shuffle the types
+            gameState.types = shuffleWithSeed(types, numericSeed + 500);
+            gameState.revealed = Array(25).fill(false);
+            gameState.redScore = 0;
+            gameState.blueScore = 0;
+            gameState.gameOver = false;
+            gameState.winner = null;
+
+            return true;
+        }
+
+        function newGame() {
+            const seed = generateGameSeed();
+            if (initGame(seed, activeWords)) {
+                isHost = true;
+                spymasterTeam = null; // Reset spymaster role on new game
+                updateURL();
+                renderBoard();
+                updateScoreboard();
+                updateTurnIndicator();
+                updateRoleBanner();
+                updateControls();
+            }
+        }
+
+        function confirmNewGame() {
+            const cardsRevealed = gameState.revealed.filter(r => r).length;
+            if (cardsRevealed === 0) {
+                newGame();
+            } else {
+                document.getElementById('confirm-modal').classList.add('active');
+            }
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-modal').classList.remove('active');
+        }
+
+        function loadGameFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const seed = params.get('game');
+            const revealed = params.get('r');
+            const turn = params.get('t');
+            const redName = params.get('rn');
+            const blueName = params.get('bn');
+            const encodedWords = params.get('w'); // Custom words encoded in URL
+
+            // Load team names from URL
+            if (redName) {
+                teamNames.red = decodeURIComponent(redName);
+            }
+            if (blueName) {
+                teamNames.blue = decodeURIComponent(blueName);
+            }
+
+            if (seed) {
+                let success = false;
+
+                // Check if custom words are in URL
+                if (encodedWords) {
+                    const boardWords = decodeWordsFromURL(encodedWords);
+                    if (boardWords && boardWords.length === 25) {
+                        success = initGameWithWords(seed, boardWords);
+                    }
+                }
+
+                // Fall back to default words if no custom words or decode failed
+                if (!success) {
+                    success = initGame(seed, DEFAULT_WORDS);
+                }
+
+                if (!success) return;
+
+                // Restore revealed cards
+                if (revealed) {
+                    for (let i = 0; i < revealed.length && i < 25; i++) {
+                        if (revealed[i] === '1') {
+                            gameState.revealed[i] = true;
+                            const type = gameState.types[i];
+                            if (type === 'red') gameState.redScore++;
+                            if (type === 'blue') gameState.blueScore++;
+                        }
+                    }
+                }
+
+                // Restore turn
+                if (turn === 'b') {
+                    gameState.currentTurn = 'blue';
+                } else if (turn === 'r') {
+                    gameState.currentTurn = 'red';
+                }
+
+                // Check for game over conditions
+                checkGameOver();
+
+                // Joining via link = viewer by default
+                isHost = false;
+                spymasterTeam = null;
+
+                renderBoard();
+                updateScoreboard();
+                updateTurnIndicator();
+                updateRoleBanner();
+                updateControls();
+
+                // Show game over modal if game is already over
+                if (gameState.gameOver) {
+                    showGameOverModal();
+                }
+            } else {
+                newGame();
+            }
+        }
+
+        function updateURL() {
+            const revealed = gameState.revealed.map(r => r ? '1' : '0').join('');
+            const turn = gameState.currentTurn === 'blue' ? 'b' : 'r';
+
+            let url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
+
+            // Include custom words in URL if using them
+            if (gameState.customWords && gameState.words.length === 25) {
+                url += `&w=${encodeWordsForURL(gameState.words)}`;
+            }
+
+            // Only include team names if they're not defaults
+            if (teamNames.red !== 'Red') {
+                url += `&rn=${encodeURIComponent(teamNames.red)}`;
+            }
+            if (teamNames.blue !== 'Blue') {
+                url += `&bn=${encodeURIComponent(teamNames.blue)}`;
+            }
+
+            window.history.replaceState({}, '', url);
+            document.getElementById('share-link').value = url;
+        }
+
+        function updateRoleBanner() {
+            const banner = document.getElementById('role-banner');
+
+            if (spymasterTeam === 'red') {
+                banner.className = 'role-banner spymaster-red';
+                banner.innerHTML = `You are the <strong>${teamNames.red}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
+            } else if (spymasterTeam === 'blue') {
+                banner.className = 'role-banner spymaster-blue';
+                banner.innerHTML = `You are the <strong>${teamNames.blue}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
+            } else if (isHost) {
+                banner.className = 'role-banner host';
+                banner.innerHTML = 'You are the HOST<small>Share your screen and click cards as players guess</small>';
+            } else {
+                banner.className = 'role-banner viewer';
+                banner.innerHTML = 'You are a VIEWER<small>Watch the host\'s shared screen to see card reveals</small>';
+            }
+        }
+
+        function updateControls() {
+            const endTurnBtn = document.getElementById('btn-end-turn');
+            const becomeHostBtn = document.getElementById('btn-become-host');
+            const redSpyBtn = document.getElementById('btn-spymaster-red');
+            const blueSpyBtn = document.getElementById('btn-spymaster-blue');
+
+            // Host controls
+            const canClickCards = isHost && !spymasterTeam;
+            endTurnBtn.disabled = !canClickCards || gameState.gameOver;
+            becomeHostBtn.style.display = (isHost || spymasterTeam) ? 'none' : 'inline-block';
+
+            // Spymaster buttons
+            redSpyBtn.classList.toggle('active', spymasterTeam === 'red');
+            blueSpyBtn.classList.toggle('active', spymasterTeam === 'blue');
+        }
+
+        function becomeHost() {
+            isHost = true;
+            spymasterTeam = null; // Can't be both host and spymaster
+            updateRoleBanner();
+            updateControls();
+            renderBoard();
+        }
+
+        function setSpymaster(team) {
+            if (spymasterTeam === team) {
+                // Toggle off
+                spymasterTeam = null;
+            } else {
+                spymasterTeam = team;
+                isHost = false; // Spymasters shouldn't also be hosts
+            }
+            updateRoleBanner();
+            updateControls();
+            renderBoard();
+        }
+
+        function canClickCards() {
+            return isHost && !spymasterTeam && !gameState.gameOver;
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            let className = 'board';
+            if (spymasterTeam) className += ' spymaster-mode';
+            if (!canClickCards()) className += ' no-click';
+            board.className = className;
+
+            gameState.words.forEach((word, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = word;
+
+                // Add spymaster hints
+                if (spymasterTeam) {
+                    card.classList.add(`spy-${gameState.types[index]}`);
+                }
+
+                // Show revealed cards
+                if (gameState.revealed[index]) {
+                    card.classList.add('revealed', gameState.types[index]);
+                }
+
+                card.onclick = () => revealCard(index);
+                board.appendChild(card);
+            });
+        }
+
+        function revealCard(index) {
+            if (!canClickCards()) return;
+            if (gameState.revealed[index] || gameState.gameOver) return;
+
+            gameState.revealed[index] = true;
+            const type = gameState.types[index];
+
+            if (type === 'red') {
+                gameState.redScore++;
+            } else if (type === 'blue') {
+                gameState.blueScore++;
+            }
+
+            // Check for assassin
+            if (type === 'assassin') {
+                gameState.gameOver = true;
+                gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            // Check for win by completing all words
+            checkGameOver();
+
+            // End turn if wrong guess (and game not over)
+            if (!gameState.gameOver && type !== gameState.currentTurn) {
+                gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            updateURL();
+            renderBoard();
+            updateScoreboard();
+            updateTurnIndicator();
+            updateControls();
+
+            if (gameState.gameOver) {
+                showGameOverModal();
+            }
+        }
+
+        function checkGameOver() {
+            // Check for assassin reveal
+            const assassinIndex = gameState.types.indexOf('assassin');
+            if (gameState.revealed[assassinIndex]) {
+                gameState.gameOver = true;
+                if (!gameState.winner) {
+                    gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+                }
+                return;
+            }
+
+            // Check for completing all words
+            if (gameState.redScore >= gameState.redTotal) {
+                gameState.gameOver = true;
+                gameState.winner = 'red';
+            } else if (gameState.blueScore >= gameState.blueTotal) {
+                gameState.gameOver = true;
+                gameState.winner = 'blue';
+            }
+        }
+
+        function showGameOverModal() {
+            const winnerDisplay = document.getElementById('winner-display');
+            const winnerName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
+            const assassinIndex = gameState.types.indexOf('assassin');
+            const assassinRevealed = gameState.revealed[assassinIndex];
+
+            winnerDisplay.className = `winner ${gameState.winner}`;
+            if (assassinRevealed) {
+                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Opponent revealed the assassin)</small>`;
+            } else {
+                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Found all their words)</small>`;
+            }
+
+            document.getElementById('game-over-modal').classList.add('active');
+        }
+
+        function closeGameOver() {
+            document.getElementById('game-over-modal').classList.remove('active');
+        }
+
+        function endTurn() {
+            if (!canClickCards()) return;
+            gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            updateURL();
+            updateTurnIndicator();
+        }
+
+        function updateScoreboard() {
+            document.getElementById('red-score').textContent = gameState.redScore;
+            document.getElementById('blue-score').textContent = gameState.blueScore;
+            document.getElementById('red-total').textContent = gameState.redTotal;
+            document.getElementById('blue-total').textContent = gameState.blueTotal;
+            document.getElementById('red-team-name').textContent = teamNames.red;
+            document.getElementById('blue-team-name').textContent = teamNames.blue;
+        }
+
+        function updateTurnIndicator() {
+            const indicator = document.getElementById('turn-indicator');
+            const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
+            const winnerTeamName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
+
+            if (gameState.gameOver) {
+                indicator.className = 'turn-indicator game-over';
+                const assassinIndex = gameState.types.indexOf('assassin');
+                if (gameState.revealed[assassinIndex]) {
+                    indicator.textContent = `${winnerTeamName} WINS! (Assassin revealed)`;
+                } else {
+                    indicator.textContent = `${winnerTeamName} WINS!`;
+                }
+            } else {
+                indicator.className = `turn-indicator ${gameState.currentTurn}-turn`;
+                indicator.textContent = `${currentTeamName}'s Turn`;
+            }
+        }
+
+        async function copyLink() {
+            const input = document.getElementById('share-link');
+            const btn = document.querySelector('.btn-copy');
+
+            try {
+                await navigator.clipboard.writeText(input.value);
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            } catch (err) {
+                input.select();
+                document.execCommand('copy');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            }
+        }
+
+        // Settings functions
+        function openSettings() {
+            document.getElementById('settings-modal').classList.add('active');
+            document.getElementById('red-name-input').value = teamNames.red;
+            document.getElementById('blue-name-input').value = teamNames.blue;
+
+            const customWords = localStorage.getItem('codenames-custom-words');
+            if (customWords) {
+                document.getElementById('custom-words').value = customWords;
+            } else {
+                document.getElementById('custom-words').value = '';
+            }
+            updateWordCount();
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        function updateWordCount() {
+            const textarea = document.getElementById('custom-words');
+            const countEl = document.getElementById('word-count');
+            const words = parseWords(textarea.value);
+            const count = words.length;
+
+            if (count === 0) {
+                countEl.textContent = `Using default word list (${DEFAULT_WORDS.length} words)`;
+                countEl.className = 'word-count';
+            } else if (count < 25) {
+                countEl.textContent = `${count} words (need at least 25)`;
+                countEl.className = 'word-count error';
+            } else if (count < 50) {
+                countEl.textContent = `${count} words (works, but more variety is better)`;
+                countEl.className = 'word-count warning';
+            } else {
+                countEl.textContent = `${count} words`;
+                countEl.className = 'word-count';
+            }
+        }
+
+        function parseWords(text) {
+            return text
+                .split('\n')
+                .map(w => w.trim())
+                .filter(w => w.length > 0 && !w.startsWith('#'))
+                .map(w => w.toUpperCase());
+        }
+
+        function saveSettings() {
+            const redName = document.getElementById('red-name-input').value.trim() || 'Red';
+            const blueName = document.getElementById('blue-name-input').value.trim() || 'Blue';
+            teamNames.red = redName;
+            teamNames.blue = blueName;
+
+            const customWordsText = document.getElementById('custom-words').value.trim();
+            if (customWordsText) {
+                const words = parseWords(customWordsText);
+                if (words.length >= 25) {
+                    localStorage.setItem('codenames-custom-words', customWordsText);
+                    activeWords = words;
+                    wordSource = 'custom';
+                } else {
+                    alert('You need at least 25 words. Please add more or leave empty for default words.');
+                    return;
+                }
+            } else {
+                localStorage.removeItem('codenames-custom-words');
+                activeWords = [...DEFAULT_WORDS];
+                wordSource = 'default';
+            }
+
+            updateURL();
+            updateWordSourceDisplay();
+            updateScoreboard();
+            updateTurnIndicator();
+            closeSettings();
+        }
+
+        function resetWords() {
+            document.getElementById('custom-words').value = '';
+            updateWordCount();
+        }
+
+        function updateWordSourceDisplay() {
+            const sourceEl = document.getElementById('word-source');
+            if (gameState.customWords) {
+                sourceEl.textContent = 'Using custom words (shared via link)';
+            } else if (wordSource === 'custom') {
+                sourceEl.textContent = `Custom words loaded (${activeWords.length}) - will apply to new games`;
+            } else if (wordSource === 'file') {
+                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length}) - will apply to new games`;
+            } else {
+                sourceEl.textContent = '';
+            }
+        }
+
+        function loadLocalSettings() {
+            const customWords = localStorage.getItem('codenames-custom-words');
+            if (customWords) {
+                const words = parseWords(customWords);
+                if (words.length >= 25) {
+                    activeWords = words;
+                    wordSource = 'custom';
+                }
+            }
+        }
+
+        async function tryLoadWordlistFile() {
+            if (localStorage.getItem('codenames-custom-words')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('wordlist.txt');
+                if (response.ok) {
+                    const text = await response.text();
+                    const words = parseWords(text);
+                    if (words.length >= 25) {
+                        activeWords = words;
+                        wordSource = 'file';
+                    }
+                }
+            } catch (e) {
+                // File doesn't exist or can't be loaded
+            }
+        }
+
+        document.getElementById('custom-words').addEventListener('input', updateWordCount);
+
+        async function init() {
+            loadLocalSettings();
+            await tryLoadWordlistFile();
+            updateWordSourceDisplay();
+            loadGameFromURL();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
