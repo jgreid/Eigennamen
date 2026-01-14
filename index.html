@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Play Codenames online with friends over Zoom. No account required, just share a link!">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta property="og:title" content="Codenames Online">
+    <meta property="og:description" content="Play Codenames online with friends over Zoom. No account required!">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
     <title>Codenames Online</title>
     <style>
         * {
@@ -98,6 +104,13 @@
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
+        }
+
+        /* Focus styles for keyboard navigation */
+        button:focus-visible,
+        .card:focus-visible {
+            outline: 3px solid #ffc107;
+            outline-offset: 2px;
         }
 
         .btn-new-game {
@@ -302,6 +315,51 @@
         .spymaster-mode .card.spy-assassin:not(.revealed) {
             border-color: #e74c3c;
             box-shadow: inset 0 0 20px rgba(44, 62, 80, 0.5);
+        }
+
+        /* Color-blind friendly mode - adds patterns to cards */
+        .colorblind-mode .card.revealed.red::after,
+        .colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
+            content: '■';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .colorblind-mode .card.revealed.blue::after,
+        .colorblind-mode .spymaster-mode .card.spy-blue:not(.revealed)::after {
+            content: '●';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .colorblind-mode .card.revealed.neutral::after {
+            content: '─';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .colorblind-mode .card.revealed.assassin::after,
+        .colorblind-mode .spymaster-mode .card.spy-assassin:not(.revealed)::after {
+            content: '✕';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            opacity: 0.8;
+            color: #e74c3c;
         }
 
         .instructions {
@@ -621,6 +679,15 @@
                 <p>You can also place a <code>wordlist.txt</code> file alongside this page.</p>
             </div>
 
+            <div class="modal-section">
+                <h3>Accessibility</h3>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="colorblind-mode" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span>Color-blind friendly mode (adds shapes to cards)</span>
+                </label>
+                <p>Red = ■ Square | Blue = ● Circle | Neutral = ─ Line | Assassin = ✕ X</p>
+            </div>
+
             <div class="modal-buttons">
                 <button class="btn-save" onclick="saveSettings()">Save & Apply</button>
                 <button class="btn-reset" onclick="resetWords()">Reset to Default Words</button>
@@ -741,6 +808,9 @@
         let isHost = false;
         let spymasterTeam = null; // null, 'red', or 'blue'
 
+        // Accessibility
+        let colorblindMode = false;
+
         let gameState = {
             words: [],
             types: [], // 'red', 'blue', 'neutral', 'assassin'
@@ -801,20 +871,9 @@
             }
         }
 
-        // Initialize game with specific board words (no shuffling needed - words are the board)
-        function initGameWithWords(seed, boardWords) {
-            if (boardWords.length !== BOARD_SIZE) {
-                alert(`Invalid game: need exactly ${BOARD_SIZE} words`);
-                return false;
-            }
-
-            gameState.seed = seed;
-            gameState.words = boardWords;
-            gameState.customWords = true;
-
-            const numericSeed = hashString(seed);
-
-            // Randomly decide who goes first (gets 9 cards)
+        // Helper function to set up the game board (card types, scores, etc.)
+        function setupGameBoard(numericSeed) {
+            // Randomly decide who goes first (gets more cards)
             const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
             gameState.currentTurn = firstTeam;
 
@@ -831,14 +890,27 @@
             }
             types = types.concat(Array(NEUTRAL_CARDS).fill('neutral'), Array(ASSASSIN_CARDS).fill('assassin'));
 
-            // Shuffle the types
+            // Shuffle the types and reset game state
             gameState.types = shuffleWithSeed(types, numericSeed + 500);
             gameState.revealed = Array(BOARD_SIZE).fill(false);
             gameState.redScore = 0;
             gameState.blueScore = 0;
             gameState.gameOver = false;
             gameState.winner = null;
+        }
 
+        // Initialize game with specific board words (no shuffling needed - words are the board)
+        function initGameWithWords(seed, boardWords) {
+            if (boardWords.length !== BOARD_SIZE) {
+                alert(`Invalid game: need exactly ${BOARD_SIZE} words`);
+                return false;
+            }
+
+            gameState.seed = seed;
+            gameState.words = boardWords;
+            gameState.customWords = true;
+
+            setupGameBoard(hashString(seed));
             return true;
         }
 
@@ -859,31 +931,7 @@
             const shuffledWords = shuffleWithSeed(words, numericSeed);
             gameState.words = shuffledWords.slice(0, BOARD_SIZE);
 
-            // Randomly decide who goes first (gets 9 cards)
-            const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
-            gameState.currentTurn = firstTeam;
-
-            // Create card types: first team gets more cards, second team gets fewer
-            let types = [];
-            if (firstTeam === 'red') {
-                types = Array(FIRST_TEAM_CARDS).fill('red').concat(Array(SECOND_TEAM_CARDS).fill('blue'));
-                gameState.redTotal = FIRST_TEAM_CARDS;
-                gameState.blueTotal = SECOND_TEAM_CARDS;
-            } else {
-                types = Array(SECOND_TEAM_CARDS).fill('red').concat(Array(FIRST_TEAM_CARDS).fill('blue'));
-                gameState.redTotal = SECOND_TEAM_CARDS;
-                gameState.blueTotal = FIRST_TEAM_CARDS;
-            }
-            types = types.concat(Array(NEUTRAL_CARDS).fill('neutral'), Array(ASSASSIN_CARDS).fill('assassin'));
-
-            // Shuffle the types
-            gameState.types = shuffleWithSeed(types, numericSeed + 500);
-            gameState.revealed = Array(BOARD_SIZE).fill(false);
-            gameState.redScore = 0;
-            gameState.blueScore = 0;
-            gameState.gameOver = false;
-            gameState.winner = null;
-
+            setupGameBoard(numericSeed);
             return true;
         }
 
@@ -1255,6 +1303,7 @@
             document.getElementById('settings-modal').classList.add('active');
             document.getElementById('red-name-input').value = teamNames.red;
             document.getElementById('blue-name-input').value = teamNames.blue;
+            document.getElementById('colorblind-mode').checked = colorblindMode;
 
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWords) {
@@ -1304,6 +1353,11 @@
             teamNames.red = redName;
             teamNames.blue = blueName;
 
+            // Save colorblind mode
+            colorblindMode = document.getElementById('colorblind-mode').checked;
+            localStorage.setItem('codenames-colorblind', colorblindMode ? '1' : '0');
+            applyColorblindMode();
+
             const customWordsText = document.getElementById('custom-words').value.trim();
             if (customWordsText) {
                 const words = parseWords(customWordsText);
@@ -1328,6 +1382,10 @@
             closeSettings();
         }
 
+        function applyColorblindMode() {
+            document.body.classList.toggle('colorblind-mode', colorblindMode);
+        }
+
         function resetWords() {
             document.getElementById('custom-words').value = '';
             updateWordCount();
@@ -1347,6 +1405,11 @@
         }
 
         function loadLocalSettings() {
+            // Load colorblind mode
+            colorblindMode = localStorage.getItem('codenames-colorblind') === '1';
+            applyColorblindMode();
+
+            // Load custom words
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWords) {
                 const words = parseWords(customWords);

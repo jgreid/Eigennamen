@@ -10,6 +10,7 @@ A web-based implementation of the popular board game Codenames, optimized for re
 - **Custom word lists** - Use your own themed word lists
 - **Responsive design** - Works on desktop and mobile devices
 - **Keyboard accessible** - Full keyboard navigation support
+- **Color-blind friendly** - Optional mode adds shapes to distinguish card types
 
 ## Quick Start
 
@@ -117,6 +118,32 @@ FROZEN
 2. Enter custom team names (e.g., "Engineers" vs "Marketing")
 3. Click **Save & Apply**
 4. Team names are included in the game link, so all players see them
+
+## Accessibility
+
+### Color-Blind Mode
+
+For players with color vision deficiency, the game offers a color-blind friendly mode that adds shapes to cards:
+
+| Color | Shape |
+|-------|-------|
+| Red | ■ Square |
+| Blue | ● Circle |
+| Neutral | ─ Line |
+| Assassin | ✕ X |
+
+To enable:
+1. Click **Settings**
+2. Check **"Color-blind friendly mode"**
+3. Click **Save & Apply**
+
+This setting is saved locally and persists across sessions.
+
+### Keyboard Navigation
+
+All cards can be navigated and selected using the keyboard:
+- **Tab** - Move between cards
+- **Enter** or **Space** - Reveal the focused card (host only)
 
 ## Troubleshooting
 
