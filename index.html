@@ -558,13 +558,13 @@
             <!-- Filled by JS -->
         </div>
 
-        <div class="controls" id="controls">
-            <button class="btn-new-game" onclick="confirmNewGame()">New Game</button>
-            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Red Spymaster</button>
-            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Blue Spymaster</button>
-            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
-            <button class="btn-host" id="btn-become-host" onclick="becomeHost()">Become Host</button>
-            <button class="btn-settings" onclick="openSettings()">Settings</button>
+        <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
+            <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
+            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Toggle Red Spymaster role" aria-pressed="false">Red Spymaster</button>
+            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Toggle Blue Spymaster role" aria-pressed="false">Blue Spymaster</button>
+            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
+            <button class="btn-host" id="btn-become-host" onclick="becomeHost()" aria-label="Become the game host">Become Host</button>
+            <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
         </div>
 
         <div class="word-source" id="word-source"></div>
@@ -578,7 +578,7 @@
             Red Team's Turn
         </div>
 
-        <div class="board" id="board"></div>
+        <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
 
         <div class="share-section">
             <strong>Share this link with all players:</strong>
@@ -658,6 +658,20 @@
     </div>
 
     <script>
+        // Game constants
+        const BOARD_SIZE = 25;
+        const FIRST_TEAM_CARDS = 9;
+        const SECOND_TEAM_CARDS = 8;
+        const NEUTRAL_CARDS = 7;
+        const ASSASSIN_CARDS = 1;
+
+        // Sanitize string to prevent XSS when inserting into HTML
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         // Default word list for the game
         const DEFAULT_WORDS = [
             "AFRICA", "AGENT", "AIR", "ALIEN", "ALPS", "AMAZON", "AMBULANCE", "AMERICA",
@@ -787,10 +801,10 @@
             }
         }
 
-        // Initialize game with specific 25 words (no shuffling needed - words are the board)
+        // Initialize game with specific board words (no shuffling needed - words are the board)
         function initGameWithWords(seed, boardWords) {
-            if (boardWords.length !== 25) {
-                alert('Invalid game: need exactly 25 words');
+            if (boardWords.length !== BOARD_SIZE) {
+                alert(`Invalid game: need exactly ${BOARD_SIZE} words`);
                 return false;
             }
 
@@ -804,22 +818,22 @@
             const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
             gameState.currentTurn = firstTeam;
 
-            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
+            // Create card types: first team gets more cards, second team gets fewer
             let types = [];
             if (firstTeam === 'red') {
-                types = Array(9).fill('red').concat(Array(8).fill('blue'));
-                gameState.redTotal = 9;
-                gameState.blueTotal = 8;
+                types = Array(FIRST_TEAM_CARDS).fill('red').concat(Array(SECOND_TEAM_CARDS).fill('blue'));
+                gameState.redTotal = FIRST_TEAM_CARDS;
+                gameState.blueTotal = SECOND_TEAM_CARDS;
             } else {
-                types = Array(8).fill('red').concat(Array(9).fill('blue'));
-                gameState.redTotal = 8;
-                gameState.blueTotal = 9;
+                types = Array(SECOND_TEAM_CARDS).fill('red').concat(Array(FIRST_TEAM_CARDS).fill('blue'));
+                gameState.redTotal = SECOND_TEAM_CARDS;
+                gameState.blueTotal = FIRST_TEAM_CARDS;
             }
-            types = types.concat(Array(7).fill('neutral'), ['assassin']);
+            types = types.concat(Array(NEUTRAL_CARDS).fill('neutral'), Array(ASSASSIN_CARDS).fill('assassin'));
 
             // Shuffle the types
             gameState.types = shuffleWithSeed(types, numericSeed + 500);
-            gameState.revealed = Array(25).fill(false);
+            gameState.revealed = Array(BOARD_SIZE).fill(false);
             gameState.redScore = 0;
             gameState.blueScore = 0;
             gameState.gameOver = false;
@@ -828,12 +842,12 @@
             return true;
         }
 
-        // Initialize game with a word list (selects 25 random words)
+        // Initialize game with a word list (selects random words for the board)
         function initGame(seed, wordList) {
             const words = wordList || activeWords;
 
-            if (words.length < 25) {
-                alert('Not enough words! You need at least 25 words to play. Please add more words in Settings.');
+            if (words.length < BOARD_SIZE) {
+                alert(`Not enough words! You need at least ${BOARD_SIZE} words to play. Please add more words in Settings.`);
                 return false;
             }
 
@@ -841,30 +855,30 @@
             gameState.customWords = (words !== DEFAULT_WORDS && wordSource !== 'default');
             const numericSeed = hashString(seed);
 
-            // Select 25 random words using the provided word list
+            // Select random words using the provided word list
             const shuffledWords = shuffleWithSeed(words, numericSeed);
-            gameState.words = shuffledWords.slice(0, 25);
+            gameState.words = shuffledWords.slice(0, BOARD_SIZE);
 
             // Randomly decide who goes first (gets 9 cards)
             const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
             gameState.currentTurn = firstTeam;
 
-            // Create card types: 9 for first team, 8 for second, 7 neutral, 1 assassin
+            // Create card types: first team gets more cards, second team gets fewer
             let types = [];
             if (firstTeam === 'red') {
-                types = Array(9).fill('red').concat(Array(8).fill('blue'));
-                gameState.redTotal = 9;
-                gameState.blueTotal = 8;
+                types = Array(FIRST_TEAM_CARDS).fill('red').concat(Array(SECOND_TEAM_CARDS).fill('blue'));
+                gameState.redTotal = FIRST_TEAM_CARDS;
+                gameState.blueTotal = SECOND_TEAM_CARDS;
             } else {
-                types = Array(8).fill('red').concat(Array(9).fill('blue'));
-                gameState.redTotal = 8;
-                gameState.blueTotal = 9;
+                types = Array(SECOND_TEAM_CARDS).fill('red').concat(Array(FIRST_TEAM_CARDS).fill('blue'));
+                gameState.redTotal = SECOND_TEAM_CARDS;
+                gameState.blueTotal = FIRST_TEAM_CARDS;
             }
-            types = types.concat(Array(7).fill('neutral'), ['assassin']);
+            types = types.concat(Array(NEUTRAL_CARDS).fill('neutral'), Array(ASSASSIN_CARDS).fill('assassin'));
 
             // Shuffle the types
             gameState.types = shuffleWithSeed(types, numericSeed + 500);
-            gameState.revealed = Array(25).fill(false);
+            gameState.revealed = Array(BOARD_SIZE).fill(false);
             gameState.redScore = 0;
             gameState.blueScore = 0;
             gameState.gameOver = false;
@@ -923,7 +937,7 @@
                 // Check if custom words are in URL
                 if (encodedWords) {
                     const boardWords = decodeWordsFromURL(encodedWords);
-                    if (boardWords && boardWords.length === 25) {
+                    if (boardWords && boardWords.length === BOARD_SIZE) {
                         success = initGameWithWords(seed, boardWords);
                     }
                 }
@@ -937,7 +951,7 @@
 
                 // Restore revealed cards
                 if (revealed) {
-                    for (let i = 0; i < revealed.length && i < 25; i++) {
+                    for (let i = 0; i < revealed.length && i < BOARD_SIZE; i++) {
                         if (revealed[i] === '1') {
                             gameState.revealed[i] = true;
                             const type = gameState.types[i];
@@ -983,7 +997,7 @@
             let url = `${window.location.origin}${window.location.pathname}?game=${gameState.seed}&r=${revealed}&t=${turn}`;
 
             // Include custom words in URL if using them
-            if (gameState.customWords && gameState.words.length === 25) {
+            if (gameState.customWords && gameState.words.length === BOARD_SIZE) {
                 url += `&w=${encodeWordsForURL(gameState.words)}`;
             }
 
@@ -1004,10 +1018,10 @@
 
             if (spymasterTeam === 'red') {
                 banner.className = 'role-banner spymaster-red';
-                banner.innerHTML = `You are the <strong>${teamNames.red}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
+                banner.innerHTML = `You are the <strong>${escapeHTML(teamNames.red)}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
             } else if (spymasterTeam === 'blue') {
                 banner.className = 'role-banner spymaster-blue';
-                banner.innerHTML = `You are the <strong>${teamNames.blue}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
+                banner.innerHTML = `You are the <strong>${escapeHTML(teamNames.blue)}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
                 banner.innerHTML = 'You are the HOST<small>Share your screen and click cards as players guess</small>';
@@ -1024,13 +1038,17 @@
             const blueSpyBtn = document.getElementById('btn-spymaster-blue');
 
             // Host controls
-            const canClickCards = isHost && !spymasterTeam;
-            endTurnBtn.disabled = !canClickCards || gameState.gameOver;
+            const hostCanClick = isHost && !spymasterTeam;
+            endTurnBtn.disabled = !hostCanClick || gameState.gameOver;
             becomeHostBtn.style.display = (isHost || spymasterTeam) ? 'none' : 'inline-block';
 
-            // Spymaster buttons
-            redSpyBtn.classList.toggle('active', spymasterTeam === 'red');
-            blueSpyBtn.classList.toggle('active', spymasterTeam === 'blue');
+            // Spymaster buttons - update classes and ARIA pressed state
+            const isRedSpy = spymasterTeam === 'red';
+            const isBlueSpy = spymasterTeam === 'blue';
+            redSpyBtn.classList.toggle('active', isRedSpy);
+            blueSpyBtn.classList.toggle('active', isBlueSpy);
+            redSpyBtn.setAttribute('aria-pressed', isRedSpy.toString());
+            blueSpyBtn.setAttribute('aria-pressed', isBlueSpy.toString());
         }
 
         function becomeHost() {
@@ -1072,17 +1090,30 @@
                 card.className = 'card';
                 card.textContent = word;
 
+                // Accessibility: make cards focusable and add ARIA attributes
+                const isRevealed = gameState.revealed[index];
+                card.setAttribute('role', 'gridcell');
+                card.setAttribute('tabindex', isRevealed ? '-1' : '0');
+                card.setAttribute('aria-label', `${word}${isRevealed ? ', revealed as ' + gameState.types[index] : ''}`);
+
                 // Add spymaster hints
                 if (spymasterTeam) {
                     card.classList.add(`spy-${gameState.types[index]}`);
                 }
 
                 // Show revealed cards
-                if (gameState.revealed[index]) {
+                if (isRevealed) {
                     card.classList.add('revealed', gameState.types[index]);
                 }
 
                 card.onclick = () => revealCard(index);
+                // Keyboard support: Enter or Space to reveal card
+                card.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        revealCard(index);
+                    }
+                };
                 board.appendChild(card);
             });
         }
@@ -1154,9 +1185,9 @@
 
             winnerDisplay.className = `winner ${gameState.winner}`;
             if (assassinRevealed) {
-                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Opponent revealed the assassin)</small>`;
+                winnerDisplay.innerHTML = `${escapeHTML(winnerName)} WINS!<br><small>(Opponent revealed the assassin)</small>`;
             } else {
-                winnerDisplay.innerHTML = `${winnerName} WINS!<br><small>(Found all their words)</small>`;
+                winnerDisplay.innerHTML = `${escapeHTML(winnerName)} WINS!<br><small>(Found all their words)</small>`;
             }
 
             document.getElementById('game-over-modal').classList.add('active');
@@ -1247,8 +1278,8 @@
             if (count === 0) {
                 countEl.textContent = `Using default word list (${DEFAULT_WORDS.length} words)`;
                 countEl.className = 'word-count';
-            } else if (count < 25) {
-                countEl.textContent = `${count} words (need at least 25)`;
+            } else if (count < BOARD_SIZE) {
+                countEl.textContent = `${count} words (need at least ${BOARD_SIZE})`;
                 countEl.className = 'word-count error';
             } else if (count < 50) {
                 countEl.textContent = `${count} words (works, but more variety is better)`;
@@ -1276,12 +1307,12 @@
             const customWordsText = document.getElementById('custom-words').value.trim();
             if (customWordsText) {
                 const words = parseWords(customWordsText);
-                if (words.length >= 25) {
+                if (words.length >= BOARD_SIZE) {
                     localStorage.setItem('codenames-custom-words', customWordsText);
                     activeWords = words;
                     wordSource = 'custom';
                 } else {
-                    alert('You need at least 25 words. Please add more or leave empty for default words.');
+                    alert(`You need at least ${BOARD_SIZE} words. Please add more or leave empty for default words.`);
                     return;
                 }
             } else {
@@ -1319,7 +1350,7 @@
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWords) {
                 const words = parseWords(customWords);
-                if (words.length >= 25) {
+                if (words.length >= BOARD_SIZE) {
                     activeWords = words;
                     wordSource = 'custom';
                 }
@@ -1336,7 +1367,7 @@
                 if (response.ok) {
                     const text = await response.text();
                     const words = parseWords(text);
-                    if (words.length >= 25) {
+                    if (words.length >= BOARD_SIZE) {
                         activeWords = words;
                         wordSource = 'file';
                     }
