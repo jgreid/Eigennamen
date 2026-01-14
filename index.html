@@ -340,7 +340,8 @@
             opacity: 0.8;
         }
 
-        .colorblind-mode .card.revealed.neutral::after {
+        .colorblind-mode .card.revealed.neutral::after,
+        .colorblind-mode .spymaster-mode .card.spy-neutral:not(.revealed)::after {
             content: '─';
             position: absolute;
             bottom: 3px;
