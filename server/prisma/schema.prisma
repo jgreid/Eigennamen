@@ -1,0 +1,114 @@
+// Prisma Schema for Codenames Online
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users (optional, for accounts feature)
+model User {
+  id           String    @id @default(uuid())
+  email        String?   @unique
+  username     String    @unique
+  passwordHash String?   @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastLogin    DateTime? @map("last_login")
+  gamesPlayed  Int       @default(0) @map("games_played")
+  gamesWon     Int       @default(0) @map("games_won")
+
+  // Relations
+  hostedRooms  Room[]              @relation("HostedRooms")
+  wordLists    WordList[]
+  participants GameParticipant[]
+
+  @@map("users")
+}
+
+// Rooms
+model Room {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  hostId    String?  @map("host_user_id")
+  settings  Json     @default("{}")
+  status    String   @default("waiting") // waiting, playing, finished
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @default(dbgenerated("NOW() + INTERVAL '24 hours'")) @map("expires_at")
+
+  // Relations
+  host  User?  @relation("HostedRooms", fields: [hostId], references: [id], onDelete: SetNull)
+  games Game[]
+
+  @@index([code])
+  @@index([expiresAt])
+  @@map("rooms")
+}
+
+// Games
+model Game {
+  id          String    @id @default(uuid())
+  roomId      String    @map("room_id")
+  gameNumber  Int       @default(1) @map("game_number")
+  seed        String
+  words       String[]
+  types       String[]
+  revealed    Boolean[] @default([])
+  currentTurn String    @default("red") @map("current_turn")
+  redScore    Int       @default(0) @map("red_score")
+  blueScore   Int       @default(0) @map("blue_score")
+  redTotal    Int       @default(9) @map("red_total")
+  blueTotal   Int       @default(8) @map("blue_total")
+  clues       Json      @default("[]")
+  gameOver    Boolean   @default(false) @map("game_over")
+  winner      String?
+  endReason   String?   @map("end_reason") // completed, assassin, forfeit
+  createdAt   DateTime  @default(now()) @map("created_at")
+  endedAt     DateTime? @map("ended_at")
+
+  // Relations
+  room         Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participants GameParticipant[]
+
+  @@index([roomId])
+  @@map("games")
+}
+
+// Custom Word Lists
+model WordList {
+  id          String   @id @default(uuid())
+  ownerId     String?  @map("owner_id")
+  name        String
+  description String?
+  words       String[]
+  isPublic    Boolean  @default(false) @map("is_public")
+  timesUsed   Int      @default(0) @map("times_used")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([isPublic])
+  @@map("word_lists")
+}
+
+// Game Participants (for history/stats)
+model GameParticipant {
+  id        String  @id @default(uuid())
+  gameId    String  @map("game_id")
+  userId    String? @map("user_id")
+  sessionId String? @map("session_id") // For anonymous players
+  nickname  String
+  team      String? // red, blue
+  role      String? // spymaster, guesser, spectator
+
+  // Relations
+  game Game  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([gameId])
+  @@index([userId])
+  @@map("game_participants")
+}
