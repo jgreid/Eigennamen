@@ -67,12 +67,17 @@ module.exports = function gameHandlers(io, socket) {
                 throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can reveal cards' };
             }
 
-            const result = await gameService.revealCard(socket.roomCode, validated.index);
+            const result = await gameService.revealCard(
+                socket.roomCode,
+                validated.index,
+                player.nickname
+            );
 
             // Broadcast the reveal to all players
             io.to(`room:${socket.roomCode}`).emit('game:cardRevealed', {
                 index: result.index,
                 type: result.type,
+                word: result.word,
                 redScore: result.redScore,
                 blueScore: result.blueScore,
                 currentTurn: result.currentTurn,
@@ -154,11 +159,12 @@ module.exports = function gameHandlers(io, socket) {
                 throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can end the turn' };
             }
 
-            const result = await gameService.endTurn(socket.roomCode);
+            const result = await gameService.endTurn(socket.roomCode, player.nickname);
 
             // Broadcast turn change
             io.to(`room:${socket.roomCode}`).emit('game:turnEnded', {
-                currentTurn: result.currentTurn
+                currentTurn: result.currentTurn,
+                previousTurn: result.previousTurn
             });
 
             logger.info(`Turn ended in room ${socket.roomCode}, now ${result.currentTurn}'s turn`);
@@ -173,7 +179,7 @@ module.exports = function gameHandlers(io, socket) {
     });
 
     /**
-     * Forfeit the game
+     * Forfeit the game (host only - forfeits current turn's team)
      */
     socket.on('game:forfeit', async () => {
         try {
@@ -186,18 +192,41 @@ module.exports = function gameHandlers(io, socket) {
                 throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can forfeit' };
             }
 
-            const result = await gameService.forfeitGame(socket.roomCode, player.team);
+            // Forfeit is based on current turn's team, not player's team
+            const result = await gameService.forfeitGame(socket.roomCode);
 
             io.to(`room:${socket.roomCode}`).emit('game:over', {
                 winner: result.winner,
+                forfeitingTeam: result.forfeitingTeam,
                 reason: 'forfeit',
                 types: result.allTypes
             });
 
-            logger.info(`Game forfeited in room ${socket.roomCode}`);
+            logger.info(`Game forfeited in room ${socket.roomCode}, ${result.forfeitingTeam} forfeited`);
 
         } catch (error) {
             logger.error('Error forfeiting game:', error);
+            socket.emit('game:error', {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    });
+
+    /**
+     * Get game history
+     */
+    socket.on('game:history', async () => {
+        try {
+            if (!socket.roomCode) {
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+            }
+
+            const history = await gameService.getGameHistory(socket.roomCode);
+            socket.emit('game:historyData', { history });
+
+        } catch (error) {
+            logger.error('Error getting history:', error);
             socket.emit('game:error', {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message

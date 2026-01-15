@@ -7,14 +7,18 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./app');
 const { initializeSocket } = require('./socket');
-const { connectRedis } = require('./config/redis');
-const { connectDatabase } = require('./config/database');
+const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
+const { connectDatabase, disconnectDatabase } = require('./config/database');
+const { validateEnv, getEnvInt } = require('./config/env');
 const logger = require('./utils/logger');
 
-const PORT = process.env.PORT || 3000;
+const PORT = getEnvInt('PORT', 3001);
 
 async function startServer() {
     try {
+        // Validate environment variables first
+        validateEnv();
+
         // Connect to databases
         await connectDatabase();
         logger.info('Database connected');
@@ -26,8 +30,12 @@ async function startServer() {
         const server = http.createServer(app);
 
         // Initialize Socket.io
-        initializeSocket(server);
+        const io = initializeSocket(server);
         logger.info('Socket.io initialized');
+
+        // Attach io to app for health checks
+        app.set('io', io);
+        app.set('redis', getRedis);
 
         // Start listening
         server.listen(PORT, () => {
@@ -38,14 +46,44 @@ async function startServer() {
         // Graceful shutdown
         const shutdown = async (signal) => {
             logger.info(`${signal} received, shutting down gracefully`);
-            server.close(() => {
+
+            // Stop accepting new connections
+            server.close(async () => {
                 logger.info('HTTP server closed');
+
+                try {
+                    // Close database connections
+                    await disconnectRedis();
+                    logger.info('Redis disconnected');
+
+                    await disconnectDatabase();
+                    logger.info('Database disconnected');
+                } catch (error) {
+                    logger.error('Error during cleanup:', error);
+                }
+
                 process.exit(0);
             });
+
+            // Force exit after timeout
+            setTimeout(() => {
+                logger.error('Forced shutdown after timeout');
+                process.exit(1);
+            }, 10000);
         };
 
         process.on('SIGTERM', () => shutdown('SIGTERM'));
         process.on('SIGINT', () => shutdown('SIGINT'));
+
+        // Handle uncaught errors
+        process.on('uncaughtException', (error) => {
+            logger.error('Uncaught exception:', error);
+            shutdown('UNCAUGHT_EXCEPTION');
+        });
+
+        process.on('unhandledRejection', (reason, promise) => {
+            logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+        });
 
     } catch (error) {
         logger.error('Failed to start server:', error);
