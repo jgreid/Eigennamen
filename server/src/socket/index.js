@@ -168,14 +168,21 @@ function startTurnTimer(roomCode, durationSeconds) {
             });
             emitToRoom(code, 'timer:expired', { roomCode: code });
 
-            // Restart timer for the new turn (if timer is configured)
-            const room = await roomService.getRoom(code);
-            if (room && room.settings && room.settings.turnTimer) {
-                // Use setTimeout to avoid recursive call in same tick
-                setTimeout(() => {
-                    startTurnTimer(code, room.settings.turnTimer);
-                }, 100);
-            }
+            // Restart timer for the new turn (if timer is configured and game not over)
+            setTimeout(async () => {
+                try {
+                    // Re-fetch room and game state to avoid stale closures
+                    const room = await roomService.getRoom(code);
+                    const game = await gameService.getGame(code);
+
+                    // Only restart if room exists, timer is configured, and game is active
+                    if (room && room.settings && room.settings.turnTimer && game && !game.gameOver) {
+                        startTurnTimer(code, room.settings.turnTimer);
+                    }
+                } catch (err) {
+                    logger.debug(`Timer restart skipped for room ${code}: ${err.message}`);
+                }
+            }, 100);
         } catch (error) {
             logger.error(`Timer expiry error for room ${code}:`, error);
         }

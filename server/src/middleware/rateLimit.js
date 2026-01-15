@@ -102,7 +102,10 @@ function createSocketRateLimiter(limits) {
      */
     const cleanupStale = () => {
         const now = Date.now();
-        const maxWindow = Math.max(...Object.values(limits).map(l => l.window), 60000);
+        const windows = Object.values(limits)
+            .map(l => l && typeof l.window === 'number' ? l.window : 0)
+            .filter(w => w > 0);
+        const maxWindow = windows.length > 0 ? Math.max(...windows) : 60000;
         const windowStart = now - maxWindow;
 
         let cleaned = 0;
