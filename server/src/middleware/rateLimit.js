@@ -43,12 +43,15 @@ const strictLimiter = rateLimit({
 
 /**
  * Socket event rate limiter (in-memory, per socket)
- * Returns a middleware function for socket events
+ * Returns an object with limiter and cleanup functions
  */
 function createSocketRateLimiter(limits) {
     const requests = new Map();
 
-    return (eventName) => {
+    /**
+     * Get rate limiter middleware for a specific event
+     */
+    const getLimiter = (eventName) => {
         const limit = limits[eventName];
         if (!limit) return (socket, data, next) => next();
 
@@ -71,20 +74,62 @@ function createSocketRateLimiter(limits) {
             timestamps.push(now);
             requests.set(key, timestamps);
 
-            // Clean up old entries periodically
-            if (Math.random() < 0.01) {
-                for (const [k, v] of requests.entries()) {
-                    const filtered = v.filter(t => t > windowStart);
-                    if (filtered.length === 0) {
-                        requests.delete(k);
-                    } else {
-                        requests.set(k, filtered);
-                    }
-                }
-            }
-
             next();
         };
+    };
+
+    /**
+     * Clean up all rate limit entries for a specific socket
+     * Call this when a socket disconnects to prevent memory leaks
+     */
+    const cleanupSocket = (socketId) => {
+        const keysToDelete = [];
+        for (const key of requests.keys()) {
+            if (key.startsWith(`${socketId}:`)) {
+                keysToDelete.push(key);
+            }
+        }
+        for (const key of keysToDelete) {
+            requests.delete(key);
+        }
+        if (keysToDelete.length > 0) {
+            logger.debug(`Cleaned up ${keysToDelete.length} rate limit entries for socket ${socketId}`);
+        }
+    };
+
+    /**
+     * Periodic cleanup of stale entries (call from a setInterval)
+     */
+    const cleanupStale = () => {
+        const now = Date.now();
+        const maxWindow = Math.max(...Object.values(limits).map(l => l.window), 60000);
+        const windowStart = now - maxWindow;
+
+        let cleaned = 0;
+        for (const [key, timestamps] of requests.entries()) {
+            const filtered = timestamps.filter(t => t > windowStart);
+            if (filtered.length === 0) {
+                requests.delete(key);
+                cleaned++;
+            } else if (filtered.length !== timestamps.length) {
+                requests.set(key, filtered);
+            }
+        }
+        if (cleaned > 0) {
+            logger.debug(`Cleaned up ${cleaned} stale rate limit entries`);
+        }
+    };
+
+    /**
+     * Get current size of rate limit map (for monitoring)
+     */
+    const getSize = () => requests.size;
+
+    return {
+        getLimiter,
+        cleanupSocket,
+        cleanupStale,
+        getSize
     };
 }
 

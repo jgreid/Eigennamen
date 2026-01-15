@@ -101,6 +101,9 @@ async function handleDisconnect(io, socket, reason) {
                 if (connectedPlayers.length > 0) {
                     // Transfer host to first connected player
                     const newHost = connectedPlayers[0];
+
+                    // Clear old host's isHost flag first
+                    await playerService.updatePlayer(socket.sessionId, { isHost: false });
                     await playerService.updatePlayer(newHost.sessionId, { isHost: true });
 
                     // Update room
@@ -155,6 +158,7 @@ function startTurnTimer(roomCode, durationSeconds) {
     const onExpire = async (code) => {
         // Auto-end turn when timer expires
         const gameService = require('../services/gameService');
+        const roomService = require('../services/roomService');
         try {
             const result = await gameService.endTurn(code, 'Timer');
             emitToRoom(code, 'game:turnEnded', {
@@ -163,6 +167,15 @@ function startTurnTimer(roomCode, durationSeconds) {
                 reason: 'timerExpired'
             });
             emitToRoom(code, 'timer:expired', { roomCode: code });
+
+            // Restart timer for the new turn (if timer is configured)
+            const room = await roomService.getRoom(code);
+            if (room && room.settings && room.settings.turnTimer) {
+                // Use setTimeout to avoid recursive call in same tick
+                setTimeout(() => {
+                    startTurnTimer(code, room.settings.turnTimer);
+                }, 100);
+            }
         } catch (error) {
             logger.error(`Timer expiry error for room ${code}:`, error);
         }

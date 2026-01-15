@@ -8,6 +8,7 @@ const { customAlphabet } = require('nanoid');
 const logger = require('../utils/logger');
 const playerService = require('./playerService');
 const gameService = require('./gameService');
+const timerService = require('./timerService');
 const {
     ROOM_CODE_LENGTH,
     ROOM_MAX_PLAYERS,
@@ -84,6 +85,7 @@ async function getRoom(code) {
 
 /**
  * Join an existing room
+ * Uses atomic operations to prevent race conditions when checking player count
  */
 async function joinRoom(code, sessionId, nickname) {
     const redis = getRedis();
@@ -92,12 +94,6 @@ async function joinRoom(code, sessionId, nickname) {
     const room = await getRoom(code);
     if (!room) {
         throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Room not found' };
-    }
-
-    // Check if room is full
-    const players = await playerService.getPlayersInRoom(code);
-    if (players.length >= ROOM_MAX_PLAYERS) {
-        throw { code: ERROR_CODES.ROOM_FULL, message: 'Room is full' };
     }
 
     // Check if player is already in room (reconnecting)
@@ -109,8 +105,22 @@ async function joinRoom(code, sessionId, nickname) {
         player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
         isReconnecting = true;
     } else {
-        // Create new player
+        // Use SCARD for atomic count check before creating
+        const currentCount = await redis.sCard(`room:${code}:players`);
+        if (currentCount >= ROOM_MAX_PLAYERS) {
+            throw { code: ERROR_CODES.ROOM_FULL, message: 'Room is full' };
+        }
+
+        // Create new player (adds to set)
         player = await playerService.createPlayer(sessionId, code, nickname, false);
+
+        // Double-check count after adding (handles race condition)
+        const newCount = await redis.sCard(`room:${code}:players`);
+        if (newCount > ROOM_MAX_PLAYERS) {
+            // We exceeded the limit due to race condition - rollback
+            await playerService.removePlayer(sessionId);
+            throw { code: ERROR_CODES.ROOM_FULL, message: 'Room is full' };
+        }
     }
 
     // Get current game if any
@@ -223,6 +233,9 @@ async function refreshRoomTTL(code) {
  */
 async function cleanupRoom(code) {
     const redis = getRedis();
+
+    // Stop any active timer for this room (prevents memory leak)
+    timerService.stopTimer(code);
 
     // Get all players in room and remove them
     const sessionIds = await redis.sMembers(`room:${code}:players`);

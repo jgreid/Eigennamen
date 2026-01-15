@@ -10,6 +10,7 @@ const { initializeSocket } = require('./socket');
 const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
 const { connectDatabase, disconnectDatabase } = require('./config/database');
 const { validateEnv, getEnvInt } = require('./config/env');
+const timerService = require('./services/timerService');
 const logger = require('./utils/logger');
 
 const PORT = getEnvInt('PORT', 3001);
@@ -46,6 +47,10 @@ async function startServer() {
         // Graceful shutdown
         const shutdown = async (signal) => {
             logger.info(`${signal} received, shutting down gracefully`);
+
+            // Clean up all active timers first (prevents pending callbacks)
+            timerService.cleanupAllTimers();
+            logger.info('All timers cleaned up');
 
             // Stop accepting new connections
             server.close(async () => {

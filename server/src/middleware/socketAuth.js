@@ -2,24 +2,52 @@
  * Socket.io Authentication Middleware
  */
 
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4, validate: isValidUuid } = require('uuid');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
 
 /**
  * Authenticate socket connection
+ * Includes session validation to prevent hijacking
  */
 async function authenticateSocket(socket, next) {
     try {
         const { sessionId, token } = socket.handshake.auth;
 
-        // Use provided session ID or generate new one
+        // Validate and use provided session ID, or generate new one
+        let validatedSessionId = null;
+
         if (sessionId) {
-            socket.sessionId = sessionId;
-        } else {
-            socket.sessionId = uuidv4();
+            // Validate session ID format (must be valid UUID)
+            if (isValidUuid(sessionId)) {
+                // Check if there's an existing player with this session
+                const existingPlayer = await playerService.getPlayer(sessionId);
+
+                if (existingPlayer) {
+                    // Only allow session reuse if player is disconnected (legitimate reconnection)
+                    if (!existingPlayer.connected) {
+                        validatedSessionId = sessionId;
+                        logger.debug(`Session ${sessionId} validated for reconnection`);
+                    } else {
+                        // Player is currently connected - potential hijacking attempt
+                        logger.warn(`Session hijacking attempt blocked for ${sessionId} from ${socket.handshake.address}`);
+                        // Generate new session instead of rejecting (more user-friendly)
+                        validatedSessionId = null;
+                    }
+                } else {
+                    // No existing player with this session - could be returning user or stale session
+                    // Allow it (session will be created fresh when they join a room)
+                    validatedSessionId = sessionId;
+                }
+            } else {
+                // Invalid UUID format - ignore and generate new
+                logger.warn(`Invalid session ID format rejected: ${sessionId}`);
+            }
         }
+
+        // Use validated session ID or generate new one
+        socket.sessionId = validatedSessionId || uuidv4();
 
         // If token provided, verify and attach user info
         if (token) {

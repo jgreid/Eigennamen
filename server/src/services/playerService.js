@@ -110,17 +110,31 @@ async function setNickname(sessionId, nickname) {
 
 /**
  * Get all players in a room
+ * Also cleans up orphaned session IDs (where player data has expired)
  */
 async function getPlayersInRoom(roomCode) {
     const redis = getRedis();
     const sessionIds = await redis.sMembers(`room:${roomCode}:players`);
 
     const players = [];
+    const orphanedSessionIds = [];
+
     for (const sessionId of sessionIds) {
         const player = await getPlayer(sessionId);
         if (player) {
             players.push(player);
+        } else {
+            // Player data expired but session ID still in set - mark for cleanup
+            orphanedSessionIds.push(sessionId);
         }
+    }
+
+    // Clean up orphaned session IDs from the room's player set
+    if (orphanedSessionIds.length > 0) {
+        for (const sessionId of orphanedSessionIds) {
+            await redis.sRem(`room:${roomCode}:players`, sessionId);
+        }
+        logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
     }
 
     // Sort by join time
