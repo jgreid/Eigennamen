@@ -18,8 +18,17 @@ module.exports = {
     // Redis TTLs (in seconds)
     REDIS_TTL: {
         ROOM: 24 * 60 * 60,      // 24 hours
-        PLAYER: 60 * 60,         // 1 hour
-        SESSION_SOCKET: 5 * 60   // 5 minutes
+        PLAYER: 24 * 60 * 60,    // 24 hours (same as room to prevent orphaned players)
+        SESSION_SOCKET: 5 * 60,  // 5 minutes
+        DISCONNECTED_PLAYER: 10 * 60  // 10 minutes grace period for reconnection
+    },
+
+    // Timer configuration
+    TIMER: {
+        DEFAULT_TURN_SECONDS: 120,  // 2 minutes default
+        MIN_TURN_SECONDS: 30,
+        MAX_TURN_SECONDS: 300,
+        WARNING_SECONDS: 30         // Warn when this many seconds remain
     },
 
     // Rate limits

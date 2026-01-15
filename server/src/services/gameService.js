@@ -12,6 +12,7 @@ const {
     NEUTRAL_CARDS,
     ASSASSIN_CARDS,
     DEFAULT_WORDS,
+    REDIS_TTL,
     ERROR_CODES
 } = require('../config/constants');
 
@@ -115,6 +116,8 @@ async function createGame(roomCode, wordListId = null) {
         gameOver: false,
         winner: null,
         currentClue: null,
+        guessesUsed: 0,        // Track guesses used this turn
+        guessesAllowed: 0,     // Max guesses allowed (clue number + 1)
         clues: [],
         history: [],
         createdAt: Date.now()
@@ -123,13 +126,16 @@ async function createGame(roomCode, wordListId = null) {
     // Store in Redis
     await redis.set(`room:${roomCode}:game`, JSON.stringify(game));
 
-    // Update room status
+    // Update room status and refresh TTL
     const roomData = await redis.get(`room:${roomCode}`);
     if (roomData) {
         const room = JSON.parse(roomData);
         room.status = 'playing';
-        await redis.set(`room:${roomCode}`, JSON.stringify(room));
+        await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
     }
+
+    // Refresh related keys TTL
+    await redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM);
 
     logger.info(`Game created for room ${roomCode} with seed ${seed}`);
     return game;
@@ -151,6 +157,8 @@ function getGameStateForPlayer(game, player) {
         gameOver: game.gameOver,
         winner: game.winner,
         currentClue: game.currentClue,
+        guessesUsed: game.guessesUsed || 0,
+        guessesAllowed: game.guessesAllowed || 0,
         clues: game.clues || [],
         history: game.history || []
     };
@@ -184,6 +192,11 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
+    // Validate index bounds
+    if (typeof index !== 'number' || index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: `Invalid card index: must be 0-${BOARD_SIZE - 1}` };
+    }
+
     // Use optimistic locking with retries
     const maxRetries = 3;
     let retries = 0;
@@ -206,6 +219,18 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
             }
 
+            // Check if a clue has been given this turn
+            if (!game.currentClue) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must give a clue before guessing' };
+            }
+
+            // Check if guesses remaining (0 = unlimited for "0" clue)
+            if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' };
+            }
+
             if (game.revealed[index]) {
                 await redis.unwatch();
                 throw { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' };
@@ -222,7 +247,11 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 game.blueScore++;
             }
 
+            // Increment guesses used
+            game.guessesUsed = (game.guessesUsed || 0) + 1;
+
             let endReason = null;
+            let turnEnded = false;
             const previousTurn = game.currentTurn;
 
             // Check for assassin
@@ -230,21 +259,36 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 game.gameOver = true;
                 game.winner = game.currentTurn === 'red' ? 'blue' : 'red';
                 endReason = 'assassin';
+                turnEnded = true;
             }
             // Check for win by completing all words
             else if (game.redScore >= game.redTotal) {
                 game.gameOver = true;
                 game.winner = 'red';
                 endReason = 'completed';
+                turnEnded = true;
             } else if (game.blueScore >= game.blueTotal) {
                 game.gameOver = true;
                 game.winner = 'blue';
                 endReason = 'completed';
+                turnEnded = true;
             }
             // Wrong guess ends turn
             else if (type !== game.currentTurn) {
                 game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
                 game.currentClue = null;
+                game.guessesUsed = 0;
+                game.guessesAllowed = 0;
+                turnEnded = true;
+            }
+            // Check if max guesses reached (only if not unlimited)
+            else if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
+                game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+                game.currentClue = null;
+                game.guessesUsed = 0;
+                game.guessesAllowed = 0;
+                turnEnded = true;
+                endReason = 'maxGuesses';
             }
 
             // Add to history
@@ -256,6 +300,7 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 type,
                 team: previousTurn,
                 player: playerNickname,
+                guessNumber: game.guessesUsed,
                 timestamp: Date.now()
             });
 
@@ -277,6 +322,9 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 redScore: game.redScore,
                 blueScore: game.blueScore,
                 currentTurn: game.currentTurn,
+                guessesUsed: game.guessesUsed,
+                guessesAllowed: game.guessesAllowed,
+                turnEnded,
                 gameOver: game.gameOver,
                 winner: game.winner,
                 endReason,
@@ -325,6 +373,11 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
+    // Validate team is provided
+    if (!team || (team !== 'red' && team !== 'blue')) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must be on a team to give clues' };
+    }
+
     // Use optimistic locking
     await redis.watch(gameKey);
 
@@ -347,6 +400,12 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
             throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
         }
 
+        // Check if a clue was already given this turn
+        if (game.currentClue) {
+            await redis.unwatch();
+            throw { code: ERROR_CODES.INVALID_INPUT, message: 'A clue has already been given this turn' };
+        }
+
         // Validate clue word is not on the board
         const validation = validateClueWord(word, game.words);
         if (!validation.valid) {
@@ -363,6 +422,10 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
         };
 
         game.currentClue = clue;
+        // 0 means unlimited guesses, otherwise number + 1
+        game.guessesAllowed = number === 0 ? 0 : number + 1;
+        game.guessesUsed = 0;
+
         if (!game.clues) game.clues = [];
         game.clues.push(clue);
 
@@ -373,6 +436,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
             team,
             word: clue.word,
             number,
+            guessesAllowed: game.guessesAllowed,
             spymaster: spymasterNickname,
             timestamp: Date.now()
         });
@@ -385,7 +449,10 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
             throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to save clue due to concurrent modification' };
         }
 
-        return clue;
+        return {
+            ...clue,
+            guessesAllowed: game.guessesAllowed
+        };
 
     } catch (error) {
         await redis.unwatch();
@@ -419,6 +486,8 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
         const previousTurn = game.currentTurn;
         game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
         game.currentClue = null;
+        game.guessesUsed = 0;
+        game.guessesAllowed = 0;
 
         // Add to history
         if (!game.history) game.history = [];
@@ -514,6 +583,15 @@ async function getGameHistory(roomCode) {
     return game.history || [];
 }
 
+/**
+ * Clean up game data for a room
+ */
+async function cleanupGame(roomCode) {
+    const redis = getRedis();
+    await redis.del(`room:${roomCode}:game`);
+    logger.info(`Game data cleaned up for room ${roomCode}`);
+}
+
 // Export pure functions for testing
 module.exports = {
     // Main functions
@@ -525,6 +603,7 @@ module.exports = {
     endTurn,
     forfeitGame,
     getGameHistory,
+    cleanupGame,
 
     // Pure functions for unit testing
     seededRandom,

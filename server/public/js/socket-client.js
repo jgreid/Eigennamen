@@ -17,17 +17,22 @@
         connected: false,
         reconnectAttempts: 0,
         maxReconnectAttempts: 5,
+        autoRejoin: true,           // Automatically rejoin room on reconnection
+        storedNickname: null,       // Remember nickname for reconnection
         listeners: {},
 
         /**
          * Connect to the server
          * @param {string} serverUrl - Server URL (optional, defaults to current host)
+         * @param {Object} options - Connection options
          * @returns {Promise}
          */
-        connect(serverUrl = null) {
+        connect(serverUrl = null, options = {}) {
             return new Promise((resolve, reject) => {
-                // Load session ID from storage
+                // Load session from storage
                 this.sessionId = localStorage.getItem('codenames-session-id');
+                this.storedNickname = localStorage.getItem('codenames-nickname');
+                this.autoRejoin = options.autoRejoin !== false;
 
                 const url = serverUrl || window.location.origin;
 
@@ -38,27 +43,30 @@
                     reconnection: true,
                     reconnectionAttempts: this.maxReconnectAttempts,
                     reconnectionDelay: 1000,
-                    reconnectionDelayMax: 5000
+                    reconnectionDelayMax: 5000,
+                    ...options.socketOptions
                 });
 
                 this.socket.on('connect', () => {
                     this.connected = true;
+                    const wasReconnecting = this.reconnectAttempts > 0;
                     this.reconnectAttempts = 0;
                     console.log('Connected to server:', this.socket.id);
 
-                    // Save session ID if server assigned one
-                    if (!this.sessionId) {
-                        // Will be set after first room action
+                    this._emit('connected', { wasReconnecting });
+
+                    // Auto-rejoin room on reconnection
+                    if (wasReconnecting && this.autoRejoin) {
+                        this._attemptRejoin();
                     }
 
-                    this._emit('connected');
                     resolve(this.socket);
                 });
 
                 this.socket.on('disconnect', (reason) => {
                     this.connected = false;
                     console.log('Disconnected:', reason);
-                    this._emit('disconnected', reason);
+                    this._emit('disconnected', { reason, wasConnected: true });
                 });
 
                 this.socket.on('connect_error', (error) => {
@@ -69,12 +77,39 @@
                         reject(error);
                     }
 
-                    this._emit('error', { type: 'connection', error });
+                    this._emit('error', { type: 'connection', error, attempt: this.reconnectAttempts });
                 });
 
                 // Set up all event listeners
                 this._setupEventListeners();
             });
+        },
+
+        /**
+         * Attempt to rejoin the previous room
+         */
+        async _attemptRejoin() {
+            const storedRoomCode = this.getStoredRoomCode();
+            const nickname = this.storedNickname || this.player?.nickname;
+
+            if (!storedRoomCode || !nickname) {
+                console.log('Cannot auto-rejoin: missing room code or nickname');
+                return;
+            }
+
+            console.log(`Attempting to rejoin room ${storedRoomCode} as ${nickname}`);
+            this._emit('rejoining', { roomCode: storedRoomCode, nickname });
+
+            try {
+                const result = await this.joinRoom(storedRoomCode, nickname);
+                console.log('Successfully rejoined room:', storedRoomCode);
+                this._emit('rejoined', result);
+            } catch (error) {
+                console.error('Failed to rejoin room:', error);
+                // Clear stored room code since it's no longer valid
+                localStorage.removeItem('codenames-room-code');
+                this._emit('rejoinFailed', { roomCode: storedRoomCode, error });
+            }
         },
 
         /**
@@ -108,6 +143,14 @@
                 this._emit('settingsUpdated', data);
             });
 
+            this.socket.on('room:hostChanged', (data) => {
+                // Update local player if we became host
+                if (this.player && data.newHostSessionId === this.player.sessionId) {
+                    this.player.isHost = true;
+                }
+                this._emit('hostChanged', data);
+            });
+
             this.socket.on('room:error', (error) => {
                 this._emit('error', { type: 'room', ...error });
             });
@@ -118,6 +161,14 @@
                     this.player = { ...this.player, ...data.changes };
                 }
                 this._emit('playerUpdated', data);
+            });
+
+            this.socket.on('player:disconnected', (data) => {
+                this._emit('playerDisconnected', data);
+            });
+
+            this.socket.on('player:reconnected', (data) => {
+                this._emit('playerReconnected', data);
             });
 
             this.socket.on('player:error', (error) => {
@@ -162,6 +213,10 @@
                 this._emit('timerStarted', data);
             });
 
+            this.socket.on('timer:stopped', (data) => {
+                this._emit('timerStopped', data);
+            });
+
             this.socket.on('timer:tick', (data) => {
                 this._emit('timerTick', data);
             });
@@ -185,6 +240,10 @@
             }
             if (this.roomCode) {
                 localStorage.setItem('codenames-room-code', this.roomCode);
+            }
+            if (this.player?.nickname) {
+                localStorage.setItem('codenames-nickname', this.player.nickname);
+                this.storedNickname = this.player.nickname;
             }
         },
 
@@ -227,6 +286,19 @@
                 this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
             }
             return this;
+        },
+
+        /**
+         * Register one-time event listener
+         * @param {string} event - Event name
+         * @param {Function} callback - Callback function
+         */
+        once(event, callback) {
+            const wrapper = (data) => {
+                this.off(event, wrapper);
+                callback(data);
+            };
+            return this.on(event, wrapper);
         },
 
         // =====================
@@ -309,6 +381,7 @@
         leaveRoom() {
             this.socket.emit('room:leave');
             this.roomCode = null;
+            this.player = null;
             localStorage.removeItem('codenames-room-code');
         },
 
@@ -437,6 +510,30 @@
         },
 
         /**
+         * Check if in a room
+         * @returns {boolean}
+         */
+        isInRoom() {
+            return !!this.roomCode;
+        },
+
+        /**
+         * Check if current player is host
+         * @returns {boolean}
+         */
+        isHost() {
+            return this.player?.isHost === true;
+        },
+
+        /**
+         * Check if current player is spymaster
+         * @returns {boolean}
+         */
+        isSpymaster() {
+            return this.player?.role === 'spymaster';
+        },
+
+        /**
          * Get current room code
          * @returns {string|null}
          */
@@ -458,6 +555,33 @@
          */
         getStoredRoomCode() {
             return localStorage.getItem('codenames-room-code');
+        },
+
+        /**
+         * Get stored nickname
+         * @returns {string|null}
+         */
+        getStoredNickname() {
+            return localStorage.getItem('codenames-nickname');
+        },
+
+        /**
+         * Clear all stored session data
+         */
+        clearSession() {
+            localStorage.removeItem('codenames-session-id');
+            localStorage.removeItem('codenames-room-code');
+            localStorage.removeItem('codenames-nickname');
+            this.sessionId = null;
+            this.storedNickname = null;
+        },
+
+        /**
+         * Enable or disable auto-rejoin
+         * @param {boolean} enabled
+         */
+        setAutoRejoin(enabled) {
+            this.autoRejoin = enabled;
         }
     };
 

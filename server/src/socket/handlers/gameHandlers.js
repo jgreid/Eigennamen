@@ -4,10 +4,12 @@
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
+const roomService = require('../../services/roomService');
 const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
+const { startTurnTimer, stopTurnTimer } = require('../index');
 
 module.exports = function gameHandlers(io, socket) {
 
@@ -28,7 +30,13 @@ module.exports = function gameHandlers(io, socket) {
                 throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can start the game' };
             }
 
+            // Stop any existing timer
+            stopTurnTimer(socket.roomCode);
+
             const game = await gameService.createGame(socket.roomCode, validated.wordListId);
+
+            // Get room for timer settings
+            const room = await roomService.getRoom(socket.roomCode);
 
             // Get all players in room to send appropriate game state
             const players = await playerService.getPlayersInRoom(socket.roomCode);
@@ -37,6 +45,11 @@ module.exports = function gameHandlers(io, socket) {
             for (const p of players) {
                 const gameState = gameService.getGameStateForPlayer(game, p);
                 io.to(`player:${p.sessionId}`).emit('game:started', { game: gameState });
+            }
+
+            // Start turn timer if configured
+            if (room && room.settings && room.settings.turnTimer) {
+                startTurnTimer(socket.roomCode, room.settings.turnTimer);
             }
 
             logger.info(`Game started in room ${socket.roomCode}`);
@@ -81,12 +94,28 @@ module.exports = function gameHandlers(io, socket) {
                 redScore: result.redScore,
                 blueScore: result.blueScore,
                 currentTurn: result.currentTurn,
+                guessesUsed: result.guessesUsed,
+                guessesAllowed: result.guessesAllowed,
+                turnEnded: result.turnEnded,
                 gameOver: result.gameOver,
                 winner: result.winner
             });
 
-            // If game is over, reveal all card types
+            // Handle turn ending (wrong guess, max guesses, or game over)
+            if (result.turnEnded && !result.gameOver) {
+                // Get room for timer settings
+                const room = await roomService.getRoom(socket.roomCode);
+
+                // Restart timer for new turn if configured
+                if (room && room.settings && room.settings.turnTimer) {
+                    startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                }
+            }
+
+            // If game is over, stop timer and reveal all card types
             if (result.gameOver) {
+                stopTurnTimer(socket.roomCode);
+
                 io.to(`room:${socket.roomCode}`).emit('game:over', {
                     winner: result.winner,
                     reason: result.endReason,
@@ -130,8 +159,15 @@ module.exports = function gameHandlers(io, socket) {
                 player.nickname
             );
 
-            // Broadcast to all players
-            io.to(`room:${socket.roomCode}`).emit('game:clueGiven', clue);
+            // Broadcast to all players (include guessesAllowed)
+            io.to(`room:${socket.roomCode}`).emit('game:clueGiven', {
+                team: clue.team,
+                word: clue.word,
+                number: clue.number,
+                spymaster: clue.spymaster,
+                guessesAllowed: clue.guessesAllowed,
+                timestamp: clue.timestamp
+            });
 
             logger.info(`Clue given in room ${socket.roomCode}: ${clue.word} ${clue.number}`);
 
@@ -167,6 +203,12 @@ module.exports = function gameHandlers(io, socket) {
                 previousTurn: result.previousTurn
             });
 
+            // Restart timer for new turn if configured
+            const room = await roomService.getRoom(socket.roomCode);
+            if (room && room.settings && room.settings.turnTimer) {
+                startTurnTimer(socket.roomCode, room.settings.turnTimer);
+            }
+
             logger.info(`Turn ended in room ${socket.roomCode}, now ${result.currentTurn}'s turn`);
 
         } catch (error) {
@@ -191,6 +233,9 @@ module.exports = function gameHandlers(io, socket) {
             if (!player || !player.isHost) {
                 throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can forfeit' };
             }
+
+            // Stop timer
+            stopTurnTimer(socket.roomCode);
 
             // Forfeit is based on current turn's team, not player's team
             const result = await gameService.forfeitGame(socket.roomCode);

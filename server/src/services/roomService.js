@@ -54,10 +54,10 @@ async function createRoom(hostSessionId, settings = {}) {
         expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
     };
 
-    // Save room
+    // Save room with TTL
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 
-    // Initialize empty player list
+    // Initialize empty player list with same TTL
     await redis.del(`room:${code}:players`);
 
     // Create host player
@@ -102,9 +102,12 @@ async function joinRoom(code, sessionId, nickname) {
 
     // Check if player is already in room (reconnecting)
     let player = await playerService.getPlayer(sessionId);
+    let isReconnecting = false;
+
     if (player && player.roomCode === code) {
-        // Update player's connected status
+        // Update player's connected status (reconnection)
         player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
+        isReconnecting = true;
     } else {
         // Create new player
         player = await playerService.createPlayer(sessionId, code, nickname, false);
@@ -114,14 +117,15 @@ async function joinRoom(code, sessionId, nickname) {
     const game = await gameService.getGame(code);
     const gameState = game ? gameService.getGameStateForPlayer(game, player) : null;
 
-    // Refresh room TTL
-    await redis.expire(`room:${code}`, REDIS_TTL.ROOM);
+    // Refresh all room-related TTLs
+    await refreshRoomTTL(code);
 
     return {
         room,
         players: await playerService.getPlayersInRoom(code),
         game: gameState,
-        player
+        player,
+        isReconnecting
     };
 }
 
@@ -133,7 +137,7 @@ async function leaveRoom(code, sessionId) {
     const room = await getRoom(code);
 
     if (!room) {
-        return { newHostId: null };
+        return { newHostId: null, roomDeleted: false };
     }
 
     // Remove player
@@ -143,6 +147,7 @@ async function leaveRoom(code, sessionId) {
     const players = await playerService.getPlayersInRoom(code);
 
     let newHostId = null;
+    let roomDeleted = false;
 
     // If leaving player was host, transfer host
     if (room.hostSessionId === sessionId && players.length > 0) {
@@ -152,12 +157,13 @@ async function leaveRoom(code, sessionId) {
         await playerService.updatePlayer(newHostId, { isHost: true });
     }
 
-    // If no players left, mark room for cleanup
+    // If no players left, clean up room completely
     if (players.length === 0) {
-        await redis.expire(`room:${code}`, 60); // Delete in 1 minute
+        await cleanupRoom(code);
+        roomDeleted = true;
     }
 
-    return { newHostId };
+    return { newHostId, roomDeleted };
 }
 
 /**
@@ -193,11 +199,60 @@ async function roomExists(code) {
     return await redis.exists(`room:${code}`) === 1;
 }
 
+/**
+ * Refresh TTL for all room-related keys
+ */
+async function refreshRoomTTL(code) {
+    const redis = getRedis();
+
+    // Refresh room TTL
+    await redis.expire(`room:${code}`, REDIS_TTL.ROOM);
+
+    // Refresh players list TTL
+    await redis.expire(`room:${code}:players`, REDIS_TTL.ROOM);
+
+    // Refresh game TTL if exists
+    const gameExists = await redis.exists(`room:${code}:game`);
+    if (gameExists) {
+        await redis.expire(`room:${code}:game`, REDIS_TTL.ROOM);
+    }
+}
+
+/**
+ * Clean up all data associated with a room
+ */
+async function cleanupRoom(code) {
+    const redis = getRedis();
+
+    // Get all players in room and remove them
+    const sessionIds = await redis.sMembers(`room:${code}:players`);
+    for (const sessionId of sessionIds) {
+        await redis.del(`player:${sessionId}`);
+    }
+
+    // Delete all room-related keys
+    await redis.del(`room:${code}`);
+    await redis.del(`room:${code}:players`);
+    await redis.del(`room:${code}:game`);
+
+    logger.info(`Room ${code} and all associated data cleaned up`);
+}
+
+/**
+ * Delete a room immediately (admin function)
+ */
+async function deleteRoom(code) {
+    await cleanupRoom(code);
+}
+
 module.exports = {
     createRoom,
     getRoom,
     joinRoom,
     leaveRoom,
     updateSettings,
-    roomExists
+    roomExists,
+    refreshRoomTTL,
+    cleanupRoom,
+    deleteRoom
 };
