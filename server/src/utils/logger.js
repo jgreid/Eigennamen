@@ -3,6 +3,8 @@
  */
 
 const winston = require('winston');
+const fs = require('fs');
+const path = require('path');
 
 const levels = {
     error: 0,
@@ -41,6 +43,12 @@ const transports = [
 
 // Add file transports in production
 if (process.env.NODE_ENV === 'production') {
+    // Ensure logs directory exists
+    const logsDir = path.join(process.cwd(), 'logs');
+    if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+    }
+
     transports.push(
         new winston.transports.File({
             filename: 'logs/error.log',

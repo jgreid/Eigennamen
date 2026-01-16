@@ -123,8 +123,8 @@ async function createGame(roomCode, wordListId = null) {
         createdAt: Date.now()
     };
 
-    // Store in Redis
-    await redis.set(`room:${roomCode}:game`, JSON.stringify(game));
+    // Store in Redis with TTL (same as room)
+    await redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM });
 
     // Update room status and refresh TTL
     const roomData = await redis.get(`room:${roomCode}`);
