@@ -87,6 +87,11 @@ See [SERVER_SPEC.md](../docs/SERVER_SPEC.md) for full API documentation.
 |--------|------|-------------|
 | GET | `/api/rooms/:code/exists` | Check if room exists |
 | GET | `/api/rooms/:code` | Get room info |
+| GET | `/api/wordlists` | List public word lists (with optional search) |
+| GET | `/api/wordlists/:id` | Get a specific word list |
+| POST | `/api/wordlists` | Create a new word list |
+| PUT | `/api/wordlists/:id` | Update a word list |
+| DELETE | `/api/wordlists/:id` | Delete a word list |
 | GET | `/api/health` | API health check |
 | GET | `/health` | Basic health check |
 | GET | `/health/ready` | Readiness check with dependency status |

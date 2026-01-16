@@ -5,6 +5,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
+const wordListService = require('./wordListService');
 const {
     BOARD_SIZE,
     FIRST_TEAM_CARDS,
@@ -67,10 +68,22 @@ async function createGame(roomCode, wordListId = null) {
 
     // Get words (from custom list or default)
     let words = DEFAULT_WORDS;
+    let usedWordListId = null;
+
     if (wordListId) {
-        // TODO: Fetch custom word list from database
-        // const wordList = await prisma.wordList.findUnique({ where: { id: wordListId } });
-        // if (wordList) words = wordList.words;
+        try {
+            const customWords = await wordListService.getWordsForGame(wordListId);
+            if (customWords && customWords.length >= BOARD_SIZE) {
+                words = customWords;
+                usedWordListId = wordListId;
+                logger.info(`Using custom word list ${wordListId} for room ${roomCode}`);
+            } else {
+                logger.warn(`Custom word list ${wordListId} not found or too small, using default`);
+            }
+        } catch (error) {
+            logger.error(`Error fetching custom word list ${wordListId}:`, error);
+            // Fall back to default words
+        }
     }
 
     // Select 25 random words
@@ -105,6 +118,7 @@ async function createGame(roomCode, wordListId = null) {
     const game = {
         id: uuidv4(),
         seed,
+        wordListId: usedWordListId,
         words: boardWords,
         types,
         revealed: Array(BOARD_SIZE).fill(false),
