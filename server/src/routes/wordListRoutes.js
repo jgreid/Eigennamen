@@ -47,8 +47,8 @@ router.get('/', validateQuery(wordListQuerySchema), async (req, res, next) => {
         const { search, limit, offset } = req.query;
         const wordLists = await wordListService.getPublicWordLists({
             search,
-            limit: parseInt(limit) || 50,
-            offset: parseInt(offset) || 0
+            limit,
+            offset
         });
 
         res.json({ wordLists });
