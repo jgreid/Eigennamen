@@ -148,7 +148,7 @@ function addTime(roomCode, secondsToAdd, onExpire) {
  */
 function hasActiveTimer(roomCode) {
     const timer = activeTimers.get(roomCode);
-    return timer && !timer.paused;
+    return !!(timer && !timer.paused);
 }
 
 /**

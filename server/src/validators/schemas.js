@@ -21,8 +21,8 @@ const roomCreateSchema = z.object({
 const roomJoinSchema = z.object({
     code: z.string()
         .length(6)
-        .regex(/^[A-Z0-9]+$/, 'Invalid room code format')
-        .transform(s => s.toUpperCase()),
+        .transform(s => s.toUpperCase())
+        .refine(s => /^[A-Z0-9]+$/.test(s), 'Invalid room code format'),
     nickname: z.string()
         .min(1, 'Nickname is required')
         .max(30, 'Nickname too long')

@@ -368,6 +368,7 @@ function validateClueWord(clueWord, boardWords) {
 
 /**
  * Give a clue with validation
+ * Uses optimistic locking with retries for consistency
  */
 async function giveClue(roomCode, team, word, number, spymasterNickname) {
     const redis = getRedis();
@@ -378,198 +379,227 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
         throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must be on a team to give clues' };
     }
 
-    // Use optimistic locking
-    await redis.watch(gameKey);
+    const maxRetries = 3;
+    let retries = 0;
 
-    try {
-        const gameData = await redis.get(gameKey);
-        if (!gameData) {
+    while (retries < maxRetries) {
+        try {
+            // Use optimistic locking
+            await redis.watch(gameKey);
+
+            const gameData = await redis.get(gameKey);
+            if (!gameData) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            }
+
+            const game = JSON.parse(gameData);
+
+            if (game.gameOver) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+            }
+
+            if (game.currentTurn !== team) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
+            }
+
+            // Check if a clue was already given this turn
+            if (game.currentClue) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'A clue has already been given this turn' };
+            }
+
+            // Validate clue word is not on the board
+            const validation = validateClueWord(word, game.words);
+            if (!validation.valid) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.INVALID_INPUT, message: validation.reason };
+            }
+
+            const clue = {
+                team,
+                word: word.toUpperCase(),
+                number,
+                spymaster: spymasterNickname,
+                timestamp: Date.now()
+            };
+
+            game.currentClue = clue;
+            // 0 means unlimited guesses, otherwise number + 1
+            game.guessesAllowed = number === 0 ? 0 : number + 1;
+            game.guessesUsed = 0;
+
+            if (!game.clues) game.clues = [];
+            game.clues.push(clue);
+
+            // Add to history
+            if (!game.history) game.history = [];
+            game.history.push({
+                action: 'clue',
+                team,
+                word: clue.word,
+                number,
+                guessesAllowed: game.guessesAllowed,
+                spymaster: spymasterNickname,
+                timestamp: Date.now()
+            });
+
+            const result = await redis.multi()
+                .set(gameKey, JSON.stringify(game))
+                .exec();
+
+            // If transaction failed (key was modified), retry
+            if (result === null) {
+                retries++;
+                continue;
+            }
+
+            return {
+                ...clue,
+                guessesAllowed: game.guessesAllowed
+            };
+
+        } catch (error) {
             await redis.unwatch();
-            throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            throw error;
         }
-
-        const game = JSON.parse(gameData);
-
-        if (game.gameOver) {
-            await redis.unwatch();
-            throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
-        }
-
-        if (game.currentTurn !== team) {
-            await redis.unwatch();
-            throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
-        }
-
-        // Check if a clue was already given this turn
-        if (game.currentClue) {
-            await redis.unwatch();
-            throw { code: ERROR_CODES.INVALID_INPUT, message: 'A clue has already been given this turn' };
-        }
-
-        // Validate clue word is not on the board
-        const validation = validateClueWord(word, game.words);
-        if (!validation.valid) {
-            await redis.unwatch();
-            throw { code: ERROR_CODES.INVALID_INPUT, message: validation.reason };
-        }
-
-        const clue = {
-            team,
-            word: word.toUpperCase(),
-            number,
-            spymaster: spymasterNickname,
-            timestamp: Date.now()
-        };
-
-        game.currentClue = clue;
-        // 0 means unlimited guesses, otherwise number + 1
-        game.guessesAllowed = number === 0 ? 0 : number + 1;
-        game.guessesUsed = 0;
-
-        if (!game.clues) game.clues = [];
-        game.clues.push(clue);
-
-        // Add to history
-        if (!game.history) game.history = [];
-        game.history.push({
-            action: 'clue',
-            team,
-            word: clue.word,
-            number,
-            guessesAllowed: game.guessesAllowed,
-            spymaster: spymasterNickname,
-            timestamp: Date.now()
-        });
-
-        const result = await redis.multi()
-            .set(gameKey, JSON.stringify(game))
-            .exec();
-
-        if (result === null) {
-            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to save clue due to concurrent modification' };
-        }
-
-        return {
-            ...clue,
-            guessesAllowed: game.guessesAllowed
-        };
-
-    } catch (error) {
-        await redis.unwatch();
-        throw error;
     }
+
+    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to save clue due to concurrent modifications' };
 }
 
 /**
  * End the current turn
+ * Uses optimistic locking with retries for consistency
  */
 async function endTurn(roomCode, playerNickname = 'Unknown') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
-    await redis.watch(gameKey);
+    const maxRetries = 3;
+    let retries = 0;
 
-    try {
-        const gameData = await redis.get(gameKey);
-        if (!gameData) {
+    while (retries < maxRetries) {
+        try {
+            await redis.watch(gameKey);
+
+            const gameData = await redis.get(gameKey);
+            if (!gameData) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            }
+
+            const game = JSON.parse(gameData);
+
+            if (game.gameOver) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+            }
+
+            const previousTurn = game.currentTurn;
+            game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+            game.currentClue = null;
+            game.guessesUsed = 0;
+            game.guessesAllowed = 0;
+
+            // Add to history
+            if (!game.history) game.history = [];
+            game.history.push({
+                action: 'endTurn',
+                fromTeam: previousTurn,
+                toTeam: game.currentTurn,
+                player: playerNickname,
+                timestamp: Date.now()
+            });
+
+            const result = await redis.multi()
+                .set(gameKey, JSON.stringify(game))
+                .exec();
+
+            // If transaction failed (key was modified), retry
+            if (result === null) {
+                retries++;
+                continue;
+            }
+
+            return { currentTurn: game.currentTurn, previousTurn };
+
+        } catch (error) {
             await redis.unwatch();
-            throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            throw error;
         }
-
-        const game = JSON.parse(gameData);
-
-        if (game.gameOver) {
-            await redis.unwatch();
-            throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
-        }
-
-        const previousTurn = game.currentTurn;
-        game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
-        game.currentClue = null;
-        game.guessesUsed = 0;
-        game.guessesAllowed = 0;
-
-        // Add to history
-        if (!game.history) game.history = [];
-        game.history.push({
-            action: 'endTurn',
-            fromTeam: previousTurn,
-            toTeam: game.currentTurn,
-            player: playerNickname,
-            timestamp: Date.now()
-        });
-
-        const result = await redis.multi()
-            .set(gameKey, JSON.stringify(game))
-            .exec();
-
-        if (result === null) {
-            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to end turn due to concurrent modification' };
-        }
-
-        return { currentTurn: game.currentTurn, previousTurn };
-
-    } catch (error) {
-        await redis.unwatch();
-        throw error;
     }
+
+    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to end turn due to concurrent modifications' };
 }
 
 /**
  * Forfeit the game - uses current turn's team as forfeiting team
+ * Uses optimistic locking with retries for consistency
  */
 async function forfeitGame(roomCode) {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
-    await redis.watch(gameKey);
+    const maxRetries = 3;
+    let retries = 0;
 
-    try {
-        const gameData = await redis.get(gameKey);
-        if (!gameData) {
+    while (retries < maxRetries) {
+        try {
+            await redis.watch(gameKey);
+
+            const gameData = await redis.get(gameKey);
+            if (!gameData) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            }
+
+            const game = JSON.parse(gameData);
+
+            if (game.gameOver) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+            }
+
+            // The current turn's team forfeits, other team wins
+            const forfeitingTeam = game.currentTurn;
+            game.gameOver = true;
+            game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
+
+            // Add to history
+            if (!game.history) game.history = [];
+            game.history.push({
+                action: 'forfeit',
+                forfeitingTeam,
+                winner: game.winner,
+                timestamp: Date.now()
+            });
+
+            const result = await redis.multi()
+                .set(gameKey, JSON.stringify(game))
+                .exec();
+
+            // If transaction failed (key was modified), retry
+            if (result === null) {
+                retries++;
+                continue;
+            }
+
+            return {
+                winner: game.winner,
+                forfeitingTeam,
+                allTypes: game.types
+            };
+
+        } catch (error) {
             await redis.unwatch();
-            throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            throw error;
         }
-
-        const game = JSON.parse(gameData);
-
-        if (game.gameOver) {
-            await redis.unwatch();
-            throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
-        }
-
-        // The current turn's team forfeits, other team wins
-        const forfeitingTeam = game.currentTurn;
-        game.gameOver = true;
-        game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
-
-        // Add to history
-        if (!game.history) game.history = [];
-        game.history.push({
-            action: 'forfeit',
-            forfeitingTeam,
-            winner: game.winner,
-            timestamp: Date.now()
-        });
-
-        const result = await redis.multi()
-            .set(gameKey, JSON.stringify(game))
-            .exec();
-
-        if (result === null) {
-            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to forfeit due to concurrent modification' };
-        }
-
-        return {
-            winner: game.winner,
-            forfeitingTeam,
-            allTypes: game.types
-        };
-
-    } catch (error) {
-        await redis.unwatch();
-        throw error;
     }
+
+    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to forfeit due to concurrent modifications' };
 }
 
 /**
