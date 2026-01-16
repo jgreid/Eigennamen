@@ -67,7 +67,7 @@ This document describes the technical architecture for converting Codenames Onli
 
 | Layer | Technology | Justification |
 |-------|------------|---------------|
-| **Runtime** | Node.js 20 LTS | JavaScript everywhere, excellent WebSocket support |
+| **Runtime** | Node.js 18+ | JavaScript everywhere, excellent WebSocket support |
 | **Framework** | Express.js | Simple, well-documented, middleware ecosystem |
 | **WebSockets** | Socket.io | Automatic reconnection, rooms, fallback support |
 | **Database** | PostgreSQL | ACID compliance, JSON support, reliable |
@@ -250,8 +250,8 @@ CREATE INDEX idx_participants_user ON game_participants(user_id);
 // Key: player:{sessionId}
 {
     "sessionId": "session-uuid",
-    "odCode": "ABC123",
-    "odId": "room-uuid",
+    "roomCode": "ABC123",
+    "roomId": "room-uuid",
     "nickname": "Alice",
     "team": "red",
     "role": "spymaster",
@@ -259,7 +259,7 @@ CREATE INDEX idx_participants_user ON game_participants(user_id);
     "connectedAt": 1234567890,
     "lastSeen": 1234567890
 }
-// TTL: 1 hour, refreshed on activity
+// TTL: 24 hours (same as room to prevent orphaned players), refreshed on activity
 
 // Current game state (for fast access during play)
 // Key: room:{code}:game
@@ -785,17 +785,37 @@ upstream api_servers {
 ### 8.1 Docker Configuration
 
 ```dockerfile
-# Dockerfile
-FROM node:20-alpine
+# Dockerfile (multi-stage build with security)
+# Build stage
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx prisma generate
 
+# Production stage
+FROM node:20-alpine
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --only=production
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S codenames -u 1001
 
-COPY . .
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY prisma ./prisma
+
+RUN chown -R codenames:nodejs /app
+USER codenames
 
 EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 CMD ["node", "src/index.js"]
 ```
@@ -811,30 +831,58 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://user:pass@db:5432/codenames
+      - PORT=3000
+      - DATABASE_URL=postgresql://codenames:password@db:5432/codenames
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - codenames-network
 
   db:
     image: postgres:15-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
+      - POSTGRES_USER=codenames
+      - POSTGRES_PASSWORD=password
       - POSTGRES_DB=codenames
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codenames -d codenames"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - codenames-network
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - codenames-network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  codenames-network:
+    driver: bridge
 ```
 
 ### 8.2 Environment Variables
@@ -877,7 +925,7 @@ ENABLE_SPECTATORS=true
 
 | Category | Tools | Coverage Target |
 |----------|-------|-----------------|
-| Unit Tests | Jest | 80% |
+| Unit Tests | Jest | 70% |
 | Integration Tests | Jest + Supertest | Key flows |
 | WebSocket Tests | socket.io-client | All events |
 | Load Tests | Artillery | 1000 concurrent |
@@ -892,25 +940,27 @@ ENABLE_SPECTATORS=true
 
 ---
 
-## 10. Migration Path
+## 10. Implementation Status
 
-### Phase 1: Server MVP (Week 1-2)
-- Basic room creation/joining
-- Real-time game sync
-- No accounts, no persistence
+The server platform has been fully implemented with all core features:
 
-### Phase 2: Persistence (Week 3)
-- PostgreSQL for game history
-- Word list storage
-- Room recovery after server restart
+### Completed Features
 
-### Phase 3: Accounts (Week 4)
-- Optional user registration
-- Game statistics
-- Custom word list ownership
+- **Room Management**: Room creation/joining with 6-character codes
+- **Real-time Sync**: WebSocket-based game state synchronization
+- **Security**: Spymaster card type protection, role-based authorization
+- **Database**: PostgreSQL with Prisma ORM for persistence
+- **Caching**: Redis for session management and fast state access
+- **Chat**: Team-only and broadcast messaging
+- **Turn Timers**: Configurable per-turn time limits
+- **Spectator Mode**: Watch games without participating
+- **Clue Validation**: Prevents using words on the board as clues
+- **Game History**: Tracks all moves and clues for replay
+- **Horizontal Scaling**: Redis Pub/Sub adapter for multi-server deployments
 
-### Phase 4: Polish (Week 5+)
-- Chat system
-- Turn timers
-- Spectator mode
-- Mobile optimization
+### Future Enhancements
+
+- Tournament/ranked play mode
+- Voice/video chat integration
+- Mobile native applications
+- Advanced analytics and statistics
