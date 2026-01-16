@@ -13,7 +13,7 @@ const router = express.Router();
 
 // Schema for room code param
 const roomCodeSchema = z.object({
-    code: z.string().length(6).regex(/^[A-Z0-9]+$/).transform(s => s.toUpperCase())
+    code: z.string().length(6).transform(s => s.toUpperCase()).refine(s => /^[A-Z0-9]+$/.test(s), 'Invalid room code format')
 });
 
 /**
