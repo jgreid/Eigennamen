@@ -4,8 +4,9 @@ A web-based implementation of the popular board game Codenames, optimized for re
 
 ## Features
 
-- **No server required** - Runs entirely in the browser with no backend
+- **Standalone or multiplayer** - Works offline with URL-based state or with optional real-time server
 - **URL-based game sharing** - All game state is encoded in the URL for easy sharing
+- **Real-time multiplayer** - Optional server provides synchronized game state across all players
 - **Role system** - Support for Host, Spymaster, and Viewer roles
 - **Custom word lists** - Use your own themed word lists
 - **Responsive design** - Works on desktop and mobile devices
@@ -40,6 +41,17 @@ Then open `http://localhost:8000` in your browser.
 ### Option 3: Host online
 
 Upload `index.html` (and optionally `wordlist.txt`) to any web hosting service like GitHub Pages, Netlify, or your own server.
+
+### Option 4: Real-time multiplayer server (Advanced)
+
+For true real-time synchronization without URL sharing, use the optional multiplayer server:
+
+```bash
+cd server
+docker-compose up -d
+```
+
+Then open `http://localhost:3000` in your browser. All players connect to the same server and see updates instantly. See [server/README.md](server/README.md) for detailed setup instructions.
 
 ## How to Play
 

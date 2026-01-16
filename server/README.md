@@ -87,7 +87,11 @@ See [SERVER_SPEC.md](../docs/SERVER_SPEC.md) for full API documentation.
 |--------|------|-------------|
 | GET | `/api/rooms/:code/exists` | Check if room exists |
 | GET | `/api/rooms/:code` | Get room info |
-| GET | `/health` | Health check |
+| GET | `/api/health` | API health check |
+| GET | `/health` | Basic health check |
+| GET | `/health/ready` | Readiness check with dependency status |
+| GET | `/health/live` | Kubernetes liveness probe |
+| GET | `/metrics` | Server metrics (uptime, memory, connections) |
 
 ### WebSocket Events
 
@@ -102,10 +106,13 @@ See [SERVER_SPEC.md](../docs/SERVER_SPEC.md) for full API documentation.
 - `game:reveal` - Reveal a card
 - `game:clue` - Give a clue
 - `game:endTurn` - End current turn
+- `game:forfeit` - Forfeit the game
+- `game:history` - Get game history
 
 **Player Events:**
 - `player:setTeam` - Join a team
-- `player:setRole` - Set role (spymaster/guesser)
+- `player:setRole` - Set role (spymaster/guesser/spectator)
+- `player:setNickname` - Update nickname
 
 ## Project Structure
 
