@@ -63,7 +63,9 @@ module.exports = {
         GAME_OVER: 'GAME_OVER',
         INVALID_INPUT: 'INVALID_INPUT',
         RATE_LIMITED: 'RATE_LIMITED',
-        SERVER_ERROR: 'SERVER_ERROR'
+        SERVER_ERROR: 'SERVER_ERROR',
+        WORD_LIST_NOT_FOUND: 'WORD_LIST_NOT_FOUND',
+        NOT_AUTHORIZED: 'NOT_AUTHORIZED'
     },
 
     // Default word list (same as client)

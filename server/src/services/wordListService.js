@@ -75,11 +75,10 @@ async function getPublicWordLists({ search = '', limit = 50, offset = 0 } = {}) 
             skip: offset
         });
 
-        // Add word count to each list
-        return wordLists.map(wl => ({
-            ...wl,
-            wordCount: wl.words.length,
-            words: undefined // Don't expose full word list in listing
+        // Add word count to each list, exclude full words array
+        return wordLists.map(({ words, ...rest }) => ({
+            ...rest,
+            wordCount: words.length
         }));
     } catch (error) {
         logger.error('Error fetching public word lists:', error);
@@ -191,11 +190,11 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
     // Check ownership if requesterId provided
     const existing = await prisma.wordList.findUnique({ where: { id } });
     if (!existing) {
-        throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Word list not found' };
+        throw { code: ERROR_CODES.WORD_LIST_NOT_FOUND, message: 'Word list not found' };
     }
 
     if (requesterId && existing.ownerId && existing.ownerId !== requesterId) {
-        throw { code: ERROR_CODES.NOT_HOST, message: 'Not authorized to update this word list' };
+        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized to update this word list' };
     }
 
     const updateData = {};
@@ -258,11 +257,11 @@ async function deleteWordList(id, requesterId = null) {
     // Check ownership if requesterId provided
     const existing = await prisma.wordList.findUnique({ where: { id } });
     if (!existing) {
-        throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Word list not found' };
+        throw { code: ERROR_CODES.WORD_LIST_NOT_FOUND, message: 'Word list not found' };
     }
 
     if (requesterId && existing.ownerId && existing.ownerId !== requesterId) {
-        throw { code: ERROR_CODES.NOT_HOST, message: 'Not authorized to delete this word list' };
+        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized to delete this word list' };
     }
 
     try {
