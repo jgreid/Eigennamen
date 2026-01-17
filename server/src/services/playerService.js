@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 const { REDIS_TTL, ERROR_CODES } = require('../config/constants');
 
 /**
- * Create a new player
+ * Create a new player (adds to room's player set)
  */
 async function createPlayer(sessionId, roomCode, nickname, isHost = false) {
     const redis = getRedis();
@@ -31,6 +31,33 @@ async function createPlayer(sessionId, roomCode, nickname, isHost = false) {
     await redis.sAdd(`room:${roomCode}:players`, sessionId);
 
     logger.info(`Player ${nickname} (${sessionId}) created in room ${roomCode}`);
+
+    return player;
+}
+
+/**
+ * Create player data only (session already added to room set by Lua script)
+ * Used when atomic join script has already added the session to the players set
+ */
+async function createPlayerData(sessionId, roomCode, nickname, isHost = false) {
+    const redis = getRedis();
+
+    const player = {
+        sessionId,
+        roomCode,
+        nickname,
+        team: null,
+        role: 'guesser',
+        isHost,
+        connected: true,
+        connectedAt: Date.now(),
+        lastSeen: Date.now()
+    };
+
+    // Save player data only (session already in room's player set)
+    await redis.set(`player:${sessionId}`, JSON.stringify(player), { EX: REDIS_TTL.PLAYER });
+
+    logger.info(`Player ${nickname} (${sessionId}) data created in room ${roomCode}`);
 
     return player;
 }
@@ -193,6 +220,7 @@ async function getSocketId(sessionId) {
 
 module.exports = {
     createPlayer,
+    createPlayerData,
     getPlayer,
     updatePlayer,
     setTeam,

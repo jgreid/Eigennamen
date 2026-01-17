@@ -10,6 +10,7 @@ const path = require('path');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimit');
+const { csrfProtection } = require('./middleware/csrf');
 const routes = require('./routes');
 const logger = require('./utils/logger');
 
@@ -31,6 +32,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting for API routes
 app.use('/api', apiLimiter);
+
+// CSRF protection for state-changing API routes
+app.use('/api', csrfProtection);
 
 // API routes
 app.use('/api', routes);
