@@ -20,50 +20,212 @@ Real-time multiplayer server for Codenames Online, built with Node.js, Socket.io
 
 ## Quick Start
 
-### Using Docker (Recommended)
+This guide will walk you through getting the Codenames server running on your machine. Choose either Docker (easier, recommended) or Manual Setup depending on your preference.
 
+---
+
+### Option 1: Using Docker (Recommended)
+
+Docker packages everything you need into containers, so you don't have to install Redis or PostgreSQL separately.
+
+#### Step 1: Install Docker
+
+If you don't have Docker installed:
+- **Windows/Mac**: Download [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- **Linux**: Install via your package manager (`apt install docker.io docker-compose` on Ubuntu/Debian)
+
+Verify Docker is running:
 ```bash
-# Start all services
-docker-compose up -d
+docker --version
+docker-compose --version
+```
 
-# View logs
+#### Step 2: Start the Server
+
+From the `server/` directory, run:
+```bash
+docker-compose up -d
+```
+
+This command:
+- Downloads the required images (Node.js, Redis, PostgreSQL)
+- Creates and starts all containers in the background (`-d` = detached mode)
+- Sets up networking between containers automatically
+
+#### Step 3: Verify It's Running
+
+Check that all containers are up:
+```bash
+docker-compose ps
+```
+
+You should see three services running: `api`, `redis`, and `postgres`.
+
+View the server logs:
+```bash
 docker-compose logs -f api
 ```
 
-The server will be available at `http://localhost:3000`
+Press `Ctrl+C` to stop following logs.
 
-### Manual Setup
+#### Step 4: Test the Server
 
-1. **Install dependencies**
+Open your browser and go to:
+- `http://localhost:3000/health` - Should show `{"status":"ok",...}`
+- `http://localhost:3000/health/ready` - Shows dependency status
+
+The server is now ready to accept WebSocket connections from the client!
+
+#### Stopping the Server
+
+```bash
+docker-compose down        # Stop containers
+docker-compose down -v     # Stop and remove data volumes (fresh start)
+```
+
+---
+
+### Option 2: Manual Setup
+
+Use this if you prefer to run services directly on your machine without Docker.
+
+#### Prerequisites Explained
+
+| Requirement | What It Does | How to Install |
+|-------------|--------------|----------------|
+| **Node.js 18+** | Runs the JavaScript server code | [nodejs.org](https://nodejs.org/) or use `nvm` |
+| **Redis 7+** | Stores game state in memory for fast access | `brew install redis` (Mac) or `apt install redis-server` (Linux) |
+| **PostgreSQL 15+** | Stores persistent data (game history, word lists) | [postgresql.org](https://www.postgresql.org/download/) or `apt install postgresql` |
+
+#### Step 1: Install Node.js Dependencies
+
+Navigate to the server directory and install packages:
+```bash
+cd server
+npm install
+```
+
+This reads `package.json` and downloads all required libraries.
+
+#### Step 2: Configure Environment Variables
+
+Copy the example configuration file:
+```bash
+cp .env.example .env
+```
+
+Open `.env` in a text editor and configure:
+```bash
+# Required: Redis connection
+REDIS_URL=redis://localhost:6379
+
+# Required for persistence: PostgreSQL connection
+DATABASE_URL=postgresql://username:password@localhost:5432/codenames
+
+# Optional: Change the port (default is 3000)
+PORT=3000
+
+# Optional: Restrict which domains can connect
+CORS_ORIGIN=http://localhost:8080
+```
+
+#### Step 3: Start Redis
+
+Redis must be running before you start the server.
+
+**On Mac (Homebrew):**
+```bash
+brew services start redis
+```
+
+**On Linux:**
+```bash
+sudo systemctl start redis-server
+```
+
+**Verify Redis is running:**
+```bash
+redis-cli ping
+# Should respond: PONG
+```
+
+#### Step 4: Set Up PostgreSQL (Optional but Recommended)
+
+If you want persistent game history and custom word lists:
+
+1. **Create a database:**
    ```bash
-   npm install
+   createdb codenames
    ```
 
-2. **Set up environment**
+2. **Run database migrations:**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start Redis** (required)
-   ```bash
-   redis-server
-   ```
-
-4. **Start PostgreSQL** (optional, for persistence)
-   ```bash
-   # Set up database
    npx prisma migrate dev
    ```
+   This creates all the tables defined in `prisma/schema.prisma`.
 
-5. **Start the server**
+3. **Verify with Prisma Studio (optional):**
    ```bash
-   # Development (with hot reload)
-   npm run dev
-
-   # Production
-   npm start
+   npm run db:studio
    ```
+   Opens a web UI at `http://localhost:5555` to browse your database.
+
+#### Step 5: Start the Server
+
+**For development** (auto-restarts when you change code):
+```bash
+npm run dev
+```
+
+**For production:**
+```bash
+npm start
+```
+
+You should see output like:
+```
+[INFO] Server listening on port 3000
+[INFO] Redis connected
+[INFO] Database connected
+```
+
+#### Step 6: Verify Everything Works
+
+Test these URLs in your browser:
+
+| URL | Expected Result |
+|-----|-----------------|
+| `http://localhost:3000/health` | `{"status":"ok","timestamp":"..."}` |
+| `http://localhost:3000/health/ready` | Shows status of Redis and PostgreSQL |
+| `http://localhost:3000/api/health` | `{"status":"ok","timestamp":"..."}` |
+
+---
+
+### Connecting the Client
+
+Once the server is running:
+
+1. Open the client's `index.html` in a browser
+2. The client will attempt to connect via WebSocket to `ws://localhost:3000`
+3. If using a different host/port, update the client's server URL configuration
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "Redis connection refused" | Make sure Redis is running: `redis-cli ping` |
+| "Database connection failed" | Check `DATABASE_URL` in `.env` and ensure PostgreSQL is running |
+| "Port 3000 already in use" | Change `PORT` in `.env` or stop the other process using that port |
+| "CORS error in browser" | Set `CORS_ORIGIN` in `.env` to your client's URL |
+| Docker containers won't start | Run `docker-compose logs` to see error messages |
+
+### Running Tests
+
+To verify everything is working correctly:
+```bash
+npm test              # Run all 94 tests
+npm run test:coverage # Run tests with coverage report
+```
 
 ## Configuration
 
