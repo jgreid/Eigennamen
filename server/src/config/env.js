@@ -8,7 +8,7 @@ const requiredVars = [];
 
 const optionalVars = {
     NODE_ENV: 'development',
-    PORT: '3001',
+    PORT: '3000',
     REDIS_URL: 'redis://localhost:6379',
     DATABASE_URL: 'postgresql://localhost:5432/codenames',
     JWT_SECRET: null,  // Optional for anonymous play
