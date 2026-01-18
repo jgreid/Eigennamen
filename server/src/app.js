@@ -17,10 +17,17 @@ const logger = require('./utils/logger');
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false // Disable CSP for game assets
+}));
+
+// CORS configuration
+const corsOrigin = process.env.CORS_ORIGIN || '*';
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true
+    origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
 }));
 
 // Compression
@@ -40,7 +47,7 @@ app.use('/api', csrfProtection);
 app.use('/api', routes);
 
 // Serve static files (the game client)
-app.use(express.static(path.join(__dirname, '../../public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Basic health check
 app.get('/health', (req, res) => {
@@ -118,10 +125,16 @@ app.get('/metrics', (req, res) => {
     if (io) {
         io.fetchSockets().then(sockets => {
             metrics.socketio = {
+                status: 'ok',
                 connections: sockets.length
             };
             res.json(metrics);
-        }).catch(() => {
+        }).catch((error) => {
+            logger.warn('Failed to fetch socket stats for metrics:', error.message);
+            metrics.socketio = {
+                status: 'error',
+                error: error.message
+            };
             res.json(metrics);
         });
     } else {
@@ -134,7 +147,7 @@ app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/health') || req.path.startsWith('/metrics')) {
         return next();
     }
-    res.sendFile(path.join(__dirname, '../../public/index.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 // Error handling

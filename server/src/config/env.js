@@ -42,8 +42,17 @@ function validateEnv() {
         errors.push('PORT must be a number');
     }
 
-    // Security warnings
+    // Production-specific validations
     if (process.env.NODE_ENV === 'production') {
+        // Require real database/redis URLs in production (not localhost defaults)
+        if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('localhost')) {
+            errors.push('DATABASE_URL must be set to a real database URL in production');
+        }
+        if (!process.env.REDIS_URL || process.env.REDIS_URL.includes('localhost')) {
+            errors.push('REDIS_URL must be set to a real Redis URL in production');
+        }
+
+        // Security warnings
         if (!process.env.JWT_SECRET) {
             warnings.push('JWT_SECRET not set - JWT authentication disabled');
         }
