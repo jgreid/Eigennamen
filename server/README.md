@@ -34,19 +34,21 @@ Docker packages everything you need into containers, so you don't have to instal
 
 If you don't have Docker installed:
 - **Windows/Mac**: Download [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- **Linux**: Install via your package manager (`apt install docker.io docker-compose` on Ubuntu/Debian)
+- **Linux**: Install via your package manager (`apt install docker.io docker-compose-plugin` on Ubuntu/Debian)
 
 Verify Docker is running:
 ```bash
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 #### Step 2: Start the Server
 
-From the `server/` directory, run:
+**Windows users:** Simply double-click `start-server.bat` in the server folder!
+
+**All platforms:** From the `server/` directory, run:
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 This command:
@@ -58,14 +60,14 @@ This command:
 
 Check that all containers are up:
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 You should see three services running: `api`, `redis`, and `postgres`.
 
 View the server logs:
 ```bash
-docker-compose logs -f api
+docker compose logs -f api
 ```
 
 Press `Ctrl+C` to stop following logs.
@@ -80,9 +82,12 @@ The server is now ready to accept WebSocket connections from the client!
 
 #### Stopping the Server
 
+**Windows users:** Double-click `stop-server.bat` or `check-status.bat` in the server folder.
+
+**All platforms:**
 ```bash
-docker-compose down        # Stop containers
-docker-compose down -v     # Stop and remove data volumes (fresh start)
+docker compose down        # Stop containers
+docker compose down -v     # Stop and remove data volumes (fresh start)
 ```
 
 ---
@@ -219,7 +224,7 @@ Once the server is running:
 | "Database connection failed" | Check `DATABASE_URL` in `.env` and ensure PostgreSQL is running |
 | "Port 3000 already in use" | Change `PORT` in `.env` or stop the other process using that port |
 | "CORS error in browser" | Set `CORS_ORIGIN` in `.env` to your client's URL |
-| Docker containers won't start | Run `docker-compose logs` to see error messages |
+| Docker containers won't start | Run `docker compose logs` to see error messages |
 
 ### Running Tests
 

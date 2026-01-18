@@ -18,6 +18,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # Run database migration before starting the server
+    command: sh -c "npx prisma db push --skip-generate && node src/index.js"
     restart: unless-stopped
     networks:
       - codenames-network

@@ -87,16 +87,42 @@ After your computer restarts:
 
 ## Part 3: Start the Game Server
 
-Now we'll start the actual game server. This requires typing a few commands, but I'll walk you through exactly what to type.
+Now we'll start the actual game server. You have two options: the easy way (recommended) or the manual way.
 
-### Step 1: Open Command Prompt
+---
+
+### Option A: The Easy Way (Recommended)
+
+We've included a script that does everything for you automatically!
+
+1. Go back to your **File Explorer** window where you extracted the game files
+2. Open the folder `Risley-Codenames-main` by double-clicking it
+3. Inside that folder, open the folder called `server` by double-clicking it
+4. Find the file called **`start-server.bat`** and **double-click** it
+
+**What happens next:**
+- A black window will open and show progress messages
+- It will check if Docker is running (and start it if needed)
+- It will download and set up everything automatically
+- The first time takes 2-5 minutes depending on your internet speed
+- When done, it will show you the address to access the game
+
+**That's it! Skip to Part 4 to play the game.**
+
+---
+
+### Option B: Manual Setup (Advanced)
+
+If you prefer to run commands manually, follow these steps:
+
+#### Step 1: Open Command Prompt
 
 1. Click the **Start** button (Windows icon)
 2. Type **"cmd"**
 3. You'll see **"Command Prompt"** appear - click on it
 4. A black window will open with white text - this is the Command Prompt
 
-### Step 2: Navigate to the Game Folder
+#### Step 2: Navigate to the Game Folder
 
 Now you need to tell the computer where the game files are. Remember the folder you extracted earlier? We need to go there.
 
@@ -124,32 +150,32 @@ If it worked, you'll see the path appear before the cursor, like:
 C:\Users\YourName\Downloads\Risley-Codenames-main\server>
 ```
 
-### Step 3: Start the Server
+#### Step 3: Start the Server
 
 Now type this command exactly as shown and press **Enter**:
 
 ```
-docker-compose up -d
+docker compose up -d --build
 ```
 
 **What happens next:**
 - The first time you run this, Docker will download everything it needs
 - You'll see a lot of text scrolling by - this is normal!
 - It might take 2-5 minutes depending on your internet speed
-- When it's done, you'll see something like "Creating server_api_1 ... done"
+- When it's done, you'll see something like "Container server-api-1 Started"
 
-### Step 4: Make Sure It's Working
+#### Step 4: Make Sure It's Working
 
 Type this command and press **Enter**:
 
 ```
-docker-compose ps
+docker compose ps
 ```
 
-You should see a table showing three services all with "Up" in their status:
-- `server_api_1` - Up
-- `server_redis_1` - Up
-- `server_db_1` - Up
+You should see a table showing three services all with "running" in their status:
+- `server-api-1` - running
+- `server-redis-1` - running
+- `server-db-1` - running
 
 **Congratulations! Your game server is now running!**
 
@@ -180,22 +206,36 @@ If your friends are on the same Wi-Fi network (like in your house):
 
 If you want to shut down the server (maybe you're done playing or want to turn off your computer):
 
+**Easy way:** Double-click **`stop-server.bat`** in the server folder.
+
+**Manual way:**
 1. Open Command Prompt
 2. Navigate to the server folder again (use the `cd` command from Part 3)
 3. Type this and press **Enter**:
    ```
-   docker-compose down
+   docker compose down
    ```
 
 ### To Start the Server Again Later
 
+**Easy way:** Double-click **`start-server.bat`** in the server folder.
+
+**Manual way:**
 1. Make sure Docker Desktop is running (check for the whale icon in your system tray)
 2. Open Command Prompt
 3. Navigate to the server folder
 4. Type this and press **Enter**:
    ```
-   docker-compose up -d
+   docker compose up -d
    ```
+
+### To Check Server Status
+
+**Easy way:** Double-click **`check-status.bat`** in the server folder.
+
+**Manual way:**
+1. Open Command Prompt and navigate to the server folder
+2. Type `docker compose ps` and press **Enter**
 
 ---
 
@@ -222,10 +262,10 @@ If you want to shut down the server (maybe you're done playing or want to turn o
 **What it means:** The server might not be running.
 
 **How to fix it:**
-1. Go to Command Prompt
-2. Navigate to the server folder
-3. Type `docker-compose ps` and press Enter
-4. If you don't see three services with "Up" status, type `docker-compose up -d` to start them
+1. Double-click `check-status.bat` in the server folder to see if services are running
+2. If services aren't running, double-click `start-server.bat` to start them
+3. Or manually: open Command Prompt, navigate to the server folder, and type `docker compose ps`
+4. If you don't see three services with "running" status, type `docker compose up -d --build` to start them
 
 ### Nothing happens when I type commands
 
@@ -247,14 +287,14 @@ If you want to shut down the server (maybe you're done playing or want to turn o
 
 Once you're comfortable with the setup, here's a quick reference:
 
-| What you want to do | Command |
-|---------------------|---------|
-| Start the server | `docker-compose up -d` |
-| Stop the server | `docker-compose down` |
-| Check if it's running | `docker-compose ps` |
-| Find your IP address | `ipconfig` |
+| What you want to do | Easy Way (Double-click) | Manual Command |
+|---------------------|-------------------------|----------------|
+| Start the server | `start-server.bat` | `docker compose up -d --build` |
+| Stop the server | `stop-server.bat` | `docker compose down` |
+| Check if it's running | `check-status.bat` | `docker compose ps` |
+| Find your IP address | (shown in start script) | `ipconfig` |
 
-**Remember:** Always navigate to the server folder first with the `cd` command!
+**Remember:** For manual commands, always navigate to the server folder first with the `cd` command!
 
 ---
 
