@@ -1,340 +1,266 @@
-# Setting Up the Codenames Server on Windows
+# How to Set Up the Codenames Game Server on Your Windows Computer
 
-This guide walks you through setting up the Codenames multiplayer server on a Windows PC. We'll cover two methods: Docker (easiest) and Manual Setup.
+This guide will walk you through every step to get the Codenames game running on your Windows computer so you can play with friends and family. No technical experience needed - just follow along!
 
-## Quick Overview
+**Time needed:** About 20-30 minutes (most of this is waiting for downloads)
 
-The Codenames server needs three things to run:
-1. **Node.js** - Runs the JavaScript server code
-2. **Redis** - Stores game state in memory for fast access
-3. **PostgreSQL** - Stores persistent data (game history, word lists)
+**What you'll end up with:** A game server running on your computer that everyone can connect to and play Codenames together in real-time.
 
 ---
 
-## Method 1: Using Docker Desktop (Recommended)
+## What You'll Need
 
-Docker is the easiest way to get started because it packages everything together - you don't need to install Redis or PostgreSQL separately.
+- A Windows 10 or Windows 11 computer
+- An internet connection
+- About 2 GB of free disk space
 
-### Step 1: Install Docker Desktop
+---
 
-1. Download Docker Desktop from: https://www.docker.com/products/docker-desktop/
-2. Run the installer and follow the prompts
-3. Restart your computer when prompted
-4. After restart, launch Docker Desktop from the Start menu
-5. Wait for Docker to fully start (the whale icon in your system tray will stop animating)
+## Part 1: Download the Game Files
 
-### Step 2: Verify Docker Installation
+First, we need to get the game files onto your computer.
 
-Open **Command Prompt** or **PowerShell** and run:
+### Step 1: Open the Download Page
 
-```cmd
-docker --version
-docker-compose --version
+1. Open your web browser (Chrome, Edge, Firefox - any will work)
+2. Go to: **https://github.com/jgreid/Risley-Codenames**
+
+### Step 2: Download the Files
+
+1. Look for a green button that says **"Code"** - it's near the top right of the page
+2. Click on it
+3. A small menu will appear - click **"Download ZIP"**
+4. Your browser will download a file called something like `Risley-Codenames-main.zip`
+5. Wait for the download to finish (you'll see it in the bottom of your browser or in your Downloads folder)
+
+### Step 3: Extract (Unzip) the Files
+
+1. Open **File Explorer** (the folder icon on your taskbar, or press the Windows key and type "File Explorer")
+2. Go to your **Downloads** folder (look in the left sidebar)
+3. Find the file called `Risley-Codenames-main.zip`
+4. **Right-click** on it
+5. Click **"Extract All..."**
+6. A window will pop up asking where to extract - just click **"Extract"** (the default location is fine)
+7. A new folder will appear called `Risley-Codenames-main`
+
+**Keep this File Explorer window open - you'll need it later!**
+
+---
+
+## Part 2: Install Docker Desktop
+
+Docker is a free program that will run the game server for you. It handles all the complicated technical stuff automatically.
+
+### Step 1: Download Docker Desktop
+
+1. Open your web browser
+2. Go to: **https://www.docker.com/products/docker-desktop/**
+3. Click the big blue button that says **"Download for Windows"**
+4. Wait for the download to finish (the file is about 500 MB, so this may take a few minutes)
+
+### Step 2: Install Docker Desktop
+
+1. Go to your **Downloads** folder
+2. Find the file called **"Docker Desktop Installer.exe"** and **double-click** it
+3. If Windows asks "Do you want to allow this app to make changes?" click **"Yes"**
+4. The installer will start - just follow the prompts:
+   - Leave all the checkboxes at their default settings
+   - Click **"Ok"** or **"Install"** when asked
+5. When it says installation is complete, click **"Close and restart"**
+6. **Your computer will restart** - this is normal!
+
+### Step 3: Start Docker Desktop
+
+After your computer restarts:
+
+1. Docker Desktop might start automatically. If not:
+   - Click the **Start** button (Windows icon in the bottom-left corner)
+   - Type **"Docker Desktop"**
+   - Click on **Docker Desktop** when it appears
+2. The first time it runs, you'll see a welcome screen - you can skip or close any tutorials
+3. **Wait for Docker to fully start** - look at the bottom-left of the Docker window. It should say "Docker Desktop is running" or show a green indicator
+4. If it asks you to create an account, you can click **"Continue without signing in"** or just close that window
+
+**Important:** Look at your system tray (the small icons near the clock in the bottom-right corner of your screen). You should see a whale icon (the Docker logo). If you hover over it, it should say "Docker Desktop is running."
+
+---
+
+## Part 3: Start the Game Server
+
+Now we'll start the actual game server. This requires typing a few commands, but I'll walk you through exactly what to type.
+
+### Step 1: Open Command Prompt
+
+1. Click the **Start** button (Windows icon)
+2. Type **"cmd"**
+3. You'll see **"Command Prompt"** appear - click on it
+4. A black window will open with white text - this is the Command Prompt
+
+### Step 2: Navigate to the Game Folder
+
+Now you need to tell the computer where the game files are. Remember the folder you extracted earlier? We need to go there.
+
+1. Go back to your **File Explorer** window where you extracted the game files
+2. Open the folder `Risley-Codenames-main` by double-clicking it
+3. Inside that folder, open the folder called `server` by double-clicking it
+4. Now, **click once in the address bar** at the top of the File Explorer window (where it shows the folder path)
+5. The address bar will highlight and show something like:
+   `C:\Users\YourName\Downloads\Risley-Codenames-main\server`
+6. Press **Ctrl+C** to copy this path
+
+Now go back to the Command Prompt:
+
+7. Type the letters **cd** followed by a space
+8. Then **right-click** in the Command Prompt window - this will paste the path you copied
+9. Press **Enter**
+
+The command should look something like this:
+```
+cd C:\Users\YourName\Downloads\Risley-Codenames-main\server
 ```
 
-You should see version numbers for both. If you get an error, make sure Docker Desktop is running.
+If it worked, you'll see the path appear before the cursor, like:
+```
+C:\Users\YourName\Downloads\Risley-Codenames-main\server>
+```
 
 ### Step 3: Start the Server
 
-1. Open Command Prompt or PowerShell
-2. Navigate to the server folder:
-   ```cmd
-   cd path\to\Risley-Codenames\server
-   ```
-3. Start all services:
-   ```cmd
-   docker-compose up -d
-   ```
+Now type this command exactly as shown and press **Enter**:
 
-The first time you run this, Docker will download the required images. This may take a few minutes.
+```
+docker-compose up -d
+```
 
-### Step 4: Verify It's Running
+**What happens next:**
+- The first time you run this, Docker will download everything it needs
+- You'll see a lot of text scrolling by - this is normal!
+- It might take 2-5 minutes depending on your internet speed
+- When it's done, you'll see something like "Creating server_api_1 ... done"
 
-Check that all containers are running:
+### Step 4: Make Sure It's Working
 
-```cmd
+Type this command and press **Enter**:
+
+```
 docker-compose ps
 ```
 
-You should see three services: `api`, `redis`, and `postgres` - all with status "Up".
+You should see a table showing three services all with "Up" in their status:
+- `server_api_1` - Up
+- `server_redis_1` - Up
+- `server_db_1` - Up
 
-View the server logs:
-
-```cmd
-docker-compose logs -f api
-```
-
-Press `Ctrl+C` to stop watching logs.
-
-### Step 5: Test the Server
-
-Open your web browser and go to:
-- http://localhost:3000/health
-
-You should see: `{"status":"ok",...}`
-
-The server is now running and ready for connections.
-
-### Stopping the Server
-
-To stop the server:
-
-```cmd
-docker-compose down
-```
-
-To stop and remove all data (fresh start):
-
-```cmd
-docker-compose down -v
-```
+**Congratulations! Your game server is now running!**
 
 ---
 
-## Method 2: Manual Setup
+## Part 4: Play the Game
 
-Use this method if you prefer not to use Docker or want more control over the setup.
+### Open the Game in Your Browser
 
-### Step 1: Install Node.js
+1. Open your web browser
+2. Go to: **http://localhost:3000**
+3. You should see the Codenames game board!
 
-1. Download Node.js (LTS version) from: https://nodejs.org/
-2. Run the installer
-3. Accept the defaults (make sure "Add to PATH" is checked)
-4. Open a **new** Command Prompt and verify:
-   ```cmd
-   node --version
-   npm --version
-   ```
+### Share with Friends on the Same Wi-Fi Network
 
-### Step 2: Install Redis
+If your friends are on the same Wi-Fi network (like in your house):
 
-Redis doesn't have an official Windows build, but there are several options:
+1. Go back to Command Prompt
+2. Type **ipconfig** and press **Enter**
+3. Look for a line that says **"IPv4 Address"** - it will show something like `192.168.1.105`
+4. Tell your friends to open their browser and go to: **http://192.168.1.105:3000** (using your actual number)
 
-**Option A: Use Windows Subsystem for Linux (WSL) - Recommended**
+---
 
-1. Open PowerShell as Administrator and run:
-   ```powershell
-   wsl --install
-   ```
-2. Restart your computer
-3. Open the Ubuntu app from the Start menu
-4. Install Redis in WSL:
-   ```bash
-   sudo apt update
-   sudo apt install redis-server
-   sudo service redis-server start
-   ```
-5. Test it:
-   ```bash
-   redis-cli ping
-   ```
-   Should respond: `PONG`
+## Part 5: Stopping and Starting the Server
 
-**Option B: Use Memurai (Redis-compatible for Windows)**
+### To Stop the Server
 
-1. Download from: https://www.memurai.com/
-2. Install and start the Memurai service
-3. It runs on the same port as Redis (6379)
-
-### Step 3: Install PostgreSQL
-
-1. Download from: https://www.postgresql.org/download/windows/
-2. Run the installer
-3. During installation:
-   - Set a password for the `postgres` user (remember this!)
-   - Keep the default port (5432)
-   - Complete the installation
-4. The installer should start PostgreSQL automatically as a Windows service
-
-### Step 4: Create the Database
-
-1. Open **pgAdmin** (installed with PostgreSQL) or use the command line
-2. Using pgAdmin:
-   - Right-click on "Databases" → "Create" → "Database"
-   - Name it: `codenames`
-   - Click "Save"
-
-3. Or using Command Prompt (run as Administrator):
-   ```cmd
-   "C:\Program Files\PostgreSQL\15\bin\psql.exe" -U postgres
-   ```
-   Enter your password, then:
-   ```sql
-   CREATE DATABASE codenames;
-   \q
-   ```
-
-### Step 5: Install Server Dependencies
+If you want to shut down the server (maybe you're done playing or want to turn off your computer):
 
 1. Open Command Prompt
-2. Navigate to the server folder:
-   ```cmd
-   cd path\to\Risley-Codenames\server
+2. Navigate to the server folder again (use the `cd` command from Part 3)
+3. Type this and press **Enter**:
    ```
-3. Install dependencies:
-   ```cmd
-   npm install
+   docker-compose down
    ```
 
-### Step 6: Configure Environment Variables
+### To Start the Server Again Later
 
-1. Copy the example configuration:
-   ```cmd
-   copy .env.example .env
+1. Make sure Docker Desktop is running (check for the whale icon in your system tray)
+2. Open Command Prompt
+3. Navigate to the server folder
+4. Type this and press **Enter**:
    ```
-
-2. Open `.env` in a text editor (like Notepad or VS Code) and update these values:
-
-   ```env
-   # Server port
-   PORT=3000
-
-   # PostgreSQL connection (update with your password)
-   DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/codenames
-
-   # Redis connection
-   REDIS_URL=redis://localhost:6379
-
-   # Generate a random secret for JWT (use any long random string)
-   JWT_SECRET=your-super-secret-key-change-this
-
-   # Allow connections from anywhere (for development)
-   CORS_ORIGIN=*
+   docker-compose up -d
    ```
-
-### Step 7: Run Database Migrations
-
-This creates the necessary database tables:
-
-```cmd
-npx prisma migrate dev
-```
-
-If prompted for a migration name, enter something like "initial".
-
-### Step 8: Start the Server
-
-**For development** (auto-restarts when files change):
-
-```cmd
-npm run dev
-```
-
-**For production:**
-
-```cmd
-npm start
-```
-
-You should see output like:
-
-```
-[INFO] Server listening on port 3000
-[INFO] Redis connected
-[INFO] Database connected
-```
-
-### Step 9: Test the Server
-
-Open your browser and go to:
-- http://localhost:3000/health
-
-You should see: `{"status":"ok",...}`
 
 ---
 
-## Connecting the Client
+## Troubleshooting: What to Do If Something Goes Wrong
 
-Once the server is running:
+### "Docker is not running" error
 
-1. Open the `index.html` file from the project root in your browser
-2. The client will connect to `ws://localhost:3000` by default
-3. Create a room and share the code with friends!
+**What it means:** Docker Desktop needs to be running before you can start the server.
 
----
+**How to fix it:**
+1. Look for the whale icon in your system tray (near the clock)
+2. If you don't see it, click the Start button, type "Docker Desktop", and open it
+3. Wait for it to fully start (the whale icon should be steady, not animating)
+4. Try the command again
 
-## Troubleshooting
+### "Cannot connect to the Docker daemon" error
 
-| Problem | Solution |
-|---------|----------|
-| **"Docker is not running"** | Open Docker Desktop and wait for it to fully start |
-| **"Port 3000 already in use"** | Change the `PORT` in `.env` or close the other application using port 3000 |
-| **"Redis connection refused"** | Make sure Redis is running (check Windows Services or WSL) |
-| **"Database connection failed"** | Check your password in `.env` and verify PostgreSQL is running |
-| **"ECONNREFUSED" errors** | Ensure all services (Redis, PostgreSQL) are started |
-| **"npx prisma" command not found** | Run `npm install` again in the server folder |
-| **WSL not installing** | Enable "Windows Subsystem for Linux" in Windows Features |
+**What it means:** Same as above - Docker isn't ready yet.
 
-### Checking if Services are Running
+**How to fix it:** Wait another minute for Docker to fully start, then try again.
 
-**PostgreSQL:**
-1. Press `Win + R`, type `services.msc`, press Enter
-2. Look for "postgresql" in the list
-3. Status should be "Running"
+### The browser shows "This site can't be reached"
 
-**Redis (WSL):**
-```bash
-wsl -e redis-cli ping
-```
-Should respond: `PONG`
+**What it means:** The server might not be running.
 
-**Redis (Memurai):**
-1. Check Windows Services for "Memurai" - should be "Running"
+**How to fix it:**
+1. Go to Command Prompt
+2. Navigate to the server folder
+3. Type `docker-compose ps` and press Enter
+4. If you don't see three services with "Up" status, type `docker-compose up -d` to start them
 
----
+### Nothing happens when I type commands
 
-## Running as a Background Service
+**What it means:** You might not be in the right folder.
 
-If you want the server to run automatically when Windows starts:
+**How to fix it:**
+1. Make sure you used the `cd` command to go to the server folder first
+2. The path before your cursor should end with `\server>`
 
-### Using Docker Desktop
-Docker Desktop can be configured to start with Windows and containers can be set to restart automatically.
+### The download is taking forever
 
-### Using PM2 (Process Manager)
+**What it means:** Docker is downloading a lot of files the first time.
 
-1. Install PM2 globally:
-   ```cmd
-   npm install -g pm2
-   npm install -g pm2-windows-startup
-   pm2-startup install
-   ```
-
-2. Start the server with PM2:
-   ```cmd
-   cd path\to\Risley-Codenames\server
-   pm2 start npm --name "codenames" -- start
-   pm2 save
-   ```
-
-3. The server will now start automatically with Windows.
+**How to fix it:** This is normal! The first time can take 5-10 minutes. Subsequent starts will be much faster (just a few seconds).
 
 ---
 
-## Network Access
+## Quick Reference Card
 
-To allow other devices on your network to connect:
+Once you're comfortable with the setup, here's a quick reference:
 
-1. Find your computer's IP address:
-   ```cmd
-   ipconfig
-   ```
-   Look for "IPv4 Address" (usually starts with 192.168.x.x)
+| What you want to do | Command |
+|---------------------|---------|
+| Start the server | `docker-compose up -d` |
+| Stop the server | `docker-compose down` |
+| Check if it's running | `docker-compose ps` |
+| Find your IP address | `ipconfig` |
 
-2. Open Windows Firewall:
-   - Search for "Windows Defender Firewall" in the Start menu
-   - Click "Advanced settings"
-   - Click "Inbound Rules" → "New Rule"
-   - Select "Port" → "TCP" → "3000"
-   - Allow the connection
-   - Give it a name like "Codenames Server"
-
-3. Other devices can now connect using your IP:
-   - `http://192.168.x.x:3000`
+**Remember:** Always navigate to the server folder first with the `cd` command!
 
 ---
 
-## Need Help?
+## Need More Help?
 
-- Check the [main README](../README.md) for general information
-- See [SERVER_SPEC.md](./SERVER_SPEC.md) for technical details
-- Report issues at the project's GitHub repository
+If you're still having trouble, you can:
+- Ask a family member who's good with computers to help
+- Check the [main project page](https://github.com/jgreid/Risley-Codenames) for more information
+- The game also works without a server! Just open the `index.html` file directly in your browser for a simpler version
