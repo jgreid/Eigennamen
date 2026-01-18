@@ -18,6 +18,8 @@ Real-time multiplayer server for Codenames Online, built with Node.js, Socket.io
 - PostgreSQL 15+ (optional, for persistence)
 - Docker & Docker Compose (optional)
 
+**Windows users:** See the dedicated [Windows Setup Guide](../docs/WINDOWS_SETUP.md) for step-by-step instructions.
+
 ## Quick Start
 
 This guide will walk you through getting the Codenames server running on your machine. Choose either Docker (easier, recommended) or Manual Setup depending on your preference.
