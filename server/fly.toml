@@ -1,7 +1,7 @@
 # Fly.io configuration for Codenames game server
 # See https://fly.io/docs/reference/configuration/ for details
 
-app = "codenames-game"
+app = "risley-codenames"
 primary_region = "iad"
 
 [build]
