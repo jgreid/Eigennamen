@@ -84,8 +84,32 @@ async function getRoom(code) {
 }
 
 /**
+ * Lua script for atomic room join with capacity check
+ * Returns: 1 if added successfully, 0 if room is full, -1 if already a member
+ */
+const ATOMIC_JOIN_SCRIPT = `
+local playersKey = KEYS[1]
+local maxPlayers = tonumber(ARGV[1])
+local sessionId = ARGV[2]
+
+-- Check if already a member
+if redis.call('SISMEMBER', playersKey, sessionId) == 1 then
+    return -1
+end
+
+-- Check capacity and add atomically
+local currentCount = redis.call('SCARD', playersKey)
+if currentCount >= maxPlayers then
+    return 0
+end
+
+redis.call('SADD', playersKey, sessionId)
+return 1
+`;
+
+/**
  * Join an existing room
- * Uses atomic operations to prevent race conditions when checking player count
+ * Uses Lua script for atomic capacity check and add to prevent race conditions
  */
 async function joinRoom(code, sessionId, nickname) {
     const redis = getRedis();
@@ -105,21 +129,26 @@ async function joinRoom(code, sessionId, nickname) {
         player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
         isReconnecting = true;
     } else {
-        // Use SCARD for atomic count check before creating
-        const currentCount = await redis.sCard(`room:${code}:players`);
-        if (currentCount >= ROOM_MAX_PLAYERS) {
+        // Use Lua script for atomic capacity check and add
+        const result = await redis.eval(
+            ATOMIC_JOIN_SCRIPT,
+            {
+                keys: [`room:${code}:players`],
+                arguments: [ROOM_MAX_PLAYERS.toString(), sessionId]
+            }
+        );
+
+        if (result === 0) {
             throw { code: ERROR_CODES.ROOM_FULL, message: 'Room is full' };
         }
 
-        // Create new player (adds to set)
-        player = await playerService.createPlayer(sessionId, code, nickname, false);
-
-        // Double-check count after adding (handles race condition)
-        const newCount = await redis.sCard(`room:${code}:players`);
-        if (newCount > ROOM_MAX_PLAYERS) {
-            // We exceeded the limit due to race condition - rollback
-            await playerService.removePlayer(sessionId);
-            throw { code: ERROR_CODES.ROOM_FULL, message: 'Room is full' };
+        if (result === -1) {
+            // Already a member but player data might be missing - treat as reconnection
+            player = await playerService.createPlayer(sessionId, code, nickname, false);
+            isReconnecting = true;
+        } else {
+            // Successfully added to set, now create player data
+            player = await playerService.createPlayerData(sessionId, code, nickname, false);
         }
     }
 

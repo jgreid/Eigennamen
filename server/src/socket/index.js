@@ -11,9 +11,23 @@ const gameHandlers = require('./handlers/gameHandlers');
 const playerHandlers = require('./handlers/playerHandlers');
 const chatHandlers = require('./handlers/chatHandlers');
 const { authenticateSocket } = require('../middleware/socketAuth');
+const { createSocketRateLimiter } = require('../middleware/rateLimit');
 const timerService = require('../services/timerService');
 
 let io = null;
+
+// Create socket rate limiter with event-specific limits
+const socketRateLimiter = createSocketRateLimiter({
+    'room:create': { max: 5, window: 60000 },      // 5 per minute
+    'room:join': { max: 10, window: 60000 },       // 10 per minute
+    'game:start': { max: 10, window: 60000 },      // 10 per minute
+    'game:reveal': { max: 30, window: 60000 },     // 30 per minute
+    'game:clue': { max: 20, window: 60000 },       // 20 per minute
+    'chat:message': { max: 30, window: 60000 }     // 30 per minute
+});
+
+// Start periodic cleanup of stale rate limit entries
+setInterval(() => socketRateLimiter.cleanupStale(), 60000);
 
 function initializeSocket(server) {
     io = new Server(server, {
@@ -42,6 +56,9 @@ function initializeSocket(server) {
     io.on('connection', (socket) => {
         logger.info(`Client connected: ${socket.id} (session: ${socket.sessionId})`);
 
+        // Attach rate limiter to socket for use in handlers
+        socket.rateLimiter = socketRateLimiter;
+
         // Register all event handlers
         roomHandlers(io, socket);
         gameHandlers(io, socket);
@@ -51,6 +68,10 @@ function initializeSocket(server) {
         // Handle disconnection
         socket.on('disconnect', (reason) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
+
+            // Clean up rate limiter entries for this socket to prevent memory leaks
+            socketRateLimiter.cleanupSocket(socket.id);
+
             handleDisconnect(io, socket, reason);
         });
 
@@ -60,7 +81,45 @@ function initializeSocket(server) {
         });
     });
 
+    // Initialize timer service for distributed operation
+    timerService.initializeTimerService(createTimerExpireCallback());
+
     return io;
+}
+
+/**
+ * Create the callback for timer expiration
+ */
+function createTimerExpireCallback() {
+    return async (roomCode) => {
+        const gameService = require('../services/gameService');
+        const roomService = require('../services/roomService');
+        try {
+            const result = await gameService.endTurn(roomCode, 'Timer');
+            emitToRoom(roomCode, 'game:turnEnded', {
+                currentTurn: result.currentTurn,
+                previousTurn: result.previousTurn,
+                reason: 'timerExpired'
+            });
+            emitToRoom(roomCode, 'timer:expired', { roomCode });
+
+            // Restart timer for the new turn (if timer is configured and game not over)
+            setTimeout(async () => {
+                try {
+                    const room = await roomService.getRoom(roomCode);
+                    const game = await gameService.getGame(roomCode);
+
+                    if (room && room.settings && room.settings.turnTimer && game && !game.gameOver) {
+                        await startTurnTimer(roomCode, room.settings.turnTimer);
+                    }
+                } catch (err) {
+                    logger.debug(`Timer restart skipped for room ${roomCode}: ${err.message}`);
+                }
+            }, 100);
+        } catch (error) {
+            logger.error(`Timer expiry error for room ${roomCode}:`, error);
+        }
+    };
 }
 
 /**
@@ -152,43 +211,10 @@ function emitToPlayer(sessionId, event, data) {
 }
 
 /**
- * Start a turn timer for a room
+ * Start a turn timer for a room (async)
  */
-function startTurnTimer(roomCode, durationSeconds) {
-    const onExpire = async (code) => {
-        // Auto-end turn when timer expires
-        const gameService = require('../services/gameService');
-        const roomService = require('../services/roomService');
-        try {
-            const result = await gameService.endTurn(code, 'Timer');
-            emitToRoom(code, 'game:turnEnded', {
-                currentTurn: result.currentTurn,
-                previousTurn: result.previousTurn,
-                reason: 'timerExpired'
-            });
-            emitToRoom(code, 'timer:expired', { roomCode: code });
-
-            // Restart timer for the new turn (if timer is configured and game not over)
-            setTimeout(async () => {
-                try {
-                    // Re-fetch room and game state to avoid stale closures
-                    const room = await roomService.getRoom(code);
-                    const game = await gameService.getGame(code);
-
-                    // Only restart if room exists, timer is configured, and game is active
-                    if (room && room.settings && room.settings.turnTimer && game && !game.gameOver) {
-                        startTurnTimer(code, room.settings.turnTimer);
-                    }
-                } catch (err) {
-                    logger.debug(`Timer restart skipped for room ${code}: ${err.message}`);
-                }
-            }, 100);
-        } catch (error) {
-            logger.error(`Timer expiry error for room ${code}:`, error);
-        }
-    };
-
-    const timerInfo = timerService.startTimer(roomCode, durationSeconds, onExpire);
+async function startTurnTimer(roomCode, durationSeconds) {
+    const timerInfo = await timerService.startTimer(roomCode, durationSeconds, createTimerExpireCallback());
 
     // Broadcast timer start
     emitToRoom(roomCode, 'timer:started', {
@@ -200,18 +226,25 @@ function startTurnTimer(roomCode, durationSeconds) {
 }
 
 /**
- * Stop the turn timer for a room
+ * Stop the turn timer for a room (async)
  */
-function stopTurnTimer(roomCode) {
-    timerService.stopTimer(roomCode);
+async function stopTurnTimer(roomCode) {
+    await timerService.stopTimer(roomCode);
     emitToRoom(roomCode, 'timer:stopped', { roomCode });
 }
 
 /**
- * Get timer status for a room
+ * Get timer status for a room (async)
  */
-function getTimerStatus(roomCode) {
-    return timerService.getTimerStatus(roomCode);
+async function getTimerStatus(roomCode) {
+    return await timerService.getTimerStatus(roomCode);
+}
+
+/**
+ * Get the socket rate limiter for use in handlers
+ */
+function getSocketRateLimiter() {
+    return socketRateLimiter;
 }
 
 module.exports = {
@@ -221,5 +254,6 @@ module.exports = {
     emitToPlayer,
     startTurnTimer,
     stopTurnTimer,
-    getTimerStatus
+    getTimerStatus,
+    getSocketRateLimiter
 };

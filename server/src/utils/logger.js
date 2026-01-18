@@ -14,9 +14,28 @@ const levels = {
     debug: 4
 };
 
+/**
+ * Determine log level from environment
+ * Priority: LOG_LEVEL env var > NODE_ENV-based default
+ * Production defaults to 'warn' for reduced noise, development to 'debug'
+ */
 const level = () => {
+    // Explicit LOG_LEVEL takes priority
+    const explicitLevel = process.env.LOG_LEVEL;
+    if (explicitLevel && levels[explicitLevel] !== undefined) {
+        return explicitLevel;
+    }
+
+    // Default based on NODE_ENV
     const env = process.env.NODE_ENV || 'development';
-    return env === 'development' ? 'debug' : 'info';
+    switch (env) {
+        case 'production':
+            return 'warn';  // Only warnings and errors in production
+        case 'test':
+            return 'error'; // Minimal logging during tests
+        default:
+            return 'debug'; // Full logging in development
+    }
 };
 
 const colors = {

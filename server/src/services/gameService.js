@@ -18,11 +18,16 @@ const {
 } = require('../config/constants');
 
 /**
- * Seeded random number generator (same as client)
+ * Seeded random number generator using Mulberry32 algorithm
+ * Provides better distribution than Math.sin-based approach
+ * Must stay in sync with client-side implementation in index.html
  */
 function seededRandom(seed) {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
+    // Mulberry32 PRNG - better distribution than sin-based approach
+    let t = (seed + 0x6D2B79F5) | 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
 /**
