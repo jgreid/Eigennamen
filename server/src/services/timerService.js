@@ -328,11 +328,20 @@ function startOrphanCheck(onExpireCallback) {
 
 /**
  * Check for and recover orphaned timers
+ * Uses SCAN instead of KEYS to avoid blocking Redis in production
  */
 async function checkOrphanedTimers(onExpireCallback) {
     try {
         const redis = getRedis();
-        const keys = await redis.keys(`${TIMER_KEY_PREFIX}*`);
+        const keys = [];
+
+        // Use SCAN for non-blocking iteration (production-safe)
+        for await (const key of redis.scanIterator({
+            MATCH: `${TIMER_KEY_PREFIX}*`,
+            COUNT: 100
+        })) {
+            keys.push(key);
+        }
 
         for (const key of keys) {
             const roomCode = key.replace(TIMER_KEY_PREFIX, '');

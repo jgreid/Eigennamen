@@ -20,6 +20,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S codenames -u 1001
@@ -36,6 +39,9 @@ RUN npm ci --omit=dev && \
 # Copy source code from builder
 COPY --from=builder /app/src ./src
 
+# Copy public folder (static assets)
+COPY --from=builder /app/public ./public
+
 # Create logs directory for production logging
 RUN mkdir -p /app/logs
 
@@ -49,8 +55,8 @@ USER codenames
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
 
 # Start application
 CMD ["node", "src/index.js"]
