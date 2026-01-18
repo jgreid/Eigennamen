@@ -11,6 +11,39 @@ The Codenames server needs three things to run:
 
 ---
 
+## Step 0: Get the Code
+
+Before you can run the server, you need to download the project files.
+
+### Option A: Download as ZIP (Easiest)
+
+1. Go to the GitHub repository in your browser
+2. Click the green **"Code"** button
+3. Select **"Download ZIP"**
+4. Extract the ZIP file to a folder (e.g., `C:\Projects\Risley-Codenames`)
+
+### Option B: Clone with Git
+
+If you have Git installed:
+
+1. Open Command Prompt or PowerShell
+2. Navigate to where you want the project:
+   ```cmd
+   cd C:\Projects
+   ```
+3. Clone the repository:
+   ```cmd
+   git clone https://github.com/jgreid/Risley-Codenames.git
+   ```
+4. Enter the project folder:
+   ```cmd
+   cd Risley-Codenames
+   ```
+
+**Don't have Git?** Download it from: https://git-scm.com/download/win
+
+---
+
 ## Method 1: Using Docker Desktop (Recommended)
 
 Docker is the easiest way to get started because it packages everything together - you don't need to install Redis or PostgreSQL separately.
