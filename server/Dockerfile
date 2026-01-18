@@ -24,18 +24,17 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S codenames -u 1001
 
-# Copy package files
+# Copy package files and prisma schema (needed for generate)
 COPY package*.json ./
-
-# Install production dependencies only
-RUN npm ci --only=production && npm cache clean --force
-
-# Copy built application from builder
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Copy Prisma schema
 COPY prisma ./prisma
+
+# Install production dependencies and generate prisma client
+RUN npm ci --omit=dev && \
+    npx prisma generate && \
+    npm cache clean --force
+
+# Copy source code from builder
+COPY --from=builder /app/src ./src
 
 # Set ownership
 RUN chown -R codenames:nodejs /app
