@@ -51,7 +51,11 @@ cd server
 docker-compose up -d
 ```
 
-Then open `http://localhost:3000` in your browser. All players connect to the same server and see updates instantly. See [server/README.md](server/README.md) for detailed setup instructions.
+Then open `http://localhost:3000` in your browser. All players connect to the same server and see updates instantly.
+
+**Setup Guides:**
+- [Server README](server/README.md) - Detailed setup instructions
+- [Windows Setup Guide](docs/WINDOWS_SETUP.md) - Step-by-step guide for Windows users
 
 ## How to Play
 
