@@ -605,6 +605,189 @@
                 padding: 8px 20px;
             }
         }
+
+        /* Multiplayer UI */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-status.connected {
+            background: rgba(46, 204, 113, 0.2);
+            border: 2px solid #2ecc71;
+            color: #2ecc71;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(231, 76, 60, 0.2);
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .connection-status.connecting {
+            background: rgba(241, 196, 15, 0.2);
+            border: 2px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .connection-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .connection-status.connecting .connection-dot {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .room-info {
+            background: rgba(155, 89, 182, 0.2);
+            border: 2px solid #9b59b6;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .room-code {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #9b59b6;
+            letter-spacing: 3px;
+        }
+
+        .player-count {
+            color: #9b59b6;
+        }
+
+        .player-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .player-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .player-badge.red {
+            background: rgba(231, 76, 60, 0.3);
+            border: 1px solid #e74c3c;
+        }
+
+        .player-badge.blue {
+            background: rgba(52, 152, 219, 0.3);
+            border: 1px solid #3498db;
+        }
+
+        .player-badge.host::after {
+            content: ' ⭐';
+        }
+
+        .player-badge.spymaster::after {
+            content: ' 🕵';
+        }
+
+        .lobby-content {
+            text-align: center;
+        }
+
+        .lobby-content h2 {
+            margin-bottom: 20px;
+        }
+
+        .lobby-tabs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .lobby-tab {
+            padding: 10px 25px;
+            border: 2px solid #444;
+            background: transparent;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lobby-tab.active {
+            background: #9b59b6;
+            border-color: #9b59b6;
+        }
+
+        .lobby-form {
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .lobby-form.active {
+            display: flex;
+        }
+
+        .lobby-form input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .lobby-form input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .lobby-form input.room-code-input {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 1.3rem;
+        }
+
+        .btn-multiplayer {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+            color: white;
+        }
+
+        .btn-local {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid #666;
+            color: #fff;
+        }
+
+        .lobby-error {
+            color: #e74c3c;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
     </style>
 </head>
 <body>
@@ -612,6 +795,16 @@
         <header>
             <h1>Codenames Online</h1>
         </header>
+
+        <!-- Room Info Bar (shown when in multiplayer room) -->
+        <div class="room-info" id="room-info" style="display: none;">
+            <div>
+                <span>Room: </span><span class="room-code" id="room-code-display">----</span>
+                <span class="player-count" id="player-count">(0 players)</span>
+            </div>
+            <div class="player-list" id="player-list"></div>
+            <button class="btn-cancel" onclick="leaveMultiplayerRoom()" style="padding: 5px 15px;">Leave Room</button>
+        </div>
 
         <div class="role-banner" id="role-banner">
             <!-- Filled by JS -->
@@ -724,6 +917,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Multiplayer Lobby Modal -->
+    <div class="modal-overlay active" id="lobby-modal">
+        <div class="modal lobby-content">
+            <h2>Codenames Online</h2>
+            <p style="margin-bottom: 20px; opacity: 0.8;">Play with friends in real-time!</p>
+
+            <div class="lobby-tabs">
+                <button class="lobby-tab active" onclick="switchLobbyTab('create')">Create Room</button>
+                <button class="lobby-tab" onclick="switchLobbyTab('join')">Join Room</button>
+            </div>
+
+            <div class="lobby-form active" id="create-form">
+                <input type="text" id="create-nickname" placeholder="Your nickname" maxlength="20">
+                <button class="btn-multiplayer" onclick="createMultiplayerRoom()">Create Room</button>
+                <div class="lobby-error" id="create-error"></div>
+            </div>
+
+            <div class="lobby-form" id="join-form">
+                <input type="text" id="join-room-code" class="room-code-input" placeholder="ROOM CODE" maxlength="6">
+                <input type="text" id="join-nickname" placeholder="Your nickname" maxlength="20">
+                <button class="btn-multiplayer" onclick="joinMultiplayerRoom()">Join Room</button>
+                <div class="lobby-error" id="join-error"></div>
+            </div>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #444;">
+                <button class="btn-local" onclick="playLocalMode()">Play Local Mode (URL sharing)</button>
+                <p style="margin-top: 10px; font-size: 0.85rem; opacity: 0.6;">No server needed - share link manually</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status Indicator -->
+    <div class="connection-status connecting" id="connection-status" style="display: none;">
+        <span class="connection-dot"></span>
+        <span class="connection-text">Connecting...</span>
+    </div>
+
+    <!-- Socket.io and Multiplayer Client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/js/socket-client.js"></script>
 
     <script>
         // Game constants
@@ -1459,10 +1693,342 @@
             loadLocalSettings();
             await tryLoadWordlistFile();
             updateWordSourceDisplay();
-            loadGameFromURL();
+            // Don't auto-load game - wait for multiplayer or local mode selection
         }
 
         window.onload = init;
+
+        // =====================================================
+        // MULTIPLAYER INTEGRATION
+        // =====================================================
+
+        let multiplayerMode = false;
+        let players = [];
+
+        // Lobby tab switching
+        function switchLobbyTab(tab) {
+            document.querySelectorAll('.lobby-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.lobby-form').forEach(f => f.classList.remove('active'));
+
+            document.querySelector(`.lobby-tab:nth-child(${tab === 'create' ? 1 : 2})`).classList.add('active');
+            document.getElementById(`${tab}-form`).classList.add('active');
+
+            // Clear errors
+            document.getElementById('create-error').textContent = '';
+            document.getElementById('join-error').textContent = '';
+        }
+
+        // Play in local mode (original URL-sharing mode)
+        function playLocalMode() {
+            multiplayerMode = false;
+            document.getElementById('lobby-modal').classList.remove('active');
+            document.getElementById('connection-status').style.display = 'none';
+            document.getElementById('room-info').style.display = 'none';
+            loadGameFromURL();
+        }
+
+        // Connect to server and create a room
+        async function createMultiplayerRoom() {
+            const nickname = document.getElementById('create-nickname').value.trim();
+            if (!nickname) {
+                document.getElementById('create-error').textContent = 'Please enter a nickname';
+                return;
+            }
+
+            document.getElementById('create-error').textContent = '';
+            showConnectionStatus('connecting');
+
+            try {
+                await CodenamesClient.connect();
+                const result = await CodenamesClient.createRoom({});
+                await CodenamesClient.joinRoom(result.room.code, nickname);
+
+                enterMultiplayerMode();
+            } catch (error) {
+                document.getElementById('create-error').textContent = error.message || 'Failed to create room';
+                showConnectionStatus('disconnected');
+            }
+        }
+
+        // Join an existing room
+        async function joinMultiplayerRoom() {
+            const code = document.getElementById('join-room-code').value.trim().toUpperCase();
+            const nickname = document.getElementById('join-nickname').value.trim();
+
+            if (!code) {
+                document.getElementById('join-error').textContent = 'Please enter a room code';
+                return;
+            }
+            if (!nickname) {
+                document.getElementById('join-error').textContent = 'Please enter a nickname';
+                return;
+            }
+
+            document.getElementById('join-error').textContent = '';
+            showConnectionStatus('connecting');
+
+            try {
+                await CodenamesClient.connect();
+                await CodenamesClient.joinRoom(code, nickname);
+
+                enterMultiplayerMode();
+            } catch (error) {
+                document.getElementById('join-error').textContent = error.message || 'Failed to join room';
+                showConnectionStatus('disconnected');
+            }
+        }
+
+        // Enter multiplayer mode after connecting
+        function enterMultiplayerMode() {
+            multiplayerMode = true;
+            document.getElementById('lobby-modal').classList.remove('active');
+            showConnectionStatus('connected');
+            document.getElementById('room-info').style.display = 'flex';
+            updateRoomInfo();
+            setupMultiplayerListeners();
+
+            // Initialize empty board until game starts
+            if (!gameState.seed) {
+                newGame();
+            }
+        }
+
+        // Leave the multiplayer room
+        function leaveMultiplayerRoom() {
+            CodenamesClient.leaveRoom();
+            CodenamesClient.disconnect();
+            multiplayerMode = false;
+            players = [];
+            document.getElementById('room-info').style.display = 'none';
+            document.getElementById('connection-status').style.display = 'none';
+            document.getElementById('lobby-modal').classList.add('active');
+        }
+
+        // Update room info display
+        function updateRoomInfo() {
+            const roomCode = CodenamesClient.getRoomCode();
+            document.getElementById('room-code-display').textContent = roomCode || '----';
+            document.getElementById('player-count').textContent = `(${players.length} player${players.length !== 1 ? 's' : ''})`;
+
+            // Update player list
+            const playerListEl = document.getElementById('player-list');
+            playerListEl.innerHTML = players.map(p => {
+                let classes = 'player-badge';
+                if (p.team) classes += ` ${p.team}`;
+                if (p.isHost) classes += ' host';
+                if (p.role === 'spymaster') classes += ' spymaster';
+                return `<span class="${classes}">${escapeHTML(p.nickname)}</span>`;
+            }).join('');
+        }
+
+        // Show connection status
+        function showConnectionStatus(status) {
+            const el = document.getElementById('connection-status');
+            el.style.display = 'flex';
+            el.className = `connection-status ${status}`;
+
+            const textEl = el.querySelector('.connection-text');
+            switch(status) {
+                case 'connected':
+                    textEl.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    textEl.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    textEl.textContent = 'Connecting...';
+                    break;
+            }
+        }
+
+        // Set up multiplayer event listeners
+        function setupMultiplayerListeners() {
+            // Connection events
+            CodenamesClient.on('disconnected', () => {
+                showConnectionStatus('disconnected');
+            });
+
+            CodenamesClient.on('connected', ({ wasReconnecting }) => {
+                showConnectionStatus('connected');
+                if (wasReconnecting) {
+                    console.log('Reconnected to server');
+                }
+            });
+
+            // Room events
+            CodenamesClient.on('roomJoined', (data) => {
+                players = data.players || [];
+                updateRoomInfo();
+                if (data.game) {
+                    syncGameState(data.game);
+                }
+            });
+
+            CodenamesClient.on('playerJoined', (data) => {
+                players.push(data.player);
+                updateRoomInfo();
+            });
+
+            CodenamesClient.on('playerLeft', (data) => {
+                players = players.filter(p => p.sessionId !== data.sessionId);
+                updateRoomInfo();
+            });
+
+            CodenamesClient.on('playerUpdated', (data) => {
+                const idx = players.findIndex(p => p.sessionId === data.sessionId);
+                if (idx >= 0) {
+                    players[idx] = { ...players[idx], ...data.changes };
+                    updateRoomInfo();
+                }
+            });
+
+            CodenamesClient.on('hostChanged', (data) => {
+                players.forEach(p => {
+                    p.isHost = p.sessionId === data.newHostSessionId;
+                });
+                isHost = CodenamesClient.isHost();
+                updateRoomInfo();
+                updateControls();
+                updateRoleBanner();
+            });
+
+            // Game events
+            CodenamesClient.on('gameStarted', (data) => {
+                syncGameState(data.game);
+                renderBoard();
+                updateScoreboard();
+                updateTurnIndicator();
+            });
+
+            CodenamesClient.on('cardRevealed', (data) => {
+                gameState.revealed[data.index] = true;
+                syncGameState(data.game);
+                renderBoard();
+                updateScoreboard();
+                updateTurnIndicator();
+                checkGameOver();
+            });
+
+            CodenamesClient.on('turnEnded', (data) => {
+                gameState.currentTurn = data.currentTurn;
+                updateTurnIndicator();
+            });
+
+            CodenamesClient.on('gameOver', (data) => {
+                gameState.gameOver = true;
+                gameState.winner = data.winner;
+                updateTurnIndicator();
+                showGameOverModal();
+            });
+
+            CodenamesClient.on('spymasterView', (data) => {
+                // Received spymaster key
+                gameState.types = data.types;
+                renderBoard();
+            });
+
+            // Error handling
+            CodenamesClient.on('error', (error) => {
+                console.error('Multiplayer error:', error);
+                alert(`Error: ${error.message || 'Unknown error'}`);
+            });
+        }
+
+        // Sync local game state with server state
+        function syncGameState(serverGame) {
+            if (!serverGame) return;
+
+            gameState.words = serverGame.words || gameState.words;
+            gameState.types = serverGame.types || gameState.types;
+            gameState.revealed = serverGame.revealed || gameState.revealed;
+            gameState.currentTurn = serverGame.currentTurn || gameState.currentTurn;
+            gameState.redScore = serverGame.redScore || 0;
+            gameState.blueScore = serverGame.blueScore || 0;
+            gameState.redTotal = serverGame.redTotal || 9;
+            gameState.blueTotal = serverGame.blueTotal || 8;
+            gameState.gameOver = serverGame.gameOver || false;
+            gameState.winner = serverGame.winner || null;
+            gameState.seed = serverGame.seed || gameState.seed;
+        }
+
+        // Override game functions for multiplayer
+        const originalNewGame = newGame;
+        newGame = function() {
+            if (multiplayerMode && CodenamesClient.isHost()) {
+                CodenamesClient.startGame({
+                    wordList: activeWords.length > 0 ? activeWords : undefined
+                });
+            } else if (!multiplayerMode) {
+                originalNewGame();
+            }
+        };
+
+        const originalRevealCard = revealCard;
+        revealCard = function(index) {
+            if (multiplayerMode) {
+                if (canClickCards()) {
+                    CodenamesClient.revealCard(index);
+                }
+            } else {
+                originalRevealCard(index);
+            }
+        };
+
+        const originalEndTurn = endTurn;
+        endTurn = function() {
+            if (multiplayerMode) {
+                if (canClickCards()) {
+                    CodenamesClient.endTurn();
+                }
+            } else {
+                originalEndTurn();
+            }
+        };
+
+        // Override host/spymaster for multiplayer
+        const originalBecomeHost = becomeHost;
+        becomeHost = function() {
+            if (multiplayerMode) {
+                // In multiplayer, host is assigned by server
+                alert('Host is automatically assigned when creating a room');
+            } else {
+                originalBecomeHost();
+            }
+        };
+
+        const originalSetSpymaster = setSpymaster;
+        setSpymaster = function(team) {
+            if (multiplayerMode) {
+                if (spymasterTeam === team) {
+                    // Toggle off
+                    CodenamesClient.setRole('guesser');
+                    CodenamesClient.setTeam(null);
+                    spymasterTeam = null;
+                } else {
+                    CodenamesClient.setTeam(team);
+                    CodenamesClient.setRole('spymaster');
+                    spymasterTeam = team;
+                }
+                updateRoleBanner();
+                updateControls();
+                renderBoard();
+            } else {
+                originalSetSpymaster(team);
+            }
+        };
+
+        // Check for room code in URL (for easy joining)
+        function checkURLForRoom() {
+            const params = new URLSearchParams(window.location.search);
+            const roomCode = params.get('room');
+            if (roomCode) {
+                document.getElementById('join-room-code').value = roomCode.toUpperCase();
+                switchLobbyTab('join');
+            }
+        }
+
+        // Run on page load
+        checkURLForRoom();
     </script>
 </body>
 </html>
