@@ -36,7 +36,10 @@ RUN npm ci --omit=dev && \
 # Copy source code from builder
 COPY --from=builder /app/src ./src
 
-# Set ownership
+# Create logs directory for production logging
+RUN mkdir -p /app/logs
+
+# Set ownership of app directory to non-root user
 RUN chown -R codenames:nodejs /app
 
 # Switch to non-root user

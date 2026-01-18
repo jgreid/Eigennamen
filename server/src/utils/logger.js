@@ -60,23 +60,29 @@ const transports = [
     new winston.transports.Console()
 ];
 
-// Add file transports in production
+// Add file transports in production (if possible)
 if (process.env.NODE_ENV === 'production') {
-    // Ensure logs directory exists
-    const logsDir = path.join(process.cwd(), 'logs');
-    if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true });
-    }
+    try {
+        // Ensure logs directory exists
+        const logsDir = path.join(process.cwd(), 'logs');
+        if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+        }
 
-    transports.push(
-        new winston.transports.File({
-            filename: 'logs/error.log',
-            level: 'error'
-        }),
-        new winston.transports.File({
-            filename: 'logs/combined.log'
-        })
-    );
+        transports.push(
+            new winston.transports.File({
+                filename: 'logs/error.log',
+                level: 'error'
+            }),
+            new winston.transports.File({
+                filename: 'logs/combined.log'
+            })
+        );
+    } catch (err) {
+        // If we can't create log files, just use console logging
+        // This can happen in containerized environments with read-only filesystems
+        console.warn('Could not create log directory, using console logging only:', err.message);
+    }
 }
 
 const logger = winston.createLogger({
