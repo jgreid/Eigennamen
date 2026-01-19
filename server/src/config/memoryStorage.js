@@ -302,7 +302,8 @@ class MemoryStorage {
                 return 0; // Room is full
             }
 
-            // Add to set
+            // Add to set (remove from data map for type consistency)
+            this.data.delete(playersKey);
             if (!this.sets.has(playersKey)) {
                 this.sets.set(playersKey, new Set());
             }
