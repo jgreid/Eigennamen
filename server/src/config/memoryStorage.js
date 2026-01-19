@@ -307,8 +307,14 @@ class MemoryStorage {
     // Transaction support (optimistic locking)
     async watch(key) {
         // Store the current value hash for comparison during exec
+        // Check expiry first - expired keys should be treated as non-existent
+        if (this._isExpired(key)) {
+            this._watchedKeys.set(key, null);
+            return 'OK';
+        }
         const value = this.data.get(key);
-        this._watchedKeys.set(key, value ? JSON.stringify(value) : null);
+        // Use explicit undefined check to handle empty string values correctly
+        this._watchedKeys.set(key, value !== undefined ? JSON.stringify(value) : null);
         return 'OK';
     }
 
@@ -346,8 +352,18 @@ class MemoryStorage {
             exec: async function() {
                 // Check if watched keys changed (optimistic locking)
                 for (const [key, originalValue] of storage._watchedKeys.entries()) {
+                    // Check expiry - expired keys should be treated as non-existent
+                    if (storage._isExpired(key)) {
+                        if (originalValue !== null) {
+                            // Key expired since watch - transaction failed
+                            storage._watchedKeys.clear();
+                            return null;
+                        }
+                        continue; // Both null, key still non-existent
+                    }
                     const currentValue = storage.data.get(key);
-                    const currentJson = currentValue ? JSON.stringify(currentValue) : null;
+                    // Use explicit undefined check to handle empty string values correctly
+                    const currentJson = currentValue !== undefined ? JSON.stringify(currentValue) : null;
                     if (currentJson !== originalValue) {
                         // Key was modified - transaction failed
                         storage._watchedKeys.clear();
