@@ -1,14 +1,17 @@
 /**
  * Redis Configuration
  * Supports TLS connections (rediss://) for Fly.io Upstash Redis
+ * Also supports in-memory mode for single-instance deployments
  */
 
 const { createClient } = require('redis');
 const logger = require('../utils/logger');
+const { getMemoryStorage, isMemoryMode } = require('./memoryStorage');
 
 let redisClient = null;
 let pubClient = null;
 let subClient = null;
+let usingMemoryMode = false;
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -59,6 +62,18 @@ function createClientOptions(redisUrl) {
 
 async function connectRedis() {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+    // Check for memory mode (single-instance deployment without Redis)
+    if (isMemoryMode()) {
+        logger.info('Using in-memory storage mode (single-instance only, data will not persist)');
+        usingMemoryMode = true;
+        const memoryStorage = getMemoryStorage();
+        await memoryStorage.connect();
+        redisClient = memoryStorage;
+        pubClient = memoryStorage.duplicate();
+        subClient = memoryStorage.duplicate();
+        return { redisClient, pubClient, subClient };
+    }
 
     let lastError;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -181,10 +196,18 @@ async function disconnectRedis() {
     logger.info('Redis disconnected');
 }
 
+/**
+ * Check if currently using memory storage mode
+ */
+function isUsingMemoryMode() {
+    return usingMemoryMode;
+}
+
 module.exports = {
     connectRedis,
     getRedis,
     getPubSubClients,
     isRedisHealthy,
-    disconnectRedis
+    disconnectRedis,
+    isUsingMemoryMode
 };
