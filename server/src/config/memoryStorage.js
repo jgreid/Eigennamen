@@ -90,7 +90,8 @@ class MemoryStorage {
     // Basic string operations
     async get(key) {
         if (this._isExpired(key)) return null;
-        return this.data.get(key) || null;
+        const value = this.data.get(key);
+        return value !== undefined ? value : null;
     }
 
     async set(key, value, options = {}) {
@@ -117,6 +118,8 @@ class MemoryStorage {
     }
 
     async expire(key, seconds) {
+        // Check expiry first - can't set expiry on non-existent/expired key
+        if (this._isExpired(key)) return 0;
         if (!this.data.has(key) && !this.sets.has(key)) return 0;
         this.expiries.set(key, Date.now() + (seconds * 1000));
         return 1;
