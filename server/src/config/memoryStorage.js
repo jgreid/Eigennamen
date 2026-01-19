@@ -105,6 +105,8 @@ class MemoryStorage {
     }
 
     async del(key) {
+        // Check expiry first - expired keys are treated as non-existent
+        if (this._isExpired(key)) return 0;
         const existed = this.data.has(key) || this.sets.has(key);
         this.data.delete(key);
         this.sets.delete(key);
@@ -127,8 +129,10 @@ class MemoryStorage {
 
     async ttl(key) {
         if (this._isExpired(key)) return -2;
+        // Check if key exists - return -2 for non-existent keys
+        if (!this.data.has(key) && !this.sets.has(key)) return -2;
         const expiry = this.expiries.get(key);
-        if (!expiry) return -1;
+        if (!expiry) return -1;  // Key exists but no expiry
         return Math.ceil((expiry - Date.now()) / 1000);
     }
 
