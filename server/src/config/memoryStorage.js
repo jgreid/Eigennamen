@@ -323,8 +323,8 @@ class MemoryStorage {
         const storage = this;
 
         const txn = {
-            set: function(key, value) {
-                commands.push({ cmd: 'set', key, value });
+            set: function(key, value, options = {}) {
+                commands.push({ cmd: 'set', key, value, options });
                 return txn;
             },
             del: function(key) {
@@ -362,13 +362,27 @@ class MemoryStorage {
                         switch (cmd.cmd) {
                             case 'set':
                                 storage.data.set(cmd.key, cmd.value);
+                                // Handle TTL options (EX = seconds, PX = milliseconds)
+                                if (cmd.options && cmd.options.EX) {
+                                    storage.expiries.set(cmd.key, Date.now() + (cmd.options.EX * 1000));
+                                } else if (cmd.options && cmd.options.PX) {
+                                    storage.expiries.set(cmd.key, Date.now() + cmd.options.PX);
+                                }
                                 results.push('OK');
                                 break;
                             case 'del':
-                                const existed = storage.data.delete(cmd.key);
-                                results.push(existed ? 1 : 0);
+                                const existedData = storage.data.has(cmd.key);
+                                const existedSet = storage.sets.has(cmd.key);
+                                storage.data.delete(cmd.key);
+                                storage.sets.delete(cmd.key);
+                                storage.expiries.delete(cmd.key);
+                                results.push((existedData || existedSet) ? 1 : 0);
                                 break;
                             case 'sAdd':
+                                // Check for expired key and clear it (matches regular sAdd behavior)
+                                if (storage._isExpired(cmd.key)) {
+                                    storage.sets.set(cmd.key, new Set());
+                                }
                                 if (!storage.sets.has(cmd.key)) {
                                     storage.sets.set(cmd.key, new Set());
                                 }
@@ -382,6 +396,11 @@ class MemoryStorage {
                                 results.push(added);
                                 break;
                             case 'sRem':
+                                // Check for expired key (matches regular sRem behavior)
+                                if (storage._isExpired(cmd.key)) {
+                                    results.push(0);
+                                    break;
+                                }
                                 const set = storage.sets.get(cmd.key);
                                 let removed = 0;
                                 if (set) {
