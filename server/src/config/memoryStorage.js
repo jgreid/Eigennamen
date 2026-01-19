@@ -100,6 +100,9 @@ class MemoryStorage {
             this.expiries.set(key, Date.now() + (options.EX * 1000));
         } else if (options.PX) {
             this.expiries.set(key, Date.now() + options.PX);
+        } else if (!options.KEEPTTL) {
+            // Redis SET without TTL options removes existing TTL (unless KEEPTTL)
+            this.expiries.delete(key);
         }
         return 'OK';
     }
@@ -395,6 +398,9 @@ class MemoryStorage {
                                     storage.expiries.set(cmd.key, Date.now() + (cmd.options.EX * 1000));
                                 } else if (cmd.options && cmd.options.PX) {
                                     storage.expiries.set(cmd.key, Date.now() + cmd.options.PX);
+                                } else if (!cmd.options || !cmd.options.KEEPTTL) {
+                                    // Redis SET without TTL options removes existing TTL
+                                    storage.expiries.delete(cmd.key);
                                 }
                                 results.push('OK');
                                 break;
