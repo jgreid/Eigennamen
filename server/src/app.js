@@ -49,7 +49,7 @@ app.use('/api', routes);
 // Serve static files (the game client)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Basic health check
+// Basic health check (fast, for load balancer keep-alive)
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
@@ -58,7 +58,8 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Detailed health check with dependencies
+// Detailed health check with all dependencies (Redis, Database, Socket.io)
+// This is the endpoint Fly.io should use for readiness checks
 app.get('/health/ready', async (req, res) => {
     const checks = {
         status: 'ok',
@@ -68,19 +69,45 @@ app.get('/health/ready', async (req, res) => {
         checks: {}
     };
 
+    // Add Fly.io instance info if available
+    if (process.env.FLY_ALLOC_ID) {
+        checks.instance = {
+            flyAllocId: process.env.FLY_ALLOC_ID,
+            flyRegion: process.env.FLY_REGION
+        };
+    }
+
+    // Check Database (PostgreSQL via Prisma)
+    try {
+        const getDatabase = app.get('database');
+        if (getDatabase) {
+            const prisma = getDatabase();
+            // Simple query to verify database connectivity
+            await prisma.$queryRaw`SELECT 1`;
+            checks.checks.database = { status: 'ok' };
+        } else {
+            checks.checks.database = { status: 'not_configured' };
+        }
+    } catch (error) {
+        checks.checks.database = { status: 'error', message: error.message };
+        checks.status = 'degraded';
+        logger.error('Health check: Database error', error.message);
+    }
+
     // Check Redis
     try {
-        const getRedis = app.get('redis');
-        if (getRedis) {
-            const redis = getRedis();
-            await redis.ping();
+        const { isRedisHealthy } = require('./config/redis');
+        const healthy = await isRedisHealthy();
+        if (healthy) {
             checks.checks.redis = { status: 'ok' };
         } else {
-            checks.checks.redis = { status: 'not_configured' };
+            checks.checks.redis = { status: 'error', message: 'Redis not connected' };
+            checks.status = 'degraded';
         }
     } catch (error) {
         checks.checks.redis = { status: 'error', message: error.message };
         checks.status = 'degraded';
+        logger.error('Health check: Redis error', error.message);
     }
 
     // Check Socket.io
@@ -104,13 +131,13 @@ app.get('/health/ready', async (req, res) => {
     res.status(statusCode).json(checks);
 });
 
-// Liveness probe (Kubernetes)
+// Liveness probe (Kubernetes/Fly.io) - just confirms process is running
 app.get('/health/live', (req, res) => {
     res.status(200).json({ status: 'alive' });
 });
 
 // Metrics endpoint (basic)
-app.get('/metrics', (req, res) => {
+app.get('/metrics', async (req, res) => {
     const metrics = {
         timestamp: new Date().toISOString(),
         process: {
@@ -120,26 +147,33 @@ app.get('/metrics', (req, res) => {
         }
     };
 
+    // Add Fly.io instance info if available
+    if (process.env.FLY_ALLOC_ID) {
+        metrics.instance = {
+            flyAllocId: process.env.FLY_ALLOC_ID,
+            flyRegion: process.env.FLY_REGION
+        };
+    }
+
     // Add socket.io stats if available
-    const io = app.get('io');
-    if (io) {
-        io.fetchSockets().then(sockets => {
+    try {
+        const io = app.get('io');
+        if (io) {
+            const sockets = await io.fetchSockets();
             metrics.socketio = {
                 status: 'ok',
                 connections: sockets.length
             };
-            res.json(metrics);
-        }).catch((error) => {
-            logger.warn('Failed to fetch socket stats for metrics:', error.message);
-            metrics.socketio = {
-                status: 'error',
-                error: error.message
-            };
-            res.json(metrics);
-        });
-    } else {
-        res.json(metrics);
+        }
+    } catch (error) {
+        logger.warn('Failed to fetch socket stats for metrics:', error.message);
+        metrics.socketio = {
+            status: 'error',
+            error: error.message
+        };
     }
+
+    res.json(metrics);
 });
 
 // Serve the game for any non-API route (SPA support)

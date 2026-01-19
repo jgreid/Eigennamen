@@ -1,5 +1,6 @@
 /**
  * Socket.io Configuration and Event Handling
+ * Optimized for Fly.io deployment with WebSocket transport
  */
 
 const { Server } = require('socket.io');
@@ -30,23 +31,40 @@ const socketRateLimiter = createSocketRateLimiter({
 setInterval(() => socketRateLimiter.cleanupStale(), 60000);
 
 function initializeSocket(server) {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     io = new Server(server, {
         cors: {
             origin: process.env.CORS_ORIGIN || '*',
             methods: ['GET', 'POST'],
             credentials: true
         },
+        // Use WebSocket only in production for better Fly.io compatibility
+        // Polling can have issues with Fly.io's proxy and load balancing
+        transports: isProduction ? ['websocket'] : ['polling', 'websocket'],
+        // Allow upgrades in development
+        allowUpgrades: !isProduction,
+        // Increase timeouts for better stability on Fly.io
         pingTimeout: 60000,
-        pingInterval: 25000
+        pingInterval: 25000,
+        // Connection state recovery for reconnections
+        connectionStateRecovery: {
+            // Maximum number of minutes a connection can be offline
+            maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+            // Skip middlewares on reconnection
+            skipMiddlewares: false
+        },
+        // Allow EIO4 for older clients
+        allowEIO3: true
     });
 
     // Use Redis adapter for horizontal scaling
     try {
         const { pubClient, subClient } = getPubSubClients();
         io.adapter(createAdapter(pubClient, subClient));
-        logger.info('Socket.io Redis adapter configured');
+        logger.info('Socket.io Redis adapter configured for horizontal scaling');
     } catch (error) {
-        logger.warn('Redis adapter not available, using in-memory adapter');
+        logger.warn('Redis adapter not available, using in-memory adapter (single instance only)');
     }
 
     // Authentication middleware
@@ -55,6 +73,11 @@ function initializeSocket(server) {
     // Connection handling
     io.on('connection', (socket) => {
         logger.info(`Client connected: ${socket.id} (session: ${socket.sessionId})`);
+
+        // Store the Fly.io instance ID for debugging multi-instance issues
+        if (process.env.FLY_ALLOC_ID) {
+            socket.flyInstanceId = process.env.FLY_ALLOC_ID;
+        }
 
         // Attach rate limiter to socket for use in handlers
         socket.rateLimiter = socketRateLimiter;

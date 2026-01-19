@@ -8,7 +8,7 @@ const http = require('http');
 const app = require('./app');
 const { initializeSocket } = require('./socket');
 const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
-const { connectDatabase, disconnectDatabase } = require('./config/database');
+const { connectDatabase, disconnectDatabase, getDatabase } = require('./config/database');
 const { validateEnv, getEnvInt } = require('./config/env');
 const timerService = require('./services/timerService');
 const logger = require('./utils/logger');
@@ -34,9 +34,15 @@ async function startServer() {
         const io = initializeSocket(server);
         logger.info('Socket.io initialized');
 
-        // Attach io to app for health checks
+        // Attach dependencies to app for health checks
         app.set('io', io);
         app.set('redis', getRedis);
+        app.set('database', getDatabase);
+
+        // Log Fly.io instance info if available
+        if (process.env.FLY_ALLOC_ID) {
+            logger.info(`Fly.io instance: ${process.env.FLY_ALLOC_ID} in region ${process.env.FLY_REGION}`);
+        }
 
         // Start listening - bind to 0.0.0.0 to accept connections from outside container
         server.listen(PORT, '0.0.0.0', () => {
@@ -49,7 +55,7 @@ async function startServer() {
             logger.info(`${signal} received, shutting down gracefully`);
 
             // Clean up all active timers first (prevents pending callbacks)
-            timerService.cleanupAllTimers();
+            await timerService.cleanupAllTimers();
             logger.info('All timers cleaned up');
 
             // Stop accepting new connections

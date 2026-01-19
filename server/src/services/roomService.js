@@ -264,7 +264,7 @@ async function cleanupRoom(code) {
     const redis = getRedis();
 
     // Stop any active timer for this room (prevents memory leak)
-    timerService.stopTimer(code);
+    await timerService.stopTimer(code);
 
     // Get all players in room and remove them
     const sessionIds = await redis.sMembers(`room:${code}:players`);
