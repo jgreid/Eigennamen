@@ -309,8 +309,10 @@ async function getWordsForGame(id) {
             return null;
         }
 
-        // Increment usage count in background
-        incrementUsageCount(id);
+        // Increment usage count in background (fire-and-forget with error handling)
+        incrementUsageCount(id).catch(err => {
+            logger.warn('Failed to increment word list usage count:', err.message);
+        });
 
         return wordList.words;
     } catch (error) {

@@ -54,9 +54,10 @@ USER codenames
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+# Health check - use /health/ready to verify all dependencies (DB, Redis, Socket.io)
+# Longer start-period allows time for database connections to establish
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3000/health/ready || exit 1
 
 # Start application
 CMD ["node", "src/index.js"]

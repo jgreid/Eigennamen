@@ -44,8 +44,14 @@ function createClientOptions(redisUrl) {
     // Handle TLS for rediss:// URLs (Fly.io Upstash Redis)
     if (redisUrl.startsWith('rediss://')) {
         options.socket.tls = true;
-        // For Upstash and similar services, we need to accept their certificates
-        options.socket.rejectUnauthorized = false;
+        // Certificate validation can be configured via environment variable
+        // Default: enabled in production, disabled in development for self-signed certs
+        const rejectUnauthorized = process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false';
+        options.socket.rejectUnauthorized = rejectUnauthorized;
+
+        if (!rejectUnauthorized) {
+            logger.warn('Redis TLS certificate validation is disabled - not recommended for production');
+        }
     }
 
     return options;

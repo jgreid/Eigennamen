@@ -201,7 +201,16 @@ function getGameStateForPlayer(game, player) {
 async function getGame(roomCode) {
     const redis = getRedis();
     const gameData = await redis.get(`room:${roomCode}:game`);
-    return gameData ? JSON.parse(gameData) : null;
+    if (!gameData) return null;
+
+    try {
+        return JSON.parse(gameData);
+    } catch (error) {
+        logger.error(`Corrupted game data for room ${roomCode}:`, error.message);
+        // Delete corrupted data to allow recovery
+        await redis.del(`room:${roomCode}:game`);
+        return null;
+    }
 }
 
 /**
