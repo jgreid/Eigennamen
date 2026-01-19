@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const http = require('http');
 const app = require('./app');
-const { initializeSocket } = require('./socket');
+const { initializeSocket, cleanupSocketModule } = require('./socket');
 const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
 const { connectDatabase, disconnectDatabase, getDatabase } = require('./config/database');
 const { validateEnv, getEnvInt } = require('./config/env');
@@ -57,6 +57,9 @@ async function startServer() {
             // Clean up all active timers first (prevents pending callbacks)
             await timerService.cleanupAllTimers();
             logger.info('All timers cleaned up');
+
+            // Clean up socket module (intervals, io server)
+            cleanupSocketModule();
 
             // Stop accepting new connections
             server.close(async () => {

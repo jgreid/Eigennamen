@@ -55,7 +55,10 @@ function validateEnv() {
             errors.push('REDIS_URL must be set to a real Redis URL in production (or use "memory" for single-instance mode)');
         }
         if (isMemoryMode) {
-            warnings.push('Running in memory storage mode - data will not persist across restarts and multi-instance scaling is disabled');
+            warnings.push('PRODUCTION WARNING: Running in memory storage mode');
+            warnings.push('  - Data will NOT persist across restarts');
+            warnings.push('  - Multi-instance scaling is DISABLED');
+            warnings.push('  - Set REDIS_URL to a real Redis URL for production: fly secrets set REDIS_URL=rediss://...');
         }
 
         // Security warnings
