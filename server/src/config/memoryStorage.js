@@ -278,6 +278,11 @@ class MemoryStorage {
             const maxPlayers = parseInt(options.arguments[0], 10);
             const sessionId = options.arguments[1];
 
+            // Check for expired key first - treat as empty set
+            if (this._isExpired(playersKey)) {
+                this.sets.set(playersKey, new Set());
+            }
+
             // Check if already a member
             const existingSet = this.sets.get(playersKey);
             if (existingSet && existingSet.has(sessionId)) {
