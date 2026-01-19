@@ -112,26 +112,34 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
 
     // Set up local timeout
     const timeoutId = setTimeout(async () => {
-        logger.info(`Timer expired for room ${roomCode}`);
-        localTimers.delete(roomCode);
-
-        // Remove from Redis
-        await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-        // Publish expiration event
         try {
-            const { pubClient } = getPubSubClients();
-            await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                type: 'expired',
-                roomCode,
-                timestamp: Date.now()
-            }));
-        } catch (e) {
-            // Pub/sub not available
-        }
+            logger.info(`Timer expired for room ${roomCode}`);
+            localTimers.delete(roomCode);
 
-        if (onExpire) {
-            onExpire(roomCode);
+            // Remove from Redis
+            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+            // Publish expiration event
+            try {
+                const { pubClient } = getPubSubClients();
+                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
+                    type: 'expired',
+                    roomCode,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                // Pub/sub not available
+            }
+
+            if (onExpire) {
+                try {
+                    onExpire(roomCode);
+                } catch (callbackError) {
+                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                }
+            }
+        } catch (error) {
+            logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
         }
     }, durationSeconds * 1000);
 
@@ -246,10 +254,15 @@ async function pauseTimer(roomCode) {
     const redis = getRedis();
     const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
     if (timerData) {
-        const timer = JSON.parse(timerData);
-        timer.paused = true;
-        timer.remainingWhenPaused = remainingSeconds;
-        await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: 86400 }); // Keep for 24h when paused
+        try {
+            const timer = JSON.parse(timerData);
+            timer.paused = true;
+            timer.remainingWhenPaused = remainingSeconds;
+            await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: 86400 }); // Keep for 24h when paused
+        } catch (e) {
+            logger.error(`Failed to parse timer data for ${roomCode}:`, e.message);
+            return null;
+        }
     }
 
     // Clear local timeout
@@ -406,7 +419,11 @@ async function checkOrphanedTimers(onExpireCallback) {
                     logger.info(`Recovering expired orphaned timer for room ${roomCode}`);
                     await redis.del(key);
                     if (onExpireCallback) {
-                        onExpireCallback(roomCode);
+                        try {
+                            onExpireCallback(roomCode);
+                        } catch (callbackError) {
+                            logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                        }
                     }
                 } else if (remainingMs > 0 && remainingMs < ORPHAN_CHECK_INTERVAL * 2) {
                     // Timer is about to expire and no instance is handling it - take ownership

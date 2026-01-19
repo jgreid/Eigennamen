@@ -68,7 +68,13 @@ async function createPlayerData(sessionId, roomCode, nickname, isHost = false) {
 async function getPlayer(sessionId) {
     const redis = getRedis();
     const playerData = await redis.get(`player:${sessionId}`);
-    return playerData ? JSON.parse(playerData) : null;
+    if (!playerData) return null;
+    try {
+        return JSON.parse(playerData);
+    } catch (e) {
+        logger.error(`Failed to parse player data for ${sessionId}:`, e.message);
+        return null;
+    }
 }
 
 /**

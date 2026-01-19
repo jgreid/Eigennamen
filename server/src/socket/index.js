@@ -5,7 +5,7 @@
 
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
-const { getPubSubClients } = require('../config/redis');
+const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
 const logger = require('../utils/logger');
 const roomHandlers = require('./handlers/roomHandlers');
 const gameHandlers = require('./handlers/gameHandlers');
@@ -58,13 +58,17 @@ function initializeSocket(server) {
         allowEIO3: true
     });
 
-    // Use Redis adapter for horizontal scaling
-    try {
-        const { pubClient, subClient } = getPubSubClients();
-        io.adapter(createAdapter(pubClient, subClient));
-        logger.info('Socket.io Redis adapter configured for horizontal scaling');
-    } catch (error) {
-        logger.warn('Redis adapter not available, using in-memory adapter (single instance only)');
+    // Use Redis adapter for horizontal scaling (skip in memory mode)
+    if (isUsingMemoryMode()) {
+        logger.info('Using Socket.io in-memory adapter (single-instance mode)');
+    } else {
+        try {
+            const { pubClient, subClient } = getPubSubClients();
+            io.adapter(createAdapter(pubClient, subClient));
+            logger.info('Socket.io Redis adapter configured for horizontal scaling');
+        } catch (error) {
+            logger.warn('Redis adapter not available, using in-memory adapter (single instance only):', error.message);
+        }
     }
 
     // Authentication middleware
