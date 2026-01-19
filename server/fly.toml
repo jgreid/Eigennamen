@@ -9,7 +9,8 @@ primary_region = "iad"
 
 [deploy]
   # Run database migrations before starting the app
-  release_command = "npx prisma db push --skip-generate"
+  # Falls back DATABASE_DIRECT_URL to DATABASE_URL if not set (for PgBouncer compatibility)
+  release_command = "sh -c 'export DATABASE_DIRECT_URL=${DATABASE_DIRECT_URL:-$DATABASE_URL} && npx prisma db push --skip-generate'"
 
 [env]
   NODE_ENV = "production"
