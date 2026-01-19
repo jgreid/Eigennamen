@@ -254,10 +254,15 @@ async function pauseTimer(roomCode) {
     const redis = getRedis();
     const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
     if (timerData) {
-        const timer = JSON.parse(timerData);
-        timer.paused = true;
-        timer.remainingWhenPaused = remainingSeconds;
-        await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: 86400 }); // Keep for 24h when paused
+        try {
+            const timer = JSON.parse(timerData);
+            timer.paused = true;
+            timer.remainingWhenPaused = remainingSeconds;
+            await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: 86400 }); // Keep for 24h when paused
+        } catch (e) {
+            logger.error(`Failed to parse timer data for ${roomCode}:`, e.message);
+            return null;
+        }
     }
 
     // Clear local timeout

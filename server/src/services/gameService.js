@@ -148,9 +148,13 @@ async function createGame(roomCode, wordListId = null) {
     // Update room status and refresh TTL
     const roomData = await redis.get(`room:${roomCode}`);
     if (roomData) {
-        const room = JSON.parse(roomData);
-        room.status = 'playing';
-        await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+        try {
+            const room = JSON.parse(roomData);
+            room.status = 'playing';
+            await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+        } catch (e) {
+            logger.error(`Failed to parse room data for ${roomCode}:`, e.message);
+        }
     }
 
     // Refresh related keys TTL
