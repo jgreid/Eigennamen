@@ -33,7 +33,11 @@ module.exports = function gameHandlers(io, socket) {
             // Stop any existing timer
             await stopTurnTimer(socket.roomCode);
 
-            const game = await gameService.createGame(socket.roomCode, validated.wordListId);
+            // Pass options to createGame (supports wordListId or wordList array)
+            const game = await gameService.createGame(socket.roomCode, {
+                wordListId: validated.wordListId,
+                wordList: validated.wordList
+            });
 
             // Get room for timer settings
             const room = await roomService.getRoom(socket.roomCode);

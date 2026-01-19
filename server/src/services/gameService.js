@@ -65,28 +65,54 @@ function generateSeed() {
 
 /**
  * Create a new game for a room
+ * @param {string} roomCode - Room code
+ * @param {Object} options - Game options
+ * @param {string} options.wordListId - UUID of database word list (requires database)
+ * @param {Array<string>} options.wordList - Custom words array (works without database)
  */
-async function createGame(roomCode, wordListId = null) {
+async function createGame(roomCode, options = {}) {
     const redis = getRedis();
     const seed = generateSeed();
     const numericSeed = hashString(seed);
 
-    // Get words (from custom list or default)
+    const { wordListId, wordList } = options;
+
+    // Get words - priority: direct wordList > wordListId > default
     let words = DEFAULT_WORDS;
     let usedWordListId = null;
+    let wordSource = 'default';
 
-    if (wordListId) {
+    // Option 1: Direct word list passed from client (no database needed)
+    if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
+        // Clean and deduplicate words
+        const cleanedWords = [...new Set(
+            wordList
+                .map(w => String(w).trim().toUpperCase())
+                .filter(w => w.length > 0)
+        )];
+
+        if (cleanedWords.length >= BOARD_SIZE) {
+            words = cleanedWords;
+            wordSource = 'custom';
+            logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
+        } else {
+            logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
+        }
+    }
+    // Option 2: Word list ID from database
+    else if (wordListId) {
         try {
             const customWords = await wordListService.getWordsForGame(wordListId);
             if (customWords && customWords.length >= BOARD_SIZE) {
                 words = customWords;
                 usedWordListId = wordListId;
-                logger.info(`Using custom word list ${wordListId} for room ${roomCode}`);
+                wordSource = 'database';
+                logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
             } else {
-                logger.warn(`Custom word list ${wordListId} not found or too small, using default`);
+                logger.warn(`Database word list ${wordListId} not found or too small, using default`);
             }
         } catch (error) {
-            logger.error(`Error fetching custom word list ${wordListId}:`, error);
+            logger.error(`Error fetching database word list ${wordListId}:`, error);
             // Fall back to default words
         }
     }

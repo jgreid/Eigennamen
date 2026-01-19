@@ -56,7 +56,13 @@ const playerNicknameSchema = z.object({
 
 // Game schemas
 const gameStartSchema = z.object({
-    wordListId: z.string().uuid().nullable().optional()
+    // Option 1: Reference a word list stored in database (requires database)
+    wordListId: z.string().uuid().nullable().optional(),
+    // Option 2: Pass custom words directly (works without database)
+    wordList: z.array(z.string().min(1).max(50).trim())
+        .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
+        .max(500, 'Too many words')
+        .optional()
 }).optional().default({});
 
 const gameRevealSchema = z.object({
