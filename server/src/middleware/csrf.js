@@ -67,14 +67,19 @@ function csrfProtection(req, res, next) {
     }
 
     // No Origin or Referer header - might be a direct API call
-    // Allow if Content-Type is application/json (browsers don't send this cross-origin without CORS)
-    const contentType = req.headers['content-type'];
-    if (contentType && contentType.includes('application/json')) {
-        return next();
+    // Only allow Content-Type check if CORS is not wildcard
+    // (when CORS allows all origins, attackers can send application/json cross-origin)
+    const allowedOrigins = getAllowedOrigins();
+    if (allowedOrigins !== null) {
+        // CORS is restricted - Content-Type check is safe
+        const contentType = req.headers['content-type'];
+        if (contentType && contentType.includes('application/json')) {
+            return next();
+        }
     }
 
     // Block the request
-    logger.warn(`CSRF protection: blocked request without origin/referer/json content-type`);
+    logger.warn(`CSRF protection: blocked request without origin/referer/custom header`);
     return res.status(403).json({
         error: {
             code: 'CSRF_VALIDATION_FAILED',

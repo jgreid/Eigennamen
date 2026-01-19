@@ -107,27 +107,50 @@ async function setTeam(sessionId, team) {
 }
 
 /**
- * Set player's role
+ * Set player's role with atomic spymaster check to prevent race conditions
  */
 async function setRole(sessionId, role) {
+    const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (!player) {
         throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
     }
 
-    // If becoming spymaster, check if team already has one
+    // If becoming spymaster, use a lock to prevent race conditions
     if (role === 'spymaster' && player.team) {
-        const roomPlayers = await getPlayersInRoom(player.roomCode);
-        const existingSpymaster = roomPlayers.find(
-            p => p.team === player.team && p.role === 'spymaster' && p.sessionId !== sessionId
-        );
+        const lockKey = `lock:spymaster:${player.roomCode}:${player.team}`;
 
-        if (existingSpymaster) {
+        // Try to acquire lock (expires after 5 seconds)
+        const lockAcquired = await redis.set(lockKey, sessionId, { NX: true, EX: 5 });
+
+        if (!lockAcquired) {
             throw {
                 code: ERROR_CODES.INVALID_INPUT,
-                message: `${player.team} team already has a spymaster`
+                message: `Another player is becoming spymaster, please try again`
             };
+        }
+
+        try {
+            // Check if team already has a spymaster
+            const roomPlayers = await getPlayersInRoom(player.roomCode);
+            const existingSpymaster = roomPlayers.find(
+                p => p.team === player.team && p.role === 'spymaster' && p.sessionId !== sessionId
+            );
+
+            if (existingSpymaster) {
+                throw {
+                    code: ERROR_CODES.INVALID_INPUT,
+                    message: `${player.team} team already has a spymaster`
+                };
+            }
+
+            // Update the role while holding the lock
+            const updatedPlayer = await updatePlayer(sessionId, { role });
+            return updatedPlayer;
+        } finally {
+            // Always release the lock
+            await redis.del(lockKey);
         }
     }
 
@@ -144,29 +167,35 @@ async function setNickname(sessionId, nickname) {
 /**
  * Get all players in a room
  * Also cleans up orphaned session IDs (where player data has expired)
+ * Uses parallel fetching for better performance
  */
 async function getPlayersInRoom(roomCode) {
     const redis = getRedis();
     const sessionIds = await redis.sMembers(`room:${roomCode}:players`);
 
+    if (sessionIds.length === 0) {
+        return [];
+    }
+
+    // Fetch all players in parallel for better performance
+    const playerPromises = sessionIds.map(sessionId => getPlayer(sessionId));
+    const playerResults = await Promise.all(playerPromises);
+
     const players = [];
     const orphanedSessionIds = [];
 
-    for (const sessionId of sessionIds) {
-        const player = await getPlayer(sessionId);
-        if (player) {
-            players.push(player);
+    for (let i = 0; i < sessionIds.length; i++) {
+        if (playerResults[i]) {
+            players.push(playerResults[i]);
         } else {
             // Player data expired but session ID still in set - mark for cleanup
-            orphanedSessionIds.push(sessionId);
+            orphanedSessionIds.push(sessionIds[i]);
         }
     }
 
-    // Clean up orphaned session IDs from the room's player set
+    // Clean up orphaned session IDs atomically
     if (orphanedSessionIds.length > 0) {
-        for (const sessionId of orphanedSessionIds) {
-            await redis.sRem(`room:${roomCode}:players`, sessionId);
-        }
+        await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
         logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
     }
 
@@ -209,11 +238,19 @@ async function handleDisconnect(sessionId) {
 }
 
 /**
- * Map socket ID to session ID for reconnection
+ * Map socket ID to session ID for reconnection and track client IP
  */
-async function setSocketMapping(sessionId, socketId) {
+async function setSocketMapping(sessionId, socketId, clientIP = null) {
     const redis = getRedis();
     await redis.set(`session:${sessionId}:socket`, socketId, { EX: REDIS_TTL.SESSION_SOCKET });
+
+    // Update last known IP for session security
+    if (clientIP) {
+        const player = await getPlayer(sessionId);
+        if (player) {
+            await updatePlayer(sessionId, { lastIP: clientIP });
+        }
+    }
 }
 
 /**

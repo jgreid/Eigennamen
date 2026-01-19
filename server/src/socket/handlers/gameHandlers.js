@@ -9,14 +9,14 @@ const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { startTurnTimer, stopTurnTimer } = require('../index');
+const { startTurnTimer, stopTurnTimer, createRateLimitedHandler } = require('../index');
 
 module.exports = function gameHandlers(io, socket) {
 
     /**
      * Start a new game (host only)
      */
-    socket.on('game:start', async (data = {}) => {
+    socket.on('game:start', createRateLimitedHandler(socket, 'game:start', async (data = {}) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -61,12 +61,12 @@ module.exports = function gameHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Reveal a card (host only)
      */
-    socket.on('game:reveal', async (data) => {
+    socket.on('game:reveal', createRateLimitedHandler(socket, 'game:reveal', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -132,12 +132,12 @@ module.exports = function gameHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Give a clue (spymaster only)
      */
-    socket.on('game:clue', async (data) => {
+    socket.on('game:clue', createRateLimitedHandler(socket, 'game:clue', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -178,12 +178,12 @@ module.exports = function gameHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * End the current turn (host only)
      */
-    socket.on('game:endTurn', async () => {
+    socket.on('game:endTurn', createRateLimitedHandler(socket, 'game:endTurn', async () => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -218,12 +218,12 @@ module.exports = function gameHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Forfeit the game (host only - forfeits current turn's team)
      */
-    socket.on('game:forfeit', async () => {
+    socket.on('game:forfeit', createRateLimitedHandler(socket, 'game:forfeit', async () => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -256,12 +256,12 @@ module.exports = function gameHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Get game history
      */
-    socket.on('game:history', async () => {
+    socket.on('game:history', createRateLimitedHandler(socket, 'game:history', async () => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -277,5 +277,5 @@ module.exports = function gameHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 };

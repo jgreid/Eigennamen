@@ -5,6 +5,21 @@
 const { getDatabase } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE, ERROR_CODES } = require('../config/constants');
+const crypto = require('crypto');
+
+/**
+ * Generate a secure edit token for anonymous word lists
+ */
+function generateEditToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Hash an edit token for secure storage
+ */
+function hashEditToken(token) {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Get a word list by ID
@@ -187,13 +202,19 @@ async function createWordList({ name, description, words, isPublic = false, owne
 async function updateWordList(id, { name, description, words, isPublic }, requesterId = null) {
     const prisma = getDatabase();
 
-    // Check ownership if requesterId provided
+    // Check ownership
     const existing = await prisma.wordList.findUnique({ where: { id } });
     if (!existing) {
         throw { code: ERROR_CODES.WORD_LIST_NOT_FOUND, message: 'Word list not found' };
     }
 
-    if (requesterId && existing.ownerId && existing.ownerId !== requesterId) {
+    // Anonymous word lists (no owner) are immutable
+    if (!existing.ownerId) {
+        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Anonymous word lists cannot be modified' };
+    }
+
+    // Check if requester is the owner
+    if (!requesterId || existing.ownerId !== requesterId) {
         throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized to update this word list' };
     }
 
@@ -254,13 +275,19 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
 async function deleteWordList(id, requesterId = null) {
     const prisma = getDatabase();
 
-    // Check ownership if requesterId provided
+    // Check ownership
     const existing = await prisma.wordList.findUnique({ where: { id } });
     if (!existing) {
         throw { code: ERROR_CODES.WORD_LIST_NOT_FOUND, message: 'Word list not found' };
     }
 
-    if (requesterId && existing.ownerId && existing.ownerId !== requesterId) {
+    // Anonymous word lists (no owner) cannot be deleted via API
+    if (!existing.ownerId) {
+        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Anonymous word lists cannot be deleted' };
+    }
+
+    // Check if requester is the owner
+    if (!requesterId || existing.ownerId !== requesterId) {
         throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized to delete this word list' };
     }
 

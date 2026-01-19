@@ -6,6 +6,37 @@
 
 ---
 
+## Fixes Implemented
+
+The following issues have been **fixed** in this branch:
+
+| Issue # | Description | Fix Applied |
+|---------|-------------|-------------|
+| 1 | Socket rate limiter not used | Created `createRateLimitedHandler` wrapper, applied to all handlers |
+| 3 | CORS wildcard in production | Added warning log for wildcard CORS in production |
+| 6 | Room join rollback missing | Added try-catch with sRem rollback on player creation failure |
+| 14 | Sequential player fetching | Changed to `Promise.all()` parallel fetching |
+| 16 | Spymaster race condition | Added Redis lock (`NX` + `EX`) for atomic spymaster assignment |
+| 17 | Session hijacking window | Added IP address tracking and validation on reconnection |
+| 18 | Non-atomic orphan cleanup | Changed to single `sRem(...orphanedSessionIds)` call |
+| 22 | Word list API no auth | Made anonymous word lists immutable (cannot be modified/deleted) |
+| 23 | CSRF bypass with Content-Type | Added check for wildcard CORS before allowing Content-Type bypass |
+| 24 | Anonymous word lists modifiable | See Issue #22 - anonymous lists are now immutable |
+| 25 | Unhandled rejections don't terminate | Added shutdown call in production on unhandled rejections |
+
+**Files Modified:**
+- `server/src/socket/index.js` - Rate limit wrapper function
+- `server/src/socket/handlers/*.js` - Applied rate limiting to all handlers
+- `server/src/services/playerService.js` - Spymaster lock, parallel fetching, IP tracking
+- `server/src/services/roomService.js` - Player creation rollback
+- `server/src/services/wordListService.js` - Anonymous list immutability
+- `server/src/middleware/socketAuth.js` - IP validation for session reuse
+- `server/src/middleware/csrf.js` - CORS-aware Content-Type check
+- `server/src/app.js` - CORS warning in production
+- `server/src/index.js` - Shutdown on unhandled rejections
+
+---
+
 ## Executive Summary
 
 This is a well-architected multiplayer Codenames game with both standalone (URL-based) and server-based modes. The codebase demonstrates good security awareness with rate limiting, input validation, and session management. However, there are several issues that should be addressed, ranging from potential security vulnerabilities to code quality improvements.

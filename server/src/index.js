@@ -94,6 +94,10 @@ async function startServer() {
 
         process.on('unhandledRejection', (reason, promise) => {
             logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+            // In production, terminate on unhandled rejections to avoid corrupted state
+            if (process.env.NODE_ENV === 'production') {
+                shutdown('UNHANDLED_REJECTION');
+            }
         });
 
     } catch (error) {
