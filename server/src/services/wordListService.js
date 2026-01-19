@@ -1,8 +1,11 @@
 /**
  * Word List Service - Custom word list management
+ *
+ * NOTE: This service requires a database connection.
+ * All functions return empty/null results when database is disabled.
  */
 
-const { getDatabase } = require('../config/database');
+const { getDatabase, isDatabaseEnabled } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE, ERROR_CODES } = require('../config/constants');
 const crypto = require('crypto');
@@ -24,9 +27,12 @@ function hashEditToken(token) {
 /**
  * Get a word list by ID
  * @param {string} id - Word list UUID
- * @returns {Object|null} Word list or null if not found
+ * @returns {Object|null} Word list or null if not found/database disabled
  */
 async function getWordList(id) {
+    if (!isDatabaseEnabled()) {
+        return null;
+    }
     const prisma = getDatabase();
 
     try {
@@ -57,9 +63,12 @@ async function getWordList(id) {
  * @param {string} options.search - Search term for name/description
  * @param {number} options.limit - Max results (default 50)
  * @param {number} options.offset - Pagination offset
- * @returns {Array} Array of word lists
+ * @returns {Array} Array of word lists (empty if database disabled)
  */
 async function getPublicWordLists({ search = '', limit = 50, offset = 0 } = {}) {
+    if (!isDatabaseEnabled()) {
+        return [];
+    }
     const prisma = getDatabase();
 
     try {
@@ -104,9 +113,12 @@ async function getPublicWordLists({ search = '', limit = 50, offset = 0 } = {}) 
 /**
  * Get word lists owned by a user
  * @param {string} ownerId - User UUID
- * @returns {Array} Array of word lists
+ * @returns {Array} Array of word lists (empty if database disabled)
  */
 async function getUserWordLists(ownerId) {
+    if (!isDatabaseEnabled()) {
+        return [];
+    }
     const prisma = getDatabase();
 
     try {
@@ -143,8 +155,12 @@ async function getUserWordLists(ownerId) {
  * @param {boolean} data.isPublic - Whether list is public
  * @param {string} data.ownerId - Owner user ID (optional)
  * @returns {Object} Created word list
+ * @throws {Object} Error if database is disabled
  */
 async function createWordList({ name, description, words, isPublic = false, ownerId = null }) {
+    if (!isDatabaseEnabled()) {
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Word list storage requires database (not configured)' };
+    }
     const prisma = getDatabase();
 
     // Validate minimum words
@@ -198,8 +214,12 @@ async function createWordList({ name, description, words, isPublic = false, owne
  * @param {Object} data - Update data
  * @param {string} requesterId - ID of user making request (for ownership check)
  * @returns {Object} Updated word list
+ * @throws {Object} Error if database is disabled
  */
 async function updateWordList(id, { name, description, words, isPublic }, requesterId = null) {
+    if (!isDatabaseEnabled()) {
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Word list storage requires database (not configured)' };
+    }
     const prisma = getDatabase();
 
     // Check ownership
@@ -271,8 +291,12 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
  * Delete a word list
  * @param {string} id - Word list ID
  * @param {string} requesterId - ID of user making request (for ownership check)
+ * @throws {Object} Error if database is disabled
  */
 async function deleteWordList(id, requesterId = null) {
+    if (!isDatabaseEnabled()) {
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Word list storage requires database (not configured)' };
+    }
     const prisma = getDatabase();
 
     // Check ownership
@@ -305,6 +329,9 @@ async function deleteWordList(id, requesterId = null) {
  * @param {string} id - Word list ID
  */
 async function incrementUsageCount(id) {
+    if (!isDatabaseEnabled()) {
+        return; // Silently skip if no database
+    }
     const prisma = getDatabase();
 
     try {
@@ -321,9 +348,12 @@ async function incrementUsageCount(id) {
 /**
  * Get words from a word list for game creation
  * @param {string} id - Word list ID
- * @returns {Array<string>|null} Array of words or null if not found
+ * @returns {Array<string>|null} Array of words or null if not found/database disabled
  */
 async function getWordsForGame(id) {
+    if (!isDatabaseEnabled()) {
+        return null;
+    }
     const prisma = getDatabase();
 
     try {

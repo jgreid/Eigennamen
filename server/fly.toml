@@ -8,22 +8,21 @@ primary_region = "iad"
   dockerfile = "Dockerfile"
 
 [deploy]
-  # Run database migrations before starting the app
-  # Uses 'migrate deploy' for production (safe, applies pending migrations)
-  # Falls back DATABASE_DIRECT_URL to DATABASE_URL if not set (for PgBouncer compatibility)
-  # Note: First deployment requires manual 'prisma migrate dev' locally to create initial migration
-  release_command = "sh -c 'export DATABASE_DIRECT_URL=${DATABASE_DIRECT_URL:-$DATABASE_URL} && npx prisma migrate deploy || npx prisma db push --skip-generate'"
+  # Database migrations are skipped - database is optional
+  # The game works fully with just in-memory storage (REDIS_URL=memory)
+  # To enable database: set DATABASE_URL secret and uncomment the release_command below
+  # release_command = "sh -c 'npx prisma migrate deploy || npx prisma db push --skip-generate'"
 
 [env]
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
-  # IMPORTANT: REDIS_URL defaults to "memory" for single-instance deployments
-  # This means data is NOT persisted across restarts and scaling to multiple
-  # instances will NOT work (each instance has its own isolated state).
-  # For production with persistence/scaling, set REDIS_URL secret:
-  #   fly secrets set REDIS_URL=rediss://... (for Upstash Redis)
+  # In-memory storage mode - no external dependencies required!
+  # Game data lives in memory (lost on restart, but rooms are temporary anyway)
+  # For persistence/scaling, set REDIS_URL secret: fly secrets set REDIS_URL=rediss://...
   REDIS_URL = "memory"
+  # DATABASE_URL is NOT required - the game works fully without a database
+  # Database only needed for: user accounts, game history, persistent word lists
 
 [http_service]
   internal_port = 3000

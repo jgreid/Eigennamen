@@ -85,21 +85,22 @@ app.get('/health/ready', async (req, res) => {
         };
     }
 
-    // Check Database (PostgreSQL via Prisma)
+    // Check Database (PostgreSQL via Prisma) - Optional
     try {
-        const getDatabase = app.get('database');
-        if (getDatabase) {
+        const { isDatabaseEnabled } = require('./config/database');
+        if (isDatabaseEnabled()) {
+            const getDatabase = app.get('database');
             const prisma = getDatabase();
             // Simple query to verify database connectivity
             await prisma.$queryRaw`SELECT 1`;
             checks.checks.database = { status: 'ok' };
         } else {
-            checks.checks.database = { status: 'not_configured' };
+            checks.checks.database = { status: 'disabled', note: 'Game works without database' };
         }
     } catch (error) {
         checks.checks.database = { status: 'error', message: error.message };
-        checks.status = 'degraded';
-        logger.error('Health check: Database error', error.message);
+        // Database errors don't degrade overall status since it's optional
+        logger.warn('Health check: Database error (non-critical)', error.message);
     }
 
     // Check Redis/Storage

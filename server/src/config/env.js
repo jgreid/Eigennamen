@@ -10,8 +10,8 @@ const optionalVars = {
     NODE_ENV: 'development',
     PORT: '3000',
     REDIS_URL: 'redis://localhost:6379',
-    DATABASE_URL: 'postgresql://localhost:5432/codenames',
-    JWT_SECRET: null,  // Optional for anonymous play
+    DATABASE_URL: null,  // Optional - game works without database
+    JWT_SECRET: null,    // Optional for anonymous play
     CORS_ORIGIN: '*',
     LOG_LEVEL: 'info'
 };
@@ -44,10 +44,17 @@ function validateEnv() {
 
     // Production-specific validations
     if (process.env.NODE_ENV === 'production') {
-        // Require real database/redis URLs in production (not localhost defaults)
-        if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('localhost')) {
-            errors.push('DATABASE_URL must be set to a real database URL in production');
+        // DATABASE_URL is optional - game works fully without it
+        // Only warn if it looks like a localhost URL (likely misconfiguration)
+        const dbUrl = process.env.DATABASE_URL || '';
+        if (dbUrl && dbUrl.includes('localhost')) {
+            warnings.push('DATABASE_URL points to localhost - this will not work in production');
         }
+        if (!dbUrl) {
+            // Informational only - not an error
+            logger.info('DATABASE_URL not configured - running without database (user accounts and game history disabled)');
+        }
+
         // Allow REDIS_URL=memory for single-instance deployments without Redis
         const redisUrl = process.env.REDIS_URL || '';
         const isMemoryMode = redisUrl === 'memory' || redisUrl === 'memory://';
