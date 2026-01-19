@@ -399,6 +399,11 @@ class MemoryStorage {
                                 results.push('OK');
                                 break;
                             case 'del':
+                                // Check expiry first (matches regular del behavior)
+                                if (storage._isExpired(cmd.key)) {
+                                    results.push(0);
+                                    break;
+                                }
                                 const existedData = storage.data.has(cmd.key);
                                 const existedSet = storage.sets.has(cmd.key);
                                 storage.data.delete(cmd.key);
@@ -439,6 +444,11 @@ class MemoryStorage {
                                 results.push(removed);
                                 break;
                             case 'expire':
+                                // Check expiry first (matches regular expire behavior)
+                                if (storage._isExpired(cmd.key)) {
+                                    results.push(0);
+                                    break;
+                                }
                                 if (storage.data.has(cmd.key) || storage.sets.has(cmd.key)) {
                                     storage.expiries.set(cmd.key, Date.now() + (cmd.seconds * 1000));
                                     results.push(1);
