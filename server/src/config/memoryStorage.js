@@ -95,6 +95,8 @@ class MemoryStorage {
     }
 
     async set(key, value, options = {}) {
+        // Remove from sets map if exists (type change: set -> string)
+        this.sets.delete(key);
         this.data.set(key, value);
         if (options.EX) {
             this.expiries.set(key, Date.now() + (options.EX * 1000));
@@ -166,6 +168,8 @@ class MemoryStorage {
         if (this._isExpired(key)) {
             this.sets.set(key, new Set());
         }
+        // Remove from data map if exists (type change: string -> set)
+        this.data.delete(key);
         if (!this.sets.has(key)) {
             this.sets.set(key, new Set());
         }
@@ -392,6 +396,8 @@ class MemoryStorage {
                     try {
                         switch (cmd.cmd) {
                             case 'set':
+                                // Remove from sets map if exists (type change)
+                                storage.sets.delete(cmd.key);
                                 storage.data.set(cmd.key, cmd.value);
                                 // Handle TTL options (EX = seconds, PX = milliseconds)
                                 if (cmd.options && cmd.options.EX) {
@@ -422,6 +428,8 @@ class MemoryStorage {
                                 if (storage._isExpired(cmd.key)) {
                                     storage.sets.set(cmd.key, new Set());
                                 }
+                                // Remove from data map if exists (type change)
+                                storage.data.delete(cmd.key);
                                 if (!storage.sets.has(cmd.key)) {
                                     storage.sets.set(cmd.key, new Set());
                                 }
