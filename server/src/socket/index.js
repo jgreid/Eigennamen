@@ -36,7 +36,8 @@ const socketRateLimiter = createSocketRateLimiter({
 });
 
 // Start periodic cleanup of stale rate limit entries
-setInterval(() => socketRateLimiter.cleanupStale(), 60000);
+// Store reference for cleanup on shutdown
+let rateLimitCleanupInterval = setInterval(() => socketRateLimiter.cleanupStale(), 60000);
 
 /**
  * Create a rate-limited socket event handler wrapper
@@ -311,6 +312,26 @@ function getSocketRateLimiter() {
     return socketRateLimiter;
 }
 
+/**
+ * Cleanup socket module resources on shutdown
+ * Call this before process exit to prevent memory leaks
+ */
+function cleanupSocketModule() {
+    // Clear rate limiter cleanup interval
+    if (rateLimitCleanupInterval) {
+        clearInterval(rateLimitCleanupInterval);
+        rateLimitCleanupInterval = null;
+    }
+
+    // Close socket.io server if initialized
+    if (io) {
+        io.close();
+        io = null;
+    }
+
+    logger.info('Socket module cleaned up');
+}
+
 module.exports = {
     initializeSocket,
     getIO,
@@ -320,5 +341,6 @@ module.exports = {
     stopTurnTimer,
     getTimerStatus,
     getSocketRateLimiter,
-    createRateLimitedHandler
+    createRateLimitedHandler,
+    cleanupSocketModule
 };

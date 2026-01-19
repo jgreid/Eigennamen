@@ -36,6 +36,18 @@ const { getRedis } = require('../config/redis');
 // Use fake timers
 jest.useFakeTimers();
 
+/**
+ * Helper to flush multiple microtasks and promises
+ * The timer callback has multiple async operations that need to resolve
+ */
+async function flushPromises() {
+    // Flush multiple microtask cycles to handle nested async operations
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+}
+
 describe('Timer Service', () => {
     let mockRedis;
 
@@ -90,7 +102,7 @@ describe('Timer Service', () => {
             jest.advanceTimersByTime(30000);
 
             // Need to allow async callbacks to resolve
-            await Promise.resolve();
+            await flushPromises();
 
             expect(onExpire).toHaveBeenCalledWith('ROOM1');
             expect(onExpire).toHaveBeenCalledTimes(1);
@@ -105,7 +117,7 @@ describe('Timer Service', () => {
 
             // Fast-forward 60 seconds
             jest.advanceTimersByTime(60000);
-            await Promise.resolve();
+            await flushPromises();
 
             // First callback should not have been called (timer was replaced)
             expect(onExpire1).not.toHaveBeenCalled();
@@ -122,7 +134,7 @@ describe('Timer Service', () => {
 
             // Fast-forward past the original duration
             jest.advanceTimersByTime(60000);
-            await Promise.resolve();
+            await flushPromises();
 
             expect(onExpire).not.toHaveBeenCalled();
         });
@@ -190,7 +202,7 @@ describe('Timer Service', () => {
 
             // Fast-forward more - should not expire
             jest.advanceTimersByTime(60000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire).not.toHaveBeenCalled();
         });
 
@@ -214,11 +226,11 @@ describe('Timer Service', () => {
 
             // Should now have 40 seconds remaining
             jest.advanceTimersByTime(39000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(2000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire).toHaveBeenCalled();
         });
 
@@ -241,11 +253,11 @@ describe('Timer Service', () => {
 
             // Original timer should be replaced
             jest.advanceTimersByTime(25000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(10000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire).toHaveBeenCalled();
         });
 
@@ -266,7 +278,7 @@ describe('Timer Service', () => {
             await timerService.cleanupAllTimers();
 
             jest.advanceTimersByTime(120000);
-            await Promise.resolve();
+            await flushPromises();
 
             expect(onExpire1).not.toHaveBeenCalled();
             expect(onExpire2).not.toHaveBeenCalled();
@@ -287,18 +299,18 @@ describe('Timer Service', () => {
             await timerService.startTimer('ROOM3', 90, onExpire3);
 
             jest.advanceTimersByTime(30000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire2).toHaveBeenCalledWith('ROOM2');
             expect(onExpire1).not.toHaveBeenCalled();
             expect(onExpire3).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(30000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire1).toHaveBeenCalledWith('ROOM1');
             expect(onExpire3).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(30000);
-            await Promise.resolve();
+            await flushPromises();
             expect(onExpire3).toHaveBeenCalledWith('ROOM3');
         });
     });

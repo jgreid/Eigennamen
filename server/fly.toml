@@ -9,15 +9,20 @@ primary_region = "iad"
 
 [deploy]
   # Run database migrations before starting the app
+  # Uses 'migrate deploy' for production (safe, applies pending migrations)
   # Falls back DATABASE_DIRECT_URL to DATABASE_URL if not set (for PgBouncer compatibility)
-  release_command = "sh -c 'export DATABASE_DIRECT_URL=${DATABASE_DIRECT_URL:-$DATABASE_URL} && npx prisma db push --skip-generate'"
+  # Note: First deployment requires manual 'prisma migrate dev' locally to create initial migration
+  release_command = "sh -c 'export DATABASE_DIRECT_URL=${DATABASE_DIRECT_URL:-$DATABASE_URL} && npx prisma migrate deploy || npx prisma db push --skip-generate'"
 
 [env]
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
-  # Use in-memory storage by default for single-instance deployments
-  # Set REDIS_URL secret to a real Redis URL for multi-instance scaling
+  # IMPORTANT: REDIS_URL defaults to "memory" for single-instance deployments
+  # This means data is NOT persisted across restarts and scaling to multiple
+  # instances will NOT work (each instance has its own isolated state).
+  # For production with persistence/scaling, set REDIS_URL secret:
+  #   fly secrets set REDIS_URL=rediss://... (for Upstash Redis)
   REDIS_URL = "memory"
 
 [http_service]
