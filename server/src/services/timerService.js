@@ -112,26 +112,34 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
 
     // Set up local timeout
     const timeoutId = setTimeout(async () => {
-        logger.info(`Timer expired for room ${roomCode}`);
-        localTimers.delete(roomCode);
-
-        // Remove from Redis
-        await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-        // Publish expiration event
         try {
-            const { pubClient } = getPubSubClients();
-            await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                type: 'expired',
-                roomCode,
-                timestamp: Date.now()
-            }));
-        } catch (e) {
-            // Pub/sub not available
-        }
+            logger.info(`Timer expired for room ${roomCode}`);
+            localTimers.delete(roomCode);
 
-        if (onExpire) {
-            onExpire(roomCode);
+            // Remove from Redis
+            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+            // Publish expiration event
+            try {
+                const { pubClient } = getPubSubClients();
+                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
+                    type: 'expired',
+                    roomCode,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                // Pub/sub not available
+            }
+
+            if (onExpire) {
+                try {
+                    onExpire(roomCode);
+                } catch (callbackError) {
+                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                }
+            }
+        } catch (error) {
+            logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
         }
     }, durationSeconds * 1000);
 
