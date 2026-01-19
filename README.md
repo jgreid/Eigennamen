@@ -15,6 +15,8 @@ A web-based implementation of the popular board game Codenames, optimized for re
 
 ## Quick Start
 
+**New to Codenames?** Check out the [Complete Quickstart Guide](QUICKSTART.md) for step-by-step instructions including your first game walkthrough.
+
 ### Option 1: Open directly
 
 1. Download `index.html` to your computer
