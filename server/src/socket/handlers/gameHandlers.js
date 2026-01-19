@@ -31,7 +31,7 @@ module.exports = function gameHandlers(io, socket) {
             }
 
             // Stop any existing timer
-            stopTurnTimer(socket.roomCode);
+            await stopTurnTimer(socket.roomCode);
 
             const game = await gameService.createGame(socket.roomCode, validated.wordListId);
 
@@ -49,7 +49,7 @@ module.exports = function gameHandlers(io, socket) {
 
             // Start turn timer if configured
             if (room && room.settings && room.settings.turnTimer) {
-                startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                await startTurnTimer(socket.roomCode, room.settings.turnTimer);
             }
 
             logger.info(`Game started in room ${socket.roomCode}`);
@@ -108,13 +108,13 @@ module.exports = function gameHandlers(io, socket) {
 
                 // Restart timer for new turn if configured
                 if (room && room.settings && room.settings.turnTimer) {
-                    startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                    await startTurnTimer(socket.roomCode, room.settings.turnTimer);
                 }
             }
 
             // If game is over, stop timer and reveal all card types
             if (result.gameOver) {
-                stopTurnTimer(socket.roomCode);
+                await stopTurnTimer(socket.roomCode);
 
                 io.to(`room:${socket.roomCode}`).emit('game:over', {
                     winner: result.winner,
@@ -206,7 +206,7 @@ module.exports = function gameHandlers(io, socket) {
             // Restart timer for new turn if configured
             const room = await roomService.getRoom(socket.roomCode);
             if (room && room.settings && room.settings.turnTimer) {
-                startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                await startTurnTimer(socket.roomCode, room.settings.turnTimer);
             }
 
             logger.info(`Turn ended in room ${socket.roomCode}, now ${result.currentTurn}'s turn`);
@@ -235,7 +235,7 @@ module.exports = function gameHandlers(io, socket) {
             }
 
             // Stop timer
-            stopTurnTimer(socket.roomCode);
+            await stopTurnTimer(socket.roomCode);
 
             // Forfeit is based on current turn's team, not player's team
             const result = await gameService.forfeitGame(socket.roomCode);
