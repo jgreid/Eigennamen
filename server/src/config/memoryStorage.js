@@ -75,6 +75,18 @@ class MemoryStorage {
         return false;
     }
 
+    /**
+     * Convert glob pattern to regex with proper escaping
+     * Escapes regex metacharacters before converting * and ? to regex equivalents
+     */
+    _globToRegex(pattern) {
+        // First escape all regex metacharacters except * and ?
+        const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        // Then convert glob wildcards to regex
+        const regexPattern = escaped.replace(/\*/g, '.*').replace(/\?/g, '.');
+        return new RegExp('^' + regexPattern + '$');
+    }
+
     // Basic string operations
     async get(key) {
         if (this._isExpired(key)) return null;
@@ -189,8 +201,8 @@ class MemoryStorage {
 
     // Key pattern operations
     async keys(pattern) {
-        // Simple glob-like pattern matching
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+        // Convert glob pattern to regex with proper escaping
+        const regex = this._globToRegex(pattern);
         const result = [];
 
         for (const key of this.data.keys()) {
@@ -404,7 +416,7 @@ class MemoryStorage {
     // Async iterator for SCAN (used by timerService)
     async *scanIterator(options = {}) {
         const pattern = options.MATCH || '*';
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+        const regex = this._globToRegex(pattern);
 
         // Yield keys from data map
         for (const key of this.data.keys()) {

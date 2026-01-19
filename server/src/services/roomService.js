@@ -146,9 +146,13 @@ async function joinRoom(code, sessionId, nickname) {
             // Already a member but player data might be missing - treat as reconnection
             player = await playerService.createPlayer(sessionId, code, nickname, false);
             isReconnecting = true;
-        } else {
+        } else if (result === 1) {
             // Successfully added to set, now create player data
             player = await playerService.createPlayerData(sessionId, code, nickname, false);
+        } else {
+            // Unexpected result (null, undefined, or other) - log and throw error
+            logger.error(`Unexpected result from room join script: ${result} for room ${code}`);
+            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to join room due to unexpected error' };
         }
     }
 

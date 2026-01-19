@@ -220,8 +220,8 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
-    // Validate index bounds
-    if (typeof index !== 'number' || index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
+    // Validate index bounds (including NaN/Infinity which are typeof 'number')
+    if (typeof index !== 'number' || !Number.isFinite(index) || index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
         throw { code: ERROR_CODES.INVALID_INPUT, message: `Invalid card index: must be 0-${BOARD_SIZE - 1}` };
     }
 
@@ -339,6 +339,7 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
 
             // If transaction failed (key was modified), retry
             if (result === null) {
+                await redis.unwatch();
                 retries++;
                 continue;
             }
@@ -480,6 +481,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
 
             // If transaction failed (key was modified), retry
             if (result === null) {
+                await redis.unwatch();
                 retries++;
                 continue;
             }
@@ -548,6 +550,7 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
 
             // If transaction failed (key was modified), retry
             if (result === null) {
+                await redis.unwatch();
                 retries++;
                 continue;
             }
@@ -611,6 +614,7 @@ async function forfeitGame(roomCode) {
 
             // If transaction failed (key was modified), retry
             if (result === null) {
+                await redis.unwatch();
                 retries++;
                 continue;
             }
