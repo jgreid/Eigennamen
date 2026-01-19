@@ -48,8 +48,14 @@ function validateEnv() {
         if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('localhost')) {
             errors.push('DATABASE_URL must be set to a real database URL in production');
         }
-        if (!process.env.REDIS_URL || process.env.REDIS_URL.includes('localhost')) {
-            errors.push('REDIS_URL must be set to a real Redis URL in production');
+        // Allow REDIS_URL=memory for single-instance deployments without Redis
+        const redisUrl = process.env.REDIS_URL || '';
+        const isMemoryMode = redisUrl === 'memory' || redisUrl === 'memory://';
+        if (!isMemoryMode && (!redisUrl || redisUrl.includes('localhost'))) {
+            errors.push('REDIS_URL must be set to a real Redis URL in production (or use "memory" for single-instance mode)');
+        }
+        if (isMemoryMode) {
+            warnings.push('Running in memory storage mode - data will not persist across restarts and multi-instance scaling is disabled');
         }
 
         // Security warnings

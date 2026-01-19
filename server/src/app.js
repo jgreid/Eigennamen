@@ -94,20 +94,25 @@ app.get('/health/ready', async (req, res) => {
         logger.error('Health check: Database error', error.message);
     }
 
-    // Check Redis
+    // Check Redis/Storage
     try {
-        const { isRedisHealthy } = require('./config/redis');
+        const { isRedisHealthy, isUsingMemoryMode } = require('./config/redis');
         const healthy = await isRedisHealthy();
+        const memoryMode = isUsingMemoryMode();
         if (healthy) {
-            checks.checks.redis = { status: 'ok' };
+            checks.checks.storage = {
+                status: 'ok',
+                type: memoryMode ? 'memory' : 'redis',
+                note: memoryMode ? 'Single-instance mode, data will not persist across restarts' : undefined
+            };
         } else {
-            checks.checks.redis = { status: 'error', message: 'Redis not connected' };
+            checks.checks.storage = { status: 'error', message: 'Storage not connected' };
             checks.status = 'degraded';
         }
     } catch (error) {
-        checks.checks.redis = { status: 'error', message: error.message };
+        checks.checks.storage = { status: 'error', message: error.message };
         checks.status = 'degraded';
-        logger.error('Health check: Redis error', error.message);
+        logger.error('Health check: Storage error', error.message);
     }
 
     // Check Socket.io

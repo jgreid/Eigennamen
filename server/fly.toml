@@ -16,6 +16,9 @@ primary_region = "iad"
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
+  # Use in-memory storage by default for single-instance deployments
+  # Set REDIS_URL secret to a real Redis URL for multi-instance scaling
+  REDIS_URL = "memory"
 
 [http_service]
   internal_port = 3000
