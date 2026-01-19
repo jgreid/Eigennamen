@@ -12,16 +12,39 @@
 
 const logger = require('../utils/logger');
 
-class MemoryStorage {
-    constructor() {
-        this.data = new Map();
-        this.expiries = new Map();
-        this.sets = new Map();
-        this.pubsubChannels = new Map();
-        this.isOpen = true;
+// Shared storage across all MemoryStorage instances (for duplicate() support)
+let sharedData = null;
+let sharedExpiries = null;
+let sharedSets = null;
+let sharedPubsubChannels = null;
 
-        // Periodic cleanup of expired keys
-        this.cleanupInterval = setInterval(() => this._cleanupExpired(), 60000);
+function initializeSharedStorage() {
+    if (!sharedData) {
+        sharedData = new Map();
+        sharedExpiries = new Map();
+        sharedSets = new Map();
+        sharedPubsubChannels = new Map();
+    }
+}
+
+class MemoryStorage {
+    constructor(isClone = false) {
+        initializeSharedStorage();
+
+        // All instances share the same data (simulates Redis behavior)
+        this.data = sharedData;
+        this.expiries = sharedExpiries;
+        this.sets = sharedSets;
+        this.pubsubChannels = sharedPubsubChannels;
+        this.isOpen = true;
+        this._isClone = isClone;
+        this._watchedKeys = new Map(); // For transaction support
+        this._eventHandlers = new Map(); // For event emitter pattern
+
+        // Periodic cleanup of expired keys (only for primary instance)
+        if (!isClone) {
+            this.cleanupInterval = setInterval(() => this._cleanupExpired(), 60000);
+        }
     }
 
     /**
@@ -227,11 +250,36 @@ class MemoryStorage {
         return 0;
     }
 
-    // Lua script support (simplified - just run the basic operations)
+    // Lua script support - implement the atomic join script logic
     async eval(script, options) {
-        // For the roomService capacity check script, we need to handle it specially
-        // This is a simplified implementation that handles the specific use case
-        logger.debug('Memory storage eval called (Lua scripts have limited support in memory mode)');
+        // Handle the atomic room join script from roomService.js
+        // Script expects: KEYS[1] = playersKey, ARGV[1] = maxPlayers, ARGV[2] = sessionId
+        if (options && options.keys && options.keys.length > 0 && options.arguments && options.arguments.length >= 2) {
+            const playersKey = options.keys[0];
+            const maxPlayers = parseInt(options.arguments[0], 10);
+            const sessionId = options.arguments[1];
+
+            // Check if already a member
+            const existingSet = this.sets.get(playersKey);
+            if (existingSet && existingSet.has(sessionId)) {
+                return -1; // Already a member
+            }
+
+            // Check capacity
+            const currentCount = existingSet ? existingSet.size : 0;
+            if (currentCount >= maxPlayers) {
+                return 0; // Room is full
+            }
+
+            // Add to set
+            if (!this.sets.has(playersKey)) {
+                this.sets.set(playersKey, new Set());
+            }
+            this.sets.get(playersKey).add(sessionId);
+            return 1; // Successfully added
+        }
+
+        logger.debug('Memory storage eval called with unsupported script');
         return null;
     }
 
@@ -244,15 +292,145 @@ class MemoryStorage {
         return 'memory_mode_sha';
     }
 
+    // Transaction support (optimistic locking)
+    async watch(key) {
+        // Store the current value hash for comparison during exec
+        const value = this.data.get(key);
+        this._watchedKeys.set(key, value ? JSON.stringify(value) : null);
+        return 'OK';
+    }
+
+    async unwatch() {
+        this._watchedKeys.clear();
+        return 'OK';
+    }
+
+    multi() {
+        // Return a transaction builder
+        const commands = [];
+        const storage = this;
+
+        const txn = {
+            set: function(key, value) {
+                commands.push({ cmd: 'set', key, value });
+                return txn;
+            },
+            del: function(key) {
+                commands.push({ cmd: 'del', key });
+                return txn;
+            },
+            sAdd: function(key, ...members) {
+                commands.push({ cmd: 'sAdd', key, members });
+                return txn;
+            },
+            sRem: function(key, ...members) {
+                commands.push({ cmd: 'sRem', key, members });
+                return txn;
+            },
+            expire: function(key, seconds) {
+                commands.push({ cmd: 'expire', key, seconds });
+                return txn;
+            },
+            exec: async function() {
+                // Check if watched keys changed (optimistic locking)
+                for (const [key, originalValue] of storage._watchedKeys.entries()) {
+                    const currentValue = storage.data.get(key);
+                    const currentJson = currentValue ? JSON.stringify(currentValue) : null;
+                    if (currentJson !== originalValue) {
+                        // Key was modified - transaction failed
+                        storage._watchedKeys.clear();
+                        return null;
+                    }
+                }
+
+                // Execute all commands
+                const results = [];
+                for (const cmd of commands) {
+                    try {
+                        switch (cmd.cmd) {
+                            case 'set':
+                                storage.data.set(cmd.key, cmd.value);
+                                results.push('OK');
+                                break;
+                            case 'del':
+                                const existed = storage.data.delete(cmd.key);
+                                results.push(existed ? 1 : 0);
+                                break;
+                            case 'sAdd':
+                                if (!storage.sets.has(cmd.key)) {
+                                    storage.sets.set(cmd.key, new Set());
+                                }
+                                let added = 0;
+                                for (const m of cmd.members) {
+                                    if (!storage.sets.get(cmd.key).has(m)) {
+                                        storage.sets.get(cmd.key).add(m);
+                                        added++;
+                                    }
+                                }
+                                results.push(added);
+                                break;
+                            case 'sRem':
+                                const set = storage.sets.get(cmd.key);
+                                let removed = 0;
+                                if (set) {
+                                    for (const m of cmd.members) {
+                                        if (set.delete(m)) removed++;
+                                    }
+                                }
+                                results.push(removed);
+                                break;
+                            case 'expire':
+                                if (storage.data.has(cmd.key) || storage.sets.has(cmd.key)) {
+                                    storage.expiries.set(cmd.key, Date.now() + (cmd.seconds * 1000));
+                                    results.push(1);
+                                } else {
+                                    results.push(0);
+                                }
+                                break;
+                        }
+                    } catch (e) {
+                        results.push(null);
+                    }
+                }
+
+                storage._watchedKeys.clear();
+                return results;
+            }
+        };
+
+        return txn;
+    }
+
+    // Async iterator for SCAN (used by timerService)
+    async *scanIterator(options = {}) {
+        const pattern = options.MATCH || '*';
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+
+        // Yield keys from data map
+        for (const key of this.data.keys()) {
+            if (!this._isExpired(key) && regex.test(key)) {
+                yield key;
+            }
+        }
+
+        // Yield keys from sets map
+        for (const key of this.sets.keys()) {
+            if (!this._isExpired(key) && regex.test(key) && !this.data.has(key)) {
+                yield key;
+            }
+        }
+    }
+
     // Health check
     async ping() {
         return 'PONG';
     }
 
     // Duplicate for pub/sub clients
+    // Returns a new instance that shares data but has independent state
     duplicate() {
-        // Return a reference to this same instance (single-instance mode)
-        return this;
+        const clone = new MemoryStorage(true);
+        return clone;
     }
 
     // Connection management
@@ -264,7 +442,10 @@ class MemoryStorage {
 
     async quit() {
         this.isOpen = false;
-        clearInterval(this.cleanupInterval);
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
         return 'OK';
     }
 
@@ -272,11 +453,49 @@ class MemoryStorage {
         return this.quit();
     }
 
-    // Event handlers (no-op for compatibility)
+    // Event handlers for compatibility with node-redis client
     on(event, callback) {
+        if (!this._eventHandlers.has(event)) {
+            this._eventHandlers.set(event, []);
+        }
+        this._eventHandlers.get(event).push(callback);
+
         // Immediately call 'ready' callback
         if (event === 'ready') {
             setImmediate(callback);
+        }
+        return this;
+    }
+
+    emit(event, ...args) {
+        const handlers = this._eventHandlers.get(event);
+        if (handlers) {
+            for (const handler of handlers) {
+                try {
+                    handler(...args);
+                } catch (e) {
+                    logger.error(`Event handler error for ${event}:`, e);
+                }
+            }
+        }
+    }
+
+    removeListener(event, callback) {
+        const handlers = this._eventHandlers.get(event);
+        if (handlers) {
+            const index = handlers.indexOf(callback);
+            if (index !== -1) {
+                handlers.splice(index, 1);
+            }
+        }
+        return this;
+    }
+
+    removeAllListeners(event) {
+        if (event) {
+            this._eventHandlers.delete(event);
+        } else {
+            this._eventHandlers.clear();
         }
         return this;
     }
