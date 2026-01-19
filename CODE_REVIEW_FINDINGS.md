@@ -308,6 +308,146 @@ The `/health/ready` endpoint performs multiple async operations. Under heavy loa
 
 ---
 
+## Additional Issues Found in Deep Review
+
+### 16. Spymaster Role Assignment Race Condition
+
+**Location:** `server/src/services/playerService.js:119-132`
+**Severity:** Medium
+
+```javascript
+// If becoming spymaster, check if team already has one
+if (role === 'spymaster' && player.team) {
+    const roomPlayers = await getPlayersInRoom(player.roomCode);
+    const existingSpymaster = roomPlayers.find(
+        p => p.team === player.team && p.role === 'spymaster' && p.sessionId !== sessionId
+    );
+    if (existingSpymaster) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: `${player.team} team already has a spymaster` };
+    }
+}
+return updatePlayer(sessionId, { role });
+```
+
+Between checking for an existing spymaster and updating the player's role, another player could also become spymaster for the same team. This is a time-of-check to time-of-use (TOCTOU) race condition.
+
+**Impact:** Two players could end up as spymasters for the same team, both seeing the card types.
+
+**Recommendation:** Use a Redis transaction or lock to make the check-and-set atomic:
+```javascript
+const LOCK_KEY = `lock:spymaster:${roomCode}:${team}`;
+await redis.set(LOCK_KEY, '1', { NX: true, EX: 5 });
+// ... check and update ...
+await redis.del(LOCK_KEY);
+```
+
+---
+
+### 17. Session Hijacking Window During Disconnect Grace Period
+
+**Location:** `server/src/middleware/socketAuth.js:27-37`
+**Severity:** Low-Medium
+
+```javascript
+if (existingPlayer) {
+    if (!existingPlayer.connected) {
+        // Only allow session reuse if player is disconnected
+        validatedSessionId = sessionId;
+    } else {
+        // Player is currently connected - potential hijacking attempt
+        logger.warn(`Session hijacking attempt blocked...`);
+    }
+}
+```
+
+When a player disconnects, they're marked as `connected: false` but their session remains valid for reconnection. During this window (until TTL expires), an attacker who obtains the session ID could hijack the session by connecting with it.
+
+**Recommendation:** Add additional verification like:
+- Require a reconnection token generated at disconnect time
+- Check IP address consistency
+- Use shorter TTLs for disconnected sessions
+
+---
+
+### 18. getPlayersInRoom Orphan Cleanup Not Atomic
+
+**Location:** `server/src/services/playerService.js:166-170`
+**Severity:** Very Low
+
+```javascript
+if (orphanedSessionIds.length > 0) {
+    for (const sessionId of orphanedSessionIds) {
+        await redis.sRem(`room:${roomCode}:players`, sessionId);
+    }
+}
+```
+
+Orphan cleanup is done with individual `sRem` calls rather than a single atomic operation. Under high concurrency, this could cause issues.
+
+**Recommendation:** Use Redis pipeline or SREM with multiple members:
+```javascript
+await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
+```
+
+---
+
+### 19. Team-Only Chat Messages Could Leak on Team Change
+
+**Location:** `server/src/socket/handlers/chatHandlers.js:40-47`
+**Severity:** Very Low
+
+```javascript
+if (validated.teamOnly && player.team) {
+    const players = await playerService.getPlayersInRoom(socket.roomCode);
+    const teammates = players.filter(p => p.team === player.team);
+    for (const teammate of teammates) {
+        io.to(`player:${teammate.sessionId}`).emit('chat:message', message);
+    }
+}
+```
+
+If a player changes teams between the `getPlayer` call (line 24) and the `getPlayersInRoom` call (line 42), the team filtering might be inconsistent. This is extremely unlikely but theoretically possible.
+
+---
+
+### 20. No Validation That Spymaster Has a Team Before Giving Clue
+
+**Location:** `server/src/socket/handlers/gameHandlers.js:149-152`
+**Severity:** Low
+
+```javascript
+const player = await playerService.getPlayer(socket.sessionId);
+if (!player || player.role !== 'spymaster') {
+    throw { code: ERROR_CODES.NOT_SPYMASTER, message: 'Only spymasters can give clues' };
+}
+```
+
+The handler checks if the player is a spymaster, but doesn't explicitly verify they have a team. The `giveClue` service does validate this (line 411), but the error message at the handler level would be clearer if it checked upfront.
+
+---
+
+### 21. Game Start Sends State to All Players Including Disconnected Ones
+
+**Location:** `server/src/socket/handlers/gameHandlers.js:42-48`
+**Severity:** Very Low
+
+```javascript
+const players = await playerService.getPlayersInRoom(socket.roomCode);
+for (const p of players) {
+    const gameState = gameService.getGameStateForPlayer(game, p);
+    io.to(`player:${p.sessionId}`).emit('game:started', { game: gameState });
+}
+```
+
+The game state is sent to all players in the room, including those marked as disconnected. This wastes resources, though Socket.IO will handle the missing socket gracefully.
+
+**Recommendation:** Filter to connected players:
+```javascript
+const connectedPlayers = players.filter(p => p.connected);
+```
+
+---
+
 ## Positive Observations
 
 The codebase demonstrates several good practices:
@@ -328,40 +468,61 @@ The codebase demonstrates several good practices:
 ## Recommended Priority Actions
 
 ### High Priority
-1. Actually use the socket rate limiter in handlers (Issue #1)
+1. Actually use the socket rate limiter in handlers (Issue #1) - **Security Critical**
 2. Add rollback logic for failed player creation (Issue #6)
+3. Fix spymaster role assignment race condition (Issue #16) - **Could allow cheating**
 
 ### Medium Priority
-3. Configure CORS properly for production (Issue #3)
-4. Validate JWT_SECRET is set at startup (Issue #4)
-5. Parallelize player fetching (Issue #14)
+4. Configure CORS properly for production (Issue #3)
+5. Validate JWT_SECRET is set at startup (Issue #4)
+6. Parallelize player fetching (Issue #14)
+7. Address session hijacking window during disconnect (Issue #17)
 
 ### Low Priority
-6. Create custom GameError class (Issue #10)
-7. Move timer constants to config file (Issue #11)
-8. Add client-side team name validation (Issue #13)
+8. Create custom GameError class (Issue #10)
+9. Move timer constants to config file (Issue #11)
+10. Add client-side team name validation (Issue #13)
+11. Make orphan cleanup atomic (Issue #18)
+12. Filter disconnected players when sending game state (Issue #21)
 
 ---
 
 ## Files Reviewed
 
-- `server/src/services/gameService.js`
-- `server/src/services/roomService.js`
-- `server/src/services/playerService.js`
-- `server/src/services/timerService.js`
-- `server/src/socket/index.js`
-- `server/src/socket/handlers/gameHandlers.js`
-- `server/src/socket/handlers/roomHandlers.js`
-- `server/src/socket/handlers/playerHandlers.js`
-- `server/src/middleware/socketAuth.js`
-- `server/src/middleware/rateLimit.js`
-- `server/src/middleware/errorHandler.js`
-- `server/src/validators/schemas.js`
-- `server/src/config/redis.js`
-- `server/src/config/constants.js`
-- `server/src/app.js`
-- `index.html`
+### Server-Side (18 files)
+- `server/src/services/gameService.js` - Core game logic, card reveal, clue validation
+- `server/src/services/roomService.js` - Room CRUD, atomic joins via Lua script
+- `server/src/services/playerService.js` - Player management, role assignment
+- `server/src/services/timerService.js` - Distributed timer with Redis backing
+- `server/src/socket/index.js` - Socket.IO initialization and configuration
+- `server/src/socket/handlers/gameHandlers.js` - Game events (start, reveal, clue)
+- `server/src/socket/handlers/roomHandlers.js` - Room events (create, join, leave)
+- `server/src/socket/handlers/playerHandlers.js` - Player events (team, role, nickname)
+- `server/src/socket/handlers/chatHandlers.js` - Chat functionality
+- `server/src/middleware/socketAuth.js` - Socket authentication
+- `server/src/middleware/rateLimit.js` - Rate limiting implementation
+- `server/src/middleware/errorHandler.js` - Global error handling
+- `server/src/validators/schemas.js` - Zod input validation schemas
+- `server/src/config/redis.js` - Redis connection management
+- `server/src/config/constants.js` - Game constants and configuration
+- `server/src/app.js` - Express application setup
+
+### Client-Side (1 file)
+- `index.html` - Full standalone client (1,468 lines)
 
 ---
 
-*End of Code Review*
+## Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Issues Found | 21 |
+| Critical/High Priority | 3 |
+| Medium Priority | 4 |
+| Low Priority | 5 |
+| Very Low Priority | 9 |
+| Files Reviewed | 17 |
+
+---
+
+*End of Code Review - January 2026*
