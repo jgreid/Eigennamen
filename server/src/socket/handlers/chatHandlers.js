@@ -7,7 +7,7 @@ const { validateInput } = require('../../middleware/validation');
 const { chatMessageSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { createRateLimitedHandler } = require('../index');
+const { createRateLimitedHandler } = require('../rateLimitHandler');
 
 module.exports = function chatHandlers(io, socket) {
 

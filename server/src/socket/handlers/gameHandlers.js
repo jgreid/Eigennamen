@@ -9,7 +9,11 @@ const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { startTurnTimer, stopTurnTimer, createRateLimitedHandler } = require('../index');
+const { createRateLimitedHandler } = require('../rateLimitHandler');
+
+// Lazy-load socket functions to avoid circular dependency
+// (socket/index.js loads gameHandlers, but these are only called at runtime)
+const getSocketFunctions = () => require('../index');
 
 module.exports = function gameHandlers(io, socket) {
 
@@ -31,7 +35,7 @@ module.exports = function gameHandlers(io, socket) {
             }
 
             // Stop any existing timer
-            await stopTurnTimer(socket.roomCode);
+            await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
             // Pass options to createGame (supports wordListId or wordList array)
             const game = await gameService.createGame(socket.roomCode, {
@@ -53,7 +57,7 @@ module.exports = function gameHandlers(io, socket) {
 
             // Start turn timer if configured
             if (room && room.settings && room.settings.turnTimer) {
-                await startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
             }
 
             logger.info(`Game started in room ${socket.roomCode}`);
@@ -112,13 +116,13 @@ module.exports = function gameHandlers(io, socket) {
 
                 // Restart timer for new turn if configured
                 if (room && room.settings && room.settings.turnTimer) {
-                    await startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                    await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
                 }
             }
 
             // If game is over, stop timer and reveal all card types
             if (result.gameOver) {
-                await stopTurnTimer(socket.roomCode);
+                await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
                 io.to(`room:${socket.roomCode}`).emit('game:over', {
                     winner: result.winner,
@@ -210,7 +214,7 @@ module.exports = function gameHandlers(io, socket) {
             // Restart timer for new turn if configured
             const room = await roomService.getRoom(socket.roomCode);
             if (room && room.settings && room.settings.turnTimer) {
-                await startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
             }
 
             logger.info(`Turn ended in room ${socket.roomCode}, now ${result.currentTurn}'s turn`);
@@ -239,7 +243,7 @@ module.exports = function gameHandlers(io, socket) {
             }
 
             // Stop timer
-            await stopTurnTimer(socket.roomCode);
+            await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
             // Forfeit is based on current turn's team, not player's team
             const result = await gameService.forfeitGame(socket.roomCode);
