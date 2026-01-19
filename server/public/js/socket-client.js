@@ -36,10 +36,17 @@
 
                 const url = serverUrl || window.location.origin;
 
+                // Determine transport based on environment:
+                // - Production (HTTPS) uses websocket only for better Fly.io compatibility
+                // - Development (HTTP) uses polling + websocket for easier debugging
+                const isSecure = url.startsWith('https://') || window.location.protocol === 'https:';
+                const transports = isSecure ? ['websocket'] : ['polling', 'websocket'];
+
                 this.socket = io(url, {
                     auth: {
                         sessionId: this.sessionId
                     },
+                    transports: transports,
                     reconnection: true,
                     reconnectionAttempts: this.maxReconnectAttempts,
                     reconnectionDelay: 1000,
