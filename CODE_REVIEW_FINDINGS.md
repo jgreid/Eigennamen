@@ -448,6 +448,110 @@ const connectedPlayers = players.filter(p => p.connected);
 
 ---
 
+## Issues Found in Third Review Pass
+
+### 22. Word List API Has No Authentication/Authorization
+
+**Location:** `server/src/routes/wordListRoutes.js:104-153`
+**Severity:** Medium-High
+
+```javascript
+router.post('/', validateBody(createWordListSchema), async (req, res, next) => {
+    const wordList = await wordListService.createWordList({
+        ownerId: null // Anonymous creation for now
+    });
+});
+
+router.put('/:id', ..., async (req, res, next) => {
+    const wordList = await wordListService.updateWordList(
+        req.params.id,
+        { name, description, words, isPublic },
+        null // No auth check for now
+    );
+});
+```
+
+The word list API allows anyone to:
+- Create word lists anonymously
+- Update ANY word list (since `requesterId` is `null` and ownership check only fails if both are truthy)
+- Delete ANY word list
+
+**Impact:** Anyone can modify or delete any word list, including public ones used by other players.
+
+**Recommendation:** Require authentication for modifying word lists, or add a secret/token for anonymous lists.
+
+---
+
+### 23. CSRF Protection Can Be Bypassed with Content-Type Header
+
+**Location:** `server/src/middleware/csrf.js:70-74`
+**Severity:** Low-Medium
+
+```javascript
+const contentType = req.headers['content-type'];
+if (contentType && contentType.includes('application/json')) {
+    return next();
+}
+```
+
+When CORS is configured to allow all origins (`*`), an attacker can make cross-origin requests with `Content-Type: application/json` and it will pass CSRF validation.
+
+**Recommendation:** When CORS_ORIGIN is `*`, don't rely on Content-Type for CSRF protection. Use proper CSRF tokens instead.
+
+---
+
+### 24. Anonymous Word Lists Can Be Modified by Anyone
+
+**Location:** `server/src/services/wordListService.js:196-198`
+**Severity:** Medium
+
+```javascript
+if (requesterId && existing.ownerId && existing.ownerId !== requesterId) {
+    throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized...' };
+}
+```
+
+When both `requesterId` is `null` AND `existing.ownerId` is `null` (anonymous list), the check passes. Any anonymous list can be modified by anyone.
+
+**Recommendation:** Add a secret/edit token for anonymous word lists, or make them immutable after creation.
+
+---
+
+### 25. Unhandled Promise Rejections Don't Terminate Process
+
+**Location:** `server/src/index.js:95-97`
+**Severity:** Low
+
+```javascript
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+});
+```
+
+After an unhandled rejection, the process continues running in a potentially corrupted state.
+
+**Recommendation:** Call `shutdown()` on unhandled rejections.
+
+---
+
+### 26. Memory Storage Cleanup Interval Could Leak
+
+**Location:** `server/src/config/memoryStorage.js:45-47`
+**Severity:** Very Low
+
+The cleanup interval is set for the primary instance but could leak if GC happens before `quit()` is called. Minor issue since shutdown handles this correctly.
+
+---
+
+### 27. Room Info Endpoint Exposes Player Count
+
+**Location:** `server/src/routes/roomRoutes.js:36-64`
+**Severity:** Very Low
+
+The room info endpoint returns player count, which could be used for enumeration or monitoring. Not a significant issue but worth noting.
+
+---
+
 ## Positive Observations
 
 The codebase demonstrates several good practices:
@@ -462,6 +566,9 @@ The codebase demonstrates several good practices:
 8. **Graceful Degradation:** Memory mode fallback when Redis unavailable
 9. **Health Checks:** Multiple health endpoints for different purposes
 10. **Clean Separation of Concerns:** Services, handlers, and middleware properly separated
+11. **Graceful Shutdown:** Proper cleanup of timers and connections
+12. **Environment Validation:** Startup checks for required configuration
+13. **Comprehensive Memory Storage:** Redis-compatible API for single-instance mode
 
 ---
 
@@ -469,43 +576,57 @@ The codebase demonstrates several good practices:
 
 ### High Priority
 1. Actually use the socket rate limiter in handlers (Issue #1) - **Security Critical**
-2. Add rollback logic for failed player creation (Issue #6)
+2. Add authentication to word list API (Issue #22) - **Anyone can delete/modify word lists**
 3. Fix spymaster role assignment race condition (Issue #16) - **Could allow cheating**
+4. Add rollback logic for failed player creation (Issue #6)
 
 ### Medium Priority
-4. Configure CORS properly for production (Issue #3)
-5. Validate JWT_SECRET is set at startup (Issue #4)
-6. Parallelize player fetching (Issue #14)
-7. Address session hijacking window during disconnect (Issue #17)
+5. Configure CORS properly for production (Issue #3)
+6. Fix CSRF bypass when CORS allows all origins (Issue #23)
+7. Protect anonymous word lists from modification (Issue #24)
+8. Validate JWT_SECRET is set at startup (Issue #4)
+9. Parallelize player fetching (Issue #14)
+10. Address session hijacking window during disconnect (Issue #17)
 
 ### Low Priority
-8. Create custom GameError class (Issue #10)
-9. Move timer constants to config file (Issue #11)
-10. Add client-side team name validation (Issue #13)
-11. Make orphan cleanup atomic (Issue #18)
-12. Filter disconnected players when sending game state (Issue #21)
+11. Create custom GameError class (Issue #10)
+12. Move timer constants to config file (Issue #11)
+13. Add client-side team name validation (Issue #13)
+14. Make orphan cleanup atomic (Issue #18)
+15. Filter disconnected players when sending game state (Issue #21)
+16. Terminate on unhandled promise rejections (Issue #25)
 
 ---
 
 ## Files Reviewed
 
-### Server-Side (18 files)
+### Server-Side (24 files)
+- `server/src/index.js` - Server entry point, startup, shutdown handling
+- `server/src/app.js` - Express application setup, health endpoints
 - `server/src/services/gameService.js` - Core game logic, card reveal, clue validation
 - `server/src/services/roomService.js` - Room CRUD, atomic joins via Lua script
 - `server/src/services/playerService.js` - Player management, role assignment
 - `server/src/services/timerService.js` - Distributed timer with Redis backing
+- `server/src/services/wordListService.js` - Custom word list management
 - `server/src/socket/index.js` - Socket.IO initialization and configuration
 - `server/src/socket/handlers/gameHandlers.js` - Game events (start, reveal, clue)
 - `server/src/socket/handlers/roomHandlers.js` - Room events (create, join, leave)
 - `server/src/socket/handlers/playerHandlers.js` - Player events (team, role, nickname)
 - `server/src/socket/handlers/chatHandlers.js` - Chat functionality
+- `server/src/routes/index.js` - Route aggregation
+- `server/src/routes/roomRoutes.js` - Room REST API endpoints
+- `server/src/routes/wordListRoutes.js` - Word list REST API endpoints
 - `server/src/middleware/socketAuth.js` - Socket authentication
 - `server/src/middleware/rateLimit.js` - Rate limiting implementation
 - `server/src/middleware/errorHandler.js` - Global error handling
+- `server/src/middleware/validation.js` - Input validation middleware
+- `server/src/middleware/csrf.js` - CSRF protection
 - `server/src/validators/schemas.js` - Zod input validation schemas
 - `server/src/config/redis.js` - Redis connection management
+- `server/src/config/database.js` - PostgreSQL/Prisma connection
+- `server/src/config/env.js` - Environment validation
+- `server/src/config/memoryStorage.js` - In-memory Redis replacement
 - `server/src/config/constants.js` - Game constants and configuration
-- `server/src/app.js` - Express application setup
 
 ### Client-Side (1 file)
 - `index.html` - Full standalone client (1,468 lines)
@@ -516,13 +637,13 @@ The codebase demonstrates several good practices:
 
 | Metric | Count |
 |--------|-------|
-| Total Issues Found | 21 |
-| Critical/High Priority | 3 |
-| Medium Priority | 4 |
-| Low Priority | 5 |
-| Very Low Priority | 9 |
-| Files Reviewed | 17 |
+| Total Issues Found | 27 |
+| Critical/High Priority | 4 |
+| Medium Priority | 6 |
+| Low Priority | 6 |
+| Very Low Priority | 11 |
+| Files Reviewed | 25 |
 
 ---
 
-*End of Code Review - January 2026*
+*End of Code Review - January 2026 (Third Pass Complete)*
