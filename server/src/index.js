@@ -8,7 +8,7 @@ const http = require('http');
 const app = require('./app');
 const { initializeSocket, cleanupSocketModule } = require('./socket');
 const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
-const { connectDatabase, disconnectDatabase, getDatabase } = require('./config/database');
+const { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } = require('./config/database');
 const { validateEnv, getEnvInt } = require('./config/env');
 const timerService = require('./services/timerService');
 const logger = require('./utils/logger');
@@ -20,9 +20,11 @@ async function startServer() {
         // Validate environment variables first
         validateEnv();
 
-        // Connect to databases
+        // Connect to database (optional - game works without it)
         await connectDatabase();
-        logger.info('Database connected');
+        if (isDatabaseEnabled()) {
+            logger.info('Database connected');
+        }
 
         await connectRedis();
         logger.info('Redis connected');
