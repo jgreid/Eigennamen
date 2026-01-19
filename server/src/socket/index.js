@@ -7,66 +7,23 @@ const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
 const logger = require('../utils/logger');
+const { authenticateSocket } = require('../middleware/socketAuth');
+const timerService = require('../services/timerService');
+const {
+    socketRateLimiter,
+    createRateLimitedHandler,
+    getSocketRateLimiter,
+    startRateLimitCleanup,
+    stopRateLimitCleanup
+} = require('./rateLimitHandler');
+
+// Import handlers AFTER rate limiter is set up to avoid circular dependency issues
 const roomHandlers = require('./handlers/roomHandlers');
 const gameHandlers = require('./handlers/gameHandlers');
 const playerHandlers = require('./handlers/playerHandlers');
 const chatHandlers = require('./handlers/chatHandlers');
-const { authenticateSocket } = require('../middleware/socketAuth');
-const { createSocketRateLimiter } = require('../middleware/rateLimit');
-const timerService = require('../services/timerService');
 
 let io = null;
-
-// Create socket rate limiter with event-specific limits
-const socketRateLimiter = createSocketRateLimiter({
-    'room:create': { max: 5, window: 60000 },      // 5 per minute
-    'room:join': { max: 10, window: 60000 },       // 10 per minute
-    'room:leave': { max: 10, window: 60000 },      // 10 per minute
-    'room:settings': { max: 10, window: 60000 },   // 10 per minute
-    'game:start': { max: 10, window: 60000 },      // 10 per minute
-    'game:reveal': { max: 30, window: 60000 },     // 30 per minute
-    'game:clue': { max: 20, window: 60000 },       // 20 per minute
-    'game:endTurn': { max: 20, window: 60000 },    // 20 per minute
-    'game:forfeit': { max: 5, window: 60000 },     // 5 per minute
-    'game:history': { max: 10, window: 60000 },    // 10 per minute
-    'player:team': { max: 20, window: 60000 },     // 20 per minute
-    'player:role': { max: 20, window: 60000 },     // 20 per minute
-    'player:nickname': { max: 10, window: 60000 }, // 10 per minute
-    'chat:message': { max: 30, window: 60000 }     // 30 per minute
-});
-
-// Start periodic cleanup of stale rate limit entries
-// Store reference for cleanup on shutdown
-let rateLimitCleanupInterval = setInterval(() => socketRateLimiter.cleanupStale(), 60000);
-
-/**
- * Create a rate-limited socket event handler wrapper
- * @param {object} socket - Socket instance
- * @param {string} eventName - Event name for rate limiting
- * @param {Function} handler - Async handler function
- * @returns {Function} Wrapped handler with rate limiting
- */
-function createRateLimitedHandler(socket, eventName, handler) {
-    return async (data) => {
-        const limiter = socketRateLimiter.getLimiter(eventName);
-        limiter(socket, data, async (err) => {
-            if (err) {
-                logger.warn(`Rate limit exceeded for ${eventName} from ${socket.id}`);
-                const errorEvent = `${eventName.split(':')[0]}:error`;
-                socket.emit(errorEvent, {
-                    code: 'RATE_LIMITED',
-                    message: 'Too many requests, please slow down'
-                });
-                return;
-            }
-            try {
-                await handler(data);
-            } catch (error) {
-                logger.error(`Error in ${eventName} handler:`, error);
-            }
-        });
-    };
-}
 
 function initializeSocket(server) {
     const isProduction = process.env.NODE_ENV === 'production';
@@ -148,6 +105,9 @@ function initializeSocket(server) {
 
     // Initialize timer service for distributed operation
     timerService.initializeTimerService(createTimerExpireCallback());
+
+    // Start periodic cleanup of stale rate limit entries
+    startRateLimitCleanup();
 
     return io;
 }
@@ -306,22 +266,12 @@ async function getTimerStatus(roomCode) {
 }
 
 /**
- * Get the socket rate limiter for use in handlers
- */
-function getSocketRateLimiter() {
-    return socketRateLimiter;
-}
-
-/**
  * Cleanup socket module resources on shutdown
  * Call this before process exit to prevent memory leaks
  */
 function cleanupSocketModule() {
-    // Clear rate limiter cleanup interval
-    if (rateLimitCleanupInterval) {
-        clearInterval(rateLimitCleanupInterval);
-        rateLimitCleanupInterval = null;
-    }
+    // Stop rate limiter cleanup interval
+    stopRateLimitCleanup();
 
     // Close socket.io server if initialized
     if (io) {

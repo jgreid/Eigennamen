@@ -8,7 +8,7 @@ const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { createRateLimitedHandler } = require('../index');
+const { createRateLimitedHandler } = require('../rateLimitHandler');
 
 module.exports = function roomHandlers(io, socket) {
 
