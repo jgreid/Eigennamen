@@ -23,11 +23,19 @@ app.use(helmet({
 
 // CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || '*';
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Warn if CORS is set to wildcard in production
+if (isProduction && corsOrigin === '*') {
+    logger.warn('WARNING: CORS_ORIGIN is set to wildcard (*) in production. This allows requests from any origin.');
+    logger.warn('Consider setting CORS_ORIGIN to specific allowed origins for better security.');
+}
+
 app.use(cors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With']
 }));
 
 // Compression

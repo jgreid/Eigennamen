@@ -7,13 +7,14 @@ const { validateInput } = require('../../middleware/validation');
 const { chatMessageSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
+const { createRateLimitedHandler } = require('../index');
 
 module.exports = function chatHandlers(io, socket) {
 
     /**
      * Send a chat message
      */
-    socket.on('chat:message', async (data) => {
+    socket.on('chat:message', createRateLimitedHandler(socket, 'chat:message', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -57,5 +58,5 @@ module.exports = function chatHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 };

@@ -7,13 +7,14 @@ const { validateInput } = require('../../middleware/validation');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
+const { createRateLimitedHandler } = require('../index');
 
 module.exports = function playerHandlers(io, socket) {
 
     /**
      * Set player's team
      */
-    socket.on('player:setTeam', async (data) => {
+    socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -38,12 +39,12 @@ module.exports = function playerHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Set player's role
      */
-    socket.on('player:setRole', async (data) => {
+    socket.on('player:setRole', createRateLimitedHandler(socket, 'player:role', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -77,12 +78,12 @@ module.exports = function playerHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Update nickname
      */
-    socket.on('player:setNickname', async (data) => {
+    socket.on('player:setNickname', createRateLimitedHandler(socket, 'player:nickname', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -107,5 +108,5 @@ module.exports = function playerHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 };

@@ -6,6 +6,37 @@
 
 ---
 
+## Fixes Implemented
+
+The following issues have been **fixed** in this branch:
+
+| Issue # | Description | Fix Applied |
+|---------|-------------|-------------|
+| 1 | Socket rate limiter not used | Created `createRateLimitedHandler` wrapper, applied to all handlers |
+| 3 | CORS wildcard in production | Added warning log for wildcard CORS in production |
+| 6 | Room join rollback missing | Added try-catch with sRem rollback on player creation failure |
+| 14 | Sequential player fetching | Changed to `Promise.all()` parallel fetching |
+| 16 | Spymaster race condition | Added Redis lock (`NX` + `EX`) for atomic spymaster assignment |
+| 17 | Session hijacking window | Added IP address tracking and validation on reconnection |
+| 18 | Non-atomic orphan cleanup | Changed to single `sRem(...orphanedSessionIds)` call |
+| 22 | Word list API no auth | Made anonymous word lists immutable (cannot be modified/deleted) |
+| 23 | CSRF bypass with Content-Type | Added check for wildcard CORS before allowing Content-Type bypass |
+| 24 | Anonymous word lists modifiable | See Issue #22 - anonymous lists are now immutable |
+| 25 | Unhandled rejections don't terminate | Added shutdown call in production on unhandled rejections |
+
+**Files Modified:**
+- `server/src/socket/index.js` - Rate limit wrapper function
+- `server/src/socket/handlers/*.js` - Applied rate limiting to all handlers
+- `server/src/services/playerService.js` - Spymaster lock, parallel fetching, IP tracking
+- `server/src/services/roomService.js` - Player creation rollback
+- `server/src/services/wordListService.js` - Anonymous list immutability
+- `server/src/middleware/socketAuth.js` - IP validation for session reuse
+- `server/src/middleware/csrf.js` - CORS-aware Content-Type check
+- `server/src/app.js` - CORS warning in production
+- `server/src/index.js` - Shutdown on unhandled rejections
+
+---
+
 ## Executive Summary
 
 This is a well-architected multiplayer Codenames game with both standalone (URL-based) and server-based modes. The codebase demonstrates good security awareness with rate limiting, input validation, and session management. However, there are several issues that should be addressed, ranging from potential security vulnerabilities to code quality improvements.
@@ -308,6 +339,250 @@ The `/health/ready` endpoint performs multiple async operations. Under heavy loa
 
 ---
 
+## Additional Issues Found in Deep Review
+
+### 16. Spymaster Role Assignment Race Condition
+
+**Location:** `server/src/services/playerService.js:119-132`
+**Severity:** Medium
+
+```javascript
+// If becoming spymaster, check if team already has one
+if (role === 'spymaster' && player.team) {
+    const roomPlayers = await getPlayersInRoom(player.roomCode);
+    const existingSpymaster = roomPlayers.find(
+        p => p.team === player.team && p.role === 'spymaster' && p.sessionId !== sessionId
+    );
+    if (existingSpymaster) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: `${player.team} team already has a spymaster` };
+    }
+}
+return updatePlayer(sessionId, { role });
+```
+
+Between checking for an existing spymaster and updating the player's role, another player could also become spymaster for the same team. This is a time-of-check to time-of-use (TOCTOU) race condition.
+
+**Impact:** Two players could end up as spymasters for the same team, both seeing the card types.
+
+**Recommendation:** Use a Redis transaction or lock to make the check-and-set atomic:
+```javascript
+const LOCK_KEY = `lock:spymaster:${roomCode}:${team}`;
+await redis.set(LOCK_KEY, '1', { NX: true, EX: 5 });
+// ... check and update ...
+await redis.del(LOCK_KEY);
+```
+
+---
+
+### 17. Session Hijacking Window During Disconnect Grace Period
+
+**Location:** `server/src/middleware/socketAuth.js:27-37`
+**Severity:** Low-Medium
+
+```javascript
+if (existingPlayer) {
+    if (!existingPlayer.connected) {
+        // Only allow session reuse if player is disconnected
+        validatedSessionId = sessionId;
+    } else {
+        // Player is currently connected - potential hijacking attempt
+        logger.warn(`Session hijacking attempt blocked...`);
+    }
+}
+```
+
+When a player disconnects, they're marked as `connected: false` but their session remains valid for reconnection. During this window (until TTL expires), an attacker who obtains the session ID could hijack the session by connecting with it.
+
+**Recommendation:** Add additional verification like:
+- Require a reconnection token generated at disconnect time
+- Check IP address consistency
+- Use shorter TTLs for disconnected sessions
+
+---
+
+### 18. getPlayersInRoom Orphan Cleanup Not Atomic
+
+**Location:** `server/src/services/playerService.js:166-170`
+**Severity:** Very Low
+
+```javascript
+if (orphanedSessionIds.length > 0) {
+    for (const sessionId of orphanedSessionIds) {
+        await redis.sRem(`room:${roomCode}:players`, sessionId);
+    }
+}
+```
+
+Orphan cleanup is done with individual `sRem` calls rather than a single atomic operation. Under high concurrency, this could cause issues.
+
+**Recommendation:** Use Redis pipeline or SREM with multiple members:
+```javascript
+await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
+```
+
+---
+
+### 19. Team-Only Chat Messages Could Leak on Team Change
+
+**Location:** `server/src/socket/handlers/chatHandlers.js:40-47`
+**Severity:** Very Low
+
+```javascript
+if (validated.teamOnly && player.team) {
+    const players = await playerService.getPlayersInRoom(socket.roomCode);
+    const teammates = players.filter(p => p.team === player.team);
+    for (const teammate of teammates) {
+        io.to(`player:${teammate.sessionId}`).emit('chat:message', message);
+    }
+}
+```
+
+If a player changes teams between the `getPlayer` call (line 24) and the `getPlayersInRoom` call (line 42), the team filtering might be inconsistent. This is extremely unlikely but theoretically possible.
+
+---
+
+### 20. No Validation That Spymaster Has a Team Before Giving Clue
+
+**Location:** `server/src/socket/handlers/gameHandlers.js:149-152`
+**Severity:** Low
+
+```javascript
+const player = await playerService.getPlayer(socket.sessionId);
+if (!player || player.role !== 'spymaster') {
+    throw { code: ERROR_CODES.NOT_SPYMASTER, message: 'Only spymasters can give clues' };
+}
+```
+
+The handler checks if the player is a spymaster, but doesn't explicitly verify they have a team. The `giveClue` service does validate this (line 411), but the error message at the handler level would be clearer if it checked upfront.
+
+---
+
+### 21. Game Start Sends State to All Players Including Disconnected Ones
+
+**Location:** `server/src/socket/handlers/gameHandlers.js:42-48`
+**Severity:** Very Low
+
+```javascript
+const players = await playerService.getPlayersInRoom(socket.roomCode);
+for (const p of players) {
+    const gameState = gameService.getGameStateForPlayer(game, p);
+    io.to(`player:${p.sessionId}`).emit('game:started', { game: gameState });
+}
+```
+
+The game state is sent to all players in the room, including those marked as disconnected. This wastes resources, though Socket.IO will handle the missing socket gracefully.
+
+**Recommendation:** Filter to connected players:
+```javascript
+const connectedPlayers = players.filter(p => p.connected);
+```
+
+---
+
+## Issues Found in Third Review Pass
+
+### 22. Word List API Has No Authentication/Authorization
+
+**Location:** `server/src/routes/wordListRoutes.js:104-153`
+**Severity:** Medium-High
+
+```javascript
+router.post('/', validateBody(createWordListSchema), async (req, res, next) => {
+    const wordList = await wordListService.createWordList({
+        ownerId: null // Anonymous creation for now
+    });
+});
+
+router.put('/:id', ..., async (req, res, next) => {
+    const wordList = await wordListService.updateWordList(
+        req.params.id,
+        { name, description, words, isPublic },
+        null // No auth check for now
+    );
+});
+```
+
+The word list API allows anyone to:
+- Create word lists anonymously
+- Update ANY word list (since `requesterId` is `null` and ownership check only fails if both are truthy)
+- Delete ANY word list
+
+**Impact:** Anyone can modify or delete any word list, including public ones used by other players.
+
+**Recommendation:** Require authentication for modifying word lists, or add a secret/token for anonymous lists.
+
+---
+
+### 23. CSRF Protection Can Be Bypassed with Content-Type Header
+
+**Location:** `server/src/middleware/csrf.js:70-74`
+**Severity:** Low-Medium
+
+```javascript
+const contentType = req.headers['content-type'];
+if (contentType && contentType.includes('application/json')) {
+    return next();
+}
+```
+
+When CORS is configured to allow all origins (`*`), an attacker can make cross-origin requests with `Content-Type: application/json` and it will pass CSRF validation.
+
+**Recommendation:** When CORS_ORIGIN is `*`, don't rely on Content-Type for CSRF protection. Use proper CSRF tokens instead.
+
+---
+
+### 24. Anonymous Word Lists Can Be Modified by Anyone
+
+**Location:** `server/src/services/wordListService.js:196-198`
+**Severity:** Medium
+
+```javascript
+if (requesterId && existing.ownerId && existing.ownerId !== requesterId) {
+    throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized...' };
+}
+```
+
+When both `requesterId` is `null` AND `existing.ownerId` is `null` (anonymous list), the check passes. Any anonymous list can be modified by anyone.
+
+**Recommendation:** Add a secret/edit token for anonymous word lists, or make them immutable after creation.
+
+---
+
+### 25. Unhandled Promise Rejections Don't Terminate Process
+
+**Location:** `server/src/index.js:95-97`
+**Severity:** Low
+
+```javascript
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+});
+```
+
+After an unhandled rejection, the process continues running in a potentially corrupted state.
+
+**Recommendation:** Call `shutdown()` on unhandled rejections.
+
+---
+
+### 26. Memory Storage Cleanup Interval Could Leak
+
+**Location:** `server/src/config/memoryStorage.js:45-47`
+**Severity:** Very Low
+
+The cleanup interval is set for the primary instance but could leak if GC happens before `quit()` is called. Minor issue since shutdown handles this correctly.
+
+---
+
+### 27. Room Info Endpoint Exposes Player Count
+
+**Location:** `server/src/routes/roomRoutes.js:36-64`
+**Severity:** Very Low
+
+The room info endpoint returns player count, which could be used for enumeration or monitoring. Not a significant issue but worth noting.
+
+---
+
 ## Positive Observations
 
 The codebase demonstrates several good practices:
@@ -322,46 +597,84 @@ The codebase demonstrates several good practices:
 8. **Graceful Degradation:** Memory mode fallback when Redis unavailable
 9. **Health Checks:** Multiple health endpoints for different purposes
 10. **Clean Separation of Concerns:** Services, handlers, and middleware properly separated
+11. **Graceful Shutdown:** Proper cleanup of timers and connections
+12. **Environment Validation:** Startup checks for required configuration
+13. **Comprehensive Memory Storage:** Redis-compatible API for single-instance mode
 
 ---
 
 ## Recommended Priority Actions
 
 ### High Priority
-1. Actually use the socket rate limiter in handlers (Issue #1)
-2. Add rollback logic for failed player creation (Issue #6)
+1. Actually use the socket rate limiter in handlers (Issue #1) - **Security Critical**
+2. Add authentication to word list API (Issue #22) - **Anyone can delete/modify word lists**
+3. Fix spymaster role assignment race condition (Issue #16) - **Could allow cheating**
+4. Add rollback logic for failed player creation (Issue #6)
 
 ### Medium Priority
-3. Configure CORS properly for production (Issue #3)
-4. Validate JWT_SECRET is set at startup (Issue #4)
-5. Parallelize player fetching (Issue #14)
+5. Configure CORS properly for production (Issue #3)
+6. Fix CSRF bypass when CORS allows all origins (Issue #23)
+7. Protect anonymous word lists from modification (Issue #24)
+8. Validate JWT_SECRET is set at startup (Issue #4)
+9. Parallelize player fetching (Issue #14)
+10. Address session hijacking window during disconnect (Issue #17)
 
 ### Low Priority
-6. Create custom GameError class (Issue #10)
-7. Move timer constants to config file (Issue #11)
-8. Add client-side team name validation (Issue #13)
+11. Create custom GameError class (Issue #10)
+12. Move timer constants to config file (Issue #11)
+13. Add client-side team name validation (Issue #13)
+14. Make orphan cleanup atomic (Issue #18)
+15. Filter disconnected players when sending game state (Issue #21)
+16. Terminate on unhandled promise rejections (Issue #25)
 
 ---
 
 ## Files Reviewed
 
-- `server/src/services/gameService.js`
-- `server/src/services/roomService.js`
-- `server/src/services/playerService.js`
-- `server/src/services/timerService.js`
-- `server/src/socket/index.js`
-- `server/src/socket/handlers/gameHandlers.js`
-- `server/src/socket/handlers/roomHandlers.js`
-- `server/src/socket/handlers/playerHandlers.js`
-- `server/src/middleware/socketAuth.js`
-- `server/src/middleware/rateLimit.js`
-- `server/src/middleware/errorHandler.js`
-- `server/src/validators/schemas.js`
-- `server/src/config/redis.js`
-- `server/src/config/constants.js`
-- `server/src/app.js`
-- `index.html`
+### Server-Side (24 files)
+- `server/src/index.js` - Server entry point, startup, shutdown handling
+- `server/src/app.js` - Express application setup, health endpoints
+- `server/src/services/gameService.js` - Core game logic, card reveal, clue validation
+- `server/src/services/roomService.js` - Room CRUD, atomic joins via Lua script
+- `server/src/services/playerService.js` - Player management, role assignment
+- `server/src/services/timerService.js` - Distributed timer with Redis backing
+- `server/src/services/wordListService.js` - Custom word list management
+- `server/src/socket/index.js` - Socket.IO initialization and configuration
+- `server/src/socket/handlers/gameHandlers.js` - Game events (start, reveal, clue)
+- `server/src/socket/handlers/roomHandlers.js` - Room events (create, join, leave)
+- `server/src/socket/handlers/playerHandlers.js` - Player events (team, role, nickname)
+- `server/src/socket/handlers/chatHandlers.js` - Chat functionality
+- `server/src/routes/index.js` - Route aggregation
+- `server/src/routes/roomRoutes.js` - Room REST API endpoints
+- `server/src/routes/wordListRoutes.js` - Word list REST API endpoints
+- `server/src/middleware/socketAuth.js` - Socket authentication
+- `server/src/middleware/rateLimit.js` - Rate limiting implementation
+- `server/src/middleware/errorHandler.js` - Global error handling
+- `server/src/middleware/validation.js` - Input validation middleware
+- `server/src/middleware/csrf.js` - CSRF protection
+- `server/src/validators/schemas.js` - Zod input validation schemas
+- `server/src/config/redis.js` - Redis connection management
+- `server/src/config/database.js` - PostgreSQL/Prisma connection
+- `server/src/config/env.js` - Environment validation
+- `server/src/config/memoryStorage.js` - In-memory Redis replacement
+- `server/src/config/constants.js` - Game constants and configuration
+
+### Client-Side (1 file)
+- `index.html` - Full standalone client (1,468 lines)
 
 ---
 
-*End of Code Review*
+## Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Issues Found | 27 |
+| Critical/High Priority | 4 |
+| Medium Priority | 6 |
+| Low Priority | 6 |
+| Very Low Priority | 11 |
+| Files Reviewed | 25 |
+
+---
+
+*End of Code Review - January 2026 (Third Pass Complete)*

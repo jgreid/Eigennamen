@@ -27,8 +27,16 @@ async function authenticateSocket(socket, next) {
                 if (existingPlayer) {
                     // Only allow session reuse if player is disconnected (legitimate reconnection)
                     if (!existingPlayer.connected) {
-                        validatedSessionId = sessionId;
-                        logger.debug(`Session ${sessionId} validated for reconnection`);
+                        // Additional security: check if IP address matches (if tracked)
+                        const currentIP = socket.handshake.address;
+                        if (existingPlayer.lastIP && existingPlayer.lastIP !== currentIP) {
+                            // Different IP - could be hijacking, require fresh session
+                            logger.warn(`Session reuse blocked for ${sessionId} - IP mismatch (was ${existingPlayer.lastIP}, now ${currentIP})`);
+                            validatedSessionId = null;
+                        } else {
+                            validatedSessionId = sessionId;
+                            logger.debug(`Session ${sessionId} validated for reconnection`);
+                        }
                     } else {
                         // Player is currently connected - potential hijacking attempt
                         logger.warn(`Session hijacking attempt blocked for ${sessionId} from ${socket.handshake.address}`);
@@ -61,8 +69,8 @@ async function authenticateSocket(socket, next) {
             }
         }
 
-        // Map socket ID to session ID for this connection
-        await playerService.setSocketMapping(socket.sessionId, socket.id);
+        // Map socket ID to session ID for this connection (with IP tracking for security)
+        await playerService.setSocketMapping(socket.sessionId, socket.id, socket.handshake.address);
 
         logger.debug(`Socket authenticated: ${socket.id} -> session ${socket.sessionId}`);
         next();

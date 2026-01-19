@@ -153,7 +153,15 @@ async function joinRoom(code, sessionId, nickname) {
             isReconnecting = true;
         } else if (result === 1) {
             // Successfully added to set, now create player data
-            player = await playerService.createPlayerData(sessionId, code, nickname, false);
+            // Use try-catch to rollback the set addition if player data creation fails
+            try {
+                player = await playerService.createPlayerData(sessionId, code, nickname, false);
+            } catch (error) {
+                // Rollback: remove from players set
+                logger.warn(`Player data creation failed for ${sessionId}, rolling back set addition`);
+                await redis.sRem(`room:${code}:players`, sessionId);
+                throw error;
+            }
         } else {
             // Unexpected result (null, undefined, or other) - log and throw error
             logger.error(`Unexpected result from room join script: ${result} for room ${code}`);

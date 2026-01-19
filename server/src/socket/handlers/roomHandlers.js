@@ -8,13 +8,14 @@ const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
+const { createRateLimitedHandler } = require('../index');
 
 module.exports = function roomHandlers(io, socket) {
 
     /**
      * Create a new room
      */
-    socket.on('room:create', async (data) => {
+    socket.on('room:create', createRateLimitedHandler(socket, 'room:create', async (data) => {
         try {
             const validated = validateInput(roomCreateSchema, data);
 
@@ -38,12 +39,12 @@ module.exports = function roomHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Join an existing room
      */
-    socket.on('room:join', async (data) => {
+    socket.on('room:join', createRateLimitedHandler(socket, 'room:join', async (data) => {
         try {
             const validated = validateInput(roomJoinSchema, data);
 
@@ -73,12 +74,12 @@ module.exports = function roomHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Leave the current room
      */
-    socket.on('room:leave', async () => {
+    socket.on('room:leave', createRateLimitedHandler(socket, 'room:leave', async () => {
         try {
             if (!socket.roomCode) {
                 return;
@@ -105,12 +106,12 @@ module.exports = function roomHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 
     /**
      * Update room settings (host only)
      */
-    socket.on('room:settings', async (data) => {
+    socket.on('room:settings', createRateLimitedHandler(socket, 'room:settings', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
@@ -136,5 +137,5 @@ module.exports = function roomHandlers(io, socket) {
                 message: error.message
             });
         }
-    });
+    }));
 };
