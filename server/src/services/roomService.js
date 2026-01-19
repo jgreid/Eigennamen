@@ -80,7 +80,12 @@ async function getRoom(code) {
         return null;
     }
 
-    return JSON.parse(roomData);
+    try {
+        return JSON.parse(roomData);
+    } catch (e) {
+        logger.error(`Failed to parse room data for ${code}:`, e.message);
+        return null;
+    }
 }
 
 /**

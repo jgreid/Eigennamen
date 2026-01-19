@@ -406,7 +406,11 @@ async function checkOrphanedTimers(onExpireCallback) {
                     logger.info(`Recovering expired orphaned timer for room ${roomCode}`);
                     await redis.del(key);
                     if (onExpireCallback) {
-                        onExpireCallback(roomCode);
+                        try {
+                            onExpireCallback(roomCode);
+                        } catch (callbackError) {
+                            logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                        }
                     }
                 } else if (remainingMs > 0 && remainingMs < ORPHAN_CHECK_INTERVAL * 2) {
                     // Timer is about to expire and no instance is handling it - take ownership
