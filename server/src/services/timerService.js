@@ -16,6 +16,11 @@ const localTimers = new Map();
 
 // Polling interval for orphaned timer recovery (30 seconds)
 const ORPHAN_CHECK_INTERVAL = 30000;
+// Maximum time to spend on orphan check (prevents blocking)
+const ORPHAN_CHECK_TIMEOUT = 5000;
+// Maximum number of keys to process per orphan check
+const MAX_ORPHAN_KEYS = 100;
+
 let orphanCheckInterval = null;
 
 // Redis key prefixes
@@ -327,23 +332,56 @@ function startOrphanCheck(onExpireCallback) {
 }
 
 /**
- * Check for and recover orphaned timers
+ * Check for and recover orphaned timers with timeout protection
  * Uses SCAN instead of KEYS to avoid blocking Redis in production
  */
 async function checkOrphanedTimers(onExpireCallback) {
+    const startTime = Date.now();
+
     try {
         const redis = getRedis();
         const keys = [];
 
-        // Use SCAN for non-blocking iteration (production-safe)
-        for await (const key of redis.scanIterator({
-            MATCH: `${TIMER_KEY_PREFIX}*`,
-            COUNT: 100
-        })) {
-            keys.push(key);
-        }
+        // Use SCAN for non-blocking iteration with timeout protection
+        const scanPromise = (async () => {
+            for await (const key of redis.scanIterator({
+                MATCH: `${TIMER_KEY_PREFIX}*`,
+                COUNT: 100
+            })) {
+                // Check if we've exceeded time or key limit
+                if (Date.now() - startTime > ORPHAN_CHECK_TIMEOUT) {
+                    logger.warn('Orphan timer check timed out, will continue next interval');
+                    break;
+                }
+                if (keys.length >= MAX_ORPHAN_KEYS) {
+                    logger.debug('Orphan timer check reached key limit, will continue next interval');
+                    break;
+                }
+                keys.push(key);
+            }
+        })();
 
+        // Add overall timeout protection
+        await Promise.race([
+            scanPromise,
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Scan timeout')), ORPHAN_CHECK_TIMEOUT)
+            )
+        ]).catch(err => {
+            if (err.message === 'Scan timeout') {
+                logger.warn('Orphan timer scan timed out');
+            } else {
+                throw err;
+            }
+        });
+
+        // Process found keys
         for (const key of keys) {
+            // Check timeout for each key processing
+            if (Date.now() - startTime > ORPHAN_CHECK_TIMEOUT) {
+                break;
+            }
+
             const roomCode = key.replace(TIMER_KEY_PREFIX, '');
 
             // Skip if we already have a local timer for this room
@@ -379,6 +417,11 @@ async function checkOrphanedTimers(onExpireCallback) {
             } catch (e) {
                 logger.error(`Error processing orphaned timer ${key}:`, e);
             }
+        }
+
+        const duration = Date.now() - startTime;
+        if (duration > 1000) {
+            logger.debug(`Orphan timer check completed in ${duration}ms, processed ${keys.length} keys`);
         }
     } catch (error) {
         logger.error('Error checking orphaned timers:', error);

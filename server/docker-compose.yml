@@ -7,12 +7,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      # Use development for local Docker environment
+      # Production settings are configured in fly.toml for Fly.io deployment
+      - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgresql://codenames:password@db:5432/codenames
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - LOG_LEVEL=debug
     depends_on:
       db:
         condition: service_healthy
@@ -23,6 +26,12 @@ services:
     restart: unless-stopped
     networks:
       - codenames-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # PostgreSQL Database
   db:
