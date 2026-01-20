@@ -120,6 +120,17 @@ function createTimerExpireCallback() {
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
         try {
+            // Check if game is still active before ending turn (prevents race condition)
+            const game = await gameService.getGame(roomCode);
+            if (!game) {
+                logger.debug(`Timer expired for room ${roomCode} but no game found`);
+                return;
+            }
+            if (game.gameOver) {
+                logger.debug(`Timer expired for room ${roomCode} but game already over`);
+                return;
+            }
+
             const result = await gameService.endTurn(roomCode, 'Timer');
             emitToRoom(roomCode, 'game:turnEnded', {
                 currentTurn: result.currentTurn,
@@ -201,8 +212,8 @@ async function handleDisconnect(io, socket, reason) {
                 const redis = getRedis();
                 const lockKey = `lock:host-transfer:${roomCode}`;
 
-                // Try to acquire lock (expires after 10 seconds)
-                const lockAcquired = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 10 });
+                // Try to acquire lock (expires after 3 seconds - enough for DB operations)
+                const lockAcquired = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 3 });
 
                 if (lockAcquired) {
                     try {
