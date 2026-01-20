@@ -15,27 +15,28 @@ const {
 
 describe('roomJoinSchema', () => {
     test('accepts valid room code and nickname', () => {
+        // Note: Room codes exclude 0, 1, I, L, O to avoid confusion
         const result = roomJoinSchema.safeParse({
-            code: 'ABC123',
+            code: 'ABC234',
             nickname: 'Player1'
         });
         expect(result.success).toBe(true);
-        expect(result.data.code).toBe('ABC123');
+        expect(result.data.code).toBe('ABC234');
         expect(result.data.nickname).toBe('Player1');
     });
 
     test('transforms code to uppercase', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'abc123',
+            code: 'abc234',
             nickname: 'Player1'
         });
         expect(result.success).toBe(true);
-        expect(result.data.code).toBe('ABC123');
+        expect(result.data.code).toBe('ABC234');
     });
 
     test('trims nickname whitespace', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC123',
+            code: 'ABC234',
             nickname: '  Player1  '
         });
         expect(result.success).toBe(true);
@@ -60,7 +61,7 @@ describe('roomJoinSchema', () => {
 
     test('rejects empty nickname', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC123',
+            code: 'ABC234',
             nickname: ''
         });
         expect(result.success).toBe(false);
@@ -68,7 +69,7 @@ describe('roomJoinSchema', () => {
 
     test('rejects too long nickname', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC123',
+            code: 'ABC234',
             nickname: 'A'.repeat(31)
         });
         expect(result.success).toBe(false);
