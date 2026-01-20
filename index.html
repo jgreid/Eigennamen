@@ -65,9 +65,9 @@
         }
 
         .role-banner.viewer {
-            background: rgba(255, 193, 7, 0.2);
-            border: 2px solid #ffc107;
-            color: #ffc107;
+            background: rgba(108, 117, 125, 0.3);
+            border: 2px solid #6c757d;
+            color: #f8f9fa;
         }
 
         .role-banner small {
@@ -174,7 +174,7 @@
 
         /* Enhanced End Turn button when it's your turn */
         .btn-end-turn.can-act {
-            animation: pulse-glow 1.5s ease-in-out infinite;
+            animation: pulse-glow 2s ease-in-out infinite;
             transform: scale(1.05);
             color: white;
         }
@@ -271,18 +271,21 @@
         }
 
         .control-group-label {
-            font-size: 0.85rem;
-            color: #aaa;
-            margin-right: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        #red-team-controls .control-group-label {
+            color: #e74c3c;
+        }
+
+        #blue-team-controls .control-group-label {
+            color: #3498db;
         }
 
         .btn-settings {
             background: linear-gradient(135deg, #a8a8a8 0%, #6b6b6b 100%);
-            color: white;
-        }
-
-        .btn-host {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             color: white;
         }
 
@@ -879,7 +882,9 @@
         /* Extra small screens */
         @media (max-width: 400px) {
             .card {
-                font-size: 0.5rem;
+                font-size: 0.65rem;
+                word-break: break-word;
+                hyphens: auto;
             }
 
             .control-group {
@@ -990,15 +995,14 @@
 
             <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without team">Spectate</button>
             <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
-            <button class="btn-host" id="btn-become-host" onclick="becomeHost()" aria-label="Become the game host">Become Host</button>
             <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
         </div>
 
         <div class="word-source" id="word-source"></div>
 
         <div class="scoreboard">
-            <div class="score red"><span id="red-team-name" class="team-name">Red</span>: <span id="red-score">0</span> / <span id="red-total">9</span></div>
-            <div class="score blue"><span id="blue-team-name" class="team-name">Blue</span>: <span id="blue-score">0</span> / <span id="blue-total">8</span></div>
+            <div class="score red"><span id="red-team-name" class="team-name">Red</span>: <span id="red-remaining">9</span> left</div>
+            <div class="score blue"><span id="blue-team-name" class="team-name">Blue</span>: <span id="blue-remaining">8</span> left</div>
         </div>
 
         <div class="turn-indicator" id="turn-indicator">
@@ -1105,6 +1109,80 @@
                 setTimeout(() => { announcer.textContent = ''; }, 1000);
             }
         }
+
+        // Modal management with focus trapping and keyboard support
+        let activeModal = null;
+        let previouslyFocusedElement = null;
+
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            previouslyFocusedElement = document.activeElement;
+            activeModal = modal;
+            modal.classList.add('active');
+
+            // Focus first focusable element in modal
+            const focusableElements = modal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusableElements.length > 0) {
+                setTimeout(() => focusableElements[0].focus(), 50);
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            modal.classList.remove('active');
+            activeModal = null;
+
+            // Restore focus to previously focused element
+            if (previouslyFocusedElement) {
+                previouslyFocusedElement.focus();
+                previouslyFocusedElement = null;
+            }
+        }
+
+        // Focus trap handler
+        function handleModalKeydown(e) {
+            if (!activeModal) return;
+
+            // Escape key closes modal
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (activeModal.id === 'settings-modal') closeSettings();
+                else if (activeModal.id === 'confirm-modal') closeConfirm();
+                else if (activeModal.id === 'game-over-modal') closeGameOver();
+                return;
+            }
+
+            // Tab key focus trapping
+            if (e.key === 'Tab') {
+                const focusableElements = activeModal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey && document.activeElement === firstElement) {
+                    e.preventDefault();
+                    lastElement.focus();
+                } else if (!e.shiftKey && document.activeElement === lastElement) {
+                    e.preventDefault();
+                    firstElement.focus();
+                }
+            }
+        }
+
+        // Click outside modal to close (on overlay)
+        function handleOverlayClick(e) {
+            if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
+                if (e.target.id === 'settings-modal') closeSettings();
+                else if (e.target.id === 'confirm-modal') closeConfirm();
+                else if (e.target.id === 'game-over-modal') closeGameOver();
+            }
+        }
+
+        document.addEventListener('keydown', handleModalKeydown);
+        document.addEventListener('click', handleOverlayClick);
 
         // Game constants
         const BOARD_SIZE = 25;
@@ -1344,12 +1422,12 @@
             if (cardsRevealed === 0) {
                 newGame();
             } else {
-                document.getElementById('confirm-modal').classList.add('active');
+                openModal('confirm-modal');
             }
         }
 
         function closeConfirm() {
-            document.getElementById('confirm-modal').classList.remove('active');
+            closeModal('confirm-modal');
         }
 
         function loadGameFromURL() {
@@ -1502,7 +1580,6 @@
 
         function updateControls() {
             const endTurnBtn = document.getElementById('btn-end-turn');
-            const becomeHostBtn = document.getElementById('btn-become-host');
             const redSpyBtn = document.getElementById('btn-spymaster-red');
             const blueSpyBtn = document.getElementById('btn-spymaster-blue');
             const redClickerBtn = document.getElementById('btn-clicker-red');
@@ -1518,9 +1595,6 @@
 
             // Only show End Turn button to clickers (contextual visibility)
             endTurnBtn.classList.toggle('hidden', !clickerTeam);
-
-            // Show become host button only if not already a special role
-            becomeHostBtn.style.display = (isHost || spymasterTeam || clickerTeam) ? 'none' : 'inline-block';
 
             // Determine current state
             const isRedSpy = spymasterTeam === 'red';
@@ -1554,18 +1628,11 @@
             blueClickerBtn.setAttribute('aria-pressed', isBlueClicker.toString());
         }
 
-        function becomeHost() {
-            isHost = true;
-            spymasterTeam = null; // Can't be both host and spymaster
-            clickerTeam = null; // Can't be both host and clicker
-            // Host keeps their team affiliation
-            updateRoleBanner();
-            updateControls();
-            renderBoard();
-        }
-
         function setTeam(team) {
             // When changing teams, clear any team-specific roles
+            const hadRole = spymasterTeam || clickerTeam;
+            const oldRole = spymasterTeam ? 'Spymaster' : (clickerTeam ? 'Clicker' : null);
+
             if (playerTeam !== team) {
                 if (spymasterTeam) spymasterTeam = null;
                 if (clickerTeam) clickerTeam = null;
@@ -1574,6 +1641,12 @@
             updateRoleBanner();
             updateControls();
             renderBoard();
+
+            // Announce role change to screen reader if role was cleared
+            if (hadRole && oldRole) {
+                const teamName = team ? teamNames[team] : 'Spectator';
+                announceToScreenReader(`${oldRole} role cleared. Now on ${teamName} team.`);
+            }
         }
 
         function setSpymaster(team) {
@@ -1755,11 +1828,11 @@
                 winnerDisplay.innerHTML = `${escapeHTML(winnerName)} WINS!<br><small>(Found all their words)</small>`;
             }
 
-            document.getElementById('game-over-modal').classList.add('active');
+            openModal('game-over-modal');
         }
 
         function closeGameOver() {
-            document.getElementById('game-over-modal').classList.remove('active');
+            closeModal('game-over-modal');
         }
 
         function endTurn() {
@@ -1777,10 +1850,10 @@
         }
 
         function updateScoreboard() {
-            document.getElementById('red-score').textContent = gameState.redScore;
-            document.getElementById('blue-score').textContent = gameState.blueScore;
-            document.getElementById('red-total').textContent = gameState.redTotal;
-            document.getElementById('blue-total').textContent = gameState.blueTotal;
+            const redRemaining = gameState.redTotal - gameState.redScore;
+            const blueRemaining = gameState.blueTotal - gameState.blueScore;
+            document.getElementById('red-remaining').textContent = redRemaining;
+            document.getElementById('blue-remaining').textContent = blueRemaining;
             document.getElementById('red-team-name').textContent = teamNames.red;
             document.getElementById('blue-team-name').textContent = teamNames.blue;
         }
@@ -1831,7 +1904,7 @@
 
         // Settings functions
         function openSettings() {
-            document.getElementById('settings-modal').classList.add('active');
+            openModal('settings-modal');
             document.getElementById('red-name-input').value = teamNames.red;
             document.getElementById('blue-name-input').value = teamNames.blue;
             document.getElementById('colorblind-mode').checked = colorblindMode;
@@ -1846,7 +1919,7 @@
         }
 
         function closeSettings() {
-            document.getElementById('settings-modal').classList.remove('active');
+            closeModal('settings-modal');
         }
 
         function updateWordCount() {
