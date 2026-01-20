@@ -9,6 +9,7 @@ const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
+const { RoomError } = require('../../errors/GameError');
 
 module.exports = function roomHandlers(io, socket) {
 
@@ -75,6 +76,7 @@ module.exports = function roomHandlers(io, socket) {
             // Clean up socket room membership if we partially joined
             if (joinedRoomCode) {
                 socket.leave(`room:${joinedRoomCode}`);
+                socket.leave(`player:${socket.sessionId}`);
                 socket.roomCode = null;
             }
 
@@ -124,7 +126,7 @@ module.exports = function roomHandlers(io, socket) {
     socket.on('room:settings', createRateLimitedHandler(socket, 'room:settings', async (data) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(roomSettingsSchema, data);

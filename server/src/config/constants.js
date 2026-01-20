@@ -41,27 +41,28 @@ module.exports = {
     },
 
     // Rate limits for socket events
+    // Keys match the rate limit identifiers used in handlers (not necessarily the event names)
     RATE_LIMITS: {
         // Room events
         'room:create': { window: 60000, max: 5 },     // 5 per minute
-        'room:join': { window: 60000, max: 10 },     // 10 per minute
-        'room:leave': { window: 60000, max: 10 },    // 10 per minute
-        'room:settings': { window: 5000, max: 5 },   // 5 per 5 seconds
+        'room:join': { window: 60000, max: 10 },      // 10 per minute
+        'room:leave': { window: 60000, max: 10 },     // 10 per minute
+        'room:settings': { window: 5000, max: 5 },    // 5 per 5 seconds
         // Game events
-        'game:start': { window: 5000, max: 2 },      // 2 per 5 seconds
-        'game:reveal': { window: 1000, max: 5 },     // 5 per second
-        'game:clue': { window: 5000, max: 2 },       // 2 per 5 seconds
-        'game:endTurn': { window: 2000, max: 3 },    // 3 per 2 seconds
-        'game:forfeit': { window: 10000, max: 2 },   // 2 per 10 seconds
-        'game:history': { window: 5000, max: 5 },    // 5 per 5 seconds
-        // Player events
-        'player:setTeam': { window: 2000, max: 5 },  // 5 per 2 seconds
-        'player:setRole': { window: 2000, max: 5 },  // 5 per 2 seconds
-        'player:setNickname': { window: 5000, max: 3 }, // 3 per 5 seconds
+        'game:start': { window: 5000, max: 2 },       // 2 per 5 seconds
+        'game:reveal': { window: 1000, max: 5 },      // 5 per second
+        'game:clue': { window: 5000, max: 2 },        // 2 per 5 seconds
+        'game:endTurn': { window: 2000, max: 3 },     // 3 per 2 seconds
+        'game:forfeit': { window: 10000, max: 2 },    // 2 per 10 seconds
+        'game:history': { window: 5000, max: 5 },     // 5 per 5 seconds
+        // Player events (keys match handler rate limit identifiers)
+        'player:team': { window: 2000, max: 5 },      // 5 per 2 seconds
+        'player:role': { window: 2000, max: 5 },      // 5 per 2 seconds
+        'player:nickname': { window: 5000, max: 3 },  // 3 per 5 seconds
         // Chat events
-        'chat:message': { window: 5000, max: 10 },   // 10 per 5 seconds
+        'chat:message': { window: 5000, max: 10 },    // 10 per 5 seconds
         // Timer events
-        'timer:status': { window: 1000, max: 10 }    // 10 per second
+        'timer:status': { window: 1000, max: 10 }     // 10 per second
     },
 
     // HTTP API rate limits

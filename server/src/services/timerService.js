@@ -588,9 +588,11 @@ async function checkOrphanedTimers(onExpireCallback) {
                         }
                     }
                     // If claimed is null, another instance already handled it
-                } else if (remainingMs > 0 && remainingMs < ORPHAN_CHECK_INTERVAL * 2) {
-                    // Timer is about to expire and no instance is handling it - take ownership
-                    logger.info(`Taking ownership of orphaned timer for room ${roomCode}`);
+                } else if (remainingMs > 0) {
+                    // Timer is still active but no local instance is handling it
+                    // Take ownership regardless of remaining time to handle long-running timers
+                    // (up to MAX_TURN_SECONDS = 300s) from crashed instances
+                    logger.info(`Taking ownership of orphaned timer for room ${roomCode} (${Math.ceil(remainingMs / 1000)}s remaining)`);
                     const remainingSeconds = Math.ceil(remainingMs / 1000);
                     await startTimer(roomCode, remainingSeconds, onExpireCallback);
                 }

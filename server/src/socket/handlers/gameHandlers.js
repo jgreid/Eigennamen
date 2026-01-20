@@ -10,6 +10,12 @@ const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../val
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
+const {
+    RoomError,
+    PlayerError,
+    GameStateError,
+    ValidationError
+} = require('../../errors/GameError');
 
 // Lazy-load socket functions to avoid circular dependency
 // (socket/index.js loads gameHandlers, but these are only called at runtime)
@@ -23,7 +29,7 @@ module.exports = function gameHandlers(io, socket) {
     socket.on('game:start', createRateLimitedHandler(socket, 'game:start', async (data = {}) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(gameStartSchema, data);
@@ -31,7 +37,7 @@ module.exports = function gameHandlers(io, socket) {
             // Verify player is host
             const player = await playerService.getPlayer(socket.sessionId);
             if (!player || !player.isHost) {
-                throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can start the game' };
+                throw PlayerError.notHost();
             }
 
             // Stop any existing timer
@@ -82,7 +88,7 @@ module.exports = function gameHandlers(io, socket) {
     socket.on('game:reveal', createRateLimitedHandler(socket, 'game:reveal', async (data) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(gameRevealSchema, data);
@@ -90,18 +96,23 @@ module.exports = function gameHandlers(io, socket) {
             // Verify player is the current team's clicker
             const player = await playerService.getPlayer(socket.sessionId);
             if (!player || player.role !== 'clicker') {
-                throw { code: ERROR_CODES.NOT_CLICKER, message: 'Only clickers can reveal cards' };
+                throw PlayerError.notClicker();
+            }
+
+            // Verify clicker has a team assigned
+            if (!player.team) {
+                throw new ValidationError('You must join a team before revealing cards');
             }
 
             // Get current game to check turn
             const game = await gameService.getGame(socket.roomCode);
             if (!game) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                throw GameStateError.noActiveGame();
             }
 
             // Verify it's the clicker's team's turn
             if (player.team !== game.currentTurn) {
-                throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
+                throw PlayerError.notYourTurn(player.team);
             }
 
             const result = await gameService.revealCard(
@@ -164,7 +175,7 @@ module.exports = function gameHandlers(io, socket) {
     socket.on('game:clue', createRateLimitedHandler(socket, 'game:clue', async (data) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(gameClueSchema, data);
@@ -172,7 +183,7 @@ module.exports = function gameHandlers(io, socket) {
             // Verify player is spymaster
             const player = await playerService.getPlayer(socket.sessionId);
             if (!player || player.role !== 'spymaster') {
-                throw { code: ERROR_CODES.NOT_SPYMASTER, message: 'Only spymasters can give clues' };
+                throw PlayerError.notSpymaster();
             }
 
             const clue = await gameService.giveClue(
@@ -210,24 +221,24 @@ module.exports = function gameHandlers(io, socket) {
     socket.on('game:endTurn', createRateLimitedHandler(socket, 'game:endTurn', async () => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             // Verify player is the current team's clicker
             const player = await playerService.getPlayer(socket.sessionId);
             if (!player || player.role !== 'clicker') {
-                throw { code: ERROR_CODES.NOT_CLICKER, message: 'Only clickers can end the turn' };
+                throw PlayerError.notClicker();
             }
 
             // Get current game to check turn
             const game = await gameService.getGame(socket.roomCode);
             if (!game) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                throw GameStateError.noActiveGame();
             }
 
             // Verify it's the clicker's team's turn
             if (player.team !== game.currentTurn) {
-                throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
+                throw PlayerError.notYourTurn(player.team);
             }
 
             const result = await gameService.endTurn(socket.roomCode, player.nickname);
@@ -261,12 +272,12 @@ module.exports = function gameHandlers(io, socket) {
     socket.on('game:forfeit', createRateLimitedHandler(socket, 'game:forfeit', async () => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const player = await playerService.getPlayer(socket.sessionId);
             if (!player || !player.isHost) {
-                throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can forfeit' };
+                throw PlayerError.notHost();
             }
 
             // Stop timer
@@ -299,7 +310,7 @@ module.exports = function gameHandlers(io, socket) {
     socket.on('game:history', createRateLimitedHandler(socket, 'game:history', async () => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const history = await gameService.getGameHistory(socket.roomCode);
