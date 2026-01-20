@@ -17,6 +17,9 @@ const {
     ERROR_CODES
 } = require('../config/constants');
 
+// Maximum history entries to prevent unbounded memory growth
+const MAX_HISTORY_ENTRIES = 200;
+
 /**
  * Seeded random number generator using Mulberry32 algorithm
  * Provides better distribution than Math.sin-based approach
@@ -57,10 +60,17 @@ function shuffleWithSeed(array, seed) {
 }
 
 /**
- * Generate a random game seed
+ * Generate a random game seed using crypto for better randomness
  */
 function generateSeed() {
-    return Math.random().toString(36).substring(2, 10);
+    try {
+        const crypto = require('crypto');
+        return crypto.randomBytes(6).toString('hex');
+    } catch (e) {
+        // Fallback to Math.random if crypto is unavailable
+        return Math.random().toString(36).substring(2, 10) +
+               Math.random().toString(36).substring(2, 6);
+    }
 }
 
 /**
@@ -244,6 +254,33 @@ async function getGame(roomCode) {
 }
 
 /**
+ * Safely parse game data with error handling
+ * @returns {Object|null} Parsed game object or null if corrupted
+ */
+function safeParseGameData(gameData, roomCode) {
+    try {
+        return JSON.parse(gameData);
+    } catch (error) {
+        logger.error(`Corrupted game data for room ${roomCode}:`, error.message);
+        return null;
+    }
+}
+
+/**
+ * Add entry to game history with cap to prevent unbounded growth
+ */
+function addToHistory(game, entry) {
+    if (!game.history) game.history = [];
+    game.history.push(entry);
+
+    // Cap history to prevent memory growth
+    if (game.history.length > MAX_HISTORY_ENTRIES) {
+        // Keep most recent entries
+        game.history = game.history.slice(-MAX_HISTORY_ENTRIES);
+    }
+}
+
+/**
  * Reveal a card with atomic operation to prevent race conditions
  */
 async function revealCard(roomCode, index, playerNickname = 'Unknown') {
@@ -270,7 +307,13 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
             }
 
-            const game = JSON.parse(gameData);
+            const game = safeParseGameData(gameData, roomCode);
+            if (!game) {
+                await redis.unwatch();
+                // Delete corrupted data
+                await redis.del(gameKey);
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+            }
 
             if (game.gameOver) {
                 await redis.unwatch();
@@ -349,9 +392,8 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 endReason = 'maxGuesses';
             }
 
-            // Add to history
-            if (!game.history) game.history = [];
-            game.history.push({
+            // Add to history with cap
+            addToHistory(game, {
                 action: 'reveal',
                 index,
                 word: game.words[index],
@@ -401,23 +443,40 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
 
 /**
  * Validate that a clue word is not on the board
+ * Rules:
+ * - Exact matches are never allowed
+ * - Partial matches (clue contains board word or vice versa) are blocked
+ *   unless the contained word is 1 character (common articles like "A", "I")
  */
 function validateClueWord(clueWord, boardWords) {
     const normalizedClue = clueWord.toUpperCase().trim();
 
+    // Minimum clue length check
+    if (normalizedClue.length === 0) {
+        return { valid: false, reason: 'Clue cannot be empty' };
+    }
+
     for (const boardWord of boardWords) {
         const normalizedBoardWord = boardWord.toUpperCase().trim();
 
-        // Check exact match
+        // Check exact match - always invalid
         if (normalizedClue === normalizedBoardWord) {
             return { valid: false, reason: `"${clueWord}" is a word on the board` };
         }
 
-        // Check if clue contains board word or vice versa (partial match)
-        if (normalizedClue.includes(normalizedBoardWord) || normalizedBoardWord.includes(normalizedClue)) {
-            // Allow if it's a very short word (like "A" or "I")
-            if (normalizedClue.length > 2 && normalizedBoardWord.length > 2) {
-                return { valid: false, reason: `"${clueWord}" contains or is contained in board word "${boardWord}"` };
+        // Check if clue contains board word (e.g., clue "SNOWMAN" contains board word "SNOW")
+        if (normalizedClue.includes(normalizedBoardWord)) {
+            // Only allow if the board word is a single character (rare edge case)
+            if (normalizedBoardWord.length > 1) {
+                return { valid: false, reason: `"${clueWord}" contains board word "${boardWord}"` };
+            }
+        }
+
+        // Check if board word contains clue (e.g., board word "SNOWMAN" contains clue "SNOW")
+        if (normalizedBoardWord.includes(normalizedClue)) {
+            // Only allow if the clue is a single character (rare edge case)
+            if (normalizedClue.length > 1) {
+                return { valid: false, reason: `Board word "${boardWord}" contains "${clueWord}"` };
             }
         }
     }
@@ -452,7 +511,12 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
             }
 
-            const game = JSON.parse(gameData);
+            const game = safeParseGameData(gameData, roomCode);
+            if (!game) {
+                await redis.unwatch();
+                await redis.del(gameKey);
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+            }
 
             if (game.gameOver) {
                 await redis.unwatch();
@@ -493,9 +557,8 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
             if (!game.clues) game.clues = [];
             game.clues.push(clue);
 
-            // Add to history
-            if (!game.history) game.history = [];
-            game.history.push({
+            // Add to history with cap
+            addToHistory(game, {
                 action: 'clue',
                 team,
                 word: clue.word,
@@ -551,7 +614,12 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
             }
 
-            const game = JSON.parse(gameData);
+            const game = safeParseGameData(gameData, roomCode);
+            if (!game) {
+                await redis.unwatch();
+                await redis.del(gameKey);
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+            }
 
             if (game.gameOver) {
                 await redis.unwatch();
@@ -564,9 +632,8 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
             game.guessesUsed = 0;
             game.guessesAllowed = 0;
 
-            // Add to history
-            if (!game.history) game.history = [];
-            game.history.push({
+            // Add to history with cap
+            addToHistory(game, {
                 action: 'endTurn',
                 fromTeam: previousTurn,
                 toTeam: game.currentTurn,
@@ -617,7 +684,12 @@ async function forfeitGame(roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
             }
 
-            const game = JSON.parse(gameData);
+            const game = safeParseGameData(gameData, roomCode);
+            if (!game) {
+                await redis.unwatch();
+                await redis.del(gameKey);
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+            }
 
             if (game.gameOver) {
                 await redis.unwatch();
@@ -629,9 +701,8 @@ async function forfeitGame(roomCode) {
             game.gameOver = true;
             game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
 
-            // Add to history
-            if (!game.history) game.history = [];
-            game.history.push({
+            // Add to history with cap
+            addToHistory(game, {
                 action: 'forfeit',
                 forfeitingTeam,
                 winner: game.winner,

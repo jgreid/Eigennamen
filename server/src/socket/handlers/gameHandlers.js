@@ -50,9 +50,14 @@ module.exports = function gameHandlers(io, socket) {
             const players = await playerService.getPlayersInRoom(socket.roomCode);
 
             // Send game state to each player (spymasters see card types)
+            // Wrap each emit in try-catch to ensure all players get notified even if one fails
             for (const p of players) {
-                const gameState = gameService.getGameStateForPlayer(game, p);
-                io.to(`player:${p.sessionId}`).emit('game:started', { game: gameState });
+                try {
+                    const gameState = gameService.getGameStateForPlayer(game, p);
+                    io.to(`player:${p.sessionId}`).emit('game:started', { game: gameState });
+                } catch (emitError) {
+                    logger.error(`Failed to emit game:started to player ${p.sessionId}:`, emitError);
+                }
             }
 
             // Start turn timer if configured

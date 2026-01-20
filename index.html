@@ -1551,15 +1551,40 @@
         }
 
         // Compress words for URL (simple encoding)
+        // Escape delimiter (|) and escape char (\) in words to prevent corruption
+        function escapeWordDelimiter(word) {
+            return word.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+        }
+        function unescapeWordDelimiter(word) {
+            return word.replace(/\\\|/g, '|').replace(/\\\\/g, '\\');
+        }
         function encodeWordsForURL(words) {
-            return btoa(words.join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            return btoa(words.map(escapeWordDelimiter).join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
 
         function decodeWordsFromURL(encoded) {
             try {
                 const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
                 const decoded = atob(padded);
-                return decoded.split('|').filter(w => w.length > 0);
+                // Split on unescaped | only (not preceded by odd number of backslashes)
+                const parts = [];
+                let current = '';
+                let i = 0;
+                while (i < decoded.length) {
+                    if (decoded[i] === '\\' && i + 1 < decoded.length) {
+                        current += decoded[i] + decoded[i + 1];
+                        i += 2;
+                    } else if (decoded[i] === '|') {
+                        parts.push(current);
+                        current = '';
+                        i++;
+                    } else {
+                        current += decoded[i];
+                        i++;
+                    }
+                }
+                parts.push(current);
+                return parts.map(unescapeWordDelimiter).filter(w => w.length > 0);
             } catch (e) {
                 return null;
             }
@@ -1758,11 +1783,13 @@
             }
 
             window.history.replaceState({}, '', url);
-            document.getElementById('share-link').value = url;
+            const shareLinkEl = document.getElementById('share-link');
+            if (shareLinkEl) shareLinkEl.value = url;
         }
 
         function updateRoleBanner() {
             const banner = document.getElementById('role-banner');
+            if (!banner) return;
 
             if (spymasterTeam === 'red') {
                 banner.className = 'role-banner spymaster-red';
@@ -1818,11 +1845,12 @@
 
             // Clicker can end turn when it's their team's turn
             const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
-            endTurnBtn.disabled = !clickerCanAct;
-            endTurnBtn.classList.toggle('can-act', clickerCanAct);
-
-            // Only show End Turn button to clickers (contextual visibility)
-            endTurnBtn.classList.toggle('hidden', !clickerTeam);
+            if (endTurnBtn) {
+                endTurnBtn.disabled = !clickerCanAct;
+                endTurnBtn.classList.toggle('can-act', clickerCanAct);
+                // Only show End Turn button to clickers (contextual visibility)
+                endTurnBtn.classList.toggle('hidden', !clickerTeam);
+            }
 
             // Determine current state
             const isRedSpy = spymasterTeam === 'red';
@@ -1836,24 +1864,38 @@
             const isUnaffiliated = !playerTeam && !spymasterTeam && !clickerTeam;
 
             // Team "Join" buttons
-            redTeamBtn.classList.toggle('active', isRedMember);
-            blueTeamBtn.classList.toggle('active', isBlueMember);
-            spectateBtn.classList.toggle('active', isUnaffiliated);
-            redTeamBtn.setAttribute('aria-pressed', isRedMember.toString());
-            blueTeamBtn.setAttribute('aria-pressed', isBlueMember.toString());
-            spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
+            if (redTeamBtn) {
+                redTeamBtn.classList.toggle('active', isRedMember);
+                redTeamBtn.setAttribute('aria-pressed', isRedMember.toString());
+            }
+            if (blueTeamBtn) {
+                blueTeamBtn.classList.toggle('active', isBlueMember);
+                blueTeamBtn.setAttribute('aria-pressed', isBlueMember.toString());
+            }
+            if (spectateBtn) {
+                spectateBtn.classList.toggle('active', isUnaffiliated);
+                spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
+            }
 
             // Spymaster buttons
-            redSpyBtn.classList.toggle('active', isRedSpy);
-            blueSpyBtn.classList.toggle('active', isBlueSpy);
-            redSpyBtn.setAttribute('aria-pressed', isRedSpy.toString());
-            blueSpyBtn.setAttribute('aria-pressed', isBlueSpy.toString());
+            if (redSpyBtn) {
+                redSpyBtn.classList.toggle('active', isRedSpy);
+                redSpyBtn.setAttribute('aria-pressed', isRedSpy.toString());
+            }
+            if (blueSpyBtn) {
+                blueSpyBtn.classList.toggle('active', isBlueSpy);
+                blueSpyBtn.setAttribute('aria-pressed', isBlueSpy.toString());
+            }
 
             // Clicker buttons
-            redClickerBtn.classList.toggle('active', isRedClicker);
-            blueClickerBtn.classList.toggle('active', isBlueClicker);
-            redClickerBtn.setAttribute('aria-pressed', isRedClicker.toString());
-            blueClickerBtn.setAttribute('aria-pressed', isBlueClicker.toString());
+            if (redClickerBtn) {
+                redClickerBtn.classList.toggle('active', isRedClicker);
+                redClickerBtn.setAttribute('aria-pressed', isRedClicker.toString());
+            }
+            if (blueClickerBtn) {
+                blueClickerBtn.classList.toggle('active', isBlueClicker);
+                blueClickerBtn.setAttribute('aria-pressed', isBlueClicker.toString());
+            }
         }
 
         function setTeam(team) {
@@ -1914,6 +1956,7 @@
 
         function renderBoard() {
             const board = document.getElementById('board');
+            if (!board) return;
             board.innerHTML = '';
 
             let className = 'board';
@@ -2045,6 +2088,7 @@
 
         function showGameOverModal() {
             const winnerDisplay = document.getElementById('winner-display');
+            if (!winnerDisplay) return;
             const winnerName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
             const assassinIndex = gameState.types.indexOf('assassin');
             const assassinRevealed = gameState.revealed[assassinIndex];
@@ -2080,14 +2124,19 @@
         function updateScoreboard() {
             const redRemaining = gameState.redTotal - gameState.redScore;
             const blueRemaining = gameState.blueTotal - gameState.blueScore;
-            document.getElementById('red-remaining').textContent = redRemaining;
-            document.getElementById('blue-remaining').textContent = blueRemaining;
-            document.getElementById('red-team-name').textContent = teamNames.red;
-            document.getElementById('blue-team-name').textContent = teamNames.blue;
+            const redRemainingEl = document.getElementById('red-remaining');
+            const blueRemainingEl = document.getElementById('blue-remaining');
+            const redTeamNameEl = document.getElementById('red-team-name');
+            const blueTeamNameEl = document.getElementById('blue-team-name');
+            if (redRemainingEl) redRemainingEl.textContent = redRemaining;
+            if (blueRemainingEl) blueRemainingEl.textContent = blueRemaining;
+            if (redTeamNameEl) redTeamNameEl.textContent = teamNames.red;
+            if (blueTeamNameEl) blueTeamNameEl.textContent = teamNames.blue;
         }
 
         function updateTurnIndicator() {
             const indicator = document.getElementById('turn-indicator');
+            if (!indicator) return;
             const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
             const winnerTeamName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
 
@@ -2112,22 +2161,33 @@
             }
         }
 
+        // Track copy button timeout to prevent race condition
+        let copyButtonTimeoutId = null;
+        const COPY_BUTTON_TEXT = 'Copy Link';
+
         async function copyLink() {
             const input = document.getElementById('share-link');
             const btn = document.querySelector('.btn-copy');
+            if (!input || !btn) return;
+
+            // Clear any existing timeout to prevent flickering
+            if (copyButtonTimeoutId) {
+                clearTimeout(copyButtonTimeoutId);
+                copyButtonTimeoutId = null;
+            }
 
             try {
                 await navigator.clipboard.writeText(input.value);
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = originalText, 2000);
             } catch (err) {
                 input.select();
                 document.execCommand('copy');
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = originalText, 2000);
             }
+
+            btn.textContent = 'Copied!';
+            copyButtonTimeoutId = setTimeout(() => {
+                btn.textContent = COPY_BUTTON_TEXT;
+                copyButtonTimeoutId = null;
+            }, 2000);
         }
 
         // Settings functions
@@ -2225,6 +2285,7 @@
 
         function updateWordSourceDisplay() {
             const sourceEl = document.getElementById('word-source');
+            if (!sourceEl) return;
             if (gameState.customWords) {
                 sourceEl.textContent = 'Using custom words (shared via link)';
             } else if (wordSource === 'custom') {
@@ -2277,13 +2338,29 @@
             }
         }
 
-        document.getElementById('custom-words').addEventListener('input', updateWordCount);
+        const customWordsEl = document.getElementById('custom-words');
+        if (customWordsEl) {
+            customWordsEl.addEventListener('input', updateWordCount);
+        }
 
         async function init() {
-            loadLocalSettings();
-            await tryLoadWordlistFile();
-            updateWordSourceDisplay();
-            loadGameFromURL();
+            try {
+                loadLocalSettings();
+                await tryLoadWordlistFile();
+                updateWordSourceDisplay();
+                loadGameFromURL();
+            } catch (e) {
+                console.error('Initialization error:', e);
+                // Show a user-friendly error message if initialization fails
+                const board = document.getElementById('board');
+                if (board) {
+                    board.innerHTML = '<div style="padding: 2rem; text-align: center; color: #721c24; background: #f8d7da; border-radius: 8px;">' +
+                        '<h2>Failed to load game</h2>' +
+                        '<p>Please try refreshing the page. If the problem persists, clear your browser cache.</p>' +
+                        '<p style="font-size: 0.9em; color: #666;">Error: ' + escapeHTML(e.message || 'Unknown error') + '</p>' +
+                        '</div>';
+                }
+            }
         }
 
         window.onload = init;

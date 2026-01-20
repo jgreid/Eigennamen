@@ -12,7 +12,9 @@ jest.mock('../config/redis', () => {
         get: jest.fn().mockResolvedValue(null),
         del: jest.fn().mockResolvedValue(1),
         keys: jest.fn().mockResolvedValue([]),
-        exists: jest.fn().mockResolvedValue(0)
+        exists: jest.fn().mockResolvedValue(0),
+        // Mock eval for atomic operations (Lua scripts)
+        eval: jest.fn().mockResolvedValue(null)
     };
 
     const mockPubClient = {
@@ -70,6 +72,38 @@ describe('Timer Service', () => {
                 delete mockRedis._storage[key];
             }
             return 1;
+        });
+        // Mock eval for atomic addTime operation
+        mockRedis.eval.mockImplementation(async (script, options) => {
+            const key = options.keys[0];
+            const timerData = mockRedis._storage?.[key];
+            if (!timerData) return null;
+
+            try {
+                const timer = JSON.parse(timerData);
+                if (timer.paused) return null;
+
+                const now = Date.now();
+                const remainingMs = timer.endTime - now;
+                if (remainingMs <= 0) return null;
+
+                const secondsToAdd = parseInt(options.arguments[0], 10);
+                const newEndTime = timer.endTime + (secondsToAdd * 1000);
+                const newDuration = Math.ceil((newEndTime - now) / 1000);
+
+                // Update storage
+                timer.endTime = newEndTime;
+                timer.duration = newDuration;
+                mockRedis._storage[key] = JSON.stringify(timer);
+
+                return JSON.stringify({
+                    endTime: newEndTime,
+                    duration: newDuration,
+                    remainingSeconds: newDuration
+                });
+            } catch (e) {
+                return null;
+            }
         });
         mockRedis._storage = {};
     });

@@ -129,7 +129,8 @@ function createTimerExpireCallback() {
             emitToRoom(roomCode, 'timer:expired', { roomCode });
 
             // Restart timer for the new turn (if timer is configured and game not over)
-            setTimeout(async () => {
+            // Use setImmediate instead of setTimeout to avoid untracked timers
+            setImmediate(async () => {
                 try {
                     const room = await roomService.getRoom(roomCode);
                     const game = await gameService.getGame(roomCode);
@@ -140,7 +141,7 @@ function createTimerExpireCallback() {
                 } catch (err) {
                     logger.debug(`Timer restart skipped for room ${roomCode}: ${err.message}`);
                 }
-            }, 100);
+            });
         } catch (error) {
             logger.error(`Timer expiry error for room ${roomCode}:`, error);
         }
@@ -149,10 +150,13 @@ function createTimerExpireCallback() {
 
 /**
  * Handle player disconnection with room notification
+ * Uses lock to prevent race conditions during host transfer
  */
 async function handleDisconnect(io, socket, reason) {
     const playerService = require('../services/playerService');
     const roomService = require('../services/roomService');
+    const { getRedis } = require('../config/redis');
+    const { REDIS_TTL } = require('../config/constants');
 
     try {
         const player = await playerService.getPlayer(socket.sessionId);
@@ -176,35 +180,48 @@ async function handleDisconnect(io, socket, reason) {
                 timestamp: Date.now()
             });
 
-            // Check if disconnected player was host
+            // Check if disconnected player was host - use lock to prevent race condition
             if (player.isHost) {
-                const room = await roomService.getRoom(roomCode);
-                const players = await playerService.getPlayersInRoom(roomCode);
-                const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
+                const redis = getRedis();
+                const lockKey = `lock:host-transfer:${roomCode}`;
 
-                if (connectedPlayers.length > 0) {
-                    // Transfer host to first connected player
-                    const newHost = connectedPlayers[0];
+                // Try to acquire lock (expires after 10 seconds)
+                const lockAcquired = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 10 });
 
-                    // Clear old host's isHost flag first
-                    await playerService.updatePlayer(socket.sessionId, { isHost: false });
-                    await playerService.updatePlayer(newHost.sessionId, { isHost: true });
+                if (lockAcquired) {
+                    try {
+                        const room = await roomService.getRoom(roomCode);
+                        const players = await playerService.getPlayersInRoom(roomCode);
+                        const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
 
-                    // Update room
-                    if (room) {
-                        room.hostSessionId = newHost.sessionId;
-                        const redis = require('../config/redis').getRedis();
-                        const { REDIS_TTL } = require('../config/constants');
-                        await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+                        if (connectedPlayers.length > 0) {
+                            // Transfer host to first connected player
+                            const newHost = connectedPlayers[0];
+
+                            // Clear old host's isHost flag first
+                            await playerService.updatePlayer(socket.sessionId, { isHost: false });
+                            await playerService.updatePlayer(newHost.sessionId, { isHost: true });
+
+                            // Update room
+                            if (room) {
+                                room.hostSessionId = newHost.sessionId;
+                                await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+                            }
+
+                            io.to(`room:${roomCode}`).emit('room:hostChanged', {
+                                newHostSessionId: newHost.sessionId,
+                                newHostNickname: newHost.nickname,
+                                reason: 'previousHostDisconnected'
+                            });
+
+                            logger.info(`Host transferred to ${newHost.nickname} in room ${roomCode}`);
+                        }
+                    } finally {
+                        // Release lock
+                        await redis.del(lockKey);
                     }
-
-                    io.to(`room:${roomCode}`).emit('room:hostChanged', {
-                        newHostSessionId: newHost.sessionId,
-                        newHostNickname: newHost.nickname,
-                        reason: 'previousHostDisconnected'
-                    });
-
-                    logger.info(`Host transferred to ${newHost.nickname} in room ${roomCode}`);
+                } else {
+                    logger.debug(`Host transfer lock not acquired for room ${roomCode}, another instance handling it`);
                 }
             }
         }

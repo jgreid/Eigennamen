@@ -14,6 +14,10 @@ const logger = require('../utils/logger');
 /**
  * Validate that the request appears to come from a same-origin source
  * Uses multiple signals: Origin header, Referer header, and custom header
+ *
+ * SECURITY: Always requires X-Requested-With header for state-changing requests
+ * This prevents CSRF because browsers won't send custom headers cross-origin
+ * without a preflight that our CORS policy would block.
  */
 function csrfProtection(req, res, next) {
     // Skip for safe methods (GET, HEAD, OPTIONS)
@@ -22,70 +26,66 @@ function csrfProtection(req, res, next) {
         return next();
     }
 
-    // Check for custom header - requires JavaScript to set
-    // Browsers won't send this header in cross-origin requests without CORS preflight
+    // ALWAYS require custom header for state-changing requests
+    // This is the primary CSRF defense - browsers cannot send custom headers
+    // cross-origin without a CORS preflight, which would be blocked
     const customHeader = req.headers['x-requested-with'];
-    if (customHeader === 'XMLHttpRequest' || customHeader === 'fetch') {
-        return next();
-    }
-
-    // Check Origin header
-    const origin = req.headers['origin'];
-    if (origin) {
-        const allowedOrigins = getAllowedOrigins();
-        if (isOriginAllowed(origin, allowedOrigins)) {
-            return next();
-        }
-        logger.warn(`CSRF protection: blocked request from origin ${origin}`);
+    if (customHeader !== 'XMLHttpRequest' && customHeader !== 'fetch') {
+        logger.warn(`CSRF protection: blocked request without X-Requested-With header`);
         return res.status(403).json({
             error: {
                 code: 'CSRF_VALIDATION_FAILED',
-                message: 'Cross-origin request blocked'
+                message: 'Missing required X-Requested-With header'
             }
         });
     }
 
-    // Check Referer header as fallback
-    const referer = req.headers['referer'];
-    if (referer) {
-        try {
-            const refererUrl = new URL(referer);
-            const allowedOrigins = getAllowedOrigins();
-            if (isOriginAllowed(refererUrl.origin, allowedOrigins)) {
-                return next();
-            }
-        } catch (e) {
-            // Invalid referer URL
-        }
-        logger.warn(`CSRF protection: blocked request with referer ${referer}`);
-        return res.status(403).json({
-            error: {
-                code: 'CSRF_VALIDATION_FAILED',
-                message: 'Cross-origin request blocked'
-            }
-        });
-    }
-
-    // No Origin or Referer header - might be a direct API call
-    // Only allow Content-Type check if CORS is not wildcard
-    // (when CORS allows all origins, attackers can send application/json cross-origin)
+    // Additionally validate Origin/Referer when CORS is restricted
     const allowedOrigins = getAllowedOrigins();
     if (allowedOrigins !== null) {
-        // CORS is restricted - Content-Type check is safe
-        const contentType = req.headers['content-type'];
-        if (contentType && contentType.includes('application/json')) {
+        // Check Origin header
+        const origin = req.headers['origin'];
+        if (origin) {
+            if (!isOriginAllowed(origin, allowedOrigins)) {
+                logger.warn(`CSRF protection: blocked request from origin ${origin}`);
+                return res.status(403).json({
+                    error: {
+                        code: 'CSRF_VALIDATION_FAILED',
+                        message: 'Cross-origin request blocked'
+                    }
+                });
+            }
             return next();
+        }
+
+        // Check Referer header as fallback
+        const referer = req.headers['referer'];
+        if (referer) {
+            try {
+                const refererUrl = new URL(referer);
+                if (!isOriginAllowed(refererUrl.origin, allowedOrigins)) {
+                    logger.warn(`CSRF protection: blocked request with referer ${referer}`);
+                    return res.status(403).json({
+                        error: {
+                            code: 'CSRF_VALIDATION_FAILED',
+                            message: 'Cross-origin request blocked'
+                        }
+                    });
+                }
+            } catch (e) {
+                logger.warn(`CSRF protection: blocked request with invalid referer ${referer}`);
+                return res.status(403).json({
+                    error: {
+                        code: 'CSRF_VALIDATION_FAILED',
+                        message: 'Invalid referer header'
+                    }
+                });
+            }
         }
     }
 
-    // Block the request
-    logger.warn(`CSRF protection: blocked request without origin/referer/custom header`);
-    return res.status(403).json({
-        error: {
-            code: 'CSRF_VALIDATION_FAILED',
-            message: 'Request validation failed'
-        }
-    });
+    // Custom header present (and origin validated if CORS restricted) - allow
+    return next();
 }
 
 /**

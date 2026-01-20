@@ -1,5 +1,9 @@
 /**
  * Word List API Routes
+ *
+ * NOTE: Create/Update/Delete operations require authentication.
+ * These endpoints are protected and will return 403 until proper
+ * authentication is implemented.
  */
 
 const express = require('express');
@@ -7,8 +11,52 @@ const wordListService = require('../services/wordListService');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validation');
 const { z } = require('zod');
 const { BOARD_SIZE } = require('../config/constants');
+const logger = require('../utils/logger');
 
 const router = express.Router();
+
+/**
+ * Authentication middleware placeholder
+ * Extracts user from JWT token if present
+ * TODO: Implement full JWT authentication when user accounts are enabled
+ */
+function extractUser(req, res, next) {
+    // Check for Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+            const token = authHeader.substring(7);
+            const jwt = require('jsonwebtoken');
+            const secret = process.env.JWT_SECRET;
+            if (secret) {
+                const decoded = jwt.verify(token, secret);
+                req.user = decoded;
+            }
+        } catch (error) {
+            // Invalid token - continue without user
+            logger.debug('Invalid auth token in word list request');
+        }
+    }
+    next();
+}
+
+/**
+ * Authorization middleware - requires authenticated user
+ */
+function requireAuth(req, res, next) {
+    if (!req.user || !req.user.id) {
+        return res.status(403).json({
+            error: {
+                code: 'NOT_AUTHORIZED',
+                message: 'Authentication required for this operation'
+            }
+        });
+    }
+    next();
+}
+
+// Apply user extraction to all routes
+router.use(extractUser);
 
 // Validation schemas
 const wordListIdSchema = z.object({
@@ -100,8 +148,9 @@ router.get('/:id', validateParams(wordListIdSchema), async (req, res, next) => {
 /**
  * Create a new word list
  * POST /api/wordlists
+ * Requires authentication
  */
-router.post('/', validateBody(createWordListSchema), async (req, res, next) => {
+router.post('/', requireAuth, validateBody(createWordListSchema), async (req, res, next) => {
     try {
         const { name, description, words, isPublic } = req.body;
 
@@ -110,7 +159,7 @@ router.post('/', validateBody(createWordListSchema), async (req, res, next) => {
             description,
             words,
             isPublic,
-            ownerId: null // Anonymous creation for now
+            ownerId: req.user.id
         });
 
         res.status(201).json({ wordList });
@@ -122,15 +171,16 @@ router.post('/', validateBody(createWordListSchema), async (req, res, next) => {
 /**
  * Update a word list
  * PUT /api/wordlists/:id
+ * Requires authentication and ownership
  */
-router.put('/:id', validateParams(wordListIdSchema), validateBody(updateWordListSchema), async (req, res, next) => {
+router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(updateWordListSchema), async (req, res, next) => {
     try {
         const { name, description, words, isPublic } = req.body;
 
         const wordList = await wordListService.updateWordList(
             req.params.id,
             { name, description, words, isPublic },
-            null // No auth check for now
+            req.user.id
         );
 
         res.json({ wordList });
@@ -142,10 +192,11 @@ router.put('/:id', validateParams(wordListIdSchema), validateBody(updateWordList
 /**
  * Delete a word list
  * DELETE /api/wordlists/:id
+ * Requires authentication and ownership
  */
-router.delete('/:id', validateParams(wordListIdSchema), async (req, res, next) => {
+router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req, res, next) => {
     try {
-        await wordListService.deleteWordList(req.params.id, null);
+        await wordListService.deleteWordList(req.params.id, req.user.id);
         res.json({ success: true });
     } catch (error) {
         next(error);
