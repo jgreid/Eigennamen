@@ -53,6 +53,7 @@
             overflow-y: auto;
             position: sticky;
             top: 0;
+            contain: layout style;
         }
 
         /* Right Main Area - 75% width */
@@ -64,6 +65,7 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            contain: layout style;
         }
 
         /* ========== HEADER ========== */
@@ -97,6 +99,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
             padding: 16px;
+            contain: layout style;
         }
 
         .glass-panel-subtle {
@@ -242,13 +245,21 @@
             color: #ffc107;
         }
 
+        /* GPU-accelerated pulse animation using transform and opacity */
         @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 5px currentColor; }
-            50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.02);
+                opacity: 0.9;
+            }
         }
 
         .turn-indicator.your-turn {
             animation: pulse-glow 2s ease-in-out infinite;
+            will-change: transform, opacity;
         }
 
         /* ========== CONTROLS ========== */
@@ -317,7 +328,7 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
@@ -443,6 +454,7 @@
 
         .btn-end-turn.can-act {
             animation: pulse-glow 2s ease-in-out infinite;
+            will-change: transform, opacity;
         }
 
         .btn-end-turn:disabled {
@@ -579,7 +591,7 @@
             padding: clamp(8px, 1.5vw, 14px);
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
             font-weight: 700;
             text-align: center;
             /* Larger font relative to card size for readability */
@@ -596,6 +608,7 @@
             overflow: hidden;
             word-break: break-word;
             hyphens: auto;
+            contain: layout style;
         }
 
         .card:hover:not(.revealed) {
@@ -1033,6 +1046,21 @@
                 border-bottom: 1px solid rgba(255, 255, 255, 0.08);
                 padding: 16px;
                 gap: 12px;
+                /* Disable expensive backdrop-filter on mobile for better performance */
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: rgba(15, 15, 26, 0.95);
+            }
+
+            .glass-panel {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: rgba(255, 255, 255, 0.05);
+            }
+
+            .modal-overlay {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
             }
 
             .main-content {
@@ -1630,31 +1658,99 @@
     </div>
 
     <script>
+        // ========== CACHED DOM ELEMENTS ==========
+        // Cache frequently accessed DOM elements to avoid repeated queries
+        const cachedElements = {
+            board: null,
+            roleBanner: null,
+            turnIndicator: null,
+            endTurnBtn: null,
+            redSpyBtn: null,
+            blueSpyBtn: null,
+            redClickerBtn: null,
+            blueClickerBtn: null,
+            redTeamBtn: null,
+            blueTeamBtn: null,
+            spectateBtn: null,
+            redRemaining: null,
+            blueRemaining: null,
+            redTeamName: null,
+            blueTeamName: null,
+            shareLink: null,
+            wordSource: null,
+            spymasterWarning: null,
+            srAnnouncements: null,
+            srScoreAnnouncements: null,
+            srTurnAnnouncements: null
+        };
+
+        // Initialize cached elements (called once on page load)
+        function initCachedElements() {
+            cachedElements.board = document.getElementById('board');
+            cachedElements.roleBanner = document.getElementById('role-banner');
+            cachedElements.turnIndicator = document.getElementById('turn-indicator');
+            cachedElements.endTurnBtn = document.getElementById('btn-end-turn');
+            cachedElements.redSpyBtn = document.getElementById('btn-spymaster-red');
+            cachedElements.blueSpyBtn = document.getElementById('btn-spymaster-blue');
+            cachedElements.redClickerBtn = document.getElementById('btn-clicker-red');
+            cachedElements.blueClickerBtn = document.getElementById('btn-clicker-blue');
+            cachedElements.redTeamBtn = document.getElementById('btn-team-red');
+            cachedElements.blueTeamBtn = document.getElementById('btn-team-blue');
+            cachedElements.spectateBtn = document.getElementById('btn-spectate');
+            cachedElements.redRemaining = document.getElementById('red-remaining');
+            cachedElements.blueRemaining = document.getElementById('blue-remaining');
+            cachedElements.redTeamName = document.getElementById('red-team-name');
+            cachedElements.blueTeamName = document.getElementById('blue-team-name');
+            cachedElements.shareLink = document.getElementById('share-link');
+            cachedElements.wordSource = document.getElementById('word-source');
+            cachedElements.spymasterWarning = document.getElementById('spymaster-warning');
+            cachedElements.srAnnouncements = document.getElementById('sr-announcements');
+            cachedElements.srScoreAnnouncements = document.getElementById('sr-score-announcements');
+            cachedElements.srTurnAnnouncements = document.getElementById('sr-turn-announcements');
+        }
+
+        // ========== SCREEN READER ANNOUNCEMENTS ==========
+        // Track timeouts to prevent race conditions
+        let srAnnouncementTimeout = null;
+        let srScoreTimeout = null;
+        let srTurnTimeout = null;
+
         // Screen reader announcement helper
         function announceToScreenReader(message) {
-            const announcer = document.getElementById('sr-announcements');
+            const announcer = cachedElements.srAnnouncements;
             if (announcer) {
+                if (srAnnouncementTimeout) clearTimeout(srAnnouncementTimeout);
                 announcer.textContent = message;
-                // Clear after a delay to allow re-announcing the same message
-                setTimeout(() => { announcer.textContent = ''; }, 1000);
+                srAnnouncementTimeout = setTimeout(() => {
+                    announcer.textContent = '';
+                    srAnnouncementTimeout = null;
+                }, 1000);
             }
         }
 
         // Announce score changes to screen readers
         function announceScoreChange(message) {
-            const announcer = document.getElementById('sr-score-announcements');
+            const announcer = cachedElements.srScoreAnnouncements;
             if (announcer) {
+                if (srScoreTimeout) clearTimeout(srScoreTimeout);
                 announcer.textContent = message;
-                setTimeout(() => { announcer.textContent = ''; }, 1000);
+                srScoreTimeout = setTimeout(() => {
+                    announcer.textContent = '';
+                    srScoreTimeout = null;
+                }, 1000);
             }
         }
 
         // Announce turn changes to screen readers (assertive)
         function announceTurnChange(message) {
-            const announcer = document.getElementById('sr-turn-announcements');
+            const announcer = cachedElements.srTurnAnnouncements;
             if (announcer) {
+                if (srTurnTimeout) clearTimeout(srTurnTimeout);
                 announcer.textContent = message;
-                setTimeout(() => { announcer.textContent = ''; }, 1000);
+                srTurnTimeout = setTimeout(() => {
+                    announcer.textContent = '';
+                    srTurnTimeout = null;
+                }, 1000);
             }
         }
 
@@ -1720,7 +1816,7 @@
 
         // ========== SPYMASTER WARNING ==========
         function updateSpymasterWarning() {
-            const warning = document.getElementById('spymaster-warning');
+            const warning = cachedElements.spymasterWarning;
             if (warning) {
                 warning.classList.toggle('visible', !!spymasterTeam);
             }
@@ -1760,6 +1856,7 @@
         // Modal management with focus trapping and keyboard support
         let activeModal = null;
         let previouslyFocusedElement = null;
+        let modalListenersActive = false;
 
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
@@ -1768,6 +1865,13 @@
             previouslyFocusedElement = document.activeElement;
             activeModal = modal;
             modal.classList.add('active');
+
+            // Add event listeners only when modal is open (performance optimization)
+            if (!modalListenersActive) {
+                document.addEventListener('keydown', handleModalKeydown);
+                document.addEventListener('click', handleOverlayClick);
+                modalListenersActive = true;
+            }
 
             // Focus first focusable element in modal
             const focusableElements = modal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
@@ -1782,6 +1886,13 @@
 
             modal.classList.remove('active');
             activeModal = null;
+
+            // Remove event listeners when no modal is open (performance optimization)
+            if (modalListenersActive) {
+                document.removeEventListener('keydown', handleModalKeydown);
+                document.removeEventListener('click', handleOverlayClick);
+                modalListenersActive = false;
+            }
 
             // Restore focus to previously focused element
             if (previouslyFocusedElement) {
@@ -1831,9 +1942,6 @@
                 else if (e.target.id === 'error-modal') closeError();
             }
         }
-
-        document.addEventListener('keydown', handleModalKeydown);
-        document.addEventListener('click', handleOverlayClick);
 
         // Game constants
         const BOARD_SIZE = 25;
@@ -2077,19 +2185,29 @@
             return true;
         }
 
+        // Debounce flag for newGame to prevent rapid clicks
+        let newGameDebounce = false;
+
         function newGame() {
+            // Prevent rapid clicks
+            if (newGameDebounce) return;
+            newGameDebounce = true;
+            setTimeout(() => { newGameDebounce = false; }, 500);
+
             const seed = generateGameSeed();
             if (initGame(seed, activeWords)) {
                 isHost = true;
                 spymasterTeam = null; // Reset spymaster role on new game
                 clickerTeam = null; // Reset clicker role on new game
                 // Keep playerTeam - team affiliation persists across games
+                boardInitialized = false; // Force full board render for new game
                 updateURL();
                 renderBoard();
                 updateScoreboard();
                 updateTurnIndicator();
                 updateRoleBanner();
                 updateControls();
+                updateSpymasterWarning();
             }
         }
 
@@ -2171,6 +2289,7 @@
                 clickerTeam = null;
                 playerTeam = null;
 
+                boardInitialized = false; // Force full board render on initial load
                 renderBoard();
                 updateScoreboard();
                 updateTurnIndicator();
@@ -2206,12 +2325,11 @@
             }
 
             window.history.replaceState({}, '', url);
-            const shareLinkEl = document.getElementById('share-link');
-            if (shareLinkEl) shareLinkEl.value = url;
+            if (cachedElements.shareLink) cachedElements.shareLink.value = url;
         }
 
         function updateRoleBanner() {
-            const banner = document.getElementById('role-banner');
+            const banner = cachedElements.roleBanner;
             if (!banner) return;
 
             if (spymasterTeam === 'red') {
@@ -2257,14 +2375,9 @@
         }
 
         function updateControls() {
-            const endTurnBtn = document.getElementById('btn-end-turn');
-            const redSpyBtn = document.getElementById('btn-spymaster-red');
-            const blueSpyBtn = document.getElementById('btn-spymaster-blue');
-            const redClickerBtn = document.getElementById('btn-clicker-red');
-            const blueClickerBtn = document.getElementById('btn-clicker-blue');
-            const redTeamBtn = document.getElementById('btn-team-red');
-            const blueTeamBtn = document.getElementById('btn-team-blue');
-            const spectateBtn = document.getElementById('btn-spectate');
+            // Use cached elements instead of querying DOM each time
+            const { endTurnBtn, redSpyBtn, blueSpyBtn, redClickerBtn, blueClickerBtn,
+                    redTeamBtn, blueTeamBtn, spectateBtn } = cachedElements;
 
             // Clicker can end turn when it's their team's turn
             const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
@@ -2272,7 +2385,6 @@
                 endTurnBtn.disabled = !clickerCanAct;
                 endTurnBtn.classList.toggle('can-act', clickerCanAct);
                 // Show End Turn button to clickers; show disabled for non-clickers for visibility
-                const shouldHide = !clickerTeam && !gameState.gameOver;
                 endTurnBtn.classList.toggle('hidden', false); // Always visible now
                 endTurnBtn.classList.toggle('disabled-visible', !clickerTeam);
 
@@ -2392,20 +2504,68 @@
             return clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
         }
 
-        function renderBoard() {
-            const board = document.getElementById('board');
-            if (!board) return;
-            board.innerHTML = '';
+        // Track if board has been initialized (for incremental updates)
+        let boardInitialized = false;
 
+        // Initialize board event delegation (called once)
+        function initBoardEventDelegation() {
+            const board = cachedElements.board;
+            if (!board || board.hasAttribute('data-delegated')) return;
+
+            // Single click handler using event delegation
+            board.addEventListener('click', (e) => {
+                const card = e.target.closest('.card');
+                if (!card || card.classList.contains('revealed')) return;
+                const index = Array.from(board.children).indexOf(card);
+                if (index >= 0) revealCard(index);
+            });
+
+            // Single keydown handler using event delegation
+            board.addEventListener('keydown', (e) => {
+                const card = e.target.closest('.card');
+                if (!card) return;
+                const index = Array.from(board.children).indexOf(card);
+                if (index < 0) return;
+
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (!card.classList.contains('revealed')) {
+                        revealCard(index);
+                    }
+                } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    e.preventDefault();
+                    navigateCards(index, e.key);
+                }
+            });
+
+            board.setAttribute('data-delegated', 'true');
+        }
+
+        // Full board render (only called on new game or initial load)
+        function renderBoard() {
+            const board = cachedElements.board;
+            if (!board) return;
+
+            // Update board class
             let className = 'board';
             if (spymasterTeam) className += ' spymaster-mode';
             if (!canClickCards()) className += ' no-click';
             board.className = className;
 
+            // Check if we can do an incremental update
+            if (boardInitialized && board.children.length === BOARD_SIZE) {
+                updateBoardIncremental();
+                return;
+            }
+
+            // Full re-render (only for new games)
+            board.innerHTML = '';
+
             gameState.words.forEach((word, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.textContent = word;
+                card.setAttribute('data-index', index);
 
                 // Accessibility: make cards focusable and add ARIA attributes
                 const isRevealed = gameState.revealed[index];
@@ -2421,8 +2581,49 @@
                 // Show revealed cards
                 if (isRevealed) {
                     card.classList.add('revealed', gameState.types[index]);
+                }
 
-                    // Add animation class if this card was just revealed
+                board.appendChild(card);
+            });
+
+            boardInitialized = true;
+            initBoardEventDelegation();
+        }
+
+        // Incremental update - only update changed cards (much faster)
+        function updateBoardIncremental() {
+            const board = cachedElements.board;
+            if (!board) return;
+
+            // Update board class
+            let className = 'board';
+            if (spymasterTeam) className += ' spymaster-mode';
+            if (!canClickCards()) className += ' no-click';
+            board.className = className;
+
+            const cards = board.children;
+            for (let index = 0; index < cards.length; index++) {
+                const card = cards[index];
+                const isRevealed = gameState.revealed[index];
+                const type = gameState.types[index];
+
+                // Update ARIA
+                card.setAttribute('tabindex', isRevealed ? '-1' : '0');
+                card.setAttribute('aria-label', `${gameState.words[index]}${isRevealed ? ', revealed as ' + type : ''}`);
+
+                // Handle spymaster mode
+                if (spymasterTeam) {
+                    card.classList.add(`spy-${type}`);
+                } else {
+                    // Remove all spy- classes
+                    card.classList.remove('spy-red', 'spy-blue', 'spy-neutral', 'spy-assassin');
+                }
+
+                // Handle reveal state
+                if (isRevealed && !card.classList.contains('revealed')) {
+                    card.classList.add('revealed', type);
+
+                    // Add animation class for just-revealed card
                     if (index === lastRevealedIndex) {
                         if (lastRevealedWasCorrect) {
                             card.classList.add('success-reveal');
@@ -2431,20 +2632,27 @@
                         }
                     }
                 }
+            }
+        }
 
-                card.onclick = () => revealCard(index);
-                // Keyboard support: Enter/Space to reveal, Arrow keys to navigate
-                card.onkeydown = (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        revealCard(index);
-                    } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                        e.preventDefault();
-                        navigateCards(index, e.key);
-                    }
-                };
-                board.appendChild(card);
-            });
+        // Update single card (for card reveal animation)
+        function updateSingleCard(index) {
+            const board = cachedElements.board;
+            if (!board || !board.children[index]) return;
+
+            const card = board.children[index];
+            const type = gameState.types[index];
+
+            card.classList.add('revealed', type);
+            card.setAttribute('tabindex', '-1');
+            card.setAttribute('aria-label', `${gameState.words[index]}, revealed as ${type}`);
+
+            // Add animation class
+            if (lastRevealedWasCorrect) {
+                card.classList.add('success-reveal');
+            } else {
+                card.classList.add('just-revealed');
+            }
         }
 
         // Arrow key navigation for cards (5x5 grid)
@@ -2472,9 +2680,9 @@
             }
 
             if (newIndex !== currentIndex) {
-                const cards = document.querySelectorAll('.card');
-                if (cards[newIndex]) {
-                    cards[newIndex].focus();
+                const board = cachedElements.board;
+                if (board && board.children[newIndex]) {
+                    board.children[newIndex].focus();
                 }
             }
         }
@@ -2482,6 +2690,9 @@
         // Track which card was just revealed for animation
         let lastRevealedIndex = -1;
         let lastRevealedWasCorrect = false;
+
+        // Pending UI update flag to prevent duplicate RAF calls
+        let pendingUIUpdate = false;
 
         function revealCard(index) {
             if (!canClickCards()) return;
@@ -2515,11 +2726,20 @@
             }
 
             updateURL();
-            renderBoard();
-            updateScoreboard();
-            updateTurnIndicator();
-            updateRoleBanner();
-            updateControls();
+
+            // Batch DOM updates using requestAnimationFrame for better performance
+            if (!pendingUIUpdate) {
+                pendingUIUpdate = true;
+                requestAnimationFrame(() => {
+                    updateSingleCard(index);  // Only update the revealed card
+                    updateBoardIncremental(); // Update board classes
+                    updateScoreboard();
+                    updateTurnIndicator();
+                    updateRoleBanner();
+                    updateControls();
+                    pendingUIUpdate = false;
+                });
+            }
 
             // Clear animation tracking after animation completes
             setTimeout(() => {
@@ -2597,10 +2817,9 @@
         function updateScoreboard() {
             const redRemaining = gameState.redTotal - gameState.redScore;
             const blueRemaining = gameState.blueTotal - gameState.blueScore;
-            const redRemainingEl = document.getElementById('red-remaining');
-            const blueRemainingEl = document.getElementById('blue-remaining');
-            const redTeamNameEl = document.getElementById('red-team-name');
-            const blueTeamNameEl = document.getElementById('blue-team-name');
+            // Use cached elements
+            const { redRemaining: redRemainingEl, blueRemaining: blueRemainingEl,
+                    redTeamName: redTeamNameEl, blueTeamName: blueTeamNameEl } = cachedElements;
             if (redRemainingEl) redRemainingEl.textContent = redRemaining;
             if (blueRemainingEl) blueRemainingEl.textContent = blueRemaining;
             if (redTeamNameEl) redTeamNameEl.textContent = teamNames.red;
@@ -2608,7 +2827,7 @@
         }
 
         function updateTurnIndicator() {
-            const indicator = document.getElementById('turn-indicator');
+            const indicator = cachedElements.turnIndicator;
             if (!indicator) return;
             const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
             const winnerTeamName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
@@ -2639,7 +2858,7 @@
         const COPY_BUTTON_TEXT = 'Copy';
 
         async function copyLink() {
-            const input = document.getElementById('share-link');
+            const input = cachedElements.shareLink;
             const btn = document.querySelector('.btn-copy');
             if (!input || !btn) return;
 
@@ -2788,7 +3007,7 @@
         }
 
         function updateWordSourceDisplay() {
-            const sourceEl = document.getElementById('word-source');
+            const sourceEl = cachedElements.wordSource;
             if (!sourceEl) return;
             if (gameState.customWords) {
                 sourceEl.textContent = 'Using custom words (shared via link)';
@@ -2849,6 +3068,8 @@
 
         async function init() {
             try {
+                // Initialize cached DOM elements first
+                initCachedElements();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 updateWordSourceDisplay();
