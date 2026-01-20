@@ -140,15 +140,30 @@ app.get('/health/ready', async (req, res) => {
         logger.error('Health check: Storage error', error.message);
     }
 
-    // Check Socket.io
+    // Check Socket.io with timeout protection to avoid slow responses under load
     try {
         const io = app.get('io');
         if (io) {
-            const sockets = await io.fetchSockets();
-            checks.checks.socketio = {
-                status: 'ok',
-                connections: sockets.length
-            };
+            // Add 2-second timeout to prevent slow health checks under high load
+            const socketCountPromise = io.fetchSockets().then(s => s.length);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Socket count timeout')), 2000)
+            );
+
+            try {
+                const connectionCount = await Promise.race([socketCountPromise, timeoutPromise]);
+                checks.checks.socketio = {
+                    status: 'ok',
+                    connections: connectionCount
+                };
+            } catch (timeoutError) {
+                // Timeout getting socket count - report as ok but with unknown count
+                checks.checks.socketio = {
+                    status: 'ok',
+                    connections: 'unknown',
+                    note: 'Socket count timed out (high load)'
+                };
+            }
         } else {
             checks.checks.socketio = { status: 'not_configured' };
         }
@@ -185,15 +200,29 @@ app.get('/metrics', async (req, res) => {
         };
     }
 
-    // Add socket.io stats if available
+    // Add socket.io stats if available (with timeout protection)
     try {
         const io = app.get('io');
         if (io) {
-            const sockets = await io.fetchSockets();
-            metrics.socketio = {
-                status: 'ok',
-                connections: sockets.length
-            };
+            // Add 2-second timeout to prevent slow metrics under high load
+            const socketCountPromise = io.fetchSockets().then(s => s.length);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Socket count timeout')), 2000)
+            );
+
+            try {
+                const connectionCount = await Promise.race([socketCountPromise, timeoutPromise]);
+                metrics.socketio = {
+                    status: 'ok',
+                    connections: connectionCount
+                };
+            } catch (timeoutError) {
+                metrics.socketio = {
+                    status: 'ok',
+                    connections: 'unknown',
+                    note: 'Socket count timed out'
+                };
+            }
         }
     } catch (error) {
         logger.warn('Failed to fetch socket stats for metrics:', error.message);

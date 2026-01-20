@@ -8,6 +8,7 @@ const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('..
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
+const { RoomError } = require('../../errors/GameError');
 
 module.exports = function playerHandlers(io, socket) {
 
@@ -17,7 +18,7 @@ module.exports = function playerHandlers(io, socket) {
     socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(playerTeamSchema, data);
@@ -47,7 +48,7 @@ module.exports = function playerHandlers(io, socket) {
     socket.on('player:setRole', createRateLimitedHandler(socket, 'player:role', async (data) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(playerRoleSchema, data);
@@ -86,7 +87,7 @@ module.exports = function playerHandlers(io, socket) {
     socket.on('player:setNickname', createRateLimitedHandler(socket, 'player:nickname', async (data) => {
         try {
             if (!socket.roomCode) {
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+                throw RoomError.notFound(socket.roomCode);
             }
 
             const validated = validateInput(playerNicknameSchema, data);
