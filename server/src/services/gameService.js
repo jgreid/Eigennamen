@@ -14,11 +14,13 @@ const {
     ASSASSIN_CARDS,
     DEFAULT_WORDS,
     REDIS_TTL,
-    ERROR_CODES
+    ERROR_CODES,
+    GAME_HISTORY,
+    RETRIES
 } = require('../config/constants');
 
-// Maximum history entries to prevent unbounded memory growth
-const MAX_HISTORY_ENTRIES = 200;
+// Use centralized constant
+const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
 
 /**
  * Seeded random number generator using Mulberry32 algorithm
