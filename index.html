@@ -19,109 +19,354 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 0;
             color: #fff;
+            font-size: 16px;
+            line-height: 1.5;
         }
 
-        .container {
-            max-width: 900px;
+        /* ========== TWO-COLUMN DESKTOP LAYOUT ========== */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+            max-width: 1800px;
             margin: 0 auto;
         }
 
+        /* Left Sidebar - 25% width, fixed position feel */
+        .sidebar {
+            width: 320px;
+            min-width: 280px;
+            max-width: 360px;
+            flex-shrink: 0;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: rgba(15, 15, 26, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            height: 100vh;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+        }
+
+        /* Right Main Area - 75% width */
+        .main-content {
+            flex: 1;
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* ========== HEADER ========== */
         header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
         }
 
         h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: clamp(1.5rem, 2.5vw, 2rem);
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
+        .subtitle {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 400;
+        }
+
+        /* ========== GLASSMORPHISM PANELS ========== */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .glass-panel-subtle {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        /* ========== ROLE BANNER ========== */
         .role-banner {
             text-align: center;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 15px;
+            padding: 14px 16px;
+            border-radius: 12px;
             font-weight: 600;
+            font-size: 0.95rem;
+            line-height: 1.4;
         }
 
         .role-banner.host {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(17, 153, 142, 0.3) 0%, rgba(56, 239, 125, 0.2) 100%);
+            border: 1px solid rgba(56, 239, 125, 0.4);
+            color: #38ef7d;
         }
 
         .role-banner.spymaster-red {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.25) 0%, rgba(192, 57, 43, 0.15) 100%);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            color: #ff6b5b;
         }
 
         .role-banner.spymaster-blue {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.25) 0%, rgba(41, 128, 185, 0.15) 100%);
+            border: 1px solid rgba(52, 152, 219, 0.5);
+            color: #5dade2;
         }
 
         .role-banner.viewer {
-            background: rgba(108, 117, 125, 0.3);
-            border: 2px solid #6c757d;
-            color: #f8f9fa;
+            background: rgba(108, 117, 125, 0.15);
+            border: 1px solid rgba(108, 117, 125, 0.3);
+            color: #adb5bd;
+        }
+
+        .role-banner.clicker-red {
+            background: linear-gradient(135deg, rgba(192, 57, 43, 0.25) 0%, rgba(150, 45, 34, 0.15) 100%);
+            border: 1px solid rgba(192, 57, 43, 0.5);
+            color: #e57373;
+        }
+
+        .role-banner.clicker-blue {
+            background: linear-gradient(135deg, rgba(41, 128, 185, 0.25) 0%, rgba(31, 99, 145, 0.15) 100%);
+            border: 1px solid rgba(41, 128, 185, 0.5);
+            color: #64b5f6;
+        }
+
+        .role-banner.spectator-red {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            color: #e57373;
+        }
+
+        .role-banner.spectator-blue {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            color: #64b5f6;
         }
 
         .role-banner small {
             display: block;
             font-weight: normal;
-            margin-top: 4px;
-            opacity: 0.9;
+            margin-top: 6px;
+            opacity: 0.85;
+            font-size: 0.8rem;
+            line-height: 1.4;
         }
 
+        /* ========== SCOREBOARD ========== */
+        .scoreboard {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .score {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        .score.red {
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.25) 0%, rgba(220, 53, 69, 0.1) 100%);
+            border: 2px solid rgba(220, 53, 69, 0.6);
+            color: #ff6b6b;
+        }
+
+        .score.blue {
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.25) 0%, rgba(0, 123, 255, 0.1) 100%);
+            border: 2px solid rgba(0, 123, 255, 0.6);
+            color: #74b9ff;
+        }
+
+        .score .team-name {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .score .count {
+            font-size: 1.4rem;
+            font-weight: 800;
+        }
+
+        /* ========== TURN INDICATOR ========== */
+        .turn-indicator {
+            text-align: center;
+            font-size: 1rem;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .turn-indicator.red-turn {
+            background: linear-gradient(135deg, rgba(220, 53, 69, 0.2) 0%, rgba(220, 53, 69, 0.08) 100%);
+            border: 1px solid rgba(220, 53, 69, 0.4);
+            color: #ff6b6b;
+        }
+
+        .turn-indicator.blue-turn {
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.2) 0%, rgba(0, 123, 255, 0.08) 100%);
+            border: 1px solid rgba(0, 123, 255, 0.4);
+            color: #74b9ff;
+        }
+
+        .turn-indicator.game-over {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.08) 100%);
+            border: 1px solid rgba(255, 193, 7, 0.4);
+            color: #ffc107;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+        }
+
+        .turn-indicator.your-turn {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        /* ========== CONTROLS ========== */
         .controls {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
         }
 
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-section-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 600;
+            padding-left: 4px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .control-group.team-red {
+            background: rgba(231, 76, 60, 0.08);
+            border: 1px solid rgba(231, 76, 60, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .control-group.team-blue {
+            background: rgba(52, 152, 219, 0.08);
+            border: 1px solid rgba(52, 152, 219, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .control-group-label {
+            width: 100%;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #red-team-controls .control-group-label {
+            color: #e57373;
+        }
+
+        #blue-team-controls .control-group-label {
+            color: #64b5f6;
+        }
+
+        /* ========== BUTTONS ========== */
         button {
-            padding: 10px 20px;
-            font-size: 1rem;
+            padding: 10px 16px;
+            font-size: 0.85rem;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
             font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         button:hover {
-            transform: translateY(-2px);
+            transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
-        /* Button click feedback */
         button:active:not(:disabled) {
-            transform: scale(0.95);
+            transform: scale(0.97);
             transition: transform 0.1s ease;
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
             transform: none;
         }
 
-        /* Focus styles for keyboard navigation */
         button:focus-visible,
         .card:focus-visible {
-            outline: 3px solid #ffc107;
+            outline: 2px solid #ffc107;
             outline-offset: 2px;
         }
 
         .btn-new-game {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+        }
+
+        .btn-team-red,
+        .btn-spymaster-red,
+        .btn-clicker-red {
+            flex: 1;
+            min-width: 70px;
+        }
+
+        .btn-team-blue,
+        .btn-spymaster-blue,
+        .btn-clicker-blue {
+            flex: 1;
+            min-width: 70px;
         }
 
         .btn-spymaster-red {
@@ -130,7 +375,7 @@
         }
 
         .btn-spymaster-red.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #e74c3c;
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e74c3c;
         }
 
         .btn-spymaster-blue {
@@ -139,7 +384,7 @@
         }
 
         .btn-spymaster-blue.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3498db;
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3498db;
         }
 
         .btn-clicker-red {
@@ -148,7 +393,7 @@
         }
 
         .btn-clicker-red.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #c0392b;
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #c0392b;
         }
 
         .btn-clicker-blue {
@@ -157,10 +402,70 @@
         }
 
         .btn-clicker-blue.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #2980b9;
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2980b9;
         }
 
-        /* Checkmark for all active role buttons */
+        .btn-team-red {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .btn-team-red.active {
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e74c3c;
+        }
+
+        .btn-team-blue {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-team-blue.active {
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3498db;
+        }
+
+        .btn-spectate {
+            background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-spectate.active {
+            box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6c757d;
+        }
+
+        .btn-end-turn {
+            background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+            color: white;
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+        }
+
+        .btn-end-turn.can-act {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        .btn-end-turn:disabled {
+            animation: none;
+        }
+
+        .btn-end-turn.hidden {
+            display: none;
+        }
+
+        .btn-settings {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            flex: 1;
+        }
+
+        .btn-settings:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        /* Checkmark for active role buttons */
         .btn-team-red.active::before,
         .btn-team-blue.active::before,
         .btn-spymaster-red.active::before,
@@ -172,19 +477,7 @@
             font-weight: bold;
         }
 
-        /* Enhanced End Turn button when it's your turn */
-        .btn-end-turn.can-act {
-            animation: pulse-glow 2s ease-in-out infinite;
-            transform: scale(1.05);
-            color: white;
-        }
-
-        .btn-end-turn:disabled {
-            animation: none;
-            transform: none;
-        }
-
-        /* Visual hierarchy: muted inactive role buttons */
+        /* Muted inactive role buttons */
         .btn-team-red:not(.active),
         .btn-team-blue:not(.active),
         .btn-spymaster-red:not(.active),
@@ -192,8 +485,8 @@
         .btn-clicker-red:not(.active),
         .btn-clicker-blue:not(.active),
         .btn-spectate:not(.active) {
-            opacity: 0.7;
-            filter: saturate(0.8);
+            opacity: 0.65;
+            filter: saturate(0.7);
         }
 
         .btn-team-red:not(.active):hover,
@@ -207,163 +500,65 @@
             filter: saturate(1);
         }
 
-        /* Hide End Turn button when not relevant */
-        .btn-end-turn.hidden {
-            display: none;
-        }
-
-        .role-banner.clicker-red {
-            background: linear-gradient(135deg, #c0392b 0%, #962d22 100%);
+        .btn-copy {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             color: white;
         }
 
-        .role-banner.clicker-blue {
-            background: linear-gradient(135deg, #2980b9 0%, #1f6391 100%);
-            color: white;
+        /* ========== SHARE SECTION ========== */
+        .share-section {
+            margin-top: auto;
+            padding-top: 16px;
         }
 
-        .role-banner.spectator-red {
-            background: rgba(231, 76, 60, 0.2);
-            border: 2px solid #e74c3c;
-            color: #e74c3c;
+        .share-section label {
+            display: block;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .role-banner.spectator-blue {
-            background: rgba(52, 152, 219, 0.2);
-            border: 2px solid #3498db;
-            color: #3498db;
-        }
-
-        .btn-team-red {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            color: white;
-        }
-
-        .btn-team-red.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #e74c3c;
-        }
-
-        .btn-team-blue {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            color: white;
-        }
-
-        .btn-team-blue.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3498db;
-        }
-
-        .btn-spectate {
-            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-            color: white;
-        }
-
-        .btn-spectate.active {
-            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #95a5a6;
-        }
-
-        .control-group {
+        .share-input-group {
             display: flex;
-            gap: 5px;
-            padding: 8px 12px;
-            background: rgba(255,255,255,0.1);
+            gap: 8px;
+        }
+
+        .share-section input[type="text"] {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            align-items: center;
+            font-size: 0.8rem;
+            background: rgba(0, 0, 0, 0.3);
+            color: rgba(255, 255, 255, 0.7);
         }
 
-        .control-group-label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-right: 8px;
+        .share-section .btn-copy {
+            padding: 10px 16px;
+            font-size: 0.8rem;
         }
 
-        #red-team-controls .control-group-label {
-            color: #e74c3c;
-        }
-
-        #blue-team-controls .control-group-label {
-            color: #3498db;
-        }
-
-        .btn-settings {
-            background: linear-gradient(135deg, #a8a8a8 0%, #6b6b6b 100%);
-            color: white;
-        }
-
-        .scoreboard {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-bottom: 20px;
-            font-size: 1.2rem;
-        }
-
-        .score {
-            padding: 10px 30px;
-            border-radius: 10px;
-            font-weight: bold;
-        }
-
-        .score.red {
-            background: rgba(220, 53, 69, 0.8);
-            border: 3px solid #dc3545;
-        }
-
-        .score.blue {
-            background: rgba(0, 123, 255, 0.8);
-            border: 3px solid #007bff;
-        }
-
-        .team-name {
-            font-weight: bold;
-        }
-
-        .turn-indicator {
+        /* ========== WORD SOURCE ========== */
+        .word-source {
             text-align: center;
-            font-size: 1.3rem;
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: 600;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            padding: 8px 0;
         }
 
-        .turn-indicator.red-turn {
-            background: rgba(220, 53, 69, 0.3);
-            border: 2px solid #dc3545;
-        }
-
-        .turn-indicator.blue-turn {
-            background: rgba(0, 123, 255, 0.3);
-            border: 2px solid #007bff;
-        }
-
-        /* Pulsing animation for when it's your turn to act */
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 5px currentColor; }
-            50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
-        }
-
-        .turn-indicator.your-turn {
-            animation: pulse-glow 2s ease-in-out infinite;
-        }
-
-        .turn-indicator.your-turn.red-turn {
-            color: #dc3545;
-        }
-
-        .turn-indicator.your-turn.blue-turn {
-            color: #007bff;
-        }
-
-        .game-over {
-            background: rgba(255, 193, 7, 0.3) !important;
-            border: 2px solid #ffc107 !important;
+        /* ========== GAME BOARD ========== */
+        .board-container {
+            width: 100%;
+            max-width: 900px;
         }
 
         .board {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: clamp(8px, 1.5vw, 14px);
+            width: 100%;
         }
 
         .board.no-click .card:not(.revealed) {
@@ -372,34 +567,40 @@
 
         .board.no-click .card:not(.revealed):hover {
             transform: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
+        /* ========== CARDS - Optimized for readability ========== */
         .card {
-            aspect-ratio: 1.8;
+            aspect-ratio: 1.6;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 8px;
+            padding: clamp(8px, 1.5vw, 14px);
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             font-weight: 700;
             text-align: center;
-            font-size: clamp(0.85rem, 2.2vw, 1.15rem);
+            /* Larger font relative to card size for readability */
+            font-size: clamp(0.9rem, 1.8vw, 1.25rem);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            background: linear-gradient(145deg, #e8dcc4, #d4c4a8);
-            color: #333;
-            border: 3px solid #c4b896;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            letter-spacing: 0.3px;
+            line-height: 1.2;
+            /* Card styling */
+            background: linear-gradient(145deg, #f5f0e1, #e8dcc4);
+            color: #2c3e50;
+            border: 2px solid #d4c4a8;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
             position: relative;
             overflow: hidden;
+            word-break: break-word;
+            hyphens: auto;
         }
 
         .card:hover:not(.revealed) {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.5);
         }
 
         /* Card flip animation */
@@ -417,7 +618,7 @@
             cursor: default;
         }
 
-        /* Success ripple effect for correct guesses */
+        /* Success ripple effect */
         @keyframes success-ripple {
             0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); }
             100% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
@@ -431,12 +632,14 @@
             background: linear-gradient(145deg, #e74c3c, #c0392b);
             color: white;
             border-color: #a93226;
+            box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
         }
 
         .card.revealed.blue {
             background: linear-gradient(145deg, #3498db, #2980b9);
             color: white;
             border-color: #1f6391;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
         }
 
         .card.revealed.neutral {
@@ -449,70 +652,66 @@
             background: linear-gradient(145deg, #2c3e50, #1a252f);
             color: white;
             border-color: #17202a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
         }
 
-        /* Spymaster view highlights - colored outlines and dots */
+        /* ========== SPYMASTER VIEW ========== */
         .spymaster-mode .card:not(.revealed) {
             position: relative;
         }
 
-        /* Red cards: red outline and red dot */
         .spymaster-mode .card.spy-red:not(.revealed) {
             border-color: #e74c3c;
-            border-width: 4px;
+            border-width: 3px;
+            background: linear-gradient(145deg, #f5f0e1, #fce4e4);
         }
 
         .spymaster-mode .card.spy-red:not(.revealed)::before {
             content: '';
             position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 14px;
-            height: 14px;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: #e74c3c;
         }
 
-        /* Blue cards: blue outline and blue dot */
         .spymaster-mode .card.spy-blue:not(.revealed) {
             border-color: #3498db;
-            border-width: 4px;
+            border-width: 3px;
+            background: linear-gradient(145deg, #f5f0e1, #e4f0fc);
         }
 
         .spymaster-mode .card.spy-blue:not(.revealed)::before {
             content: '';
             position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 14px;
-            height: 14px;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: #3498db;
         }
 
-        /* Assassin: black outline and black dot */
         .spymaster-mode .card.spy-assassin:not(.revealed) {
             border-color: #1a1a1a;
-            border-width: 4px;
+            border-width: 3px;
+            background: linear-gradient(145deg, #f5f0e1, #e0e0e0);
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed)::before {
             content: '';
             position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 14px;
-            height: 14px;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: #1a1a1a;
         }
 
-        /* Neutral cards: no special outline or dot */
-        .spymaster-mode .card.spy-neutral:not(.revealed) {
-            /* Keep default card border */
-        }
-
-        /* Color-blind friendly mode - adds patterns to cards */
+        /* ========== COLOR-BLIND MODE ========== */
         .colorblind-mode .card.revealed.red::after,
         .colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
             content: '■';
@@ -520,7 +719,7 @@
             bottom: 3px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             opacity: 0.8;
         }
 
@@ -531,18 +730,17 @@
             bottom: 3px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             opacity: 0.8;
         }
 
-        /* Neutral cards only show shape when revealed, not in spymaster view */
         .colorblind-mode .card.revealed.neutral::after {
             content: '─';
             position: absolute;
             bottom: 3px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             opacity: 0.8;
         }
 
@@ -553,57 +751,45 @@
             bottom: 3px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             opacity: 0.8;
             color: #e74c3c;
         }
 
+        /* ========== INSTRUCTIONS (Sidebar) ========== */
         .instructions {
-            background: rgba(255,255,255,0.1);
-            padding: 20px;
-            border-radius: 12px;
-            margin-top: 20px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.6;
         }
 
         .instructions h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.4);
             margin-bottom: 10px;
         }
 
         .instructions ul {
-            list-style-position: inside;
-            line-height: 1.8;
+            list-style: none;
+            padding: 0;
         }
 
-        .share-section {
-            text-align: center;
-            margin-top: 15px;
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
+        .instructions li {
+            margin-bottom: 8px;
+            padding-left: 16px;
+            position: relative;
         }
 
-        .share-section input[type="text"] {
-            width: 100%;
-            max-width: 500px;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            font-size: 0.9rem;
-            margin-top: 10px;
+        .instructions li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: rgba(255, 255, 255, 0.3);
         }
 
-        .btn-copy {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-            margin-top: 10px;
-        }
-
-        .btn-end-turn {
-            background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
-            color: white;
-        }
-
-        /* Settings Modal */
+        /* ========== MODALS ========== */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -611,7 +797,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -622,76 +809,103 @@
         }
 
         .modal {
-            background: #1a1a2e;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 600px;
+            background: linear-gradient(145deg, #1e1e2e, #1a1a2e);
+            border-radius: 20px;
+            padding: 28px;
+            max-width: 550px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
-            border: 2px solid #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
 
         .modal h2 {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             text-align: center;
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .modal-section {
-            margin-bottom: 25px;
+            margin-bottom: 24px;
         }
 
         .modal-section h3 {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             color: #667eea;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .modal-section label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .modal-section input[type="text"] {
             width: 100%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
             font-size: 1rem;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .modal-section input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         .modal-section textarea {
             width: 100%;
             height: 150px;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
             font-size: 0.9rem;
             font-family: monospace;
             resize: vertical;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .modal-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         .modal-section p {
-            font-size: 0.9rem;
-            color: #aaa;
-            margin-top: 5px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 8px;
         }
 
         .modal-section .warning {
             color: #ffc107;
             background: rgba(255, 193, 7, 0.1);
-            padding: 10px;
-            border-radius: 5px;
+            padding: 10px 12px;
+            border-radius: 8px;
             margin-top: 10px;
+            border: 1px solid rgba(255, 193, 7, 0.2);
         }
 
         .modal-section .info {
             color: #4facfe;
             background: rgba(79, 172, 254, 0.1);
-            padding: 10px;
-            border-radius: 5px;
+            padding: 10px 12px;
+            border-radius: 8px;
             margin-top: 10px;
+            border: 1px solid rgba(79, 172, 254, 0.2);
         }
 
         .modal-buttons {
@@ -699,6 +913,7 @@
             gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
+            margin-top: 24px;
         }
 
         .btn-save {
@@ -707,8 +922,9 @@
         }
 
         .btn-cancel {
-            background: linear-gradient(135deg, #666 0%, #444 100%);
-            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .btn-reset {
@@ -717,9 +933,9 @@
         }
 
         .word-count {
-            font-size: 0.9rem;
-            color: #aaa;
-            margin-top: 5px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 6px;
         }
 
         .word-count.warning {
@@ -730,21 +946,15 @@
             color: #e74c3c;
         }
 
-        .word-source {
-            text-align: center;
-            font-size: 0.85rem;
-            color: #888;
-            margin-bottom: 10px;
-        }
-
         /* Confirm dialog */
         .confirm-dialog {
             text-align: center;
         }
 
         .confirm-dialog p {
-            margin-bottom: 20px;
-            font-size: 1.1rem;
+            margin-bottom: 24px;
+            font-size: 1.05rem;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         /* Game over modal */
@@ -753,147 +963,151 @@
         }
 
         .game-over-content .winner {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 16px;
+            border-radius: 12px;
         }
 
         .game-over-content .winner.red {
-            background: rgba(231, 76, 60, 0.3);
-            border: 2px solid #e74c3c;
+            background: rgba(231, 76, 60, 0.2);
+            border: 2px solid rgba(231, 76, 60, 0.5);
+            color: #ff6b6b;
         }
 
         .game-over-content .winner.blue {
-            background: rgba(52, 152, 219, 0.3);
-            border: 2px solid #3498db;
+            background: rgba(52, 152, 219, 0.2);
+            border: 2px solid rgba(52, 152, 219, 0.5);
+            color: #74b9ff;
         }
 
         .game-over-content .rotation-reminder {
             background: rgba(255, 193, 7, 0.1);
-            border: 2px solid #ffc107;
-            padding: 15px;
-            border-radius: 10px;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            padding: 16px;
+            border-radius: 12px;
             margin: 20px 0;
         }
 
         .game-over-content .rotation-reminder h4 {
             color: #ffc107;
             margin-bottom: 10px;
+            font-size: 0.95rem;
         }
 
-        /* Mobile optimizations */
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
+        .game-over-content .rotation-reminder p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        /* ========== TABLET RESPONSIVE (768px - 1024px) ========== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 280px;
+                min-width: 260px;
+                padding: 20px 16px;
             }
 
-            h1 {
-                font-size: 1.8rem;
-                margin-bottom: 8px;
-            }
-
-            /* Larger touch targets (44px minimum per Apple HIG) */
-            button {
-                min-height: 44px;
-                padding: 12px 16px;
-            }
-
-            .board {
-                gap: 5px;
+            .main-content {
+                padding: 20px 24px;
             }
 
             .card {
-                font-size: 0.6rem;
-                padding: 5px;
-                min-height: 44px;
+                font-size: clamp(0.8rem, 2vw, 1.1rem);
+            }
+        }
+
+        /* ========== MOBILE RESPONSIVE (< 768px) ========== */
+        @media (max-width: 768px) {
+            .app-layout {
+                flex-direction: column;
             }
 
-            .scoreboard {
-                gap: 15px;
-                flex-wrap: wrap;
-            }
-
-            .score {
-                padding: 8px 16px;
-                font-size: 1rem;
-            }
-
-            .controls {
-                gap: 8px;
-            }
-
-            .control-group {
-                padding: 6px 8px;
-                gap: 4px;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            .control-group-label {
+            .sidebar {
                 width: 100%;
-                text-align: center;
-                margin-right: 0;
+                max-width: none;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                padding: 16px;
+                gap: 12px;
+            }
+
+            .main-content {
+                padding: 16px;
+                min-height: auto;
+            }
+
+            header {
                 margin-bottom: 4px;
             }
 
-            /* Stack team controls vertically on very small screens */
-            .role-banner {
-                padding: 10px 15px;
-                font-size: 0.95rem;
+            h1 {
+                font-size: 1.4rem;
             }
 
-            .role-banner small {
-                font-size: 0.8rem;
+            .scoreboard {
+                gap: 10px;
             }
 
-            .turn-indicator {
-                font-size: 1.1rem;
-                padding: 8px;
+            .score {
+                padding: 10px 6px;
             }
 
-            /* Larger close areas for modals */
-            .modal {
-                padding: 20px;
+            .board {
+                gap: 6px;
             }
 
-            .modal-buttons {
-                gap: 8px;
-            }
-
-            .modal-buttons button {
-                flex: 1;
-                min-width: 100px;
-            }
-
-            .instructions {
-                padding: 15px;
-            }
-
-            .instructions ul {
-                font-size: 0.9rem;
-            }
-
-            .share-section {
-                padding: 12px;
-            }
-        }
-
-        /* Extra small screens */
-        @media (max-width: 400px) {
             .card {
-                font-size: 0.65rem;
-                word-break: break-word;
-                hyphens: auto;
-            }
-
-            .control-group {
-                width: 100%;
+                aspect-ratio: 1.5;
+                font-size: clamp(0.7rem, 3vw, 0.9rem);
+                padding: 6px;
+                border-radius: 8px;
             }
 
             button {
-                font-size: 0.9rem;
-                padding: 10px 12px;
+                min-height: 44px;
+                padding: 12px 14px;
+            }
+
+            .control-group.team-red,
+            .control-group.team-blue {
+                padding: 8px;
+            }
+
+            .instructions {
+                display: none;
+            }
+
+            .share-section {
+                margin-top: 12px;
+                padding-top: 12px;
+            }
+
+            .modal {
+                padding: 20px;
+                width: 95%;
+            }
+        }
+
+        /* ========== SMALL MOBILE (< 480px) ========== */
+        @media (max-width: 480px) {
+            .card {
+                font-size: clamp(0.6rem, 3.5vw, 0.8rem);
+                aspect-ratio: 1.4;
+                padding: 4px;
+            }
+
+            .btn-team-red,
+            .btn-team-blue,
+            .btn-spymaster-red,
+            .btn-spymaster-blue,
+            .btn-clicker-red,
+            .btn-clicker-blue {
+                min-width: 60px;
+                padding: 10px 8px;
+                font-size: 0.75rem;
             }
 
             .scoreboard {
@@ -903,11 +1117,10 @@
 
             .score {
                 width: 100%;
-                text-align: center;
             }
         }
 
-        /* Reduced motion for users who prefer it */
+        /* ========== REDUCED MOTION ========== */
         @media (prefers-reduced-motion: reduce) {
             *,
             *::before,
@@ -920,7 +1133,6 @@
             .turn-indicator.your-turn,
             .btn-end-turn.can-act {
                 animation: none;
-                /* Use static styling instead of animation */
                 box-shadow: 0 0 15px currentColor;
             }
 
@@ -930,7 +1142,7 @@
             }
         }
 
-        /* Skip link for keyboard users */
+        /* ========== ACCESSIBILITY ========== */
         .skip-link {
             position: absolute;
             top: -40px;
@@ -947,7 +1159,6 @@
             top: 0;
         }
 
-        /* Screen reader only text */
         .sr-only {
             position: absolute;
             width: 1px;
@@ -967,68 +1178,85 @@
     <!-- Screen reader announcements -->
     <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
-    <div class="container">
-        <header>
-            <h1>Codenames Online</h1>
-        </header>
+    <div class="app-layout">
+        <!-- LEFT SIDEBAR - Controls & Info -->
+        <aside class="sidebar">
+            <header>
+                <h1>Codenames</h1>
+                <div class="subtitle">Online Party Game</div>
+            </header>
 
-        <div class="role-banner" id="role-banner">
-            <!-- Filled by JS -->
-        </div>
-
-        <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
-            <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
-
-            <div class="control-group" id="red-team-controls">
-                <span class="control-group-label">Red:</span>
-                <button class="btn-team-red" id="btn-team-red" onclick="setTeam('red')" aria-label="Join Red team">Join</button>
-                <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Become Red Spymaster">Spymaster</button>
-                <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Become Red Clicker">Clicker</button>
+            <div class="role-banner" id="role-banner">
+                <!-- Filled by JS -->
             </div>
 
-            <div class="control-group" id="blue-team-controls">
-                <span class="control-group-label">Blue:</span>
-                <button class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')" aria-label="Join Blue team">Join</button>
-                <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Become Blue Spymaster">Spymaster</button>
-                <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Become Blue Clicker">Clicker</button>
+            <div class="scoreboard">
+                <div class="score red">
+                    <span id="red-team-name" class="team-name">Red</span>
+                    <span class="count"><span id="red-remaining">9</span> left</span>
+                </div>
+                <div class="score blue">
+                    <span id="blue-team-name" class="team-name">Blue</span>
+                    <span class="count"><span id="blue-remaining">8</span> left</span>
+                </div>
             </div>
 
-            <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without team">Spectate</button>
-            <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
-            <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
-        </div>
+            <div class="turn-indicator" id="turn-indicator">
+                Red Team's Turn
+            </div>
 
-        <div class="word-source" id="word-source"></div>
+            <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
+                <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
 
-        <div class="scoreboard">
-            <div class="score red"><span id="red-team-name" class="team-name">Red</span>: <span id="red-remaining">9</span> left</div>
-            <div class="score blue"><span id="blue-team-name" class="team-name">Blue</span>: <span id="blue-remaining">8</span> left</div>
-        </div>
+                <div class="control-group team-red" id="red-team-controls">
+                    <span class="control-group-label">Red Team</span>
+                    <button class="btn-team-red" id="btn-team-red" onclick="setTeam('red')" aria-label="Join Red team">Join</button>
+                    <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Become Red Spymaster">Spy</button>
+                    <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Become Red Clicker">Click</button>
+                </div>
 
-        <div class="turn-indicator" id="turn-indicator">
-            Red Team's Turn
-        </div>
+                <div class="control-group team-blue" id="blue-team-controls">
+                    <span class="control-group-label">Blue Team</span>
+                    <button class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')" aria-label="Join Blue team">Join</button>
+                    <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Become Blue Spymaster">Spy</button>
+                    <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Become Blue Clicker">Click</button>
+                </div>
 
-        <main>
-            <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
+                <div class="control-group">
+                    <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without team">Spectate</button>
+                    <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
+                </div>
+
+                <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
+            </div>
+
+            <div class="word-source" id="word-source"></div>
+
+            <div class="instructions">
+                <h3>Quick Guide</h3>
+                <ul>
+                    <li><strong>Join</strong> a team, then pick <strong>Spy</strong> (give clues) or <strong>Click</strong> (guess words)</li>
+                    <li>Spymaster sees the key and gives one-word clues</li>
+                    <li>Clicker reveals cards based on team's guesses</li>
+                    <li>Find all your team's words to win!</li>
+                </ul>
+            </div>
+
+            <div class="share-section">
+                <label for="share-link">Share Game Link</label>
+                <div class="share-input-group">
+                    <input type="text" id="share-link" readonly>
+                    <button class="btn-copy" onclick="copyLink()">Copy</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- RIGHT MAIN AREA - Game Board -->
+        <main class="main-content">
+            <div class="board-container">
+                <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
+            </div>
         </main>
-
-        <div class="share-section">
-            <strong>Share this link with all players:</strong>
-            <input type="text" id="share-link" readonly>
-            <br>
-            <button class="btn-copy" onclick="copyLink()">Copy Link</button>
-        </div>
-
-        <div class="instructions">
-            <h3>How to Play:</h3>
-            <ul>
-                <li><strong>Join a Team:</strong> Click "Join" under Red or Blue, or click "Spectate" to watch without a team.</li>
-                <li><strong>Pick a Role:</strong> Each team needs one <strong>Spymaster</strong> (sees the key, gives clues) and one <strong>Clicker</strong> (clicks cards to reveal guesses).</li>
-                <li><strong>Gameplay:</strong> Spymaster gives a clue, team discusses, Clicker clicks cards and ends the turn.</li>
-                <li><strong>Tip:</strong> Your current role is shown in the banner above. Click a different button to change roles.</li>
-            </ul>
-        </div>
     </div>
 
     <!-- Settings Modal -->
