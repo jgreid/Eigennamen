@@ -40,10 +40,9 @@ This opens a browser. Create your account and add a payment method.
 
 ## Step 3: Deploy
 
-Navigate to the server folder and launch:
+From the repository root, launch:
 
 ```
-cd server
 fly launch
 ```
 
@@ -159,9 +158,9 @@ fly launch
 To run locally without Fly.io:
 
 ```
+docker-compose up -d    # From repo root - starts PostgreSQL and Redis
 cd server
 npm install
-docker-compose up -d    # Starts PostgreSQL and Redis
 npm run dev             # Starts the server
 ```
 

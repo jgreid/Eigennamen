@@ -305,9 +305,10 @@ server/
 ├── prisma/
 │   └── schema.prisma     # Database schema
 ├── Dockerfile
-├── docker-compose.yml
 └── package.json
 ```
+
+**Note:** `docker-compose.yml` and `fly.toml` are in the repository root directory.
 
 ## Development
 

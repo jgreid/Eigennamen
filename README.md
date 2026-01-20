@@ -49,7 +49,6 @@ Upload `index.html` (and optionally `wordlist.txt`) to any web hosting service l
 For true real-time synchronization without URL sharing, use the optional multiplayer server:
 
 ```bash
-cd server
 docker-compose up -d
 ```
 
