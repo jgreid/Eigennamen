@@ -10,16 +10,16 @@
 
 const { getRedis, getPubSubClients } = require('../config/redis');
 const logger = require('../utils/logger');
+const { TIMER, REDIS_TTL } = require('../config/constants');
 
 // Local timers for this instance
 const localTimers = new Map();
 
-// Polling interval for orphaned timer recovery (30 seconds)
-const ORPHAN_CHECK_INTERVAL = 30000;
-// Maximum time to spend on orphan check (prevents blocking)
-const ORPHAN_CHECK_TIMEOUT = 5000;
-// Maximum number of keys to process per orphan check
-const MAX_ORPHAN_KEYS = 100;
+// Use centralized constants
+const ORPHAN_CHECK_INTERVAL = TIMER.ORPHAN_CHECK_INTERVAL_MS;
+const ORPHAN_CHECK_TIMEOUT = TIMER.ORPHAN_CHECK_TIMEOUT_MS;
+const MAX_ORPHAN_KEYS = TIMER.MAX_ORPHAN_KEYS;
+const TIMER_TTL_BUFFER = TIMER.TIMER_TTL_BUFFER_SECONDS;
 
 let orphanCheckInterval = null;
 
@@ -191,7 +191,7 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
     await redis.set(
         `${TIMER_KEY_PREFIX}${roomCode}`,
         JSON.stringify(timerData),
-        { EX: durationSeconds + 60 } // TTL slightly longer than timer duration
+        { EX: durationSeconds + TIMER_TTL_BUFFER } // TTL slightly longer than timer duration
     );
 
     // Set up local timeout
@@ -344,7 +344,7 @@ async function pauseTimer(roomCode) {
             const timer = JSON.parse(timerData);
             timer.paused = true;
             timer.remainingWhenPaused = remainingSeconds;
-            await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: 86400 }); // Keep for 24h when paused
+            await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: REDIS_TTL.PAUSED_TIMER });
         } catch (e) {
             logger.error(`Failed to parse timer data for ${roomCode}:`, e.message);
             return null;

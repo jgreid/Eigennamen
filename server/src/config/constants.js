@@ -1,5 +1,8 @@
 /**
  * Game Constants
+ *
+ * Centralized configuration for all game settings, rate limits, and system parameters.
+ * This file serves as the single source of truth for all configurable values.
  */
 
 module.exports = {
@@ -20,22 +23,85 @@ module.exports = {
         ROOM: 24 * 60 * 60,      // 24 hours
         PLAYER: 24 * 60 * 60,    // 24 hours (same as room to prevent orphaned players)
         SESSION_SOCKET: 5 * 60,  // 5 minutes
-        DISCONNECTED_PLAYER: 10 * 60  // 10 minutes grace period for reconnection
+        DISCONNECTED_PLAYER: 10 * 60,  // 10 minutes grace period for reconnection
+        PAUSED_TIMER: 24 * 60 * 60  // 24 hours for paused timers
     },
 
-    // Timer configuration
+    // Turn timer configuration
     TIMER: {
         DEFAULT_TURN_SECONDS: 120,  // 2 minutes default
         MIN_TURN_SECONDS: 30,
         MAX_TURN_SECONDS: 300,
-        WARNING_SECONDS: 30         // Warn when this many seconds remain
+        WARNING_SECONDS: 30,        // Warn when this many seconds remain
+        // Timer service internals
+        ORPHAN_CHECK_INTERVAL_MS: 30000,  // How often to check for orphaned timers
+        ORPHAN_CHECK_TIMEOUT_MS: 5000,    // Max time for orphan check
+        MAX_ORPHAN_KEYS: 100,             // Max keys to process per orphan check
+        TIMER_TTL_BUFFER_SECONDS: 60      // Extra TTL buffer for timer keys
     },
 
-    // Rate limits
+    // Rate limits for socket events
     RATE_LIMITS: {
-        'game:reveal': { window: 1000, max: 5 },
-        'game:clue': { window: 5000, max: 2 },
-        'chat:message': { window: 5000, max: 10 }
+        // Room events
+        'room:create': { window: 60000, max: 5 },     // 5 per minute
+        'room:join': { window: 60000, max: 10 },     // 10 per minute
+        'room:leave': { window: 60000, max: 10 },    // 10 per minute
+        'room:settings': { window: 5000, max: 5 },   // 5 per 5 seconds
+        // Game events
+        'game:start': { window: 5000, max: 2 },      // 2 per 5 seconds
+        'game:reveal': { window: 1000, max: 5 },     // 5 per second
+        'game:clue': { window: 5000, max: 2 },       // 2 per 5 seconds
+        'game:endTurn': { window: 2000, max: 3 },    // 3 per 2 seconds
+        'game:forfeit': { window: 10000, max: 2 },   // 2 per 10 seconds
+        'game:history': { window: 5000, max: 5 },    // 5 per 5 seconds
+        // Player events
+        'player:setTeam': { window: 2000, max: 5 },  // 5 per 2 seconds
+        'player:setRole': { window: 2000, max: 5 },  // 5 per 2 seconds
+        'player:setNickname': { window: 5000, max: 3 }, // 3 per 5 seconds
+        // Chat events
+        'chat:message': { window: 5000, max: 10 },   // 10 per 5 seconds
+        // Timer events
+        'timer:status': { window: 1000, max: 10 }    // 10 per second
+    },
+
+    // HTTP API rate limits
+    API_RATE_LIMITS: {
+        GENERAL: { window: 60000, max: 100 },        // 100 per minute
+        WORD_LIST_CREATE: { window: 60000, max: 10 } // 10 per minute
+    },
+
+    // Game history configuration
+    GAME_HISTORY: {
+        MAX_ENTRIES: 200  // Maximum history entries per game
+    },
+
+    // Validation constraints
+    VALIDATION: {
+        NICKNAME_MIN_LENGTH: 1,
+        NICKNAME_MAX_LENGTH: 30,
+        TEAM_NAME_MAX_LENGTH: 20,
+        CLUE_MAX_LENGTH: 50,
+        CLUE_NUMBER_MIN: 0,
+        CLUE_NUMBER_MAX: 25,
+        CHAT_MESSAGE_MAX_LENGTH: 500,
+        WORD_MIN_LENGTH: 2,
+        WORD_MAX_LENGTH: 30,
+        WORD_LIST_MIN_SIZE: 25,  // BOARD_SIZE
+        WORD_LIST_MAX_SIZE: 500
+    },
+
+    // Lock timeouts (in seconds)
+    LOCKS: {
+        SPYMASTER_ROLE: 5,        // Lock for spymaster role assignment
+        HOST_TRANSFER: 10,        // Lock for host transfer
+        TIMER_RESTART: 5          // Lock for timer restart
+    },
+
+    // Retry configuration
+    RETRIES: {
+        OPTIMISTIC_LOCK: 3,       // Retries for optimistic locking operations
+        PUB_SUB_CONNECT: 3,       // Retries for pub/sub connection
+        PUSH_RETRY_DELAYS: [2000, 4000, 8000, 16000]  // Exponential backoff
     },
 
     // Game teams and roles
