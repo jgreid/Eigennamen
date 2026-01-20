@@ -192,19 +192,20 @@ Share the room code with your friends. They can:
 
 You need at least 4 players for a proper game:
 - 2 Spymasters (one per team)
-- 2+ Guessers (at least one per team)
+- 2 Clickers (one per team)
+- Additional players as spectators/team members
 
 ### Step 3: Assign Teams and Roles
 
 Each player should:
 
-1. **Pick a team:** Click **"Red Team"** or **"Blue Team"**
+1. **Pick a team:** Join either the Red or Blue team
 2. **Pick a role:**
-   - **Spymaster:** Sees the key (which words belong to which team). Gives clues.
-   - **Guesser:** Tries to guess words based on clues. Can't see the key.
-   - **Spectator:** Just watches.
+   - **Spymaster:** Sees the key (which words belong to which team). Gives clues. Cannot click cards.
+   - **Clicker:** Clicks cards to reveal guesses and ends the team's turn.
+   - **Spectator:** Watches and discusses guesses with their team (default role).
 
-**Important:** Each team needs exactly one Spymaster!
+**Important:** Each team needs exactly one Spymaster and one Clicker!
 
 ### Step 4: Start the Game
 
@@ -231,14 +232,14 @@ The team going first has 9 words to find; the other team has 8.
 3. Say your clue and how many words it relates to
    - Example: *"Ocean: 3"* (three words relate to "ocean")
 
-**Guessers' Turn:**
+**Team's Turn:**
 1. Discuss which words might match the clue
-2. Click a card to reveal it:
+2. The **Clicker** clicks a card to reveal it:
    - **Your color:** Correct! You can keep guessing (up to clue number + 1)
    - **Neutral (beige):** Turn ends
    - **Opponent's color:** Turn ends, they get a point
    - **Assassin (black):** Game over - you lose!
-3. Click **"End Turn"** when done guessing
+3. The **Clicker** clicks **"End Turn"** when done guessing
 
 ### Step 7: Win!
 
@@ -257,9 +258,9 @@ Or if a team clicks the Assassin, they instantly lose.
 - The number tells your team how many cards relate to your clue
 - Say "unlimited" if you want them to guess as many as they like
 
-### For Guessers
+### For Clickers and Team Members
 
-- Discuss with your team before guessing
+- Discuss with your team before the clicker reveals a card
 - You can always make one more guess than the number given
 - Be careful near the Assassin - if you're unsure, end your turn
 - Pay attention to previous clues - they might still be relevant!
@@ -278,8 +279,8 @@ Or if a team clicks the Assassin, they instantly lose.
 |---------|----------|
 | Can't connect to server | Make sure Docker is running: `docker compose ps` |
 | "Room not found" | Room codes expire after 24 hours. Create a new room. |
-| Cards don't respond to clicks | Only the Host can click cards. |
-| Can't see spymaster view | Make sure you selected Spymaster role before the game started. |
+| Cards don't respond to clicks | Only the current team's Clicker can click cards during their turn. |
+| Can't see spymaster view | Make sure you selected Spymaster role. You'll see colored outlines and dots. |
 | Players can't join remotely (Docker) | They need to be on the same network, or use Fly.io for internet access. |
 
 ---

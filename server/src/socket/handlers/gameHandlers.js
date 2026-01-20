@@ -72,7 +72,7 @@ module.exports = function gameHandlers(io, socket) {
     }));
 
     /**
-     * Reveal a card (host only)
+     * Reveal a card (current team's clicker only)
      */
     socket.on('game:reveal', createRateLimitedHandler(socket, 'game:reveal', async (data) => {
         try {
@@ -82,10 +82,21 @@ module.exports = function gameHandlers(io, socket) {
 
             const validated = validateInput(gameRevealSchema, data);
 
-            // Verify player is host
+            // Verify player is the current team's clicker
             const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can reveal cards' };
+            if (!player || player.role !== 'clicker') {
+                throw { code: ERROR_CODES.NOT_CLICKER, message: 'Only clickers can reveal cards' };
+            }
+
+            // Get current game to check turn
+            const game = await gameService.getGame(socket.roomCode);
+            if (!game) {
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            }
+
+            // Verify it's the clicker's team's turn
+            if (player.team !== game.currentTurn) {
+                throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
             }
 
             const result = await gameService.revealCard(
@@ -189,7 +200,7 @@ module.exports = function gameHandlers(io, socket) {
     }));
 
     /**
-     * End the current turn (host only)
+     * End the current turn (current team's clicker only)
      */
     socket.on('game:endTurn', createRateLimitedHandler(socket, 'game:endTurn', async () => {
         try {
@@ -197,10 +208,21 @@ module.exports = function gameHandlers(io, socket) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
             }
 
-            // Verify player is host
+            // Verify player is the current team's clicker
             const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can end the turn' };
+            if (!player || player.role !== 'clicker') {
+                throw { code: ERROR_CODES.NOT_CLICKER, message: 'Only clickers can end the turn' };
+            }
+
+            // Get current game to check turn
+            const game = await gameService.getGame(socket.roomCode);
+            if (!game) {
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            }
+
+            // Verify it's the clicker's team's turn
+            if (player.team !== game.currentTurn) {
+                throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
             }
 
             const result = await gameService.endTurn(socket.roomCode, player.nickname);

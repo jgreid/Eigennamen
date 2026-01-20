@@ -17,7 +17,7 @@ async function createPlayer(sessionId, roomCode, nickname, isHost = false) {
         roomCode,
         nickname,
         team: null,
-        role: 'guesser',
+        role: 'spectator',
         isHost,
         connected: true,
         connectedAt: Date.now(),
@@ -47,7 +47,7 @@ async function createPlayerData(sessionId, roomCode, nickname, isHost = false) {
         roomCode,
         nickname,
         team: null,
-        role: 'guesser',
+        role: 'spectator',
         isHost,
         connected: true,
         connectedAt: Date.now(),
@@ -107,7 +107,8 @@ async function setTeam(sessionId, team) {
 }
 
 /**
- * Set player's role with atomic spymaster check to prevent race conditions
+ * Set player's role with atomic check to prevent race conditions
+ * Enforces one spymaster and one clicker per team
  */
 async function setRole(sessionId, role) {
     const redis = getRedis();
@@ -117,9 +118,9 @@ async function setRole(sessionId, role) {
         throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
     }
 
-    // If becoming spymaster, use a lock to prevent race conditions
-    if (role === 'spymaster' && player.team) {
-        const lockKey = `lock:spymaster:${player.roomCode}:${player.team}`;
+    // If becoming spymaster or clicker, use a lock to prevent race conditions
+    if ((role === 'spymaster' || role === 'clicker') && player.team) {
+        const lockKey = `lock:${role}:${player.roomCode}:${player.team}`;
 
         // Try to acquire lock (expires after 5 seconds)
         const lockAcquired = await redis.set(lockKey, sessionId, { NX: true, EX: 5 });
@@ -127,21 +128,21 @@ async function setRole(sessionId, role) {
         if (!lockAcquired) {
             throw {
                 code: ERROR_CODES.INVALID_INPUT,
-                message: `Another player is becoming spymaster, please try again`
+                message: `Another player is becoming ${role}, please try again`
             };
         }
 
         try {
-            // Check if team already has a spymaster
+            // Check if team already has this role
             const roomPlayers = await getPlayersInRoom(player.roomCode);
-            const existingSpymaster = roomPlayers.find(
-                p => p.team === player.team && p.role === 'spymaster' && p.sessionId !== sessionId
+            const existingPlayer = roomPlayers.find(
+                p => p.team === player.team && p.role === role && p.sessionId !== sessionId
             );
 
-            if (existingSpymaster) {
+            if (existingPlayer) {
                 throw {
                     code: ERROR_CODES.INVALID_INPUT,
-                    message: `${player.team} team already has a spymaster`
+                    message: `${player.team} team already has a ${role}`
                 };
             }
 

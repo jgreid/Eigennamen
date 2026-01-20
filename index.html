@@ -136,6 +136,34 @@
             box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3498db;
         }
 
+        .btn-clicker-red {
+            background: linear-gradient(135deg, #c0392b 0%, #962d22 100%);
+            color: white;
+        }
+
+        .btn-clicker-red.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #c0392b;
+        }
+
+        .btn-clicker-blue {
+            background: linear-gradient(135deg, #2980b9 0%, #1f6391 100%);
+            color: white;
+        }
+
+        .btn-clicker-blue.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #2980b9;
+        }
+
+        .role-banner.clicker-red {
+            background: linear-gradient(135deg, #c0392b 0%, #962d22 100%);
+            color: white;
+        }
+
+        .role-banner.clicker-blue {
+            background: linear-gradient(135deg, #2980b9 0%, #1f6391 100%);
+            color: white;
+        }
+
         .btn-settings {
             background: linear-gradient(135deg, #a8a8a8 0%, #6b6b6b 100%);
             color: white;
@@ -215,19 +243,19 @@
         }
 
         .card {
-            aspect-ratio: 1.6;
+            aspect-ratio: 1.8;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px;
-            border-radius: 12px;
+            padding: 8px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-weight: 600;
+            font-weight: 700;
             text-align: center;
-            font-size: clamp(0.7rem, 2vw, 1rem);
+            font-size: clamp(0.85rem, 2.2vw, 1.15rem);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             background: linear-gradient(145deg, #e8dcc4, #d4c4a8);
             color: #333;
             border: 3px solid #c4b896;
@@ -269,52 +297,65 @@
             border-color: #17202a;
         }
 
-        /* Spymaster view highlights */
+        /* Spymaster view highlights - colored outlines and dots */
         .spymaster-mode .card:not(.revealed) {
             position: relative;
         }
 
-        .spymaster-mode .card:not(.revealed)::before {
+        /* Red cards: red outline and red dot */
+        .spymaster-mode .card.spy-red:not(.revealed) {
+            border-color: #e74c3c;
+            border-width: 4px;
+        }
+
+        .spymaster-mode .card.spy-red:not(.revealed)::before {
             content: '';
             position: absolute;
             top: 5px;
             right: 5px;
-            width: 15px;
-            height: 15px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.5);
-        }
-
-        .spymaster-mode .card.spy-red:not(.revealed)::before {
             background: #e74c3c;
         }
 
+        /* Blue cards: blue outline and blue dot */
+        .spymaster-mode .card.spy-blue:not(.revealed) {
+            border-color: #3498db;
+            border-width: 4px;
+        }
+
         .spymaster-mode .card.spy-blue:not(.revealed)::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
             background: #3498db;
         }
 
-        .spymaster-mode .card.spy-neutral:not(.revealed)::before {
-            background: #95a5a6;
+        /* Assassin: black outline and black dot */
+        .spymaster-mode .card.spy-assassin:not(.revealed) {
+            border-color: #1a1a1a;
+            border-width: 4px;
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed)::before {
-            background: #2c3e50;
-            border-color: #e74c3c;
+            content: '';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #1a1a1a;
         }
 
-        .spymaster-mode .card.spy-red:not(.revealed) {
-            border-color: #e74c3c;
-            box-shadow: inset 0 0 20px rgba(231, 76, 60, 0.3);
-        }
-
-        .spymaster-mode .card.spy-blue:not(.revealed) {
-            border-color: #3498db;
-            box-shadow: inset 0 0 20px rgba(52, 152, 219, 0.3);
-        }
-
-        .spymaster-mode .card.spy-assassin:not(.revealed) {
-            border-color: #e74c3c;
-            box-shadow: inset 0 0 20px rgba(44, 62, 80, 0.5);
+        /* Neutral cards: no special outline or dot */
+        .spymaster-mode .card.spy-neutral:not(.revealed) {
+            /* Keep default card border */
         }
 
         /* Color-blind friendly mode - adds patterns to cards */
@@ -340,8 +381,8 @@
             opacity: 0.8;
         }
 
-        .colorblind-mode .card.revealed.neutral::after,
-        .colorblind-mode .spymaster-mode .card.spy-neutral:not(.revealed)::after {
+        /* Neutral cards only show shape when revealed, not in spymaster view */
+        .colorblind-mode .card.revealed.neutral::after {
             content: '─';
             position: absolute;
             bottom: 3px;
@@ -621,6 +662,8 @@
             <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
             <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Toggle Red Spymaster role" aria-pressed="false">Red Spymaster</button>
             <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Toggle Blue Spymaster role" aria-pressed="false">Blue Spymaster</button>
+            <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Toggle Red Clicker role" aria-pressed="false">Red Clicker</button>
+            <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Toggle Blue Clicker role" aria-pressed="false">Blue Clicker</button>
             <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
             <button class="btn-host" id="btn-become-host" onclick="becomeHost()" aria-label="Become the game host">Become Host</button>
             <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
@@ -647,12 +690,13 @@
         </div>
 
         <div class="instructions">
-            <h3>How to Play on Zoom:</h3>
+            <h3>How to Play:</h3>
             <ul>
-                <li><strong>Host:</strong> Creates game, shares screen, clicks cards. Click "Become Host" to take this role.</li>
-                <li><strong>Spymasters:</strong> One per team clicks their team's Spymaster button. They see the key but CANNOT click cards.</li>
-                <li><strong>Guessers:</strong> Watch the host's screen and call out guesses verbally.</li>
-                <li><strong>Rotation:</strong> After each game, pick new spymasters! (The game will remind you.)</li>
+                <li><strong>Host:</strong> Creates the game and manages game flow. Click "Become Host" to take this role.</li>
+                <li><strong>Spymasters:</strong> One per team - sees the key and gives clues. Cannot click cards.</li>
+                <li><strong>Clickers:</strong> One per team - clicks cards to reveal guesses and can end their team's turn.</li>
+                <li><strong>Spectators:</strong> Everyone else watches and discusses guesses with their team.</li>
+                <li><strong>Rotation:</strong> After each game, pick new spymasters and clickers!</li>
             </ul>
         </div>
     </div>
@@ -715,8 +759,8 @@
             <h2>Game Over!</h2>
             <div class="winner" id="winner-display"></div>
             <div class="rotation-reminder">
-                <h4>Time to Rotate Spymasters!</h4>
-                <p>For the next game, choose different players to be spymasters so everyone gets a turn giving clues.</p>
+                <h4>Time to Rotate Roles!</h4>
+                <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
             </div>
             <div class="modal-buttons">
                 <button class="btn-new-game" onclick="newGame(); closeGameOver();">New Game</button>
@@ -808,6 +852,7 @@
         // Role system
         let isHost = false;
         let spymasterTeam = null; // null, 'red', or 'blue'
+        let clickerTeam = null; // null, 'red', or 'blue'
 
         // Accessibility
         let colorblindMode = false;
@@ -946,6 +991,7 @@
             if (initGame(seed, activeWords)) {
                 isHost = true;
                 spymasterTeam = null; // Reset spymaster role on new game
+                clickerTeam = null; // Reset clicker role on new game
                 updateURL();
                 renderBoard();
                 updateScoreboard();
@@ -1027,9 +1073,10 @@
                 // Check for game over conditions
                 checkGameOver();
 
-                // Joining via link = viewer by default
+                // Joining via link = spectator by default
                 isHost = false;
                 spymasterTeam = null;
+                clickerTeam = null;
 
                 renderBoard();
                 updateScoreboard();
@@ -1078,12 +1125,20 @@
             } else if (spymasterTeam === 'blue') {
                 banner.className = 'role-banner spymaster-blue';
                 banner.innerHTML = `You are the <strong>${escapeHTML(teamNames.blue)}</strong> SPYMASTER<small>You can see the key - give clues to your team! (Cannot click cards)</small>`;
+            } else if (clickerTeam === 'red') {
+                banner.className = 'role-banner clicker-red';
+                const isYourTurn = gameState.currentTurn === 'red' && !gameState.gameOver;
+                banner.innerHTML = `You are the <strong>${escapeHTML(teamNames.red)}</strong> CLICKER<small>${isYourTurn ? "It's your turn! Click cards to reveal guesses" : "Wait for your team's turn to click cards"}</small>`;
+            } else if (clickerTeam === 'blue') {
+                banner.className = 'role-banner clicker-blue';
+                const isYourTurn = gameState.currentTurn === 'blue' && !gameState.gameOver;
+                banner.innerHTML = `You are the <strong>${escapeHTML(teamNames.blue)}</strong> CLICKER<small>${isYourTurn ? "It's your turn! Click cards to reveal guesses" : "Wait for your team's turn to click cards"}</small>`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
-                banner.innerHTML = 'You are the HOST<small>Share your screen and click cards as players guess</small>';
+                banner.innerHTML = 'You are the HOST<small>You manage the game - start new games when ready</small>';
             } else {
                 banner.className = 'role-banner viewer';
-                banner.innerHTML = 'You are a VIEWER<small>Watch the host\'s shared screen to see card reveals</small>';
+                banner.innerHTML = 'You are a SPECTATOR<small>Join a team and discuss guesses, or become a spymaster/clicker</small>';
             }
         }
 
@@ -1092,11 +1147,15 @@
             const becomeHostBtn = document.getElementById('btn-become-host');
             const redSpyBtn = document.getElementById('btn-spymaster-red');
             const blueSpyBtn = document.getElementById('btn-spymaster-blue');
+            const redClickerBtn = document.getElementById('btn-clicker-red');
+            const blueClickerBtn = document.getElementById('btn-clicker-blue');
 
-            // Host controls
-            const hostCanClick = isHost && !spymasterTeam;
-            endTurnBtn.disabled = !hostCanClick || gameState.gameOver;
-            becomeHostBtn.style.display = (isHost || spymasterTeam) ? 'none' : 'inline-block';
+            // Clicker can end turn when it's their team's turn
+            const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn;
+            endTurnBtn.disabled = !clickerCanAct || gameState.gameOver;
+
+            // Show become host button only if not already a special role
+            becomeHostBtn.style.display = (isHost || spymasterTeam || clickerTeam) ? 'none' : 'inline-block';
 
             // Spymaster buttons - update classes and ARIA pressed state
             const isRedSpy = spymasterTeam === 'red';
@@ -1105,11 +1164,20 @@
             blueSpyBtn.classList.toggle('active', isBlueSpy);
             redSpyBtn.setAttribute('aria-pressed', isRedSpy.toString());
             blueSpyBtn.setAttribute('aria-pressed', isBlueSpy.toString());
+
+            // Clicker buttons - update classes and ARIA pressed state
+            const isRedClicker = clickerTeam === 'red';
+            const isBlueClicker = clickerTeam === 'blue';
+            redClickerBtn.classList.toggle('active', isRedClicker);
+            blueClickerBtn.classList.toggle('active', isBlueClicker);
+            redClickerBtn.setAttribute('aria-pressed', isRedClicker.toString());
+            blueClickerBtn.setAttribute('aria-pressed', isBlueClicker.toString());
         }
 
         function becomeHost() {
             isHost = true;
             spymasterTeam = null; // Can't be both host and spymaster
+            clickerTeam = null; // Can't be both host and clicker
             updateRoleBanner();
             updateControls();
             renderBoard();
@@ -1122,6 +1190,21 @@
             } else {
                 spymasterTeam = team;
                 isHost = false; // Spymasters shouldn't also be hosts
+                clickerTeam = null; // Can't be both spymaster and clicker
+            }
+            updateRoleBanner();
+            updateControls();
+            renderBoard();
+        }
+
+        function setClicker(team) {
+            if (clickerTeam === team) {
+                // Toggle off
+                clickerTeam = null;
+            } else {
+                clickerTeam = team;
+                isHost = false; // Clickers shouldn't also be hosts
+                spymasterTeam = null; // Can't be both spymaster and clicker
             }
             updateRoleBanner();
             updateControls();
@@ -1129,7 +1212,8 @@
         }
 
         function canClickCards() {
-            return isHost && !spymasterTeam && !gameState.gameOver;
+            // Only the clicker for the current team can click cards
+            return clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
         }
 
         function renderBoard() {
@@ -1205,6 +1289,7 @@
             renderBoard();
             updateScoreboard();
             updateTurnIndicator();
+            updateRoleBanner();
             updateControls();
 
             if (gameState.gameOver) {
@@ -1254,10 +1339,13 @@
         }
 
         function endTurn() {
-            if (!canClickCards()) return;
+            // Only the current team's clicker can end the turn
+            if (!clickerTeam || clickerTeam !== gameState.currentTurn || gameState.gameOver) return;
             gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
             updateURL();
             updateTurnIndicator();
+            updateRoleBanner();
+            updateControls();
         }
 
         function updateScoreboard() {

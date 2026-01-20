@@ -40,7 +40,7 @@ module.exports = {
 
     // Game teams and roles
     TEAMS: ['red', 'blue'],
-    ROLES: ['spymaster', 'guesser', 'spectator'],
+    ROLES: ['spymaster', 'clicker', 'spectator'],
     CARD_TYPES: ['red', 'blue', 'neutral', 'assassin'],
 
     // Room statuses
@@ -58,6 +58,7 @@ module.exports = {
         GAME_IN_PROGRESS: 'GAME_IN_PROGRESS',
         NOT_HOST: 'NOT_HOST',
         NOT_SPYMASTER: 'NOT_SPYMASTER',
+        NOT_CLICKER: 'NOT_CLICKER',
         NOT_YOUR_TURN: 'NOT_YOUR_TURN',
         CARD_ALREADY_REVEALED: 'CARD_ALREADY_REVEALED',
         GAME_OVER: 'GAME_OVER',
