@@ -35,8 +35,8 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'"], // Game uses inline scripts
             styleSrc: ["'self'", "'unsafe-inline'"],  // Game uses inline styles
-            imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'", "wss:", "ws:"],    // WebSocket connections
+            imgSrc: ["'self'", 'data:', 'blob:'],
+            connectSrc: ["'self'", 'wss:', 'ws:'],    // WebSocket connections
             fontSrc: ["'self'"],
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
@@ -45,7 +45,7 @@ app.use(helmet({
         }
     },
     crossOriginEmbedderPolicy: false, // Required for some game assets
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
 }));
 
 app.use(cors({

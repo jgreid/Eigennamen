@@ -3,7 +3,7 @@
  */
 
 const { z } = require('zod');
-const { BOARD_SIZE, TEAMS, ROLES, VALIDATION } = require('../config/constants');
+const { BOARD_SIZE, VALIDATION } = require('../config/constants');
 
 // Team name validation regex - alphanumeric, spaces, hyphens only (defense-in-depth against XSS)
 const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;

@@ -59,7 +59,7 @@ async function connectDatabase() {
             : ['error']
     });
 
-    let lastError;
+    let lastError = null;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             await prisma.$connect();
@@ -78,7 +78,7 @@ async function connectDatabase() {
     }
 
     // Database connection failed - continue without it
-    logger.warn(`Failed to connect to PostgreSQL after ${MAX_RETRIES} attempts - continuing without database`);
+    logger.warn(`Failed to connect to PostgreSQL after ${MAX_RETRIES} attempts - continuing without database`, lastError?.message);
     logger.warn('Game will work normally, but user accounts and game history will be unavailable');
     prisma = null;
     databaseEnabled = false;

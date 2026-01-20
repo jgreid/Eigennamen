@@ -12,12 +12,10 @@ const {
     FIRST_TEAM_CARDS,
     SECOND_TEAM_CARDS,
     NEUTRAL_CARDS,
-    ASSASSIN_CARDS,
     DEFAULT_WORDS,
     REDIS_TTL,
     ERROR_CODES,
-    GAME_HISTORY,
-    RETRIES
+    GAME_HISTORY
 } = require('../config/constants');
 
 // Use centralized constant
@@ -93,7 +91,6 @@ async function createGame(roomCode, options = {}) {
     // Get words - priority: direct wordList > wordListId > default
     let words = DEFAULT_WORDS;
     let usedWordListId = null;
-    let wordSource = 'default';
 
     // Option 1: Direct word list passed from client (no database needed)
     if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
@@ -106,7 +103,6 @@ async function createGame(roomCode, options = {}) {
 
         if (cleanedWords.length >= BOARD_SIZE) {
             words = cleanedWords;
-            wordSource = 'custom';
             logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
         } else {
             logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
@@ -119,7 +115,6 @@ async function createGame(roomCode, options = {}) {
             if (customWords && customWords.length >= BOARD_SIZE) {
                 words = customWords;
                 usedWordListId = wordListId;
-                wordSource = 'database';
                 logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
             } else {
                 logger.warn(`Database word list ${wordListId} not found or too small, using default`);

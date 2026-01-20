@@ -12,15 +12,17 @@ const crypto = require('crypto');
 
 /**
  * Generate a secure edit token for anonymous word lists
+ * @private Reserved for future anonymous edit feature
  */
-function generateEditToken() {
+function _generateEditToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
 /**
  * Hash an edit token for secure storage
+ * @private Reserved for future anonymous edit feature
  */
-function hashEditToken(token) {
+function _hashEditToken(token) {
     return crypto.createHash('sha256').update(token).digest('hex');
 }
 

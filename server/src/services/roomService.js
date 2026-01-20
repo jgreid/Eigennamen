@@ -71,7 +71,7 @@ async function createRoom(hostSessionId, settings = {}) {
     }
 
     // Remove raw password from settings (don't store plaintext)
-    const { password, ...cleanSettings } = settings;
+    const { password: _password, ...cleanSettings } = settings;
 
     while (attempts < maxAttempts) {
         code = generateRoomCode();
@@ -248,7 +248,7 @@ async function joinRoom(code, sessionId, nickname, password = null) {
     await refreshRoomTTL(code);
 
     // Return room without passwordHash for security
-    const { passwordHash, ...safeRoom } = room;
+    const { passwordHash: _hash, ...safeRoom } = room;
 
     return {
         room: safeRoom,
@@ -328,7 +328,7 @@ async function updateSettings(code, sessionId, newSettings) {
             logger.info(`Password updated for room ${code}`);
         }
         // Remove password from settings to avoid storing it
-        const { password, ...cleanSettings } = newSettings;
+        const { password: _pass, ...cleanSettings } = newSettings;
         newSettings = cleanSettings;
     }
 
