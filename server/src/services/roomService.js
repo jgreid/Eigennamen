@@ -307,6 +307,7 @@ async function refreshRoomTTL(code) {
 
 /**
  * Clean up all data associated with a room
+ * Uses parallel operations for better performance
  */
 async function cleanupRoom(code) {
     const redis = getRedis();
@@ -314,16 +315,21 @@ async function cleanupRoom(code) {
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);
 
-    // Get all players in room and remove them
+    // Get all players in room
     const sessionIds = await redis.sMembers(`room:${code}:players`);
-    for (const sessionId of sessionIds) {
-        await redis.del(`player:${sessionId}`);
-    }
 
-    // Delete all room-related keys
-    await redis.del(`room:${code}`);
-    await redis.del(`room:${code}:players`);
-    await redis.del(`room:${code}:game`);
+    // Build list of all keys to delete (players + room keys)
+    const keysToDelete = [
+        ...sessionIds.map(sessionId => `player:${sessionId}`),
+        `room:${code}`,
+        `room:${code}:players`,
+        `room:${code}:game`
+    ];
+
+    // Delete all keys in parallel using DEL with multiple keys (single Redis call)
+    if (keysToDelete.length > 0) {
+        await redis.del(keysToDelete);
+    }
 
     logger.info(`Room ${code} and all associated data cleaned up`);
 }

@@ -79,7 +79,7 @@ const gameClueSchema = z.object({
         .min(1, 'Clue word is required')
         .max(50, 'Clue word too long')
         .trim()
-        .regex(/^[A-Za-z\s-]+$/, 'Clue must contain only letters, spaces, and hyphens'),
+        .regex(/^[A-Za-z\s\-']+$/, 'Clue must contain only letters, spaces, hyphens, and apostrophes'),
     number: z.number()
         .int()
         .min(0, 'Number must be 0 or greater')

@@ -3,6 +3,7 @@
  */
 
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const wordListService = require('./wordListService');
@@ -63,10 +64,10 @@ function shuffleWithSeed(array, seed) {
 
 /**
  * Generate a random game seed using crypto for better randomness
+ * Uses hoisted crypto module for performance (avoids require() per call)
  */
 function generateSeed() {
     try {
-        const crypto = require('crypto');
         return crypto.randomBytes(6).toString('hex');
     } catch (e) {
         // Fallback to Math.random if crypto is unavailable
