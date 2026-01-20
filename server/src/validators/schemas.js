@@ -19,10 +19,12 @@ const roomCreateSchema = z.object({
 });
 
 const roomJoinSchema = z.object({
+    // Room code validation - matches characters used by roomService.js generator
+    // Excludes: I, L (look like 1), O (looks like 0), 0 (zero), 1 (one)
     code: z.string()
         .length(6)
         .transform(s => s.toUpperCase())
-        .refine(s => /^[A-Z0-9]+$/.test(s), 'Invalid room code format'),
+        .refine(s => /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/.test(s), 'Invalid room code format'),
     nickname: z.string()
         .min(1, 'Nickname is required')
         .max(30, 'Nickname too long')

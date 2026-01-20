@@ -18,20 +18,23 @@ const router = express.Router();
 /**
  * Authentication middleware placeholder
  * Extracts user from JWT token if present
- * TODO: Implement full JWT authentication when user accounts are enabled
  */
 function extractUser(req, res, next) {
     // Check for Authorization header
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
+        const secret = process.env.JWT_SECRET;
+        // Only attempt JWT verification if secret is configured
+        if (!secret) {
+            logger.debug('JWT_SECRET not configured, skipping token verification');
+            return next();
+        }
+
         try {
             const token = authHeader.substring(7);
             const jwt = require('jsonwebtoken');
-            const secret = process.env.JWT_SECRET;
-            if (secret) {
-                const decoded = jwt.verify(token, secret);
-                req.user = decoded;
-            }
+            const decoded = jwt.verify(token, secret);
+            req.user = decoded;
         } catch (error) {
             // Invalid token - continue without user
             logger.debug('Invalid auth token in word list request');

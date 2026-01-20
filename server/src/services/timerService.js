@@ -96,29 +96,46 @@ return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeco
 
 /**
  * Initialize timer service with Redis pub/sub
+ * Includes retry logic for pub/sub subscription
  * Call this on server startup
  */
-async function initializeTimerService(onExpireCallback) {
-    try {
-        const { subClient } = getPubSubClients();
+async function initializeTimerService(onExpireCallback, maxRetries = 3) {
+    let retries = 0;
 
-        // Subscribe to timer events for coordination across instances
-        await subClient.subscribe(TIMER_CHANNEL, (message) => {
-            try {
-                const event = JSON.parse(message);
-                handleTimerEvent(event, onExpireCallback);
-            } catch (e) {
-                logger.error('Error handling timer event:', e);
+    const attemptSubscription = async () => {
+        try {
+            const { subClient } = getPubSubClients();
+
+            // Subscribe to timer events for coordination across instances
+            await subClient.subscribe(TIMER_CHANNEL, (message) => {
+                try {
+                    const event = JSON.parse(message);
+                    handleTimerEvent(event, onExpireCallback);
+                } catch (e) {
+                    logger.error('Error handling timer event:', e);
+                }
+            });
+
+            // Start orphan timer check
+            startOrphanCheck(onExpireCallback);
+
+            logger.info('Timer service initialized with Redis backing');
+            return true;
+        } catch (error) {
+            retries++;
+            if (retries < maxRetries) {
+                logger.warn(`Timer service pub/sub subscription failed (attempt ${retries}/${maxRetries}), retrying in 2s...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return attemptSubscription();
             }
-        });
+            logger.warn('Timer service running in single-instance mode (Redis pub/sub unavailable after retries)');
+            // Still start orphan check even without pub/sub - it works locally
+            startOrphanCheck(onExpireCallback);
+            return false;
+        }
+    };
 
-        // Start orphan timer check
-        startOrphanCheck(onExpireCallback);
-
-        logger.info('Timer service initialized with Redis backing');
-    } catch (error) {
-        logger.warn('Timer service running in single-instance mode (Redis pub/sub unavailable)');
-    }
+    return attemptSubscription();
 }
 
 /**

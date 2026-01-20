@@ -99,27 +99,32 @@ function createSocketRateLimiter(limits) {
 
     /**
      * Periodic cleanup of stale entries (call from a setInterval)
+     * Wrapped in try-catch to prevent cleanup failures from causing memory leaks
      */
     const cleanupStale = () => {
-        const now = Date.now();
-        const windows = Object.values(limits)
-            .map(l => l && typeof l.window === 'number' ? l.window : 0)
-            .filter(w => w > 0);
-        const maxWindow = windows.length > 0 ? Math.max(...windows) : 60000;
-        const windowStart = now - maxWindow;
+        try {
+            const now = Date.now();
+            const windows = Object.values(limits)
+                .map(l => l && typeof l.window === 'number' ? l.window : 0)
+                .filter(w => w > 0);
+            const maxWindow = windows.length > 0 ? Math.max(...windows) : 60000;
+            const windowStart = now - maxWindow;
 
-        let cleaned = 0;
-        for (const [key, timestamps] of requests.entries()) {
-            const filtered = timestamps.filter(t => t > windowStart);
-            if (filtered.length === 0) {
-                requests.delete(key);
-                cleaned++;
-            } else if (filtered.length !== timestamps.length) {
-                requests.set(key, filtered);
+            let cleaned = 0;
+            for (const [key, timestamps] of requests.entries()) {
+                const filtered = timestamps.filter(t => t > windowStart);
+                if (filtered.length === 0) {
+                    requests.delete(key);
+                    cleaned++;
+                } else if (filtered.length !== timestamps.length) {
+                    requests.set(key, filtered);
+                }
             }
-        }
-        if (cleaned > 0) {
-            logger.debug(`Cleaned up ${cleaned} stale rate limit entries`);
+            if (cleaned > 0) {
+                logger.debug(`Cleaned up ${cleaned} stale rate limit entries`);
+            }
+        } catch (error) {
+            logger.error('Error during rate limit cleanup:', error);
         }
     };
 
