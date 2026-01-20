@@ -48,16 +48,28 @@ class MemoryStorage {
     }
 
     /**
-     * Clean up expired keys
+     * Clean up expired keys with performance monitoring
      */
     _cleanupExpired() {
-        const now = Date.now();
+        const startTime = Date.now();
+        const initialCount = this.expiries.size;
+        const now = startTime;
+        let cleanedCount = 0;
+
         for (const [key, expiry] of this.expiries.entries()) {
             if (expiry <= now) {
                 this.data.delete(key);
                 this.sets.delete(key);
                 this.expiries.delete(key);
+                cleanedCount++;
             }
+        }
+
+        const elapsed = Date.now() - startTime;
+        // Log if cleanup took too long or cleaned many keys
+        if (elapsed > 50 || cleanedCount > 100) {
+            // Use console directly since logger may not be available in this module
+            console.warn(`Memory storage cleanup: ${cleanedCount}/${initialCount} keys in ${elapsed}ms`);
         }
     }
 

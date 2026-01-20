@@ -9,10 +9,11 @@ const compression = require('compression');
 const path = require('path');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter } = require('./middleware/rateLimit');
+const { apiLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
 const routes = require('./routes');
 const logger = require('./utils/logger');
+const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
 
 const app = express();
 
@@ -181,7 +182,7 @@ app.get('/health/live', (req, res) => {
     res.status(200).json({ status: 'alive' });
 });
 
-// Metrics endpoint (basic)
+// Metrics endpoint with rate limit visibility
 app.get('/metrics', async (req, res) => {
     const metrics = {
         timestamp: new Date().toISOString(),
@@ -227,6 +228,20 @@ app.get('/metrics', async (req, res) => {
     } catch (error) {
         logger.warn('Failed to fetch socket stats for metrics:', error.message);
         metrics.socketio = {
+            status: 'error',
+            error: error.message
+        };
+    }
+
+    // Add rate limit metrics for production visibility
+    try {
+        metrics.rateLimits = {
+            http: getHttpRateLimitMetrics(),
+            socket: getSocketRateLimitMetrics()
+        };
+    } catch (error) {
+        logger.warn('Failed to fetch rate limit metrics:', error.message);
+        metrics.rateLimits = {
             status: 'error',
             error: error.message
         };
