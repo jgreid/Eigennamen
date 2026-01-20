@@ -98,22 +98,39 @@ const strictLimiter = rateLimit({
     }
 });
 
+// IP multiplier - allows multiple legitimate users on same IP (corporate, shared wifi)
+const IP_RATE_LIMIT_MULTIPLIER = 5;
+
 /**
- * Socket event rate limiter (in-memory, per socket)
+ * Socket event rate limiter (in-memory, per socket AND per IP)
  * Returns an object with limiter and cleanup functions
  * Includes detailed metrics for production monitoring
+ * Implements dual-layer rate limiting:
+ *   1. Per-socket: Prevents single client from overwhelming
+ *   2. Per-IP: Prevents attackers from opening many connections
  */
 function createSocketRateLimiter(limits) {
-    const requests = new Map();
+    const socketRequests = new Map();  // Per-socket rate limiting
+    const ipRequests = new Map();      // Per-IP rate limiting (aggregate)
 
     // Metrics tracking
     const metrics = {
         totalRequests: 0,
         blockedRequests: 0,
+        blockedByIP: 0,
         requestsByEvent: {},
         blockedByEvent: {},
         uniqueSockets: new Set(),
+        uniqueIPs: new Set(),
         lastReset: Date.now()
+    };
+
+    /**
+     * Get client IP from socket (set by socketAuth middleware)
+     */
+    const getSocketIP = (socket) => {
+        // IP is stored on handshake by socketAuth middleware
+        return socket.clientIP || socket.handshake?.address || 'unknown';
     };
 
     /**
@@ -124,7 +141,9 @@ function createSocketRateLimiter(limits) {
         if (!limit) return (socket, data, next) => next();
 
         return (socket, data, next) => {
-            const key = `${socket.id}:${eventName}`;
+            const socketKey = `${socket.id}:${eventName}`;
+            const clientIP = getSocketIP(socket);
+            const ipKey = `ip:${clientIP}:${eventName}`;
             const now = Date.now();
             const windowStart = now - limit.window;
 
@@ -132,22 +151,37 @@ function createSocketRateLimiter(limits) {
             metrics.totalRequests++;
             metrics.requestsByEvent[eventName] = (metrics.requestsByEvent[eventName] || 0) + 1;
             metrics.uniqueSockets.add(socket.id);
+            metrics.uniqueIPs.add(clientIP);
 
-            // Get or initialize request timestamps
-            let timestamps = requests.get(key) || [];
+            // === Per-socket rate limiting ===
+            let socketTimestamps = socketRequests.get(socketKey) || [];
+            socketTimestamps = socketTimestamps.filter(t => t > windowStart);
 
-            // Filter to only timestamps within window
-            timestamps = timestamps.filter(t => t > windowStart);
-
-            if (timestamps.length >= limit.max) {
+            if (socketTimestamps.length >= limit.max) {
                 metrics.blockedRequests++;
                 metrics.blockedByEvent[eventName] = (metrics.blockedByEvent[eventName] || 0) + 1;
                 logger.warn(`Socket rate limit exceeded: ${socket.id} for event ${eventName}`);
                 return next(new Error('Rate limit exceeded'));
             }
 
-            timestamps.push(now);
-            requests.set(key, timestamps);
+            // === Per-IP rate limiting (with higher threshold) ===
+            const ipLimit = limit.max * IP_RATE_LIMIT_MULTIPLIER;
+            let ipTimestamps = ipRequests.get(ipKey) || [];
+            ipTimestamps = ipTimestamps.filter(t => t > windowStart);
+
+            if (ipTimestamps.length >= ipLimit) {
+                metrics.blockedRequests++;
+                metrics.blockedByIP++;
+                metrics.blockedByEvent[eventName] = (metrics.blockedByEvent[eventName] || 0) + 1;
+                logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipTimestamps.length} requests)`);
+                return next(new Error('IP rate limit exceeded'));
+            }
+
+            // Update timestamps for both socket and IP
+            socketTimestamps.push(now);
+            ipTimestamps.push(now);
+            socketRequests.set(socketKey, socketTimestamps);
+            ipRequests.set(ipKey, ipTimestamps);
 
             next();
         };
@@ -159,17 +193,18 @@ function createSocketRateLimiter(limits) {
      */
     const cleanupSocket = (socketId) => {
         const keysToDelete = [];
-        for (const key of requests.keys()) {
+        for (const key of socketRequests.keys()) {
             if (key.startsWith(`${socketId}:`)) {
                 keysToDelete.push(key);
             }
         }
         for (const key of keysToDelete) {
-            requests.delete(key);
+            socketRequests.delete(key);
         }
         if (keysToDelete.length > 0) {
             logger.debug(`Cleaned up ${keysToDelete.length} rate limit entries for socket ${socketId}`);
         }
+        // Note: IP-based entries are not cleaned up per-socket as they aggregate across sockets
     };
 
     /**
@@ -185,18 +220,33 @@ function createSocketRateLimiter(limits) {
             const maxWindow = windows.length > 0 ? Math.max(...windows) : 60000;
             const windowStart = now - maxWindow;
 
-            let cleaned = 0;
-            for (const [key, timestamps] of requests.entries()) {
+            let cleanedSocket = 0;
+            let cleanedIP = 0;
+
+            // Clean socket-based entries
+            for (const [key, timestamps] of socketRequests.entries()) {
                 const filtered = timestamps.filter(t => t > windowStart);
                 if (filtered.length === 0) {
-                    requests.delete(key);
-                    cleaned++;
+                    socketRequests.delete(key);
+                    cleanedSocket++;
                 } else if (filtered.length !== timestamps.length) {
-                    requests.set(key, filtered);
+                    socketRequests.set(key, filtered);
                 }
             }
-            if (cleaned > 0) {
-                logger.debug(`Cleaned up ${cleaned} stale rate limit entries`);
+
+            // Clean IP-based entries
+            for (const [key, timestamps] of ipRequests.entries()) {
+                const filtered = timestamps.filter(t => t > windowStart);
+                if (filtered.length === 0) {
+                    ipRequests.delete(key);
+                    cleanedIP++;
+                } else if (filtered.length !== timestamps.length) {
+                    ipRequests.set(key, filtered);
+                }
+            }
+
+            if (cleanedSocket > 0 || cleanedIP > 0) {
+                logger.debug(`Cleaned up ${cleanedSocket} socket and ${cleanedIP} IP rate limit entries`);
             }
         } catch (error) {
             logger.error('Error during rate limit cleanup:', error);
@@ -204,9 +254,9 @@ function createSocketRateLimiter(limits) {
     };
 
     /**
-     * Get current size of rate limit map (for monitoring)
+     * Get current size of rate limit maps (for monitoring)
      */
-    const getSize = () => requests.size;
+    const getSize = () => socketRequests.size + ipRequests.size;
 
     /**
      * Get detailed metrics for monitoring
@@ -229,11 +279,14 @@ function createSocketRateLimiter(limits) {
         return {
             totalRequests: metrics.totalRequests,
             blockedRequests: metrics.blockedRequests,
+            blockedByIP: metrics.blockedByIP,
             blockRate: metrics.totalRequests > 0
                 ? ((metrics.blockedRequests / metrics.totalRequests) * 100).toFixed(2) + '%'
                 : '0%',
             uniqueSockets: metrics.uniqueSockets.size,
-            activeEntries: requests.size,
+            uniqueIPs: metrics.uniqueIPs.size,
+            activeSocketEntries: socketRequests.size,
+            activeIPEntries: ipRequests.size,
             requestsPerMinute: uptimeMinutes > 0
                 ? (metrics.totalRequests / uptimeMinutes).toFixed(2)
                 : 0,
@@ -249,9 +302,11 @@ function createSocketRateLimiter(limits) {
     const resetMetrics = () => {
         metrics.totalRequests = 0;
         metrics.blockedRequests = 0;
+        metrics.blockedByIP = 0;
         metrics.requestsByEvent = {};
         metrics.blockedByEvent = {};
         metrics.uniqueSockets.clear();
+        metrics.uniqueIPs.clear();
         metrics.lastReset = Date.now();
     };
 

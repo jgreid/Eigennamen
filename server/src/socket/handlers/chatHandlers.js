@@ -57,11 +57,19 @@ module.exports = function chatHandlers(io, socket) {
                 const teammates = players.filter(p => p.team === player.team);
 
                 for (const teammate of teammates) {
-                    io.to(`player:${teammate.sessionId}`).emit('chat:message', message);
+                    try {
+                        io.to(`player:${teammate.sessionId}`).emit('chat:message', message);
+                    } catch (emitError) {
+                        logger.error(`Failed to emit chat:message to ${teammate.sessionId}:`, emitError);
+                    }
                 }
             } else {
                 // Send to everyone in the room
-                io.to(`room:${socket.roomCode}`).emit('chat:message', message);
+                try {
+                    io.to(`room:${socket.roomCode}`).emit('chat:message', message);
+                } catch (emitError) {
+                    logger.error(`Failed to emit chat:message to room ${socket.roomCode}:`, emitError);
+                }
             }
 
         } catch (error) {

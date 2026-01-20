@@ -5,6 +5,7 @@
 const { getRedis } = require('../config/redis');
 const { v4: uuidv4 } = require('uuid');
 const { customAlphabet } = require('nanoid');
+const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
 const playerService = require('./playerService');
 const gameService = require('./gameService');
@@ -16,6 +17,9 @@ const {
     ROOM_STATUS,
     ERROR_CODES
 } = require('../config/constants');
+
+// Password hashing cost factor (lower for game passwords, not protecting sensitive accounts)
+const BCRYPT_SALT_ROUNDS = 8;
 
 // Generate room codes (uppercase alphanumeric, no confusing chars)
 const generateRoomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', ROOM_CODE_LENGTH);
@@ -49,6 +53,8 @@ return 1
 
 /**
  * Create a new room
+ * @param {string} hostSessionId - Session ID of the host
+ * @param {object} settings - Room settings including optional password
  */
 async function createRoom(hostSessionId, settings = {}) {
     const redis = getRedis();
@@ -57,6 +63,15 @@ async function createRoom(hostSessionId, settings = {}) {
     let code;
     let attempts = 0;
     const maxAttempts = 10;
+
+    // Hash password if provided
+    let passwordHash = null;
+    if (settings.password && settings.password.trim()) {
+        passwordHash = await bcrypt.hash(settings.password.trim(), BCRYPT_SALT_ROUNDS);
+    }
+
+    // Remove raw password from settings (don't store plaintext)
+    const { password, ...cleanSettings } = settings;
 
     while (attempts < maxAttempts) {
         code = generateRoomCode();
@@ -70,8 +85,10 @@ async function createRoom(hostSessionId, settings = {}) {
                 teamNames: { red: 'Red', blue: 'Blue' },
                 turnTimer: null,
                 allowSpectators: true,
-                ...settings
+                ...cleanSettings
             },
+            passwordHash, // Store hash, not plaintext
+            hasPassword: !!passwordHash, // Flag for UI
             createdAt: Date.now(),
             expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
         };
@@ -88,8 +105,11 @@ async function createRoom(hostSessionId, settings = {}) {
         if (created === 1) {
             // Room created successfully, now create host player
             const player = await playerService.createPlayer(hostSessionId, code, 'Host', true);
-            logger.info(`Room ${code} created by ${hostSessionId}`);
-            return { room, player };
+            logger.info(`Room ${code} created by ${hostSessionId}${passwordHash ? ' (password protected)' : ''}`);
+
+            // Return room without passwordHash for security
+            const { passwordHash: _, ...safeRoom } = room;
+            return { room: safeRoom, player };
         }
 
         // Room code collision, try again
@@ -146,8 +166,12 @@ return 1
 /**
  * Join an existing room
  * Uses Lua script for atomic capacity check and add to prevent race conditions
+ * @param {string} code - Room code
+ * @param {string} sessionId - Player's session ID
+ * @param {string} nickname - Player's nickname
+ * @param {string} password - Room password (if required)
  */
-async function joinRoom(code, sessionId, nickname) {
+async function joinRoom(code, sessionId, nickname, password = null) {
     const redis = getRedis();
 
     // Get room
@@ -165,6 +189,22 @@ async function joinRoom(code, sessionId, nickname) {
         player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
         isReconnecting = true;
     } else {
+        // Check password for new joins (not reconnections)
+        if (room.passwordHash) {
+            if (!password) {
+                throw {
+                    code: ERROR_CODES.ROOM_PASSWORD_REQUIRED,
+                    message: 'This room requires a password'
+                };
+            }
+            const passwordValid = await bcrypt.compare(password, room.passwordHash);
+            if (!passwordValid) {
+                throw {
+                    code: ERROR_CODES.ROOM_PASSWORD_INVALID,
+                    message: 'Incorrect room password'
+                };
+            }
+        }
         // Use Lua script for atomic capacity check and add
         const result = await redis.eval(
             ATOMIC_JOIN_SCRIPT,
@@ -207,8 +247,11 @@ async function joinRoom(code, sessionId, nickname) {
     // Refresh all room-related TTLs
     await refreshRoomTTL(code);
 
+    // Return room without passwordHash for security
+    const { passwordHash, ...safeRoom } = room;
+
     return {
-        room,
+        room: safeRoom,
         players: await playerService.getPlayersInRoom(code),
         game: gameState,
         player,
@@ -255,6 +298,9 @@ async function leaveRoom(code, sessionId) {
 
 /**
  * Update room settings (host only)
+ * @param {string} code - Room code
+ * @param {string} sessionId - Session ID of the requester
+ * @param {object} newSettings - New settings (may include password)
  */
 async function updateSettings(code, sessionId, newSettings) {
     const redis = getRedis();
@@ -268,6 +314,24 @@ async function updateSettings(code, sessionId, newSettings) {
         throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can update settings' };
     }
 
+    // Handle password update separately
+    if ('password' in newSettings) {
+        if (newSettings.password === null || newSettings.password === '') {
+            // Remove password
+            room.passwordHash = null;
+            room.hasPassword = false;
+            logger.info(`Password removed from room ${code}`);
+        } else if (newSettings.password && newSettings.password.trim()) {
+            // Set new password
+            room.passwordHash = await bcrypt.hash(newSettings.password.trim(), BCRYPT_SALT_ROUNDS);
+            room.hasPassword = true;
+            logger.info(`Password updated for room ${code}`);
+        }
+        // Remove password from settings to avoid storing it
+        const { password, ...cleanSettings } = newSettings;
+        newSettings = cleanSettings;
+    }
+
     room.settings = {
         ...room.settings,
         ...newSettings
@@ -275,7 +339,8 @@ async function updateSettings(code, sessionId, newSettings) {
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 
-    return room.settings;
+    // Return settings without passwordHash
+    return { ...room.settings, hasPassword: room.hasPassword };
 }
 
 /**

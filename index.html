@@ -2523,16 +2523,18 @@
             board.addEventListener('click', (e) => {
                 const card = e.target.closest('.card');
                 if (!card || card.classList.contains('revealed')) return;
-                const index = Array.from(board.children).indexOf(card);
-                if (index >= 0) revealCard(index);
+                // Use data-index attribute for O(1) lookup instead of indexOf
+                const index = parseInt(card.dataset.index, 10);
+                if (!isNaN(index) && index >= 0) revealCard(index);
             });
 
             // Single keydown handler using event delegation
             board.addEventListener('keydown', (e) => {
                 const card = e.target.closest('.card');
                 if (!card) return;
-                const index = Array.from(board.children).indexOf(card);
-                if (index < 0) return;
+                // Use data-index attribute for O(1) lookup instead of indexOf
+                const index = parseInt(card.dataset.index, 10);
+                if (isNaN(index) || index < 0) return;
 
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();

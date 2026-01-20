@@ -57,6 +57,12 @@ function createRateLimitedHandler(socket, eventName, handler) {
                 await handler(data);
             } catch (error) {
                 logger.error(`Error in ${eventName} handler:`, error);
+                // Report error to client so they know the operation failed
+                const errorEvent = `${eventName.split(':')[0]}:error`;
+                socket.emit(errorEvent, {
+                    code: error.code || 'SERVER_ERROR',
+                    message: error.message || 'An unexpected error occurred'
+                });
             }
         });
     };

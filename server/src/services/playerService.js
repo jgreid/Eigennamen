@@ -7,9 +7,14 @@ const logger = require('../utils/logger');
 const { REDIS_TTL, ERROR_CODES } = require('../config/constants');
 
 /**
- * Create a new player (adds to room's player set)
+ * Create a new player
+ * @param {string} sessionId - Player's session ID
+ * @param {string} roomCode - Room code
+ * @param {string} nickname - Player's nickname
+ * @param {boolean} isHost - Whether this player is the host
+ * @param {boolean} addToSet - Whether to add to room's player set (false if already added by Lua script)
  */
-async function createPlayer(sessionId, roomCode, nickname, isHost = false) {
+async function createPlayer(sessionId, roomCode, nickname, isHost = false, addToSet = true) {
     const redis = getRedis();
 
     const player = {
@@ -27,10 +32,12 @@ async function createPlayer(sessionId, roomCode, nickname, isHost = false) {
     // Save player data
     await redis.set(`player:${sessionId}`, JSON.stringify(player), { EX: REDIS_TTL.PLAYER });
 
-    // Add to room's player list
-    await redis.sAdd(`room:${roomCode}:players`, sessionId);
+    // Add to room's player list if requested
+    if (addToSet) {
+        await redis.sAdd(`room:${roomCode}:players`, sessionId);
+    }
 
-    logger.info(`Player ${nickname} (${sessionId}) created in room ${roomCode}`);
+    logger.info(`Player ${nickname} (${sessionId}) created in room ${roomCode}${addToSet ? '' : ' (data only)'}`);
 
     return player;
 }
@@ -38,28 +45,10 @@ async function createPlayer(sessionId, roomCode, nickname, isHost = false) {
 /**
  * Create player data only (session already added to room set by Lua script)
  * Used when atomic join script has already added the session to the players set
+ * @deprecated Use createPlayer with addToSet=false instead
  */
 async function createPlayerData(sessionId, roomCode, nickname, isHost = false) {
-    const redis = getRedis();
-
-    const player = {
-        sessionId,
-        roomCode,
-        nickname,
-        team: null,
-        role: 'spectator',
-        isHost,
-        connected: true,
-        connectedAt: Date.now(),
-        lastSeen: Date.now()
-    };
-
-    // Save player data only (session already in room's player set)
-    await redis.set(`player:${sessionId}`, JSON.stringify(player), { EX: REDIS_TTL.PLAYER });
-
-    logger.info(`Player ${nickname} (${sessionId}) data created in room ${roomCode}`);
-
-    return player;
+    return createPlayer(sessionId, roomCode, nickname, isHost, false);
 }
 
 /**
