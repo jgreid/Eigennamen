@@ -416,45 +416,64 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
     try {
         const newTimer = JSON.parse(result);
 
-        // Update local timer if we have one
+        // Helper to create timeout callback
+        const createTimeoutCallback = () => async () => {
+            try {
+                logger.info(`Timer expired for room ${roomCode}`);
+                localTimers.delete(roomCode);
+                await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+                try {
+                    const { pubClient } = getPubSubClients();
+                    await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
+                        type: 'expired',
+                        roomCode,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {
+                    // Pub/sub not available
+                }
+
+                if (onExpire) {
+                    try {
+                        onExpire(roomCode);
+                    } catch (callbackError) {
+                        logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                    }
+                }
+            } catch (error) {
+                logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
+            }
+        };
+
+        // Update or create local timer
         const localTimer = localTimers.get(roomCode);
         if (localTimer) {
+            // Clear existing timeout and create new one
             clearTimeout(localTimer.timeoutId);
 
-            // Set up new local timeout
-            const timeoutId = setTimeout(async () => {
-                try {
-                    logger.info(`Timer expired for room ${roomCode}`);
-                    localTimers.delete(roomCode);
-                    await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-                    try {
-                        const { pubClient } = getPubSubClients();
-                        await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                            type: 'expired',
-                            roomCode,
-                            timestamp: Date.now()
-                        }));
-                    } catch (e) {
-                        // Pub/sub not available
-                    }
-
-                    if (onExpire) {
-                        try {
-                            onExpire(roomCode);
-                        } catch (callbackError) {
-                            logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                        }
-                    }
-                } catch (error) {
-                    logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
-                }
-            }, newTimer.remainingSeconds * 1000);
+            const timeoutId = setTimeout(createTimeoutCallback(), newTimer.remainingSeconds * 1000);
 
             localTimers.set(roomCode, {
                 ...localTimer,
                 endTime: newTimer.endTime,
                 duration: newTimer.duration,
+                timeoutId,
+                onExpire
+            });
+        } else {
+            // No local timer exists - create one to handle the Redis timer
+            // This happens when addTime is called on an instance that doesn't own the timer
+            logger.info(`Creating local timer for room ${roomCode} (taking ownership via addTime)`);
+
+            const timeoutId = setTimeout(createTimeoutCallback(), newTimer.remainingSeconds * 1000);
+
+            localTimers.set(roomCode, {
+                roomCode,
+                startTime: Date.now(),
+                endTime: newTimer.endTime,
+                duration: newTimer.duration,
+                instanceId: process.pid.toString(),
                 timeoutId,
                 onExpire
             });

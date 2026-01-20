@@ -8,16 +8,39 @@ const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
 
 /**
- * Get client IP address from socket, handling proxies
- * Checks X-Forwarded-For header for proxy/load balancer scenarios
+ * Check if we should trust proxy headers (X-Forwarded-For)
+ * Only trust when explicitly configured or in known deployment environments
+ */
+function shouldTrustProxy() {
+    // Trust proxy if explicitly configured
+    if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1') {
+        return true;
+    }
+    // Auto-detect Fly.io deployment (sets FLY_APP_NAME)
+    if (process.env.FLY_APP_NAME) {
+        return true;
+    }
+    // Auto-detect Heroku (sets DYNO)
+    if (process.env.DYNO) {
+        return true;
+    }
+    // Don't trust by default in other environments
+    return false;
+}
+
+/**
+ * Get client IP address from socket, handling proxies securely
+ * Only trusts X-Forwarded-For when behind a known/configured proxy
  */
 function getClientIP(socket) {
-    // Check for X-Forwarded-For header (set by proxies/load balancers like Fly.io)
-    const xForwardedFor = socket.handshake.headers['x-forwarded-for'];
-    if (xForwardedFor) {
-        // X-Forwarded-For can contain multiple IPs; the first one is the original client
-        const ips = xForwardedFor.split(',').map(ip => ip.trim());
-        return ips[0];
+    // Only check X-Forwarded-For if we're configured to trust proxy
+    if (shouldTrustProxy()) {
+        const xForwardedFor = socket.handshake.headers['x-forwarded-for'];
+        if (xForwardedFor) {
+            // X-Forwarded-For can contain multiple IPs; the first one is the original client
+            const ips = xForwardedFor.split(',').map(ip => ip.trim());
+            return ips[0];
+        }
     }
     // Fall back to direct connection address
     return socket.handshake.address;
@@ -74,6 +97,9 @@ async function authenticateSocket(socket, next) {
 
         // Use validated session ID or generate new one
         socket.sessionId = validatedSessionId || uuidv4();
+
+        // Store client IP on socket for rate limiting
+        socket.clientIP = currentIP;
 
         // If token provided, verify and attach user info (only if JWT_SECRET is configured)
         if (token) {

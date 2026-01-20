@@ -3,18 +3,22 @@
  */
 
 const { z } = require('zod');
-const { BOARD_SIZE, TEAMS, ROLES } = require('../config/constants');
+const { BOARD_SIZE, TEAMS, ROLES, VALIDATION } = require('../config/constants');
+
+// Team name validation regex - alphanumeric, spaces, hyphens only (defense-in-depth against XSS)
+const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
 
 // Room schemas
 const roomCreateSchema = z.object({
     settings: z.object({
         teamNames: z.object({
-            red: z.string().max(20).default('Red'),
-            blue: z.string().max(20).default('Blue')
+            red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens').default('Red'),
+            blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens').default('Blue')
         }).optional(),
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
-        wordListId: z.string().uuid().nullable().optional()
+        wordListId: z.string().uuid().nullable().optional(),
+        password: z.string().max(50).optional()
     }).optional().default({})
 });
 
@@ -26,18 +30,20 @@ const roomJoinSchema = z.object({
         .transform(s => s.toUpperCase())
         .refine(s => /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/.test(s), 'Invalid room code format'),
     nickname: z.string()
-        .min(1, 'Nickname is required')
-        .max(30, 'Nickname too long')
-        .trim()
+        .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+        .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
+        .trim(),
+    password: z.string().max(50).optional()
 });
 
 const roomSettingsSchema = z.object({
     teamNames: z.object({
-        red: z.string().max(20),
-        blue: z.string().max(20)
+        red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens'),
+        blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens')
     }).optional(),
     turnTimer: z.number().int().min(30).max(300).nullable().optional(),
-    allowSpectators: z.boolean().optional()
+    allowSpectators: z.boolean().optional(),
+    password: z.string().max(50).nullable().optional()
 });
 
 // Player schemas
@@ -77,13 +83,13 @@ const gameRevealSchema = z.object({
 const gameClueSchema = z.object({
     word: z.string()
         .min(1, 'Clue word is required')
-        .max(50, 'Clue word too long')
+        .max(VALIDATION.CLUE_MAX_LENGTH, 'Clue word too long')
         .trim()
         .regex(/^[A-Za-z\s\-']+$/, 'Clue must contain only letters, spaces, hyphens, and apostrophes'),
     number: z.number()
         .int()
-        .min(0, 'Number must be 0 or greater')
-        .max(BOARD_SIZE, 'Number too large')
+        .min(VALIDATION.CLUE_NUMBER_MIN, 'Number must be 0 or greater')
+        .max(VALIDATION.CLUE_NUMBER_MAX, `Number must be between ${VALIDATION.CLUE_NUMBER_MIN} and ${VALIDATION.CLUE_NUMBER_MAX}`)
 });
 
 // Chat schemas

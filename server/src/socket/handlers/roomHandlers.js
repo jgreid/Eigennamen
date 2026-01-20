@@ -53,7 +53,8 @@ module.exports = function roomHandlers(io, socket) {
             const { room, players, game, player } = await roomService.joinRoom(
                 validated.code,
                 socket.sessionId,
-                validated.nickname
+                validated.nickname,
+                validated.password // Pass password if provided
             );
 
             // Track the room code in case we need to leave on error
