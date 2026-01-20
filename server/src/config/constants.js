@@ -94,7 +94,7 @@ module.exports = {
     // Lock timeouts (in seconds)
     LOCKS: {
         SPYMASTER_ROLE: 5,        // Lock for spymaster role assignment
-        HOST_TRANSFER: 10,        // Lock for host transfer
+        HOST_TRANSFER: 3,         // Lock for host transfer (reduced from 10s - DB ops are fast)
         TIMER_RESTART: 5          // Lock for timer restart
     },
 
