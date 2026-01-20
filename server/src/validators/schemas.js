@@ -44,7 +44,7 @@ const playerTeamSchema = z.object({
 });
 
 const playerRoleSchema = z.object({
-    role: z.enum(['spymaster', 'guesser', 'spectator'])
+    role: z.enum(['spymaster', 'clicker', 'spectator'])
 });
 
 const playerNicknameSchema = z.object({

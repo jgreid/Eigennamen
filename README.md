@@ -64,31 +64,40 @@ Then open `http://localhost:3000` in your browser. All players connect to the sa
 ### Game Setup
 
 1. **Host** opens the game and clicks "New Game"
-2. **Host** shares their screen via Zoom/Meet/etc.
-3. **Host** copies the game link and shares it with all players in chat
-4. **Everyone** opens the link in their own browser
+2. **Host** copies the game link and shares it with all players
+3. **Everyone** opens the link in their own browser
+4. **Each team** selects one Spymaster and one Clicker
 
-### Roles
+### Teams and Roles
+
+Players first join a team, then pick a role:
+
+**Team Affiliation:**
+- **Red Team** or **Blue Team** - Join a team to participate in discussions
+- **Unaffiliated** - Watch the game without being on a team
+
+**Roles (one per team):**
 
 | Role | What they do |
 |------|--------------|
-| **Host** | Shares screen, clicks cards as players guess. Only one person should be host. |
-| **Red Spymaster** | Sees the key showing which words belong to which team. Gives clues to the Red team. Cannot click cards. |
-| **Blue Spymaster** | Sees the key showing which words belong to which team. Gives clues to the Blue team. Cannot click cards. |
-| **Viewers/Guessers** | Watch the host's shared screen and call out guesses verbally. |
+| **Host** | Creates the game and manages game flow. One person per room. Can be on a team. |
+| **Spymaster** | Sees the key showing which words belong to which team. Gives clues. Cannot click cards. One per team. |
+| **Clicker** | Clicks cards to reveal guesses and can end their team's turn. One per team. |
+| **Team Member** | Discusses guesses with their team. Can become spymaster or clicker. |
+| **Spectator** | Watches without team affiliation. Default when joining. |
 
 ### Gameplay
 
 1. The team that goes first (shown in the turn indicator) has **9 words** to find; the other team has **8 words**
 2. The **Spymaster** gives a one-word clue and a number (e.g., "Animals: 3")
 3. The number indicates how many words on the board relate to the clue
-4. **Guessers** discuss and call out their guesses to the **Host**
-5. The **Host** clicks the guessed card to reveal it:
+4. **Team members** discuss and agree on guesses
+5. The **Clicker** clicks the guessed card to reveal it:
    - **Team's color** - Correct! Keep guessing (up to the number given + 1)
    - **Neutral (beige)** - Turn ends
    - **Opponent's color** - Turn ends, opponent gets a point
    - **Assassin (black)** - Game over! The team that picked it loses instantly
-6. Click **"End Turn"** when your team is done guessing
+6. The **Clicker** clicks **"End Turn"** when their team is done guessing
 7. First team to find all their words wins!
 
 ### Tips for Spymasters
@@ -161,15 +170,15 @@ This setting is saved locally and persists across sessions.
 
 All cards can be navigated and selected using the keyboard:
 - **Tab** - Move between cards
-- **Enter** or **Space** - Reveal the focused card (host only)
+- **Enter** or **Space** - Reveal the focused card (clicker only, during their team's turn)
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Cards don't respond to clicks | Make sure you've clicked "Become Host" first. Only the host can click cards. |
+| Cards don't respond to clicks | Make sure you've clicked a "Clicker" button for your team. Only the current team's clicker can click cards. |
 | Game link is very long | This happens with custom words. The words are encoded in the URL. Most browsers support URLs up to 2000+ characters. |
-| Can't see spymaster view | Click "Red Spymaster" or "Blue Spymaster" button. You'll see colored dots on cards showing their true types. |
+| Can't see spymaster view | Click "Red Spymaster" or "Blue Spymaster" button. You'll see colored outlines and dots on cards showing their true types. |
 | Game state not syncing | Make sure everyone has the latest URL. The host should re-share the link after any changes. |
 
 ## Browser Support
