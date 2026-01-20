@@ -128,7 +128,8 @@ describe('generateSeed', () => {
 
     test('returns string of expected length', () => {
         const seed = generateSeed();
-        expect(seed.length).toBe(8);
+        // Crypto-based seed is 12 hex chars (from 6 random bytes)
+        expect(seed.length).toBe(12);
     });
 
     test('generates unique seeds', () => {
@@ -167,9 +168,15 @@ describe('validateClueWord', () => {
             expect(result.valid).toBe(true);
         });
 
-        test('allows short words even if contained in board words', () => {
-            // "AN" is in "BANANA" but is only 2 chars
+        test('rejects short words if contained in board words', () => {
+            // "AN" is in "BANANA" - stricter validation blocks this exploit
             const result = validateClueWord('AN', boardWords);
+            expect(result.valid).toBe(false);
+        });
+
+        test('allows single-char words even if contained in board words', () => {
+            // Single character words like "A" or "I" are allowed as rare edge cases
+            const result = validateClueWord('A', boardWords);
             expect(result.valid).toBe(true);
         });
     });
@@ -212,9 +219,9 @@ describe('validateClueWord', () => {
             expect(result.valid).toBe(false);
         });
 
-        test('handles empty clue', () => {
+        test('rejects empty clue', () => {
             const result = validateClueWord('', boardWords);
-            expect(result.valid).toBe(true); // Empty clue not on board
+            expect(result.valid).toBe(false); // Empty clues are now explicitly rejected
         });
     });
 });

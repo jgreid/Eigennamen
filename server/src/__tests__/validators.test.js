@@ -106,8 +106,8 @@ describe('playerRoleSchema', () => {
         expect(result.success).toBe(true);
     });
 
-    test('accepts guesser role', () => {
-        const result = playerRoleSchema.safeParse({ role: 'guesser' });
+    test('accepts clicker role', () => {
+        const result = playerRoleSchema.safeParse({ role: 'clicker' });
         expect(result.success).toBe(true);
     });
 

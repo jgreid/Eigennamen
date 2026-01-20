@@ -100,25 +100,62 @@ async function updatePlayer(sessionId, updates) {
 }
 
 /**
- * Set player's team
+ * Lua script for atomic team change with role clearing
+ * Prevents race condition where role changes between read and write
+ */
+const ATOMIC_SET_TEAM_SCRIPT = `
+local playerKey = KEYS[1]
+local newTeam = ARGV[1]
+local ttl = tonumber(ARGV[2])
+
+local playerData = redis.call('GET', playerKey)
+if not playerData then
+    return nil
+end
+
+local player = cjson.decode(playerData)
+local oldTeam = player.team
+local oldRole = player.role
+
+player.team = newTeam
+player.lastSeen = tonumber(ARGV[3])
+
+-- Clear team-specific roles when switching teams
+if oldTeam ~= newTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
+    player.role = 'spectator'
+end
+
+redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
+return cjson.encode(player)
+`;
+
+/**
+ * Set player's team (atomic operation)
  * Clears spymaster/clicker role when switching teams (those roles are team-specific)
  */
 async function setTeam(sessionId, team) {
-    const player = await getPlayer(sessionId);
+    const redis = getRedis();
 
-    if (!player) {
+    const result = await redis.eval(
+        ATOMIC_SET_TEAM_SCRIPT,
+        {
+            keys: [`player:${sessionId}`],
+            arguments: [team || '', REDIS_TTL.PLAYER.toString(), Date.now().toString()]
+        }
+    );
+
+    if (!result) {
         throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
     }
 
-    const updates = { team };
-
-    // Clear team-specific roles when switching teams
-    if (player.team !== team && (player.role === 'spymaster' || player.role === 'clicker')) {
-        updates.role = 'spectator';
-        logger.info(`Player ${sessionId} role cleared to spectator (team change from ${player.team} to ${team})`);
+    try {
+        const player = JSON.parse(result);
+        logger.debug(`Player ${sessionId} team set to ${team}`);
+        return player;
+    } catch (e) {
+        logger.error(`Failed to parse player data after team change for ${sessionId}:`, e.message);
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to update player team' };
     }
-
-    return updatePlayer(sessionId, updates);
 }
 
 /**
@@ -255,18 +292,27 @@ async function handleDisconnect(sessionId) {
 
 /**
  * Map socket ID to session ID for reconnection and track client IP
+ * Only creates mapping if player exists to prevent orphaned mappings
  */
 async function setSocketMapping(sessionId, socketId, clientIP = null) {
     const redis = getRedis();
+
+    // First verify player exists to prevent orphaned socket mappings
+    const player = await getPlayer(sessionId);
+    if (!player) {
+        logger.debug(`Skipping socket mapping for non-existent player ${sessionId}`);
+        return false;
+    }
+
+    // Create socket mapping
     await redis.set(`session:${sessionId}:socket`, socketId, { EX: REDIS_TTL.SESSION_SOCKET });
 
     // Update last known IP for session security
     if (clientIP) {
-        const player = await getPlayer(sessionId);
-        if (player) {
-            await updatePlayer(sessionId, { lastIP: clientIP });
-        }
+        await updatePlayer(sessionId, { lastIP: clientIP });
     }
+
+    return true;
 }
 
 /**

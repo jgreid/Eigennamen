@@ -21,52 +21,83 @@ const {
 const generateRoomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', ROOM_CODE_LENGTH);
 
 /**
+ * Lua script for atomic room creation
+ * Uses SETNX (SET if Not eXists) to prevent race conditions
+ * Returns: 1 if created successfully, 0 if room already exists
+ */
+const ATOMIC_CREATE_ROOM_SCRIPT = `
+local roomKey = KEYS[1]
+local playersKey = KEYS[2]
+local roomData = ARGV[1]
+local ttl = tonumber(ARGV[2])
+
+-- Atomically try to create the room (only if it doesn't exist)
+local created = redis.call('SETNX', roomKey, roomData)
+if created == 0 then
+    return 0
+end
+
+-- Set TTL on the room
+redis.call('EXPIRE', roomKey, ttl)
+
+-- Initialize empty players set with same TTL
+redis.call('DEL', playersKey)
+redis.call('EXPIRE', playersKey, ttl)
+
+return 1
+`;
+
+/**
  * Create a new room
  */
 async function createRoom(hostSessionId, settings = {}) {
     const redis = getRedis();
 
-    // Generate unique room code
+    // Atomic room creation with unique code generation
     let code;
     let attempts = 0;
-    do {
-        code = generateRoomCode();
-        const exists = await redis.exists(`room:${code}`);
-        if (!exists) break;
-        attempts++;
-    } while (attempts < 10);
+    const maxAttempts = 10;
 
-    if (attempts >= 10) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to generate room code' };
+    while (attempts < maxAttempts) {
+        code = generateRoomCode();
+
+        const room = {
+            id: uuidv4(),
+            code,
+            hostSessionId,
+            status: ROOM_STATUS.WAITING,
+            settings: {
+                teamNames: { red: 'Red', blue: 'Blue' },
+                turnTimer: null,
+                allowSpectators: true,
+                ...settings
+            },
+            createdAt: Date.now(),
+            expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
+        };
+
+        // Atomically try to create the room
+        const created = await redis.eval(
+            ATOMIC_CREATE_ROOM_SCRIPT,
+            {
+                keys: [`room:${code}`, `room:${code}:players`],
+                arguments: [JSON.stringify(room), REDIS_TTL.ROOM.toString()]
+            }
+        );
+
+        if (created === 1) {
+            // Room created successfully, now create host player
+            const player = await playerService.createPlayer(hostSessionId, code, 'Host', true);
+            logger.info(`Room ${code} created by ${hostSessionId}`);
+            return { room, player };
+        }
+
+        // Room code collision, try again
+        attempts++;
+        logger.debug(`Room code collision for ${code}, attempt ${attempts}/${maxAttempts}`);
     }
 
-    const room = {
-        id: uuidv4(),
-        code,
-        hostSessionId,
-        status: ROOM_STATUS.WAITING,
-        settings: {
-            teamNames: { red: 'Red', blue: 'Blue' },
-            turnTimer: null,
-            allowSpectators: true,
-            ...settings
-        },
-        createdAt: Date.now(),
-        expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
-    };
-
-    // Save room with TTL
-    await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
-
-    // Initialize empty player list with same TTL
-    await redis.del(`room:${code}:players`);
-
-    // Create host player
-    const player = await playerService.createPlayer(hostSessionId, code, 'Host', true);
-
-    logger.info(`Room ${code} created by ${hostSessionId}`);
-
-    return { room, player };
+    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to generate room code' };
 }
 
 /**

@@ -16,20 +16,36 @@ const logger = require('./utils/logger');
 
 const app = express();
 
-// Security middleware
-app.use(helmet({
-    contentSecurityPolicy: false // Disable CSP for game assets
-}));
-
 // CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || '*';
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Warn if CORS is set to wildcard in production
+// Block wildcard CORS in production - this is a security risk
 if (isProduction && corsOrigin === '*') {
-    logger.warn('WARNING: CORS_ORIGIN is set to wildcard (*) in production. This allows requests from any origin.');
-    logger.warn('Consider setting CORS_ORIGIN to specific allowed origins for better security.');
+    logger.error('FATAL: CORS_ORIGIN cannot be wildcard (*) in production.');
+    logger.error('Set CORS_ORIGIN to your domain(s), e.g., CORS_ORIGIN=https://yourdomain.com');
+    process.exit(1);
 }
+
+// Security middleware with CSP enabled
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"], // Game uses inline scripts
+            styleSrc: ["'self'", "'unsafe-inline'"],  // Game uses inline styles
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'", "wss:", "ws:"],    // WebSocket connections
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'none'"],
+            upgradeInsecureRequests: isProduction ? [] : null
+        }
+    },
+    crossOriginEmbedderPolicy: false, // Required for some game assets
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 
 app.use(cors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()),

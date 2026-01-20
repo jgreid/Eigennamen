@@ -45,6 +45,7 @@ module.exports = function roomHandlers(io, socket) {
      * Join an existing room
      */
     socket.on('room:join', createRateLimitedHandler(socket, 'room:join', async (data) => {
+        let joinedRoomCode = null;
         try {
             const validated = validateInput(roomJoinSchema, data);
 
@@ -53,6 +54,9 @@ module.exports = function roomHandlers(io, socket) {
                 socket.sessionId,
                 validated.nickname
             );
+
+            // Track the room code in case we need to leave on error
+            joinedRoomCode = room.code;
 
             // Join the socket to the room
             socket.join(`room:${room.code}`);
@@ -68,6 +72,12 @@ module.exports = function roomHandlers(io, socket) {
             logger.info(`Player ${validated.nickname} joined room ${room.code}`);
 
         } catch (error) {
+            // Clean up socket room membership if we partially joined
+            if (joinedRoomCode) {
+                socket.leave(`room:${joinedRoomCode}`);
+                socket.roomCode = null;
+            }
+
             logger.error('Error joining room:', error);
             socket.emit('room:error', {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
