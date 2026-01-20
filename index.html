@@ -199,6 +199,10 @@
             color: white;
         }
 
+        .btn-spectate.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #95a5a6;
+        }
+
         .control-group {
             display: flex;
             gap: 5px;
@@ -710,19 +714,22 @@
 
         <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
             <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
-            <div class="control-group">
-                <span class="control-group-label">Team:</span>
-                <button class="btn-team-red" id="btn-team-red" onclick="setTeam('red')" aria-label="Join Red team" aria-pressed="false">Red</button>
-                <button class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')" aria-label="Join Blue team" aria-pressed="false">Blue</button>
-                <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without team">None</button>
+
+            <div class="control-group" id="red-team-controls">
+                <span class="control-group-label">Red:</span>
+                <button class="btn-team-red" id="btn-team-red" onclick="setTeam('red')" aria-label="Join Red team">Join</button>
+                <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Become Red Spymaster">Spymaster</button>
+                <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Become Red Clicker">Clicker</button>
             </div>
-            <div class="control-group">
-                <span class="control-group-label">Role:</span>
-                <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Toggle Red Spymaster role" aria-pressed="false">Red Spy</button>
-                <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Toggle Blue Spymaster role" aria-pressed="false">Blue Spy</button>
-                <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Toggle Red Clicker role" aria-pressed="false">Red Click</button>
-                <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Toggle Blue Clicker role" aria-pressed="false">Blue Click</button>
+
+            <div class="control-group" id="blue-team-controls">
+                <span class="control-group-label">Blue:</span>
+                <button class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')" aria-label="Join Blue team">Join</button>
+                <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Become Blue Spymaster">Spymaster</button>
+                <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Become Blue Clicker">Clicker</button>
             </div>
+
+            <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without team">Spectate</button>
             <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
             <button class="btn-host" id="btn-become-host" onclick="becomeHost()" aria-label="Become the game host">Become Host</button>
             <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
@@ -751,11 +758,10 @@
         <div class="instructions">
             <h3>How to Play:</h3>
             <ul>
-                <li><strong>1. Join a Team:</strong> Click Red or Blue to affiliate with a team, or None to spectate without a team.</li>
-                <li><strong>2. Pick a Role:</strong> Each team needs one Spymaster (sees the key, gives clues) and one Clicker (clicks cards).</li>
-                <li><strong>3. Play:</strong> Spymasters give clues, teams discuss, Clickers reveal guesses and end turns.</li>
-                <li><strong>Host:</strong> Creates games - click "Become Host" if needed.</li>
-                <li><strong>Rotation:</strong> After each game, pick new spymasters and clickers!</li>
+                <li><strong>Join a Team:</strong> Click "Join" under Red or Blue, or click "Spectate" to watch without a team.</li>
+                <li><strong>Pick a Role:</strong> Each team needs one <strong>Spymaster</strong> (sees the key, gives clues) and one <strong>Clicker</strong> (clicks cards to reveal guesses).</li>
+                <li><strong>Gameplay:</strong> Spymaster gives a clue, team discusses, Clicker clicks cards and ends the turn.</li>
+                <li><strong>Tip:</strong> Your current role is shown in the banner above. Click a different button to change roles.</li>
             </ul>
         </div>
     </div>
@@ -1229,29 +1235,32 @@
             // Show become host button only if not already a special role
             becomeHostBtn.style.display = (isHost || spymasterTeam || clickerTeam) ? 'none' : 'inline-block';
 
-            // Team buttons - show current team affiliation
-            const effectiveTeam = spymasterTeam || clickerTeam || playerTeam;
-            const isRedTeam = effectiveTeam === 'red';
-            const isBlueTeam = effectiveTeam === 'blue';
-            const isUnaffiliated = !effectiveTeam;
-            redTeamBtn.classList.toggle('active', isRedTeam);
-            blueTeamBtn.classList.toggle('active', isBlueTeam);
-            spectateBtn.classList.toggle('active', isUnaffiliated);
-            redTeamBtn.setAttribute('aria-pressed', isRedTeam.toString());
-            blueTeamBtn.setAttribute('aria-pressed', isBlueTeam.toString());
-            spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
-
-            // Spymaster buttons - update classes and ARIA pressed state
+            // Determine current state
             const isRedSpy = spymasterTeam === 'red';
             const isBlueSpy = spymasterTeam === 'blue';
+            const isRedClicker = clickerTeam === 'red';
+            const isBlueClicker = clickerTeam === 'blue';
+
+            // "Join" is active if on team but not spymaster/clicker for that team
+            const isRedMember = playerTeam === 'red' && !isRedSpy && !isRedClicker;
+            const isBlueMember = playerTeam === 'blue' && !isBlueSpy && !isBlueClicker;
+            const isUnaffiliated = !playerTeam && !spymasterTeam && !clickerTeam;
+
+            // Team "Join" buttons
+            redTeamBtn.classList.toggle('active', isRedMember);
+            blueTeamBtn.classList.toggle('active', isBlueMember);
+            spectateBtn.classList.toggle('active', isUnaffiliated);
+            redTeamBtn.setAttribute('aria-pressed', isRedMember.toString());
+            blueTeamBtn.setAttribute('aria-pressed', isBlueMember.toString());
+            spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
+
+            // Spymaster buttons
             redSpyBtn.classList.toggle('active', isRedSpy);
             blueSpyBtn.classList.toggle('active', isBlueSpy);
             redSpyBtn.setAttribute('aria-pressed', isRedSpy.toString());
             blueSpyBtn.setAttribute('aria-pressed', isBlueSpy.toString());
 
-            // Clicker buttons - update classes and ARIA pressed state
-            const isRedClicker = clickerTeam === 'red';
-            const isBlueClicker = clickerTeam === 'blue';
+            // Clicker buttons
             redClickerBtn.classList.toggle('active', isRedClicker);
             blueClickerBtn.classList.toggle('active', isBlueClicker);
             redClickerBtn.setAttribute('aria-pressed', isRedClicker.toString());
