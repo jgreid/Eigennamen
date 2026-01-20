@@ -8,12 +8,31 @@ const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
 
 /**
+ * Get client IP address from socket, handling proxies
+ * Checks X-Forwarded-For header for proxy/load balancer scenarios
+ */
+function getClientIP(socket) {
+    // Check for X-Forwarded-For header (set by proxies/load balancers like Fly.io)
+    const xForwardedFor = socket.handshake.headers['x-forwarded-for'];
+    if (xForwardedFor) {
+        // X-Forwarded-For can contain multiple IPs; the first one is the original client
+        const ips = xForwardedFor.split(',').map(ip => ip.trim());
+        return ips[0];
+    }
+    // Fall back to direct connection address
+    return socket.handshake.address;
+}
+
+/**
  * Authenticate socket connection
  * Includes session validation to prevent hijacking
  */
 async function authenticateSocket(socket, next) {
     try {
         const { sessionId, token } = socket.handshake.auth;
+
+        // Get client IP (handles proxies)
+        const currentIP = getClientIP(socket);
 
         // Validate and use provided session ID, or generate new one
         let validatedSessionId = null;
@@ -28,7 +47,6 @@ async function authenticateSocket(socket, next) {
                     // Only allow session reuse if player is disconnected (legitimate reconnection)
                     if (!existingPlayer.connected) {
                         // Additional security: check if IP address matches (if tracked)
-                        const currentIP = socket.handshake.address;
                         if (existingPlayer.lastIP && existingPlayer.lastIP !== currentIP) {
                             // Different IP - could be hijacking, require fresh session
                             logger.warn(`Session reuse blocked for ${sessionId} - IP mismatch (was ${existingPlayer.lastIP}, now ${currentIP})`);
@@ -39,7 +57,7 @@ async function authenticateSocket(socket, next) {
                         }
                     } else {
                         // Player is currently connected - potential hijacking attempt
-                        logger.warn(`Session hijacking attempt blocked for ${sessionId} from ${socket.handshake.address}`);
+                        logger.warn(`Session hijacking attempt blocked for ${sessionId} from ${currentIP}`);
                         // Generate new session instead of rejecting (more user-friendly)
                         validatedSessionId = null;
                     }
@@ -57,20 +75,25 @@ async function authenticateSocket(socket, next) {
         // Use validated session ID or generate new one
         socket.sessionId = validatedSessionId || uuidv4();
 
-        // If token provided, verify and attach user info
+        // If token provided, verify and attach user info (only if JWT_SECRET is configured)
         if (token) {
-            try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                socket.userId = decoded.userId;
-                socket.user = decoded;
-            } catch (err) {
-                // Invalid token, continue as anonymous
-                logger.warn(`Invalid token for socket ${socket.id}`);
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                logger.debug('JWT_SECRET not configured, skipping socket token verification');
+            } else {
+                try {
+                    const decoded = jwt.verify(token, secret);
+                    socket.userId = decoded.userId;
+                    socket.user = decoded;
+                } catch (err) {
+                    // Invalid token, continue as anonymous
+                    logger.warn(`Invalid token for socket ${socket.id}`);
+                }
             }
         }
 
         // Map socket ID to session ID for this connection (with IP tracking for security)
-        await playerService.setSocketMapping(socket.sessionId, socket.id, socket.handshake.address);
+        await playerService.setSocketMapping(socket.sessionId, socket.id, currentIP);
 
         logger.debug(`Socket authenticated: ${socket.id} -> session ${socket.sessionId}`);
         next();

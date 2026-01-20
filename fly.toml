@@ -17,9 +17,10 @@ primary_region = "iad"
   NODE_ENV = "production"
   PORT = "3000"
   LOG_LEVEL = "info"
-  # IMPORTANT: Set CORS_ORIGIN to your domain for security!
-  # Example: fly secrets set CORS_ORIGIN=https://your-app.fly.dev
-  # The app will fail to start if CORS_ORIGIN is not set in production
+
+  # CORS origin - set to your Fly app domain
+  # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
+  CORS_ORIGIN = "https://risley-codenames.fly.dev"
 
   # In-memory storage mode - no external dependencies required!
   # Game data lives in memory (lost on restart, but rooms are temporary anyway)
