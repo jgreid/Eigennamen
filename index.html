@@ -45,16 +45,15 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            background: rgba(15, 15, 26, 0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            /* Use solid background - backdrop-filter causes click issues on Chrome/Windows */
+            background: rgba(15, 15, 26, 0.95);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
             height: 100vh;
             overflow-y: auto;
             position: sticky;
             top: 0;
-            /* Fix Chrome/Windows hit-testing bug with backdrop-filter + sticky */
-            isolation: isolate;
+            /* Ensure clicks work properly */
+            touch-action: manipulation;
         }
 
         /* Right Main Area - 75% width */
@@ -246,21 +245,21 @@
             color: #ffc107;
         }
 
-        /* GPU-accelerated pulse animation using transform and opacity */
+        /* Pulse animation using opacity and box-shadow (no transform for Chrome/Windows compatibility) */
         @keyframes pulse-glow {
             0%, 100% {
-                transform: scale(1);
                 opacity: 1;
+                box-shadow: 0 0 10px currentColor;
             }
             50% {
-                transform: scale(1.02);
-                opacity: 0.9;
+                opacity: 0.85;
+                box-shadow: 0 0 20px currentColor;
             }
         }
 
         .turn-indicator.your-turn {
             animation: pulse-glow 2s ease-in-out infinite;
-            will-change: transform, opacity;
+            will-change: opacity;
         }
 
         /* ========== CONTROLS ========== */
@@ -268,9 +267,10 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            /* Ensure buttons are clickable with backdrop-filter on parent */
+            /* Ensure buttons are always clickable */
             position: relative;
             z-index: 1;
+            pointer-events: auto;
         }
 
         .control-section {
@@ -332,28 +332,31 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            transition: box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
+            /* Ensure clicks always work on Chrome/Windows */
+            pointer-events: auto;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(102, 126, 234, 0.3);
         }
 
         button:hover {
-            transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+            filter: brightness(1.1);
         }
 
         button:active:not(:disabled) {
-            transform: scale(0.97);
-            transition: transform 0.1s ease;
+            filter: brightness(0.9);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
         }
 
         button:disabled {
             opacity: 0.4;
             cursor: not-allowed;
-            transform: none;
         }
 
         button:focus-visible,
@@ -458,7 +461,7 @@
 
         .btn-end-turn.can-act {
             animation: pulse-glow 2s ease-in-out infinite;
-            will-change: transform, opacity;
+            will-change: opacity;
         }
 
         .btn-end-turn:disabled {
@@ -1423,8 +1426,8 @@
         }
 
         .btn-end-turn.disabled-visible:hover {
-            transform: none;
             box-shadow: none;
+            filter: none;
         }
 
         /* Primary button emphasis */
