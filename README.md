@@ -68,16 +68,23 @@ Then open `http://localhost:3000` in your browser. All players connect to the sa
 3. **Everyone** opens the link in their own browser
 4. **Each team** selects one Spymaster and one Clicker
 
-### Roles
+### Teams and Roles
+
+Players first join a team, then pick a role:
+
+**Team Affiliation:**
+- **Red Team** or **Blue Team** - Join a team to participate in discussions
+- **Unaffiliated** - Watch the game without being on a team
+
+**Roles (one per team):**
 
 | Role | What they do |
 |------|--------------|
-| **Host** | Creates the game and manages game flow. One person per room. |
-| **Red Spymaster** | Sees the key showing which words belong to which team. Gives clues to the Red team. Cannot click cards. |
-| **Blue Spymaster** | Sees the key showing which words belong to which team. Gives clues to the Blue team. Cannot click cards. |
-| **Red Clicker** | Clicks cards to reveal guesses and can end the Red team's turn. One per team. |
-| **Blue Clicker** | Clicks cards to reveal guesses and can end the Blue team's turn. One per team. |
-| **Spectators** | Watch the game and discuss guesses with their team. Default role when joining. |
+| **Host** | Creates the game and manages game flow. One person per room. Can be on a team. |
+| **Spymaster** | Sees the key showing which words belong to which team. Gives clues. Cannot click cards. One per team. |
+| **Clicker** | Clicks cards to reveal guesses and can end their team's turn. One per team. |
+| **Team Member** | Discusses guesses with their team. Can become spymaster or clicker. |
+| **Spectator** | Watches without team affiliation. Default when joining. |
 
 ### Gameplay
 

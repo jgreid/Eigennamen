@@ -164,6 +164,56 @@
             color: white;
         }
 
+        .role-banner.spectator-red {
+            background: rgba(231, 76, 60, 0.2);
+            border: 2px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .role-banner.spectator-blue {
+            background: rgba(52, 152, 219, 0.2);
+            border: 2px solid #3498db;
+            color: #3498db;
+        }
+
+        .btn-team-red {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .btn-team-red.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #e74c3c;
+        }
+
+        .btn-team-blue {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+        }
+
+        .btn-team-blue.active {
+            box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3498db;
+        }
+
+        .btn-spectate {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+            color: white;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 5px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        .control-group-label {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-right: 5px;
+        }
+
         .btn-settings {
             background: linear-gradient(135deg, #a8a8a8 0%, #6b6b6b 100%);
             color: white;
@@ -660,10 +710,19 @@
 
         <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
             <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
-            <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Toggle Red Spymaster role" aria-pressed="false">Red Spymaster</button>
-            <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Toggle Blue Spymaster role" aria-pressed="false">Blue Spymaster</button>
-            <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Toggle Red Clicker role" aria-pressed="false">Red Clicker</button>
-            <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Toggle Blue Clicker role" aria-pressed="false">Blue Clicker</button>
+            <div class="control-group">
+                <span class="control-group-label">Team:</span>
+                <button class="btn-team-red" id="btn-team-red" onclick="setTeam('red')" aria-label="Join Red team" aria-pressed="false">Red</button>
+                <button class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')" aria-label="Join Blue team" aria-pressed="false">Blue</button>
+                <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without team">None</button>
+            </div>
+            <div class="control-group">
+                <span class="control-group-label">Role:</span>
+                <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Toggle Red Spymaster role" aria-pressed="false">Red Spy</button>
+                <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Toggle Blue Spymaster role" aria-pressed="false">Blue Spy</button>
+                <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Toggle Red Clicker role" aria-pressed="false">Red Click</button>
+                <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Toggle Blue Clicker role" aria-pressed="false">Blue Click</button>
+            </div>
             <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
             <button class="btn-host" id="btn-become-host" onclick="becomeHost()" aria-label="Become the game host">Become Host</button>
             <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
@@ -692,10 +751,10 @@
         <div class="instructions">
             <h3>How to Play:</h3>
             <ul>
-                <li><strong>Host:</strong> Creates the game and manages game flow. Click "Become Host" to take this role.</li>
-                <li><strong>Spymasters:</strong> One per team - sees the key and gives clues. Cannot click cards.</li>
-                <li><strong>Clickers:</strong> One per team - clicks cards to reveal guesses and can end their team's turn.</li>
-                <li><strong>Spectators:</strong> Everyone else watches and discusses guesses with their team.</li>
+                <li><strong>1. Join a Team:</strong> Click Red or Blue to affiliate with a team, or None to spectate without a team.</li>
+                <li><strong>2. Pick a Role:</strong> Each team needs one Spymaster (sees the key, gives clues) and one Clicker (clicks cards).</li>
+                <li><strong>3. Play:</strong> Spymasters give clues, teams discuss, Clickers reveal guesses and end turns.</li>
+                <li><strong>Host:</strong> Creates games - click "Become Host" if needed.</li>
                 <li><strong>Rotation:</strong> After each game, pick new spymasters and clickers!</li>
             </ul>
         </div>
@@ -853,6 +912,7 @@
         let isHost = false;
         let spymasterTeam = null; // null, 'red', or 'blue'
         let clickerTeam = null; // null, 'red', or 'blue'
+        let playerTeam = null; // null, 'red', or 'blue' - team affiliation for spectators
 
         // Accessibility
         let colorblindMode = false;
@@ -992,6 +1052,7 @@
                 isHost = true;
                 spymasterTeam = null; // Reset spymaster role on new game
                 clickerTeam = null; // Reset clicker role on new game
+                // Keep playerTeam - team affiliation persists across games
                 updateURL();
                 renderBoard();
                 updateScoreboard();
@@ -1073,10 +1134,11 @@
                 // Check for game over conditions
                 checkGameOver();
 
-                // Joining via link = spectator by default
+                // Joining via link = unaffiliated spectator by default
                 isHost = false;
                 spymasterTeam = null;
                 clickerTeam = null;
+                playerTeam = null;
 
                 renderBoard();
                 updateScoreboard();
@@ -1134,11 +1196,18 @@
                 const isYourTurn = gameState.currentTurn === 'blue' && !gameState.gameOver;
                 banner.innerHTML = `You are the <strong>${escapeHTML(teamNames.blue)}</strong> CLICKER<small>${isYourTurn ? "It's your turn! Click cards to reveal guesses" : "Wait for your team's turn to click cards"}</small>`;
             } else if (isHost) {
+                const teamInfo = playerTeam ? ` (${escapeHTML(teamNames[playerTeam])} team)` : '';
                 banner.className = 'role-banner host';
-                banner.innerHTML = 'You are the HOST<small>You manage the game - start new games when ready</small>';
+                banner.innerHTML = `You are the HOST${teamInfo}<small>You manage the game - start new games when ready</small>`;
+            } else if (playerTeam === 'red') {
+                banner.className = 'role-banner spectator-red';
+                banner.innerHTML = `You are on the <strong>${escapeHTML(teamNames.red)}</strong> team<small>Discuss guesses with your team, or become a spymaster/clicker</small>`;
+            } else if (playerTeam === 'blue') {
+                banner.className = 'role-banner spectator-blue';
+                banner.innerHTML = `You are on the <strong>${escapeHTML(teamNames.blue)}</strong> team<small>Discuss guesses with your team, or become a spymaster/clicker</small>`;
             } else {
                 banner.className = 'role-banner viewer';
-                banner.innerHTML = 'You are a SPECTATOR<small>Join a team and discuss guesses, or become a spymaster/clicker</small>';
+                banner.innerHTML = 'You are a SPECTATOR<small>Join a team to participate, or just watch the game</small>';
             }
         }
 
@@ -1149,6 +1218,9 @@
             const blueSpyBtn = document.getElementById('btn-spymaster-blue');
             const redClickerBtn = document.getElementById('btn-clicker-red');
             const blueClickerBtn = document.getElementById('btn-clicker-blue');
+            const redTeamBtn = document.getElementById('btn-team-red');
+            const blueTeamBtn = document.getElementById('btn-team-blue');
+            const spectateBtn = document.getElementById('btn-spectate');
 
             // Clicker can end turn when it's their team's turn
             const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn;
@@ -1156,6 +1228,18 @@
 
             // Show become host button only if not already a special role
             becomeHostBtn.style.display = (isHost || spymasterTeam || clickerTeam) ? 'none' : 'inline-block';
+
+            // Team buttons - show current team affiliation
+            const effectiveTeam = spymasterTeam || clickerTeam || playerTeam;
+            const isRedTeam = effectiveTeam === 'red';
+            const isBlueTeam = effectiveTeam === 'blue';
+            const isUnaffiliated = !effectiveTeam;
+            redTeamBtn.classList.toggle('active', isRedTeam);
+            blueTeamBtn.classList.toggle('active', isBlueTeam);
+            spectateBtn.classList.toggle('active', isUnaffiliated);
+            redTeamBtn.setAttribute('aria-pressed', isRedTeam.toString());
+            blueTeamBtn.setAttribute('aria-pressed', isBlueTeam.toString());
+            spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
 
             // Spymaster buttons - update classes and ARIA pressed state
             const isRedSpy = spymasterTeam === 'red';
@@ -1178,6 +1262,19 @@
             isHost = true;
             spymasterTeam = null; // Can't be both host and spymaster
             clickerTeam = null; // Can't be both host and clicker
+            // Host keeps their team affiliation
+            updateRoleBanner();
+            updateControls();
+            renderBoard();
+        }
+
+        function setTeam(team) {
+            // When changing teams, clear any team-specific roles
+            if (playerTeam !== team) {
+                if (spymasterTeam) spymasterTeam = null;
+                if (clickerTeam) clickerTeam = null;
+            }
+            playerTeam = team;
             updateRoleBanner();
             updateControls();
             renderBoard();
@@ -1185,10 +1282,11 @@
 
         function setSpymaster(team) {
             if (spymasterTeam === team) {
-                // Toggle off
+                // Toggle off - become spectator for that team
                 spymasterTeam = null;
             } else {
                 spymasterTeam = team;
+                playerTeam = team; // Automatically set team affiliation
                 isHost = false; // Spymasters shouldn't also be hosts
                 clickerTeam = null; // Can't be both spymaster and clicker
             }
@@ -1199,10 +1297,11 @@
 
         function setClicker(team) {
             if (clickerTeam === team) {
-                // Toggle off
+                // Toggle off - become spectator for that team
                 clickerTeam = null;
             } else {
                 clickerTeam = team;
+                playerTeam = team; // Automatically set team affiliation
                 isHost = false; // Clickers shouldn't also be hosts
                 spymasterTeam = null; // Can't be both spymaster and clicker
             }

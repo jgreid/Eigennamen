@@ -101,9 +101,24 @@ async function updatePlayer(sessionId, updates) {
 
 /**
  * Set player's team
+ * Clears spymaster/clicker role when switching teams (those roles are team-specific)
  */
 async function setTeam(sessionId, team) {
-    return updatePlayer(sessionId, { team });
+    const player = await getPlayer(sessionId);
+
+    if (!player) {
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+    }
+
+    const updates = { team };
+
+    // Clear team-specific roles when switching teams
+    if (player.team !== team && (player.role === 'spymaster' || player.role === 'clicker')) {
+        updates.role = 'spectator';
+        logger.info(`Player ${sessionId} role cleared to spectator (team change from ${player.team} to ${team})`);
+    }
+
+    return updatePlayer(sessionId, updates);
 }
 
 /**
