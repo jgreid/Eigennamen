@@ -9,6 +9,19 @@ const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 
+/**
+ * Sanitize text by encoding HTML entities (defense-in-depth against XSS)
+ * The frontend should also sanitize when rendering, but this adds extra protection
+ */
+function sanitizeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 module.exports = function chatHandlers(io, socket) {
 
     /**
@@ -30,10 +43,10 @@ module.exports = function chatHandlers(io, socket) {
             const message = {
                 from: {
                     sessionId: player.sessionId,
-                    nickname: player.nickname,
+                    nickname: sanitizeHtml(player.nickname),
                     team: player.team
                 },
-                text: validated.text,
+                text: sanitizeHtml(validated.text),
                 teamOnly: validated.teamOnly,
                 timestamp: Date.now()
             };

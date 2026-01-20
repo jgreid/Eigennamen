@@ -102,6 +102,7 @@ async function updatePlayer(sessionId, updates) {
 /**
  * Lua script for atomic team change with role clearing
  * Prevents race condition where role changes between read and write
+ * Uses special '__NULL__' sentinel to properly handle null team values
  */
 const ATOMIC_SET_TEAM_SCRIPT = `
 local playerKey = KEYS[1]
@@ -117,7 +118,12 @@ local player = cjson.decode(playerData)
 local oldTeam = player.team
 local oldRole = player.role
 
-player.team = newTeam
+-- Handle null team: convert sentinel value to actual nil for proper JSON encoding
+if newTeam == '__NULL__' then
+    player.team = cjson.null
+else
+    player.team = newTeam
+end
 player.lastSeen = tonumber(ARGV[3])
 
 -- Clear team-specific roles when switching teams
@@ -136,11 +142,14 @@ return cjson.encode(player)
 async function setTeam(sessionId, team) {
     const redis = getRedis();
 
+    // Use sentinel value for null to properly handle in Lua script
+    const teamValue = team === null || team === undefined ? '__NULL__' : team;
+
     const result = await redis.eval(
         ATOMIC_SET_TEAM_SCRIPT,
         {
             keys: [`player:${sessionId}`],
-            arguments: [team || '', REDIS_TTL.PLAYER.toString(), Date.now().toString()]
+            arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString()]
         }
     );
 
@@ -220,7 +229,7 @@ async function setNickname(sessionId, nickname) {
 /**
  * Get all players in a room
  * Also cleans up orphaned session IDs (where player data has expired)
- * Uses parallel fetching for better performance
+ * Uses MGET batching for better performance (single Redis round-trip instead of N)
  */
 async function getPlayersInRoom(roomCode) {
     const redis = getRedis();
@@ -230,16 +239,23 @@ async function getPlayersInRoom(roomCode) {
         return [];
     }
 
-    // Fetch all players in parallel for better performance
-    const playerPromises = sessionIds.map(sessionId => getPlayer(sessionId));
-    const playerResults = await Promise.all(playerPromises);
+    // Use MGET to fetch all players in a single Redis call (much faster than N individual GETs)
+    const playerKeys = sessionIds.map(sessionId => `player:${sessionId}`);
+    const playerDataArray = await redis.mGet(playerKeys);
 
     const players = [];
     const orphanedSessionIds = [];
 
     for (let i = 0; i < sessionIds.length; i++) {
-        if (playerResults[i]) {
-            players.push(playerResults[i]);
+        const playerData = playerDataArray[i];
+        if (playerData) {
+            try {
+                const player = JSON.parse(playerData);
+                players.push(player);
+            } catch (e) {
+                logger.error(`Failed to parse player data for ${sessionIds[i]}:`, e.message);
+                orphanedSessionIds.push(sessionIds[i]);
+            }
         } else {
             // Player data expired but session ID still in set - mark for cleanup
             orphanedSessionIds.push(sessionIds[i]);
