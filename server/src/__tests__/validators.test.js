@@ -101,6 +101,30 @@ describe('playerTeamSchema', () => {
     });
 });
 
+describe('playerNicknameSchema', () => {
+    test('accepts valid nickname', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'Player1' });
+        expect(result.success).toBe(true);
+        expect(result.data.nickname).toBe('Player1');
+    });
+
+    test('trims whitespace', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: '  Player1  ' });
+        expect(result.success).toBe(true);
+        expect(result.data.nickname).toBe('Player1');
+    });
+
+    test('rejects empty nickname', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: '' });
+        expect(result.success).toBe(false);
+    });
+
+    test('rejects too long nickname', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'A'.repeat(31) });
+        expect(result.success).toBe(false);
+    });
+});
+
 describe('playerRoleSchema', () => {
     test('accepts spymaster role', () => {
         const result = playerRoleSchema.safeParse({ role: 'spymaster' });

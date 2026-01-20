@@ -135,11 +135,27 @@ function createTimerExpireCallback() {
                     const room = await roomService.getRoom(roomCode);
                     const game = await gameService.getGame(roomCode);
 
-                    if (room && room.settings && room.settings.turnTimer && game && !game.gameOver) {
-                        await startTurnTimer(roomCode, room.settings.turnTimer);
+                    if (!room) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
+                        return;
                     }
+                    if (!room.settings || !room.settings.turnTimer) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
+                        return;
+                    }
+                    if (!game) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
+                        return;
+                    }
+                    if (game.gameOver) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
+                        return;
+                    }
+
+                    await startTurnTimer(roomCode, room.settings.turnTimer);
+                    logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
                 } catch (err) {
-                    logger.debug(`Timer restart skipped for room ${roomCode}: ${err.message}`);
+                    logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
                 }
             });
         } catch (error) {

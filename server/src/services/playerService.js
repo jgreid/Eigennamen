@@ -232,6 +232,7 @@ async function setNickname(sessionId, nickname) {
  * Uses MGET batching for better performance (single Redis round-trip instead of N)
  */
 async function getPlayersInRoom(roomCode) {
+    const startTime = Date.now();
     const redis = getRedis();
     const sessionIds = await redis.sMembers(`room:${roomCode}:players`);
 
@@ -242,6 +243,12 @@ async function getPlayersInRoom(roomCode) {
     // Use MGET to fetch all players in a single Redis call (much faster than N individual GETs)
     const playerKeys = sessionIds.map(sessionId => `player:${sessionId}`);
     const playerDataArray = await redis.mGet(playerKeys);
+
+    // Log slow queries for debugging
+    const elapsed = Date.now() - startTime;
+    if (elapsed > 50) {
+        logger.warn(`Slow getPlayersInRoom for ${roomCode}: ${elapsed}ms (${sessionIds.length} players)`);
+    }
 
     const players = [];
     const orphanedSessionIds = [];
