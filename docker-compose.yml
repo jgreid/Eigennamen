@@ -3,7 +3,9 @@ version: '3.8'
 services:
   # Main API server
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     ports:
       - "3000:3000"
     environment:

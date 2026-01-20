@@ -5,7 +5,7 @@ app = "risley-codenames"
 primary_region = "iad"
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = "server/Dockerfile"
 
 [deploy]
   # Database migrations are skipped - database is optional

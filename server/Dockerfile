@@ -1,16 +1,20 @@
 # Build stage
+# Note: Build context is repo root (where fly.toml is located)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from server directory
+COPY server/package*.json ./
 
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy server source code
+COPY server/ .
+
+# Copy root index.html (symlinked from server/public/index.html)
+COPY index.html ./public/index.html
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -28,8 +32,8 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S codenames -u 1001
 
 # Copy package files and prisma schema (needed for generate)
-COPY package*.json ./
-COPY prisma ./prisma
+COPY server/package*.json ./
+COPY server/prisma ./prisma
 
 # Install production dependencies and generate prisma client
 RUN npm ci --omit=dev && \
@@ -39,7 +43,7 @@ RUN npm ci --omit=dev && \
 # Copy source code from builder
 COPY --from=builder /app/src ./src
 
-# Copy public folder (static assets)
+# Copy public folder (static assets) from builder
 COPY --from=builder /app/public ./public
 
 # Create logs directory for production logging
