@@ -1816,7 +1816,7 @@
 
         // ========== SPYMASTER WARNING ==========
         function updateSpymasterWarning() {
-            const warning = cachedElements.spymasterWarning;
+            const warning = cachedElements.spymasterWarning || document.getElementById('spymaster-warning');
             if (warning) {
                 warning.classList.toggle('visible', !!spymasterTeam);
             }
@@ -2325,11 +2325,12 @@
             }
 
             window.history.replaceState({}, '', url);
-            if (cachedElements.shareLink) cachedElements.shareLink.value = url;
+            const shareLink = cachedElements.shareLink || document.getElementById('share-link');
+            if (shareLink) shareLink.value = url;
         }
 
         function updateRoleBanner() {
-            const banner = cachedElements.roleBanner;
+            const banner = cachedElements.roleBanner || document.getElementById('role-banner');
             if (!banner) return;
 
             if (spymasterTeam === 'red') {
@@ -2375,9 +2376,15 @@
         }
 
         function updateControls() {
-            // Use cached elements instead of querying DOM each time
-            const { endTurnBtn, redSpyBtn, blueSpyBtn, redClickerBtn, blueClickerBtn,
-                    redTeamBtn, blueTeamBtn, spectateBtn } = cachedElements;
+            // Use cached elements with fallback to DOM query
+            const endTurnBtn = cachedElements.endTurnBtn || document.getElementById('btn-end-turn');
+            const redSpyBtn = cachedElements.redSpyBtn || document.getElementById('btn-spymaster-red');
+            const blueSpyBtn = cachedElements.blueSpyBtn || document.getElementById('btn-spymaster-blue');
+            const redClickerBtn = cachedElements.redClickerBtn || document.getElementById('btn-clicker-red');
+            const blueClickerBtn = cachedElements.blueClickerBtn || document.getElementById('btn-clicker-blue');
+            const redTeamBtn = cachedElements.redTeamBtn || document.getElementById('btn-team-red');
+            const blueTeamBtn = cachedElements.blueTeamBtn || document.getElementById('btn-team-blue');
+            const spectateBtn = cachedElements.spectateBtn || document.getElementById('btn-spectate');
 
             // Clicker can end turn when it's their team's turn
             const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
@@ -2509,7 +2516,7 @@
 
         // Initialize board event delegation (called once)
         function initBoardEventDelegation() {
-            const board = cachedElements.board;
+            const board = cachedElements.board || document.getElementById('board');
             if (!board || board.hasAttribute('data-delegated')) return;
 
             // Single click handler using event delegation
@@ -2543,7 +2550,7 @@
 
         // Full board render (only called on new game or initial load)
         function renderBoard() {
-            const board = cachedElements.board;
+            const board = cachedElements.board || document.getElementById('board');
             if (!board) return;
 
             // Update board class
@@ -2592,7 +2599,7 @@
 
         // Incremental update - only update changed cards (much faster)
         function updateBoardIncremental() {
-            const board = cachedElements.board;
+            const board = cachedElements.board || document.getElementById('board');
             if (!board) return;
 
             // Update board class
@@ -2637,7 +2644,7 @@
 
         // Update single card (for card reveal animation)
         function updateSingleCard(index) {
-            const board = cachedElements.board;
+            const board = cachedElements.board || document.getElementById('board');
             if (!board || !board.children[index]) return;
 
             const card = board.children[index];
@@ -2680,7 +2687,7 @@
             }
 
             if (newIndex !== currentIndex) {
-                const board = cachedElements.board;
+                const board = cachedElements.board || document.getElementById('board');
                 if (board && board.children[newIndex]) {
                     board.children[newIndex].focus();
                 }
@@ -2817,9 +2824,11 @@
         function updateScoreboard() {
             const redRemaining = gameState.redTotal - gameState.redScore;
             const blueRemaining = gameState.blueTotal - gameState.blueScore;
-            // Use cached elements
-            const { redRemaining: redRemainingEl, blueRemaining: blueRemainingEl,
-                    redTeamName: redTeamNameEl, blueTeamName: blueTeamNameEl } = cachedElements;
+            // Use cached elements with fallback
+            const redRemainingEl = cachedElements.redRemaining || document.getElementById('red-remaining');
+            const blueRemainingEl = cachedElements.blueRemaining || document.getElementById('blue-remaining');
+            const redTeamNameEl = cachedElements.redTeamName || document.getElementById('red-team-name');
+            const blueTeamNameEl = cachedElements.blueTeamName || document.getElementById('blue-team-name');
             if (redRemainingEl) redRemainingEl.textContent = redRemaining;
             if (blueRemainingEl) blueRemainingEl.textContent = blueRemaining;
             if (redTeamNameEl) redTeamNameEl.textContent = teamNames.red;
@@ -2827,7 +2836,7 @@
         }
 
         function updateTurnIndicator() {
-            const indicator = cachedElements.turnIndicator;
+            const indicator = cachedElements.turnIndicator || document.getElementById('turn-indicator');
             if (!indicator) return;
             const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
             const winnerTeamName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
