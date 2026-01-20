@@ -8,7 +8,7 @@ const { ERROR_CODES } = require('../config/constants');
 /**
  * Handle 404 Not Found
  */
-function notFoundHandler(req, res, next) {
+function notFoundHandler(req, res, _next) {
     res.status(404).json({
         error: {
             code: 'NOT_FOUND',
@@ -20,7 +20,7 @@ function notFoundHandler(req, res, next) {
 /**
  * Global error handler
  */
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
     logger.error('Unhandled error:', err);
 
     // Handle known error types
@@ -29,14 +29,19 @@ function errorHandler(err, req, res, next) {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
             [ERROR_CODES.ROOM_EXPIRED]: 410,
+            [ERROR_CODES.ROOM_PASSWORD_REQUIRED]: 401,
+            [ERROR_CODES.ROOM_PASSWORD_INVALID]: 401,
             [ERROR_CODES.GAME_IN_PROGRESS]: 409,
             [ERROR_CODES.NOT_HOST]: 403,
             [ERROR_CODES.NOT_SPYMASTER]: 403,
+            [ERROR_CODES.NOT_CLICKER]: 403,
             [ERROR_CODES.NOT_YOUR_TURN]: 400,
             [ERROR_CODES.CARD_ALREADY_REVEALED]: 400,
             [ERROR_CODES.GAME_OVER]: 400,
             [ERROR_CODES.INVALID_INPUT]: 400,
             [ERROR_CODES.RATE_LIMITED]: 429,
+            [ERROR_CODES.WORD_LIST_NOT_FOUND]: 404,
+            [ERROR_CODES.NOT_AUTHORIZED]: 403,
             [ERROR_CODES.SERVER_ERROR]: 500
         };
 

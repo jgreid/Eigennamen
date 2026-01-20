@@ -141,7 +141,7 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
 /**
  * Handle timer events from pub/sub
  */
-function handleTimerEvent(event, onExpireCallback) {
+function handleTimerEvent(event, _onExpireCallback) {
     switch (event.type) {
         case 'started':
             // Another instance started a timer - clear any local timer for this room
@@ -634,7 +634,7 @@ async function checkOrphanedTimers(onExpireCallback) {
  */
 async function cleanupAllTimers() {
     // Clear local timers
-    for (const [roomCode, timer] of localTimers) {
+    for (const [_roomCode, timer] of localTimers) {
         clearTimeout(timer.timeoutId);
     }
     localTimers.clear();

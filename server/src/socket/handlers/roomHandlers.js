@@ -3,7 +3,6 @@
  */
 
 const roomService = require('../../services/roomService');
-const playerService = require('../../services/playerService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');

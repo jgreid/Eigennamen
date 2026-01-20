@@ -68,8 +68,7 @@ class MemoryStorage {
         const elapsed = Date.now() - startTime;
         // Log if cleanup took too long or cleaned many keys
         if (elapsed > 50 || cleanedCount > 100) {
-            // Use console directly since logger may not be available in this module
-            console.warn(`Memory storage cleanup: ${cleanedCount}/${initialCount} keys in ${elapsed}ms`);
+            logger.warn(`Memory storage cleanup: ${cleanedCount}/${initialCount} keys in ${elapsed}ms`);
         }
     }
 
@@ -331,7 +330,7 @@ class MemoryStorage {
         return this.eval(null, options);
     }
 
-    async scriptLoad(script) {
+    async scriptLoad(_script) {
         // Return a fake SHA - we don't actually use it in memory mode
         return 'memory_mode_sha';
     }

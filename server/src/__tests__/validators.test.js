@@ -5,6 +5,7 @@
 const {
     roomCreateSchema,
     roomJoinSchema,
+    roomSettingsSchema,
     playerTeamSchema,
     playerRoleSchema,
     playerNicknameSchema,
@@ -356,5 +357,117 @@ describe('roomCreateSchema', () => {
             }
         });
         expect(result.success).toBe(false);
+    });
+
+    test('accepts room with password', () => {
+        const result = roomCreateSchema.safeParse({
+            settings: {
+                password: 'secret123'
+            }
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.settings.password).toBe('secret123');
+    });
+
+    test('accepts empty password', () => {
+        const result = roomCreateSchema.safeParse({
+            settings: {
+                password: ''
+            }
+        });
+        expect(result.success).toBe(true);
+    });
+
+    test('rejects password too long', () => {
+        const result = roomCreateSchema.safeParse({
+            settings: {
+                password: 'A'.repeat(51)
+            }
+        });
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('roomJoinSchema password validation', () => {
+    test('accepts join with password', () => {
+        const result = roomJoinSchema.safeParse({
+            code: 'ABC234',
+            nickname: 'Player1',
+            password: 'secret123'
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.password).toBe('secret123');
+    });
+
+    test('accepts join without password', () => {
+        const result = roomJoinSchema.safeParse({
+            code: 'ABC234',
+            nickname: 'Player1'
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.password).toBeUndefined();
+    });
+
+    test('rejects password too long', () => {
+        const result = roomJoinSchema.safeParse({
+            code: 'ABC234',
+            nickname: 'Player1',
+            password: 'A'.repeat(51)
+        });
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('roomSettingsSchema', () => {
+    test('accepts valid settings with password', () => {
+        const result = roomSettingsSchema.safeParse({
+            password: 'secret123'
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.password).toBe('secret123');
+    });
+
+    test('accepts null password to remove it', () => {
+        const result = roomSettingsSchema.safeParse({
+            password: null
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.password).toBeNull();
+    });
+
+    test('accepts team names with password', () => {
+        const result = roomSettingsSchema.safeParse({
+            teamNames: {
+                red: 'Fire',
+                blue: 'Ice'
+            },
+            password: 'secret'
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.teamNames.red).toBe('Fire');
+        expect(result.data.password).toBe('secret');
+    });
+
+    test('accepts turn timer setting', () => {
+        const result = roomSettingsSchema.safeParse({
+            turnTimer: 120
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.turnTimer).toBe(120);
+    });
+
+    test('rejects invalid turn timer', () => {
+        const result = roomSettingsSchema.safeParse({
+            turnTimer: 10
+        });
+        expect(result.success).toBe(false);
+    });
+
+    test('accepts allowSpectators setting', () => {
+        const result = roomSettingsSchema.safeParse({
+            allowSpectators: false
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.allowSpectators).toBe(false);
     });
 });
