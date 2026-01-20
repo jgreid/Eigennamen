@@ -1,0 +1,56 @@
+# Docker build exclusions for Fly.io deployment
+# Build context is repo root (where fly.toml is located)
+
+# Git
+.git
+.gitignore
+.github
+
+# Dependencies (installed fresh in container)
+node_modules
+server/node_modules
+
+# Environment files (secrets via fly secrets)
+.env
+.env.*
+server/.env
+server/.env.*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in container)
+docs
+*.md
+
+# Test files
+server/__tests__
+server/src/__tests__
+**/*.test.js
+**/*.spec.js
+coverage
+server/coverage
+
+# Build artifacts
+dist
+build
+
+# Local development files
+docker-compose.yml
+*.bat
+logs
+server/logs
+
+# Debug logs
+npm-debug.log
+yarn-error.log
+
+# Prisma local files (schema is needed, but not migrations in dev mode)
+# Note: schema.prisma IS needed for prisma generate
