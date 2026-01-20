@@ -53,7 +53,8 @@
             overflow-y: auto;
             position: sticky;
             top: 0;
-            /* Removed contain: layout style - caused button click issues with position: sticky */
+            /* Fix Chrome/Windows hit-testing bug with backdrop-filter + sticky */
+            isolation: isolate;
         }
 
         /* Right Main Area - 75% width */
@@ -267,6 +268,9 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            /* Ensure buttons are clickable with backdrop-filter on parent */
+            position: relative;
+            z-index: 1;
         }
 
         .control-section {
