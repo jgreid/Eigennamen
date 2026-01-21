@@ -1087,7 +1087,7 @@ async function withRetry(fn, options = {}) {
 | Sprint 3: Coverage & Polish | ✅ COMPLETE | +59 tests | Middleware tests, edge case tests, game logic fixes |
 | Sprint 4 (Partial) | 🔄 IN PROGRESS | +260 tests | Major coverage expansion across all modules |
 
-**Total Tests:** 615 passing (up from ~70 baseline) - **76% increase from Sprint 3**
+**Total Tests:** 711 passing (up from ~70 baseline) - **91% increase from Sprint 3**
 
 ### Detailed Phase Status
 
@@ -1200,10 +1200,10 @@ Socket count caching is now connected:
 
 **✅ CORRECTED Coverage Summary (January 21, 2026):**
 ```
-Statements:  54.72% (target: 70%) - Gap: 15.28%
-Branches:    46.49% (target: 70%) - Gap: 23.51%
-Functions:   52.90% (target: 70%) - Gap: 17.10%
-Lines:       54.45% (target: 70%) - Gap: 15.55%
+Statements:  60.34% (target: 70%) - Gap: 9.66%
+Branches:    53.02% (target: 70%) - Gap: 16.98%
+Functions:   59.92% (target: 70%) - Gap: 10.08%
+Lines:       60.19% (target: 70%) - Gap: 9.81%
 ```
 
 **Actual Coverage by File/Category:**
@@ -1214,23 +1214,25 @@ Lines:       54.45% (target: 70%) - Gap: 15.55%
 | `config/env.js` | 96.49% | 92.59% | 100% | 96.29% | ✅ Great |
 | `config/database.js` | 12.76% | 0% | 0% | 13.33% | ⚠️ Low (optional) |
 | `config/jwt.js` | 62.22% | 54.16% | 83.33% | 62.22% | ⚠️ Needs work |
-| `config/redis.js` | 10.2% | 0% | 0% | 10.63% | 🔴 Critical gap |
-| `errors/GameError.js` | 34.04% | 16.66% | 18.75% | 34.04% | ⚠️ Low |
+| `config/redis.js` | 76.53% | 73.52% | 52.94% | 78.72% | ✅ Good |
+| `config/memoryStorage.js` | 61.75% | 54.46% | 64.58% | 63.03% | ⚠️ Moderate |
+| `errors/GameError.js` | 44.68% | 25% | 31.25% | 44.68% | ⚠️ Low |
 | `middleware/csrf.js` | 34.09% | 38.46% | 40% | 34.88% | ⚠️ Low |
 | `middleware/validation.js` | 96.42% | 75% | 100% | 96.29% | ✅ Great |
+| `middleware/errorHandler.js` | 100% | 80% | 100% | 100% | ✅ Perfect |
 | `routes/*` | 67.39% | 62.5% | 66.66% | 67.03% | ⚠️ Close |
-| `services/*` | 56.7% | 53.26% | 65.42% | 56.56% | ⚠️ Moderate |
-| `socket/index.js` | 13.86% | 1.88% | 18.75% | 13.97% | 🔴 Critical gap |
-| `socket/handlers/*` | 49.18% | 21.68% | 66.66% | 49.01% | ⚠️ Moderate |
-| `utils/*` | 84.1% | 68.64% | 77.14% | 83.23% | ✅ Good |
+| `services/*` | 56.51% | 52.77% | 64.81% | 56.36% | ⚠️ Moderate |
+| `socket/index.js` | 33.1% | 21.81% | 56.25% | 33.33% | ⚠️ Needs work |
+| `socket/handlers/*` | 71.66% | 47.59% | 90.47% | 71.56% | ✅ Good |
+| `utils/*` | 91.28% | 82.16% | 90.47% | 90.9% | ✅ Excellent |
 | `validators/schemas.js` | 100% | 100% | 100% | 100% | ✅ Perfect |
 
 **Priority Files (Highest Impact):**
-1. `socket/index.js` - 13.86% (connection lifecycle, timer coordination)
-2. `config/redis.js` - 10.2% (Redis/memory fallback logic)
-3. `config/database.js` - 12.76% (optional feature, low priority)
-4. `errors/GameError.js` - 34.04% (error class coverage)
-5. `middleware/csrf.js` - 34.09% (CSRF protection logic)
+1. `socket/index.js` - 33.1% (connection lifecycle, timer coordination)
+2. `middleware/socketAuth.js` - 25.71% (authentication logic)
+3. `middleware/csrf.js` - 34.88% (CSRF protection logic)
+4. `errors/GameError.js` - 44.68% (error class coverage)
+5. `config/database.js` - 13.33% (optional feature, low priority)
 
 ---
 
@@ -1238,22 +1240,22 @@ Lines:       54.45% (target: 70%) - Gap: 15.55%
 
 | Metric | Baseline | Sprint 3 | **Actual (Jan 21)** | Target | Status |
 |--------|----------|----------|---------------------|--------|--------|
-| Test Coverage (Lines) | ~20% | ~45% | **54.45%** | 70%+ | 🟡 15.55% gap |
-| Test Coverage (Branches) | - | - | **46.49%** | 70%+ | 🟡 23.51% gap |
-| Test Coverage (Functions) | - | - | **52.90%** | 70%+ | 🟡 17.10% gap |
-| Test Coverage (Statements) | - | - | **54.72%** | 70%+ | 🟡 15.28% gap |
-| Socket Handler Coverage | 0% | ~30% | **49.18%** | 80%+ | 🟡 30.82% gap |
-| Utils Coverage | - | - | **84.1%** | 80%+ | ✅ Exceeded |
+| Test Coverage (Lines) | ~20% | ~45% | **60.19%** | 70%+ | 🟡 9.81% gap |
+| Test Coverage (Branches) | - | - | **53.02%** | 70%+ | 🟡 16.98% gap |
+| Test Coverage (Functions) | - | - | **59.92%** | 70%+ | 🟡 10.08% gap |
+| Test Coverage (Statements) | - | - | **60.34%** | 70%+ | 🟡 9.66% gap |
+| Socket Handler Coverage | 0% | ~30% | **71.56%** | 80%+ | 🟡 8.44% gap |
+| Utils Coverage | - | - | **91.28%** | 80%+ | ✅ Exceeded |
 | Validators Coverage | - | - | **100%** | 100% | ✅ Perfect |
-| Config Coverage | - | - | **52.38%** | 70%+ | 🟡 Moderate gap |
+| Config Coverage | - | - | **63.84%** | 70%+ | 🟡 Close |
 | Race Condition Tests | 0 | 20+ | 20+ | 20+ | ✅ Complete |
 | Correlation ID Coverage | 0% | 100% | 100% | 100% | ✅ Complete |
 | Structured Log Adoption | 0% | 100% | 100% | 100% | ✅ Complete |
 | Event Log Integration | 0% | 100% | 100% | 100% | ✅ Complete |
 | Known Issues Fixed | 0/74 | ~45/74 | **~50/86** | <10 remaining | 🟡 ~36 remaining |
-| Total Tests | ~70 | 355 | **615** | 300+ | ✅ Exceeded (+73%) |
+| Total Tests | ~70 | 355 | **711** | 300+ | ✅ Exceeded (+100%) |
 
-**Note:** Coverage numbers re-verified on January 21, 2026 via `npm test -- --coverage`. Previous estimates (33.1%) were incorrect - actual coverage is significantly higher at 54.45%.
+**Note:** Coverage numbers re-verified on January 21, 2026 via `npm test -- --coverage`. Coverage is at 60.19% lines, closing in on the 70% target.
 
 ---
 
@@ -1497,21 +1499,23 @@ Lines:       54.45% (target: 70%) - 15.55% remaining
 
 | Metric | Start | Sprint 3 | **Current** | Target | Gap | Status |
 |--------|-------|----------|-------------|--------|-----|--------|
-| Test Coverage (Lines) | ~20% | ~45% | **54.45%** | 70%+ | 15.55% | 🟡 Close |
-| Test Coverage (Branches) | ~10% | ~30% | **46.49%** | 70%+ | 23.51% | 🟡 Moderate |
-| Test Coverage (Functions) | ~15% | ~35% | **52.90%** | 70%+ | 17.10% | 🟡 Close |
-| Socket Handler Coverage | 0% | ~30% | **49.18%** | 80%+ | 30.82% | 🟡 In progress |
-| Utils Coverage | ~20% | ~50% | **84.1%** | 80%+ | - | ✅ Exceeded |
+| Test Coverage (Lines) | ~20% | ~45% | **60.19%** | 70%+ | 9.81% | 🟡 Close |
+| Test Coverage (Branches) | ~10% | ~30% | **53.02%** | 70%+ | 16.98% | 🟡 Moderate |
+| Test Coverage (Functions) | ~15% | ~35% | **59.92%** | 70%+ | 10.08% | 🟡 Close |
+| Socket Handler Coverage | 0% | ~30% | **71.56%** | 80%+ | 8.44% | 🟡 Close |
+| Utils Coverage | ~20% | ~50% | **91.28%** | 80%+ | - | ✅ Exceeded |
 | Race Condition Tests | 0 | 20+ | **20+** | 20+ | - | ✅ Complete |
 | Known Issues Fixed | 0/74 | ~45/86 | **~50/86** | <10 | ~36 | 🟡 Progress |
-| Total Tests | ~70 | 355 | **615** | 300+ | - | ✅ Exceeded |
+| Total Tests | ~70 | 355 | **711** | 300+ | - | ✅ Exceeded |
 
 **Key Improvements Since Sprint 3:**
-- Test count increased by **73%** (355 → 615)
-- Line coverage increased by **~10 percentage points**
-- Utils coverage now exceeds target at 84.1%
-- app.js coverage increased from 0% to 81.35%
-- env.js coverage increased from 0% to 96.49%
+- Test count increased by **100%** (355 → 711)
+- Line coverage increased by **~15 percentage points** (45% → 60%)
+- Utils coverage now exceeds target at 91.28%
+- Socket handlers coverage at 71.56% (up from ~30%)
+- app.js coverage at 81.35%
+- env.js coverage at 96.49%
+- redis.js coverage at 78.72%
 
 ---
 
@@ -1625,11 +1629,11 @@ Lines:       54.45% (target: 70%) - 15.55% remaining
 ### Progress Visualization
 ```
 Coverage Progress:
-Statements: ████████████████░░░░░░░░░░ 54.72%
-Branches:   █████████████░░░░░░░░░░░░░ 46.49%
-Functions:  ███████████████░░░░░░░░░░░ 52.90%
-Lines:      ████████████████░░░░░░░░░░ 54.45%
+Statements: █████████████████████░░░░░ 60.34%
+Branches:   ██████████████████░░░░░░░░ 53.02%
+Functions:  ████████████████████░░░░░░ 59.92%
+Lines:      █████████████████████░░░░░ 60.19%
 Target:     ████████████████████████░░ 70.00%
 ```
 
-*Updated January 21, 2026 with re-verified coverage metrics. Actual line coverage is 54.45% (corrected from 33.1%). 615 tests passing (up from 355). Approximately 36 issues remain from 86 total identified.*
+*Updated January 21, 2026 with re-verified coverage metrics. Actual line coverage is 60.19%. 711 tests passing (up from 355). Approximately 36 issues remain from 86 total identified.*

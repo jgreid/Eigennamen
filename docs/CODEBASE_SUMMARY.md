@@ -130,11 +130,12 @@ Risley-Codenames/
 
 | Service | File | Lines | Purpose |
 |---------|------|-------|---------|
-| **gameService** | `gameService.js` | 775 | Core game logic, PRNG, board generation |
-| **roomService** | `roomService.js` | 419 | Room lifecycle, atomic operations |
-| **playerService** | `playerService.js` | 351 | Player/team/role management |
-| **timerService** | `timerService.js` | 678 | Turn timers with Redis backing |
-| **wordListService** | `wordListService.js` | 392 | Custom word list CRUD |
+| **gameService** | `gameService.js` | ~850 | Core game logic, PRNG, board generation |
+| **roomService** | `roomService.js` | ~500 | Room lifecycle, atomic operations |
+| **playerService** | `playerService.js` | ~430 | Player/team/role management |
+| **timerService** | `timerService.js` | ~700 | Turn timers with Redis backing |
+| **wordListService** | `wordListService.js` | ~400 | Custom word list CRUD |
+| **eventLogService** | `eventLogService.js` | ~250 | Event logging for reconnection recovery |
 
 ### 5.2 Game Service Details
 
@@ -470,19 +471,29 @@ When database unavailable:
 
 ## 14. Testing
 
-### Test Suites
+### Test Suites (23 files, 711+ tests)
 
 | File | Coverage |
 |------|----------|
 | `gameService.test.js` | PRNG, shuffling, game logic |
 | `timerService.test.js` | Timer lifecycle, Redis backing |
 | `validators.test.js` | Zod schema validation |
-| `socketReconnection.test.js` | Session recovery |
+| `gameHandlers.test.js` | Game event handlers |
+| `handlerEdgeCases.test.js` | Edge case handling |
+| `middleware.test.js` | Express/Socket middleware |
+| `routes.test.js` | REST API endpoints |
+| `integration/*.test.js` | Integration & race condition tests |
+| `distributedLock.test.js` | Distributed locking |
+| `correlationId.test.js` | Request correlation |
+| `metrics.test.js` | Metrics collection |
+| `eventLogService.test.js` | Event logging |
+| `memoryStorage.test.js` | In-memory storage fallback |
+| ... and more | See `server/src/__tests__/` |
 
 ### Commands
 
 ```bash
-npm test                # Run all tests
+npm test                # Run all tests (700+)
 npm run test:watch      # Watch mode
 npm run test:coverage   # Coverage report
 ```
@@ -568,14 +579,14 @@ min_machines_running = 1
 
 | Component | Lines | Files |
 |-----------|-------|-------|
-| Backend Services | 2,615 | 5 |
-| Socket Handlers | ~600 | 4 |
-| Middleware | 791 | 5 |
-| Routes | 297 | 2 |
-| Config/Utils | 635 | 6 |
-| Tests | ~400 | 4 |
-| **Backend Total** | ~10,720 | 34 |
-| Frontend (standalone) | 3,101 | 1 |
+| Backend Services | ~2,700 | 6 |
+| Socket Handlers | ~700 | 5 |
+| Middleware | ~900 | 5 |
+| Routes | ~300 | 3 |
+| Config/Utils | ~1,500 | 10 |
+| Tests | ~8,000 | 23 |
+| **Backend Total** | ~14,000 | 50+ |
+| Frontend (standalone) | ~3,100 | 1 |
 | Frontend (modular) | ~1,500 | 5 |
 
 ---
