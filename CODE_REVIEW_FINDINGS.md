@@ -958,4 +958,420 @@ No tests for socket handlers, service integrations, or full game flows.
 
 ---
 
-*End of Code Review - January 2026 (Fourth Pass Complete)*
+---
+
+## Fifth Pass Review - January 2026 (Comprehensive Deep Dive)
+
+Additional issues identified during exhaustive review of frontend, configuration, reconnection handling, edge cases, and observability.
+
+---
+
+### CRITICAL: Multi-Tab Session Conflict
+
+#### 48. Session ID in localStorage Shared Across Tabs
+
+**Location:** `server/public/js/socket-client.js:33, 246`
+**Severity:** CRITICAL
+**Type:** Security / Architecture
+
+Session ID stored in localStorage is shared across all browser tabs. Opening same room in 2 tabs:
+- Both tabs use SAME session ID
+- Both connect as SAME player
+- Disconnect in Tab 1 marks player offline in Tab 2
+- Both tabs can emit actions as single player → conflicts
+
+**Fix:** Use `sessionStorage` (per-tab) instead of `localStorage`, or detect multiple connections server-side.
+
+---
+
+#### 49. Spymaster View Not Restored on Reconnection
+
+**Location:** `server/src/socket/handlers/playerHandlers.js:65-70`
+**Severity:** CRITICAL
+**Type:** Game Logic
+
+When a spymaster disconnects and reconnects, `game:spymasterView` is only emitted when role **changes** to spymaster, not on reconnection as existing spymaster. Spymaster sees blank board.
+
+**Fix:** Send `game:spymasterView` in `room:join` handler if reconnecting player is a spymaster.
+
+---
+
+#### 50. No Event Recovery for Disconnected Players
+
+**Location:** `server/src/socket/index.js:45-51`
+**Severity:** CRITICAL
+**Type:** Architecture
+
+`connectionStateRecovery` is configured but ineffective—Socket.io assigns new socket ID on reconnect. Events missed during disconnect are permanently lost.
+
+**Fix:** Implement event log or full state resync on reconnection.
+
+---
+
+### HIGH: Frontend Security Issues
+
+#### 51. URL Decoding Without Try-Catch
+
+**Location:** `index.html:2228-2229`
+**Severity:** HIGH
+**Type:** Security
+
+`decodeURIComponent()` throws `URIError` on invalid encoding. No try-catch wraps these calls.
+
+**Fix:**
+```javascript
+try {
+    const decoded = decodeURIComponent(redName);
+    teamNames.red = decoded.slice(0, 20);
+} catch (e) {
+    teamNames.red = 'Red Team';
+}
+```
+
+---
+
+#### 52. 23 Inline onclick Handlers
+
+**Location:** `index.html:1496-1671`
+**Severity:** MEDIUM
+**Type:** Security / Code Quality
+
+Inline handlers mix markup and behavior, harder to maintain, and vulnerable if handler content becomes dynamic.
+
+**Fix:** Migrate all inline handlers to `addEventListener()` during initialization.
+
+---
+
+### HIGH: Configuration Security
+
+#### 53. Weak Default Database Password
+
+**Location:** `docker-compose.yml:17, 46`
+**Severity:** HIGH
+**Type:** Security
+
+Default password "localdevpassword" hardcoded. Could propagate to production if not carefully managed.
+
+**Fix:** Remove default fallback entirely to force explicit env var setup.
+
+---
+
+#### 54. Redis TLS Validation Can Be Disabled in Production
+
+**Location:** `server/src/config/redis.js:52-57`
+**Severity:** HIGH
+**Type:** Security
+
+`REDIS_TLS_REJECT_UNAUTHORIZED` can be set to `'false'` even in production, allowing MITM attacks.
+
+**Fix:** Only allow disabling TLS validation in development mode.
+
+---
+
+#### 55. JWT_SECRET Optional in Production
+
+**Location:** `server/src/config/env.js:72-74`
+**Severity:** MEDIUM
+**Type:** Security
+
+Missing JWT_SECRET only triggers warning, but authentication is disabled entirely. Should be required in production.
+
+---
+
+### HIGH: State Synchronization Issues
+
+#### 56. No State Versioning or Timestamps
+
+**Location:** All service files
+**Severity:** HIGH
+**Type:** Data Consistency
+
+Game/room state has no version number. If player misses events while offline, they receive outdated state without knowing.
+
+**Fix:** Add version/timestamp to game state objects; validate on client.
+
+---
+
+#### 57. Orphaned Players Left in Redis for 24 Hours
+
+**Location:** `server/src/services/playerService.js:288-303`
+**Severity:** HIGH
+**Type:** Resource Leak
+
+`handleDisconnect()` marks player as `connected: false` but doesn't schedule removal. Player data stays in Redis for 24 hours.
+
+**Fix:** Schedule player removal after grace period (e.g., 10 minutes) in disconnect handler.
+
+---
+
+#### 58. Player State Overwrite in Multi-Tab Scenario
+
+**Location:** `server/public/js/socket-client.js:244-255`
+**Severity:** HIGH
+**Type:** Race Condition
+
+Multiple tabs can simultaneously write to localStorage, overwriting each other's state.
+
+**Fix:** Use BroadcastChannel API to sync state between tabs.
+
+---
+
+### MEDIUM: Game Logic Edge Cases
+
+#### 59. Team Becomes Empty During Game
+
+**Location:** `gameHandlers.js:88-122`
+**Severity:** MEDIUM
+**Type:** Edge Case
+
+No validation that both teams have active players when revealing cards. If all players from opposing team leave, game continues with no opposition.
+
+**Fix:** Check both teams have at least one connected player before allowing reveals.
+
+---
+
+#### 60. Password Check Bypassed on Reconnect
+
+**Location:** `server/src/services/roomService.js:187-207`
+**Severity:** MEDIUM
+**Type:** Security
+
+When player reconnects (session exists), password check is skipped. If host changed password after player's initial join, they can still reconnect without new password.
+
+**Fix:** Verify password even on reconnects, or track password version.
+
+---
+
+#### 61. Player Switches Team Mid-Turn While Clicker
+
+**Location:** `playerHandlers.js:18-43`
+**Severity:** MEDIUM
+**Type:** UX Bug
+
+Clicker can switch teams during their turn. Role becomes spectator, creating confusing UX.
+
+**Fix:** Validate that clickers/spymasters don't switch teams during their active turn.
+
+---
+
+### MEDIUM: Frontend Accessibility
+
+#### 62. Missing ARIA Labels on Interactive Controls
+
+**Location:** `index.html:1515-1520`
+**Severity:** MEDIUM
+**Type:** Accessibility
+
+Buttons lack explicit `aria-label` attributes for screen readers.
+
+---
+
+#### 63. Modal Listener Duplication (Modular Frontend)
+
+**Location:** `server/public/js/ui.js:182-183`
+**Severity:** MEDIUM
+**Type:** Memory Leak
+
+Unlike monolithic version, modular frontend doesn't check if modal listeners are already active. Opening multiple modals adds duplicate listeners.
+
+---
+
+#### 64. Event Listeners Never Removed
+
+**Location:** `index.html:3077`, `server/public/js/ui.js:266, 274`
+**Severity:** LOW
+**Type:** Memory Leak
+
+Event listeners added but never removed. If elements are recreated, listeners persist.
+
+---
+
+### MEDIUM: Database Schema
+
+#### 65. Missing hostId Index in Prisma Schema
+
+**Location:** `server/prisma/schema.prisma:36`
+**Severity:** MEDIUM
+**Type:** Performance
+
+Foreign key `hostId` in Room model lacks index for efficient queries.
+
+**Fix:** Add `@@index([hostId])` to Room model.
+
+---
+
+#### 66. Optional Unique Email Allows Multiple NULLs
+
+**Location:** `server/prisma/schema.prisma:16`
+**Severity:** MEDIUM
+**Type:** Data Integrity
+
+`email` field is both optional (`?`) and unique. PostgreSQL allows multiple NULL values, potentially causing issues.
+
+---
+
+### MEDIUM: Logging & Observability Gaps
+
+#### 67. Missing Correlation IDs
+
+**Location:** All services and handlers
+**Severity:** HIGH
+**Type:** Observability
+
+No correlation ID system to trace related operations. Each log message is isolated.
+
+**Fix:** Generate correlation ID on socket connect, pass through all function calls.
+
+---
+
+#### 68. Silent Pub/Sub Failures (Multiple Locations)
+
+**Location:** `timerService.js:214-216, 247, 286, 434`
+**Severity:** HIGH
+**Type:** Error Handling
+
+Pub/sub failures have empty catch blocks with no logging. Production failures go unnoticed.
+
+**Fix:** Log all pub/sub failures at warn level minimum.
+
+---
+
+#### 69. Missing Structured Logging
+
+**Location:** `server/src/utils/logger.js`
+**Severity:** MEDIUM
+**Type:** Observability
+
+Logging uses string concatenation instead of structured fields, making log analysis difficult.
+
+**Fix:** Use structured logging: `logger.info('Room created', { code, sessionId })`.
+
+---
+
+#### 70. Missing Audit Trail for Sensitive Operations
+
+**Location:** Various (password changes, role assignments, host transfers)
+**Severity:** MEDIUM
+**Type:** Security / Observability
+
+Critical operations lack detailed logging. Cannot trace who changed passwords, when, from where.
+
+---
+
+#### 71. No Operation Latency Metrics
+
+**Location:** All services except `playerService.js:237-240`
+**Severity:** MEDIUM
+**Type:** Performance Monitoring
+
+Only one slow query threshold exists. No timing on Redis operations, Prisma queries, or complex game operations.
+
+---
+
+### LOW: Additional Issues
+
+#### 72. window.onload Overwrites Existing Handlers
+
+**Location:** `index.html:3098`
+**Severity:** LOW
+
+Use `addEventListener('DOMContentLoaded', init)` instead.
+
+---
+
+#### 73. CSP Allows unsafe-inline
+
+**Location:** `server/src/app.js:36-38`
+**Severity:** LOW (documented)
+
+CSP allows `'unsafe-inline'` for scripts, reducing XSS protection. Documented as necessary for SPA architecture.
+
+---
+
+#### 74. UUID Session Brute Force Not Mitigated
+
+**Location:** `server/src/middleware/socketAuth.js:65`
+**Severity:** MEDIUM
+**Type:** Security
+
+No rate limiting on session ID validation. Attacker could brute force session IDs.
+
+---
+
+---
+
+## Final Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| **Total Issues Found** | 74 |
+| Critical Issues | 7 |
+| High Priority | 15 |
+| Medium Priority | 32 |
+| Low Priority | 20 |
+| Files Reviewed | 40+ |
+
+---
+
+## Final Priority Matrix
+
+### Immediate (Block Release)
+
+| # | Issue | Type |
+|---|-------|------|
+| 28 | Game start overwrites existing | Data Loss |
+| 29 | XSS in nicknames | Security |
+| 48 | Multi-tab session conflict | Architecture |
+| 49 | Spymaster view not restored | Game Logic |
+| 50 | No event recovery | Architecture |
+
+### High Priority (This Sprint)
+
+| # | Issue | Type |
+|---|-------|------|
+| 30 | Pause timer multi-instance | Multi-Instance |
+| 31 | setRole without team | Game Logic |
+| 51 | URL decoding no try-catch | Security |
+| 53 | Weak default DB password | Security |
+| 54 | Redis TLS can be disabled | Security |
+| 56 | No state versioning | Data Consistency |
+| 57 | Orphaned players 24h | Resource Leak |
+| 67 | Missing correlation IDs | Observability |
+| 68 | Silent pub/sub failures | Error Handling |
+
+### Medium Priority (Next Sprint)
+
+| # | Issue | Type |
+|---|-------|------|
+| 32-34 | Timer multi-instance bugs | Game Logic |
+| 35-38 | Performance optimizations | Performance |
+| 52, 62-64 | Frontend quality | Code Quality |
+| 55, 60, 74 | Security hardening | Security |
+| 59, 61 | Game edge cases | Game Logic |
+| 65-66 | Database schema | Performance |
+| 69-71 | Observability gaps | Monitoring |
+
+---
+
+## Positive Findings (Confirmed Secure)
+
+The following areas were reviewed and found to be well-implemented:
+
+1. ✓ **SQL Injection** - Prisma ORM with parameterized queries
+2. ✓ **Password Hashing** - bcryptjs with 8 salt rounds
+3. ✓ **Atomic Room Operations** - Lua scripts prevent race conditions
+4. ✓ **Rate Limiting** - Dual-layer (per-socket + per-IP)
+5. ✓ **XSS in Chat** - `sanitizeHtml()` applied to messages
+6. ✓ **CSRF Protection** - X-Requested-With header requirement
+7. ✓ **Security Headers** - Helmet.js properly configured
+8. ✓ **Non-root Docker** - Container runs as UID 1001
+9. ✓ **Force HTTPS** - Enabled in fly.toml
+10. ✓ **Error Sanitization** - Stack traces hidden in production
+11. ✓ **Graceful Degradation** - Works without Redis/PostgreSQL
+12. ✓ **Memory Mode** - Redis-compatible in-memory fallback
+13. ✓ **Word List Deduplication** - Uses Set() to remove duplicates
+14. ✓ **Score Overflow** - Max 9 cards, no overflow possible
+
+---
+
+*End of Code Review - January 2026 (Fifth Pass Complete - Comprehensive Review)*
