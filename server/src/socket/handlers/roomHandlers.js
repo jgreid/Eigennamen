@@ -4,6 +4,7 @@
 
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
+const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -31,6 +32,18 @@ module.exports = function roomHandlers(io, socket) {
             socket.roomCode = room.code;
 
             socket.emit('room:created', { room, player });
+
+            // Log event for room history
+            await eventLogService.logEvent(
+                room.code,
+                eventLogService.EVENT_TYPES.ROOM_CREATED,
+                {
+                    hostSessionId: socket.sessionId,
+                    hostNickname: player.nickname,
+                    settings: room.settings
+                }
+            );
+
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
 
         } catch (error) {
@@ -95,6 +108,17 @@ module.exports = function roomHandlers(io, socket) {
             // Notify others in the room
             socket.to(`room:${room.code}`).emit('room:playerJoined', { player });
 
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                room.code,
+                eventLogService.EVENT_TYPES.PLAYER_JOINED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: validated.nickname,
+                    isReconnect: !!player.lastConnected
+                }
+            );
+
             logger.info(`Player ${validated.nickname} joined room ${room.code}`);
 
         } catch (error) {
@@ -133,6 +157,16 @@ module.exports = function roomHandlers(io, socket) {
                 newHost: result.newHostId
             });
 
+            // Log event for room history
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.PLAYER_LEFT,
+                {
+                    sessionId: socket.sessionId,
+                    newHostId: result.newHostId
+                }
+            );
+
             logger.info(`Player ${socket.sessionId} left room ${socket.roomCode}`);
             socket.roomCode = null;
 
@@ -164,6 +198,16 @@ module.exports = function roomHandlers(io, socket) {
 
             // Broadcast to all in room
             io.to(`room:${socket.roomCode}`).emit('room:settingsUpdated', { settings });
+
+            // Log event for room history
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.SETTINGS_UPDATED,
+                {
+                    sessionId: socket.sessionId,
+                    settings
+                }
+            );
 
             logger.info(`Room ${socket.roomCode} settings updated`);
 

@@ -1493,31 +1493,31 @@
             </div>
 
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
-                <button type="button" class="btn-new-game" onclick="confirmNewGame()">New Game</button>
+                <button type="button" class="btn-new-game" data-action="confirm-new-game">New Game</button>
 
                 <div class="team-controls-row">
                     <div class="control-group team-red" id="red-team-controls">
                         <span class="control-group-label" id="red-team-label">Red Team</span>
-                        <button type="button" class="btn-team-red" id="btn-team-red" onclick="setTeam('red')">Join</button>
-                        <button type="button" class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Spy</button>
-                        <button type="button" class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')">Click</button>
+                        <button type="button" class="btn-team-red" id="btn-team-red" data-action="set-team" data-team="red">Join</button>
+                        <button type="button" class="btn-spymaster-red" id="btn-spymaster-red" data-action="set-spymaster" data-team="red">Spy</button>
+                        <button type="button" class="btn-clicker-red" id="btn-clicker-red" data-action="set-clicker" data-team="red">Click</button>
                     </div>
 
                     <div class="control-group team-blue" id="blue-team-controls">
                         <span class="control-group-label" id="blue-team-label">Blue Team</span>
-                        <button type="button" class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')">Join</button>
-                        <button type="button" class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Spy</button>
-                        <button type="button" class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')">Click</button>
+                        <button type="button" class="btn-team-blue" id="btn-team-blue" data-action="set-team" data-team="blue">Join</button>
+                        <button type="button" class="btn-spymaster-blue" id="btn-spymaster-blue" data-action="set-spymaster" data-team="blue">Spy</button>
+                        <button type="button" class="btn-clicker-blue" id="btn-clicker-blue" data-action="set-clicker" data-team="blue">Click</button>
                     </div>
                 </div>
 
                 <div class="control-group bottom-controls">
-                    <button type="button" class="btn-spectate" id="btn-spectate" onclick="setTeam(null)">Spectate</button>
-                    <button type="button" class="btn-settings" onclick="openSettings()">Settings</button>
-                    <button type="button" class="btn-help" onclick="openHelp()">Help</button>
+                    <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate">Spectate</button>
+                    <button type="button" class="btn-settings" data-action="open-settings">Settings</button>
+                    <button type="button" class="btn-help" data-action="open-help">Help</button>
                 </div>
 
-                <button type="button" class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
+                <button type="button" class="btn-end-turn" id="btn-end-turn" data-action="end-turn">End Turn</button>
             </div>
 
             <div class="word-source" id="word-source"></div>
@@ -1536,7 +1536,7 @@
                 <label for="share-link">Share Game Link</label>
                 <div class="share-input-group">
                     <input type="text" id="share-link" readonly aria-describedby="share-hint">
-                    <button type="button" class="btn-copy" onclick="copyLink()">Copy</button>
+                    <button type="button" class="btn-copy" data-action="copy-link">Copy</button>
                 </div>
                 <span id="share-hint" class="sr-only">Click the Copy button to copy this link and share with friends</span>
             </div>
@@ -1558,10 +1558,10 @@
             <div class="modal-section">
                 <h3>Team Names</h3>
                 <label for="red-name-input">Red Team Name:</label>
-                <input type="text" id="red-name-input" placeholder="Red" maxlength="20" oninput="updateCharCounter('red-name-input', 'red-char-counter', 20)">
+                <input type="text" id="red-name-input" placeholder="Red" maxlength="20" data-counter="red-char-counter" data-max="20">
                 <div id="red-char-counter" class="char-counter">0/20</div>
                 <label for="blue-name-input">Blue Team Name:</label>
-                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20" oninput="updateCharCounter('blue-name-input', 'blue-char-counter', 20)">
+                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20" data-counter="blue-char-counter" data-max="20">
                 <div id="blue-char-counter" class="char-counter">0/20</div>
                 <p class="warning">Team names are shared via the game link.</p>
             </div>
@@ -1586,9 +1586,9 @@
             </div>
 
             <div class="modal-buttons">
-                <button type="button" class="btn-save" onclick="saveSettings()">Save & Apply</button>
-                <button type="button" class="btn-reset" onclick="resetWords()">Reset to Default Words</button>
-                <button type="button" class="btn-cancel" onclick="closeSettings()">Cancel</button>
+                <button type="button" class="btn-save" data-action="save-settings">Save & Apply</button>
+                <button type="button" class="btn-reset" data-action="reset-words">Reset to Default Words</button>
+                <button type="button" class="btn-cancel" data-action="close-settings">Cancel</button>
             </div>
         </div>
     </div>
@@ -1599,8 +1599,8 @@
             <h2>Start New Game?</h2>
             <p>This will end the current game. Are you sure?</p>
             <div class="modal-buttons">
-                <button type="button" class="btn-new-game" onclick="newGame(); closeConfirm();">Yes, New Game</button>
-                <button type="button" class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+                <button type="button" class="btn-new-game" data-action="confirm-yes-new-game">Yes, New Game</button>
+                <button type="button" class="btn-cancel" data-action="close-confirm">Cancel</button>
             </div>
         </div>
     </div>
@@ -1615,8 +1615,8 @@
                 <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
             </div>
             <div class="modal-buttons">
-                <button type="button" class="btn-new-game" onclick="newGame(); closeGameOver();">New Game</button>
-                <button type="button" class="btn-cancel" onclick="closeGameOver()">Close</button>
+                <button type="button" class="btn-new-game" data-action="game-over-new-game">New Game</button>
+                <button type="button" class="btn-cancel" data-action="close-game-over">Close</button>
             </div>
         </div>
     </div>
@@ -1653,7 +1653,7 @@
             </div>
 
             <div class="modal-buttons">
-                <button type="button" class="btn-save" onclick="closeHelp()">Got it!</button>
+                <button type="button" class="btn-save" data-action="close-help">Got it!</button>
             </div>
         </div>
     </div>
@@ -1667,8 +1667,8 @@
             <p>Please try refreshing the page. If the problem persists, clear your browser cache.</p>
             <div id="error-details" class="error-details" style="display: none;"></div>
             <div class="modal-buttons">
-                <button type="button" class="btn-new-game" onclick="location.reload()">Refresh Page</button>
-                <button type="button" class="btn-cancel" onclick="closeError()">Close</button>
+                <button type="button" class="btn-new-game" data-action="refresh-page">Refresh Page</button>
+                <button type="button" class="btn-cancel" data-action="close-error">Close</button>
             </div>
         </div>
     </div>
@@ -1759,10 +1759,16 @@
             toast.innerHTML = `
                 <span class="toast-icon">${icons[type] || icons.error}</span>
                 <span class="toast-message">${escapeHTML(message)}</span>
-                <button type="button" class="toast-close" onclick="dismissToast(this.parentElement)">&times;</button>
+                <button type="button" class="toast-close" data-action="dismiss-toast">&times;</button>
             `;
 
             container.appendChild(toast);
+
+            // Add event listener for toast close button
+            const closeBtn = toast.querySelector('[data-action="dismiss-toast"]');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => dismissToast(toast));
+            }
 
             // Auto-dismiss after duration
             setTimeout(() => {
@@ -3088,10 +3094,110 @@
             customWordsEl.addEventListener('input', updateWordCount);
         }
 
+        // ========== EVENT LISTENER SETUP ==========
+        // Centralized event handling using event delegation for better testability
+        // and to avoid inline onclick handlers (security best practice)
+        function setupEventListeners() {
+            // Use event delegation on document body for button actions
+            document.body.addEventListener('click', function(e) {
+                const target = e.target.closest('[data-action]');
+                if (!target) return;
+
+                const action = target.dataset.action;
+                const team = target.dataset.team;
+
+                switch (action) {
+                    // Main controls
+                    case 'confirm-new-game':
+                        confirmNewGame();
+                        break;
+                    case 'set-team':
+                        setTeam(team);
+                        break;
+                    case 'set-spymaster':
+                        setSpymaster(team);
+                        break;
+                    case 'set-clicker':
+                        setClicker(team);
+                        break;
+                    case 'spectate':
+                        setTeam(null);
+                        break;
+                    case 'open-settings':
+                        openSettings();
+                        break;
+                    case 'open-help':
+                        openHelp();
+                        break;
+                    case 'end-turn':
+                        endTurn();
+                        break;
+                    case 'copy-link':
+                        copyLink();
+                        break;
+
+                    // Settings modal
+                    case 'save-settings':
+                        saveSettings();
+                        break;
+                    case 'reset-words':
+                        resetWords();
+                        break;
+                    case 'close-settings':
+                        closeSettings();
+                        break;
+
+                    // Confirm modal
+                    case 'confirm-yes-new-game':
+                        newGame();
+                        closeConfirm();
+                        break;
+                    case 'close-confirm':
+                        closeConfirm();
+                        break;
+
+                    // Game over modal
+                    case 'game-over-new-game':
+                        newGame();
+                        closeGameOver();
+                        break;
+                    case 'close-game-over':
+                        closeGameOver();
+                        break;
+
+                    // Help modal
+                    case 'close-help':
+                        closeHelp();
+                        break;
+
+                    // Error modal
+                    case 'refresh-page':
+                        location.reload();
+                        break;
+                    case 'close-error':
+                        closeError();
+                        break;
+                }
+            });
+
+            // Character counter inputs - use event delegation on settings modal
+            const settingsModal = document.getElementById('settings-modal');
+            if (settingsModal) {
+                settingsModal.addEventListener('input', function(e) {
+                    const target = e.target;
+                    if (target.dataset.counter && target.dataset.max) {
+                        updateCharCounter(target.id, target.dataset.counter, parseInt(target.dataset.max));
+                    }
+                });
+            }
+        }
+
         async function init() {
             try {
                 // Initialize cached DOM elements first
                 initCachedElements();
+                // Set up centralized event listeners
+                setupEventListeners();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 updateWordSourceDisplay();

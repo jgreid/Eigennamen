@@ -9,6 +9,7 @@ const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
 const logger = require('../utils/logger');
 const { authenticateSocket } = require('../middleware/socketAuth');
 const timerService = require('../services/timerService');
+const eventLogService = require('../services/eventLogService');
 const {
     socketRateLimiter,
     createRateLimitedHandler,
@@ -24,8 +25,10 @@ const playerHandlers = require('./handlers/playerHandlers');
 const chatHandlers = require('./handlers/chatHandlers');
 
 let io = null;
+let app = null; // Reference to Express app for socket count updates
 
-function initializeSocket(server) {
+function initializeSocket(server, expressApp = null) {
+    app = expressApp;
     const isProduction = process.env.NODE_ENV === 'production';
 
     io = new Server(server, {
@@ -73,6 +76,11 @@ function initializeSocket(server) {
     io.on('connection', (socket) => {
         logger.info(`Client connected: ${socket.id} (session: ${socket.sessionId})`);
 
+        // Update cached socket count for fast health checks
+        if (app && typeof app.updateSocketCount === 'function') {
+            app.updateSocketCount(1);
+        }
+
         // Store the Fly.io instance ID for debugging multi-instance issues
         if (process.env.FLY_ALLOC_ID) {
             socket.flyInstanceId = process.env.FLY_ALLOC_ID;
@@ -90,6 +98,11 @@ function initializeSocket(server) {
         // Handle disconnection
         socket.on('disconnect', (reason) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
+
+            // Update cached socket count for fast health checks
+            if (app && typeof app.updateSocketCount === 'function') {
+                app.updateSocketCount(-1);
+            }
 
             // Clean up rate limiter entries for this socket to prevent memory leaks
             socketRateLimiter.cleanupSocket(socket.id);
@@ -138,6 +151,16 @@ function createTimerExpireCallback() {
                 reason: 'timerExpired'
             });
             emitToRoom(roomCode, 'timer:expired', { roomCode });
+
+            // Log timer expiration event for reconnection recovery
+            await eventLogService.logEvent(
+                roomCode,
+                eventLogService.EVENT_TYPES.TIMER_EXPIRED,
+                {
+                    currentTurn: result.currentTurn,
+                    previousTurn: result.previousTurn
+                }
+            );
 
             // Restart timer for the new turn (if timer is configured and game not over)
             // Use setImmediate instead of setTimeout to avoid untracked timers
@@ -207,6 +230,18 @@ async function handleDisconnect(io, socket, reason) {
                 timestamp: Date.now()
             });
 
+            // Log disconnect event for reconnection recovery
+            await eventLogService.logEvent(
+                roomCode,
+                eventLogService.EVENT_TYPES.PLAYER_DISCONNECTED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    team: player.team,
+                    reason
+                }
+            );
+
             // Check if disconnected player was host - use lock to prevent race condition
             if (player.isHost) {
                 const redis = getRedis();
@@ -240,6 +275,18 @@ async function handleDisconnect(io, socket, reason) {
                                 newHostNickname: newHost.nickname,
                                 reason: 'previousHostDisconnected'
                             });
+
+                            // Log host change event
+                            await eventLogService.logEvent(
+                                roomCode,
+                                eventLogService.EVENT_TYPES.HOST_CHANGED,
+                                {
+                                    previousHostSessionId: socket.sessionId,
+                                    newHostSessionId: newHost.sessionId,
+                                    newHostNickname: newHost.nickname,
+                                    reason: 'previousHostDisconnected'
+                                }
+                            );
 
                             logger.info(`Host transferred to ${newHost.nickname} in room ${roomCode}`);
                         }

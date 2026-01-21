@@ -3,6 +3,7 @@
  */
 
 const playerService = require('../../services/playerService');
+const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -14,6 +15,7 @@ module.exports = function playerHandlers(io, socket) {
 
     /**
      * Set player's team
+     * Issue #61 Fix: Prevent clickers/spymasters from switching teams during their active turn
      */
     socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
         try {
@@ -23,6 +25,19 @@ module.exports = function playerHandlers(io, socket) {
 
             const validated = validateInput(playerTeamSchema, data);
 
+            // Check if player has an active role during their team's turn (Issue #61)
+            const currentPlayer = await playerService.getPlayer(socket.sessionId);
+            if (currentPlayer && (currentPlayer.role === 'spymaster' || currentPlayer.role === 'clicker')) {
+                const gameService = require('../../services/gameService');
+                const game = await gameService.getGame(socket.roomCode);
+                if (game && !game.gameOver && game.currentTurn === currentPlayer.team) {
+                    throw {
+                        code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN,
+                        message: `Cannot switch teams while you are the active ${currentPlayer.role} during your team's turn`
+                    };
+                }
+            }
+
             const player = await playerService.setTeam(socket.sessionId, validated.team);
 
             // Broadcast to room
@@ -30,6 +45,17 @@ module.exports = function playerHandlers(io, socket) {
                 sessionId: socket.sessionId,
                 changes: { team: player.team }
             });
+
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.TEAM_CHANGED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    team: player.team
+                }
+            );
 
             logger.info(`Player ${socket.sessionId} joined team ${player.team}`);
 
@@ -70,6 +96,17 @@ module.exports = function playerHandlers(io, socket) {
                 }
             }
 
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.ROLE_CHANGED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    role: player.role
+                }
+            );
+
             logger.info(`Player ${socket.sessionId} set role to ${player.role}`);
 
         } catch (error) {
@@ -99,6 +136,16 @@ module.exports = function playerHandlers(io, socket) {
                 sessionId: socket.sessionId,
                 changes: { nickname: player.nickname }
             });
+
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.NICKNAME_CHANGED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname
+                }
+            );
 
             logger.info(`Player ${socket.sessionId} changed nickname to ${player.nickname}`);
 
