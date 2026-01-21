@@ -26,6 +26,7 @@ function validateInput(schema, data) {
 
 /**
  * Express middleware for validating request body
+ * ISSUE #40 FIX: Use next(error) to pass to centralized error handler
  */
 function validateBody(schema) {
     return (req, res, next) => {
@@ -33,13 +34,16 @@ function validateBody(schema) {
             req.body = validateInput(schema, req.body);
             next();
         } catch (error) {
-            res.status(400).json({ error });
+            // Ensure error has proper structure for error handler
+            error.statusCode = 400;
+            next(error);
         }
     };
 }
 
 /**
  * Express middleware for validating query params
+ * ISSUE #40 FIX: Use next(error) to pass to centralized error handler
  */
 function validateQuery(schema) {
     return (req, res, next) => {
@@ -47,13 +51,15 @@ function validateQuery(schema) {
             req.query = validateInput(schema, req.query);
             next();
         } catch (error) {
-            res.status(400).json({ error });
+            error.statusCode = 400;
+            next(error);
         }
     };
 }
 
 /**
  * Express middleware for validating URL params
+ * ISSUE #40 FIX: Use next(error) to pass to centralized error handler
  */
 function validateParams(schema) {
     return (req, res, next) => {
@@ -61,7 +67,8 @@ function validateParams(schema) {
             req.params = validateInput(schema, req.params);
             next();
         } catch (error) {
-            res.status(400).json({ error });
+            error.statusCode = 400;
+            next(error);
         }
     };
 }

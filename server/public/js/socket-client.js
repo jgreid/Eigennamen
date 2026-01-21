@@ -29,8 +29,9 @@
          */
         connect(serverUrl = null, options = {}) {
             return new Promise((resolve, reject) => {
-                // Load session from storage
-                this.sessionId = localStorage.getItem('codenames-session-id');
+                // ISSUE #48 FIX: Use sessionStorage for session ID (per-tab) to prevent multi-tab conflicts
+                // Keep nickname in localStorage for user convenience
+                this.sessionId = sessionStorage.getItem('codenames-session-id');
                 this.storedNickname = localStorage.getItem('codenames-nickname');
                 this.autoRejoin = options.autoRejoin !== false;
 
@@ -239,11 +240,13 @@
         },
 
         /**
-         * Save session to local storage
+         * Save session to storage
+         * ISSUE #48 FIX: Session ID uses sessionStorage (per-tab) to prevent multi-tab conflicts
+         * Room code and nickname use localStorage for user convenience across tabs
          */
         _saveSession() {
             if (this.sessionId) {
-                localStorage.setItem('codenames-session-id', this.sessionId);
+                sessionStorage.setItem('codenames-session-id', this.sessionId);
             }
             if (this.roomCode) {
                 localStorage.setItem('codenames-room-code', this.roomCode);

@@ -43,6 +43,12 @@ module.exports = function gameHandlers(io, socket) {
             // Stop any existing timer
             await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
+            // ISSUE #28 FIX: Check if game already exists and is in progress
+            const existingGame = await gameService.getGame(socket.roomCode);
+            if (existingGame && !existingGame.gameOver) {
+                throw GameStateError.gameInProgress();
+            }
+
             // Pass options to createGame (supports wordListId or wordList array)
             const game = await gameService.createGame(socket.roomCode, {
                 wordListId: validated.wordListId,

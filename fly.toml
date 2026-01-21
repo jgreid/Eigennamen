@@ -1,7 +1,7 @@
-# Fly.io configuration for Codenames game server
+# Fly.io configuration for Die Eigennamen game server
 # See https://fly.io/docs/reference/configuration/ for details
 
-app = "risley-codenames"
+app = "die-eigennamen"
 primary_region = "iad"
 
 [build]
@@ -20,7 +20,7 @@ primary_region = "iad"
 
   # CORS origin - set to your Fly app domain
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
-  CORS_ORIGIN = "https://risley-codenames.fly.dev"
+  CORS_ORIGIN = "https://die-eigennamen.fly.dev"
 
   # In-memory storage mode - no external dependencies required!
   # Game data lives in memory (lost on restart, but rooms are temporary anyway)

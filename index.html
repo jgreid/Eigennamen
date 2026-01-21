@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Play Codenames online with friends over Zoom. No account required, just share a link!">
+    <meta name="description" content="Play Die Eigennamen online with friends. No account required, just share a link!">
     <meta name="theme-color" content="#1a1a2e">
-    <meta property="og:title" content="Risley-Codenames">
-    <meta property="og:description" content="Play Codenames online with friends over Zoom. No account required!">
+    <meta property="og:title" content="Die Eigennamen">
+    <meta property="og:description" content="Play Die Eigennamen online with friends. No account required!">
     <meta property="og:type" content="website">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
-    <title>Risley-Codenames</title>
+    <title>Die Eigennamen</title>
     <style>
         * {
             box-sizing: border-box;
@@ -1469,7 +1469,7 @@
         <!-- LEFT SIDEBAR - Controls & Info -->
         <aside class="sidebar">
             <header>
-                <h1>Risley-Codenames</h1>
+                <h1>Die Eigennamen</h1>
                 <div class="subtitle"><span class="version">v2.0.0</span></div>
             </header>
 
@@ -2224,13 +2224,24 @@
             const encodedWords = params.get('w'); // Custom words encoded in URL
 
             // Load team names from URL with length validation (max 20 chars to match server)
+            // ISSUE #51 FIX: Wrap decodeURIComponent in try-catch to handle invalid encoding
             if (redName) {
-                const decoded = decodeURIComponent(redName);
-                teamNames.red = decoded.slice(0, 20);
+                try {
+                    const decoded = decodeURIComponent(redName);
+                    teamNames.red = decoded.slice(0, 20);
+                } catch (e) {
+                    console.warn('Failed to decode red team name from URL, using default');
+                    teamNames.red = 'Red Team';
+                }
             }
             if (blueName) {
-                const decoded = decodeURIComponent(blueName);
-                teamNames.blue = decoded.slice(0, 20);
+                try {
+                    const decoded = decodeURIComponent(blueName);
+                    teamNames.blue = decoded.slice(0, 20);
+                } catch (e) {
+                    console.warn('Failed to decode blue team name from URL, using default');
+                    teamNames.blue = 'Blue Team';
+                }
             }
 
             if (seed) {

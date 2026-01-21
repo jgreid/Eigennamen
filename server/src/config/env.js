@@ -68,9 +68,13 @@ function validateEnv() {
             warnings.push('  - Set REDIS_URL to a real Redis URL for production: fly secrets set REDIS_URL=rediss://...');
         }
 
-        // Security warnings
+        // ISSUE #55 FIX: Make JWT_SECRET warning more prominent in production
+        // While anonymous play is supported, operators should understand the security implications
         if (!process.env.JWT_SECRET) {
-            warnings.push('JWT_SECRET not set - JWT authentication disabled');
+            warnings.push('SECURITY WARNING: JWT_SECRET not set - user authentication is disabled');
+            warnings.push('  - Set JWT_SECRET to enable authenticated sessions: fly secrets set JWT_SECRET=$(openssl rand -hex 32)');
+        } else if (process.env.JWT_SECRET.length < 32) {
+            warnings.push('SECURITY WARNING: JWT_SECRET is too short (should be at least 32 characters)');
         }
         if (process.env.CORS_ORIGIN === '*') {
             warnings.push('CORS_ORIGIN is set to "*" in production - consider restricting');

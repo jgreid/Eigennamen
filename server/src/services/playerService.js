@@ -168,6 +168,14 @@ async function setRole(sessionId, role) {
         throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
     }
 
+    // ISSUE #31 FIX: Require team assignment before becoming spymaster or clicker
+    if ((role === 'spymaster' || role === 'clicker') && !player.team) {
+        throw {
+            code: ERROR_CODES.INVALID_INPUT,
+            message: 'Must join a team before becoming ' + role
+        };
+    }
+
     // If becoming spymaster or clicker, use a lock to prevent race conditions
     if ((role === 'spymaster' || role === 'clicker') && player.team) {
         const lockKey = `lock:${role}:${player.roomCode}:${player.team}`;

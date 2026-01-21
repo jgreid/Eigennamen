@@ -13,8 +13,10 @@ services:
       # Production settings are configured in fly.toml for Fly.io deployment
       - NODE_ENV=development
       - PORT=3000
-      # Database password should be set via POSTGRES_PASSWORD env var or .env file
-      - DATABASE_URL=postgresql://codenames:${POSTGRES_PASSWORD:-localdevpassword}@db:5432/codenames
+      # ISSUE #53 FIX: Set POSTGRES_PASSWORD via .env file or shell for non-local environments
+      # The default password is acceptable ONLY for local Docker development
+      # Production on Fly.io uses different configuration (see fly.toml)
+      - DATABASE_URL=postgresql://codenames:${POSTGRES_PASSWORD:-local-dev-password-do-not-use-in-prod}@db:5432/codenames
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
@@ -42,8 +44,9 @@ services:
     image: postgres:15-alpine
     environment:
       - POSTGRES_USER=codenames
-      # Set POSTGRES_PASSWORD in your shell or .env file for production
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-localdevpassword}
+      # ISSUE #53 FIX: Set POSTGRES_PASSWORD via .env file for non-local environments
+      # This default is ONLY for local Docker development
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-local-dev-password-do-not-use-in-prod}
       - POSTGRES_DB=codenames
     volumes:
       - postgres_data:/var/lib/postgresql/data

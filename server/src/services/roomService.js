@@ -64,10 +64,15 @@ async function createRoom(hostSessionId, settings = {}) {
     let attempts = 0;
     const maxAttempts = 10;
 
-    // Hash password if provided
+    // Hash password if provided (ISSUE #39 FIX: wrap bcrypt in try-catch)
     let passwordHash = null;
     if (settings.password && settings.password.trim()) {
-        passwordHash = await bcrypt.hash(settings.password.trim(), BCRYPT_SALT_ROUNDS);
+        try {
+            passwordHash = await bcrypt.hash(settings.password.trim(), BCRYPT_SALT_ROUNDS);
+        } catch (hashError) {
+            logger.error('Failed to hash room password:', hashError.message);
+            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to create password-protected room' };
+        }
     }
 
     // Remove raw password from settings (don't store plaintext)
@@ -197,7 +202,14 @@ async function joinRoom(code, sessionId, nickname, password = null) {
                     message: 'This room requires a password'
                 };
             }
-            const passwordValid = await bcrypt.compare(password, room.passwordHash);
+            // ISSUE #39 FIX: wrap bcrypt.compare in try-catch
+            let passwordValid = false;
+            try {
+                passwordValid = await bcrypt.compare(password, room.passwordHash);
+            } catch (compareError) {
+                logger.error('Failed to verify room password:', compareError.message);
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Password verification failed' };
+            }
             if (!passwordValid) {
                 throw {
                     code: ERROR_CODES.ROOM_PASSWORD_INVALID,
@@ -224,9 +236,10 @@ async function joinRoom(code, sessionId, nickname, password = null) {
             isReconnecting = true;
         } else if (result === 1) {
             // Successfully added to set, now create player data
+            // ISSUE #42 FIX: Use createPlayer with addToSet=false instead of deprecated createPlayerData
             // Use try-catch to rollback the set addition if player data creation fails
             try {
-                player = await playerService.createPlayerData(sessionId, code, nickname, false);
+                player = await playerService.createPlayer(sessionId, code, nickname, false, false);
             } catch (error) {
                 // Rollback: remove from players set
                 logger.warn(`Player data creation failed for ${sessionId}, rolling back set addition`);
@@ -322,10 +335,15 @@ async function updateSettings(code, sessionId, newSettings) {
             room.hasPassword = false;
             logger.info(`Password removed from room ${code}`);
         } else if (newSettings.password && newSettings.password.trim()) {
-            // Set new password
-            room.passwordHash = await bcrypt.hash(newSettings.password.trim(), BCRYPT_SALT_ROUNDS);
-            room.hasPassword = true;
-            logger.info(`Password updated for room ${code}`);
+            // Set new password (ISSUE #39 FIX: wrap bcrypt in try-catch)
+            try {
+                room.passwordHash = await bcrypt.hash(newSettings.password.trim(), BCRYPT_SALT_ROUNDS);
+                room.hasPassword = true;
+                logger.info(`Password updated for room ${code}`);
+            } catch (hashError) {
+                logger.error('Failed to hash room password:', hashError.message);
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to set room password' };
+            }
         }
         // Remove password from settings to avoid storing it
         const { password: _pass, ...cleanSettings } = newSettings;
