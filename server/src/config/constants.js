@@ -134,6 +134,81 @@ module.exports = {
         FINISHED: 'finished'
     },
 
+    // Socket event names (centralized to prevent typos and enable IDE autocomplete)
+    SOCKET_EVENTS: {
+        // Room events
+        ROOM_CREATE: 'room:create',
+        ROOM_CREATED: 'room:created',
+        ROOM_JOIN: 'room:join',
+        ROOM_JOINED: 'room:joined',
+        ROOM_LEAVE: 'room:leave',
+        ROOM_LEFT: 'room:left',
+        ROOM_PLAYER_LEFT: 'room:playerLeft',
+        ROOM_SETTINGS: 'room:settings',
+        ROOM_SETTINGS_UPDATED: 'room:settingsUpdated',
+        ROOM_SYNC: 'room:sync',
+        ROOM_RESYNCED: 'room:resynced',
+        ROOM_HOST_CHANGED: 'room:hostChanged',
+        ROOM_ERROR: 'room:error',
+
+        // Game events
+        GAME_START: 'game:start',
+        GAME_STARTED: 'game:started',
+        GAME_REVEAL: 'game:reveal',
+        GAME_CARD_REVEALED: 'game:cardRevealed',
+        GAME_CLUE: 'game:clue',
+        GAME_CLUE_GIVEN: 'game:clueGiven',
+        GAME_END_TURN: 'game:endTurn',
+        GAME_TURN_ENDED: 'game:turnEnded',
+        GAME_FORFEIT: 'game:forfeit',
+        GAME_OVER: 'game:over',
+        GAME_HISTORY: 'game:history',
+        GAME_HISTORY_DATA: 'game:historyData',
+        GAME_SPYMASTER_VIEW: 'game:spymasterView',
+        GAME_ERROR: 'game:error',
+
+        // Player events
+        PLAYER_SET_TEAM: 'player:setTeam',
+        PLAYER_SET_ROLE: 'player:setRole',
+        PLAYER_SET_NICKNAME: 'player:setNickname',
+        PLAYER_UPDATED: 'player:updated',
+        PLAYER_DISCONNECTED: 'player:disconnected',
+        PLAYER_ERROR: 'player:error',
+
+        // Timer events
+        TIMER_START: 'timer:start',
+        TIMER_TICK: 'timer:tick',
+        TIMER_EXPIRED: 'timer:expired',
+        TIMER_PAUSE: 'timer:pause',
+        TIMER_RESUME: 'timer:resume',
+        TIMER_STATUS: 'timer:status',
+
+        // Chat events
+        CHAT_MESSAGE: 'chat:message',
+        CHAT_SEND: 'chat:send',
+        CHAT_ERROR: 'chat:error'
+    },
+
+    // TTL constants (in seconds) - centralized for consistency
+    TTL: {
+        PLAYER_CONNECTED: 24 * 60 * 60,        // 24 hours
+        PLAYER_DISCONNECTED: 10 * 60,          // 10 minutes grace period for reconnection
+        GAME_STATE: 24 * 60 * 60,              // 24 hours
+        EVENT_LOG: 5 * 60,                     // 5 minutes
+        DISTRIBUTED_LOCK: 5,                   // 5 seconds
+        SESSION_VALIDATION_WINDOW: 60,         // 1 minute
+        PAUSED_TIMER: 24 * 60 * 60             // 24 hours for paused timers
+    },
+
+    // Retry configuration (centralized for all retry operations)
+    RETRY_CONFIG: {
+        OPTIMISTIC_LOCK: { maxRetries: 3, baseDelayMs: 100 },
+        REDIS_OPERATION: { maxRetries: 3, baseDelayMs: 50 },
+        DISTRIBUTED_LOCK: { maxRetries: 50, baseDelayMs: 100 },
+        PUB_SUB_CONNECT: { maxRetries: 3, baseDelayMs: 1000 },
+        NETWORK_REQUEST: { maxRetries: 4, baseDelayMs: 2000 }
+    },
+
     // Error codes
     ERROR_CODES: {
         ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
