@@ -677,4 +677,285 @@ The codebase demonstrates several good practices:
 
 ---
 
-*End of Code Review - January 2026 (Third Pass Complete)*
+---
+
+## Fourth Pass Review - January 2026
+
+This section documents additional issues found during a comprehensive fourth-pass review.
+
+### NEW Critical Issues
+
+#### 28. Game Start Overwrites Existing Game
+
+**Location:** `server/src/socket/handlers/gameHandlers.js:29-83`
+**Severity:** CRITICAL
+**Type:** Data Loss
+
+The `game:start` handler doesn't check if a game already exists. Calling it twice overwrites the previous game, causing complete loss of scores, revealed cards, and history.
+
+**Scenario:** Game in progress with score 5-2. Host accidentally clicks "Start" again. New game created, previous game lost permanently.
+
+**Fix:**
+```javascript
+// Add before createGame call (around line 47)
+const existingGame = await gameService.getGame(socket.roomCode);
+if (existingGame && !existingGame.gameOver) {
+    throw GameStateError.gameInProgress();
+}
+```
+
+---
+
+#### 29. XSS Vulnerability in Nickname Input
+
+**Location:** `server/src/validators/schemas.js:58-63`
+**Severity:** CRITICAL
+**Type:** Security - XSS
+
+The `playerNicknameSchema` only validates length (1-30 chars) but allows arbitrary characters including HTML/JavaScript. Unlike team names which use regex `/^[a-zA-Z0-9\s\-]+$/`, nicknames can contain `<script>` tags.
+
+**Fix:**
+```javascript
+nickname: z.string()
+    .min(1)
+    .max(30)
+    .regex(/^[a-zA-Z0-9\s\-_]+$/, 'Nickname contains invalid characters')
+    .transform(val => val.trim())
+```
+
+---
+
+#### 30. Pause Timer Doesn't Work Across Instances
+
+**Location:** `server/src/services/timerService.js:331-364`
+**Severity:** CRITICAL
+**Type:** Multi-Instance Bug
+
+When `pauseTimer` is called on an instance that doesn't own the local timer, the timer continues running on the original instance. Redis is updated but the local `setTimeout` on the owning instance continues.
+
+**Fix:** Use pub/sub to broadcast pause events so all instances clear their local timeouts.
+
+---
+
+#### 31. setRole Allows Spymaster Without Team
+
+**Location:** `server/src/services/playerService.js:163-209`
+**Severity:** HIGH
+**Type:** Game Logic Bug
+
+Role validation only applies if the player HAS a team. Players without a team can become spymaster/clicker, violating game rules.
+
+**Root Cause:** Condition `if ((role === 'spymaster' || role === 'clicker') && player.team)` - if `player.team` is null, the block is skipped.
+
+**Fix:**
+```javascript
+if ((role === 'spymaster' || role === 'clicker') && !player.team) {
+    throw PlayerError.notOnTeam();
+}
+```
+
+---
+
+### NEW High Priority Issues
+
+#### 32. Card Reveal Race Condition
+
+**Location:** `server/src/services/gameService.js:284-440`
+**Severity:** HIGH
+
+Multiple concurrent reveal attempts could cause inconsistent state when one reveal ends the game while another is in progress.
+
+---
+
+#### 33. Timer Resume Creates Duplicate Timers
+
+**Location:** `server/src/services/timerService.js:372-391`
+**Severity:** MEDIUM
+
+`resumeTimer` doesn't verify that no other instance has already resumed. Multiple instances calling resume could create duplicate active timers.
+
+---
+
+#### 34. addTime Creates Timer on Wrong Instance
+
+**Location:** `server/src/services/timerService.js:464-479`
+**Severity:** MEDIUM
+
+`addTime` creates a new local timer on ANY instance, even if that instance doesn't own the original timer.
+
+---
+
+### NEW Performance Issues
+
+#### 35. Team Chat Fetches All Players (N+1)
+
+**Location:** `server/src/socket/handlers/chatHandlers.js:56-57`
+**Severity:** HIGH (Performance)
+
+For team-only messages, fetches ALL players then filters. With many players, this is O(N) per message.
+
+**Fix:** Maintain team-based Redis sets for efficient lookup.
+
+---
+
+#### 36. Full JSON Serialization on Every Card Reveal
+
+**Location:** `server/src/services/gameService.js:284-440`
+**Severity:** MEDIUM
+
+Every card reveal requires full `JSON.stringify()` and `JSON.parse()` of the entire game object (25 times per game).
+
+---
+
+#### 37. Rate Limiter Array Allocation
+
+**Location:** `server/src/middleware/rateLimit.js:156-184`
+**Severity:** MEDIUM
+
+Rate limiter creates NEW array every request via `filter()`, causing memory pressure under load.
+
+---
+
+#### 38. Health Check Socket Count Slow Under Load
+
+**Location:** `server/src/app.js:149-168`
+**Severity:** MEDIUM
+
+Health checks call `io.fetchSockets()` which iterates all connections. With 1000+ sockets, this is slow.
+
+**Fix:** Cache socket count, update on connect/disconnect.
+
+---
+
+### NEW Error Handling Issues
+
+#### 39. bcrypt Operations Not Wrapped
+
+**Location:** `server/src/services/roomService.js:70, 326`
+**Severity:** HIGH
+
+`bcrypt.hash()` calls not wrapped in try-catch. Crypto errors would crash the operation.
+
+---
+
+#### 40. Validation Middleware Bypasses Error Handler
+
+**Location:** `server/src/middleware/validation.js:36, 50, 64`
+**Severity:** HIGH
+
+Validation middleware calls `res.json()` directly instead of `next(error)`, bypassing centralized error handler.
+
+---
+
+#### 41. Pub/Sub Errors Silently Ignored
+
+**Location:** `server/src/services/timerService.js:207-216`
+**Severity:** MEDIUM
+
+Pub/sub publish operations have empty catch blocks. Multi-instance deployments could have timer sync issues without knowing.
+
+---
+
+### NEW Code Quality Issues
+
+#### 42. Deprecated Function Still Used
+
+**Location:** `server/src/services/playerService.js:45-52`
+**Severity:** HIGH (Code Quality)
+
+`createPlayerData()` is marked `@deprecated` but still exported and used in `roomService.js:229`.
+
+---
+
+#### 43. Hardcoded Retry Count Pattern
+
+**Files:** `gameService.js:294, 498, 602, 672`, `roomService.js:65`
+**Severity:** HIGH (Code Quality)
+
+`maxRetries = 3` pattern repeated multiple times across services.
+
+---
+
+#### 44. Missing Socket Event Constants
+
+**Files:** All handlers in `server/src/socket/handlers/`
+**Severity:** MEDIUM
+
+Event names like `'game:started'`, `'player:updated'` are hardcoded strings.
+
+---
+
+#### 45. Long Functions Need Decomposition
+
+**Location:** `server/src/services/gameService.js`
+**Severity:** MEDIUM
+
+Functions exceeding 100+ lines: `revealCard()` (157 lines), `giveClue()` (103 lines), `createGame()` (115 lines).
+
+---
+
+#### 46. sanitizeHtml Should Be Shared Utility
+
+**Location:** `server/src/socket/handlers/chatHandlers.js:16-23`
+**Severity:** MEDIUM
+
+`sanitizeHtml()` defined only in chatHandlers but needed elsewhere (nicknames, team names).
+
+---
+
+#### 47. Missing Integration Tests
+
+**Location:** `server/src/__tests__/`
+**Severity:** MEDIUM
+
+No tests for socket handlers, service integrations, or full game flows.
+
+---
+
+## Updated Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Issues Found | 47 |
+| Critical Issues | 4 |
+| High Priority | 9 |
+| Medium Priority | 14 |
+| Low Priority | 20 |
+| Files Reviewed | 34+ |
+
+---
+
+## Updated Priority Matrix
+
+### Immediate (This Week)
+
+| # | Issue | Type |
+|---|-------|------|
+| 28 | Game start overwrites existing | Data Loss |
+| 29 | XSS in nicknames | Security |
+| 30 | Pause timer multi-instance | Multi-Instance |
+| 31 | setRole without team | Game Logic |
+
+### High Priority (This Sprint)
+
+| # | Issue | Type |
+|---|-------|------|
+| 32 | Card reveal race condition | Game Logic |
+| 35 | Team chat N+1 query | Performance |
+| 39 | bcrypt not wrapped | Error Handling |
+| 40 | Validation bypasses handler | Error Handling |
+| 42 | Deprecated function used | Code Quality |
+| 43 | Hardcoded retry count | Code Quality |
+
+### Medium Priority (Next Sprint)
+
+| # | Issue | Type |
+|---|-------|------|
+| 33-34 | Timer multi-instance bugs | Game Logic |
+| 36-38 | Performance optimizations | Performance |
+| 41 | Pub/sub errors ignored | Error Handling |
+| 44-47 | Code quality improvements | Code Quality |
+
+---
+
+*End of Code Review - January 2026 (Fourth Pass Complete)*
