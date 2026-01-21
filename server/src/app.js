@@ -14,8 +14,56 @@ const { csrfProtection } = require('./middleware/csrf');
 const routes = require('./routes');
 const logger = require('./utils/logger');
 const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
+const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
+const { correlationMiddleware } = require('./utils/correlationId');
 
 const app = express();
+
+// Cached socket count for fast health checks
+let cachedSocketCount = 0;
+let lastSocketCountUpdate = 0;
+const SOCKET_COUNT_CACHE_MS = 5000;
+
+/**
+ * Get cached socket count (updated on connect/disconnect)
+ * Falls back to io.fetchSockets() if cache is stale
+ */
+async function getCachedSocketCount(io, forceRefresh = false) {
+    const now = Date.now();
+
+    // Return cached value if fresh
+    if (!forceRefresh && now - lastSocketCountUpdate < SOCKET_COUNT_CACHE_MS) {
+        return { count: cachedSocketCount, cached: true };
+    }
+
+    // Refresh cache with timeout protection
+    try {
+        const socketCountPromise = io.fetchSockets().then(s => s.length);
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Socket count timeout')), 2000)
+        );
+
+        cachedSocketCount = await Promise.race([socketCountPromise, timeoutPromise]);
+        lastSocketCountUpdate = now;
+        setSocketConnections(cachedSocketCount);
+        return { count: cachedSocketCount, cached: false };
+    } catch (error) {
+        // Return stale cache on error
+        return { count: cachedSocketCount, cached: true, stale: true };
+    }
+}
+
+/**
+ * Update socket count on connection change (called from socket/index.js)
+ */
+function updateSocketCount(delta) {
+    cachedSocketCount = Math.max(0, cachedSocketCount + delta);
+    lastSocketCountUpdate = Date.now();
+    setSocketConnections(cachedSocketCount);
+}
+
+// Export for socket module to use
+app.updateSocketCount = updateSocketCount;
 
 // CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || '*';
@@ -142,30 +190,17 @@ app.get('/health/ready', async (req, res) => {
         logger.error('Health check: Storage error', error.message);
     }
 
-    // Check Socket.io with timeout protection to avoid slow responses under load
+    // Check Socket.io with cached count for fast response
     try {
         const io = app.get('io');
         if (io) {
-            // Add 2-second timeout to prevent slow health checks under high load
-            const socketCountPromise = io.fetchSockets().then(s => s.length);
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Socket count timeout')), 2000)
-            );
-
-            try {
-                const connectionCount = await Promise.race([socketCountPromise, timeoutPromise]);
-                checks.checks.socketio = {
-                    status: 'ok',
-                    connections: connectionCount
-                };
-            } catch (timeoutError) {
-                // Timeout getting socket count - report as ok but with unknown count
-                checks.checks.socketio = {
-                    status: 'ok',
-                    connections: 'unknown',
-                    note: 'Socket count timed out (high load)'
-                };
-            }
+            const { count, cached, stale } = await getCachedSocketCount(io);
+            checks.checks.socketio = {
+                status: 'ok',
+                connections: count,
+                cached,
+                ...(stale && { note: 'Count may be stale' })
+            };
         } else {
             checks.checks.socketio = { status: 'not_configured' };
         }
@@ -183,9 +218,9 @@ app.get('/health/live', (req, res) => {
     res.status(200).json({ status: 'alive' });
 });
 
-// Metrics endpoint with rate limit visibility
+// Metrics endpoint with rate limit visibility and application metrics
 app.get('/metrics', async (req, res) => {
-    const metrics = {
+    const metricsData = {
         timestamp: new Date().toISOString(),
         process: {
             uptime: process.uptime(),
@@ -196,39 +231,27 @@ app.get('/metrics', async (req, res) => {
 
     // Add Fly.io instance info if available
     if (process.env.FLY_ALLOC_ID) {
-        metrics.instance = {
+        metricsData.instance = {
             flyAllocId: process.env.FLY_ALLOC_ID,
             flyRegion: process.env.FLY_REGION
         };
     }
 
-    // Add socket.io stats if available (with timeout protection)
+    // Add socket.io stats with cached count
     try {
         const io = app.get('io');
         if (io) {
-            // Add 2-second timeout to prevent slow metrics under high load
-            const socketCountPromise = io.fetchSockets().then(s => s.length);
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Socket count timeout')), 2000)
-            );
-
-            try {
-                const connectionCount = await Promise.race([socketCountPromise, timeoutPromise]);
-                metrics.socketio = {
-                    status: 'ok',
-                    connections: connectionCount
-                };
-            } catch (timeoutError) {
-                metrics.socketio = {
-                    status: 'ok',
-                    connections: 'unknown',
-                    note: 'Socket count timed out'
-                };
-            }
+            const { count, cached, stale } = await getCachedSocketCount(io);
+            metricsData.socketio = {
+                status: 'ok',
+                connections: count,
+                cached,
+                ...(stale && { note: 'Count may be stale' })
+            };
         }
     } catch (error) {
         logger.warn('Failed to fetch socket stats for metrics:', error.message);
-        metrics.socketio = {
+        metricsData.socketio = {
             status: 'error',
             error: error.message
         };
@@ -236,19 +259,31 @@ app.get('/metrics', async (req, res) => {
 
     // Add rate limit metrics for production visibility
     try {
-        metrics.rateLimits = {
+        metricsData.rateLimits = {
             http: getHttpRateLimitMetrics(),
             socket: getSocketRateLimitMetrics()
         };
     } catch (error) {
         logger.warn('Failed to fetch rate limit metrics:', error.message);
-        metrics.rateLimits = {
+        metricsData.rateLimits = {
             status: 'error',
             error: error.message
         };
     }
 
-    res.json(metrics);
+    // Add application metrics (counters, gauges, histograms)
+    try {
+        const appMetrics = getAllMetrics();
+        metricsData.application = appMetrics;
+    } catch (error) {
+        logger.warn('Failed to fetch application metrics:', error.message);
+        metricsData.application = {
+            status: 'error',
+            error: error.message
+        };
+    }
+
+    res.json(metricsData);
 });
 
 // Serve the game for any non-API route (SPA support)
