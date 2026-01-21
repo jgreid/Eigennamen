@@ -52,9 +52,8 @@ module.exports = function chatHandlers(io, socket) {
             };
 
             if (validated.teamOnly && player.team) {
-                // Send only to teammates
-                const players = await playerService.getPlayersInRoom(socket.roomCode);
-                const teammates = players.filter(p => p.team === player.team);
+                // Send only to teammates - O(1) lookup using team sets
+                const teammates = await playerService.getTeamMembers(socket.roomCode, player.team);
 
                 for (const teammate of teammates) {
                     try {

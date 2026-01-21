@@ -21,7 +21,7 @@ async function sleep(ms) {
 }
 
 /**
- * Create Redis client options with TLS support
+ * Create Redis client options with TLS support and performance tuning
  * Handles both redis:// and rediss:// (TLS) URLs
  */
 function createClientOptions(redisUrl) {
@@ -38,10 +38,19 @@ function createClientOptions(redisUrl) {
                 logger.warn(`Redis reconnecting in ${delay}ms (attempt ${retries})`);
                 return delay;
             },
-            // Keep connection alive (important for Fly.io internal networking)
-            keepAlive: 30000, // 30 seconds
-            connectTimeout: 10000 // 10 seconds
-        }
+            // Keep connection alive - more aggressive for better latency
+            keepAlive: 10000, // 10 seconds
+            connectTimeout: 10000, // 10 seconds
+            // Disable Nagle's algorithm for lower latency
+            noDelay: true
+        },
+        // Performance tuning options
+        // Don't lazily connect - establish connection immediately
+        lazyConnect: false,
+        // Queue commands when disconnected (fail-open for better UX)
+        enableOfflineQueue: true,
+        // Limit command queue to prevent memory issues during extended outages
+        commandsQueueMaxLength: 1000
     };
 
     // Handle TLS for rediss:// URLs (Fly.io Upstash Redis)
