@@ -127,9 +127,19 @@ return cjson.encode(player)
 /**
  * Set player's team (atomic operation)
  * Clears spymaster/clicker role when switching teams (those roles are team-specific)
+ * Also maintains team sets for O(1) team member lookups
  */
 async function setTeam(sessionId, team) {
     const redis = getRedis();
+
+    // Get player first to get room code and old team for team set maintenance
+    const existingPlayer = await getPlayer(sessionId);
+    if (!existingPlayer) {
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+    }
+
+    const oldTeam = existingPlayer.team;
+    const roomCode = existingPlayer.roomCode;
 
     // Use sentinel value for null to properly handle in Lua script
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
@@ -148,6 +158,19 @@ async function setTeam(sessionId, team) {
 
     try {
         const player = JSON.parse(result);
+
+        // Maintain team sets for O(1) lookups (outside Lua script for simplicity)
+        // Remove from old team set if was on a team
+        if (oldTeam) {
+            await redis.sRem(`room:${roomCode}:team:${oldTeam}`, sessionId);
+        }
+
+        // Add to new team set if joining a team
+        if (team) {
+            await redis.sAdd(`room:${roomCode}:team:${team}`, sessionId);
+            await redis.expire(`room:${roomCode}:team:${team}`, REDIS_TTL.PLAYER);
+        }
+
         logger.debug(`Player ${sessionId} team set to ${team}`);
         return player;
     } catch (e) {
@@ -224,6 +247,62 @@ async function setNickname(sessionId, nickname) {
 }
 
 /**
+ * Get all players on a specific team - O(1) lookup using team sets
+ * Uses pipeline for batch fetching player data
+ * @param {string} roomCode - Room code
+ * @param {string} team - Team name ('red' or 'blue')
+ * @returns {Array} Array of player objects on the team
+ */
+async function getTeamMembers(roomCode, team) {
+    const redis = getRedis();
+    const teamKey = `room:${roomCode}:team:${team}`;
+
+    // Get session IDs from team set
+    const sessionIds = await redis.sMembers(teamKey);
+
+    if (sessionIds.length === 0) {
+        return [];
+    }
+
+    // Batch fetch all player data
+    const playerKeys = sessionIds.map(id => `player:${id}`);
+    const playerDataArray = await redis.mGet(playerKeys);
+
+    const players = [];
+    const orphanedIds = [];
+
+    for (let i = 0; i < sessionIds.length; i++) {
+        const playerData = playerDataArray[i];
+        if (playerData) {
+            try {
+                const player = JSON.parse(playerData);
+                // Verify player is still on this team (consistency check)
+                if (player.team === team) {
+                    players.push(player);
+                } else {
+                    // Player changed teams but set wasn't updated - clean up
+                    orphanedIds.push(sessionIds[i]);
+                }
+            } catch (e) {
+                logger.error(`Failed to parse player data for ${sessionIds[i]}:`, e.message);
+                orphanedIds.push(sessionIds[i]);
+            }
+        } else {
+            // Player data expired - clean up
+            orphanedIds.push(sessionIds[i]);
+        }
+    }
+
+    // Clean up orphaned entries
+    if (orphanedIds.length > 0) {
+        await redis.sRem(teamKey, ...orphanedIds);
+        logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey}`);
+    }
+
+    return players;
+}
+
+/**
  * Get all players in a room
  * Also cleans up orphaned session IDs (where player data has expired)
  * Uses MGET batching for better performance (single Redis round-trip instead of N)
@@ -278,13 +357,22 @@ async function getPlayersInRoom(roomCode) {
 
 /**
  * Remove player from room
+ * Also removes from team set if player was on a team
  */
 async function removePlayer(sessionId) {
     const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (player) {
+        // Remove from room's player set
         await redis.sRem(`room:${player.roomCode}:players`, sessionId);
+
+        // Remove from team set if player was on a team
+        if (player.team) {
+            await redis.sRem(`room:${player.roomCode}:team:${player.team}`, sessionId);
+        }
+
+        // Delete player data
         await redis.del(`player:${sessionId}`);
         logger.info(`Player ${sessionId} removed from room ${player.roomCode}`);
     }
@@ -351,6 +439,7 @@ module.exports = {
     setTeam,
     setRole,
     setNickname,
+    getTeamMembers,
     getPlayersInRoom,
     removePlayer,
     handleDisconnect,

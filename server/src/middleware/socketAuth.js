@@ -1,11 +1,23 @@
 /**
  * Socket.io Authentication Middleware
+ *
+ * Provides secure session validation with:
+ * - Session age validation
+ * - IP consistency checks
+ * - Rate limiting for validation attempts
+ * - JWT token verification
  */
 
 const { v4: uuidv4, validate: isValidUuid } = require('uuid');
-const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
+const { verifyToken, isJwtEnabled } = require('../config/jwt');
+const { getRedis } = require('../config/redis');
+const {
+    SESSION_SECURITY,
+    REDIS_TTL,
+    ERROR_CODES
+} = require('../config/constants');
 
 /**
  * Check if we should trust proxy headers (X-Forwarded-For)
@@ -47,8 +59,150 @@ function getClientIP(socket) {
 }
 
 /**
+ * Rate limit session validation attempts by IP
+ * Prevents brute-force session hijacking attempts
+ * @param {string} clientIP - Client IP address
+ * @returns {Promise<{allowed: boolean, attempts: number}>}
+ */
+async function checkValidationRateLimit(clientIP) {
+    const redis = getRedis();
+    const key = `session:validation:${clientIP}`;
+
+    try {
+        const attempts = await redis.incr(key);
+
+        // Set expiry on first attempt
+        if (attempts === 1) {
+            await redis.expire(key, REDIS_TTL.SESSION_VALIDATION_WINDOW);
+        }
+
+        const maxAttempts = SESSION_SECURITY.MAX_VALIDATION_ATTEMPTS_PER_IP;
+        if (attempts > maxAttempts) {
+            logger.warn('Session validation rate limited', {
+                clientIP,
+                attempts,
+                maxAttempts
+            });
+            return { allowed: false, attempts };
+        }
+
+        return { allowed: true, attempts };
+    } catch (error) {
+        // If Redis fails, allow the request (fail-open for availability)
+        logger.error('Rate limit check failed:', error.message);
+        return { allowed: true, attempts: 0 };
+    }
+}
+
+/**
+ * Validate session age
+ * @param {object} player - Player object with createdAt or connectedAt
+ * @returns {{valid: boolean, reason?: string}}
+ */
+function validateSessionAge(player) {
+    const createdAt = player.createdAt || player.connectedAt;
+    if (!createdAt) {
+        // No creation time - allow but log
+        logger.debug('Session has no creation timestamp');
+        return { valid: true };
+    }
+
+    const sessionAge = Date.now() - createdAt;
+    if (sessionAge > SESSION_SECURITY.MAX_SESSION_AGE_MS) {
+        return {
+            valid: false,
+            reason: ERROR_CODES.SESSION_EXPIRED
+        };
+    }
+
+    return { valid: true };
+}
+
+/**
+ * Validate IP consistency for session reconnection
+ * @param {object} player - Existing player object
+ * @param {string} currentIP - Current client IP
+ * @returns {{valid: boolean, ipMismatch: boolean}}
+ */
+function validateIPConsistency(player, currentIP) {
+    if (!player.lastIP) {
+        // No previous IP recorded - allow
+        return { valid: true, ipMismatch: false };
+    }
+
+    if (player.lastIP !== currentIP) {
+        logger.warn('IP mismatch on session reconnection', {
+            sessionId: player.sessionId,
+            previousIP: player.lastIP,
+            currentIP,
+            nickname: player.nickname,
+            roomCode: player.roomCode
+        });
+
+        if (SESSION_SECURITY.IP_MISMATCH_ALLOWED) {
+            // Allow but flag for monitoring
+            return { valid: true, ipMismatch: true };
+        }
+
+        return { valid: false, ipMismatch: true };
+    }
+
+    return { valid: true, ipMismatch: false };
+}
+
+/**
+ * Comprehensive session validation
+ * @param {string} sessionId - Session ID to validate
+ * @param {string} clientIP - Client IP address
+ * @returns {Promise<{valid: boolean, player?: object, reason?: string, ipMismatch?: boolean}>}
+ */
+async function validateSession(sessionId, clientIP) {
+    // Check rate limit first
+    const rateLimit = await checkValidationRateLimit(clientIP);
+    if (!rateLimit.allowed) {
+        return {
+            valid: false,
+            reason: ERROR_CODES.SESSION_VALIDATION_RATE_LIMITED
+        };
+    }
+
+    // Get player data
+    const player = await playerService.getPlayer(sessionId);
+    if (!player) {
+        return {
+            valid: false,
+            reason: ERROR_CODES.SESSION_NOT_FOUND
+        };
+    }
+
+    // Validate session age
+    const ageValidation = validateSessionAge(player);
+    if (!ageValidation.valid) {
+        return {
+            valid: false,
+            reason: ageValidation.reason
+        };
+    }
+
+    // Validate IP consistency
+    const ipValidation = validateIPConsistency(player, clientIP);
+    if (!ipValidation.valid) {
+        return {
+            valid: false,
+            reason: 'IP_MISMATCH_NOT_ALLOWED'
+        };
+    }
+
+    return {
+        valid: true,
+        player,
+        ipMismatch: ipValidation.ipMismatch
+    };
+}
+
+/**
  * Authenticate socket connection
- * Includes session validation to prevent hijacking
+ * Includes comprehensive session validation with security checks
  */
 async function authenticateSocket(socket, next) {
     try {
@@ -59,28 +213,49 @@ async function authenticateSocket(socket, next) {
 
         // Validate and use provided session ID, or generate new one
         let validatedSessionId = null;
+        let sessionValidationResult = null;
 
         if (sessionId) {
             // Validate session ID format (must be valid UUID)
-            if (isValidUuid(sessionId)) {
+            if (!isValidUuid(sessionId)) {
+                logger.warn('Invalid session ID format rejected', {
+                    sessionId: sessionId.substring(0, 10) + '...',
+                    clientIP: currentIP
+                });
+            } else {
                 // Check if there's an existing player with this session
                 const existingPlayer = await playerService.getPlayer(sessionId);
 
                 if (existingPlayer) {
                     // Only allow session reuse if player is disconnected (legitimate reconnection)
                     if (!existingPlayer.connected) {
-                        // Additional security: check if IP address matches (if tracked)
-                        if (existingPlayer.lastIP && existingPlayer.lastIP !== currentIP) {
-                            // Different IP - could be hijacking, require fresh session
-                            logger.warn(`Session reuse blocked for ${sessionId} - IP mismatch (was ${existingPlayer.lastIP}, now ${currentIP})`);
-                            validatedSessionId = null;
-                        } else {
+                        // Perform full session validation
+                        sessionValidationResult = await validateSession(sessionId, currentIP);
+
+                        if (sessionValidationResult.valid) {
                             validatedSessionId = sessionId;
-                            logger.debug(`Session ${sessionId} validated for reconnection`);
+                            logger.debug('Session validated for reconnection', {
+                                sessionId,
+                                ipMismatch: sessionValidationResult.ipMismatch
+                            });
+
+                            // Flag IP mismatch on socket for monitoring
+                            if (sessionValidationResult.ipMismatch) {
+                                socket.ipMismatch = true;
+                            }
+                        } else {
+                            logger.warn('Session validation failed', {
+                                sessionId,
+                                reason: sessionValidationResult.reason,
+                                clientIP: currentIP
+                            });
                         }
                     } else {
                         // Player is currently connected - potential hijacking attempt
-                        logger.warn(`Session hijacking attempt blocked for ${sessionId} from ${currentIP}`);
+                        logger.warn('Session hijacking attempt blocked', {
+                            sessionId,
+                            clientIP: currentIP
+                        });
                         // Generate new session instead of rejecting (more user-friendly)
                         validatedSessionId = null;
                     }
@@ -89,9 +264,6 @@ async function authenticateSocket(socket, next) {
                     // Allow it (session will be created fresh when they join a room)
                     validatedSessionId = sessionId;
                 }
-            } else {
-                // Invalid UUID format - ignore and generate new
-                logger.warn(`Invalid session ID format rejected: ${sessionId}`);
             }
         }
 
@@ -101,27 +273,32 @@ async function authenticateSocket(socket, next) {
         // Store client IP on socket for rate limiting
         socket.clientIP = currentIP;
 
-        // If token provided, verify and attach user info (only if JWT_SECRET is configured)
-        if (token) {
-            const secret = process.env.JWT_SECRET;
-            if (!secret) {
-                logger.debug('JWT_SECRET not configured, skipping socket token verification');
+        // Handle JWT token verification
+        if (token && isJwtEnabled()) {
+            const decoded = verifyToken(token);
+            if (decoded) {
+                socket.userId = decoded.userId;
+                socket.user = decoded;
+                logger.debug('JWT token verified for socket', {
+                    socketId: socket.id,
+                    userId: decoded.userId
+                });
             } else {
-                try {
-                    const decoded = jwt.verify(token, secret);
-                    socket.userId = decoded.userId;
-                    socket.user = decoded;
-                } catch (err) {
-                    // Invalid token, continue as anonymous
-                    logger.warn(`Invalid token for socket ${socket.id}`);
-                }
+                logger.debug('Invalid JWT token for socket', {
+                    socketId: socket.id
+                });
             }
         }
 
         // Map socket ID to session ID for this connection (with IP tracking for security)
         await playerService.setSocketMapping(socket.sessionId, socket.id, currentIP);
 
-        logger.debug(`Socket authenticated: ${socket.id} -> session ${socket.sessionId}`);
+        logger.debug('Socket authenticated', {
+            socketId: socket.id,
+            sessionId: socket.sessionId,
+            hasUserId: !!socket.userId,
+            clientIP: currentIP
+        });
         next();
 
     } catch (error) {
@@ -131,7 +308,7 @@ async function authenticateSocket(socket, next) {
 }
 
 /**
- * Middleware to require authenticated user
+ * Middleware to require authenticated user (JWT)
  */
 function requireAuth(socket, next) {
     if (!socket.userId) {
@@ -140,7 +317,23 @@ function requireAuth(socket, next) {
     next();
 }
 
+/**
+ * Middleware to require valid session in a room
+ */
+async function requireRoomSession(socket, next) {
+    const player = await playerService.getPlayer(socket.sessionId);
+    if (!player || !player.roomCode) {
+        return next(new Error('Must be in a room'));
+    }
+    socket.player = player;
+    next();
+}
+
 module.exports = {
     authenticateSocket,
-    requireAuth
+    requireAuth,
+    requireRoomSession,
+    getClientIP,
+    validateSession,
+    checkValidationRateLimit
 };

@@ -15,11 +15,12 @@ const {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
     ROOM_STATUS,
-    ERROR_CODES
+    ERROR_CODES,
+    PASSWORD_SECURITY
 } = require('../config/constants');
 
-// Password hashing cost factor (lower for game passwords, not protecting sensitive accounts)
-const BCRYPT_SALT_ROUNDS = 8;
+// Password hashing cost factor - from centralized config
+const BCRYPT_SALT_ROUNDS = PASSWORD_SECURITY.BCRYPT_SALT_ROUNDS;
 
 // Generate room codes (uppercase alphanumeric, no confusing chars)
 const generateRoomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', ROOM_CODE_LENGTH);
@@ -94,6 +95,8 @@ async function createRoom(hostSessionId, settings = {}) {
             },
             passwordHash, // Store hash, not plaintext
             hasPassword: !!passwordHash, // Flag for UI
+            passwordVersion: passwordHash ? 1 : 0, // Track password changes for reconnection validation
+            passwordChangedAt: passwordHash ? Date.now() : null,
             createdAt: Date.now(),
             expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
         };
@@ -190,11 +193,53 @@ async function joinRoom(code, sessionId, nickname, password = null) {
     let isReconnecting = false;
 
     if (player && player.roomCode === code) {
-        // Update player's connected status (reconnection)
-        player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
-        isReconnecting = true;
+        // Reconnection - check if password has changed since player joined
+        if (room.passwordHash && PASSWORD_SECURITY.REQUIRE_REAUTH_ON_CHANGE) {
+            const playerPasswordVersion = player.passwordVersion || 0;
+            const roomPasswordVersion = room.passwordVersion || 0;
+
+            if (playerPasswordVersion < roomPasswordVersion) {
+                // Password changed since player joined - require re-authentication
+                if (!password) {
+                    throw {
+                        code: ERROR_CODES.ROOM_PASSWORD_CHANGED,
+                        message: 'Room password has changed - please re-enter the password'
+                    };
+                }
+                // Verify the new password
+                let passwordValid = false;
+                try {
+                    passwordValid = await bcrypt.compare(password, room.passwordHash);
+                } catch (compareError) {
+                    logger.error('Failed to verify room password on reconnection:', compareError.message);
+                    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Password verification failed' };
+                }
+                if (!passwordValid) {
+                    throw {
+                        code: ERROR_CODES.ROOM_PASSWORD_INVALID,
+                        message: 'Incorrect room password'
+                    };
+                }
+                // Update player's password version
+                player = await playerService.updatePlayer(sessionId, {
+                    connected: true,
+                    lastSeen: Date.now(),
+                    passwordVersion: roomPasswordVersion
+                });
+                logger.info(`Player ${sessionId} re-authenticated after password change in room ${code}`);
+                isReconnecting = true;
+            } else {
+                // Password version matches - normal reconnection
+                player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
+                isReconnecting = true;
+            }
+        } else {
+            // No password or re-auth not required - normal reconnection
+            player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
+            isReconnecting = true;
+        }
     } else {
-        // Check password for new joins (not reconnections)
+        // New join - check password
         if (room.passwordHash) {
             if (!password) {
                 throw {
@@ -233,6 +278,10 @@ async function joinRoom(code, sessionId, nickname, password = null) {
         if (result === -1) {
             // Already a member but player data might be missing - treat as reconnection
             player = await playerService.createPlayer(sessionId, code, nickname, false);
+            // Store password version if room has password
+            if (room.passwordVersion) {
+                player = await playerService.updatePlayer(sessionId, { passwordVersion: room.passwordVersion });
+            }
             isReconnecting = true;
         } else if (result === 1) {
             // Successfully added to set, now create player data
@@ -240,6 +289,10 @@ async function joinRoom(code, sessionId, nickname, password = null) {
             // Use try-catch to rollback the set addition if player data creation fails
             try {
                 player = await playerService.createPlayer(sessionId, code, nickname, false, false);
+                // Store password version if room has password (for reconnection validation)
+                if (room.passwordVersion) {
+                    player = await playerService.updatePlayer(sessionId, { passwordVersion: room.passwordVersion });
+                }
             } catch (error) {
                 // Rollback: remove from players set
                 logger.warn(`Player data creation failed for ${sessionId}, rolling back set addition`);
@@ -329,17 +382,31 @@ async function updateSettings(code, sessionId, newSettings) {
 
     // Handle password update separately
     if ('password' in newSettings) {
+        const currentPasswordVersion = room.passwordVersion || 0;
+
         if (newSettings.password === null || newSettings.password === '') {
             // Remove password
             room.passwordHash = null;
             room.hasPassword = false;
-            logger.info(`Password removed from room ${code}`);
+            room.passwordVersion = 0;
+            room.passwordChangedAt = null;
+            logger.info(`Password removed from room ${code}`, {
+                roomCode: code,
+                changedBy: sessionId,
+                previousVersion: currentPasswordVersion
+            });
         } else if (newSettings.password && newSettings.password.trim()) {
             // Set new password (ISSUE #39 FIX: wrap bcrypt in try-catch)
             try {
                 room.passwordHash = await bcrypt.hash(newSettings.password.trim(), BCRYPT_SALT_ROUNDS);
                 room.hasPassword = true;
-                logger.info(`Password updated for room ${code}`);
+                room.passwordVersion = currentPasswordVersion + 1;
+                room.passwordChangedAt = Date.now();
+                logger.info(`Password updated for room ${code}`, {
+                    roomCode: code,
+                    changedBy: sessionId,
+                    passwordVersion: room.passwordVersion
+                });
             } catch (hashError) {
                 logger.error('Failed to hash room password:', hashError.message);
                 throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to set room password' };
@@ -357,8 +424,12 @@ async function updateSettings(code, sessionId, newSettings) {
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 
-    // Return settings without passwordHash
-    return { ...room.settings, hasPassword: room.hasPassword };
+    // Return settings without passwordHash (include password version for client awareness)
+    return {
+        ...room.settings,
+        hasPassword: room.hasPassword,
+        passwordVersion: room.passwordVersion || 0
+    };
 }
 
 /**

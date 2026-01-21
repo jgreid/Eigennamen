@@ -1,9 +1,16 @@
 /**
  * Input Validation Schemas (Zod)
+ *
+ * Provides comprehensive input validation with:
+ * - Type checking and constraints
+ * - XSS prevention via character restrictions
+ * - Reserved name blocking
+ * - Control character removal
  */
 
 const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION } = require('../config/constants');
+const { BOARD_SIZE, VALIDATION, RESERVED_NAMES } = require('../config/constants');
+const { removeControlChars, isReservedName } = require('../utils/sanitize');
 
 // Team name validation regex - alphanumeric, spaces, hyphens only (defense-in-depth against XSS)
 const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
@@ -25,6 +32,19 @@ const roomCreateSchema = z.object({
 // Nickname validation regex - alphanumeric, spaces, hyphens, underscores only (defense against XSS)
 const nicknameRegex = /^[a-zA-Z0-9\s\-_]+$/;
 
+/**
+ * Create a validated nickname schema with reserved name checking
+ * Used for all nickname inputs throughout the application
+ */
+const createNicknameSchema = () => z.string()
+    .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+    .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
+    .transform(val => removeControlChars(val).trim())
+    .refine(val => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+    .refine(val => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
+    .refine(val => nicknameRegex.test(val), 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores')
+    .refine(val => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
+
 const roomJoinSchema = z.object({
     // Room code validation - matches characters used by roomService.js generator
     // Excludes: I, L (look like 1), O (looks like 0), 0 (zero), 1 (one)
@@ -32,11 +52,7 @@ const roomJoinSchema = z.object({
         .length(6)
         .transform(s => s.toUpperCase())
         .refine(s => /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/.test(s), 'Invalid room code format'),
-    nickname: z.string()
-        .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-        .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
-        .trim()
-        .regex(nicknameRegex, 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores'),
+    nickname: createNicknameSchema(),
     password: z.string().max(50).optional()
 });
 
@@ -60,11 +76,7 @@ const playerRoleSchema = z.object({
 });
 
 const playerNicknameSchema = z.object({
-    nickname: z.string()
-        .min(1, 'Nickname is required')
-        .max(30, 'Nickname too long')
-        .trim()
-        .regex(nicknameRegex, 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores')
+    nickname: createNicknameSchema()
 });
 
 // Game schemas
@@ -89,8 +101,9 @@ const gameClueSchema = z.object({
     word: z.string()
         .min(1, 'Clue word is required')
         .max(VALIDATION.CLUE_MAX_LENGTH, 'Clue word too long')
-        .trim()
-        .regex(/^[A-Za-z\s\-']+$/, 'Clue must contain only letters, spaces, hyphens, and apostrophes'),
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => val.length >= 1, 'Clue word is required')
+        .refine(val => /^[A-Za-z\s\-']+$/.test(val), 'Clue must contain only letters, spaces, hyphens, and apostrophes'),
     number: z.number()
         .int()
         .min(VALIDATION.CLUE_NUMBER_MIN, 'Number must be 0 or greater')
@@ -102,7 +115,8 @@ const chatMessageSchema = z.object({
     text: z.string()
         .min(1, 'Message is required')
         .max(500, 'Message too long')
-        .trim(),
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => val.length >= 1, 'Message is required'),
     teamOnly: z.boolean().default(false)
 });
 
@@ -116,5 +130,7 @@ module.exports = {
     gameStartSchema,
     gameRevealSchema,
     gameClueSchema,
-    chatMessageSchema
+    chatMessageSchema,
+    // Export for reuse in custom validation
+    createNicknameSchema
 };

@@ -102,12 +102,33 @@ const strictLimiter = rateLimit({
 const IP_RATE_LIMIT_MULTIPLIER = 5;
 
 /**
+ * In-place filter for timestamp arrays - avoids memory allocation per request
+ * @param {number[]} timestamps - Array of timestamps to filter
+ * @param {number} windowStart - Minimum timestamp to keep
+ * @returns {number} - New length of the filtered array
+ */
+function filterTimestampsInPlace(timestamps, windowStart) {
+    let writeIndex = 0;
+    for (let i = 0; i < timestamps.length; i++) {
+        if (timestamps[i] > windowStart) {
+            timestamps[writeIndex++] = timestamps[i];
+        }
+    }
+    timestamps.length = writeIndex;
+    return writeIndex;
+}
+
+/**
  * Socket event rate limiter (in-memory, per socket AND per IP)
  * Returns an object with limiter and cleanup functions
  * Includes detailed metrics for production monitoring
  * Implements dual-layer rate limiting:
  *   1. Per-socket: Prevents single client from overwhelming
  *   2. Per-IP: Prevents attackers from opening many connections
+ *
+ * Performance optimizations:
+ *   - Uses in-place array filtering to avoid memory allocations per request
+ *   - Periodic cleanup of stale entries runs on interval
  */
 function createSocketRateLimiter(limits) {
     const socketRequests = new Map();  // Per-socket rate limiting
@@ -154,10 +175,15 @@ function createSocketRateLimiter(limits) {
             metrics.uniqueIPs.add(clientIP);
 
             // === Per-socket rate limiting ===
-            let socketTimestamps = socketRequests.get(socketKey) || [];
-            socketTimestamps = socketTimestamps.filter(t => t > windowStart);
+            // Use in-place filtering to avoid memory allocation per request
+            let socketTimestamps = socketRequests.get(socketKey);
+            if (!socketTimestamps) {
+                socketTimestamps = [];
+                socketRequests.set(socketKey, socketTimestamps);
+            }
+            const socketCount = filterTimestampsInPlace(socketTimestamps, windowStart);
 
-            if (socketTimestamps.length >= limit.max) {
+            if (socketCount >= limit.max) {
                 metrics.blockedRequests++;
                 metrics.blockedByEvent[eventName] = (metrics.blockedByEvent[eventName] || 0) + 1;
                 logger.warn(`Socket rate limit exceeded: ${socket.id} for event ${eventName}`);
@@ -166,22 +192,24 @@ function createSocketRateLimiter(limits) {
 
             // === Per-IP rate limiting (with higher threshold) ===
             const ipLimit = limit.max * IP_RATE_LIMIT_MULTIPLIER;
-            let ipTimestamps = ipRequests.get(ipKey) || [];
-            ipTimestamps = ipTimestamps.filter(t => t > windowStart);
+            let ipTimestamps = ipRequests.get(ipKey);
+            if (!ipTimestamps) {
+                ipTimestamps = [];
+                ipRequests.set(ipKey, ipTimestamps);
+            }
+            const ipCount = filterTimestampsInPlace(ipTimestamps, windowStart);
 
-            if (ipTimestamps.length >= ipLimit) {
+            if (ipCount >= ipLimit) {
                 metrics.blockedRequests++;
                 metrics.blockedByIP++;
                 metrics.blockedByEvent[eventName] = (metrics.blockedByEvent[eventName] || 0) + 1;
-                logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipTimestamps.length} requests)`);
+                logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipCount} requests)`);
                 return next(new Error('IP rate limit exceeded'));
             }
 
-            // Update timestamps for both socket and IP
+            // Add current timestamp (arrays are already stored in maps)
             socketTimestamps.push(now);
             ipTimestamps.push(now);
-            socketRequests.set(socketKey, socketTimestamps);
-            ipRequests.set(ipKey, ipTimestamps);
 
             next();
         };
@@ -210,6 +238,7 @@ function createSocketRateLimiter(limits) {
     /**
      * Periodic cleanup of stale entries (call from a setInterval)
      * Wrapped in try-catch to prevent cleanup failures from causing memory leaks
+     * Uses in-place filtering for performance
      */
     const cleanupStale = () => {
         try {
@@ -223,25 +252,21 @@ function createSocketRateLimiter(limits) {
             let cleanedSocket = 0;
             let cleanedIP = 0;
 
-            // Clean socket-based entries
+            // Clean socket-based entries using in-place filtering
             for (const [key, timestamps] of socketRequests.entries()) {
-                const filtered = timestamps.filter(t => t > windowStart);
-                if (filtered.length === 0) {
+                const newLength = filterTimestampsInPlace(timestamps, windowStart);
+                if (newLength === 0) {
                     socketRequests.delete(key);
                     cleanedSocket++;
-                } else if (filtered.length !== timestamps.length) {
-                    socketRequests.set(key, filtered);
                 }
             }
 
-            // Clean IP-based entries
+            // Clean IP-based entries using in-place filtering
             for (const [key, timestamps] of ipRequests.entries()) {
-                const filtered = timestamps.filter(t => t > windowStart);
-                if (filtered.length === 0) {
+                const newLength = filterTimestampsInPlace(timestamps, windowStart);
+                if (newLength === 0) {
                     ipRequests.delete(key);
                     cleanedIP++;
-                } else if (filtered.length !== timestamps.length) {
-                    ipRequests.set(key, filtered);
                 }
             }
 

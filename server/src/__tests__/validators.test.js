@@ -124,6 +124,47 @@ describe('playerNicknameSchema', () => {
         const result = playerNicknameSchema.safeParse({ nickname: 'A'.repeat(31) });
         expect(result.success).toBe(false);
     });
+
+    test('rejects reserved names (admin)', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'admin' });
+        expect(result.success).toBe(false);
+    });
+
+    test('rejects reserved names case-insensitively', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'ADMIN' });
+        expect(result.success).toBe(false);
+    });
+
+    test('rejects system reserved name', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'system' });
+        expect(result.success).toBe(false);
+    });
+
+    test('rejects moderator reserved name', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'Moderator' });
+        expect(result.success).toBe(false);
+    });
+
+    test('removes control characters', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'Player\x00Name' });
+        expect(result.success).toBe(true);
+        expect(result.data.nickname).toBe('PlayerName');
+    });
+
+    test('rejects whitespace-only nickname', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: '   ' });
+        expect(result.success).toBe(false);
+    });
+
+    test('accepts nickname with hyphens and underscores', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'Player-Name_123' });
+        expect(result.success).toBe(true);
+    });
+
+    test('rejects nickname with special characters', () => {
+        const result = playerNicknameSchema.safeParse({ nickname: 'Player@Name' });
+        expect(result.success).toBe(false);
+    });
 });
 
 describe('playerRoleSchema', () => {
@@ -258,6 +299,15 @@ describe('gameClueSchema', () => {
         });
         expect(result.success).toBe(false);
     });
+
+    test('removes control characters from clue', () => {
+        const result = gameClueSchema.safeParse({
+            word: 'Ani\x00mal',
+            number: 2
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.word).toBe('Animal');
+    });
 });
 
 describe('chatMessageSchema', () => {
@@ -298,6 +348,14 @@ describe('chatMessageSchema', () => {
             text: 'A'.repeat(501)
         });
         expect(result.success).toBe(false);
+    });
+
+    test('removes control characters from message', () => {
+        const result = chatMessageSchema.safeParse({
+            text: 'Hello\x00World'
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.text).toBe('HelloWorld');
     });
 });
 
