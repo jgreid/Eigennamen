@@ -24,7 +24,24 @@ module.exports = {
         PLAYER: 24 * 60 * 60,    // 24 hours (same as room to prevent orphaned players)
         SESSION_SOCKET: 5 * 60,  // 5 minutes
         DISCONNECTED_PLAYER: 10 * 60,  // 10 minutes grace period for reconnection
-        PAUSED_TIMER: 24 * 60 * 60  // 24 hours for paused timers
+        PAUSED_TIMER: 24 * 60 * 60,  // 24 hours for paused timers
+        SESSION_VALIDATION_WINDOW: 60  // 1 minute window for session validation rate limiting
+    },
+
+    // Session security configuration
+    SESSION_SECURITY: {
+        MAX_SESSION_AGE_MS: 24 * 60 * 60 * 1000,     // 24 hours max session lifetime
+        MAX_VALIDATION_ATTEMPTS_PER_IP: 20,          // Max validation attempts per IP per minute
+        IP_MISMATCH_ALLOWED: true,                   // Allow reconnection from different IP (logged for monitoring)
+        SESSION_ID_MIN_LENGTH: 36                    // UUID length
+    },
+
+    // Password security configuration
+    PASSWORD_SECURITY: {
+        BCRYPT_SALT_ROUNDS: 10,              // Increased from 8 for better security
+        MIN_PASSWORD_LENGTH: 1,              // Minimum password length
+        MAX_PASSWORD_LENGTH: 50,             // Maximum password length
+        REQUIRE_REAUTH_ON_CHANGE: false      // Whether to require re-auth when password changes
     },
 
     // Turn timer configuration
@@ -124,6 +141,7 @@ module.exports = {
         ROOM_EXPIRED: 'ROOM_EXPIRED',
         ROOM_PASSWORD_REQUIRED: 'ROOM_PASSWORD_REQUIRED',
         ROOM_PASSWORD_INVALID: 'ROOM_PASSWORD_INVALID',
+        ROOM_PASSWORD_CHANGED: 'ROOM_PASSWORD_CHANGED',
         GAME_IN_PROGRESS: 'GAME_IN_PROGRESS',
         NOT_HOST: 'NOT_HOST',
         NOT_SPYMASTER: 'NOT_SPYMASTER',
@@ -135,8 +153,19 @@ module.exports = {
         RATE_LIMITED: 'RATE_LIMITED',
         SERVER_ERROR: 'SERVER_ERROR',
         WORD_LIST_NOT_FOUND: 'WORD_LIST_NOT_FOUND',
-        NOT_AUTHORIZED: 'NOT_AUTHORIZED'
+        NOT_AUTHORIZED: 'NOT_AUTHORIZED',
+        SESSION_EXPIRED: 'SESSION_EXPIRED',
+        SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
+        SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
+        RESERVED_NAME: 'RESERVED_NAME'
     },
+
+    // Reserved nicknames (case-insensitive)
+    RESERVED_NAMES: [
+        'admin', 'administrator', 'system', 'host', 'server',
+        'mod', 'moderator', 'bot', 'codenames', 'game',
+        'official', 'support', 'help', 'null', 'undefined'
+    ],
 
     // Default word list (same as client)
     DEFAULT_WORDS: [
