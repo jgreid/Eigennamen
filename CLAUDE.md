@@ -87,6 +87,7 @@ Risley-Codenames/
 | `playerService` | `server/src/services/playerService.js` | Player/team management |
 | `timerService` | `server/src/services/timerService.js` | Turn timers with Redis backing |
 | `wordListService` | `server/src/services/wordListService.js` | Custom word list management |
+| `eventLogService` | `server/src/services/eventLogService.js` | Event logging for reconnection recovery |
 
 ## WebSocket Events
 
