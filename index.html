@@ -35,16 +35,16 @@
             margin: 0 auto;
         }
 
-        /* Left Sidebar - Compact width to avoid scrolling */
+        /* Left Sidebar - Wide for no scrolling */
         .sidebar {
-            width: 270px;
-            min-width: 250px;
-            max-width: 290px;
+            width: 400px;
+            min-width: 380px;
+            max-width: 420px;
             flex-shrink: 0;
-            padding: 20px 16px;
+            padding: 16px 20px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
             border-right: 1px solid rgba(255, 255, 255, 0.06);
         }
@@ -269,10 +269,11 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            /* Ensure buttons are always clickable */
-            position: relative;
-            z-index: 1;
-            pointer-events: auto;
+        }
+
+        .team-controls-row {
+            display: flex;
+            gap: 8px;
         }
 
         .control-group {
@@ -281,65 +282,44 @@
             flex-wrap: wrap;
         }
 
-        .control-group.team-red {
-            background: rgba(231, 76, 60, 0.06);
-            border: 1px solid rgba(231, 76, 60, 0.15);
-            border-radius: 10px;
-            padding: 10px;
-        }
-
+        .control-group.team-red,
         .control-group.team-blue {
-            background: rgba(52, 152, 219, 0.06);
-            border: 1px solid rgba(52, 152, 219, 0.15);
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 10px;
             padding: 10px;
         }
 
         .control-group-label {
             width: 100%;
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             font-weight: 600;
             margin-bottom: 6px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.8;
+            letter-spacing: 0.5px;
         }
 
         #red-team-controls .control-group-label {
-            color: #e57373;
+            color: #ff6b6b;
         }
 
         #blue-team-controls .control-group-label {
-            color: #64b5f6;
+            color: #74b9ff;
         }
 
         /* ========== BUTTONS ========== */
         button {
-            padding: 9px 14px;
-            font-size: 0.78rem;
+            padding: 10px 16px;
+            font-size: 0.85rem;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: box-shadow 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
             font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            /* Ensure clicks always work on Chrome/Windows */
-            pointer-events: auto;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: rgba(102, 126, 234, 0.3);
         }
 
         button:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            filter: brightness(1.08);
-        }
-
-        button:active:not(:disabled) {
-            filter: brightness(0.92);
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            opacity: 0.9;
         }
 
         button:disabled {
@@ -440,13 +420,14 @@
             box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6c757d;
         }
 
+        .bottom-controls {
+            justify-content: center;
+        }
+
         .btn-end-turn {
             background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
             color: white;
-            width: 100%;
-            padding: 11px 20px;
-            font-size: 0.85rem;
-            letter-spacing: 0.3px;
+            flex: 1;
         }
 
         .btn-end-turn.can-act {
@@ -1455,7 +1436,7 @@
         <aside class="sidebar">
             <header>
                 <h1>Codenames</h1>
-                <div class="subtitle">Online Party Game <span class="version">v1.7.0</span></div>
+                <div class="subtitle">Online Party Game <span class="version">v1.8.0</span></div>
             </header>
 
             <div class="role-banner" id="role-banner">
@@ -1478,29 +1459,29 @@
             </div>
 
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
-                <button class="btn-new-game" onclick="confirmNewGame()" aria-label="Start a new game">New Game</button>
+                <button type="button" class="btn-new-game" onclick="confirmNewGame()">New Game</button>
 
-                <div class="control-group team-red" id="red-team-controls">
-                    <span class="control-group-label">Red Team</span>
-                    <button class="btn-team-red" id="btn-team-red" onclick="setTeam('red')" aria-label="Join Red team as a team member" title="Join as team member - discuss guesses with your team">Join</button>
-                    <button class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')" aria-label="Become Red Spymaster - see the key and give clues to your team" title="Spymaster: See card types and give one-word clues">Spy</button>
-                    <button class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')" aria-label="Become Red Clicker - reveal cards based on team guesses" title="Clicker: Reveal cards and end your team's turn">Click</button>
+                <div class="team-controls-row">
+                    <div class="control-group team-red" id="red-team-controls">
+                        <span class="control-group-label">Red Team</span>
+                        <button type="button" class="btn-team-red" id="btn-team-red" onclick="setTeam('red')">Join</button>
+                        <button type="button" class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Spy</button>
+                        <button type="button" class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')">Click</button>
+                    </div>
+
+                    <div class="control-group team-blue" id="blue-team-controls">
+                        <span class="control-group-label">Blue Team</span>
+                        <button type="button" class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')">Join</button>
+                        <button type="button" class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Spy</button>
+                        <button type="button" class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')">Click</button>
+                    </div>
                 </div>
 
-                <div class="control-group team-blue" id="blue-team-controls">
-                    <span class="control-group-label">Blue Team</span>
-                    <button class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')" aria-label="Join Blue team as a team member" title="Join as team member - discuss guesses with your team">Join</button>
-                    <button class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')" aria-label="Become Blue Spymaster - see the key and give clues to your team" title="Spymaster: See card types and give one-word clues">Spy</button>
-                    <button class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')" aria-label="Become Blue Clicker - reveal cards based on team guesses" title="Clicker: Reveal cards and end your team's turn">Click</button>
+                <div class="control-group bottom-controls">
+                    <button type="button" class="btn-spectate" id="btn-spectate" onclick="setTeam(null)">Spectate</button>
+                    <button type="button" class="btn-settings" onclick="openSettings()">Settings</button>
+                    <button type="button" class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
                 </div>
-
-                <div class="control-group">
-                    <button class="btn-spectate" id="btn-spectate" onclick="setTeam(null)" aria-label="Spectate without joining a team - watch the game without participating">Spectate</button>
-                    <button class="btn-settings" onclick="openSettings()" aria-label="Open game settings">Settings</button>
-                    <button class="btn-help" onclick="openHelp()" aria-label="View game instructions and rules">Help</button>
-                </div>
-
-                <button class="btn-end-turn" id="btn-end-turn" onclick="endTurn()" aria-label="End current team's turn">End Turn</button>
             </div>
 
             <div class="word-source" id="word-source"></div>
@@ -1519,7 +1500,7 @@
                 <label for="share-link">Share Game Link</label>
                 <div class="share-input-group">
                     <input type="text" id="share-link" readonly aria-describedby="share-hint">
-                    <button class="btn-copy" onclick="copyLink()" aria-label="Copy game link to clipboard">Copy</button>
+                    <button type="button" class="btn-copy" onclick="copyLink()">Copy</button>
                 </div>
                 <span id="share-hint" class="sr-only">Click the Copy button to copy this link and share with friends</span>
             </div>
