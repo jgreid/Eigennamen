@@ -48,8 +48,11 @@
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
-      "**/__tests__/**/*.js",
-      "**/*.test.js"
+      "**/__tests__/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/helpers/"
     ],
     "collectCoverageFrom": [
       "src/**/*.js",
