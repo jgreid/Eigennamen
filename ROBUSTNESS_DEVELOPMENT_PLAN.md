@@ -1083,7 +1083,7 @@ async function withRetry(fn, options = {}) {
 | Phase 3: Performance | ✅ COMPLETE | +10 tests | Team query O(1), rate limiter optimization, Redis tuning |
 | Phase 4: Code Quality | ✅ COMPLETE | +52 tests | Function decomposition, constants centralization, retry utility |
 
-**Total Tests:** 272 passing (up from ~70 baseline)
+**Total Tests:** 296 passing (up from ~70 baseline)
 
 ### Detailed Phase Status
 
@@ -1093,7 +1093,7 @@ async function withRetry(fn, options = {}) {
 - [x] Correlation ID system (AsyncLocalStorage)
 - [x] Metrics collection (counters, gauges, histograms)
 - [x] Distributed lock utility
-- [x] Event log service (created but NOT YET INTEGRATED)
+- [x] Event log service (created and INTEGRATED in Sprint 1)
 
 #### Phase 2 ✅
 - [x] Session age validation (24-hour max)
@@ -1109,7 +1109,7 @@ async function withRetry(fn, options = {}) {
 - [x] Team chat N+1 fix (getTeamMembers)
 - [x] Rate limiter in-place filtering
 - [x] Redis connection optimization
-- [ ] Health check caching (PARTIAL)
+- [x] Health check caching (COMPLETE - connected in Sprint 1)
 
 #### Phase 4 ✅
 - [x] SOCKET_EVENTS constants
@@ -1123,52 +1123,29 @@ async function withRetry(fn, options = {}) {
 
 ## Phase 5: Remaining Work & Next Steps
 
-### 5.1 Critical: Event Log Integration (Not Yet Active)
+### 5.1 ✅ COMPLETE: Event Log Integration
 
-**Priority:** P0 - Blocks event recovery feature
-**Effort:** 4 hours
+**Status:** COMPLETED in Sprint 1 (January 21, 2026)
 
-The event log service (`server/src/services/eventLogService.js`) was created in Phase 1 but is **never called** in production code. Event recovery for disconnected players is non-functional.
-
-**Required Changes:**
-1. Import eventLogService in game/room/player handlers
-2. Call `logEvent()` after each state-changing operation
-3. Implement event replay on reconnection in `room:join` handler
-4. Add tests for event recovery flow
-
-```javascript
-// Example integration in gameHandlers.js
-const eventLogService = require('../../services/eventLogService');
-
-// After card reveal
-await eventLogService.logEvent(roomCode, {
-    type: eventLogService.EVENT_TYPES.GAME.CARD_REVEALED,
-    data: { index, type, player: playerNickname },
-    version: game.version
-});
-```
+Event log service is now integrated into all socket handlers:
+- Game events: game:started, game:cardRevealed, game:clueGiven, game:turnEnded, game:over
+- Room events: room:created, room:playerJoined, room:playerLeft, room:settingsUpdated
+- Player events: player:teamChanged, player:roleChanged, player:nicknameChanged
+- System events: player:disconnected, room:hostChanged, timer:expired
 
 ---
 
-### 5.2 Critical: REST API Test Coverage
+### 5.2 ✅ COMPLETE: REST API Test Coverage
 
-**Priority:** P0
-**Current Coverage:** 0%
-**Effort:** 8 hours
+**Status:** COMPLETED in Sprint 1 (January 21, 2026)
+**Tests Added:** 24
 
-Files needing tests:
-- `server/src/routes/roomRoutes.js` - Room existence, room info
-- `server/src/routes/wordListRoutes.js` - CRUD operations
+Test file: `server/src/__tests__/routes.test.js`
 
-**Test Scenarios:**
-```markdown
-- GET /api/rooms/:code/exists - valid code, invalid code, malformed code
-- GET /api/rooms/:code - room exists, room missing, password-protected
-- GET /api/wordlists - list all, pagination, empty
-- POST /api/wordlists - valid creation, validation errors, duplicate
-- PUT /api/wordlists/:id - update own, update anonymous, not found
-- DELETE /api/wordlists/:id - delete own, delete anonymous, not found
-```
+Coverage:
+- Room routes: exists check, room info, validation, error handling
+- WordList routes: list, get by ID, pagination, auth requirements
+- Error handling: validation errors, malformed JSON
 
 ---
 
@@ -1200,22 +1177,14 @@ Migrate 23 inline `onclick` handlers to `addEventListener()` pattern for:
 
 ---
 
-### 5.5 Medium: Health Check Optimization
+### 5.5 ✅ COMPLETE: Health Check Optimization
 
-**Priority:** P2
-**Effort:** 2 hours
+**Status:** COMPLETED in Sprint 1 (January 21, 2026)
 
-`/health/ready` calls `io.fetchSockets()` which is slow under load.
-
-**Fix:**
-```javascript
-let cachedSocketCount = 0;
-io.on('connection', () => cachedSocketCount++);
-io.on('disconnect', () => cachedSocketCount--);
-
-// In health endpoint
-const socketCount = cachedSocketCount; // O(1) instead of O(N)
-```
+Socket count caching is now connected:
+- `app.updateSocketCount()` called on socket connect/disconnect
+- Cached count used in `/health/ready` endpoint
+- O(1) performance instead of O(N)
 
 ---
 
@@ -1235,15 +1204,16 @@ const socketCount = cachedSocketCount; // O(1) instead of O(N)
 
 ## Updated Success Criteria
 
-| Metric | Baseline | Phase 4 | Target | Status |
-|--------|----------|---------|--------|--------|
-| Test Coverage (Lines) | ~70% | ~38% | 70%+ | ⚠️ Need route tests |
-| Socket Handler Coverage | 0% | 48.6% | 80%+ | ⚠️ In progress |
-| Race Condition Tests | 0 | 20+ | 20+ | ✅ Complete |
-| Correlation ID Coverage | 0% | 100% | 100% | ✅ Complete |
-| Structured Log Adoption | 0% | 100% | 100% | ✅ Complete |
-| Known Issues Fixed | 0/74 | ~40/74 | <10 remaining | ⚠️ In progress |
-| Total Tests | ~70 | 272 | 300+ | ✅ On track |
+| Metric | Baseline | Phase 4 | Sprint 1 | Target | Status |
+|--------|----------|---------|----------|--------|--------|
+| Test Coverage (Lines) | ~70% | ~38% | ~45% | 70%+ | ⚠️ In progress |
+| Socket Handler Coverage | 0% | 48.6% | 48.6% | 80%+ | ⚠️ In progress |
+| Race Condition Tests | 0 | 20+ | 20+ | 20+ | ✅ Complete |
+| Correlation ID Coverage | 0% | 100% | 100% | 100% | ✅ Complete |
+| Structured Log Adoption | 0% | 100% | 100% | 100% | ✅ Complete |
+| Event Log Integration | 0% | 0% | 100% | 100% | ✅ Complete |
+| Known Issues Fixed | 0/74 | ~40/74 | ~45/74 | <10 remaining | ⚠️ In progress |
+| Total Tests | ~70 | 272 | 296 | 300+ | ✅ On track |
 
 ---
 
@@ -1253,26 +1223,25 @@ const socketCount = cachedSocketCount; // O(1) instead of O(N)
 |------|-------------|--------|------------|
 | Breaking changes during refactor | Medium | High | ✅ Comprehensive tests in place |
 | Performance regression | Low | Medium | ✅ Performance tests added |
-| Multi-instance bugs | Medium | High | ⚠️ Event log not integrated |
+| Multi-instance bugs | Medium | High | ✅ Event log now integrated |
 | Backwards compatibility | Low | Medium | ✅ No breaking changes made |
-| Event recovery failure | High | Medium | ⚠️ Event log not integrated |
+| Event recovery failure | Low | Medium | ✅ Event log now integrated |
 
 ---
 
 ## Recommended Next Sprint
 
-### Sprint 1: Foundation Completion (Recommended)
+### Sprint 1: Foundation Completion ✅ COMPLETE
 
-**Goal:** Complete critical infrastructure gaps
+**Status:** COMPLETED January 21, 2026
 
-| Task | Priority | Effort | Owner |
-|------|----------|--------|-------|
-| Integrate event log service | P0 | 4h | - |
-| Add REST API tests | P0 | 8h | - |
-| Fix health check performance | P2 | 2h | - |
-| **Total** | - | **14h** | - |
+| Task | Priority | Status |
+|------|----------|--------|
+| Integrate event log service | P0 | ✅ DONE |
+| Add REST API tests | P0 | ✅ DONE (+24 tests) |
+| Fix health check performance | P2 | ✅ DONE |
 
-### Sprint 2: Security & Quality
+### Sprint 2: Security & Quality (RECOMMENDED NEXT)
 
 **Goal:** Address remaining security issues and frontend quality
 
@@ -1298,4 +1267,4 @@ const socketCount = cachedSocketCount; // O(1) instead of O(N)
 
 ---
 
-*Updated January 21, 2026 after Phase 4 completion. This plan prioritizes reliability and maintainability over new features. All four initial phases are complete with 272 tests passing.*
+*Updated January 21, 2026 after Sprint 1 completion. This plan prioritizes reliability and maintainability over new features. All four initial phases plus Sprint 1 are complete with 296 tests passing.*
