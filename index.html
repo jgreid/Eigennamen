@@ -2552,7 +2552,7 @@
 
             // Update board class
             let className = 'board';
-            if (spymasterTeam) className += ' spymaster-mode';
+            if (spymasterTeam || gameState.gameOver) className += ' spymaster-mode';
             if (!canClickCards()) className += ' no-click';
             board.className = className;
 
@@ -2577,8 +2577,8 @@
                 card.setAttribute('tabindex', isRevealed ? '-1' : '0');
                 card.setAttribute('aria-label', `${word}${isRevealed ? ', revealed as ' + gameState.types[index] : ''}`);
 
-                // Add spymaster hints
-                if (spymasterTeam) {
+                // Add spymaster hints (show all card types when game is over)
+                if (spymasterTeam || gameState.gameOver) {
                     card.classList.add(`spy-${gameState.types[index]}`);
                 }
 
@@ -2601,7 +2601,7 @@
 
             // Update board class
             let className = 'board';
-            if (spymasterTeam) className += ' spymaster-mode';
+            if (spymasterTeam || gameState.gameOver) className += ' spymaster-mode';
             if (!canClickCards()) className += ' no-click';
             board.className = className;
 
@@ -2615,8 +2615,8 @@
                 card.setAttribute('tabindex', isRevealed ? '-1' : '0');
                 card.setAttribute('aria-label', `${gameState.words[index]}${isRevealed ? ', revealed as ' + type : ''}`);
 
-                // Handle spymaster mode
-                if (spymasterTeam) {
+                // Handle spymaster mode (show all card types when game is over)
+                if (spymasterTeam || gameState.gameOver) {
                     card.classList.add(`spy-${type}`);
                 } else {
                     // Remove all spy- classes
@@ -2784,20 +2784,10 @@
         }
 
         function showGameOverModal() {
-            const winnerDisplay = document.getElementById('winner-display');
-            if (!winnerDisplay) return;
-            const winnerName = gameState.winner === 'red' ? teamNames.red : teamNames.blue;
-            const assassinIndex = gameState.types.indexOf('assassin');
-            const assassinRevealed = gameState.revealed[assassinIndex];
-
-            winnerDisplay.className = `winner ${gameState.winner}`;
-            if (assassinRevealed) {
-                winnerDisplay.innerHTML = `${escapeHTML(winnerName)} WINS!<br><small>(Opponent revealed the assassin)</small>`;
-            } else {
-                winnerDisplay.innerHTML = `${escapeHTML(winnerName)} WINS!<br><small>(Found all their words)</small>`;
-            }
-
-            openModal('game-over-modal');
+            // Instead of showing a modal, reveal the spymaster view to all players
+            // so they can see the board and discuss before the next game.
+            // The turn indicator already shows the winner at the top of the board.
+            renderBoard();
         }
 
         function closeGameOver() {
