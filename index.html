@@ -421,13 +421,14 @@
         }
 
         .bottom-controls {
+            display: flex;
             justify-content: center;
         }
 
         .btn-end-turn {
             background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
             color: white;
-            flex: 1;
+            width: 100%;
         }
 
         .btn-end-turn.can-act {
@@ -1002,6 +1003,10 @@
                 padding: 20px 16px;
             }
 
+            .team-controls-row {
+                flex-direction: column;
+            }
+
             .main-content {
                 padding: 20px 24px;
             }
@@ -1030,6 +1035,14 @@
                 backdrop-filter: none;
                 -webkit-backdrop-filter: none;
                 background: rgba(15, 15, 26, 0.95);
+            }
+
+            .team-controls-row {
+                flex-direction: column;
+            }
+
+            .bottom-controls {
+                flex-wrap: wrap;
             }
 
             .glass-panel {
@@ -1299,14 +1312,12 @@
             50% { opacity: 0.85; }
         }
 
-        /* ========== HELP BUTTON (Mobile) ========== */
+        /* ========== HELP BUTTON ========== */
         .btn-help {
-            display: none;
             background: rgba(102, 126, 234, 0.2);
             color: #667eea;
             border: 1px solid rgba(102, 126, 234, 0.4);
-            padding: 8px 12px;
-            font-size: 0.8rem;
+            flex: 1;
         }
 
         .btn-help:hover {
@@ -1314,10 +1325,6 @@
         }
 
         @media (max-width: 768px) {
-            .btn-help {
-                display: inline-flex;
-            }
-
             .toast-container {
                 top: 10px;
                 right: 10px;
@@ -1436,7 +1443,7 @@
         <aside class="sidebar">
             <header>
                 <h1>Codenames</h1>
-                <div class="subtitle">Online Party Game <span class="version">v1.9.0</span></div>
+                <div class="subtitle">Online Party Game <span class="version">v2.0.0</span></div>
             </header>
 
             <div class="role-banner" id="role-banner">
@@ -1480,8 +1487,10 @@
                 <div class="control-group bottom-controls">
                     <button type="button" class="btn-spectate" id="btn-spectate" onclick="setTeam(null)">Spectate</button>
                     <button type="button" class="btn-settings" onclick="openSettings()">Settings</button>
-                    <button type="button" class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
+                    <button type="button" class="btn-help" onclick="openHelp()">Help</button>
                 </div>
+
+                <button type="button" class="btn-end-turn" id="btn-end-turn" onclick="endTurn()">End Turn</button>
             </div>
 
             <div class="word-source" id="word-source"></div>
