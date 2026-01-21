@@ -32,8 +32,8 @@ async function startServer() {
         // Create HTTP server
         const server = http.createServer(app);
 
-        // Initialize Socket.io
-        const io = initializeSocket(server);
+        // Initialize Socket.io with app reference for socket count caching
+        const io = initializeSocket(server, app);
         logger.info('Socket.io initialized');
 
         // Attach dependencies to app for health checks

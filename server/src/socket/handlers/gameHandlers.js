@@ -5,6 +5,7 @@
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
+const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -77,6 +78,18 @@ module.exports = function gameHandlers(io, socket) {
                 await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
             }
 
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.GAME_STARTED,
+                {
+                    gameId: game.id,
+                    firstTeam: game.currentTurn,
+                    redTotal: game.redTotal,
+                    blueTotal: game.blueTotal
+                }
+            );
+
             logger.info(`Game started in room ${socket.roomCode}`);
 
         } catch (error) {
@@ -141,6 +154,24 @@ module.exports = function gameHandlers(io, socket) {
                 gameOver: result.gameOver,
                 winner: result.winner
             });
+
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.CARD_REVEALED,
+                {
+                    index: result.index,
+                    type: result.type,
+                    word: result.word,
+                    player: player.nickname,
+                    team: player.team,
+                    redScore: result.redScore,
+                    blueScore: result.blueScore,
+                    turnEnded: result.turnEnded,
+                    gameOver: result.gameOver,
+                    winner: result.winner
+                }
+            );
 
             // Handle turn ending (wrong guess, max guesses, or game over)
             if (result.turnEnded && !result.gameOver) {
@@ -210,6 +241,19 @@ module.exports = function gameHandlers(io, socket) {
                 timestamp: clue.timestamp
             });
 
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.CLUE_GIVEN,
+                {
+                    team: clue.team,
+                    word: clue.word,
+                    number: clue.number,
+                    spymaster: clue.spymaster,
+                    guessesAllowed: clue.guessesAllowed
+                }
+            );
+
             logger.info(`Clue given in room ${socket.roomCode}: ${clue.word} ${clue.number}`);
 
         } catch (error) {
@@ -255,6 +299,18 @@ module.exports = function gameHandlers(io, socket) {
                 previousTurn: result.previousTurn
             });
 
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.TURN_ENDED,
+                {
+                    currentTurn: result.currentTurn,
+                    previousTurn: result.previousTurn,
+                    player: player.nickname,
+                    reason: 'manual'
+                }
+            );
+
             // Restart timer for new turn if configured
             const room = await roomService.getRoom(socket.roomCode);
             if (room && room.settings && room.settings.turnTimer) {
@@ -298,6 +354,17 @@ module.exports = function gameHandlers(io, socket) {
                 reason: 'forfeit',
                 types: result.allTypes
             });
+
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.GAME_OVER,
+                {
+                    winner: result.winner,
+                    forfeitingTeam: result.forfeitingTeam,
+                    reason: 'forfeit'
+                }
+            );
 
             logger.info(`Game forfeited in room ${socket.roomCode}, ${result.forfeitingTeam} forfeited`);
 

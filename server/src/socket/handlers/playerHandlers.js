@@ -3,6 +3,7 @@
  */
 
 const playerService = require('../../services/playerService');
+const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -30,6 +31,17 @@ module.exports = function playerHandlers(io, socket) {
                 sessionId: socket.sessionId,
                 changes: { team: player.team }
             });
+
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.TEAM_CHANGED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    team: player.team
+                }
+            );
 
             logger.info(`Player ${socket.sessionId} joined team ${player.team}`);
 
@@ -70,6 +82,17 @@ module.exports = function playerHandlers(io, socket) {
                 }
             }
 
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.ROLE_CHANGED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    role: player.role
+                }
+            );
+
             logger.info(`Player ${socket.sessionId} set role to ${player.role}`);
 
         } catch (error) {
@@ -99,6 +122,16 @@ module.exports = function playerHandlers(io, socket) {
                 sessionId: socket.sessionId,
                 changes: { nickname: player.nickname }
             });
+
+            // Log event for reconnection recovery
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.NICKNAME_CHANGED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname
+                }
+            );
 
             logger.info(`Player ${socket.sessionId} changed nickname to ${player.nickname}`);
 
