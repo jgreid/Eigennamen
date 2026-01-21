@@ -34,6 +34,7 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'"], // Game uses inline scripts
+            scriptSrcAttr: ["'unsafe-inline'"],       // Game uses onclick handlers
             styleSrc: ["'self'", "'unsafe-inline'"],  // Game uses inline styles
             imgSrc: ["'self'", 'data:', 'blob:'],
             connectSrc: ["'self'", 'wss:', 'ws:'],    // WebSocket connections
