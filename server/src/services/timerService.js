@@ -217,7 +217,7 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
 
             if (onExpire) {
                 try {
-                    onExpire(roomCode);
+                    await onExpire(roomCode);
                 } catch (callbackError) {
                     logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
                 }
@@ -436,7 +436,7 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
 
                 if (onExpire) {
                     try {
-                        onExpire(roomCode);
+                        await onExpire(roomCode);
                     } catch (callbackError) {
                         logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
                     }
@@ -600,7 +600,7 @@ async function checkOrphanedTimers(onExpireCallback) {
                         logger.info(`Recovering expired orphaned timer for room ${roomCode}`);
                         if (onExpireCallback) {
                             try {
-                                onExpireCallback(roomCode);
+                                await onExpireCallback(roomCode);
                             } catch (callbackError) {
                                 logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
                             }
