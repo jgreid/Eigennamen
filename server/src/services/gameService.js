@@ -279,16 +279,164 @@ function addToHistory(game, entry) {
 }
 
 /**
+ * Validate card index bounds
+ * @param {number} index - Card index to validate
+ * @throws {Object} Error if index is invalid
+ */
+function validateCardIndex(index) {
+    if (typeof index !== 'number' || !Number.isFinite(index) ||
+        index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: `Invalid card index: must be 0-${BOARD_SIZE - 1}` };
+    }
+}
+
+/**
+ * Validate game state preconditions for revealing a card
+ * @param {Object} game - Game state
+ * @param {number} index - Card index
+ * @throws {Object} Error if preconditions not met
+ */
+function validateRevealPreconditions(game, index) {
+    if (game.gameOver) {
+        throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+    }
+
+    if (!game.currentClue) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must give a clue before guessing' };
+    }
+
+    // 0 = unlimited guesses for "0" clue
+    if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
+        throw { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' };
+    }
+
+    if (game.revealed[index]) {
+        throw { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' };
+    }
+}
+
+/**
+ * Execute the reveal and update scores
+ * @param {Object} game - Game state
+ * @param {number} index - Card index
+ * @returns {string} - The type of card revealed
+ */
+function executeCardReveal(game, index) {
+    game.revealed[index] = true;
+    const type = game.types[index];
+
+    if (type === 'red') {
+        game.redScore++;
+    } else if (type === 'blue') {
+        game.blueScore++;
+    }
+
+    game.guessesUsed = (game.guessesUsed || 0) + 1;
+
+    return type;
+}
+
+/**
+ * Determine the outcome of revealing a card
+ * @param {Object} game - Game state
+ * @param {string} cardType - Type of card revealed
+ * @param {string} revealingTeam - Team that revealed the card
+ * @returns {Object} - Outcome with turnEnded, endReason, and any state changes
+ */
+function determineRevealOutcome(game, cardType, revealingTeam) {
+    let outcome = { turnEnded: false, endReason: null };
+
+    // Check for assassin - immediate loss
+    if (cardType === 'assassin') {
+        game.gameOver = true;
+        game.winner = revealingTeam === 'red' ? 'blue' : 'red';
+        outcome.endReason = 'assassin';
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    // Check for win by completing all team's words
+    if (game.redScore >= game.redTotal) {
+        game.gameOver = true;
+        game.winner = 'red';
+        outcome.endReason = 'completed';
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    if (game.blueScore >= game.blueTotal) {
+        game.gameOver = true;
+        game.winner = 'blue';
+        outcome.endReason = 'completed';
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    // Wrong guess ends turn
+    if (cardType !== revealingTeam) {
+        switchTurn(game);
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    // Check if max guesses reached (only if not unlimited)
+    if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
+        switchTurn(game);
+        outcome.turnEnded = true;
+        outcome.endReason = 'maxGuesses';
+        return outcome;
+    }
+
+    return outcome;
+}
+
+/**
+ * Switch turn to the other team and reset clue state
+ * @param {Object} game - Game state to modify
+ */
+function switchTurn(game) {
+    game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+    game.currentClue = null;
+    game.guessesUsed = 0;
+    game.guessesAllowed = 0;
+}
+
+/**
+ * Build the reveal result object
+ * @param {Object} game - Game state
+ * @param {number} index - Card index
+ * @param {string} type - Card type
+ * @param {Object} outcome - Reveal outcome
+ * @returns {Object} - Result to return to caller
+ */
+function buildRevealResult(game, index, type, outcome) {
+    return {
+        index,
+        type,
+        word: game.words[index],
+        redScore: game.redScore,
+        blueScore: game.blueScore,
+        currentTurn: game.currentTurn,
+        guessesUsed: game.guessesUsed,
+        guessesAllowed: game.guessesAllowed,
+        turnEnded: outcome.turnEnded,
+        gameOver: game.gameOver,
+        winner: game.winner,
+        endReason: outcome.endReason,
+        allTypes: game.gameOver ? game.types : null
+    };
+}
+
+/**
  * Reveal a card with atomic operation to prevent race conditions
+ * Orchestrates the reveal process using helper functions
  */
 async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
-    // Validate index bounds (including NaN/Infinity which are typeof 'number')
-    if (typeof index !== 'number' || !Number.isFinite(index) || index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
-        throw { code: ERROR_CODES.INVALID_INPUT, message: `Invalid card index: must be 0-${BOARD_SIZE - 1}` };
-    }
+    // Validate index before starting transaction
+    validateCardIndex(index);
 
     // Use optimistic locking with retries
     const maxRetries = 3;
@@ -308,94 +456,27 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
             const game = safeParseGameData(gameData, roomCode);
             if (!game) {
                 await redis.unwatch();
-                // Delete corrupted data
                 await redis.del(gameKey);
                 throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
             }
 
-            if (game.gameOver) {
-                await redis.unwatch();
-                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
-            }
+            // Validate preconditions
+            validateRevealPreconditions(game, index);
 
-            // Check if a clue has been given this turn
-            if (!game.currentClue) {
-                await redis.unwatch();
-                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must give a clue before guessing' };
-            }
-
-            // Check if guesses remaining (0 = unlimited for "0" clue)
-            if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
-                await redis.unwatch();
-                throw { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' };
-            }
-
-            if (game.revealed[index]) {
-                await redis.unwatch();
-                throw { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' };
-            }
-
-            // Reveal the card
-            game.revealed[index] = true;
-            const type = game.types[index];
-
-            // Update scores
-            if (type === 'red') {
-                game.redScore++;
-            } else if (type === 'blue') {
-                game.blueScore++;
-            }
-
-            // Increment guesses used
-            game.guessesUsed = (game.guessesUsed || 0) + 1;
-
-            let endReason = null;
-            let turnEnded = false;
             const previousTurn = game.currentTurn;
 
-            // Check for assassin
-            if (type === 'assassin') {
-                game.gameOver = true;
-                game.winner = game.currentTurn === 'red' ? 'blue' : 'red';
-                endReason = 'assassin';
-                turnEnded = true;
-            }
-            // Check for win by completing all words
-            else if (game.redScore >= game.redTotal) {
-                game.gameOver = true;
-                game.winner = 'red';
-                endReason = 'completed';
-                turnEnded = true;
-            } else if (game.blueScore >= game.blueTotal) {
-                game.gameOver = true;
-                game.winner = 'blue';
-                endReason = 'completed';
-                turnEnded = true;
-            }
-            // Wrong guess ends turn
-            else if (type !== game.currentTurn) {
-                game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
-                game.currentClue = null;
-                game.guessesUsed = 0;
-                game.guessesAllowed = 0;
-                turnEnded = true;
-            }
-            // Check if max guesses reached (only if not unlimited)
-            else if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
-                game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
-                game.currentClue = null;
-                game.guessesUsed = 0;
-                game.guessesAllowed = 0;
-                turnEnded = true;
-                endReason = 'maxGuesses';
-            }
+            // Execute the reveal
+            const cardType = executeCardReveal(game, index);
 
-            // Add to history with cap
+            // Determine outcome
+            const outcome = determineRevealOutcome(game, cardType, previousTurn);
+
+            // Add to history
             addToHistory(game, {
                 action: 'reveal',
                 index,
                 word: game.words[index],
-                type,
+                type: cardType,
                 team: previousTurn,
                 player: playerNickname,
                 guessNumber: game.guessesUsed,
@@ -414,21 +495,7 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 continue;
             }
 
-            return {
-                index,
-                type,
-                word: game.words[index],
-                redScore: game.redScore,
-                blueScore: game.blueScore,
-                currentTurn: game.currentTurn,
-                guessesUsed: game.guessesUsed,
-                guessesAllowed: game.guessesAllowed,
-                turnEnded,
-                gameOver: game.gameOver,
-                winner: game.winner,
-                endReason,
-                allTypes: game.gameOver ? game.types : null
-            };
+            return buildRevealResult(game, index, cardType, outcome);
 
         } catch (error) {
             await redis.unwatch();
@@ -771,5 +838,13 @@ module.exports = {
     hashString,
     shuffleWithSeed,
     generateSeed,
-    validateClueWord
+    validateClueWord,
+
+    // Decomposed reveal functions for unit testing
+    validateCardIndex,
+    validateRevealPreconditions,
+    executeCardReveal,
+    determineRevealOutcome,
+    switchTurn,
+    buildRevealResult
 };
