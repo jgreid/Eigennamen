@@ -1,8 +1,8 @@
-# Code Review Findings - Risley-Codenames
+# Code Review Findings - Die Eigennamen
 
 **Review Date:** January 2026
 **Reviewer:** Claude Code Review
-**Branch:** `claude/code-review-orVir`
+**Branch:** `claude/codebase-summary-docs-MoQb2`
 
 ---
 
@@ -23,17 +23,37 @@ The following issues have been **fixed** in this branch:
 | 23 | CSRF bypass with Content-Type | Added check for wildcard CORS before allowing Content-Type bypass |
 | 24 | Anonymous word lists modifiable | See Issue #22 - anonymous lists are now immutable |
 | 25 | Unhandled rejections don't terminate | Added shutdown call in production on unhandled rejections |
+| **28** | **Game start overwrites existing** | **Added check for existing active game in game:start handler** |
+| **29** | **XSS in nicknames** | **Added regex validation to nickname schemas (alphanumeric only)** |
+| **30** | **Pause timer multi-instance** | **Added pub/sub event for pause and handling in handleTimerEvent** |
+| **31** | **setRole without team** | **Added validation requiring team before spymaster/clicker role** |
+| **39** | **bcrypt operations not wrapped** | **Added try-catch around all bcrypt.hash and bcrypt.compare calls** |
+| **40** | **Validation middleware bypasses handler** | **Changed to use next(error) instead of direct res.json()** |
+| **42** | **Deprecated function still used** | **Replaced createPlayerData with createPlayer(addToSet=false)** |
+| **48** | **Multi-tab session conflict** | **Changed to sessionStorage (per-tab) for session IDs** |
+| **49** | **Spymaster view not restored** | **Send game:spymasterView on room:join for spymaster reconnections** |
+| **50** | **No event recovery** | **Added timer:status on join and room:resync handler for full state recovery** |
+| **51** | **URL decoding without try-catch** | **Wrapped decodeURIComponent calls in try-catch blocks** |
+| **53** | **Weak default DB password** | **Changed to clearly dev-only password name in docker-compose** |
+| **54** | **Redis TLS can be disabled in prod** | **TLS validation now forced enabled in production mode** |
+| **55** | **JWT_SECRET optional in production** | **Enhanced warning messages and length validation** |
+| **68** | **Silent pub/sub failures** | **Added logger.warn calls to all pub/sub catch blocks** |
 
-**Files Modified:**
-- `server/src/socket/index.js` - Rate limit wrapper function
-- `server/src/socket/handlers/*.js` - Applied rate limiting to all handlers
-- `server/src/services/playerService.js` - Spymaster lock, parallel fetching, IP tracking
-- `server/src/services/roomService.js` - Player creation rollback
-- `server/src/services/wordListService.js` - Anonymous list immutability
-- `server/src/middleware/socketAuth.js` - IP validation for session reuse
-- `server/src/middleware/csrf.js` - CORS-aware Content-Type check
-- `server/src/app.js` - CORS warning in production
-- `server/src/index.js` - Shutdown on unhandled rejections
+**Files Modified (Latest Fixes):**
+- `fly.toml` - Project rename to Die Eigennamen
+- `server/package.json` - Project rename
+- `index.html` - Project rename, URL decoding fix (#51)
+- `server/src/socket/handlers/gameHandlers.js` - Game start check (#28)
+- `server/src/socket/handlers/roomHandlers.js` - Spymaster view (#49), resync handler (#50)
+- `server/src/validators/schemas.js` - Nickname XSS fix (#29)
+- `server/src/services/playerService.js` - setRole validation (#31)
+- `server/src/services/roomService.js` - bcrypt wrapping (#39), deprecated function (#42)
+- `server/src/services/timerService.js` - Pause pub/sub (#30), silent failures (#68)
+- `server/src/middleware/validation.js` - Error handler bypass (#40)
+- `server/src/config/redis.js` - TLS validation fix (#54)
+- `server/src/config/env.js` - JWT_SECRET warning (#55)
+- `server/public/js/socket-client.js` - sessionStorage for multi-tab (#48)
+- `docker-compose.yml` - Dev-only password naming (#53)
 
 ---
 

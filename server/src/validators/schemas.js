@@ -22,6 +22,9 @@ const roomCreateSchema = z.object({
     }).optional().default({})
 });
 
+// Nickname validation regex - alphanumeric, spaces, hyphens, underscores only (defense against XSS)
+const nicknameRegex = /^[a-zA-Z0-9\s\-_]+$/;
+
 const roomJoinSchema = z.object({
     // Room code validation - matches characters used by roomService.js generator
     // Excludes: I, L (look like 1), O (looks like 0), 0 (zero), 1 (one)
@@ -32,7 +35,8 @@ const roomJoinSchema = z.object({
     nickname: z.string()
         .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
         .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
-        .trim(),
+        .trim()
+        .regex(nicknameRegex, 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores'),
     password: z.string().max(50).optional()
 });
 
@@ -60,6 +64,7 @@ const playerNicknameSchema = z.object({
         .min(1, 'Nickname is required')
         .max(30, 'Nickname too long')
         .trim()
+        .regex(nicknameRegex, 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores')
 });
 
 // Game schemas
