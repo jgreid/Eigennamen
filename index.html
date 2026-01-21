@@ -1436,7 +1436,7 @@
         <aside class="sidebar">
             <header>
                 <h1>Codenames</h1>
-                <div class="subtitle">Online Party Game <span class="version">v1.8.0</span></div>
+                <div class="subtitle">Online Party Game <span class="version">v1.9.0</span></div>
             </header>
 
             <div class="role-banner" id="role-banner">
@@ -1550,9 +1550,9 @@
             </div>
 
             <div class="modal-buttons">
-                <button class="btn-save" onclick="saveSettings()">Save & Apply</button>
-                <button class="btn-reset" onclick="resetWords()">Reset to Default Words</button>
-                <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+                <button type="button" class="btn-save" onclick="saveSettings()">Save & Apply</button>
+                <button type="button" class="btn-reset" onclick="resetWords()">Reset to Default Words</button>
+                <button type="button" class="btn-cancel" onclick="closeSettings()">Cancel</button>
             </div>
         </div>
     </div>
@@ -1563,8 +1563,8 @@
             <h2>Start New Game?</h2>
             <p>This will end the current game. Are you sure?</p>
             <div class="modal-buttons">
-                <button class="btn-new-game" onclick="newGame(); closeConfirm();">Yes, New Game</button>
-                <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+                <button type="button" class="btn-new-game" onclick="newGame(); closeConfirm();">Yes, New Game</button>
+                <button type="button" class="btn-cancel" onclick="closeConfirm()">Cancel</button>
             </div>
         </div>
     </div>
@@ -1579,8 +1579,8 @@
                 <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
             </div>
             <div class="modal-buttons">
-                <button class="btn-new-game" onclick="newGame(); closeGameOver();">New Game</button>
-                <button class="btn-cancel" onclick="closeGameOver()">Close</button>
+                <button type="button" class="btn-new-game" onclick="newGame(); closeGameOver();">New Game</button>
+                <button type="button" class="btn-cancel" onclick="closeGameOver()">Close</button>
             </div>
         </div>
     </div>
@@ -1617,7 +1617,7 @@
             </div>
 
             <div class="modal-buttons">
-                <button class="btn-save" onclick="closeHelp()">Got it!</button>
+                <button type="button" class="btn-save" onclick="closeHelp()">Got it!</button>
             </div>
         </div>
     </div>
@@ -1631,8 +1631,8 @@
             <p>Please try refreshing the page. If the problem persists, clear your browser cache.</p>
             <div id="error-details" class="error-details" style="display: none;"></div>
             <div class="modal-buttons">
-                <button class="btn-new-game" onclick="location.reload()">Refresh Page</button>
-                <button class="btn-cancel" onclick="closeError()">Close</button>
+                <button type="button" class="btn-new-game" onclick="location.reload()">Refresh Page</button>
+                <button type="button" class="btn-cancel" onclick="closeError()">Close</button>
             </div>
         </div>
     </div>
@@ -1751,7 +1751,7 @@
             toast.innerHTML = `
                 <span class="toast-icon">${icons[type] || icons.error}</span>
                 <span class="toast-message">${escapeHTML(message)}</span>
-                <button class="toast-close" onclick="dismissToast(this.parentElement)" aria-label="Dismiss notification">&times;</button>
+                <button type="button" class="toast-close" onclick="dismissToast(this.parentElement)">&times;</button>
             `;
 
             container.appendChild(toast);
