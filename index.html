@@ -498,6 +498,7 @@
 
         /* ========== SHARE SECTION ========== */
         .share-section {
+            display: none; /* Hidden to save sidebar space - users can share URL from browser */
             margin-top: auto;
             padding-top: 12px;
             border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -636,10 +637,10 @@
         }
 
         .card.revealed.neutral {
-            background: linear-gradient(145deg, #a8b5bd, #8899a6);
-            color: #2c3e50;
-            border-color: #6d7a82;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(145deg, #c4a77d, #a68b5b);
+            color: #4a3728;
+            border-color: #8b7355;
+            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);
         }
 
         .card.revealed.assassin {
@@ -655,9 +656,11 @@
         }
 
         .spymaster-mode .card.spy-red:not(.revealed) {
-            border-color: #e74c3c;
-            border-width: 3px;
-            background: linear-gradient(145deg, #f5f0e1, #fce4e4);
+            border-color: #c0392b;
+            border-width: 4px;
+            background: linear-gradient(145deg, #fce4e4, #f8d0d0);
+            color: #c0392b;
+            box-shadow: 0 3px 12px rgba(192, 57, 43, 0.35);
         }
 
         .spymaster-mode .card.spy-red:not(.revealed)::before {
@@ -665,16 +668,18 @@
             position: absolute;
             top: 4px;
             right: 4px;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #e74c3c;
+            background: #c0392b;
         }
 
         .spymaster-mode .card.spy-blue:not(.revealed) {
-            border-color: #3498db;
-            border-width: 3px;
-            background: linear-gradient(145deg, #f5f0e1, #e4f0fc);
+            border-color: #2471a3;
+            border-width: 4px;
+            background: linear-gradient(145deg, #d6eaf8, #c5dff0);
+            color: #2471a3;
+            box-shadow: 0 3px 12px rgba(36, 113, 163, 0.35);
         }
 
         .spymaster-mode .card.spy-blue:not(.revealed)::before {
@@ -682,27 +687,50 @@
             position: absolute;
             top: 4px;
             right: 4px;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #3498db;
+            background: #2471a3;
         }
 
-        .spymaster-mode .card.spy-assassin:not(.revealed) {
-            border-color: #1a1a1a;
-            border-width: 3px;
-            background: linear-gradient(145deg, #f5f0e1, #e0e0e0);
+        .spymaster-mode .card.spy-neutral:not(.revealed) {
+            border-color: #8b7355;
+            border-width: 4px;
+            background: linear-gradient(145deg, #f5ebe0, #e8dcc8);
+            color: #6b5344;
+            box-shadow: 0 3px 12px rgba(139, 115, 85, 0.25);
         }
 
-        .spymaster-mode .card.spy-assassin:not(.revealed)::before {
+        .spymaster-mode .card.spy-neutral:not(.revealed)::before {
             content: '';
             position: absolute;
             top: 4px;
             right: 4px;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #1a1a1a;
+            background: #8b7355;
+        }
+
+        .spymaster-mode .card.spy-assassin:not(.revealed) {
+            border-color: #1a1a1a;
+            border-width: 4px;
+            background: linear-gradient(145deg, #e8e8e8, #d4d4d4);
+            color: #1a1a1a;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .spymaster-mode .card.spy-assassin:not(.revealed)::before {
+            content: '✕';
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            width: auto;
+            height: auto;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1a1a1a;
+            background: transparent;
         }
 
         /* ========== COLOR-BLIND MODE ========== */
@@ -728,7 +756,8 @@
             opacity: 0.9;
         }
 
-        .colorblind-mode .card.revealed.neutral::after {
+        .colorblind-mode .card.revealed.neutral::after,
+        .colorblind-mode .spymaster-mode .card.spy-neutral:not(.revealed)::after {
             content: '─';
             position: absolute;
             bottom: 4px;
