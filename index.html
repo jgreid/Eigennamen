@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Play Codenames online with friends over Zoom. No account required, just share a link!">
     <meta name="theme-color" content="#1a1a2e">
-    <meta property="og:title" content="Codenames Online">
+    <meta property="og:title" content="Risley-Codenames">
     <meta property="og:description" content="Play Codenames online with friends over Zoom. No account required!">
     <meta property="og:type" content="website">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
-    <title>Codenames Online</title>
+    <title>Risley-Codenames</title>
     <style>
         * {
             box-sizing: border-box;
@@ -35,16 +35,16 @@
             margin: 0 auto;
         }
 
-        /* Left Sidebar - Wide for no scrolling */
+        /* Left Sidebar - Compact */
         .sidebar {
-            width: 400px;
-            min-width: 380px;
-            max-width: 420px;
+            width: 340px;
+            min-width: 320px;
+            max-width: 360px;
             flex-shrink: 0;
-            padding: 16px 20px;
+            padding: 12px 16px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
             border-right: 1px solid rgba(255, 255, 255, 0.06);
         }
@@ -1442,8 +1442,8 @@
         <!-- LEFT SIDEBAR - Controls & Info -->
         <aside class="sidebar">
             <header>
-                <h1>Codenames</h1>
-                <div class="subtitle">Online Party Game <span class="version">v2.0.0</span></div>
+                <h1>Risley-Codenames</h1>
+                <div class="subtitle"><span class="version">v2.0.0</span></div>
             </header>
 
             <div class="role-banner" id="role-banner">
@@ -1470,14 +1470,14 @@
 
                 <div class="team-controls-row">
                     <div class="control-group team-red" id="red-team-controls">
-                        <span class="control-group-label">Red Team</span>
+                        <span class="control-group-label" id="red-team-label">Red Team</span>
                         <button type="button" class="btn-team-red" id="btn-team-red" onclick="setTeam('red')">Join</button>
                         <button type="button" class="btn-spymaster-red" id="btn-spymaster-red" onclick="setSpymaster('red')">Spy</button>
                         <button type="button" class="btn-clicker-red" id="btn-clicker-red" onclick="setClicker('red')">Click</button>
                     </div>
 
                     <div class="control-group team-blue" id="blue-team-controls">
-                        <span class="control-group-label">Blue Team</span>
+                        <span class="control-group-label" id="blue-team-label">Blue Team</span>
                         <button type="button" class="btn-team-blue" id="btn-team-blue" onclick="setTeam('blue')">Join</button>
                         <button type="button" class="btn-spymaster-blue" id="btn-spymaster-blue" onclick="setSpymaster('blue')">Spy</button>
                         <button type="button" class="btn-clicker-blue" id="btn-clicker-blue" onclick="setClicker('blue')">Click</button>
@@ -1665,6 +1665,8 @@
             blueRemaining: null,
             redTeamName: null,
             blueTeamName: null,
+            redTeamLabel: null,
+            blueTeamLabel: null,
             shareLink: null,
             wordSource: null,
             spymasterWarning: null,
@@ -1690,6 +1692,8 @@
             cachedElements.blueRemaining = document.getElementById('blue-remaining');
             cachedElements.redTeamName = document.getElementById('red-team-name');
             cachedElements.blueTeamName = document.getElementById('blue-team-name');
+            cachedElements.redTeamLabel = document.getElementById('red-team-label');
+            cachedElements.blueTeamLabel = document.getElementById('blue-team-label');
             cachedElements.shareLink = document.getElementById('share-link');
             cachedElements.wordSource = document.getElementById('word-source');
             cachedElements.spymasterWarning = document.getElementById('spymaster-warning');
@@ -1908,6 +1912,8 @@
             // Tab key focus trapping
             if (e.key === 'Tab') {
                 const focusableElements = activeModal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+                if (focusableElements.length === 0) return;
+
                 const firstElement = focusableElements[0];
                 const lastElement = focusableElements[focusableElements.length - 1];
 
@@ -2351,7 +2357,7 @@
             } else if (isHost) {
                 const teamInfo = playerTeam ? ` (${escapeHTML(teamNames[playerTeam])} team)` : '';
                 banner.className = 'role-banner host';
-                banner.innerHTML = `You are the HOST${teamInfo}<small>Start new games when ready. Join a team and pick a role to play!</small>`;
+                banner.innerHTML = `You are the HOST${teamInfo}`;
             } else if (playerTeam === 'red') {
                 banner.className = 'role-banner spectator-red';
                 banner.innerHTML = `You are on the <strong>${escapeHTML(teamNames.red)}</strong> team<small>Discuss guesses with your team! Become Spymaster or Clicker to take an active role.</small>`;
@@ -2360,7 +2366,7 @@
                 banner.innerHTML = `You are on the <strong>${escapeHTML(teamNames.blue)}</strong> team<small>Discuss guesses with your team! Become Spymaster or Clicker to take an active role.</small>`;
             } else {
                 banner.className = 'role-banner viewer';
-                banner.innerHTML = 'You are a SPECTATOR<small>Click "Join" under Red or Blue to join a team, or just watch!</small>';
+                banner.innerHTML = `You are a SPECTATOR<small>Join ${escapeHTML(teamNames.red)} or ${escapeHTML(teamNames.blue)} to play, or just watch!</small>`;
             }
         }
 
@@ -2824,6 +2830,12 @@
             if (blueRemainingEl) blueRemainingEl.textContent = blueRemaining;
             if (redTeamNameEl) redTeamNameEl.textContent = teamNames.red;
             if (blueTeamNameEl) blueTeamNameEl.textContent = teamNames.blue;
+
+            // Update team control labels
+            const redLabelEl = cachedElements.redTeamLabel || document.getElementById('red-team-label');
+            const blueLabelEl = cachedElements.blueTeamLabel || document.getElementById('blue-team-label');
+            if (redLabelEl) redLabelEl.textContent = teamNames.red;
+            if (blueLabelEl) blueLabelEl.textContent = teamNames.blue;
         }
 
         function updateTurnIndicator() {
@@ -2887,19 +2899,22 @@
         // Settings functions
         function openSettings() {
             openModal('settings-modal');
-            document.getElementById('red-name-input').value = teamNames.red;
-            document.getElementById('blue-name-input').value = teamNames.blue;
-            document.getElementById('colorblind-mode').checked = colorblindMode;
+            const redNameInput = document.getElementById('red-name-input');
+            const blueNameInput = document.getElementById('blue-name-input');
+            const colorblindInput = document.getElementById('colorblind-mode');
+            const customWordsTextarea = document.getElementById('custom-words');
+
+            if (redNameInput) redNameInput.value = teamNames.red;
+            if (blueNameInput) blueNameInput.value = teamNames.blue;
+            if (colorblindInput) colorblindInput.checked = colorblindMode;
 
             // Initialize character counters
             updateCharCounter('red-name-input', 'red-char-counter', 20);
             updateCharCounter('blue-name-input', 'blue-char-counter', 20);
 
             const customWords = localStorage.getItem('codenames-custom-words');
-            if (customWords) {
-                document.getElementById('custom-words').value = customWords;
-            } else {
-                document.getElementById('custom-words').value = '';
+            if (customWordsTextarea) {
+                customWordsTextarea.value = customWords || '';
             }
             updateWordCount();
         }
@@ -2912,6 +2927,10 @@
             const textarea = document.getElementById('custom-words');
             const countEl = document.getElementById('word-count');
             const errorEl = document.getElementById('word-error');
+
+            // Guard against null elements
+            if (!textarea || !countEl) return;
+
             const words = parseWords(textarea.value);
             const count = words.length;
 
@@ -2920,25 +2939,25 @@
                 countEl.className = 'word-count';
                 // Clear error state when empty (will use defaults)
                 if (errorEl) errorEl.classList.remove('visible');
-                if (textarea) textarea.classList.remove('invalid');
+                textarea.classList.remove('invalid');
             } else if (count < BOARD_SIZE) {
                 countEl.textContent = `${count} words (need at least ${BOARD_SIZE})`;
                 countEl.className = 'word-count error';
                 // Show inline validation feedback
                 if (errorEl) errorEl.classList.add('visible');
-                if (textarea) textarea.classList.add('invalid');
+                textarea.classList.add('invalid');
             } else if (count < 50) {
                 countEl.textContent = `${count} words (works, but more variety is better)`;
                 countEl.className = 'word-count warning';
                 // Clear error state - valid but with warning
                 if (errorEl) errorEl.classList.remove('visible');
-                if (textarea) textarea.classList.remove('invalid');
+                textarea.classList.remove('invalid');
             } else {
                 countEl.textContent = `${count} words`;
                 countEl.className = 'word-count';
                 // Clear error state - fully valid
                 if (errorEl) errorEl.classList.remove('visible');
-                if (textarea) textarea.classList.remove('invalid');
+                textarea.classList.remove('invalid');
             }
         }
 
