@@ -184,10 +184,14 @@ module.exports = function gameHandlers(io, socket) {
                 }
             }
 
-            // If game is over, stop timer and reveal all card types
+            // If game is over, stop timer FIRST (prevent race condition), then reveal all card types
+            // BUG-5 FIX: Timer must be stopped BEFORE emitting game:over to prevent
+            // timer firing between game state check and stop
             if (result.gameOver) {
+                // Stop timer immediately to prevent race condition
                 await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
+                // Now safe to emit game:over
                 io.to(`room:${socket.roomCode}`).emit('game:over', {
                     winner: result.winner,
                     reason: result.endReason,

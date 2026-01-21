@@ -173,6 +173,7 @@ async function createGame(roomCode, options = {}) {
         guessesAllowed: 0,     // Max guesses allowed (clue number + 1)
         clues: [],
         history: [],
+        stateVersion: 1,       // State versioning for conflict detection
         createdAt: Date.now()
     };
 
@@ -276,6 +277,16 @@ function addToHistory(game, entry) {
         // Keep most recent entries
         game.history = game.history.slice(-MAX_HISTORY_ENTRIES);
     }
+}
+
+/**
+ * Increment game state version (for optimistic locking/conflict detection)
+ * @param {Object} game - Game state
+ * @returns {number} New version number
+ */
+function incrementVersion(game) {
+    game.stateVersion = (game.stateVersion || 0) + 1;
+    return game.stateVersion;
 }
 
 /**
@@ -483,6 +494,9 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 timestamp: Date.now()
             });
 
+            // Increment state version for conflict detection
+            incrementVersion(game);
+
             // Execute transaction
             const result = await redis.multi()
                 .set(gameKey, JSON.stringify(game))
@@ -599,6 +613,13 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
                 throw { code: ERROR_CODES.INVALID_INPUT, message: 'A clue has already been given this turn' };
             }
 
+            // BUG-3 FIX: Validate clue number is within valid range (0-25)
+            // 0 = unlimited guesses, max is 25 (board size)
+            if (typeof number !== 'number' || !Number.isInteger(number) || number < 0 || number > BOARD_SIZE) {
+                await redis.unwatch();
+                throw { code: ERROR_CODES.INVALID_INPUT, message: `Clue number must be 0-${BOARD_SIZE}` };
+            }
+
             // Validate clue word is not on the board
             const validation = validateClueWord(word, game.words);
             if (!validation.valid) {
@@ -632,6 +653,9 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
                 spymaster: spymasterNickname,
                 timestamp: Date.now()
             });
+
+            // Increment state version for conflict detection
+            incrementVersion(game);
 
             const result = await redis.multi()
                 .set(gameKey, JSON.stringify(game))
@@ -706,6 +730,9 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
                 timestamp: Date.now()
             });
 
+            // Increment state version for conflict detection
+            incrementVersion(game);
+
             const result = await redis.multi()
                 .set(gameKey, JSON.stringify(game))
                 .exec();
@@ -773,6 +800,9 @@ async function forfeitGame(roomCode) {
                 winner: game.winner,
                 timestamp: Date.now()
             });
+
+            // Increment state version for conflict detection
+            incrementVersion(game);
 
             const result = await redis.multi()
                 .set(gameKey, JSON.stringify(game))

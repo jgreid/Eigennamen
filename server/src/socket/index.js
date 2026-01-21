@@ -163,31 +163,47 @@ function createTimerExpireCallback() {
             );
 
             // Restart timer for the new turn (if timer is configured and game not over)
-            // Use setImmediate instead of setTimeout to avoid untracked timers
+            // BUG-6 FIX: Use distributed lock to prevent multiple timer restarts
+            // when multiple timer expirations queue setImmediate callbacks
             setImmediate(async () => {
+                const redis = require('../config/redis').getRedis();
+                const lockKey = `lock:timer-restart:${roomCode}`;
+
                 try {
-                    const room = await roomService.getRoom(roomCode);
-                    const game = await gameService.getGame(roomCode);
-
-                    if (!room) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
-                        return;
-                    }
-                    if (!room.settings || !room.settings.turnTimer) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
-                        return;
-                    }
-                    if (!game) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
-                        return;
-                    }
-                    if (game.gameOver) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
+                    // Acquire lock to prevent concurrent timer restarts
+                    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
+                    if (!lockAcquired) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`);
                         return;
                     }
 
-                    await startTurnTimer(roomCode, room.settings.turnTimer);
-                    logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
+                    try {
+                        const room = await roomService.getRoom(roomCode);
+                        const game = await gameService.getGame(roomCode);
+
+                        if (!room) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
+                            return;
+                        }
+                        if (!room.settings || !room.settings.turnTimer) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
+                            return;
+                        }
+                        if (!game) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
+                            return;
+                        }
+                        if (game.gameOver) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
+                            return;
+                        }
+
+                        await startTurnTimer(roomCode, room.settings.turnTimer);
+                        logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
+                    } finally {
+                        // Release lock
+                        await redis.del(lockKey);
+                    }
                 } catch (err) {
                     logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
                 }
