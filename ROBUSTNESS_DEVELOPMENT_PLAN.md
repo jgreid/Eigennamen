@@ -16,7 +16,7 @@ This plan outlines an aggressive approach to achieving production-grade robustne
 4. **Security Hardening** - Remaining vulnerabilities in authentication and session management
 5. **Performance** - N+1 queries, excessive serialization, uncached health checks
 
-**Current Status:** 74 issues documented, 14 fixed, ~60 remaining
+**Current Status:** 86 issues documented (74 from CODE_REVIEW + 12 from CODEBASE_REVIEW_2026), ~45 fixed, ~41 remaining
 
 ---
 
@@ -1190,37 +1190,51 @@ Socket count caching is now connected:
 
 ---
 
-### 5.6 ⚠️ IN PROGRESS: Test Coverage to 70%
+### 5.6 ⚠️ CRITICAL: Test Coverage to 70%
 
-**Priority:** P2
-**Current:** ~55% overall (up from ~38%)
+**Priority:** P0
+**Current:** **33.1%** lines (measured January 21, 2026)
 **Target:** 70% overall
-**Remaining Effort:** 8 hours
+**Gap:** **36.9 percentage points**
 
-**Sprint 3 Progress:**
-- Routes: 0% → ~50% (routes.test.js added)
-- Middleware (error handler, CSRF): 36% → ~60% (middleware.test.js added)
-- Socket handlers: 48% → ~60% (handlerEdgeCases.test.js added)
+**Actual Coverage by Category:**
+| Category | Lines | Branches | Functions |
+|----------|-------|----------|-----------|
+| Config | 9.2% | 3.8% | 5.9% |
+| Services | 40.1% | 35.7% | 40.2% |
+| Socket | 18.8% | 3.2% | 24.0% |
+| Middleware | 57.1% | 45.8% | 58.8% |
+| Utils | 34.6% | 43.2% | 26.7% |
+| Routes | 58.7% | 62.5% | 66.7% |
+| Validators | 100% | 100% | 100% |
 
-**Remaining Gaps:**
-- Integration tests for all socket handlers: ~60% → 80%
-- Additional route coverage for edge cases
-- More middleware scenarios
+**Priority Files (0-20% coverage):**
+1. `app.js` - 0% (health checks, middleware setup)
+2. `config/env.js` - 0% (environment validation)
+3. `config/memoryStorage.js` - 2.2% (Redis fallback)
+4. `services/wordListService.js` - 4.3% (CRUD operations)
+5. `utils/distributedLock.js` - 0% (lock reliability)
+6. `utils/metrics.js` - 0% (metrics collection)
+7. `socket/index.js` - 13.9% (connection lifecycle)
 
 ---
 
 ## Updated Success Criteria
 
-| Metric | Baseline | Phase 4 | Sprint 1 | Sprint 3 | Target | Status |
-|--------|----------|---------|----------|----------|--------|--------|
-| Test Coverage (Lines) | ~70% | ~38% | ~45% | ~55% | 70%+ | ⚠️ In progress |
-| Socket Handler Coverage | 0% | 48.6% | 48.6% | ~60% | 80%+ | ⚠️ In progress |
+| Metric | Baseline | Phase 4 | Sprint 1-3 | **Actual (Jan 21)** | Target | Status |
+|--------|----------|---------|------------|---------------------|--------|--------|
+| Test Coverage (Lines) | ~70% | ~38% | ~45% | **33.1%** | 70%+ | ⚠️ Critical gap |
+| Test Coverage (Branches) | - | - | - | **24.9%** | 70%+ | ⚠️ Critical gap |
+| Test Coverage (Functions) | - | - | - | **28.7%** | 70%+ | ⚠️ Critical gap |
+| Socket Handler Coverage | 0% | 48.6% | ~60% | **49.2%** | 80%+ | ⚠️ In progress |
 | Race Condition Tests | 0 | 20+ | 20+ | 20+ | 20+ | ✅ Complete |
 | Correlation ID Coverage | 0% | 100% | 100% | 100% | 100% | ✅ Complete |
 | Structured Log Adoption | 0% | 100% | 100% | 100% | 100% | ✅ Complete |
 | Event Log Integration | 0% | 0% | 100% | 100% | 100% | ✅ Complete |
-| Known Issues Fixed | 0/74 | ~40/74 | ~45/74 | ~55/74 | <10 remaining | ⚠️ In progress |
-| Total Tests | ~70 | 272 | 296 | 355 | 300+ | ✅ Exceeded |
+| Known Issues Fixed | 0/74 | ~40/74 | ~45/74 | **~45/86** | <10 remaining | ⚠️ ~41 remaining |
+| Total Tests | ~70 | 272 | 296 | **355** | 300+ | ✅ Exceeded |
+
+**Note:** Coverage numbers corrected on January 21, 2026 after running `npm test -- --coverage`. Previous estimates were based on file counts rather than actual Jest coverage output.
 
 ---
 
@@ -1282,18 +1296,257 @@ Socket count caching is now connected:
 - `playerHandlers.js`: Added Issue #61 fix - prevents clickers/spymasters from switching teams during their turn
 - `constants.js`: Added `CANNOT_SWITCH_TEAM_DURING_TURN` error code
 
-### Sprint 4: Future Work (RECOMMENDED NEXT)
+### Sprint 4: Coverage & Reliability (IN PROGRESS)
 
-**Goal:** Multi-instance testing and remaining edge cases
+**Status:** IN PROGRESS - January 21, 2026
+**Goal:** Raise test coverage to 70%, fix remaining critical bugs, improve multi-instance reliability
 
-| Task | Priority | Effort |
-|------|----------|--------|
-| Multi-instance Docker test environment | P2 | 8h |
-| Timer orphan recovery tests | P2 | 4h |
-| State versioning implementation | P2 | 6h |
-| Correlation ID propagation to logs | P3 | 4h |
-| **Total** | - | **22h** |
+#### ⚠️ Coverage Status Correction
+
+**Actual measured coverage (January 21, 2026):**
+```
+Statements:  32.84% (target: 70%)
+Branches:    24.93% (target: 70%)
+Functions:   28.70% (target: 70%)
+Lines:       33.10% (target: 70%)
+```
+
+**Coverage Gaps (Highest Priority):**
+| File | Current | Target | Gap |
+|------|---------|--------|-----|
+| `app.js` | 0% | 60% | Major - health checks, middleware setup |
+| `config/env.js` | 0% | 80% | Critical - environment validation |
+| `config/memoryStorage.js` | 2% | 60% | High - Redis fallback logic |
+| `config/redis.js` | 10% | 60% | High - connection handling |
+| `services/wordListService.js` | 4% | 70% | Major - CRUD operations |
+| `services/eventLogService.js` | 18% | 70% | High - event logging |
+| `socket/index.js` | 14% | 60% | High - connection lifecycle |
+| `utils/distributedLock.js` | 0% | 80% | Critical - lock reliability |
+| `utils/metrics.js` | 0% | 50% | Medium - metrics collection |
+| `utils/correlationId.js` | 24% | 70% | Medium - request tracing |
+
+#### Sprint 4 Task Breakdown
+
+| Task | Priority | Effort | Status |
+|------|----------|--------|--------|
+| **Coverage Improvements** | | | |
+| Add app.js tests (health checks, middleware) | P0 | 4h | ⬜ TODO |
+| Add env.js validation tests | P0 | 2h | ⬜ TODO |
+| Add wordListService.js CRUD tests | P1 | 4h | ⬜ TODO |
+| Add distributedLock.js tests | P1 | 3h | ⬜ TODO |
+| Add memoryStorage.js tests | P2 | 4h | ⬜ TODO |
+| Add redis.js connection tests | P2 | 3h | ⬜ TODO |
+| Add eventLogService.js tests | P2 | 3h | ⬜ TODO |
+| **Critical Bug Fixes** | | | |
+| Fix chat emit error handling (BUG-1) | P0 | 1h | ⬜ TODO |
+| Fix X-Forwarded-For spoofing (BUG-2) | P0 | 2h | ⬜ TODO |
+| Add clue number validation (BUG-3) | P1 | 1h | ⬜ TODO |
+| Fix timer addTime() local timeout (BUG-4) | P1 | 2h | ⬜ TODO |
+| Fix game over timer race (BUG-5) | P1 | 2h | ⬜ TODO |
+| **Multi-Instance Reliability** | | | |
+| Multi-instance Docker test environment | P2 | 8h | ⬜ TODO |
+| Timer orphan recovery tests | P2 | 4h | ⬜ TODO |
+| **Total** | | **43h** | |
 
 ---
 
-*Updated January 21, 2026 after Sprint 3 completion. This plan prioritizes reliability and maintainability over new features. All four initial phases plus Sprints 1-3 are complete with 355 tests passing. Key security issues (#3, #23, #60, #61, #74) are now addressed.*
+### Sprint 5: State Management & Performance (PROPOSED)
+
+**Goal:** Implement state versioning, optimize performance, improve observability
+
+| Task | Priority | Effort |
+|------|----------|--------|
+| **State Management** | | |
+| Implement game state versioning | P1 | 6h |
+| Add state checksum validation | P2 | 3h |
+| Implement event replay for reconnection | P2 | 6h |
+| **Performance Optimizations** | | |
+| Board click O(1) lookup (OPT-1) | P2 | 1h |
+| History slice optimization (OPT-3) | P3 | 1h |
+| Word list SELECT optimization (OPT-4) | P2 | 2h |
+| Connected players filter (OPT-11) | P2 | 1h |
+| Health check timeout protection (OPT-12) | P2 | 2h |
+| **Code Quality** | | |
+| Merge duplicate player creation functions (OPT-7) | P3 | 2h |
+| Extract timer callback helper (OPT-8) | P3 | 2h |
+| Consolidate screen reader functions (OPT-5) | P3 | 1h |
+| **Observability** | | |
+| Correlation ID propagation to logs | P2 | 4h |
+| Add operation latency metrics | P3 | 3h |
+| Audit trail for sensitive operations | P3 | 4h |
+| **Total** | | **38h** |
+
+---
+
+### Sprint 6: Feature Enhancements (PROPOSED)
+
+**Goal:** Implement high-value features from CODEBASE_REVIEW_2026.md
+
+| Task | Priority | Effort |
+|------|----------|--------|
+| **High-Value Features** | | |
+| Game history/replay feature (FEAT-2) | P2 | 12h |
+| Multiple language word lists (FEAT-4) | P2 | 6h |
+| Sound notifications (FEAT-5) | P3 | 4h |
+| Mobile responsive improvements (FEAT-8) | P2 | 8h |
+| **Medium-Value Features** | | |
+| Spectator mode improvements (FEAT-3) | P3 | 6h |
+| PWA support (FEAT-9) | P3 | 6h |
+| Custom card themes (FEAT-11) | P3 | 4h |
+| **Total** | | **46h** |
+
+---
+
+## Consolidated Remaining Issues Checklist
+
+### Critical (Block Release) - 7 remaining
+
+| # | Source | Description | Status |
+|---|--------|-------------|--------|
+| 56 | CODE_REVIEW | No state versioning | ⬜ Sprint 5 |
+| BUG-1 | CODEBASE_2026 | Chat emit loop lacks error handling | ⬜ Sprint 4 |
+| BUG-2 | CODEBASE_2026 | X-Forwarded-For header spoofable | ⬜ Sprint 4 |
+| BUG-4 | CODEBASE_2026 | Timer addTime() missing local timeout | ⬜ Sprint 4 |
+| BUG-5 | CODEBASE_2026 | Game over timer race condition | ⬜ Sprint 4 |
+| BUG-6 | CODEBASE_2026 | Timer restart race with setImmediate | ⬜ Sprint 4 |
+| BUG-7 | CODEBASE_2026 | Host transfer lock timeout | ⬜ Sprint 4 |
+
+### High Priority - 12 remaining
+
+| # | Source | Description | Status |
+|---|--------|-------------|--------|
+| 35 | CODE_REVIEW | Team chat N+1 query | ⬜ Sprint 5 |
+| 57 | CODE_REVIEW | Orphaned players in Redis for 24h | ⬜ Sprint 4 |
+| 67 | CODE_REVIEW | Correlation ID propagation incomplete | ⬜ Sprint 5 |
+| BUG-3 | CODEBASE_2026 | Clue number validation missing | ⬜ Sprint 4 |
+| BUG-8 | CODEBASE_2026 | Disconnected player TTL too long | ⬜ Sprint 4 |
+| BUG-9 | CODEBASE_2026 | Rate limiter doesn't report errors | ⬜ Sprint 4 |
+| OPT-10 | CODEBASE_2026 | Rate limiting per-socket not per-IP | ⬜ Sprint 5 |
+| 36 | CODE_REVIEW | Full JSON serialization on card reveal | ⬜ Sprint 5 |
+| 71 | CODE_REVIEW | No operation latency metrics | ⬜ Sprint 5 |
+| BUG-10 | CODEBASE_2026 | Word list validation incomplete | ⬜ Sprint 4 |
+| BUG-11 | CODEBASE_2026 | Team names not validated server-side | ⬜ Sprint 4 |
+| BUG-12 | CODEBASE_2026 | Socket.join() lacks error handling | ⬜ Sprint 4 |
+
+### Medium Priority - 15 remaining
+
+| # | Source | Description | Status |
+|---|--------|-------------|--------|
+| 59 | CODE_REVIEW | Team becomes empty during game | ⬜ Sprint 5 |
+| 62 | CODE_REVIEW | Missing ARIA labels on controls | ⬜ Sprint 6 |
+| 63 | CODE_REVIEW | Modal listener duplication | ⬜ Sprint 5 |
+| 64 | CODE_REVIEW | Event listeners never removed | ⬜ Sprint 5 |
+| 65 | CODE_REVIEW | Missing hostId index in Prisma | ⬜ Sprint 5 |
+| 66 | CODE_REVIEW | Optional unique email NULL issue | ⬜ Sprint 5 |
+| 69 | CODE_REVIEW | Structured logging incomplete | ⬜ Sprint 5 |
+| 70 | CODE_REVIEW | Missing audit trail | ⬜ Sprint 5 |
+| OPT-1 | CODEBASE_2026 | Board click expensive array search | ⬜ Sprint 5 |
+| OPT-3 | CODEBASE_2026 | History slice on every entry | ⬜ Sprint 5 |
+| OPT-4 | CODEBASE_2026 | Word list SELECT inefficiency | ⬜ Sprint 5 |
+| OPT-5 | CODEBASE_2026 | Duplicate screen reader functions | ⬜ Sprint 5 |
+| OPT-6 | CODEBASE_2026 | Role banner repetitive branches | ⬜ Sprint 5 |
+| OPT-7 | CODEBASE_2026 | Duplicate player creation functions | ⬜ Sprint 5 |
+| OPT-8 | CODEBASE_2026 | Duplicate timer callback code | ⬜ Sprint 5 |
+
+### Low Priority - 8 remaining
+
+| # | Source | Description | Status |
+|---|--------|-------------|--------|
+| 72 | CODE_REVIEW | window.onload overwrites handlers | ⬜ Backlog |
+| 73 | CODE_REVIEW | CSP allows unsafe-inline | ⬜ Backlog |
+| OPT-2 | CODEBASE_2026 | Duplicate DOM queries | ⬜ Backlog |
+| OPT-9 | CODEBASE_2026 | Modal close handler repetition | ⬜ Backlog |
+| OPT-11 | CODEBASE_2026 | Connected players filter | ⬜ Sprint 5 |
+| OPT-12 | CODEBASE_2026 | Health check timeout protection | ⬜ Sprint 5 |
+| 11 | CODE_REVIEW | Magic numbers in timer service | ✅ DONE |
+| 13 | CODE_REVIEW | Team name validation client | ✅ DONE |
+
+---
+
+## Updated Success Criteria (Corrected)
+
+| Metric | Baseline | Actual Now | Target | Gap |
+|--------|----------|------------|--------|-----|
+| Test Coverage (Lines) | ~70% | **33.1%** | 70%+ | **36.9%** |
+| Test Coverage (Branches) | - | **24.9%** | 70%+ | **45.1%** |
+| Test Coverage (Functions) | - | **28.7%** | 70%+ | **41.3%** |
+| Socket Handler Coverage | 0% | ~49% | 80%+ | ~31% |
+| Race Condition Tests | 0 | 20+ | 20+ | ✅ Met |
+| Known Issues Fixed | 0/74 | ~45/74 | <10 remaining | ~29 remaining |
+| Total Tests | ~70 | **355** | 300+ | ✅ Exceeded |
+
+---
+
+## New Proposed Improvements (January 2026 Review)
+
+### Security Hardening
+
+1. **Implement trust proxy correctly** - X-Forwarded-For should only be trusted from known proxies
+2. **Add session binding** - Bind sessions to browser fingerprint to prevent hijacking
+3. **Rate limit by IP** - Add IP-based rate limiting in addition to per-socket
+4. **Validate clue numbers** - Add min/max validation for clue counts (0-25)
+
+### Performance Quick Wins
+
+1. **Use data-index attribute** - O(1) card lookup instead of O(n) array search
+2. **Cache DOM elements** - Reduce repeated getElementById calls
+3. **Lazy load word lists** - Don't fetch words field when listing
+4. **Add health check timeouts** - Prevent slow dependency checks from blocking
+
+### Code Quality Improvements
+
+1. **Extract shared utilities** - Create `utils/timer.js` for callback helpers
+2. **Consolidate player functions** - Merge createPlayer and createPlayerData
+3. **Add TypeScript types** - JSDoc types for better IDE support
+4. **Standardize error handling** - Use GameError class consistently
+
+### Testing Infrastructure
+
+1. **Add socket test client** - Reusable helper for socket handler tests
+2. **Add multi-instance tests** - Docker-based distributed testing
+3. **Add load tests** - Verify performance under concurrent connections
+4. **Add E2E tests** - Playwright tests for critical user flows
+
+---
+
+## Risk Assessment (Updated)
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Coverage target not met | High | Medium | Focus on high-value test files first |
+| Timer bugs in production | Medium | High | Add comprehensive timer tests |
+| State sync issues | Medium | High | Implement state versioning |
+| Performance degradation | Low | Medium | Add performance monitoring |
+| Breaking changes | Low | Medium | 355 tests provide safety net |
+
+---
+
+## Recommended Execution Order
+
+### Week 1: Critical Coverage
+1. Add `distributedLock.js` tests (critical for timer reliability)
+2. Add `env.js` validation tests (startup safety)
+3. Fix chat emit error handling (BUG-1)
+4. Fix X-Forwarded-For issue (BUG-2)
+
+### Week 2: Timer Reliability
+1. Fix timer addTime() bug (BUG-4)
+2. Fix game over race condition (BUG-5)
+3. Add timer orphan recovery tests
+4. Add `timerService.js` additional coverage
+
+### Week 3: Service Coverage
+1. Add `wordListService.js` tests
+2. Add `eventLogService.js` tests
+3. Add `memoryStorage.js` tests
+4. Fix remaining BUG items
+
+### Week 4: Integration & Polish
+1. Add multi-instance Docker tests
+2. Add `app.js` health check tests
+3. Performance optimizations (OPT-1, OPT-3)
+4. Documentation updates
+
+---
+
+*Updated January 21, 2026 with corrected coverage metrics and comprehensive Sprint 4-6 planning. Actual line coverage is 33.1% (not 55% as previously stated). 42 issues remain from original 74, plus 12 new issues from CODEBASE_REVIEW_2026.md.*
