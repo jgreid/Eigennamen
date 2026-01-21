@@ -1427,8 +1427,6 @@
 
     <!-- Screen reader announcements -->
     <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
-    <div id="sr-score-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
-    <div id="sr-turn-announcements" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
 
     <!-- Toast notification container -->
     <div id="toast-container" class="toast-container" role="alert" aria-live="polite"></div>
@@ -1670,9 +1668,7 @@
             shareLink: null,
             wordSource: null,
             spymasterWarning: null,
-            srAnnouncements: null,
-            srScoreAnnouncements: null,
-            srTurnAnnouncements: null
+            srAnnouncements: null
         };
 
         // Initialize cached elements (called once on page load)
@@ -1698,15 +1694,11 @@
             cachedElements.wordSource = document.getElementById('word-source');
             cachedElements.spymasterWarning = document.getElementById('spymaster-warning');
             cachedElements.srAnnouncements = document.getElementById('sr-announcements');
-            cachedElements.srScoreAnnouncements = document.getElementById('sr-score-announcements');
-            cachedElements.srTurnAnnouncements = document.getElementById('sr-turn-announcements');
         }
 
         // ========== SCREEN READER ANNOUNCEMENTS ==========
-        // Track timeouts to prevent race conditions
+        // Track timeout to prevent race conditions
         let srAnnouncementTimeout = null;
-        let srScoreTimeout = null;
-        let srTurnTimeout = null;
 
         // Screen reader announcement helper
         function announceToScreenReader(message) {
@@ -1717,32 +1709,6 @@
                 srAnnouncementTimeout = setTimeout(() => {
                     announcer.textContent = '';
                     srAnnouncementTimeout = null;
-                }, 1000);
-            }
-        }
-
-        // Announce score changes to screen readers
-        function announceScoreChange(message) {
-            const announcer = cachedElements.srScoreAnnouncements;
-            if (announcer) {
-                if (srScoreTimeout) clearTimeout(srScoreTimeout);
-                announcer.textContent = message;
-                srScoreTimeout = setTimeout(() => {
-                    announcer.textContent = '';
-                    srScoreTimeout = null;
-                }, 1000);
-            }
-        }
-
-        // Announce turn changes to screen readers (assertive)
-        function announceTurnChange(message) {
-            const announcer = cachedElements.srTurnAnnouncements;
-            if (announcer) {
-                if (srTurnTimeout) clearTimeout(srTurnTimeout);
-                announcer.textContent = message;
-                srTurnTimeout = setTimeout(() => {
-                    announcer.textContent = '';
-                    srTurnTimeout = null;
                 }, 1000);
             }
         }
@@ -2745,11 +2711,11 @@
                 });
             }
 
-            // Clear animation tracking after animation completes
+            // Clear animation tracking after animation completes (800ms = 0.6s animation + 0.2s delay)
             setTimeout(() => {
                 lastRevealedIndex = -1;
                 lastRevealedWasCorrect = false;
-            }, 600);
+            }, 800);
 
             // Screen reader announcement
             const word = gameState.words[index];
@@ -2765,7 +2731,7 @@
         function checkGameOver() {
             // Check for assassin reveal
             const assassinIndex = gameState.types.indexOf('assassin');
-            if (gameState.revealed[assassinIndex]) {
+            if (assassinIndex >= 0 && gameState.revealed[assassinIndex]) {
                 gameState.gameOver = true;
                 if (!gameState.winner) {
                     gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
@@ -2960,19 +2926,23 @@
         }
 
         function saveSettings() {
-            const redName = document.getElementById('red-name-input').value.trim() || 'Red';
-            const blueName = document.getElementById('blue-name-input').value.trim() || 'Blue';
+            const redNameInput = document.getElementById('red-name-input');
+            const blueNameInput = document.getElementById('blue-name-input');
+            const colorblindCheckbox = document.getElementById('colorblind-mode');
+
+            const redName = redNameInput ? redNameInput.value.trim() || 'Red' : 'Red';
+            const blueName = blueNameInput ? blueNameInput.value.trim() || 'Blue' : 'Blue';
             teamNames.red = redName;
             teamNames.blue = blueName;
 
             // Save colorblind mode
-            colorblindMode = document.getElementById('colorblind-mode').checked;
+            colorblindMode = colorblindCheckbox ? colorblindCheckbox.checked : false;
             localStorage.setItem('codenames-colorblind', colorblindMode ? '1' : '0');
             applyColorblindMode();
 
-            const customWordsText = document.getElementById('custom-words').value.trim();
-            const wordError = document.getElementById('word-error');
             const textarea = document.getElementById('custom-words');
+            const customWordsText = textarea ? textarea.value.trim() : '';
+            const wordError = document.getElementById('word-error');
 
             if (customWordsText) {
                 const words = parseWords(customWordsText);
@@ -2986,8 +2956,10 @@
                 } else {
                     // Show inline error instead of alert
                     if (wordError) wordError.classList.add('visible');
-                    if (textarea) textarea.classList.add('invalid');
-                    textarea.focus();
+                    if (textarea) {
+                        textarea.classList.add('invalid');
+                        textarea.focus();
+                    }
                     return;
                 }
             } else {
@@ -3011,7 +2983,8 @@
         }
 
         function resetWords() {
-            document.getElementById('custom-words').value = '';
+            const textarea = document.getElementById('custom-words');
+            if (textarea) textarea.value = '';
             updateWordCount();
         }
 
