@@ -35,7 +35,7 @@
             margin: 0 auto;
         }
 
-        /* Left Sidebar - 25% width, fixed position feel */
+        /* Left Sidebar - 25% width */
         .sidebar {
             width: 320px;
             min-width: 280px;
@@ -45,15 +45,9 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            /* Use solid background - backdrop-filter causes click issues on Chrome/Windows */
             background: rgba(15, 15, 26, 0.95);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
-            height: 100vh;
-            overflow-y: auto;
-            position: sticky;
-            top: 0;
-            /* Ensure clicks work properly */
-            touch-action: manipulation;
+            /* Removed position: sticky and overflow-y: auto - caused click issues on Chrome/Windows */
         }
 
         /* Right Main Area - 75% width */
@@ -1469,7 +1463,7 @@
         <aside class="sidebar">
             <header>
                 <h1>Codenames</h1>
-                <div class="subtitle">Online Party Game <span class="version">v1.4.0</span></div>
+                <div class="subtitle">Online Party Game <span class="version">v1.5.0</span></div>
             </header>
 
             <div class="role-banner" id="role-banner">
