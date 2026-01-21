@@ -15,6 +15,7 @@ module.exports = function playerHandlers(io, socket) {
 
     /**
      * Set player's team
+     * Issue #61 Fix: Prevent clickers/spymasters from switching teams during their active turn
      */
     socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
         try {
@@ -23,6 +24,19 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             const validated = validateInput(playerTeamSchema, data);
+
+            // Check if player has an active role during their team's turn (Issue #61)
+            const currentPlayer = await playerService.getPlayer(socket.sessionId);
+            if (currentPlayer && (currentPlayer.role === 'spymaster' || currentPlayer.role === 'clicker')) {
+                const gameService = require('../../services/gameService');
+                const game = await gameService.getGame(socket.roomCode);
+                if (game && !game.gameOver && game.currentTurn === currentPlayer.team) {
+                    throw {
+                        code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN,
+                        message: `Cannot switch teams while you are the active ${currentPlayer.role} during your team's turn`
+                    };
+                }
+            }
 
             const player = await playerService.setTeam(socket.sessionId, validated.team);
 

@@ -41,7 +41,7 @@ module.exports = {
         BCRYPT_SALT_ROUNDS: 10,              // Increased from 8 for better security
         MIN_PASSWORD_LENGTH: 1,              // Minimum password length
         MAX_PASSWORD_LENGTH: 50,             // Maximum password length
-        REQUIRE_REAUTH_ON_CHANGE: false      // Whether to require re-auth when password changes
+        REQUIRE_REAUTH_ON_CHANGE: true       // Require re-auth when room password changes (security fix)
     },
 
     // Turn timer configuration
@@ -232,7 +232,8 @@ module.exports = {
         SESSION_EXPIRED: 'SESSION_EXPIRED',
         SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
         SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
-        RESERVED_NAME: 'RESERVED_NAME'
+        RESERVED_NAME: 'RESERVED_NAME',
+        CANNOT_SWITCH_TEAM_DURING_TURN: 'CANNOT_SWITCH_TEAM_DURING_TURN'
     },
 
     // Reserved nicknames (case-insensitive)
