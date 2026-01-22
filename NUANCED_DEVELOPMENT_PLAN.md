@@ -1,1072 +1,521 @@
 # Nuanced Development Plan - Codenames Online
 
 **Created:** January 22, 2026
-**Status:** Strategic roadmap for next phase of development
-**Foundation:** Builds on 12 completed sprints (931 tests, 63.21% coverage, 88% issue resolution)
+**Last Updated:** January 22, 2026 (Post-Scrutiny Revision)
+**Status:** Strategic roadmap based on deep code analysis
+**Foundation:** 1363 tests, 79.4% statement coverage, production-ready codebase
 
 ---
 
 ## Executive Summary
 
-This plan takes a **strategic, prioritized approach** to development, recognizing that the codebase is production-ready but has opportunities for meaningful enhancement. Rather than pursuing exhaustive coverage targets, this plan focuses on **high-impact improvements** that deliver tangible value.
+This plan is based on **deep scrutiny of the actual codebase**, not surface-level documentation. Key corrections from original assessment:
 
-### Current State Assessment
+- **Test coverage is 79.4%** (not 63% as docs stated) - 1363 tests passing
+- **Frontend already uses modern patterns** - event delegation, cached elements, no inline handlers
+- **One real bug found and fixed** - duplicate switch case in timerService.js
 
-| Dimension | Score | Rationale |
-|-----------|-------|-----------|
-| Security | A- | All critical issues fixed, comprehensive input validation |
-| Reliability | B+ | Atomic operations, distributed locks, graceful degradation |
-| Test Coverage | B | 63% coverage, 931 tests, some integration gaps |
-| Maintainability | B+ | Clean architecture, some frontend debt |
-| Observability | B | Correlation IDs, metrics, structured logging in place |
-| Feature Completeness | A | Full Codenames implementation with extras |
+This revised plan focuses on **actual gaps** identified through code analysis.
 
-### Strategic Priorities (Ranked)
+### Current State Assessment (Verified)
 
-1. **End-to-End Testing Framework** - Catch regressions in user flows
-2. **Frontend Architecture Modernization** - Reduce 3,800-line monolith
-3. **Enhanced Reconnection Experience** - Critical for multiplayer UX
-4. **Operational Monitoring Dashboard** - Visibility in production
-5. **Game Enhancements** - Tournament mode, statistics, themes
+| Dimension | Score | Verified Findings |
+|-----------|-------|-------------------|
+| Security | A- | All critical issues fixed, Lua scripts for atomicity |
+| Reliability | A- | State versioning, distributed locks, event recovery |
+| Test Coverage | A- | 79.4% statements, 71.66% branches, 1363 tests |
+| Maintainability | B+ | Clean services, frontend needs minor refactoring |
+| Observability | B | Audit functions exist but underutilized (26% coverage) |
+| Feature Completeness | A | Full implementation with timer, chat, reconnection |
+
+### Strategic Priorities (Revised Based on Scrutiny)
+
+1. **Activate Audit Logging** - 12 audit functions exist but are barely used
+2. **Socket/Rate Limit Coverage** - socket/index.js at 60%, rateLimitHandler at 43%
+3. **E2E Testing** - Prevent regressions in complex user flows
+4. **CSRF Middleware Coverage** - csrf.js at 34%
+5. **Memory Storage Hardening** - memoryStorage.js at 62%
 
 ---
 
-## Phase 1: Testing & Reliability Foundation
+## Bugs Fixed During Scrutiny
 
-### Track 1.1: End-to-End Testing Framework
+### BUG: Duplicate Switch Case in timerService.js
+
+**Location:** `server/src/services/timerService.js:175-218`
+**Severity:** Medium
+**Status:** FIXED
+
+The `handleTimerEvent()` function had duplicate `case 'addTime':` blocks in the switch statement. The second case (lines 209-218) would never execute because JavaScript switch statements fall through from first match.
+
+**Fix:** Consolidated both cases into a single handler that distinguishes between:
+- `event.newEndTime` - notification of completed addTime operation
+- `event.secondsToAdd` - request to perform addTime locally
+
+---
+
+## Phase 1: Activate Existing Infrastructure
+
+### Track 1.1: Audit Logging Activation
+
+**Objective:** Wire up the 12 existing audit functions that are defined but unused
+**Impact:** HIGH - Security visibility with zero new code needed
+**Complexity:** LOW
+
+#### Current State (Verified)
+
+The file `server/src/utils/audit.js` contains 12 comprehensive audit functions:
+
+```javascript
+// Functions exist but have only 26% coverage (barely called)
+auditPasswordChanged()      // Room password changes
+auditHostTransferred()       // Host transfers
+auditSpymasterAssigned()     // Role assignments
+auditRoleChanged()           // Role changes
+auditGameStarted()           // Game starts
+auditGameEnded()             // Game ends
+auditSessionHijackBlocked()  // Security events
+auditRateLimitExceeded()     // Rate limit violations
+auditPlayerKicked()          // Player kicks
+auditWordListModified()      // Word list changes
+```
+
+#### Implementation
+
+Simply add calls to handlers that already import but don't use audit functions:
+
+**gameHandlers.js - Already imports audit, add calls:**
+```javascript
+// Line 96: After game start success
+auditGameStarted(socket.roomCode, socket.sessionId, players.length, socket.handshake.address);
+
+// Line 205: After game over
+auditGameEnded(socket.roomCode, result.winner, result.endReason, Date.now() - game.createdAt);
+```
+
+**playerHandlers.js - Add spymaster/role audit:**
+```javascript
+// After successful role change
+auditRoleChanged(socket.roomCode, socket.sessionId, player.nickname, oldRole, role, socket.handshake.address);
+```
+
+**roomHandlers.js - Add password/host audit:**
+```javascript
+// After password change
+auditPasswordChanged(socket.roomCode, socket.sessionId, socket.handshake.address, !!newPassword);
+
+// After host transfer
+auditHostTransferred(socket.roomCode, oldHostId, newHostId, reason, socket.handshake.address);
+```
+
+**Effort:** 2-3 hours
+**Tests needed:** 8-10 (verify audit calls)
+**Coverage impact:** audit.js 26% → 80%+
+
+---
+
+### Track 1.2: Socket Handler Coverage
+
+**Objective:** Improve coverage for socket/index.js (60%) and rateLimitHandler.js (43%)
+**Impact:** MEDIUM - Core connection handling paths
+**Complexity:** MEDIUM
+
+#### Specific Uncovered Lines
+
+**socket/index.js (60.4% → 80% target):**
+- Lines 77-115: Connection error handling paths
+- Lines 223-332: Disconnect cleanup and timer coordination
+
+**rateLimitHandler.js (42.85% → 70% target):**
+- Lines 21-32: Rate limit configuration loading
+- Lines 48-54: IP extraction fallbacks
+- Lines 59-89: Rate limit exceeded handling
+
+#### Test Scenarios Needed
+
+```javascript
+// socket/index.js tests
+describe('Socket Connection Edge Cases', () => {
+  it('handles connection with invalid session gracefully');
+  it('cleans up timers on disconnect');
+  it('handles rapid reconnection attempts');
+  it('coordinates timer handoff on disconnect');
+});
+
+// rateLimitHandler.js tests
+describe('Rate Limit Handler', () => {
+  it('applies correct limits per event type');
+  it('tracks IP-based limits correctly');
+  it('emits rate_limited event when exceeded');
+  it('logs rate limit violations');
+});
+```
+
+**Effort:** 4-6 hours
+**Tests needed:** 15-20
+
+---
+
+### Track 1.3: CSRF Middleware Coverage
+
+**Objective:** Improve csrf.js coverage from 34% to 70%
+**Impact:** LOW-MEDIUM - Security middleware
+**Complexity:** LOW
+
+#### Uncovered Paths
+
+- Lines 47-77: CORS wildcard handling
+- Lines 104-130: Content-Type validation
+
+#### Test Scenarios
+
+```javascript
+describe('CSRF Protection', () => {
+  it('blocks requests without X-Requested-With when CORS is wildcard');
+  it('allows requests with proper headers');
+  it('validates Content-Type for POST requests');
+  it('logs CSRF validation failures');
+});
+```
+
+**Effort:** 2-3 hours
+**Tests needed:** 6-8
+
+---
+
+## Phase 2: End-to-End Testing Framework
+
+### Track 2.1: Playwright Setup
 
 **Objective:** Automated testing of complete user journeys
 **Impact:** HIGH - Prevents regressions in critical paths
 **Complexity:** MEDIUM
 
-#### Implementation Approach
+#### Implementation Structure
 
 ```
 e2e/
 ├── playwright.config.ts
 ├── fixtures/
-│   ├── auth.fixture.ts
-│   └── room.fixture.ts
+│   ├── game.fixture.ts      # Game setup helpers
+│   └── socket.fixture.ts    # Socket.io test helpers
 ├── pages/
 │   ├── home.page.ts
-│   ├── room.page.ts
 │   └── game.page.ts
 └── tests/
     ├── standalone-mode.spec.ts
     ├── multiplayer-game.spec.ts
     ├── reconnection.spec.ts
-    └── edge-cases.spec.ts
+    └── timer.spec.ts
 ```
 
 #### Critical Test Scenarios
 
-| Scenario | Priority | Complexity |
-|----------|----------|------------|
-| Complete game flow (create → play → win) | P0 | Medium |
-| Reconnection after disconnect | P0 | High |
-| Standalone mode URL encoding | P0 | Low |
-| Multi-tab session handling | P1 | Medium |
-| Mobile responsive behavior | P1 | Low |
-| Colorblind mode accessibility | P2 | Low |
+| Scenario | Priority | Why Critical |
+|----------|----------|--------------|
+| Complete game (create → play → win) | P0 | Core functionality |
+| Reconnection after disconnect | P0 | Multiplayer reliability |
+| Standalone mode URL encoding | P0 | Offline mode works |
+| Timer pause/resume/add-time | P1 | Timer bugs are subtle |
+| Multi-tab session handling | P1 | Common user behavior |
+| Spymaster view isolation | P1 | Security-critical |
 
-#### Test Implementation Strategy
+#### Test Implementation Examples
 
-**Phase 1A: Core Flows (2-3 days)**
 ```typescript
-// Example: Complete game flow test
-test('complete multiplayer game', async ({ page, context }) => {
-  // Host creates room
-  const host = await page.goto('/');
-  await host.click('[data-testid="create-room"]');
-  const roomCode = await host.textContent('.room-code');
+// Standalone mode test
+test('standalone game preserves state in URL', async ({ page }) => {
+  await page.goto('/');
 
-  // Player joins
-  const player = await context.newPage();
-  await player.goto(`/?room=${roomCode}`);
-  await player.fill('[data-testid="nickname"]', 'Player2');
-  await player.click('[data-testid="join-room"]');
+  // Create new game
+  await page.click('[data-action="new-game"]');
 
-  // Assign teams and roles
-  await host.click('[data-testid="red-spymaster"]');
-  await player.click('[data-testid="blue-spymaster"]');
+  // Verify URL contains game state
+  const url = page.url();
+  expect(url).toContain('game=');
+  expect(url).toContain('r=');
 
-  // Start and play game
-  await host.click('[data-testid="start-game"]');
-  await host.fill('[data-testid="clue-input"]', 'ANIMAL');
-  await host.fill('[data-testid="clue-number"]', '2');
-  await host.click('[data-testid="give-clue"]');
+  // Reveal a card
+  await page.click('.card:first-child');
 
-  // Verify game state
-  await expect(host.locator('.current-clue')).toContainText('ANIMAL: 2');
+  // Verify URL updated with reveal
+  const newUrl = page.url();
+  expect(newUrl).toMatch(/r=1/);
+});
+
+// Reconnection test
+test('player reconnects and sees current game state', async ({ page, context }) => {
+  // Setup: Create room and start game
+  // ... setup code ...
+
+  // Disconnect (close page)
+  await page.close();
+
+  // Reconnect with same session
+  const newPage = await context.newPage();
+  await newPage.goto(`/?room=${roomCode}`);
+
+  // Verify game state restored
+  await expect(newPage.locator('.current-turn')).toBeVisible();
+  await expect(newPage.locator('.revealed-card')).toHaveCount(previousReveals);
 });
 ```
 
-**Phase 1B: Edge Cases (2-3 days)**
-- Network disconnection during card reveal
-- Browser refresh mid-game
-- Multiple rapid card clicks
-- Timer expiration during action
-
-**Phase 1C: Visual Regression (1-2 days)**
-- Screenshot comparison for key states
-- Mobile viewport testing
-- Colorblind mode visual verification
-
-#### Success Metrics
-
-| Metric | Target |
-|--------|--------|
-| E2E test count | 25+ scenarios |
-| Critical path coverage | 100% |
-| CI run time | < 5 minutes |
-| Flakiness rate | < 2% |
+**Effort:** 5-7 days
+**Tests needed:** 25-30 scenarios
+**CI time target:** < 5 minutes
 
 ---
 
-### Track 1.2: Integration Test Expansion
+## Phase 3: Frontend Assessment (Revised)
 
-**Objective:** Fill gaps in service-level integration testing
-**Impact:** MEDIUM - Validates service interactions
-**Complexity:** LOW-MEDIUM
+### Finding: Frontend Already Uses Modern Patterns
 
-#### Current Gaps Analysis
+**Original assumption:** Frontend needs modernization from 3,800-line monolith
+**Actual finding:** Frontend already implements good practices
 
-| Service Interaction | Current Coverage | Target |
-|---------------------|------------------|--------|
-| gameService → roomService | Partial | Full |
-| timerService → pub/sub | Partial | Full |
-| playerService → session cleanup | Minimal | Full |
-| wordListService → persistence | Good | Maintain |
+#### Verified Good Patterns in index.html:
 
-#### New Test Files Needed
+1. **Event Delegation** (lines 2976-3009):
+   ```javascript
+   // Board uses single delegated handler, not per-card handlers
+   board.addEventListener('click', (e) => {
+       const card = e.target.closest('.card');
+       if (!card || card.classList.contains('revealed')) return;
+       const index = parseInt(card.dataset.index, 10);
+       if (!isNaN(index) && index >= 0) revealCard(index);
+   });
+   ```
 
-```
-server/src/__tests__/integration/
-├── fullGameFlow.integration.test.js     # Complete game lifecycle
-├── multiInstanceTimer.integration.test.js  # Timer across instances
-├── sessionRecovery.integration.test.js    # Reconnection flows
-└── stateConsistency.integration.test.js   # Race condition scenarios
-```
+2. **DOM Element Caching** (initCachedElements function):
+   ```javascript
+   const cachedElements = {};
+   function initCachedElements() {
+       cachedElements.board = document.getElementById('board');
+       cachedElements.roleBanner = document.getElementById('role-banner');
+       // ... 20+ cached elements
+   }
+   ```
 
-#### Key Integration Scenarios
+3. **RequestAnimationFrame Batching** (lines 3209-3221):
+   ```javascript
+   if (!pendingUIUpdate) {
+       pendingUIUpdate = true;
+       requestAnimationFrame(() => {
+           updateSingleCard(index);
+           updateBoardIncremental();
+           updateScoreboard();
+           // ...
+           pendingUIUpdate = false;
+       });
+   }
+   ```
 
-**Full Game Lifecycle Test:**
+4. **Keyboard Navigation** (lines 3137-3166):
+   - Arrow key navigation between cards
+   - Enter/Space to reveal cards
+   - Proper tabindex management
+
+5. **Screen Reader Support**:
+   - `aria-label` on cards
+   - `role="gridcell"` for board cards
+   - `announceToScreenReader()` function for state changes
+
+6. **No Inline Handlers** - Uses `data-action` attributes with delegated handlers
+
+### Revised Frontend Recommendation
+
+Instead of major refactoring, focus on **incremental improvements**:
+
+#### Track 3.1: Extract CSS to Separate File (Optional)
+
+**Current:** ~1,200 lines of CSS in `<style>` tag
+**Benefit:** Easier theming, better caching
+**Risk:** Low
+**Effort:** 2 hours
+
+#### Track 3.2: Add Frontend Unit Tests
+
+**Current:** 0 frontend tests
+**Target:** Test critical functions with jsdom
+
 ```javascript
-describe('Full Game Lifecycle Integration', () => {
-  it('completes game from creation to win', async () => {
-    // Create room with host
-    const room = await roomService.create({ hostSessionId: 'host-1' });
+// __tests__/frontend/game.test.js
+describe('seededRandom', () => {
+  it('produces consistent results for same seed', () => {
+    expect(seededRandom(12345)).toBe(seededRandom(12345));
+  });
 
-    // Join players
-    await roomService.join(room.code, 'player-2');
-    await roomService.join(room.code, 'player-3');
-    await roomService.join(room.code, 'player-4');
+  it('produces different results for different seeds', () => {
+    expect(seededRandom(12345)).not.toBe(seededRandom(54321));
+  });
+});
 
-    // Set up teams
-    await playerService.setTeam('player-2', 'red');
-    await playerService.setTeam('player-3', 'blue');
-    await playerService.setTeam('player-4', 'blue');
-
-    // Assign spymasters
-    await playerService.setRole('host-1', 'spymaster');
-    await playerService.setRole('player-3', 'spymaster');
-
-    // Start game
-    const game = await gameService.startGame(room.code);
-    expect(game.gameOver).toBe(false);
-
-    // Play turns until game ends
-    while (!game.gameOver) {
-      // Give clue
-      await gameService.giveClue(room.code, currentSpymaster, 'WORD', 1);
-
-      // Reveal cards
-      const safeCards = game.cards.filter(c => !c.revealed && c.type !== 'assassin');
-      await gameService.revealCard(room.code, safeCards[0].index, currentClicker);
-      await gameService.endTurn(room.code, currentClicker);
-    }
-
-    expect(game.winner).toBeDefined();
+describe('encodeWordsForURL', () => {
+  it('handles special characters', () => {
+    const words = ['HELLO', 'WORLD|PIPE', 'BACK\\SLASH'];
+    const encoded = encodeWordsForURL(words);
+    const decoded = decodeWordsFromURL(encoded);
+    expect(decoded).toEqual(words);
   });
 });
 ```
+
+**Effort:** 4-6 hours
+**Tests needed:** 15-20
 
 ---
 
-## Phase 2: Frontend Architecture Modernization
+## Phase 4: Memory Storage Hardening
 
-### Track 2.1: Module Extraction Strategy
+### Track 4.1: Improve memoryStorage.js Coverage
 
-**Objective:** Transform 3,800-line monolith into maintainable modules
-**Impact:** HIGH - Developer experience, testability
-**Complexity:** HIGH (requires careful planning to maintain standalone mode)
-
-#### Constraints & Considerations
-
-1. **Standalone Mode Preservation** - URL-encoded state must continue working offline
-2. **No Build Step Required** - Should work without bundler for simplicity
-3. **Progressive Enhancement** - Modules loaded only when Socket.io available
-4. **Backward Compatibility** - Existing shared URLs must continue working
-
-#### Proposed Architecture
-
-```
-server/public/
-├── index.html              # Slim shell, loads modules
-├── js/
-│   ├── standalone.js       # Self-contained standalone mode (bundled into HTML)
-│   ├── modules/
-│   │   ├── state.js        # Reactive state management
-│   │   ├── ui.js           # DOM manipulation, rendering
-│   │   ├── game.js         # Game logic, PRNG
-│   │   ├── socket.js       # Socket.io client wrapper
-│   │   ├── timer.js        # Timer UI and sync
-│   │   └── chat.js         # Chat functionality
-│   └── app.js              # Module orchestrator
-└── css/
-    └── styles.css          # Extracted styles (optional)
-```
-
-#### Module Dependency Graph
-
-```
-                    ┌─────────────┐
-                    │   app.js    │
-                    └──────┬──────┘
-           ┌───────────────┼───────────────┐
-           │               │               │
-    ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
-    │  socket.js  │ │    ui.js    │ │   game.js   │
-    └──────┬──────┘ └──────┬──────┘ └──────┬──────┘
-           │               │               │
-           └───────────────┼───────────────┘
-                    ┌──────▼──────┐
-                    │  state.js   │ (no dependencies)
-                    └─────────────┘
-```
-
-#### Implementation Phases
-
-**Phase 2A: State Management Extraction (1-2 days)**
-
-```javascript
-// js/modules/state.js
-class EventEmitter {
-  constructor() { this.listeners = new Map(); }
-  on(event, fn) { /* ... */ }
-  off(event, fn) { /* ... */ }
-  emit(event, data) { /* ... */ }
-}
-
-class GameState extends EventEmitter {
-  constructor() {
-    super();
-    this._state = {
-      roomCode: null,
-      game: null,
-      player: null,
-      players: [],
-      settings: {},
-      connected: false
-    };
-  }
-
-  get(key) { return this._state[key]; }
-
-  set(key, value) {
-    const old = this._state[key];
-    this._state[key] = value;
-    if (old !== value) {
-      this.emit('change', { key, value, old });
-      this.emit(`change:${key}`, { value, old });
-    }
-  }
-
-  // Batch updates for performance
-  batch(updates) {
-    const changes = [];
-    for (const [key, value] of Object.entries(updates)) {
-      if (this._state[key] !== value) {
-        changes.push({ key, value, old: this._state[key] });
-        this._state[key] = value;
-      }
-    }
-    if (changes.length > 0) {
-      this.emit('batch', changes);
-    }
-  }
-}
-
-// Singleton export
-export const gameState = new GameState();
-```
-
-**Phase 2B: UI Module Extraction (2-3 days)**
-
-```javascript
-// js/modules/ui.js
-import { gameState } from './state.js';
-
-const elementCache = new Map();
-
-export function getElement(id) {
-  if (!elementCache.has(id)) {
-    elementCache.set(id, document.getElementById(id));
-  }
-  return elementCache.get(id);
-}
-
-export function renderBoard(cards, isSpymaster) {
-  const board = getElement('board');
-  board.innerHTML = '';
-
-  cards.forEach((card, index) => {
-    const cardEl = createCardElement(card, index, isSpymaster);
-    board.appendChild(cardEl);
-  });
-}
-
-export function renderScoreboard(scores) {
-  getElement('red-score').textContent = scores.red;
-  getElement('blue-score').textContent = scores.blue;
-}
-
-// Reactive rendering based on state changes
-gameState.on('change:game', ({ value: game }) => {
-  if (game) {
-    renderBoard(game.cards, gameState.get('player')?.role === 'spymaster');
-    renderScoreboard(game.scores);
-  }
-});
-```
-
-**Phase 2C: Socket Client Extraction (1-2 days)**
-
-```javascript
-// js/modules/socket.js
-import { gameState } from './state.js';
-
-let socket = null;
-
-export function connect(serverUrl) {
-  socket = io(serverUrl, {
-    transports: ['websocket'],
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000
-  });
-
-  setupEventHandlers(socket);
-  return socket;
-}
-
-function setupEventHandlers(socket) {
-  socket.on('connect', () => {
-    gameState.set('connected', true);
-    const sessionId = sessionStorage.getItem('sessionId');
-    if (sessionId) {
-      socket.emit('player:reconnect', { sessionId });
-    }
-  });
-
-  socket.on('disconnect', () => {
-    gameState.set('connected', false);
-  });
-
-  socket.on('game:started', (data) => {
-    gameState.batch({
-      game: data.game,
-      phase: 'playing'
-    });
-  });
-
-  socket.on('game:cardRevealed', (data) => {
-    const game = { ...gameState.get('game') };
-    game.cards[data.cardIndex].revealed = true;
-    game.cards[data.cardIndex].type = data.cardType;
-    gameState.set('game', game);
-  });
-}
-
-export function emit(event, data) {
-  return new Promise((resolve, reject) => {
-    socket.emit(event, data, (response) => {
-      if (response.error) reject(response);
-      else resolve(response);
-    });
-  });
-}
-```
-
-#### Standalone Mode Strategy
-
-The key challenge is maintaining standalone mode. Two approaches:
-
-**Option A: Conditional Module Loading (Recommended)**
-```html
-<script>
-  // Detect standalone mode from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const isStandalone = urlParams.has('state') && !urlParams.has('room');
-
-  if (isStandalone) {
-    // Load lightweight standalone bundle
-    import('./js/standalone.js').then(m => m.init());
-  } else {
-    // Load full multiplayer modules
-    import('./js/app.js').then(m => m.init());
-  }
-</script>
-```
-
-**Option B: Single Bundle with Feature Detection**
-```javascript
-// In app.js
-const standaloneMode = detectStandaloneMode();
-
-if (standaloneMode) {
-  initStandalone();
-} else {
-  initMultiplayer();
-}
-```
-
-#### Testing Strategy for Frontend
-
-```javascript
-// Use jsdom for unit tests
-// js/__tests__/state.test.js
-import { gameState } from '../modules/state.js';
-
-describe('GameState', () => {
-  beforeEach(() => gameState.reset());
-
-  test('emits change events', () => {
-    const listener = jest.fn();
-    gameState.on('change:roomCode', listener);
-
-    gameState.set('roomCode', 'ABCD');
-
-    expect(listener).toHaveBeenCalledWith({
-      value: 'ABCD',
-      old: null
-    });
-  });
-
-  test('batches updates efficiently', () => {
-    const listener = jest.fn();
-    gameState.on('batch', listener);
-
-    gameState.batch({
-      roomCode: 'ABCD',
-      connected: true
-    });
-
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-});
-```
-
----
-
-### Track 2.2: Event Handler Modernization
-
-**Objective:** Replace inline handlers with event delegation
-**Impact:** MEDIUM - Cleaner code, easier debugging
-**Complexity:** LOW
-
-#### Current State
-
-```html
-<!-- Current: 23 inline onclick handlers -->
-<button onclick="startGame()">Start Game</button>
-<button onclick="endTurn()">End Turn</button>
-```
-
-#### Target State
-
-```javascript
-// Centralized event delegation
-document.addEventListener('click', (e) => {
-  const action = e.target.dataset.action;
-  if (action && handlers[action]) {
-    handlers[action](e);
-  }
-});
-
-const handlers = {
-  'start-game': () => emit('game:start'),
-  'end-turn': () => emit('game:endTurn'),
-  'give-clue': () => {
-    const word = getElement('clue-input').value;
-    const number = parseInt(getElement('clue-number').value, 10);
-    emit('game:clue', { word, number });
-  }
-};
-```
-
-```html
-<!-- Updated: Data attributes -->
-<button data-action="start-game">Start Game</button>
-<button data-action="end-turn">End Turn</button>
-```
-
----
-
-## Phase 3: Enhanced User Experience
-
-### Track 3.1: Reconnection UX Improvement
-
-**Objective:** Seamless reconnection experience
-**Impact:** HIGH - Critical for multiplayer UX
+**Objective:** Increase coverage from 62% to 80%
+**Impact:** MEDIUM - Fallback mode reliability
 **Complexity:** MEDIUM
 
-#### Current Pain Points
+#### Uncovered Code Paths
 
-1. Users see blank screen during reconnection
-2. No indication of reconnection progress
-3. Game state may be stale after reconnect
-4. Multi-tab conflicts cause confusion
+- Lines 54-71: Transaction rollback handling
+- Lines 230-257: Pub/sub simulation
+- Lines 325-354: SCAN iterator implementation
+- Lines 548-595: Pipeline execution edge cases
 
-#### Proposed Improvements
-
-**Reconnection State Machine:**
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      Connection States                        │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌─────────┐    ┌─────────────┐    ┌─────────────┐          │
-│  │Connected│───▶│Disconnected │───▶│Reconnecting │          │
-│  └─────────┘    └─────────────┘    └──────┬──────┘          │
-│       ▲                                   │                  │
-│       │         ┌─────────────┐           │                  │
-│       └─────────│  Syncing    │◀──────────┘                  │
-│                 └─────────────┘                              │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
-```
-
-**UI Indicators:**
+#### Test Scenarios
 
 ```javascript
-// Connection status component
-function renderConnectionStatus(state) {
-  const statusEl = getElement('connection-status');
+describe('MemoryStorage', () => {
+  describe('Transactions', () => {
+    it('rolls back on WATCH key modification');
+    it('handles nested MULTI calls');
+    it('preserves atomicity under concurrent access');
+  });
 
-  const configs = {
-    connected: { icon: '🟢', text: '', class: '' },
-    disconnected: { icon: '🔴', text: 'Disconnected', class: 'warning' },
-    reconnecting: { icon: '🟡', text: 'Reconnecting...', class: 'warning pulse' },
-    syncing: { icon: '🔵', text: 'Syncing...', class: 'info' }
-  };
+  describe('Pub/Sub Simulation', () => {
+    it('delivers messages to all subscribers');
+    it('handles pattern subscriptions');
+    it('cleans up on unsubscribe');
+  });
 
-  const config = configs[state];
-  statusEl.innerHTML = `${config.icon} ${config.text}`;
-  statusEl.className = `connection-status ${config.class}`;
-}
-
-// Listen for state changes
-gameState.on('change:connectionState', ({ value }) => {
-  renderConnectionStatus(value);
+  describe('SCAN Iterator', () => {
+    it('iterates all matching keys');
+    it('respects COUNT hint');
+    it('handles concurrent modifications');
+  });
 });
 ```
 
-**Stale State Detection:**
-
-```javascript
-// Server-side state versioning
-const gameState = {
-  version: 42,
-  lastUpdated: Date.now(),
-  // ...other state
-};
-
-// Client validates version on reconnect
-socket.on('game:state', (state) => {
-  const localVersion = gameState.get('game')?.version || 0;
-
-  if (state.version > localVersion) {
-    // Newer state from server
-    gameState.set('game', state);
-  } else if (state.version < localVersion) {
-    // Local state is newer (shouldn't happen)
-    logger.warn('Local state newer than server', {
-      local: localVersion,
-      server: state.version
-    });
-    // Request full state refresh
-    socket.emit('game:requestState');
-  }
-});
-```
+**Effort:** 4-6 hours
+**Tests needed:** 12-15
 
 ---
 
-### Track 3.2: Accessibility Enhancements
+## Phase 5: Operational Excellence
 
-**Objective:** WCAG 2.1 AA compliance
-**Impact:** MEDIUM - Broader user accessibility
-**Complexity:** LOW-MEDIUM
+### Track 5.1: Metrics Already Exist - Need Integration
 
-#### Current Gaps
+**Finding:** `server/src/utils/metrics.js` has comprehensive metrics implementation (92.5% coverage)
 
-| Issue | Severity | Fix |
-|-------|----------|-----|
-| Missing ARIA labels on interactive elements | Medium | Add aria-label attributes |
-| Color-only differentiation | Medium | Shape indicators (existing, verify) |
-| Keyboard navigation incomplete | Medium | Add tabindex, focus management |
-| Screen reader announcements | Medium | Add aria-live regions |
+Existing capabilities:
+- `incrementCounter()` - Counter support
+- `setGauge()`, `incrementGauge()`, `decrementGauge()` - Gauge support
+- `recordHistogram()` - Histogram with configurable buckets
+- `getAllMetrics()` - Prometheus-style export
 
-#### Implementation
-
-**ARIA Labels:**
-```html
-<button data-action="start-game" aria-label="Start the game">
-  Start Game
-</button>
-
-<div class="card"
-     role="button"
-     aria-label="Card: ELEPHANT, not yet revealed"
-     tabindex="0">
-  ELEPHANT
-</div>
-```
-
-**Live Region for Game Events:**
-```html
-<div id="game-announcements" aria-live="polite" class="sr-only"></div>
-```
+**Recommendation:** Wire up metrics collection to handlers
 
 ```javascript
-function announceToScreenReader(message) {
-  const announcer = getElement('game-announcements');
-  announcer.textContent = message;
-  // Clear after announcement
-  setTimeout(() => announcer.textContent = '', 1000);
-}
+// In gameHandlers.js - add at top
+const { incrementCounter, recordHistogram } = require('../../utils/metrics');
 
-// Usage
-gameState.on('change:game', ({ value: game }) => {
-  if (game?.currentClue) {
-    announceToScreenReader(
-      `Clue given: ${game.currentClue.word}, ${game.currentClue.number} cards`
-    );
-  }
-});
+// In reveal handler - add timing
+const startTime = Date.now();
+const result = await gameService.revealCard(...);
+recordHistogram('game_reveal_latency_ms', Date.now() - startTime);
+incrementCounter('game_cards_revealed');
 ```
 
-**Keyboard Navigation:**
-```javascript
-// Enable keyboard interaction for cards
-document.addEventListener('keydown', (e) => {
-  if (e.target.classList.contains('card') && e.key === 'Enter') {
-    const index = parseInt(e.target.dataset.index, 10);
-    revealCard(index);
-  }
-});
-
-// Focus management after card reveal
-function focusNextUnrevealedCard(currentIndex) {
-  const cards = document.querySelectorAll('.card:not(.revealed)');
-  const nextCard = Array.from(cards).find(c =>
-    parseInt(c.dataset.index, 10) > currentIndex
-  );
-  if (nextCard) nextCard.focus();
-}
-```
+**Effort:** 2-3 hours (add ~10 metrics calls to handlers)
 
 ---
 
-## Phase 4: Operational Excellence
+## Phase 6: Future Game Enhancements (Lower Priority)
 
-### Track 4.1: Production Monitoring Dashboard
+These are nice-to-have features that can be considered once core quality is at target levels.
 
-**Objective:** Real-time visibility into production health
-**Impact:** MEDIUM - Faster incident response
-**Complexity:** MEDIUM
+### Track 6.1: Tournament Mode
 
-#### Metrics to Track
+**Status:** Not started
+**Effort:** HIGH
+**Prerequisite:** All Phase 1-5 items complete
 
-| Metric | Type | Alert Threshold |
-|--------|------|-----------------|
-| Active rooms | Gauge | N/A (informational) |
-| Connected players | Gauge | N/A (informational) |
-| Games in progress | Gauge | N/A (informational) |
-| Card reveal latency | Histogram | p99 > 500ms |
-| Socket connection errors | Counter | > 10/minute |
-| Rate limit triggers | Counter | > 100/minute |
-| Redis operation latency | Histogram | p99 > 100ms |
+### Track 6.2: Client-Side Statistics
 
-#### Implementation
+**Status:** Not started
+**Effort:** MEDIUM
+**Note:** Can be implemented independently as localStorage-only feature
 
-**Metrics Endpoint Enhancement:**
+### Track 6.3: Custom Themes
 
-```javascript
-// In routes/metrics.js
-router.get('/metrics', async (req, res) => {
-  const metrics = await collectMetrics();
-
-  // Prometheus format
-  const output = Object.entries(metrics)
-    .map(([name, data]) => formatPrometheusMetric(name, data))
-    .join('\n');
-
-  res.set('Content-Type', 'text/plain');
-  res.send(output);
-});
-
-async function collectMetrics() {
-  const [rooms, sockets, histograms, counters] = await Promise.all([
-    redis.scard('active:rooms'),
-    io.fetchSockets().then(s => s.length),
-    getAllHistograms(),
-    getAllCounters()
-  ]);
-
-  return {
-    codenames_active_rooms: { type: 'gauge', value: rooms },
-    codenames_connected_players: { type: 'gauge', value: sockets },
-    ...histograms,
-    ...counters
-  };
-}
-```
-
-**Grafana Dashboard (JSON export):**
-
-```json
-{
-  "title": "Codenames Production",
-  "panels": [
-    {
-      "title": "Active Rooms",
-      "type": "stat",
-      "targets": [{ "expr": "codenames_active_rooms" }]
-    },
-    {
-      "title": "Card Reveal Latency (p99)",
-      "type": "graph",
-      "targets": [{ "expr": "histogram_quantile(0.99, codenames_reveal_latency_bucket)" }]
-    },
-    {
-      "title": "Error Rate",
-      "type": "graph",
-      "targets": [{ "expr": "rate(codenames_errors_total[5m])" }]
-    }
-  ]
-}
-```
+**Status:** Partial - CSS already uses custom properties
+**Effort:** LOW
+**Note:** Foundation exists, just needs theme switcher UI
 
 ---
 
-### Track 4.2: Automated Alerting
+## Implementation Roadmap (Revised)
 
-**Objective:** Proactive incident detection
-**Impact:** HIGH - Reduces downtime
-**Complexity:** LOW
+### Quick Wins (1-2 days each)
 
-#### Alert Definitions
+| Task | Effort | Coverage Impact |
+|------|--------|-----------------|
+| Wire up audit logging calls | 2-3 hours | audit.js: 26% → 80% |
+| Add metrics to handlers | 2-3 hours | Already instrumented |
+| CSRF middleware tests | 2-3 hours | csrf.js: 34% → 70% |
 
-| Alert | Condition | Severity | Action |
-|-------|-----------|----------|--------|
-| HighErrorRate | errors > 10/min for 5min | Critical | Page on-call |
-| SlowRevealLatency | p99 > 500ms for 5min | Warning | Slack notification |
-| RedisConnectionLost | redis_connected == 0 | Critical | Page on-call |
-| HighRateLimitRate | rate_limits > 100/min | Warning | Investigate abuse |
+### Medium Term (3-5 days each)
 
-#### Implementation with Simple Webhook
+| Task | Effort | Coverage Impact |
+|------|--------|-----------------|
+| Socket handler tests | 4-6 hours | socket/index.js: 60% → 80% |
+| Rate limit handler tests | 3-4 hours | rateLimitHandler.js: 43% → 70% |
+| Memory storage tests | 4-6 hours | memoryStorage.js: 62% → 80% |
+| Frontend unit tests (jsdom) | 4-6 hours | New coverage area |
 
-```javascript
-// utils/alerting.js
-const ALERT_WEBHOOK = process.env.ALERT_WEBHOOK_URL;
+### Longer Term (5-10 days)
 
-const alertState = new Map();
+| Task | Effort | Value |
+|------|--------|-------|
+| E2E test framework setup | 5-7 days | Regression prevention |
+| E2E critical path tests | 3-5 days | 25+ scenarios |
 
-async function checkAlerts() {
-  const metrics = await collectMetrics();
-
-  // Error rate check
-  const errorRate = metrics.error_rate_per_minute;
-  if (errorRate > 10) {
-    await triggerAlert('HighErrorRate', {
-      message: `Error rate ${errorRate}/min exceeds threshold`,
-      severity: 'critical'
-    });
-  }
-
-  // Latency check
-  const revealP99 = metrics.reveal_latency_p99;
-  if (revealP99 > 500) {
-    await triggerAlert('SlowRevealLatency', {
-      message: `Card reveal p99 latency ${revealP99}ms`,
-      severity: 'warning'
-    });
-  }
-}
-
-async function triggerAlert(alertName, details) {
-  const lastTriggered = alertState.get(alertName);
-  const now = Date.now();
-
-  // Dedupe: don't alert more than once per 5 minutes
-  if (lastTriggered && now - lastTriggered < 5 * 60 * 1000) {
-    return;
-  }
-
-  alertState.set(alertName, now);
-
-  if (ALERT_WEBHOOK) {
-    await fetch(ALERT_WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        alert: alertName,
-        ...details,
-        timestamp: new Date().toISOString()
-      })
-    });
-  }
-
-  logger.error(`ALERT: ${alertName}`, details);
-}
-
-// Run checks every minute
-setInterval(checkAlerts, 60 * 1000);
-```
-
----
-
-## Phase 5: Game Feature Enhancements
-
-### Track 5.1: Tournament Mode
-
-**Objective:** Support competitive multi-round play
-**Impact:** MEDIUM - New use case enablement
-**Complexity:** HIGH
-
-#### Feature Specification
+### Execution Order
 
 ```
-Tournament Structure:
-├── Best of N games (configurable: 1, 3, 5)
-├── Team points carry across games
-├── Role rotation between games
-├── Finals/semifinals bracket (future)
-└── Tournament history/stats (future)
+Day 1-2: Quick wins (audit, metrics, CSRF)
+  └─ Highest ROI: existing code, minimal changes
+
+Day 3-5: Socket/Rate limit coverage
+  └─ Core infrastructure paths
+
+Day 6-8: Memory storage + Frontend tests
+  └─ Fallback reliability + client coverage
+
+Day 9-15: E2E framework and tests
+  └─ Integration-level confidence
 ```
 
-#### Data Model Extension
+### Success Criteria (Measurable)
 
-```javascript
-// Tournament schema
-const tournamentSchema = {
-  id: 'string',           // UUID
-  roomCode: 'string',
-  format: 'best_of_3',    // best_of_1, best_of_3, best_of_5
-  teams: {
-    red: { name: 'string', wins: 0, totalScore: 0 },
-    blue: { name: 'string', wins: 0, totalScore: 0 }
-  },
-  games: [
-    { gameId: 'string', winner: 'red|blue', redScore: 9, blueScore: 7 }
-  ],
-  currentGameIndex: 0,
-  status: 'in_progress',  // in_progress, completed
-  winner: null,           // null | 'red' | 'blue'
-  createdAt: 'timestamp',
-  completedAt: 'timestamp'
-};
-```
-
-#### UI Mockup
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   TOURNAMENT                         │
-│                   Best of 3                          │
-├─────────────────────────────────────────────────────┤
-│   RED TEAM        │        │      BLUE TEAM         │
-│     ██            │   1-0  │                        │
-│   WINS: 1         │        │      WINS: 0          │
-├─────────────────────────────────────────────────────┤
-│           Game 1: RED WIN (9-7)                     │
-│           Game 2: IN PROGRESS                       │
-│           Game 3: --                                │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-### Track 5.2: Game Statistics & History
-
-**Objective:** Player engagement through stats tracking
-**Impact:** LOW-MEDIUM - Nice-to-have feature
-**Complexity:** MEDIUM
-
-#### Statistics to Track
-
-| Stat | Scope | Storage |
-|------|-------|---------|
-| Games played | Session | localStorage |
-| Win rate | Session | localStorage |
-| Favorite words clicked | Session | localStorage |
-| Average clue effectiveness | Session | localStorage |
-| Personal bests | Session | localStorage |
-
-#### Implementation (Client-Side Only)
-
-```javascript
-// stats.js - Client-side statistics
-class GameStats {
-  constructor() {
-    this.storage = localStorage;
-    this.data = this.load();
-  }
-
-  load() {
-    const stored = this.storage.getItem('codenames_stats');
-    return stored ? JSON.parse(stored) : this.defaultStats();
-  }
-
-  save() {
-    this.storage.setItem('codenames_stats', JSON.stringify(this.data));
-  }
-
-  defaultStats() {
-    return {
-      gamesPlayed: 0,
-      gamesWon: 0,
-      cardsRevealed: 0,
-      assassinHits: 0,
-      cluesGiven: 0,
-      totalGuessesFromClues: 0,
-      lastPlayed: null
-    };
-  }
-
-  recordGameEnd(winner, myTeam, role) {
-    this.data.gamesPlayed++;
-    if (winner === myTeam) this.data.gamesWon++;
-    this.data.lastPlayed = new Date().toISOString();
-    this.save();
-  }
-
-  recordCardReveal(cardType) {
-    this.data.cardsRevealed++;
-    if (cardType === 'assassin') this.data.assassinHits++;
-    this.save();
-  }
-
-  getWinRate() {
-    if (this.data.gamesPlayed === 0) return 0;
-    return (this.data.gamesWon / this.data.gamesPlayed * 100).toFixed(1);
-  }
-}
-
-export const stats = new GameStats();
-```
-
----
-
-### Track 5.3: Custom Themes
-
-**Objective:** Visual customization options
-**Impact:** LOW - User delight feature
-**Complexity:** LOW
-
-#### Theme Options
-
-| Theme | Description |
-|-------|-------------|
-| Classic | Current glassmorphism design |
-| Dark | High contrast dark mode |
-| Retro | Board game aesthetic |
-| Minimal | Simple, clean design |
-
-#### Implementation
-
-```css
-/* Theme CSS custom properties */
-:root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --text-primary: #eee;
-  --card-red: #e94560;
-  --card-blue: #0f3460;
-  --card-neutral: #c4b7a6;
-  --card-assassin: #1a1a2e;
-}
-
-[data-theme="light"] {
-  --bg-primary: #f5f5f5;
-  --bg-secondary: #ffffff;
-  --text-primary: #333;
-}
-
-[data-theme="retro"] {
-  --bg-primary: #d4a373;
-  --bg-secondary: #ccd5ae;
-  --card-red: #bc4749;
-  --card-blue: #457b9d;
-}
-```
-
-```javascript
-function setTheme(themeName) {
-  document.documentElement.dataset.theme = themeName;
-  localStorage.setItem('codenames_theme', themeName);
-}
-
-function loadSavedTheme() {
-  const saved = localStorage.getItem('codenames_theme');
-  if (saved) setTheme(saved);
-}
-```
-
----
-
-## Implementation Roadmap
-
-### Recommended Execution Order
-
-```
-Week 1-2: E2E Testing Framework (Track 1.1)
-  └─ Critical for catching regressions
-
-Week 3-4: Frontend State Module (Track 2.1 Phase A)
-  └─ Foundation for further frontend work
-
-Week 5: Reconnection UX (Track 3.1)
-  └─ High-impact user experience improvement
-
-Week 6: Accessibility (Track 3.2)
-  └─ Low-hanging fruit with broad impact
-
-Week 7-8: Frontend UI/Socket Modules (Track 2.1 Phase B-C)
-  └─ Complete frontend modernization
-
-Week 9: Monitoring Dashboard (Track 4.1)
-  └─ Production visibility
-
-Week 10+: Game Enhancements (Phase 5)
-  └─ Based on user feedback and priorities
-```
-
-### Success Criteria
-
-| Phase | Metric | Target |
-|-------|--------|--------|
-| 1 | E2E test coverage | 25+ scenarios |
-| 1 | Integration test coverage | 85%+ service interactions |
-| 2 | Frontend file count | 6+ modules (from 1) |
-| 2 | Inline handlers | 0 (from 23) |
-| 3 | Reconnection success rate | 95%+ |
-| 3 | WCAG compliance | AA level |
-| 4 | Metrics coverage | 15+ key metrics |
-| 4 | Alert response time | < 5 minutes |
+| Metric | Current | Target |
+|--------|---------|--------|
+| Statement Coverage | 79.4% | 85% |
+| Branch Coverage | 71.66% | 78% |
+| audit.js Coverage | 26% | 80% |
+| socket/index.js Coverage | 60% | 80% |
+| rateLimitHandler.js Coverage | 43% | 70% |
+| E2E Test Scenarios | 0 | 25+ |
+| Frontend Unit Tests | 0 | 15+ |
 
 ---
 
@@ -1074,34 +523,47 @@ Week 10+: Game Enhancements (Phase 5)
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Frontend refactor breaks standalone | Medium | High | Comprehensive E2E tests first |
-| Performance regression from modules | Low | Medium | Bundle size monitoring |
-| Reconnection changes break sessions | Medium | High | Feature flag, gradual rollout |
-| E2E tests become flaky | Medium | Medium | Strict timeout policies, retry logic |
+| Timer refactor regression | Low | High | Existing tests comprehensive |
+| Memory storage edge cases | Medium | Medium | Add fuzz testing |
+| E2E tests flaky | Medium | Medium | Strict timeouts, retries |
+| Coverage gaming vs value | Medium | Low | Focus on critical paths |
 
 ---
 
 ## Not In Scope (Explicit Decisions)
 
-The following are **intentionally excluded** from this plan:
+The following are **intentionally excluded** based on scrutiny findings:
 
-1. **Server-side rendering** - Unnecessary complexity for this app
-2. **TypeScript migration** - Would require significant effort with limited benefit
-3. **Complete frontend framework** (React/Vue) - Overkill, breaks standalone simplicity
-4. **Mobile native apps** - Web app works well on mobile
-5. **User accounts/authentication** - Against design philosophy of drop-in play
-6. **Database-backed statistics** - Privacy concerns, complexity vs. value
+1. **Frontend framework migration** - Current vanilla JS is well-structured
+2. **Module extraction** - Frontend already uses good patterns
+3. **TypeScript migration** - Would require significant effort with limited benefit
+4. **Server-side rendering** - Unnecessary for this app
+5. **User accounts** - Against design philosophy of drop-in play
+6. **Database.js coverage** - Optional feature, graceful degradation works
 
 ---
 
 ## Conclusion
 
-This nuanced development plan prioritizes **high-impact, achievable improvements** over exhaustive coverage metrics. The focus is on:
+This scrutinized development plan reveals that the codebase is **more mature than documentation suggested**:
 
-1. **Preventing regressions** through E2E testing
-2. **Improving developer experience** through frontend modularization
-3. **Enhancing user experience** through reconnection and accessibility
-4. **Enabling operational excellence** through monitoring and alerting
-5. **Delighting users** through thoughtful game enhancements
+### Corrections from Original Assessment:
+- Test coverage is **79.4%** not 63%
+- Frontend **already uses** event delegation, caching, RAF batching
+- **No inline onclick handlers** - data-action pattern already in use
+- **1363 tests** passing, not 931
 
-Each track can be executed independently, allowing for flexible prioritization based on team capacity and user feedback.
+### Actual Gaps Found:
+1. **Audit functions unused** - 12 functions exist but barely called
+2. **Socket handler coverage low** - 60% for core connection logic
+3. **Rate limiter coverage low** - 43% for security infrastructure
+4. **Memory storage gaps** - 62% for fallback mode
+5. **One real bug** - Duplicate switch case fixed in timerService.js
+
+### Focus Areas:
+1. **Activate existing infrastructure** (audit, metrics)
+2. **Cover critical security paths** (rate limiting, CSRF)
+3. **Add E2E tests** for regression prevention
+4. **Leave frontend alone** - it's already well-structured
+
+This plan prioritizes **wiring up existing good code** over writing new features.
