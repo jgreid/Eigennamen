@@ -1,5 +1,7 @@
 /**
  * Game Socket Event Handlers
+ *
+ * ISSUE #44 FIX: Use SOCKET_EVENTS constants instead of hardcoded strings
  */
 
 const gameService = require('../../services/gameService');
@@ -9,7 +11,7 @@ const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const {
     RoomError,
@@ -17,6 +19,7 @@ const {
     GameStateError,
     ValidationError
 } = require('../../errors/GameError');
+const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
 
 // Lazy-load socket functions to avoid circular dependency
 // (socket/index.js loads gameHandlers, but these are only called at runtime)
@@ -27,7 +30,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Start a new game (host only)
      */
-    socket.on('game:start', createRateLimitedHandler(socket, 'game:start', async (data = {}) => {
+    socket.on(SOCKET_EVENTS.GAME_START, createRateLimitedHandler(socket, 'game:start', async (data = {}) => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
@@ -67,7 +70,7 @@ module.exports = function gameHandlers(io, socket) {
             for (const p of players) {
                 try {
                     const gameState = gameService.getGameStateForPlayer(game, p);
-                    io.to(`player:${p.sessionId}`).emit('game:started', { game: gameState });
+                    io.to(`player:${p.sessionId}`).emit(SOCKET_EVENTS.GAME_STARTED, { game: gameState });
                 } catch (emitError) {
                     logger.error(`Failed to emit game:started to player ${p.sessionId}:`, emitError);
                 }
@@ -94,7 +97,7 @@ module.exports = function gameHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error starting game:', error);
-            socket.emit('game:error', {
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -104,7 +107,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Reveal a card (current team's clicker only)
      */
-    socket.on('game:reveal', createRateLimitedHandler(socket, 'game:reveal', async (data) => {
+    socket.on(SOCKET_EVENTS.GAME_REVEAL, createRateLimitedHandler(socket, 'game:reveal', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
@@ -141,7 +144,7 @@ module.exports = function gameHandlers(io, socket) {
             );
 
             // Broadcast the reveal to all players
-            io.to(`room:${socket.roomCode}`).emit('game:cardRevealed', {
+            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, {
                 index: result.index,
                 type: result.type,
                 word: result.word,
@@ -192,7 +195,7 @@ module.exports = function gameHandlers(io, socket) {
                 await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
                 // Now safe to emit game:over
-                io.to(`room:${socket.roomCode}`).emit('game:over', {
+                io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
                     winner: result.winner,
                     reason: result.endReason,
                     types: result.allTypes
@@ -203,7 +206,7 @@ module.exports = function gameHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error revealing card:', error);
-            socket.emit('game:error', {
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -213,7 +216,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Give a clue (spymaster only)
      */
-    socket.on('game:clue', createRateLimitedHandler(socket, 'game:clue', async (data) => {
+    socket.on(SOCKET_EVENTS.GAME_CLUE, createRateLimitedHandler(socket, 'game:clue', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
@@ -236,7 +239,7 @@ module.exports = function gameHandlers(io, socket) {
             );
 
             // Broadcast to all players (include guessesAllowed)
-            io.to(`room:${socket.roomCode}`).emit('game:clueGiven', {
+            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_CLUE_GIVEN, {
                 team: clue.team,
                 word: clue.word,
                 number: clue.number,
@@ -262,7 +265,7 @@ module.exports = function gameHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error giving clue:', error);
-            socket.emit('game:error', {
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -272,7 +275,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * End the current turn (current team's clicker only)
      */
-    socket.on('game:endTurn', createRateLimitedHandler(socket, 'game:endTurn', async () => {
+    socket.on(SOCKET_EVENTS.GAME_END_TURN, createRateLimitedHandler(socket, 'game:endTurn', async () => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
@@ -298,7 +301,7 @@ module.exports = function gameHandlers(io, socket) {
             const result = await gameService.endTurn(socket.roomCode, player.nickname);
 
             // Broadcast turn change
-            io.to(`room:${socket.roomCode}`).emit('game:turnEnded', {
+            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn
             });
@@ -325,7 +328,7 @@ module.exports = function gameHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error ending turn:', error);
-            socket.emit('game:error', {
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -335,7 +338,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Forfeit the game (host only - forfeits current turn's team)
      */
-    socket.on('game:forfeit', createRateLimitedHandler(socket, 'game:forfeit', async () => {
+    socket.on(SOCKET_EVENTS.GAME_FORFEIT, createRateLimitedHandler(socket, 'game:forfeit', async () => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
@@ -352,7 +355,7 @@ module.exports = function gameHandlers(io, socket) {
             // Forfeit is based on current turn's team, not player's team
             const result = await gameService.forfeitGame(socket.roomCode);
 
-            io.to(`room:${socket.roomCode}`).emit('game:over', {
+            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
                 winner: result.winner,
                 forfeitingTeam: result.forfeitingTeam,
                 reason: 'forfeit',
@@ -374,7 +377,7 @@ module.exports = function gameHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error forfeiting game:', error);
-            socket.emit('game:error', {
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -384,18 +387,18 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Get game history
      */
-    socket.on('game:history', createRateLimitedHandler(socket, 'game:history', async () => {
+    socket.on(SOCKET_EVENTS.GAME_HISTORY, createRateLimitedHandler(socket, 'game:history', async () => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
             }
 
             const history = await gameService.getGameHistory(socket.roomCode);
-            socket.emit('game:historyData', { history });
+            socket.emit(SOCKET_EVENTS.GAME_HISTORY_DATA, { history });
 
         } catch (error) {
             logger.error('Error getting history:', error);
-            socket.emit('game:error', {
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });

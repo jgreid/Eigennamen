@@ -439,20 +439,29 @@ function buildRevealResult(game, index, type, outcome) {
 }
 
 /**
- * Reveal a card with atomic operation to prevent race conditions
+ * Reveal a card with distributed lock to prevent race conditions
+ * Uses a lock to ensure only one reveal operation runs at a time per room
  * Orchestrates the reveal process using helper functions
  */
 async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
+    const lockKey = `lock:reveal:${roomCode}`;
 
     // Validate index before starting transaction
     validateCardIndex(index);
+
+    // ISSUE #32 FIX: Acquire distributed lock before reveal to prevent race conditions
+    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
+    if (!lockAcquired) {
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Another card reveal is in progress, please try again' };
+    }
 
     // Use optimistic locking with retries
     const maxRetries = 3;
     let retries = 0;
 
+    try {
     while (retries < maxRetries) {
         try {
             // Watch the key for changes
@@ -518,6 +527,12 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     }
 
     throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to reveal card due to concurrent modifications' };
+    } finally {
+        // ISSUE #32 FIX: Always release the distributed lock
+        await redis.del(lockKey).catch(err => {
+            logger.error(`Failed to release reveal lock for room ${roomCode}:`, err.message);
+        });
+    }
 }
 
 /**

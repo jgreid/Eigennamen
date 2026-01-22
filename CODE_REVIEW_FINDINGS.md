@@ -9,7 +9,7 @@
 
 ## Implementation Status Summary
 
-**Total Issues:** 74 | **Implemented:** 45 | **Partial:** 8 | **Not Implemented:** 21
+**Total Issues:** 74 | **Implemented:** 53 | **Partial:** 6 | **Not Implemented:** 11 | **Documented:** 4
 
 ### Status Legend
 - ✅ **IMPLEMENTED** - Fix verified in codebase
@@ -39,7 +39,7 @@
 | 16 | Spymaster race condition | ✅ | `playerService.js:204-236` - Redis lock (NX + EX) |
 | 17 | Session hijacking window | 🔶 | IP tracking added but reconnection token not implemented |
 | 22 | Word list API no auth | ✅ | Anonymous lists marked immutable |
-| 32 | Card reveal race condition | ❌ | No distributed lock for concurrent reveals |
+| 32 | Card reveal race condition | ✅ | `gameService.js` - distributed lock with NX + EX |
 | 35 | Team chat N+1 query | ✅ | `playerService.js:256-283` - getTeamMembers with team sets |
 | 39 | bcrypt not wrapped | ✅ | `roomService.js:68,250,399` - try-catch blocks added |
 | 40 | Validation bypasses handler | ✅ | `validation.js:39,55,71` - uses next(error) |
@@ -49,14 +49,14 @@
 | 53 | Weak default DB password | ✅ | Clearly marked as dev-only |
 | 54 | Redis TLS can be disabled | ✅ | `redis.js:60-70` - TLS forced in production |
 | 56 | No state versioning | ✅ | `gameService.js:176,287-289` - stateVersion field |
-| 57 | Orphaned players 24h | ❌ | Only TTL handling, no scheduled cleanup |
+| 57 | Orphaned players 24h | ✅ | `playerService.js` - scheduled cleanup with sorted set |
 | 67 | Missing correlation IDs | ✅ | `utils/correlationId.js` - full implementation |
 | 68 | Silent pub/sub failures | ✅ | `timerService.js` - logger.warn calls added |
 
 ### Medium Priority Issues (32 total)
 | # | Issue | Status | Verification |
 |---|-------|--------|--------------|
-| 2 | ReDoS in clue regex | ❌ | Still allows unlimited spaces/hyphens |
+| 2 | ReDoS in clue regex | ✅ | `schemas.js` - quantified regex with max 10 word parts |
 | 3 | CORS wildcard in production | ✅ | Warning log added |
 | 4 | JWT secret undefined | ✅ | `env.js` - enhanced validation |
 | 5 | Error messages leak details | ✅ | Production hides details |
@@ -66,12 +66,12 @@
 | 14 | Sequential player fetching | ✅ | Changed to Promise.all() |
 | 23 | CSRF bypass Content-Type | ✅ | Check for wildcard CORS added |
 | 24 | Anonymous word lists modifiable | ✅ | Anonymous lists now immutable |
-| 33 | Timer resume duplicates | ❌ | No distributed lock for resume |
+| 33 | Timer resume duplicates | ✅ | `timerService.js` - distributed lock for resumeTimer |
 | 34 | addTime wrong instance | ❌ | Creates timer on any instance |
 | 36 | Full JSON on reveal | ❌ | Still full stringify/parse |
 | 37 | Rate limiter array allocation | ❌ | Still creates new array per request |
 | 38 | Health check socket count | ✅ | `app.js:46` - Promise.race with timeout |
-| 44 | Missing socket event constants | ❌ | Handlers use hardcoded strings |
+| 44 | Missing socket event constants | ✅ | `gameHandlers.js` - uses SOCKET_EVENTS constants |
 | 45 | Long functions decomposition | 🔶 | revealCard decomposed, others not |
 | 46 | sanitizeHtml should be shared | ✅ | `utils/sanitize.js` exists |
 | 47 | Missing integration tests | 🔶 | Some added, not comprehensive |
@@ -80,14 +80,14 @@
 | 58 | Player state overwrite multi-tab | 🔶 | sessionStorage helps but not fully resolved |
 | 59 | Team empty during game | ❌ | No validation for empty teams |
 | 60 | Password check bypassed | ✅ | `roomService.js` - passwordVersion tracking |
-| 61 | Player switches team mid-turn | ❌ | No validation during active turn |
+| 61 | Player switches team mid-turn | ✅ | `playerHandlers.js:28-39` - blocks team switch during turn |
 | 62 | Missing ARIA labels | 🔶 | Some added (`index.html:1495,1548,2590`) |
 | 63 | Modal listener duplication | ❌ | Not fully addressed |
 | 65 | Missing hostId index | ✅ | `schema.prisma:46-47` - indexes exist |
 | 66 | Optional unique email NULLs | ❌ | Still allows multiple NULLs |
 | 69 | Missing structured logging | 🔶 | Some structured, some concatenation |
-| 70 | Missing audit trail | ❌ | No dedicated audit logging |
-| 71 | No operation latency metrics | ❌ | No timing wrappers |
+| 70 | Missing audit trail | ✅ | `utils/audit.js` - comprehensive audit logging system |
+| 71 | No operation latency metrics | ✅ | `utils/metrics.js` - withTiming wrapper exists |
 | 74 | UUID session brute force | ❌ | No rate limiting on session validation |
 
 ### Low Priority Issues (20 total)
@@ -1442,9 +1442,9 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 
 | Status | Count | Percentage |
 |--------|-------|------------|
-| ✅ Implemented | 45 | 61% |
-| 🔶 Partial | 8 | 11% |
-| ❌ Not Implemented | 17 | 23% |
+| ✅ Implemented | 53 | 72% |
+| 🔶 Partial | 6 | 8% |
+| ❌ Not Implemented | 11 | 15% |
 | 📝 Documented/Acceptable | 4 | 5% |
 
 ### Remaining Work by Priority
@@ -1452,9 +1452,9 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 | Priority | Remaining Issues |
 |----------|-----------------|
 | Critical | 0 (all fixed) |
-| High | 5 (#17 partial, #32, #57, plus 2 partial) |
-| Medium | 12 (#2, #33, #34, #36, #37, #44, #59, #61, #63, #66, #70, #71, #74) |
-| Low | 4 (#8, #13, #64, #72) |
+| High | 2 (#17 partial, #34 addTime routing) |
+| Medium | 6 (#34, #36, #37, #59, #63, #66) |
+| Low | 5 (#8, #13, #64, #72) |
 
 ---
 
@@ -1475,26 +1475,17 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 | # | Issue | Type | Status |
 |---|-------|------|--------|
 | 17 | Session hijacking window | Security | 🔶 IP tracking added, needs reconnection token |
-| 32 | Card reveal race condition | Game Logic | ❌ Needs distributed lock |
-| 57 | Orphaned players 24h | Resource Leak | ❌ Needs scheduled cleanup |
+| 34 | addTime on wrong instance | Multi-Instance | 🔶 Lock added to resume, addTime still needs pub/sub routing |
 
 ### Medium Priority - Remaining Work
 
 | # | Issue | Type |
 |---|-------|------|
-| 2 | Clue regex allows unlimited chars | Security |
-| 33 | Timer resume creates duplicates | Multi-Instance |
-| 34 | addTime on wrong instance | Multi-Instance |
 | 36 | Full JSON on every reveal | Performance |
 | 37 | Rate limiter array allocation | Performance |
-| 44 | Socket events use hardcoded strings | Code Quality |
 | 59 | Team empty during game | Game Logic |
-| 61 | Player switches team mid-turn | Game Logic |
 | 63 | Modal listener duplication | Memory Leak |
 | 66 | Optional unique email NULLs | Data Integrity |
-| 70 | Missing audit trail | Observability |
-| 71 | No operation latency metrics | Monitoring |
-| 74 | Session brute force no rate limit | Security |
 
 ### Low Priority - Remaining Work
 
