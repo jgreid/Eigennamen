@@ -2657,12 +2657,21 @@
             const blueName = params.get('bn');
             const encodedWords = params.get('w'); // Custom words encoded in URL
 
-            // Load team names from URL with length validation (max 20 chars to match server)
+            // Load team names from URL with length and character validation (max 20 chars to match server)
             // ISSUE #51 FIX: Wrap decodeURIComponent in try-catch to handle invalid encoding
+            // ISSUE #13 FIX: Add character validation to match server-side regex
+            const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
+            const sanitizeTeamName = (name, defaultName) => {
+                if (!name) return defaultName;
+                // Only allow alphanumeric, spaces, and hyphens (matches server validation)
+                const sanitized = name.slice(0, 20).replace(/[^a-zA-Z0-9\s\-]/g, '');
+                return sanitized.length > 0 ? sanitized : defaultName;
+            };
+
             if (redName) {
                 try {
                     const decoded = decodeURIComponent(redName);
-                    teamNames.red = decoded.slice(0, 20);
+                    teamNames.red = sanitizeTeamName(decoded, 'Red Team');
                 } catch (e) {
                     console.warn('Failed to decode red team name from URL, using default');
                     teamNames.red = 'Red Team';
@@ -2671,7 +2680,7 @@
             if (blueName) {
                 try {
                     const decoded = decodeURIComponent(blueName);
-                    teamNames.blue = decoded.slice(0, 20);
+                    teamNames.blue = sanitizeTeamName(decoded, 'Blue Team');
                 } catch (e) {
                     console.warn('Failed to decode blue team name from URL, using default');
                     teamNames.blue = 'Blue Team';
@@ -3787,7 +3796,14 @@
             }
         }
 
-        window.onload = init;
+        // ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
+        // overwriting existing handlers and follow modern best practices
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            // DOM already loaded (e.g., script loaded asynchronously)
+            init();
+        }
     </script>
 </body>
 </html>
