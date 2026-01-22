@@ -65,9 +65,31 @@
 
         /* ========== HEADER ========== */
         header {
-            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             padding-bottom: 8px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .title-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .title-text span {
+            font-size: 1.8rem;
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #c9b037 0%, #f0e68c 25%, #daa520 50%, #f0e68c 75%, #c9b037 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(218, 165, 32, 0.3);
+            font-family: 'Segoe UI', 'Arial Black', sans-serif;
         }
 
         h1 {
@@ -96,29 +118,19 @@
 
         /* ========== QR CODE SECTION ========== */
         .qr-section {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
+            flex-shrink: 0;
         }
 
         #qr-canvas {
             border-radius: 4px;
             background: white;
-            padding: 4px;
-            width: 56px;
-            height: 56px;
+            padding: 3px;
+            width: 52px;
+            height: 52px;
         }
 
         .qr-label {
-            font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.5);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            display: none;
         }
 
         /* ========== BOARD FOOTER ========== */
@@ -808,7 +820,7 @@
             width: auto;
             height: auto;
             font-size: 1.65rem;
-            color: #ff4444;
+            color: #ffffff;
             background: transparent;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
@@ -1339,6 +1351,10 @@
                 font-size: 1.4rem;
             }
 
+            .title-text span {
+                font-size: 1.4rem;
+            }
+
             .scoreboard {
                 gap: 10px;
             }
@@ -1714,13 +1730,15 @@
         <!-- LEFT SIDEBAR - Controls & Info -->
         <aside class="sidebar">
             <header>
-                <h1>Eigen-Namen</h1>
+                <!-- QR Code for easy game joining -->
+                <div class="qr-section" id="qr-section">
+                    <canvas id="qr-canvas" width="52" height="52"></canvas>
+                </div>
+                <div class="title-text">
+                    <span>Eigen-</span>
+                    <span>Namen</span>
+                </div>
             </header>
-
-            <!-- QR Code for easy game joining -->
-            <div class="qr-section" id="qr-section">
-                <canvas id="qr-canvas" width="56" height="56"></canvas>
-            </div>
 
             <div class="role-banner" id="role-banner">
                 <!-- Filled by JS -->
