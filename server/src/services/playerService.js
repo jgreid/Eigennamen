@@ -380,8 +380,10 @@ async function removePlayer(sessionId) {
 
 /**
  * Handle player disconnection
+ * ISSUE #57 FIX: Schedule player cleanup after grace period
  */
 async function handleDisconnect(sessionId) {
+    const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (!player) {
@@ -389,13 +391,78 @@ async function handleDisconnect(sessionId) {
     }
 
     // Mark as disconnected but don't remove yet (allow reconnection)
-    await updatePlayer(sessionId, { connected: false });
+    await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
 
     logger.info(`Player ${sessionId} disconnected from room ${player.roomCode}`);
 
-    // Schedule removal if not reconnected within timeout
-    // This would typically be done with a delayed job/worker
-    // For now, the player TTL will handle cleanup
+    // ISSUE #57 FIX: Schedule removal after grace period using sorted set
+    const cleanupTime = Date.now() + (REDIS_TTL.DISCONNECTED_PLAYER * 1000);
+    await redis.zAdd('scheduled:player:cleanup', {
+        score: cleanupTime,
+        value: JSON.stringify({ sessionId, roomCode: player.roomCode })
+    });
+
+    // Also set a shorter TTL on the player key as backup
+    await redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER);
+
+    logger.debug(`Scheduled cleanup for player ${sessionId} at ${new Date(cleanupTime).toISOString()}`);
+}
+
+/**
+ * Process scheduled player cleanups
+ * ISSUE #57 FIX: Run this periodically to clean up disconnected players
+ * @param {number} limit - Maximum number of players to clean up
+ * @returns {number} Number of players cleaned up
+ */
+async function processScheduledCleanups(limit = 50) {
+    const redis = getRedis();
+    const now = Date.now();
+
+    try {
+        // Get players due for cleanup
+        const toCleanup = await redis.zRangeByScore(
+            'scheduled:player:cleanup',
+            0,
+            now,
+            { LIMIT: { offset: 0, count: limit } }
+        );
+
+        if (toCleanup.length === 0) {
+            return 0;
+        }
+
+        let cleanedUp = 0;
+        for (const entry of toCleanup) {
+            try {
+                const { sessionId, roomCode } = JSON.parse(entry);
+
+                // Check if player reconnected
+                const player = await getPlayer(sessionId);
+                if (player && !player.connected) {
+                    // Player still disconnected - remove them
+                    await removePlayer(sessionId);
+                    cleanedUp++;
+                    logger.info(`Cleaned up disconnected player ${sessionId} from room ${roomCode}`);
+                }
+
+                // Remove from cleanup schedule
+                await redis.zRem('scheduled:player:cleanup', entry);
+            } catch (parseError) {
+                logger.error('Failed to parse cleanup entry:', parseError.message);
+                // Remove invalid entry
+                await redis.zRem('scheduled:player:cleanup', entry);
+            }
+        }
+
+        if (cleanedUp > 0) {
+            logger.info(`Processed ${cleanedUp} scheduled player cleanups`);
+        }
+
+        return cleanedUp;
+    } catch (error) {
+        logger.error('Error processing scheduled cleanups:', error.message);
+        return 0;
+    }
 }
 
 /**
@@ -431,6 +498,40 @@ async function getSocketId(sessionId) {
     return await redis.get(`session:${sessionId}:socket`);
 }
 
+// Cleanup interval reference
+let cleanupInterval = null;
+
+/**
+ * Start periodic player cleanup task
+ * ISSUE #57 FIX: Process scheduled cleanups every 60 seconds
+ */
+function startCleanupTask() {
+    if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+    }
+
+    cleanupInterval = setInterval(async () => {
+        try {
+            await processScheduledCleanups(50);
+        } catch (error) {
+            logger.error('Error in cleanup task:', error.message);
+        }
+    }, 60000); // Run every 60 seconds
+
+    logger.info('Player cleanup task started');
+}
+
+/**
+ * Stop the cleanup task (for graceful shutdown)
+ */
+function stopCleanupTask() {
+    if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+        cleanupInterval = null;
+        logger.info('Player cleanup task stopped');
+    }
+}
+
 module.exports = {
     createPlayer,
     createPlayerData,
@@ -444,5 +545,9 @@ module.exports = {
     removePlayer,
     handleDisconnect,
     setSocketMapping,
-    getSocketId
+    getSocketId,
+    // ISSUE #57 FIX: Export cleanup functions
+    processScheduledCleanups,
+    startCleanupTask,
+    stopCleanupTask
 };

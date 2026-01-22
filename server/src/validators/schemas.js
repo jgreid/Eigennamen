@@ -97,13 +97,19 @@ const gameRevealSchema = z.object({
         .max(BOARD_SIZE - 1, 'Invalid card index')
 });
 
+// ISSUE #2 FIX: Clue word regex with quantified repetition to prevent ReDoS
+// Allows letters with optional single spaces/hyphens/apostrophes between words
+// Maximum of 10 word parts to prevent excessive backtracking
+const clueWordRegex = /^[A-Za-z]+(?:[\s\-'][A-Za-z]+){0,9}$/;
+
 const gameClueSchema = z.object({
     word: z.string()
         .min(1, 'Clue word is required')
         .max(VALIDATION.CLUE_MAX_LENGTH, 'Clue word too long')
         .transform(val => removeControlChars(val).trim())
+        .transform(val => val.replace(/\s+/g, ' ')) // Normalize multiple spaces to single space
         .refine(val => val.length >= 1, 'Clue word is required')
-        .refine(val => /^[A-Za-z\s\-']+$/.test(val), 'Clue must contain only letters, spaces, hyphens, and apostrophes'),
+        .refine(val => clueWordRegex.test(val), 'Clue must be letters optionally separated by single spaces, hyphens, or apostrophes'),
     number: z.number()
         .int()
         .min(VALIDATION.CLUE_NUMBER_MIN, 'Number must be 0 or greater')

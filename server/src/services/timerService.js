@@ -392,29 +392,46 @@ async function pauseTimer(roomCode) {
 }
 
 /**
- * Resume a paused timer
+ * Resume a paused timer with distributed lock
+ * ISSUE #33 FIX: Acquire lock to prevent duplicate timers across instances
  * @param {string} roomCode - Room code
  * @param {Function} onExpire - Callback when timer expires
  * @returns {Object|null} Timer info or null
  */
 async function resumeTimer(roomCode, onExpire) {
     const redis = getRedis();
-    const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
+    const lockKey = `lock:timer:resume:${roomCode}`;
 
-    if (!timerData) {
+    // ISSUE #33 FIX: Acquire distributed lock to prevent duplicate resume
+    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
+    if (!lockAcquired) {
+        logger.debug(`Another instance is resuming timer for room ${roomCode}`);
         return null;
     }
 
     try {
-        const timer = JSON.parse(timerData);
-        if (!timer.paused) {
+        const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+        if (!timerData) {
             return null;
         }
 
-        const remainingSeconds = timer.remainingWhenPaused;
-        return await startTimer(roomCode, remainingSeconds, onExpire);
-    } catch (e) {
-        return null;
+        try {
+            const timer = JSON.parse(timerData);
+            if (!timer.paused) {
+                return null;
+            }
+
+            const remainingSeconds = timer.remainingWhenPaused;
+            return await startTimer(roomCode, remainingSeconds, onExpire);
+        } catch (e) {
+            return null;
+        }
+    } finally {
+        // Always release the lock
+        await redis.del(lockKey).catch(err => {
+            logger.error(`Failed to release resume lock for room ${roomCode}:`, err.message);
+        });
     }
 }
 
