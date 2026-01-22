@@ -137,6 +137,13 @@ module.exports = function gameHandlers(io, socket) {
                 throw PlayerError.notYourTurn(player.team);
             }
 
+            // ISSUE #59 FIX: Validate that the current team has connected players
+            const teamMembers = await playerService.getTeamMembers(socket.roomCode, game.currentTurn);
+            const connectedTeamMembers = teamMembers.filter(p => p.connected);
+            if (connectedTeamMembers.length === 0) {
+                throw new GameStateError(`No connected players on ${game.currentTurn} team`);
+            }
+
             const result = await gameService.revealCard(
                 socket.roomCode,
                 validated.index,
