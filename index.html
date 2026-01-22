@@ -1368,6 +1368,10 @@
                 padding: 8px;
             }
 
+            .qr-section {
+                display: none; /* QR code not useful on mobile - can't scan own screen */
+            }
+
             .instructions {
                 display: none;
             }
@@ -2766,6 +2770,7 @@
         // Update QR code with current game URL
         function updateQRCode(url) {
             const canvas = document.getElementById('qr-canvas');
+            const qrSection = document.getElementById('qr-section');
             if (!canvas) return;
 
             try {
@@ -2776,8 +2781,12 @@
                     dark: '#1a1a2e',
                     light: '#ffffff'
                 });
+                // Show QR section on success
+                if (qrSection) qrSection.style.display = '';
             } catch (e) {
-                console.warn('QR code generation failed:', e);
+                // Hide QR section if URL is too long for QR code
+                console.warn('QR code generation failed (URL may be too long):', e);
+                if (qrSection) qrSection.style.display = 'none';
             }
         }
 
