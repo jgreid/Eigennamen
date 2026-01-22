@@ -138,8 +138,27 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
     return attemptSubscription();
 }
 
-// Store pending addTime callbacks for pub/sub coordination
+// Store pending addTime callbacks for pub/sub coordination with timestamps for cleanup
 const pendingAddTimeCallbacks = new Map();
+const PENDING_CALLBACK_TTL_MS = 30000; // 30 seconds TTL for pending callbacks
+
+/**
+ * Clean up stale pending addTime callbacks to prevent memory leaks
+ * Called periodically from orphan check interval
+ */
+function cleanupStalePendingCallbacks() {
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [requestId, entry] of pendingAddTimeCallbacks) {
+        if (now - entry.timestamp > PENDING_CALLBACK_TTL_MS) {
+            pendingAddTimeCallbacks.delete(requestId);
+            cleaned++;
+        }
+    }
+    if (cleaned > 0) {
+        logger.debug(`Cleaned up ${cleaned} stale pending addTime callbacks`);
+    }
+}
 
 /**
  * Handle timer events from pub/sub
@@ -665,6 +684,8 @@ function startOrphanCheck(onExpireCallback) {
 
     orphanCheckInterval = setInterval(async () => {
         await checkOrphanedTimers(onExpireCallback);
+        // Clean up stale pending callbacks to prevent memory leaks
+        cleanupStalePendingCallbacks();
     }, ORPHAN_CHECK_INTERVAL);
 }
 

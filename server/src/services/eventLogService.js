@@ -129,7 +129,18 @@ async function getEventsSince(roomCode, sinceVersion) {
                 }
             })
             .filter(e => e !== null)
-            .filter(e => e.version > sinceVersion)
+            // Filter by version, handling null versions gracefully
+            // Events with null version are included if sinceVersion is null/undefined
+            // Otherwise only include events with version > sinceVersion
+            .filter(e => {
+                if (e.version === null || e.version === undefined) {
+                    return sinceVersion === null || sinceVersion === undefined;
+                }
+                if (sinceVersion === null || sinceVersion === undefined) {
+                    return true; // Include all versioned events if no sinceVersion specified
+                }
+                return e.version > sinceVersion;
+            })
             .reverse(); // Oldest first for replay
 
         return events;

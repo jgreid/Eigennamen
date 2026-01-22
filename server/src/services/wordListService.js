@@ -9,23 +9,6 @@ const { getDatabase, isDatabaseEnabled } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE, ERROR_CODES } = require('../config/constants');
 const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
-const crypto = require('crypto');
-
-/**
- * Generate a secure edit token for anonymous word lists
- * @private Reserved for future anonymous edit feature
- */
-function _generateEditToken() {
-    return crypto.randomBytes(32).toString('hex');
-}
-
-/**
- * Hash an edit token for secure storage
- * @private Reserved for future anonymous edit feature
- */
-function _hashEditToken(token) {
-    return crypto.createHash('sha256').update(token).digest('hex');
-}
 
 /**
  * Get a word list by ID
