@@ -223,7 +223,7 @@ describe('determineRevealOutcome', () => {
 
     test('assassin - blue revealing loses to red', () => {
         const game = createMockGame({ currentTurn: 'blue' });
-        const outcome = determineRevealOutcome(game, 'assassin', 'blue');
+        const _outcome = determineRevealOutcome(game, 'assassin', 'blue');
 
         expect(game.winner).toBe('red');
     });
@@ -448,7 +448,7 @@ describe('Game State Edge Cases', () => {
 
         // Red reveals their last card
         game.redScore = 9;
-        const outcome = determineRevealOutcome(game, 'red', 'red');
+        const _outcome = determineRevealOutcome(game, 'red', 'red');
 
         expect(game.gameOver).toBe(true);
         expect(game.winner).toBe('red');

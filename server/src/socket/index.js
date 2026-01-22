@@ -381,7 +381,7 @@ async function stopTurnTimer(roomCode) {
  * Get timer status for a room (async)
  */
 async function getTimerStatus(roomCode) {
-    return await timerService.getTimerStatus(roomCode);
+    return timerService.getTimerStatus(roomCode);
 }
 
 /**

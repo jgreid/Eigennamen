@@ -22,12 +22,12 @@ const {
 const {
     JWT_CONFIG,
     MIN_SECRET_LENGTH,
-    getJwtSecret,
-    isJwtEnabled,
-    signToken,
-    verifyToken,
+    getJwtSecret: _getJwtSecret,
+    isJwtEnabled: _isJwtEnabled,
+    signToken: _signToken,
+    verifyToken: _verifyToken,
     decodeToken,
-    generateSessionToken
+    generateSessionToken: _generateSessionToken
 } = require('../config/jwt');
 
 const { RESERVED_NAMES } = require('../config/constants');

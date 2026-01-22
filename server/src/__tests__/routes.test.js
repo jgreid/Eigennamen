@@ -9,14 +9,14 @@ const request = require('supertest');
 const express = require('express');
 
 // Mock Redis storage
-let mockRedisStorage = new Map();
-let mockRedisSets = new Map();
+const mockRedisStorage = new Map();
+const mockRedisSets = new Map();
 
 // Setup mocks before importing app/services
 jest.mock('../config/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
-        set: jest.fn(async (key, value, options) => {
+        set: jest.fn(async (key, value, _options) => {
             mockRedisStorage.set(key, value);
             return 'OK';
         }),
@@ -348,7 +348,7 @@ describe('WordList Routes', () => {
                 isPublic: true
             });
 
-            const response = await request(app)
+            const _response = await request(app)
                 .get('/api/wordlists?search=animal')
                 .expect(200);
 
@@ -358,7 +358,7 @@ describe('WordList Routes', () => {
         });
 
         it('should support pagination parameters', async () => {
-            const response = await request(app)
+            const _response = await request(app)
                 .get('/api/wordlists?limit=10&offset=5')
                 .expect(200);
 

@@ -275,7 +275,7 @@ describe('Correlation ID Utility', () => {
                 correlationContext: { correlationId: 'handler-corr' }
             };
 
-            const handler = jest.fn(async (s) => {
+            const handler = jest.fn(async (_s) => {
                 return getCorrelationId();
             });
 
