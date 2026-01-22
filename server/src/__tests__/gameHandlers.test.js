@@ -174,6 +174,10 @@ describe('Game Handlers', () => {
                 nickname: 'TestPlayer'
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // ISSUE #59 FIX: Mock team members for team validation
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red' }
+            ]);
             gameService.revealCard.mockResolvedValue({
                 index: 5,
                 type: 'red',
@@ -203,6 +207,10 @@ describe('Game Handlers', () => {
                 nickname: 'TestPlayer'
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // ISSUE #59 FIX: Mock team members for team validation
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red' }
+            ]);
             gameService.revealCard.mockResolvedValue({
                 index: 5,
                 type: 'assassin',
