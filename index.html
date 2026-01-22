@@ -1083,9 +1083,18 @@
             color: rgba(255, 255, 255, 0.8);
         }
 
-        .radio-option:has(input:checked) {
+        /* Active state for radio option - use class for broader browser support */
+        .radio-option.selected {
             background: rgba(102, 126, 234, 0.15);
             border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        /* Modern browsers: use :has() as enhancement */
+        @supports selector(:has(*)) {
+            .radio-option:has(input:checked) {
+                background: rgba(102, 126, 234, 0.15);
+                border-color: rgba(102, 126, 234, 0.4);
+            }
         }
 
         .modal-buttons {
@@ -3352,7 +3361,14 @@
             // Load word list mode
             const savedMode = localStorage.getItem('codenames-wordlist-mode') || 'combined';
             const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`);
-            if (modeRadio) modeRadio.checked = true;
+            if (modeRadio) {
+                modeRadio.checked = true;
+                // Update selected class for older browsers
+                const radios = document.querySelectorAll('input[name="wordlist-mode"]');
+                radios.forEach(r => {
+                    r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+                });
+            }
 
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWordsTextarea) {
@@ -3508,6 +3524,18 @@
         function resetWords() {
             const textarea = document.getElementById('custom-words');
             if (textarea) textarea.value = '';
+
+            // Reset word list mode to 'combined' (default)
+            const combinedRadio = document.getElementById('wordlist-mode-combined');
+            if (combinedRadio) {
+                combinedRadio.checked = true;
+                // Update selected class for older browsers
+                const radios = document.querySelectorAll('input[name="wordlist-mode"]');
+                radios.forEach(r => {
+                    r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+                });
+            }
+
             updateWordCount();
         }
 
@@ -3564,7 +3592,8 @@
         }
 
         async function tryLoadWordlistFile() {
-            if (localStorage.getItem('codenames-custom-words')) {
+            // Skip if custom words exist or mode is 'default' only
+            if (localStorage.getItem('codenames-custom-words') || wordListMode === 'default') {
                 return;
             }
 
@@ -3572,10 +3601,17 @@
                 const response = await fetch('wordlist.txt');
                 if (response.ok) {
                     const text = await response.text();
-                    const words = parseWords(text);
-                    if (words.length >= BOARD_SIZE) {
-                        activeWords = words;
-                        wordSource = 'file';
+                    const fileWords = parseWords(text);
+                    if (fileWords.length >= BOARD_SIZE) {
+                        // Apply based on current mode
+                        if (wordListMode === 'combined') {
+                            const combined = new Set([...DEFAULT_WORDS, ...fileWords]);
+                            activeWords = [...combined];
+                            wordSource = 'file';
+                        } else if (wordListMode === 'custom') {
+                            activeWords = fileWords;
+                            wordSource = 'file';
+                        }
                     }
                 }
                 // 404 is expected when file doesn't exist - no need to log
@@ -3596,8 +3632,22 @@
         // Add event listeners for word list mode radio buttons
         const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
         wordlistModeRadios.forEach(radio => {
-            radio.addEventListener('change', updateWordCount);
+            radio.addEventListener('change', function() {
+                // Update selected class for older browser support
+                wordlistModeRadios.forEach(r => {
+                    r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+                });
+                updateWordCount();
+            });
         });
+
+        // Initialize selected class on page load
+        function initRadioOptionStyles() {
+            wordlistModeRadios.forEach(r => {
+                r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+            });
+        }
+        initRadioOptionStyles();
 
         // ========== EVENT LISTENER SETUP ==========
         // Centralized event handling using event delegation for better testability
