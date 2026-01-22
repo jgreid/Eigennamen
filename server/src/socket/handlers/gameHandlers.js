@@ -93,6 +93,10 @@ module.exports = function gameHandlers(io, socket) {
                 }
             );
 
+            // Audit log game start
+            const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+            auditGameStarted(socket.roomCode, socket.sessionId, players.length, clientIp);
+
             logger.info(`Game started in room ${socket.roomCode}`);
 
         } catch (error) {
@@ -207,6 +211,9 @@ module.exports = function gameHandlers(io, socket) {
                     reason: result.endReason,
                     types: result.allTypes
                 });
+
+                // Audit log game end
+                auditGameEnded(socket.roomCode, result.winner, result.endReason, null);
             }
 
             logger.info(`Card ${validated.index} revealed in room ${socket.roomCode}`);
@@ -368,6 +375,9 @@ module.exports = function gameHandlers(io, socket) {
                 reason: 'forfeit',
                 types: result.allTypes
             });
+
+            // Audit log game end (forfeit)
+            auditGameEnded(socket.roomCode, result.winner, 'forfeit', null);
 
             // Log event for reconnection recovery
             await eventLogService.logEvent(

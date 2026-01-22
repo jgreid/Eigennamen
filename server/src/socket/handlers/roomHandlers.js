@@ -346,7 +346,7 @@ module.exports = function roomHandlers(io, socket) {
      * ISSUE #17 FIX: Reconnect with a secure token
      * Allows clients to reconnect using a previously obtained token
      */
-    socket.on('room:reconnect', createRateLimitedHandler(socket, 'room:join', async (data) => {
+    socket.on('room:reconnect', createRateLimitedHandler(socket, 'room:reconnect', async (data) => {
         try {
             const { code, reconnectionToken } = data || {};
 
