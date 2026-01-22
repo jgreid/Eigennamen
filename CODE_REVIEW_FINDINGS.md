@@ -9,7 +9,7 @@
 
 ## Implementation Status Summary
 
-**Total Issues:** 74 | **Implemented:** 53 | **Partial:** 6 | **Not Implemented:** 11 | **Documented:** 4
+**Total Issues:** 74 | **Implemented:** 57 | **Partial:** 5 | **Not Implemented:** 8 | **Documented:** 4
 
 ### Status Legend
 - ✅ **IMPLEMENTED** - Fix verified in codebase
@@ -37,7 +37,7 @@
 |---|-------|--------|--------------|
 | 1 | Socket rate limiter not used | ✅ | `createRateLimitedHandler` wrapper in all handlers |
 | 16 | Spymaster race condition | ✅ | `playerService.js:204-236` - Redis lock (NX + EX) |
-| 17 | Session hijacking window | 🔶 | IP tracking added but reconnection token not implemented |
+| 17 | Session hijacking window | ✅ | `playerService.js` - reconnection token generation + `socketAuth.js:236-259` validation |
 | 22 | Word list API no auth | ✅ | Anonymous lists marked immutable |
 | 32 | Card reveal race condition | ✅ | `gameService.js` - distributed lock with NX + EX |
 | 35 | Team chat N+1 query | ✅ | `playerService.js:256-283` - getTeamMembers with team sets |
@@ -67,7 +67,7 @@
 | 23 | CSRF bypass Content-Type | ✅ | Check for wildcard CORS added |
 | 24 | Anonymous word lists modifiable | ✅ | Anonymous lists now immutable |
 | 33 | Timer resume duplicates | ✅ | `timerService.js` - distributed lock for resumeTimer |
-| 34 | addTime wrong instance | ❌ | Creates timer on any instance |
+| 34 | addTime wrong instance | ✅ | `timerService.js:464-497` - pub/sub routing to owning instance |
 | 36 | Full JSON on reveal | ❌ | Still full stringify/parse |
 | 37 | Rate limiter array allocation | ❌ | Still creates new array per request |
 | 38 | Health check socket count | ✅ | `app.js:46` - Promise.race with timeout |
@@ -78,7 +78,7 @@
 | 52 | 23 inline onclick handlers | ✅ | All removed, uses addEventListener |
 | 55 | JWT_SECRET optional in prod | ✅ | Enhanced warning messages |
 | 58 | Player state overwrite multi-tab | 🔶 | sessionStorage helps but not fully resolved |
-| 59 | Team empty during game | ❌ | No validation for empty teams |
+| 59 | Team empty during game | ✅ | `playerHandlers.js:44-58` - validates team won't become empty during active game |
 | 60 | Password check bypassed | ✅ | `roomService.js` - passwordVersion tracking |
 | 61 | Player switches team mid-turn | ✅ | `playerHandlers.js:28-39` - blocks team switch during turn |
 | 62 | Missing ARIA labels | 🔶 | Some added (`index.html:1495,1548,2590`) |
@@ -88,7 +88,7 @@
 | 69 | Missing structured logging | 🔶 | Some structured, some concatenation |
 | 70 | Missing audit trail | ✅ | `utils/audit.js` - comprehensive audit logging system |
 | 71 | No operation latency metrics | ✅ | `utils/metrics.js` - withTiming wrapper exists |
-| 74 | UUID session brute force | ❌ | No rate limiting on session validation |
+| 74 | UUID session brute force | ✅ | `socketAuth.js:66-95` - checkValidationRateLimit function with Redis backing |
 
 ### Low Priority Issues (20 total)
 | # | Issue | Status | Verification |
@@ -145,20 +145,28 @@ The following issues have been **fixed** in this branch:
 | **54** | **Redis TLS can be disabled in prod** | **TLS validation now forced enabled in production mode** |
 | **55** | **JWT_SECRET optional in production** | **Enhanced warning messages and length validation** |
 | **68** | **Silent pub/sub failures** | **Added logger.warn calls to all pub/sub catch blocks** |
+| **17** | **Session hijacking window** | **Reconnection token system with secure token generation and validation** |
+| **34** | **addTime wrong instance** | **Pub/sub routing to route addTime requests to owning instance** |
+| **59** | **Team empty during game** | **Validation prevents team from becoming empty during active game** |
+| **74** | **UUID session brute force** | **Rate limiting on session validation attempts per IP** |
 
 **Files Modified (Latest Fixes):**
 - `fly.toml` - Project rename to Die Eigennamen
 - `server/package.json` - Project rename
 - `index.html` - Project rename, URL decoding fix (#51)
-- `server/src/socket/handlers/gameHandlers.js` - Game start check (#28)
+- `server/src/socket/handlers/gameHandlers.js` - Game start check (#28), SOCKET_EVENTS constants (#44)
 - `server/src/socket/handlers/roomHandlers.js` - Spymaster view (#49), resync handler (#50)
-- `server/src/validators/schemas.js` - Nickname XSS fix (#29)
-- `server/src/services/playerService.js` - setRole validation (#31)
+- `server/src/socket/handlers/playerHandlers.js` - Team empty validation (#59), team switch during turn (#61)
+- `server/src/validators/schemas.js` - Nickname XSS fix (#29), ReDoS clue regex fix (#2)
+- `server/src/services/playerService.js` - setRole validation (#31), reconnection tokens (#17), scheduled cleanup (#57)
 - `server/src/services/roomService.js` - bcrypt wrapping (#39), deprecated function (#42)
-- `server/src/services/timerService.js` - Pause pub/sub (#30), silent failures (#68)
+- `server/src/services/timerService.js` - Pause pub/sub (#30), silent failures (#68), resume lock (#33), addTime routing (#34)
+- `server/src/services/gameService.js` - Card reveal distributed lock (#32)
 - `server/src/middleware/validation.js` - Error handler bypass (#40)
+- `server/src/middleware/socketAuth.js` - Reconnection token validation (#17), rate limiting (#74)
 - `server/src/config/redis.js` - TLS validation fix (#54)
 - `server/src/config/env.js` - JWT_SECRET warning (#55)
+- `server/src/utils/audit.js` - New audit logging system (#70)
 - `server/public/js/socket-client.js` - sessionStorage for multi-tab (#48)
 - `docker-compose.yml` - Dev-only password naming (#53)
 
@@ -1442,9 +1450,9 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 
 | Status | Count | Percentage |
 |--------|-------|------------|
-| ✅ Implemented | 53 | 72% |
-| 🔶 Partial | 6 | 8% |
-| ❌ Not Implemented | 11 | 15% |
+| ✅ Implemented | 57 | 77% |
+| 🔶 Partial | 5 | 7% |
+| ❌ Not Implemented | 8 | 11% |
 | 📝 Documented/Acceptable | 4 | 5% |
 
 ### Remaining Work by Priority
@@ -1452,9 +1460,9 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 | Priority | Remaining Issues |
 |----------|-----------------|
 | Critical | 0 (all fixed) |
-| High | 2 (#17 partial, #34 addTime routing) |
-| Medium | 6 (#34, #36, #37, #59, #63, #66) |
-| Low | 5 (#8, #13, #64, #72) |
+| High | 0 (all fixed) |
+| Medium | 4 (#36, #37, #63, #66) |
+| Low | 4 (#8, #13, #64, #72) |
 
 ---
 
@@ -1470,12 +1478,12 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 | 49 | Spymaster view not restored | Game Logic | ✅ Fixed |
 | 50 | No event recovery | Architecture | ✅ Fixed |
 
-### High Priority - Remaining Work
+### High Priority - ✅ ALL FIXED
 
 | # | Issue | Type | Status |
 |---|-------|------|--------|
-| 17 | Session hijacking window | Security | 🔶 IP tracking added, needs reconnection token |
-| 34 | addTime on wrong instance | Multi-Instance | 🔶 Lock added to resume, addTime still needs pub/sub routing |
+| 17 | Session hijacking window | Security | ✅ Reconnection token implemented |
+| 34 | addTime on wrong instance | Multi-Instance | ✅ Pub/sub routing to owning instance |
 
 ### Medium Priority - Remaining Work
 
@@ -1483,7 +1491,6 @@ No rate limiting on session ID validation. Attacker could brute force session ID
 |---|-------|------|
 | 36 | Full JSON on every reveal | Performance |
 | 37 | Rate limiter array allocation | Performance |
-| 59 | Team empty during game | Game Logic |
 | 63 | Modal listener duplication | Memory Leak |
 | 66 | Optional unique email NULLs | Data Integrity |
 

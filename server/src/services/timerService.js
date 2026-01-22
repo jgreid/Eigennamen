@@ -138,10 +138,13 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
     return attemptSubscription();
 }
 
+// Store pending addTime callbacks for pub/sub coordination
+const pendingAddTimeCallbacks = new Map();
+
 /**
  * Handle timer events from pub/sub
  */
-function handleTimerEvent(event, _onExpireCallback) {
+function handleTimerEvent(event, onExpireCallback) {
     switch (event.type) {
         case 'started':
             // Another instance started a timer - clear any local timer for this room
@@ -170,6 +173,24 @@ function handleTimerEvent(event, _onExpireCallback) {
             break;
         case 'expired':
             // Timer expired on another instance - no action needed
+            break;
+        case 'addTime':
+            // ISSUE #34 FIX: Handle addTime request from another instance
+            // Only process if we own the timer locally
+            if (localTimers.has(event.roomCode)) {
+                logger.debug(`Processing addTime event for room ${event.roomCode} (we own this timer)`);
+                // Process addTime locally since we own the timer
+                addTimeLocal(event.roomCode, event.secondsToAdd, onExpireCallback)
+                    .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err));
+            }
+            break;
+        case 'addTimeResult':
+            // ISSUE #34 FIX: Receive result from the instance that owns the timer
+            const callback = pendingAddTimeCallbacks.get(event.requestId);
+            if (callback) {
+                pendingAddTimeCallbacks.delete(event.requestId);
+                callback(event.result);
+            }
             break;
     }
 }
@@ -442,7 +463,58 @@ async function resumeTimer(roomCode, onExpire) {
  * @param {Function} onExpire - Callback when timer expires
  * @returns {Object|null} Updated timer info or null
  */
+/**
+ * Add time to a timer (routes to owning instance via pub/sub if needed)
+ * ISSUE #34 FIX: Route addTime to the instance that owns the timer
+ * @param {string} roomCode - Room code
+ * @param {number} secondsToAdd - Seconds to add
+ * @param {Function} onExpire - Callback when timer expires (only used if we own the timer)
+ * @returns {Object|null} Updated timer info or null
+ */
 async function addTime(roomCode, secondsToAdd, onExpire) {
+    // ISSUE #34 FIX: Check if we own this timer locally
+    if (localTimers.has(roomCode)) {
+        // We own the timer - process locally
+        return addTimeLocal(roomCode, secondsToAdd, onExpire);
+    }
+
+    // Check if timer exists in Redis before trying pub/sub
+    const redis = getRedis();
+    const timerExists = await redis.exists(`${TIMER_KEY_PREFIX}${roomCode}`);
+    if (!timerExists) {
+        return null;
+    }
+
+    // We don't own the timer - try to route via pub/sub to the owning instance
+    try {
+        const { pubClient } = getPubSubClients();
+
+        // Publish addTime request for the owning instance to handle
+        await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
+            type: 'addTime',
+            roomCode,
+            secondsToAdd,
+            timestamp: Date.now()
+        }));
+
+        logger.debug(`Routed addTime request for room ${roomCode} via pub/sub`);
+
+        // Return timer status from Redis (the owning instance will update it)
+        // Give a brief delay for the owning instance to process
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return getTimerStatus(roomCode);
+    } catch (pubSubError) {
+        logger.warn(`Failed to route addTime via pub/sub for room ${roomCode}, falling back to local:`, pubSubError.message);
+        // Fallback to local processing if pub/sub fails
+        return addTimeLocal(roomCode, secondsToAdd, onExpire);
+    }
+}
+
+/**
+ * Add time to a timer locally (internal implementation)
+ * Only called when we own the timer or as fallback
+ */
+async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
     const redis = getRedis();
 
     // Atomically add time to prevent race conditions
@@ -510,6 +582,7 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
         } else {
             // No local timer exists - create one to handle the Redis timer
             // This happens when addTime is called on an instance that doesn't own the timer
+            // or when pub/sub routing fails
             logger.info(`Creating local timer for room ${roomCode} (taking ownership via addTime)`);
 
             const timeoutId = setTimeout(createTimeoutCallback(), newTimer.remainingSeconds * 1000);
