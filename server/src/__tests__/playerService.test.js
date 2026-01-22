@@ -550,7 +550,7 @@ describe('Player Service', () => {
     });
 
     describe('handleDisconnect', () => {
-        test('generates reconnection token and marks player disconnected', async () => {
+        test('marks player disconnected and schedules cleanup', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', connected: true };
             mockRedis.get.mockResolvedValueOnce(JSON.stringify(player));
             mockRedis.get.mockResolvedValueOnce(JSON.stringify(player)); // For updatePlayer
@@ -558,26 +558,23 @@ describe('Player Service', () => {
             mockRedis.zAdd.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
 
-            const token = await playerService.handleDisconnect('s1');
+            await playerService.handleDisconnect('s1');
 
-            expect(token).toMatch(/^[a-f0-9]{64}$/);
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'reconnect:s1',
-                token,
-                { EX: 600 }
-            );
+            // Should schedule cleanup
             expect(mockRedis.zAdd).toHaveBeenCalledWith(
                 'scheduled:player:cleanup',
                 expect.objectContaining({ value: expect.stringContaining('s1') })
             );
+            // Should set TTL on player key
+            expect(mockRedis.expire).toHaveBeenCalledWith('player:s1', 600);
         });
 
         test('returns null for non-existent player', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            const token = await playerService.handleDisconnect('nonexistent');
+            const result = await playerService.handleDisconnect('nonexistent');
 
-            expect(token).toBeNull();
+            expect(result).toBeNull();
         });
     });
 

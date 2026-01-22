@@ -2690,7 +2690,7 @@
                     const decoded = decodeURIComponent(redName);
                     teamNames.red = sanitizeTeamName(decoded, 'Red Team');
                 } catch (e) {
-                    console.warn('Failed to decode red team name from URL, using default');
+                    // Malformed URL encoding - use default silently
                     teamNames.red = 'Red Team';
                 }
             }
@@ -2699,7 +2699,7 @@
                     const decoded = decodeURIComponent(blueName);
                     teamNames.blue = sanitizeTeamName(decoded, 'Blue Team');
                 } catch (e) {
-                    console.warn('Failed to decode blue team name from URL, using default');
+                    // Malformed URL encoding - use default silently
                     teamNames.blue = 'Blue Team';
                 }
             }
@@ -2811,7 +2811,6 @@
                 if (qrSection) qrSection.style.display = '';
             } catch (e) {
                 // Hide QR section if URL is too long for QR code
-                console.warn('QR code generation failed (URL may be too long):', e);
                 if (qrSection) qrSection.style.display = 'none';
             }
         }
@@ -3804,8 +3803,7 @@
                 // Initialize QR code with current URL
                 updateQRCode(window.location.href);
             } catch (e) {
-                console.error('Initialization error:', e);
-                // Show error modal instead of inline error
+                // Show error modal to inform user
                 showErrorModal(
                     'Failed to load the game. This might be due to corrupted data or a browser issue.',
                     e.message || 'Unknown error'

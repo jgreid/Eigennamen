@@ -365,9 +365,11 @@ async function removePlayer(sessionId) {
 
 /**
  * Handle player disconnection
+ * Updates player status and schedules cleanup after grace period
+ * Note: Token generation is handled by generateReconnectionToken() which
+ * should be called before this function in socket/index.js
  * ISSUE #57 FIX: Schedule player cleanup after grace period
- * ISSUE #17 FIX: Generate reconnection token to prevent session hijacking
- * @returns {string|null} Reconnection token (client should store and provide on reconnect)
+ * @param {string} sessionId - Player's session ID
  */
 async function handleDisconnect(sessionId) {
     const redis = getRedis();
@@ -376,14 +378,6 @@ async function handleDisconnect(sessionId) {
     if (!player) {
         return null;
     }
-
-    // ISSUE #17 FIX: Generate secure reconnection token
-    const reconnectToken = crypto.randomBytes(32).toString('hex');
-    await redis.set(
-        `reconnect:${sessionId}`,
-        reconnectToken,
-        { EX: REDIS_TTL.DISCONNECTED_PLAYER }
-    );
 
     // Mark as disconnected but don't remove yet (allow reconnection)
     await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
@@ -401,12 +395,11 @@ async function handleDisconnect(sessionId) {
     await redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER);
 
     logger.debug(`Scheduled cleanup for player ${sessionId} at ${new Date(cleanupTime).toISOString()}`);
-
-    return reconnectToken;
 }
 
 /**
- * Validate reconnection token
+ * Validate reconnection token for socket auth
+ * Uses the same token storage as generateReconnectionToken() for consistency
  * ISSUE #17 FIX: Require valid token for reconnection to prevent session hijacking
  * @param {string} sessionId - Session ID
  * @param {string} token - Reconnection token provided by client
@@ -427,7 +420,8 @@ async function validateReconnectToken(sessionId, token) {
         return false;
     }
 
-    const storedToken = await redis.get(`reconnect:${sessionId}`);
+    // Use same key as generateReconnectionToken stores session->token mapping
+    const storedToken = await redis.get(`reconnect:session:${sessionId}`);
 
     if (!storedToken) {
         // No stored token - either expired or never set
@@ -442,8 +436,9 @@ async function validateReconnectToken(sessionId, token) {
     );
 
     if (isValid) {
-        // Token used successfully - delete it (one-time use)
-        await redis.del(`reconnect:${sessionId}`);
+        // Token used successfully - delete both mappings (one-time use)
+        await redis.del(`reconnect:session:${sessionId}`);
+        await redis.del(`reconnect:token:${token}`);
         logger.info('Reconnection token validated', { sessionId });
     } else {
         logger.warn('Invalid reconnection token', { sessionId });
