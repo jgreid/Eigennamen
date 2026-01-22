@@ -18,6 +18,7 @@ const {
     ERROR_CODES,
     PASSWORD_SECURITY
 } = require('../config/constants');
+const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
 
 // Password hashing cost factor - from centralized config
 const BCRYPT_SALT_ROUNDS = PASSWORD_SECURITY.BCRYPT_SALT_ROUNDS;
@@ -71,8 +72,8 @@ async function createRoom(hostSessionId, settings = {}) {
         try {
             passwordHash = await bcrypt.hash(settings.password.trim(), BCRYPT_SALT_ROUNDS);
         } catch (hashError) {
-            logger.error('Failed to hash room password:', hashError.message);
-            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to create password-protected room' };
+            logger.error('Failed to hash room password', { error: hashError.message });
+            throw new ServerError('Failed to create password-protected room');
         }
     }
 
@@ -125,7 +126,7 @@ async function createRoom(hostSessionId, settings = {}) {
         logger.debug(`Room code collision for ${code}, attempt ${attempts}/${maxAttempts}`);
     }
 
-    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to generate room code' };
+    throw new ServerError('Failed to generate room code');
 }
 
 /**
@@ -185,7 +186,7 @@ async function joinRoom(code, sessionId, nickname, password = null) {
     // Get room
     const room = await getRoom(code);
     if (!room) {
-        throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Room not found' };
+        throw RoomError.notFound(code);
     }
 
     // Check if player is already in room (reconnecting)
@@ -201,24 +202,26 @@ async function joinRoom(code, sessionId, nickname, password = null) {
             if (playerPasswordVersion < roomPasswordVersion) {
                 // Password changed since player joined - require re-authentication
                 if (!password) {
-                    throw {
-                        code: ERROR_CODES.ROOM_PASSWORD_CHANGED,
-                        message: 'Room password has changed - please re-enter the password'
-                    };
+                    throw new RoomError(
+                        ERROR_CODES.ROOM_PASSWORD_CHANGED,
+                        'Room password has changed - please re-enter the password',
+                        { roomCode: code }
+                    );
                 }
                 // Verify the new password
                 let passwordValid = false;
                 try {
                     passwordValid = await bcrypt.compare(password, room.passwordHash);
                 } catch (compareError) {
-                    logger.error('Failed to verify room password on reconnection:', compareError.message);
-                    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Password verification failed' };
+                    logger.error('Failed to verify room password on reconnection', { error: compareError.message });
+                    throw new ServerError('Password verification failed');
                 }
                 if (!passwordValid) {
-                    throw {
-                        code: ERROR_CODES.ROOM_PASSWORD_INVALID,
-                        message: 'Incorrect room password'
-                    };
+                    throw new RoomError(
+                        ERROR_CODES.ROOM_PASSWORD_INVALID,
+                        'Incorrect room password',
+                        { roomCode: code }
+                    );
                 }
                 // Update player's password version
                 player = await playerService.updatePlayer(sessionId, {
@@ -242,24 +245,26 @@ async function joinRoom(code, sessionId, nickname, password = null) {
         // New join - check password
         if (room.passwordHash) {
             if (!password) {
-                throw {
-                    code: ERROR_CODES.ROOM_PASSWORD_REQUIRED,
-                    message: 'This room requires a password'
-                };
+                throw new RoomError(
+                    ERROR_CODES.ROOM_PASSWORD_REQUIRED,
+                    'This room requires a password',
+                    { roomCode: code }
+                );
             }
             // ISSUE #39 FIX: wrap bcrypt.compare in try-catch
             let passwordValid = false;
             try {
                 passwordValid = await bcrypt.compare(password, room.passwordHash);
             } catch (compareError) {
-                logger.error('Failed to verify room password:', compareError.message);
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Password verification failed' };
+                logger.error('Failed to verify room password', { error: compareError.message });
+                throw new ServerError('Password verification failed');
             }
             if (!passwordValid) {
-                throw {
-                    code: ERROR_CODES.ROOM_PASSWORD_INVALID,
-                    message: 'Incorrect room password'
-                };
+                throw new RoomError(
+                    ERROR_CODES.ROOM_PASSWORD_INVALID,
+                    'Incorrect room password',
+                    { roomCode: code }
+                );
             }
         }
         // Use Lua script for atomic capacity check and add
@@ -272,7 +277,7 @@ async function joinRoom(code, sessionId, nickname, password = null) {
         );
 
         if (result === 0) {
-            throw { code: ERROR_CODES.ROOM_FULL, message: 'Room is full' };
+            throw RoomError.full(code);
         }
 
         if (result === -1) {
@@ -301,8 +306,8 @@ async function joinRoom(code, sessionId, nickname, password = null) {
             }
         } else {
             // Unexpected result (null, undefined, or other) - log and throw error
-            logger.error(`Unexpected result from room join script: ${result} for room ${code}`);
-            throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to join room due to unexpected error' };
+            logger.error('Unexpected result from room join script', { result, roomCode: code });
+            throw new ServerError('Failed to join room due to unexpected error');
         }
     }
 
@@ -373,11 +378,11 @@ async function updateSettings(code, sessionId, newSettings) {
     const room = await getRoom(code);
 
     if (!room) {
-        throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Room not found' };
+        throw RoomError.notFound(code);
     }
 
     if (room.hostSessionId !== sessionId) {
-        throw { code: ERROR_CODES.NOT_HOST, message: 'Only the host can update settings' };
+        throw PlayerError.notHost();
     }
 
     // Handle password update separately
@@ -408,8 +413,8 @@ async function updateSettings(code, sessionId, newSettings) {
                     passwordVersion: room.passwordVersion
                 });
             } catch (hashError) {
-                logger.error('Failed to hash room password:', hashError.message);
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to set room password' };
+                logger.error('Failed to hash room password', { error: hashError.message });
+                throw new ServerError('Failed to set room password');
             }
         }
         // Remove password from settings to avoid storing it

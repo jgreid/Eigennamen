@@ -8,6 +8,7 @@
 const { getDatabase, isDatabaseEnabled } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE, ERROR_CODES } = require('../config/constants');
+const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
 const crypto = require('crypto');
 
 /**
@@ -54,8 +55,8 @@ async function getWordList(id) {
 
         return wordList;
     } catch (error) {
-        logger.error('Error fetching word list:', error);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to fetch word list' };
+        logger.error('Error fetching word list', { error: error.message });
+        throw new ServerError('Failed to fetch word list');
     }
 }
 
@@ -107,8 +108,8 @@ async function getPublicWordLists({ search = '', limit = 50, offset = 0 } = {}) 
             wordCount: words.length
         }));
     } catch (error) {
-        logger.error('Error fetching public word lists:', error);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to fetch word lists' };
+        logger.error('Error fetching public word lists', { error: error.message });
+        throw new ServerError('Failed to fetch word lists');
     }
 }
 
@@ -143,8 +144,8 @@ async function getUserWordLists(ownerId) {
             wordCount: wl.words.length
         }));
     } catch (error) {
-        logger.error('Error fetching user word lists:', error);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to fetch word lists' };
+        logger.error('Error fetching user word lists', { error: error.message });
+        throw new ServerError('Failed to fetch word lists');
     }
 }
 
@@ -161,16 +162,13 @@ async function getUserWordLists(ownerId) {
  */
 async function createWordList({ name, description, words, isPublic = false, ownerId = null }) {
     if (!isDatabaseEnabled()) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Word list storage requires database (not configured)' };
+        throw new ServerError('Word list storage requires database (not configured)');
     }
     const prisma = getDatabase();
 
     // Validate minimum words
     if (!words || words.length < BOARD_SIZE) {
-        throw {
-            code: ERROR_CODES.INVALID_INPUT,
-            message: `Word list must contain at least ${BOARD_SIZE} words`
-        };
+        throw new ValidationError(`Word list must contain at least ${BOARD_SIZE} words`);
     }
 
     // Clean and deduplicate words
@@ -181,10 +179,7 @@ async function createWordList({ name, description, words, isPublic = false, owne
     )];
 
     if (cleanedWords.length < BOARD_SIZE) {
-        throw {
-            code: ERROR_CODES.INVALID_INPUT,
-            message: `Word list must contain at least ${BOARD_SIZE} unique words after cleaning`
-        };
+        throw new ValidationError(`Word list must contain at least ${BOARD_SIZE} unique words after cleaning`);
     }
 
     try {
@@ -205,8 +200,8 @@ async function createWordList({ name, description, words, isPublic = false, owne
             wordCount: wordList.words.length
         };
     } catch (error) {
-        logger.error('Error creating word list:', error);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to create word list' };
+        logger.error('Error creating word list', { error: error.message });
+        throw new ServerError('Failed to create word list');
     }
 }
 
@@ -220,24 +215,24 @@ async function createWordList({ name, description, words, isPublic = false, owne
  */
 async function updateWordList(id, { name, description, words, isPublic }, requesterId = null) {
     if (!isDatabaseEnabled()) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Word list storage requires database (not configured)' };
+        throw new ServerError('Word list storage requires database (not configured)');
     }
     const prisma = getDatabase();
 
     // Check ownership
     const existing = await prisma.wordList.findUnique({ where: { id } });
     if (!existing) {
-        throw { code: ERROR_CODES.WORD_LIST_NOT_FOUND, message: 'Word list not found' };
+        throw WordListError.notFound(id);
     }
 
     // Anonymous word lists (no owner) are immutable
     if (!existing.ownerId) {
-        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Anonymous word lists cannot be modified' };
+        throw PlayerError.notAuthorized();
     }
 
     // Check if requester is the owner
     if (!requesterId || existing.ownerId !== requesterId) {
-        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized to update this word list' };
+        throw WordListError.notAuthorized(id);
     }
 
     const updateData = {};
@@ -262,10 +257,7 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
         )];
 
         if (cleanedWords.length < BOARD_SIZE) {
-            throw {
-                code: ERROR_CODES.INVALID_INPUT,
-                message: `Word list must contain at least ${BOARD_SIZE} unique words`
-            };
+            throw new ValidationError(`Word list must contain at least ${BOARD_SIZE} unique words`);
         }
 
         updateData.words = cleanedWords;
@@ -284,8 +276,8 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
             wordCount: wordList.words.length
         };
     } catch (error) {
-        logger.error('Error updating word list:', error);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to update word list' };
+        logger.error('Error updating word list', { error: error.message });
+        throw new ServerError('Failed to update word list');
     }
 }
 
@@ -297,32 +289,32 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
  */
 async function deleteWordList(id, requesterId = null) {
     if (!isDatabaseEnabled()) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Word list storage requires database (not configured)' };
+        throw new ServerError('Word list storage requires database (not configured)');
     }
     const prisma = getDatabase();
 
     // Check ownership
     const existing = await prisma.wordList.findUnique({ where: { id } });
     if (!existing) {
-        throw { code: ERROR_CODES.WORD_LIST_NOT_FOUND, message: 'Word list not found' };
+        throw WordListError.notFound(id);
     }
 
     // Anonymous word lists (no owner) cannot be deleted via API
     if (!existing.ownerId) {
-        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Anonymous word lists cannot be deleted' };
+        throw PlayerError.notAuthorized();
     }
 
     // Check if requester is the owner
     if (!requesterId || existing.ownerId !== requesterId) {
-        throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Not authorized to delete this word list' };
+        throw WordListError.notAuthorized(id);
     }
 
     try {
         await prisma.wordList.delete({ where: { id } });
         logger.info(`Word list deleted: ${id}`);
     } catch (error) {
-        logger.error('Error deleting word list:', error);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to delete word list' };
+        logger.error('Error deleting word list', { error: error.message });
+        throw new ServerError('Failed to delete word list');
     }
 }
 
