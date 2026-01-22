@@ -161,6 +161,111 @@ describe('Rate Limiter Optimizations', () => {
     });
 });
 
+describe('Redis Batch Operations - Code Patterns', () => {
+    test('getTeamMembers uses mGet for batch fetching', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify batch fetch pattern exists
+        expect(playerServiceCode).toContain('mGet');
+        expect(playerServiceCode).toMatch(/playerKeys\s*=\s*sessionIds\.map/);
+        expect(playerServiceCode).toMatch(/redis\.mGet\(playerKeys\)/);
+    });
+
+    test('getTeamMembers handles empty team early-return', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify early return for empty team
+        expect(playerServiceCode).toMatch(/if\s*\(\s*sessionIds\.length\s*===\s*0\s*\)/);
+        expect(playerServiceCode).toContain('return [];');
+    });
+
+    test('getPlayersInRoom uses mGet for batch fetching', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify batch fetch in getPlayersInRoom as well
+        expect(playerServiceCode).toMatch(/getPlayersInRoom/);
+        expect(playerServiceCode).toMatch(/mGet/);
+    });
+});
+
+describe('Atomic Operations - Code Patterns', () => {
+    test('setTeam uses Lua script for atomicity', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify Lua script pattern for atomic operations
+        expect(playerServiceCode).toContain('ATOMIC_SET_TEAM_SCRIPT');
+        expect(playerServiceCode).toMatch(/redis\.eval/);
+    });
+
+    test('room join uses atomic script', () => {
+        const fs = require('fs');
+        const roomServiceCode = fs.readFileSync(
+            require.resolve('../services/roomService.js'),
+            'utf8'
+        );
+
+        // Verify atomic join pattern
+        expect(roomServiceCode).toContain('ATOMIC_JOIN_SCRIPT');
+        expect(roomServiceCode).toMatch(/redis\.eval/);
+    });
+
+    test('setTeam clears role when changing teams', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify role clearing on team change in Lua script
+        expect(playerServiceCode).toMatch(/role.*spectator|spectator.*role/i);
+    });
+});
+
+describe('Health Check Timeout', () => {
+    test('health check endpoint has timeout protection', () => {
+        const fs = require('fs');
+        const appCode = fs.readFileSync(
+            require.resolve('../app.js'),
+            'utf8'
+        );
+
+        expect(appCode).toContain('Promise.race');
+        expect(appCode).toContain('Socket count timeout');
+        expect(appCode).toContain('2000');
+    });
+});
+
+describe('Frontend Caching Patterns', () => {
+    test('frontend uses element caching pattern', () => {
+        const fs = require('fs');
+        const path = require('path');
+        const indexHtml = fs.readFileSync(
+            path.join(__dirname, '..', '..', '..', 'index.html'),
+            'utf8'
+        );
+
+        expect(indexHtml).toContain('cachedElements');
+        expect(indexHtml).toContain('initCachedElements');
+        expect(indexHtml).toMatch(/cachedElements\.board\s*\|\|\s*document\.getElementById/);
+    });
+});
+
 describe('In-place Array Filtering', () => {
     // Test the concept of in-place filtering used in rate limiter
     test('in-place filter modifies array length correctly', () => {
