@@ -44,14 +44,6 @@ async function createPlayer(sessionId, roomCode, nickname, isHost = false, addTo
     return player;
 }
 
-/**
- * Create player data only (session already added to room set by Lua script)
- * Used when atomic join script has already added the session to the players set
- * @deprecated Use createPlayer with addToSet=false instead
- */
-async function createPlayerData(sessionId, roomCode, nickname, isHost = false) {
-    return createPlayer(sessionId, roomCode, nickname, isHost, false);
-}
 
 /**
  * Get player by session ID
@@ -710,7 +702,6 @@ async function invalidateReconnectionToken(sessionId) {
 
 module.exports = {
     createPlayer,
-    createPlayerData,
     getPlayer,
     updatePlayer,
     setTeam,
@@ -727,6 +718,9 @@ module.exports = {
     startCleanupTask,
     stopCleanupTask,
     // ISSUE #17 FIX: Reconnection token functions
+    // validateReconnectToken - simple tokens for automatic socket auth reconnection
+    validateReconnectToken,
+    // Complex token functions for explicit room:reconnect flow
     generateReconnectionToken,
     validateReconnectionToken,
     getExistingReconnectionToken,

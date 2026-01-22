@@ -130,11 +130,11 @@ describe('Player Service', () => {
         });
     });
 
-    describe('createPlayerData', () => {
-        test('calls createPlayer with addToSet=false', async () => {
+    describe('createPlayer with addToSet=false', () => {
+        test('creates player without adding to room set', async () => {
             mockRedis.set.mockResolvedValue('OK');
 
-            await playerService.createPlayerData('session-123', 'ABC123', 'TestPlayer', false);
+            await playerService.createPlayer('session-123', 'ABC123', 'TestPlayer', false, false);
 
             expect(mockRedis.sAdd).not.toHaveBeenCalled();
         });
