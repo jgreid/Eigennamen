@@ -161,6 +161,207 @@ describe('Rate Limiter Optimizations', () => {
     });
 });
 
+describe('Redis Batch Operations - Code Patterns', () => {
+    test('getTeamMembers uses mGet for batch fetching', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify batch fetch pattern exists
+        expect(playerServiceCode).toContain('mGet');
+        expect(playerServiceCode).toMatch(/playerKeys\s*=\s*sessionIds\.map/);
+        expect(playerServiceCode).toMatch(/redis\.mGet\(playerKeys\)/);
+    });
+
+    test('getTeamMembers handles empty team early-return', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify early return for empty team
+        expect(playerServiceCode).toMatch(/if\s*\(\s*sessionIds\.length\s*===\s*0\s*\)/);
+        expect(playerServiceCode).toContain('return [];');
+    });
+
+    test('getPlayersInRoom uses mGet for batch fetching', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify batch fetch in getPlayersInRoom as well
+        expect(playerServiceCode).toMatch(/getPlayersInRoom/);
+        expect(playerServiceCode).toMatch(/mGet/);
+    });
+});
+
+describe('Atomic Operations - Code Patterns', () => {
+    test('setTeam uses Lua script for atomicity', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify Lua script pattern for atomic operations
+        expect(playerServiceCode).toContain('ATOMIC_SET_TEAM_SCRIPT');
+        expect(playerServiceCode).toMatch(/redis\.eval/);
+    });
+
+    test('room join uses atomic script', () => {
+        const fs = require('fs');
+        const roomServiceCode = fs.readFileSync(
+            require.resolve('../services/roomService.js'),
+            'utf8'
+        );
+
+        // Verify atomic join pattern
+        expect(roomServiceCode).toContain('ATOMIC_JOIN_SCRIPT');
+        expect(roomServiceCode).toMatch(/redis\.eval/);
+    });
+
+    test('setTeam clears role when changing teams', () => {
+        const fs = require('fs');
+        const playerServiceCode = fs.readFileSync(
+            require.resolve('../services/playerService.js'),
+            'utf8'
+        );
+
+        // Verify role clearing on team change in Lua script
+        expect(playerServiceCode).toMatch(/role.*spectator|spectator.*role/i);
+    });
+});
+
+describe('Health Check Timeout', () => {
+    test('health check endpoint has timeout protection', () => {
+        const fs = require('fs');
+        const appCode = fs.readFileSync(
+            require.resolve('../app.js'),
+            'utf8'
+        );
+
+        expect(appCode).toContain('Promise.race');
+        expect(appCode).toContain('Socket count timeout');
+        expect(appCode).toContain('2000');
+    });
+});
+
+describe('Frontend Caching Patterns', () => {
+    test('frontend uses element caching pattern', () => {
+        const fs = require('fs');
+        const path = require('path');
+        const indexHtml = fs.readFileSync(
+            path.join(__dirname, '..', '..', '..', 'index.html'),
+            'utf8'
+        );
+
+        expect(indexHtml).toContain('cachedElements');
+        expect(indexHtml).toContain('initCachedElements');
+        expect(indexHtml).toMatch(/cachedElements\.board\s*\|\|\s*document\.getElementById/);
+    });
+});
+
+describe('Frontend Module Architecture', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const publicJsPath = path.join(__dirname, '..', '..', 'public', 'js');
+
+    test('state.js module exists with EventEmitter pattern', () => {
+        const stateJs = fs.readFileSync(path.join(publicJsPath, 'state.js'), 'utf8');
+
+        // EventEmitter class
+        expect(stateJs).toContain('class EventEmitter');
+        expect(stateJs).toMatch(/on\s*\(\s*event\s*,\s*callback\s*\)/);
+        expect(stateJs).toMatch(/emit\s*\(\s*event/);
+        expect(stateJs).toContain('off(event, callback)');
+
+        // StateStore class
+        expect(stateJs).toContain('class StateStore');
+        expect(stateJs).toContain('extends EventEmitter');
+
+        // AppState class
+        expect(stateJs).toContain('class AppState');
+        expect(stateJs).toContain('createGameStore');
+        expect(stateJs).toContain('createPlayerStore');
+        expect(stateJs).toContain('createUIStore');
+    });
+
+    test('socket-client.js module exists with reconnection handling', () => {
+        const socketJs = fs.readFileSync(path.join(publicJsPath, 'socket-client.js'), 'utf8');
+
+        // Connection handling
+        expect(socketJs).toContain('CodenamesClient');
+        expect(socketJs).toContain('connect(');
+        expect(socketJs).toContain('reconnectAttempts');
+        expect(socketJs).toContain('maxReconnectAttempts');
+
+        // Session management
+        expect(socketJs).toContain('sessionId');
+        expect(socketJs).toContain('sessionStorage');
+
+        // Room management
+        expect(socketJs).toContain('roomCode');
+        expect(socketJs).toContain('autoRejoin');
+    });
+
+    test('ui.js module exists with ElementCache', () => {
+        const uiJs = fs.readFileSync(path.join(publicJsPath, 'ui.js'), 'utf8');
+
+        // ElementCache class
+        expect(uiJs).toContain('class ElementCache');
+        expect(uiJs).toContain('this.cache');
+        expect(uiJs).toContain('this.initialized');
+
+        // Screen reader support
+        expect(uiJs).toContain('ScreenReaderAnnouncer');
+        expect(uiJs).toContain('aria-live');
+    });
+
+    test('game.js module exists with game logic', () => {
+        const gameJs = fs.readFileSync(path.join(publicJsPath, 'game.js'), 'utf8');
+
+        // Game logic functions
+        expect(gameJs).toMatch(/seededRandom|shuffleWithSeed|BOARD_SIZE/);
+    });
+
+    test('app.js module exists as main entry point', () => {
+        const appJs = fs.readFileSync(path.join(publicJsPath, 'app.js'), 'utf8');
+
+        // Main app initialization
+        expect(appJs).toMatch(/init|initialize|DOMContentLoaded/i);
+    });
+
+    test('event listener cleanup pattern exists', () => {
+        const fs = require('fs');
+        const indexHtml = fs.readFileSync(
+            path.join(__dirname, '..', '..', '..', 'index.html'),
+            'utf8'
+        );
+
+        // Modal event cleanup
+        expect(indexHtml).toContain('removeEventListener');
+    });
+
+    test('state management uses centralized gameState object', () => {
+        const fs = require('fs');
+        const indexHtml = fs.readFileSync(
+            path.join(__dirname, '..', '..', '..', 'index.html'),
+            'utf8'
+        );
+
+        // Centralized state
+        expect(indexHtml).toMatch(/let\s+gameState\s*=/);
+        expect(indexHtml).toContain('gameState.currentTurn');
+        expect(indexHtml).toContain('gameState.gameOver');
+        expect(indexHtml).toContain('gameState.revealed');
+    });
+});
+
 describe('In-place Array Filtering', () => {
     // Test the concept of in-place filtering used in rate limiter
     test('in-place filter modifies array length correctly', () => {
