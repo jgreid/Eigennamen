@@ -15,7 +15,6 @@ const routes = require('./routes');
 const logger = require('./utils/logger');
 const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
 const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
-const { correlationMiddleware } = require('./utils/correlationId');
 
 const app = express();
 
