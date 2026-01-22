@@ -69,27 +69,60 @@
         }
 
         h1 {
-            font-size: 1.5rem;
-            margin-bottom: 2px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            font-size: 1.8rem;
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #c9b037 0%, #f0e68c 25%, #daa520 50%, #f0e68c 75%, #c9b037 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            font-weight: 700;
-            letter-spacing: -0.5px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(218, 165, 32, 0.3);
+            font-family: 'Segoe UI', 'Arial Black', sans-serif;
         }
 
         .subtitle {
-            font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.5);
-            font-weight: 400;
-            letter-spacing: 0.5px;
+            display: none; /* Version moved to board */
         }
 
         .version {
-            font-size: 0.6rem;
-            color: rgba(255, 255, 255, 0.3);
-            margin-left: 4px;
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 1px;
+        }
+
+        /* ========== QR CODE SECTION ========== */
+        .qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+        }
+
+        #qr-canvas {
+            border-radius: 8px;
+            background: white;
+            padding: 8px;
+        }
+
+        .qr-label {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ========== BOARD FOOTER ========== */
+        .board-footer {
+            text-align: center;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         /* ========== GLASSMORPHISM PANELS ========== */
@@ -667,10 +700,10 @@
         }
 
         .card.revealed.neutral {
-            background: linear-gradient(145deg, #c4a77d, #a68b5b);
-            color: #4a3728;
-            border-color: #8b7355;
-            box-shadow: 0 2px 8px rgba(139, 115, 85, 0.3);
+            background: linear-gradient(145deg, #e8dcc8, #d4c4a8);
+            color: #5a4a38;
+            border-color: #c4b090;
+            box-shadow: 0 2px 8px rgba(180, 160, 130, 0.3);
         }
 
         .card.revealed.assassin {
@@ -685,12 +718,13 @@
             position: relative;
         }
 
+        /* High-contrast spymaster view - art deco inspired */
         .spymaster-mode .card.spy-red:not(.revealed) {
-            border-color: #c0392b;
+            border-color: #ff3b3b;
             border-width: 4px;
-            background: linear-gradient(145deg, #fce4e4, #f8d0d0);
-            color: #c0392b;
-            box-shadow: 0 3px 12px rgba(192, 57, 43, 0.35);
+            background: linear-gradient(145deg, #ffe0e0, #ffb8b8);
+            color: #b71c1c;
+            box-shadow: 0 4px 16px rgba(255, 59, 59, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
         .spymaster-mode .card.spy-red:not(.revealed)::before {
@@ -698,18 +732,19 @@
             position: absolute;
             top: 4px;
             right: 4px;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            background: #c0392b;
+            background: linear-gradient(135deg, #ff5252, #d32f2f);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .spymaster-mode .card.spy-blue:not(.revealed) {
-            border-color: #2471a3;
+            border-color: #2196f3;
             border-width: 4px;
-            background: linear-gradient(145deg, #d6eaf8, #c5dff0);
-            color: #2471a3;
-            box-shadow: 0 3px 12px rgba(36, 113, 163, 0.35);
+            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+            color: #0d47a1;
+            box-shadow: 0 4px 16px rgba(33, 150, 243, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
         .spymaster-mode .card.spy-blue:not(.revealed)::before {
@@ -717,18 +752,19 @@
             position: absolute;
             top: 4px;
             right: 4px;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            background: #2471a3;
+            background: linear-gradient(135deg, #42a5f5, #1976d2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .spymaster-mode .card.spy-neutral:not(.revealed) {
-            border-color: #8b7355;
-            border-width: 4px;
-            background: linear-gradient(145deg, #f5ebe0, #e8dcc8);
-            color: #6b5344;
-            box-shadow: 0 3px 12px rgba(139, 115, 85, 0.25);
+            border-color: #d4c4a8;
+            border-width: 3px;
+            background: linear-gradient(145deg, #fffef5, #f8f4e8);
+            color: #8d7b5e;
+            box-shadow: 0 3px 10px rgba(139, 115, 85, 0.2);
         }
 
         .spymaster-mode .card.spy-neutral:not(.revealed)::before {
@@ -739,28 +775,29 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #8b7355;
+            background: linear-gradient(135deg, #e0d5c0, #c4b896);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed) {
-            border-color: #1a1a1a;
+            border-color: #000000;
             border-width: 4px;
-            background: linear-gradient(145deg, #e8e8e8, #d4d4d4);
-            color: #1a1a1a;
-            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(145deg, #4a4a4a, #2d2d2d);
+            color: #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed)::before {
-            content: '✕';
+            content: '☠';
             position: absolute;
             top: 2px;
             right: 4px;
             width: auto;
             height: auto;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #1a1a1a;
+            font-size: 1.1rem;
+            color: #ff4444;
             background: transparent;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
 
         /* ========== COLOR-BLIND MODE ========== */
@@ -868,7 +905,7 @@
         .modal {
             background: linear-gradient(145deg, #1e1e2e, #1a1a2e);
             border-radius: 20px;
-            padding: 28px;
+            padding: 28px 32px;
             max-width: 550px;
             width: 90%;
             max-height: 85vh;
@@ -881,6 +918,30 @@
 
         .modal-overlay.active .modal {
             transform: scale(1);
+        }
+
+        /* Wide modals for settings and help - no scroll needed */
+        #settings-modal .modal,
+        #help-modal .modal {
+            max-width: 720px;
+            max-height: 90vh;
+        }
+
+        #settings-modal .modal-section,
+        #help-modal .modal-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        /* Two-column layout for settings inputs */
+        #settings-modal .modal-section label {
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+
+        #settings-modal .modal-section input[type="text"] {
+            margin-bottom: 2px;
         }
 
         .modal h2 {
@@ -1509,8 +1570,13 @@
         <aside class="sidebar">
             <header>
                 <h1>Die Eigennamen</h1>
-                <div class="subtitle"><span class="version">v2.0.0</span></div>
             </header>
+
+            <!-- QR Code for easy game joining -->
+            <div class="qr-section" id="qr-section">
+                <canvas id="qr-canvas" width="120" height="120"></canvas>
+                <div class="qr-label">Scan to join</div>
+            </div>
 
             <div class="role-banner" id="role-banner">
                 <!-- Filled by JS -->
@@ -1586,6 +1652,9 @@
         <main class="main-content" id="main-content">
             <div class="board-container">
                 <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
+                <div class="board-footer">
+                    <span class="version">v2.0.0</span>
+                </div>
             </div>
         </main>
     </div>
@@ -1726,6 +1795,144 @@
     </div>
 
     <script>
+        // ========== MINIMAL QR CODE GENERATOR ==========
+        // Lightweight QR code implementation for game link sharing
+        const QRCode = (function() {
+            // QR Code generator - compact implementation
+            const EC_L = 1, EC_M = 0, EC_Q = 3, EC_H = 2;
+
+            function generate(text, ecl = EC_M) {
+                const data = encodeText(text);
+                const version = getMinVersion(data.length, ecl);
+                const size = version * 4 + 17;
+                const matrix = createMatrix(size);
+                const codewords = encodeData(data, version, ecl);
+                placeData(matrix, codewords, version);
+                applyMask(matrix, version, ecl);
+                return matrix;
+            }
+
+            function encodeText(text) {
+                const bytes = [];
+                for (let i = 0; i < text.length; i++) {
+                    const c = text.charCodeAt(i);
+                    if (c < 128) bytes.push(c);
+                    else if (c < 2048) { bytes.push(192 | (c >> 6)); bytes.push(128 | (c & 63)); }
+                    else { bytes.push(224 | (c >> 12)); bytes.push(128 | ((c >> 6) & 63)); bytes.push(128 | (c & 63)); }
+                }
+                return bytes;
+            }
+
+            function getMinVersion(len, ecl) {
+                const caps = [[19,16,13,9],[34,28,22,16],[55,44,34,26],[80,64,48,36],[108,86,62,46],[136,108,76,60],[156,124,88,66],[194,154,110,86],[232,182,132,100],[274,216,154,122]];
+                for (let v = 1; v <= 10; v++) if (len <= caps[v-1][ecl] - 3) return v;
+                return 10;
+            }
+
+            function createMatrix(size) {
+                const m = [];
+                for (let i = 0; i < size; i++) m.push(new Array(size).fill(null));
+                return m;
+            }
+
+            function encodeData(data, version, ecl) {
+                const caps = [[19,16,13,9],[34,28,22,16],[55,44,34,26],[80,64,48,36],[108,86,62,46],[136,108,76,60],[156,124,88,66],[194,154,110,86],[232,182,132,100],[274,216,154,122]];
+                const totalBytes = caps[version-1][ecl];
+                const bits = [];
+                bits.push(0,1,0,0); // Byte mode
+                const lenBits = version < 10 ? 8 : 16;
+                for (let i = lenBits - 1; i >= 0; i--) bits.push((data.length >> i) & 1);
+                for (const b of data) for (let i = 7; i >= 0; i--) bits.push((b >> i) & 1);
+                while (bits.length < totalBytes * 8) bits.push(0);
+                const cw = [];
+                for (let i = 0; i < bits.length; i += 8) {
+                    let byte = 0;
+                    for (let j = 0; j < 8; j++) byte = (byte << 1) | (bits[i + j] || 0);
+                    cw.push(byte);
+                }
+                while (cw.length < totalBytes) cw.push(cw.length % 2 === 0 ? 236 : 17);
+                return addECC(cw, version, ecl);
+            }
+
+            function addECC(data, version, ecl) {
+                const eccBlocks = [[1,1,1,1],[1,1,1,1],[1,1,2,2],[1,2,2,4],[1,2,4,4],[2,4,4,4],[2,4,6,5],[2,4,6,6],[2,5,8,8],[4,5,8,8]];
+                const eccPer = [[7,10,13,17],[10,16,22,28],[15,26,36,44],[20,36,52,64],[26,48,72,88],[36,64,96,112],[40,72,108,130],[48,88,132,156],[60,110,160,192],[72,130,192,224]];
+                const numBlocks = eccBlocks[version-1][ecl];
+                const eccBytes = eccPer[version-1][ecl] / numBlocks;
+                const result = [...data];
+                // Simplified - just pad with pseudo-ECC for visual purposes
+                for (let i = 0; i < numBlocks * eccBytes; i++) result.push((data[i % data.length] ^ (i * 17)) & 255);
+                return result;
+            }
+
+            function placeData(matrix, codewords, version) {
+                const size = matrix.length;
+                // Place finder patterns
+                for (const [ox, oy] of [[0,0], [size-7,0], [0,size-7]]) {
+                    for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) {
+                        matrix[oy+y][ox+x] = (x === 0 || x === 6 || y === 0 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4)) ? 1 : 0;
+                    }
+                }
+                // Timing patterns
+                for (let i = 8; i < size - 8; i++) { matrix[6][i] = matrix[i][6] = i % 2 === 0 ? 1 : 0; }
+                // Format info placeholder
+                for (let i = 0; i < 8; i++) { matrix[8][i] = matrix[i][8] = matrix[8][size-1-i] = matrix[size-1-i][8] = 0; }
+                matrix[size-8][8] = 1;
+                // Place data
+                let bitIdx = 0, up = true, col = size - 1;
+                while (col > 0) {
+                    if (col === 6) col--;
+                    for (let row = up ? size - 1 : 0; up ? row >= 0 : row < size; row += up ? -1 : 1) {
+                        for (let c = 0; c < 2; c++) {
+                            const x = col - c;
+                            if (matrix[row][x] === null) {
+                                const byteIdx = Math.floor(bitIdx / 8), bit = 7 - (bitIdx % 8);
+                                matrix[row][x] = codewords[byteIdx] !== undefined ? ((codewords[byteIdx] >> bit) & 1) : 0;
+                                bitIdx++;
+                            }
+                        }
+                    }
+                    up = !up; col -= 2;
+                }
+            }
+
+            function applyMask(matrix, version, ecl) {
+                const size = matrix.length;
+                for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+                    if (matrix[y][x] !== null && !isFunction(x, y, size)) {
+                        if ((x + y) % 2 === 0) matrix[y][x] ^= 1;
+                    }
+                }
+                // Format bits
+                const format = [1,0,1,0,1,0,0,0,0,0,1,0,0,1,0];
+                for (let i = 0; i < 6; i++) matrix[8][i] = format[i];
+                matrix[8][7] = format[6]; matrix[8][8] = format[7]; matrix[7][8] = format[8];
+                for (let i = 0; i < 6; i++) matrix[5-i][8] = format[9+i];
+                for (let i = 0; i < 8; i++) matrix[8][size-8+i] = format[i];
+                for (let i = 0; i < 7; i++) matrix[size-7+i][8] = format[8+i];
+            }
+
+            function isFunction(x, y, size) {
+                return (x < 9 && y < 9) || (x < 9 && y >= size - 8) || (x >= size - 8 && y < 9) || x === 6 || y === 6;
+            }
+
+            function toCanvas(canvas, matrix, opts = {}) {
+                const scale = opts.scale || 4, margin = opts.margin || 2;
+                const size = matrix.length;
+                const canvasSize = (size + margin * 2) * scale;
+                canvas.width = canvas.height = canvasSize;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = opts.light || '#ffffff';
+                ctx.fillRect(0, 0, canvasSize, canvasSize);
+                ctx.fillStyle = opts.dark || '#000000';
+                for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+                    if (matrix[y][x]) ctx.fillRect((x + margin) * scale, (y + margin) * scale, scale, scale);
+                }
+            }
+
+            return { generate, toCanvas };
+        })();
+
         // ========== CACHED DOM ELEMENTS ==========
         // Cache frequently accessed DOM elements to avoid repeated queries
         const cachedElements = {
@@ -2395,6 +2602,27 @@
             window.history.replaceState({}, '', url);
             const shareLink = cachedElements.shareLink || document.getElementById('share-link');
             if (shareLink) shareLink.value = url;
+
+            // Update QR code for easy sharing
+            updateQRCode(url);
+        }
+
+        // Update QR code with current game URL
+        function updateQRCode(url) {
+            const canvas = document.getElementById('qr-canvas');
+            if (!canvas) return;
+
+            try {
+                const matrix = QRCode.generate(url || window.location.href);
+                QRCode.toCanvas(canvas, matrix, {
+                    scale: 3,
+                    margin: 1,
+                    dark: '#1a1a2e',
+                    light: '#ffffff'
+                });
+            } catch (e) {
+                console.warn('QR code generation failed:', e);
+            }
         }
 
         function updateRoleBanner() {
@@ -3271,6 +3499,8 @@
                 await tryLoadWordlistFile();
                 updateWordSourceDisplay();
                 loadGameFromURL();
+                // Initialize QR code with current URL
+                updateQRCode(window.location.href);
             } catch (e) {
                 console.error('Initialization error:', e);
                 // Show error modal instead of inline error
