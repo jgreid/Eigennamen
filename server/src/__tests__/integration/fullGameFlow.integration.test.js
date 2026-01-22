@@ -16,15 +16,15 @@ const SOCKET_URL = `http://localhost:${TEST_PORT}`;
 const CONNECTION_TIMEOUT = 5000;
 
 // Mock Redis storage
-let mockRedisStorage = new Map();
-let mockRedisSets = new Map();
-let mockRedisSortedSets = new Map();
+const mockRedisStorage = new Map();
+const mockRedisSets = new Map();
+const mockRedisSortedSets = new Map();
 
 // Setup mocks before importing services
 jest.mock('../../config/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
-        set: jest.fn(async (key, value, options) => {
+        set: jest.fn(async (key, value, _options) => {
             mockRedisStorage.set(key, value);
             return 'OK';
         }),
