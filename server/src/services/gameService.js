@@ -17,6 +17,12 @@ const {
     ERROR_CODES,
     GAME_HISTORY
 } = require('../config/constants');
+const {
+    GameStateError,
+    ValidationError,
+    PlayerError,
+    ServerError
+} = require('../errors/GameError');
 
 // Use centralized constant
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
@@ -448,7 +454,7 @@ function incrementVersion(game) {
 function validateCardIndex(index) {
     if (typeof index !== 'number' || !Number.isFinite(index) ||
         index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
-        throw { code: ERROR_CODES.INVALID_INPUT, message: `Invalid card index: must be 0-${BOARD_SIZE - 1}` };
+        throw ValidationError.invalidCardIndex(index, BOARD_SIZE);
     }
 }
 
@@ -460,20 +466,20 @@ function validateCardIndex(index) {
  */
 function validateRevealPreconditions(game, index) {
     if (game.gameOver) {
-        throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+        throw GameStateError.gameOver();
     }
 
     if (!game.currentClue) {
-        throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must give a clue before guessing' };
+        throw ValidationError.noClueGiven();
     }
 
     // 0 = unlimited guesses for "0" clue
     if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
-        throw { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' };
+        throw ValidationError.noGuessesRemaining();
     }
 
     if (game.revealed[index]) {
-        throw { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' };
+        throw GameStateError.cardAlreadyRevealed(index);
     }
 }
 
@@ -639,8 +645,8 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
             throw error;
         }
         // Otherwise, log and rethrow
-        logger.error(`Optimized reveal failed for room ${roomCode}:`, error.message);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to reveal card' };
+        logger.error('Optimized reveal failed', { roomCode, error: error.message });
+        throw new ServerError('Failed to reveal card');
     }
 }
 
@@ -663,7 +669,7 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     // ISSUE #32 FIX: Acquire distributed lock before reveal to prevent race conditions
     const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
     if (!lockAcquired) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Another card reveal is in progress, please try again' };
+        throw new ServerError('Another card reveal is in progress, please try again');
     }
 
     try {
@@ -691,14 +697,14 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 const gameData = await redis.get(gameKey);
                 if (!gameData) {
                     await redis.unwatch();
-                    throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                    throw GameStateError.noActiveGame();
                 }
 
                 const game = safeParseGameData(gameData, roomCode);
                 if (!game) {
                     await redis.unwatch();
                     await redis.del(gameKey);
-                    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+                    throw GameStateError.corrupted(roomCode);
                 }
 
                 // Validate preconditions
@@ -747,7 +753,7 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
             }
         }
 
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to reveal card due to concurrent modifications' };
+        throw ServerError.concurrentModification();
     } finally {
         // ISSUE #32 FIX: Always release the distributed lock
         await redis.del(lockKey).catch(err => {
@@ -809,7 +815,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
 
     // Validate team is provided
     if (!team || (team !== 'red' && team !== 'blue')) {
-        throw { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must be on a team to give clues' };
+        throw ValidationError.invalidTeam();
     }
 
     const maxRetries = 3;
@@ -823,44 +829,44 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
             const gameData = await redis.get(gameKey);
             if (!gameData) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                throw GameStateError.noActiveGame();
             }
 
             const game = safeParseGameData(gameData, roomCode);
             if (!game) {
                 await redis.unwatch();
                 await redis.del(gameKey);
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+                throw GameStateError.corrupted(roomCode);
             }
 
             if (game.gameOver) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+                throw GameStateError.gameOver();
             }
 
             if (game.currentTurn !== team) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" };
+                throw PlayerError.notYourTurn(team);
             }
 
             // Check if a clue was already given this turn
             if (game.currentClue) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.INVALID_INPUT, message: 'A clue has already been given this turn' };
+                throw ValidationError.clueAlreadyGiven();
             }
 
             // BUG-3 FIX: Validate clue number is within valid range (0-25)
             // 0 = unlimited guesses, max is 25 (board size)
             if (typeof number !== 'number' || !Number.isInteger(number) || number < 0 || number > BOARD_SIZE) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.INVALID_INPUT, message: `Clue number must be 0-${BOARD_SIZE}` };
+                throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
             }
 
             // Validate clue word is not on the board
             const validation = validateClueWord(word, game.words);
             if (!validation.valid) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.INVALID_INPUT, message: validation.reason };
+                throw ValidationError.invalidClue(validation.reason);
             }
 
             const clue = {
@@ -915,7 +921,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
         }
     }
 
-    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to save clue due to concurrent modifications' };
+    throw ServerError.concurrentModification();
 }
 
 /**
@@ -936,19 +942,19 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
             const gameData = await redis.get(gameKey);
             if (!gameData) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                throw GameStateError.noActiveGame();
             }
 
             const game = safeParseGameData(gameData, roomCode);
             if (!game) {
                 await redis.unwatch();
                 await redis.del(gameKey);
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+                throw GameStateError.corrupted(roomCode);
             }
 
             if (game.gameOver) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+                throw GameStateError.gameOver();
             }
 
             const previousTurn = game.currentTurn;
@@ -988,7 +994,7 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
         }
     }
 
-    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to end turn due to concurrent modifications' };
+    throw ServerError.concurrentModification();
 }
 
 /**
@@ -1009,19 +1015,19 @@ async function forfeitGame(roomCode) {
             const gameData = await redis.get(gameKey);
             if (!gameData) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                throw GameStateError.noActiveGame();
             }
 
             const game = safeParseGameData(gameData, roomCode);
             if (!game) {
                 await redis.unwatch();
                 await redis.del(gameKey);
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+                throw GameStateError.corrupted(roomCode);
             }
 
             if (game.gameOver) {
                 await redis.unwatch();
-                throw { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' };
+                throw GameStateError.gameOver();
             }
 
             // The current turn's team forfeits, other team wins
@@ -1063,7 +1069,7 @@ async function forfeitGame(roomCode) {
         }
     }
 
-    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to forfeit due to concurrent modifications' };
+    throw ServerError.concurrentModification();
 }
 
 /**

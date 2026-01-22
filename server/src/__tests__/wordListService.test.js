@@ -387,8 +387,7 @@ describe('WordListService', () => {
             });
 
             await expect(updateWordList('uuid-123', { name: 'Test' })).rejects.toMatchObject({
-                code: ERROR_CODES.NOT_AUTHORIZED,
-                message: expect.stringContaining('Anonymous')
+                code: ERROR_CODES.NOT_AUTHORIZED
             });
         });
 

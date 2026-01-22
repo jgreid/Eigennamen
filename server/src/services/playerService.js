@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY } = require('../config/constants');
+const { ServerError, ValidationError } = require('../errors/GameError');
 
 /**
  * Create a new player
@@ -75,7 +76,7 @@ async function updatePlayer(sessionId, updates) {
     const player = await getPlayer(sessionId);
 
     if (!player) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+        throw new ServerError('Player not found');
     }
 
     const updatedPlayer = {
@@ -136,7 +137,7 @@ async function setTeam(sessionId, team) {
     // Get player first to get room code and old team for team set maintenance
     const existingPlayer = await getPlayer(sessionId);
     if (!existingPlayer) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+        throw new ServerError('Player not found');
     }
 
     const oldTeam = existingPlayer.team;
@@ -154,7 +155,7 @@ async function setTeam(sessionId, team) {
     );
 
     if (!result) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+        throw new ServerError('Player not found');
     }
 
     try {
@@ -175,8 +176,8 @@ async function setTeam(sessionId, team) {
         logger.debug(`Player ${sessionId} team set to ${team}`);
         return player;
     } catch (e) {
-        logger.error(`Failed to parse player data after team change for ${sessionId}:`, e.message);
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to update player team' };
+        logger.error('Failed to parse player data after team change', { sessionId, error: e.message });
+        throw new ServerError('Failed to update player team');
     }
 }
 
@@ -189,15 +190,12 @@ async function setRole(sessionId, role) {
     const player = await getPlayer(sessionId);
 
     if (!player) {
-        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+        throw new ServerError('Player not found');
     }
 
     // ISSUE #31 FIX: Require team assignment before becoming spymaster or clicker
     if ((role === 'spymaster' || role === 'clicker') && !player.team) {
-        throw {
-            code: ERROR_CODES.INVALID_INPUT,
-            message: 'Must join a team before becoming ' + role
-        };
+        throw new ValidationError('Must join a team before becoming ' + role);
     }
 
     // If becoming spymaster or clicker, use a lock to prevent race conditions
@@ -208,10 +206,7 @@ async function setRole(sessionId, role) {
         const lockAcquired = await redis.set(lockKey, sessionId, { NX: true, EX: 5 });
 
         if (!lockAcquired) {
-            throw {
-                code: ERROR_CODES.INVALID_INPUT,
-                message: `Another player is becoming ${role}, please try again`
-            };
+            throw new ValidationError(`Another player is becoming ${role}, please try again`);
         }
 
         try {
@@ -222,10 +217,7 @@ async function setRole(sessionId, role) {
             );
 
             if (existingPlayer) {
-                throw {
-                    code: ERROR_CODES.INVALID_INPUT,
-                    message: `${player.team} team already has a ${role}`
-                };
+                throw new ValidationError(`${player.team} team already has a ${role}`);
             }
 
             // Update the role while holding the lock
