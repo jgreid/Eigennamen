@@ -13,6 +13,40 @@ const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const { RoomError } = require('../../errors/GameError');
 
+/**
+ * Helper: Send timer status to a socket
+ * Extracted to reduce code duplication across join/resync/reconnect handlers
+ */
+async function sendTimerStatus(socket, roomCode, context) {
+    try {
+        const { getTimerStatus } = require('../index');
+        const timerStatus = await getTimerStatus(roomCode);
+        if (timerStatus && timerStatus.endTime) {
+            socket.emit('timer:status', {
+                roomCode,
+                remainingSeconds: timerStatus.remainingSeconds,
+                endTime: timerStatus.endTime,
+                isPaused: timerStatus.isPaused || false
+            });
+        }
+    } catch (timerError) {
+        logger.warn(`Failed to send timer status on ${context}: ${timerError.message}`);
+    }
+}
+
+/**
+ * Helper: Send spymaster view if player is a spymaster with active game
+ * Extracted to reduce code duplication across join/resync/reconnect handlers
+ */
+async function sendSpymasterViewIfNeeded(socket, player, game, roomCode) {
+    if (player.role === 'spymaster' && game && !game.gameOver) {
+        const fullGame = await gameService.getGame(roomCode);
+        if (fullGame) {
+            socket.emit('game:spymasterView', { types: fullGame.types });
+        }
+    }
+}
+
 module.exports = function roomHandlers(io, socket) {
 
     /**
@@ -86,28 +120,10 @@ module.exports = function roomHandlers(io, socket) {
             socket.emit('room:joined', { room, players, game, you: player });
 
             // ISSUE #49 FIX: If player is a spymaster and game is active, send spymaster view
-            if (player.role === 'spymaster' && game && !game.gameOver) {
-                const fullGame = await gameService.getGame(room.code);
-                if (fullGame) {
-                    socket.emit('game:spymasterView', { types: fullGame.types });
-                }
-            }
+            await sendSpymasterViewIfNeeded(socket, player, game, room.code);
 
             // ISSUE #50 FIX: Send timer status for full state recovery on reconnection
-            try {
-                const { getTimerStatus } = require('../index');
-                const timerStatus = await getTimerStatus(room.code);
-                if (timerStatus && timerStatus.endTime) {
-                    socket.emit('timer:status', {
-                        roomCode: room.code,
-                        remainingSeconds: timerStatus.remainingSeconds,
-                        endTime: timerStatus.endTime,
-                        isPaused: timerStatus.isPaused || false
-                    });
-                }
-            } catch (timerError) {
-                logger.warn(`Failed to send timer status on join: ${timerError.message}`);
-            }
+            await sendTimerStatus(socket, room.code, 'join');
 
             // Notify others in the room
             socket.to(`room:${room.code}`).emit('room:playerJoined', { player });
@@ -270,25 +286,10 @@ module.exports = function roomHandlers(io, socket) {
             });
 
             // If player is spymaster and game active, send spymaster view
-            if (player.role === 'spymaster' && game && !game.gameOver) {
-                socket.emit('game:spymasterView', { types: game.types });
-            }
+            await sendSpymasterViewIfNeeded(socket, player, game, socket.roomCode);
 
             // Send timer status
-            try {
-                const { getTimerStatus } = require('../index');
-                const timerStatus = await getTimerStatus(socket.roomCode);
-                if (timerStatus && timerStatus.endTime) {
-                    socket.emit('timer:status', {
-                        roomCode: socket.roomCode,
-                        remainingSeconds: timerStatus.remainingSeconds,
-                        endTime: timerStatus.endTime,
-                        isPaused: timerStatus.isPaused || false
-                    });
-                }
-            } catch (timerError) {
-                logger.warn(`Failed to send timer status on resync: ${timerError.message}`);
-            }
+            await sendTimerStatus(socket, socket.roomCode, 'resync');
 
             logger.info(`State resynced for player ${socket.sessionId} in room ${socket.roomCode}`);
 
@@ -306,7 +307,7 @@ module.exports = function roomHandlers(io, socket) {
      * Clients should call this before intentional disconnects or periodically
      * to have a token ready for reconnection
      */
-    socket.on('room:getReconnectionToken', createRateLimitedHandler(socket, 'room:settings', async () => {
+    socket.on('room:getReconnectionToken', createRateLimitedHandler(socket, 'room:getReconnectionToken', async () => {
         try {
             if (!socket.roomCode) {
                 throw RoomError.notFound(socket.roomCode);
@@ -404,25 +405,10 @@ module.exports = function roomHandlers(io, socket) {
             });
 
             // If player is spymaster and game active, send spymaster view
-            if (player.role === 'spymaster' && game && !game.gameOver) {
-                socket.emit('game:spymasterView', { types: game.types });
-            }
+            await sendSpymasterViewIfNeeded(socket, player, game, code);
 
             // Send timer status
-            try {
-                const { getTimerStatus } = require('../index');
-                const timerStatus = await getTimerStatus(code);
-                if (timerStatus && timerStatus.endTime) {
-                    socket.emit('timer:status', {
-                        roomCode: code,
-                        remainingSeconds: timerStatus.remainingSeconds,
-                        endTime: timerStatus.endTime,
-                        isPaused: timerStatus.isPaused || false
-                    });
-                }
-            } catch (timerError) {
-                logger.warn(`Failed to send timer status on reconnect: ${timerError.message}`);
-            }
+            await sendTimerStatus(socket, code, 'reconnect');
 
             // Notify others in the room
             socket.to(`room:${code}`).emit('room:playerReconnected', {

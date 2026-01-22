@@ -336,8 +336,12 @@ async function getPlayersInRoom(roomCode) {
         logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
     }
 
-    // Sort by join time
-    return players.sort((a, b) => a.connectedAt - b.connectedAt);
+    // Sort by join time, with sessionId as secondary key for stability
+    return players.sort((a, b) => {
+        const timeDiff = a.connectedAt - b.connectedAt;
+        if (timeDiff !== 0) return timeDiff;
+        return a.sessionId.localeCompare(b.sessionId);
+    });
 }
 
 /**
@@ -651,6 +655,8 @@ async function validateReconnectionToken(token, sessionId) {
     }
 
     // Verify the token belongs to this session
+    // Note: This is not a timing attack vector since the token itself is the secret.
+    // The sessionId check prevents cross-session token reuse after successful token lookup.
     if (tokenData.sessionId !== sessionId) {
         logger.warn('Reconnection token session mismatch', {
             expectedSession: tokenData.sessionId,

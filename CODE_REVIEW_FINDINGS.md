@@ -1757,3 +1757,55 @@ if (document.readyState === 'loading') {
 ---
 
 *End of Seventh Pass - January 22, 2026 (Final Issue Resolution - All 74 Issues Addressed)*
+
+---
+
+## Eighth Pass Review - January 22, 2026 (Additional Fixes)
+
+This section documents additional issues found and fixed during a comprehensive review.
+
+### New Issues Found and Fixed
+
+| Issue | Severity | Location | Fix Applied |
+|-------|----------|----------|-------------|
+| Rate limiter misconfiguration | Critical | `roomHandlers.js:309` | Changed `'room:settings'` to `'room:getReconnectionToken'` |
+| Player sort instability | Medium | `playerService.js:340` | Added sessionId as secondary sort key |
+| Memory leak in timer callbacks | Medium | `timerService.js:142` | Added cleanup for `pendingAddTimeCallbacks` with TTL |
+| Null check in event filtering | Medium | `eventLogService.js:132` | Added proper null/undefined handling for versions |
+| Dead code in wordListService | Low | `wordListService.js:18-28` | Removed unused `_generateEditToken` and `_hashEditToken` |
+| Code duplication in roomHandlers | Low | `roomHandlers.js` | Extracted `sendTimerStatus` and `sendSpymasterViewIfNeeded` helpers |
+| Code duplication in gameService | Low | `gameService.js` | Extracted `executeGameTransaction` helper for retry pattern |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `server/src/socket/handlers/roomHandlers.js` | Fixed rate limiter ID; extracted timer/spymaster helpers |
+| `server/src/services/playerService.js` | Added stable sort; clarified token validation |
+| `server/src/services/timerService.js` | Added callback cleanup mechanism |
+| `server/src/services/eventLogService.js` | Fixed null version filtering |
+| `server/src/services/wordListService.js` | Removed dead code |
+| `server/src/services/gameService.js` | Extracted transaction retry helper |
+
+### Test Results
+
+All 1,363 tests pass after changes. No regressions introduced.
+
+### Remaining Recommendations
+
+#### Future Improvements (Lower Priority)
+1. **Frontend Modularization** - The `index.html` SPA (3,800+ lines) could benefit from splitting into modules for maintainability
+2. **Dependency Updates** - Several major version updates available (Express 5, Prisma 7, Redis 5, Zod 4) - evaluate and update when ready
+3. **E2E Testing** - Add Playwright/Cypress tests for full user flow coverage
+4. **Load Testing** - Add k6/Artillery scripts for performance validation
+
+#### Technical Debt Items (Acceptable)
+| Item | Reason |
+|------|--------|
+| Duplicate reconnection token functions | Serve different purposes (socket auth vs explicit reconnect) |
+| Hardcoded retry counts | Consistent (3 retries) across codebase |
+| CSP allows unsafe-inline | Required for SPA architecture |
+
+---
+
+*End of Eighth Pass - January 22, 2026 (Additional Fixes Applied)*

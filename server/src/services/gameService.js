@@ -26,6 +26,66 @@ const {
 
 // Use centralized constant
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
+const MAX_TRANSACTION_RETRIES = 3;
+
+/**
+ * Execute a Redis transaction with optimistic locking and retries
+ * Reduces code duplication across game state operations
+ * @param {string} gameKey - Redis key for the game
+ * @param {Function} operation - Async function(game) that modifies game and returns result
+ * @param {string} operationName - Name for logging
+ * @returns {Promise<any>} Result from operation function
+ */
+async function executeGameTransaction(gameKey, operation, operationName) {
+    const redis = getRedis();
+    const roomCode = gameKey.replace('room:', '').replace(':game', '');
+    let retries = 0;
+
+    while (retries < MAX_TRANSACTION_RETRIES) {
+        try {
+            await redis.watch(gameKey);
+
+            const gameData = await redis.get(gameKey);
+            if (!gameData) {
+                await redis.unwatch();
+                throw GameStateError.noActiveGame();
+            }
+
+            const game = safeParseGameData(gameData, roomCode);
+            if (!game) {
+                await redis.unwatch();
+                await redis.del(gameKey);
+                throw GameStateError.corrupted(roomCode);
+            }
+
+            // Execute the operation and get result
+            const result = await operation(game);
+
+            // Increment state version for conflict detection
+            incrementVersion(game);
+
+            // Execute transaction
+            const txResult = await redis.multi()
+                .set(gameKey, JSON.stringify(game))
+                .exec();
+
+            // If transaction failed (key was modified), retry
+            if (txResult === null) {
+                await redis.unwatch();
+                retries++;
+                continue;
+            }
+
+            return result;
+
+        } catch (error) {
+            await redis.unwatch();
+            throw error;
+        }
+    }
+
+    throw ServerError.concurrentModification();
+}
 
 /**
  * ISSUE #36 FIX: Lua script for optimized card reveal
@@ -929,72 +989,30 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
  * Uses optimistic locking with retries for consistency
  */
 async function endTurn(roomCode, playerNickname = 'Unknown') {
-    const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
-    const maxRetries = 3;
-    let retries = 0;
-
-    while (retries < maxRetries) {
-        try {
-            await redis.watch(gameKey);
-
-            const gameData = await redis.get(gameKey);
-            if (!gameData) {
-                await redis.unwatch();
-                throw GameStateError.noActiveGame();
-            }
-
-            const game = safeParseGameData(gameData, roomCode);
-            if (!game) {
-                await redis.unwatch();
-                await redis.del(gameKey);
-                throw GameStateError.corrupted(roomCode);
-            }
-
-            if (game.gameOver) {
-                await redis.unwatch();
-                throw GameStateError.gameOver();
-            }
-
-            const previousTurn = game.currentTurn;
-            game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
-            game.currentClue = null;
-            game.guessesUsed = 0;
-            game.guessesAllowed = 0;
-
-            // Add to history with cap
-            addToHistory(game, {
-                action: 'endTurn',
-                fromTeam: previousTurn,
-                toTeam: game.currentTurn,
-                player: playerNickname,
-                timestamp: Date.now()
-            });
-
-            // Increment state version for conflict detection
-            incrementVersion(game);
-
-            const result = await redis.multi()
-                .set(gameKey, JSON.stringify(game))
-                .exec();
-
-            // If transaction failed (key was modified), retry
-            if (result === null) {
-                await redis.unwatch();
-                retries++;
-                continue;
-            }
-
-            return { currentTurn: game.currentTurn, previousTurn };
-
-        } catch (error) {
-            await redis.unwatch();
-            throw error;
+    return executeGameTransaction(gameKey, (game) => {
+        if (game.gameOver) {
+            throw GameStateError.gameOver();
         }
-    }
 
-    throw ServerError.concurrentModification();
+        const previousTurn = game.currentTurn;
+        game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+        game.currentClue = null;
+        game.guessesUsed = 0;
+        game.guessesAllowed = 0;
+
+        // Add to history with cap
+        addToHistory(game, {
+            action: 'endTurn',
+            fromTeam: previousTurn,
+            toTeam: game.currentTurn,
+            player: playerNickname,
+            timestamp: Date.now()
+        });
+
+        return { currentTurn: game.currentTurn, previousTurn };
+    }, 'endTurn');
 }
 
 /**
@@ -1002,74 +1020,32 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
  * Uses optimistic locking with retries for consistency
  */
 async function forfeitGame(roomCode) {
-    const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
-    const maxRetries = 3;
-    let retries = 0;
-
-    while (retries < maxRetries) {
-        try {
-            await redis.watch(gameKey);
-
-            const gameData = await redis.get(gameKey);
-            if (!gameData) {
-                await redis.unwatch();
-                throw GameStateError.noActiveGame();
-            }
-
-            const game = safeParseGameData(gameData, roomCode);
-            if (!game) {
-                await redis.unwatch();
-                await redis.del(gameKey);
-                throw GameStateError.corrupted(roomCode);
-            }
-
-            if (game.gameOver) {
-                await redis.unwatch();
-                throw GameStateError.gameOver();
-            }
-
-            // The current turn's team forfeits, other team wins
-            const forfeitingTeam = game.currentTurn;
-            game.gameOver = true;
-            game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
-
-            // Add to history with cap
-            addToHistory(game, {
-                action: 'forfeit',
-                forfeitingTeam,
-                winner: game.winner,
-                timestamp: Date.now()
-            });
-
-            // Increment state version for conflict detection
-            incrementVersion(game);
-
-            const result = await redis.multi()
-                .set(gameKey, JSON.stringify(game))
-                .exec();
-
-            // If transaction failed (key was modified), retry
-            if (result === null) {
-                await redis.unwatch();
-                retries++;
-                continue;
-            }
-
-            return {
-                winner: game.winner,
-                forfeitingTeam,
-                allTypes: game.types
-            };
-
-        } catch (error) {
-            await redis.unwatch();
-            throw error;
+    return executeGameTransaction(gameKey, (game) => {
+        if (game.gameOver) {
+            throw GameStateError.gameOver();
         }
-    }
 
-    throw ServerError.concurrentModification();
+        // The current turn's team forfeits, other team wins
+        const forfeitingTeam = game.currentTurn;
+        game.gameOver = true;
+        game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
+
+        // Add to history with cap
+        addToHistory(game, {
+            action: 'forfeit',
+            forfeitingTeam,
+            winner: game.winner,
+            timestamp: Date.now()
+        });
+
+        return {
+            winner: game.winner,
+            forfeitingTeam,
+            allTypes: game.types
+        };
+    }, 'forfeitGame');
 }
 
 /**
