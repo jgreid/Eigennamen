@@ -233,15 +233,29 @@ async function authenticateSocket(socket, next) {
                         sessionValidationResult = await validateSession(sessionId, currentIP);
 
                         if (sessionValidationResult.valid) {
-                            validatedSessionId = sessionId;
-                            logger.debug('Session validated for reconnection', {
-                                sessionId,
-                                ipMismatch: sessionValidationResult.ipMismatch
-                            });
+                            // ISSUE #17 FIX: Validate reconnection token
+                            const reconnectToken = socket.handshake.auth.reconnectToken;
+                            const tokenValid = await playerService.validateReconnectToken(sessionId, reconnectToken);
 
-                            // Flag IP mismatch on socket for monitoring
-                            if (sessionValidationResult.ipMismatch) {
-                                socket.ipMismatch = true;
+                            if (tokenValid) {
+                                validatedSessionId = sessionId;
+                                logger.debug('Session validated for reconnection with token', {
+                                    sessionId,
+                                    ipMismatch: sessionValidationResult.ipMismatch
+                                });
+
+                                // Flag IP mismatch on socket for monitoring
+                                if (sessionValidationResult.ipMismatch) {
+                                    socket.ipMismatch = true;
+                                }
+                            } else {
+                                logger.warn('Reconnection token validation failed', {
+                                    sessionId,
+                                    hasToken: !!reconnectToken,
+                                    clientIP: currentIP
+                                });
+                                // Token invalid - generate new session
+                                validatedSessionId = null;
                             }
                         } else {
                             logger.warn('Session validation failed', {

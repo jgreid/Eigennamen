@@ -16,6 +16,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Set player's team
      * Issue #61 Fix: Prevent clickers/spymasters from switching teams during their active turn
+     * Issue #59 Fix: Prevent team from becoming empty during active game
      */
     socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
         try {
@@ -24,16 +25,35 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             const validated = validateInput(playerTeamSchema, data);
+            const gameService = require('../../services/gameService');
+
+            // Get current player and game state
+            const currentPlayer = await playerService.getPlayer(socket.sessionId);
+            const game = await gameService.getGame(socket.roomCode);
 
             // Check if player has an active role during their team's turn (Issue #61)
-            const currentPlayer = await playerService.getPlayer(socket.sessionId);
             if (currentPlayer && (currentPlayer.role === 'spymaster' || currentPlayer.role === 'clicker')) {
-                const gameService = require('../../services/gameService');
-                const game = await gameService.getGame(socket.roomCode);
                 if (game && !game.gameOver && game.currentTurn === currentPlayer.team) {
                     throw {
                         code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN,
                         message: `Cannot switch teams while you are the active ${currentPlayer.role} during your team's turn`
+                    };
+                }
+            }
+
+            // ISSUE #59 FIX: Prevent team from becoming empty during active game
+            if (game && !game.gameOver && currentPlayer && currentPlayer.team && currentPlayer.team !== validated.team) {
+                // Player is leaving their current team - check if it would become empty
+                const teamMembers = await playerService.getTeamMembers(socket.roomCode, currentPlayer.team);
+                // Filter to only connected players (excluding this player)
+                const remainingMembers = teamMembers.filter(p =>
+                    p.sessionId !== socket.sessionId && p.connected
+                );
+
+                if (remainingMembers.length === 0) {
+                    throw {
+                        code: ERROR_CODES.INVALID_INPUT,
+                        message: `Cannot leave team ${currentPlayer.team} - your team cannot be empty during an active game`
                     };
                 }
             }

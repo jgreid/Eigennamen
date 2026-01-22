@@ -382,14 +382,24 @@ async function removePlayer(sessionId) {
 /**
  * Handle player disconnection
  * ISSUE #57 FIX: Schedule player cleanup after grace period
+ * ISSUE #17 FIX: Generate reconnection token to prevent session hijacking
+ * @returns {string|null} Reconnection token (client should store and provide on reconnect)
  */
 async function handleDisconnect(sessionId) {
     const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (!player) {
-        return;
+        return null;
     }
+
+    // ISSUE #17 FIX: Generate secure reconnection token
+    const reconnectToken = crypto.randomBytes(32).toString('hex');
+    await redis.set(
+        `reconnect:${sessionId}`,
+        reconnectToken,
+        { EX: REDIS_TTL.DISCONNECTED_PLAYER }
+    );
 
     // Mark as disconnected but don't remove yet (allow reconnection)
     await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
@@ -407,6 +417,55 @@ async function handleDisconnect(sessionId) {
     await redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER);
 
     logger.debug(`Scheduled cleanup for player ${sessionId} at ${new Date(cleanupTime).toISOString()}`);
+
+    return reconnectToken;
+}
+
+/**
+ * Validate reconnection token
+ * ISSUE #17 FIX: Require valid token for reconnection to prevent session hijacking
+ * @param {string} sessionId - Session ID
+ * @param {string} token - Reconnection token provided by client
+ * @returns {boolean} True if token is valid
+ */
+async function validateReconnectToken(sessionId, token) {
+    const redis = getRedis();
+
+    // If no token provided, check if player is still connected (fresh connection)
+    if (!token) {
+        const player = await getPlayer(sessionId);
+        // Allow if player exists and is still connected (not disconnected yet)
+        if (player && player.connected) {
+            return true;
+        }
+        // Player is disconnected - require token
+        logger.warn('Reconnection attempted without token', { sessionId });
+        return false;
+    }
+
+    const storedToken = await redis.get(`reconnect:${sessionId}`);
+
+    if (!storedToken) {
+        // No stored token - either expired or never set
+        logger.debug('No reconnection token found', { sessionId });
+        return false;
+    }
+
+    // Constant-time comparison to prevent timing attacks
+    const isValid = crypto.timingSafeEqual(
+        Buffer.from(storedToken, 'utf8'),
+        Buffer.from(token, 'utf8')
+    );
+
+    if (isValid) {
+        // Token used successfully - delete it (one-time use)
+        await redis.del(`reconnect:${sessionId}`);
+        logger.info('Reconnection token validated', { sessionId });
+    } else {
+        logger.warn('Invalid reconnection token', { sessionId });
+    }
+
+    return isValid;
 }
 
 /**
