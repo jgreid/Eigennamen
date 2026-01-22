@@ -43,10 +43,10 @@ describe('Rate Limiter Optimizations', () => {
             const limiter = rateLimiter.getLimiter('test:event');
 
             // Make 5 requests to hit the limit
-            let completed = 0;
+            let _completed = 0;
             for (let i = 0; i < 5; i++) {
                 limiter(mockSocket, {}, () => {
-                    completed++;
+                    _completed++;
                 });
             }
 

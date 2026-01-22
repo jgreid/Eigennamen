@@ -200,9 +200,9 @@ function auditPlayerKicked(roomCode, kickedSessionId, kickedBy, reason, ip) {
  * Log word list modification
  */
 function auditWordListModified(wordListId, action, sessionId, ip) {
-    const eventType = action === 'create' ? AUDIT_EVENTS.WORD_LIST_CREATED :
-                      action === 'delete' ? AUDIT_EVENTS.WORD_LIST_DELETED :
-                      AUDIT_EVENTS.WORD_LIST_MODIFIED;
+    const eventType = action === 'create' ? AUDIT_EVENTS.WORD_LIST_CREATED
+        : action === 'delete' ? AUDIT_EVENTS.WORD_LIST_DELETED
+        : AUDIT_EVENTS.WORD_LIST_MODIFIED;
     return audit(eventType, {
         sessionId,
         ip,

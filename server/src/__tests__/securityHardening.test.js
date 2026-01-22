@@ -8,7 +8,7 @@
  * - Session security
  */
 
-const { VALIDATION, BOARD_SIZE, ERROR_CODES, SESSION_SECURITY } = require('../config/constants');
+const { VALIDATION, BOARD_SIZE, SESSION_SECURITY } = require('../config/constants');
 
 // ============================================
 // TRUST PROXY CONFIGURATION TESTS
@@ -149,7 +149,6 @@ describe('Trust Proxy Configuration', () => {
 // ============================================
 
 describe('Input Validation Hardening', () => {
-    const { z } = require('zod');
     const schemas = require('../validators/schemas');
 
     describe('Clue Number Validation', () => {

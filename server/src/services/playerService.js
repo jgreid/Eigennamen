@@ -496,7 +496,7 @@ async function setSocketMapping(sessionId, socketId, clientIP = null) {
  */
 async function getSocketId(sessionId) {
     const redis = getRedis();
-    return await redis.get(`session:${sessionId}:socket`);
+    return redis.get(`session:${sessionId}:socket`);
 }
 
 // Cleanup interval reference
@@ -638,7 +638,7 @@ async function validateReconnectionToken(token, sessionId) {
  */
 async function getExistingReconnectionToken(sessionId) {
     const redis = getRedis();
-    return await redis.get(`reconnect:session:${sessionId}`);
+    return redis.get(`reconnect:session:${sessionId}`);
 }
 
 /**

@@ -75,7 +75,7 @@ jest.mock('bcryptjs', () => ({
 
 // Mock playerService
 jest.mock('../services/playerService', () => ({
-    createPlayer: jest.fn(async (sessionId, roomCode, nickname, isHost, addToSet = true) => {
+    createPlayer: jest.fn(async (sessionId, roomCode, nickname, isHost, _addToSet = true) => {
         const player = {
             sessionId,
             roomCode,
@@ -112,7 +112,8 @@ jest.mock('../services/gameService', () => ({
 }));
 
 const { ERROR_CODES } = require('../config/constants');
-const bcrypt = require('bcryptjs');
+// bcrypt imported for mocking initialization
+const _bcrypt = require('bcryptjs');
 
 describe('Room Service', () => {
     let roomService;

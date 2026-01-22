@@ -506,7 +506,7 @@ function executeCardReveal(game, index) {
  * @returns {Object} - Outcome with turnEnded, endReason, and any state changes
  */
 function determineRevealOutcome(game, cardType, revealingTeam) {
-    let outcome = { turnEnded: false, endReason: null };
+    const outcome = { turnEnded: false, endReason: null };
 
     // Check for assassin - immediate loss
     if (cardType === 'assassin') {

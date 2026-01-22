@@ -16,14 +16,14 @@ const SOCKET_URL = `http://localhost:${TEST_PORT}`;
 const CONNECTION_TIMEOUT = 5000;
 
 // Mock Redis storage
-let mockRedisStorage = new Map();
-let mockRedisSets = new Map();
+const mockRedisStorage = new Map();
+const mockRedisSets = new Map();
 
 // Setup mocks before importing services
 jest.mock('../../config/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
-        set: jest.fn(async (key, value, options) => {
+        set: jest.fn(async (key, value, _options) => {
             mockRedisStorage.set(key, value);
             return 'OK';
         }),
@@ -158,10 +158,10 @@ jest.mock('../../services/timerService', () => ({
     initializeTimerService: jest.fn()
 }));
 
-// Import services AFTER mocking
-const roomService = require('../../services/roomService');
-const playerService = require('../../services/playerService');
-const gameService = require('../../services/gameService');
+// Import services AFTER mocking (required for mock initialization)
+const _roomService = require('../../services/roomService');
+const _playerService = require('../../services/playerService');
+const _gameService = require('../../services/gameService');
 const { createSocketRateLimiter } = require('../../middleware/rateLimit');
 const { RATE_LIMITS, ERROR_CODES } = require('../../config/constants');
 
