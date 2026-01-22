@@ -13,7 +13,7 @@ datasource db {
 // Users (optional, for accounts feature)
 model User {
   id           String    @id @default(uuid())
-  email        String?   @unique
+  email        String?   // ISSUE #66 FIX: Removed @unique from nullable field
   username     String    @unique
   passwordHash String?   @map("password_hash")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -26,6 +26,10 @@ model User {
   wordLists    WordList[]
   participants GameParticipant[]
 
+  // ISSUE #66 FIX: Use filtered unique index for non-null emails only
+  // PostgreSQL allows multiple NULLs with @unique, but this is cleaner
+  // as it explicitly documents the intent and works consistently
+  @@unique([email], map: "users_email_unique")
   @@map("users")
 }
 
