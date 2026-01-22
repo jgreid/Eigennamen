@@ -5,7 +5,7 @@
 const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
-const { REDIS_TTL, ERROR_CODES } = require('../config/constants');
+const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY } = require('../config/constants');
 
 /**
  * Create a new player
@@ -555,7 +555,7 @@ async function setSocketMapping(sessionId, socketId, clientIP = null) {
  */
 async function getSocketId(sessionId) {
     const redis = getRedis();
-    return await redis.get(`session:${sessionId}:socket`);
+    return redis.get(`session:${sessionId}:socket`);
 }
 
 // Cleanup interval reference
@@ -592,6 +592,130 @@ function stopCleanupTask() {
     }
 }
 
+/**
+ * Generate a secure reconnection token for a disconnecting player
+ * ISSUE #17 FIX: Secure reconnection via short-lived tokens
+ * @param {string} sessionId - Player's session ID
+ * @returns {Promise<string|null>} The generated token, or null if player not found
+ */
+async function generateReconnectionToken(sessionId) {
+    const redis = getRedis();
+    const player = await getPlayer(sessionId);
+
+    if (!player) {
+        return null;
+    }
+
+    // Generate a cryptographically secure random token
+    const tokenBytes = SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32;
+    const token = crypto.randomBytes(tokenBytes).toString('hex');
+
+    // Store token with session data for validation
+    const tokenData = {
+        sessionId,
+        roomCode: player.roomCode,
+        nickname: player.nickname,
+        team: player.team,
+        role: player.role,
+        createdAt: Date.now()
+    };
+
+    const ttl = SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS || 300;
+
+    // Store token -> session mapping for quick lookup
+    await redis.set(
+        `reconnect:token:${token}`,
+        JSON.stringify(tokenData),
+        { EX: ttl }
+    );
+
+    // Store session -> token mapping for cleanup on successful reconnect
+    await redis.set(
+        `reconnect:session:${sessionId}`,
+        token,
+        { EX: ttl }
+    );
+
+    logger.debug(`Generated reconnection token for session ${sessionId}, TTL: ${ttl}s`);
+
+    return token;
+}
+
+/**
+ * Validate and consume a reconnection token
+ * ISSUE #17 FIX: Secure reconnection via short-lived tokens
+ * @param {string} token - The reconnection token
+ * @param {string} sessionId - The session ID attempting to reconnect
+ * @returns {Promise<{valid: boolean, reason?: string, tokenData?: object}>}
+ */
+async function validateReconnectionToken(token, sessionId) {
+    const redis = getRedis();
+
+    if (!token || typeof token !== 'string') {
+        return { valid: false, reason: 'INVALID_TOKEN_FORMAT' };
+    }
+
+    // Look up the token
+    const tokenDataStr = await redis.get(`reconnect:token:${token}`);
+
+    if (!tokenDataStr) {
+        logger.warn('Reconnection token not found or expired', { sessionId });
+        return { valid: false, reason: 'TOKEN_EXPIRED_OR_INVALID' };
+    }
+
+    let tokenData;
+    try {
+        tokenData = JSON.parse(tokenDataStr);
+    } catch (e) {
+        logger.error('Failed to parse reconnection token data', { sessionId, error: e.message });
+        return { valid: false, reason: 'TOKEN_CORRUPTED' };
+    }
+
+    // Verify the token belongs to this session
+    if (tokenData.sessionId !== sessionId) {
+        logger.warn('Reconnection token session mismatch', {
+            expectedSession: tokenData.sessionId,
+            providedSession: sessionId
+        });
+        return { valid: false, reason: 'SESSION_MISMATCH' };
+    }
+
+    // Token is valid - consume it (one-time use)
+    await redis.del(`reconnect:token:${token}`);
+    await redis.del(`reconnect:session:${sessionId}`);
+
+    logger.info(`Reconnection token validated and consumed for session ${sessionId}`);
+
+    return { valid: true, tokenData };
+}
+
+/**
+ * Get existing reconnection token for a session (if any)
+ * Used to avoid generating multiple tokens for the same session
+ * @param {string} sessionId - Player's session ID
+ * @returns {Promise<string|null>} Existing token or null
+ */
+async function getExistingReconnectionToken(sessionId) {
+    const redis = getRedis();
+    return redis.get(`reconnect:session:${sessionId}`);
+}
+
+/**
+ * Invalidate any existing reconnection token for a session
+ * Called when player successfully reconnects or explicitly leaves
+ * @param {string} sessionId - Player's session ID
+ */
+async function invalidateReconnectionToken(sessionId) {
+    const redis = getRedis();
+
+    const existingToken = await redis.get(`reconnect:session:${sessionId}`);
+    if (existingToken) {
+        await redis.del(`reconnect:token:${existingToken}`);
+        await redis.del(`reconnect:session:${sessionId}`);
+        logger.debug(`Invalidated reconnection token for session ${sessionId}`);
+    }
+}
+
 module.exports = {
     createPlayer,
     createPlayerData,
@@ -610,6 +734,9 @@ module.exports = {
     processScheduledCleanups,
     startCleanupTask,
     stopCleanupTask,
-    // ISSUE #17 FIX: Export reconnection token validation
-    validateReconnectToken
+    // ISSUE #17 FIX: Reconnection token functions
+    generateReconnectionToken,
+    validateReconnectionToken,
+    getExistingReconnectionToken,
+    invalidateReconnectionToken
 };

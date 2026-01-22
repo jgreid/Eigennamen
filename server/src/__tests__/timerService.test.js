@@ -101,7 +101,7 @@ describe('Timer Service', () => {
                     duration: newDuration,
                     remainingSeconds: newDuration
                 });
-            } catch (e) {
+            } catch {
                 return null;
             }
         });

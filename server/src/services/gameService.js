@@ -22,6 +22,157 @@ const {
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
 
 /**
+ * ISSUE #36 FIX: Lua script for optimized card reveal
+ * Updates only the necessary fields instead of full JSON re-serialization
+ * This reduces CPU overhead for frequent card reveal operations
+ */
+const OPTIMIZED_REVEAL_SCRIPT = `
+local gameKey = KEYS[1]
+local index = tonumber(ARGV[1])
+local timestamp = tonumber(ARGV[2])
+local playerNickname = ARGV[3]
+local maxHistoryEntries = tonumber(ARGV[4])
+
+local gameData = redis.call('GET', gameKey)
+if not gameData then
+    return cjson.encode({error = 'NO_GAME'})
+end
+
+local game = cjson.decode(gameData)
+
+-- Validate preconditions
+if game.gameOver then
+    return cjson.encode({error = 'GAME_OVER'})
+end
+if not game.currentClue then
+    return cjson.encode({error = 'NO_CLUE'})
+end
+if game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
+    return cjson.encode({error = 'NO_GUESSES'})
+end
+-- Lua arrays are 1-indexed, so add 1 to the index
+local luaIndex = index + 1
+if game.revealed[luaIndex] then
+    return cjson.encode({error = 'ALREADY_REVEALED'})
+end
+
+-- Store previous state
+local previousTurn = game.currentTurn
+local cardType = game.types[luaIndex]
+
+-- Execute reveal
+game.revealed[luaIndex] = true
+if cardType == 'red' then
+    game.redScore = game.redScore + 1
+elseif cardType == 'blue' then
+    game.blueScore = game.blueScore + 1
+end
+game.guessesUsed = (game.guessesUsed or 0) + 1
+
+-- Determine outcome
+local turnEnded = false
+local endReason = cjson.null
+
+-- Check assassin
+if cardType == 'assassin' then
+    game.gameOver = true
+    if previousTurn == 'red' then
+        game.winner = 'blue'
+    else
+        game.winner = 'red'
+    end
+    endReason = 'assassin'
+    turnEnded = true
+-- Check win conditions
+elseif game.redScore >= game.redTotal then
+    game.gameOver = true
+    game.winner = 'red'
+    endReason = 'completed'
+    turnEnded = true
+elseif game.blueScore >= game.blueTotal then
+    game.gameOver = true
+    game.winner = 'blue'
+    endReason = 'completed'
+    turnEnded = true
+-- Wrong guess
+elseif cardType ~= previousTurn then
+    if previousTurn == 'red' then
+        game.currentTurn = 'blue'
+    else
+        game.currentTurn = 'red'
+    end
+    game.currentClue = cjson.null
+    game.guessesUsed = 0
+    game.guessesAllowed = 0
+    turnEnded = true
+-- Max guesses reached
+elseif game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
+    if previousTurn == 'red' then
+        game.currentTurn = 'blue'
+    else
+        game.currentTurn = 'red'
+    end
+    game.currentClue = cjson.null
+    game.guessesUsed = 0
+    game.guessesAllowed = 0
+    turnEnded = true
+    endReason = 'maxGuesses'
+end
+
+-- Add to history (with cap)
+if not game.history then
+    game.history = {}
+end
+table.insert(game.history, {
+    action = 'reveal',
+    index = index,
+    word = game.words[luaIndex],
+    type = cardType,
+    team = previousTurn,
+    player = playerNickname,
+    guessNumber = game.guessesUsed,
+    timestamp = timestamp
+})
+-- Cap history
+if #game.history > maxHistoryEntries then
+    local newHistory = {}
+    for i = #game.history - maxHistoryEntries + 1, #game.history do
+        table.insert(newHistory, game.history[i])
+    end
+    game.history = newHistory
+end
+
+-- Increment version
+game.stateVersion = (game.stateVersion or 0) + 1
+
+-- Save updated game
+redis.call('SET', gameKey, cjson.encode(game))
+
+-- Return result
+local result = {
+    success = true,
+    index = index,
+    type = cardType,
+    word = game.words[luaIndex],
+    redScore = game.redScore,
+    blueScore = game.blueScore,
+    currentTurn = game.currentTurn,
+    guessesUsed = game.guessesUsed,
+    guessesAllowed = game.guessesAllowed,
+    turnEnded = turnEnded,
+    gameOver = game.gameOver,
+    winner = game.winner,
+    endReason = endReason
+}
+
+if game.gameOver then
+    result.allTypes = game.types
+end
+
+return cjson.encode(result)
+`;
+
+/**
  * Seeded random number generator using Mulberry32 algorithm
  * Provides better distribution than Math.sin-based approach
  * Must stay in sync with client-side implementation in index.html
@@ -355,7 +506,7 @@ function executeCardReveal(game, index) {
  * @returns {Object} - Outcome with turnEnded, endReason, and any state changes
  */
 function determineRevealOutcome(game, cardType, revealingTeam) {
-    let outcome = { turnEnded: false, endReason: null };
+    const outcome = { turnEnded: false, endReason: null };
 
     // Check for assassin - immediate loss
     if (cardType === 'assassin') {
@@ -439,9 +590,67 @@ function buildRevealResult(game, index, type, outcome) {
 }
 
 /**
+ * ISSUE #36 FIX: Optimized card reveal using Lua script
+ * Performs the entire reveal operation atomically in Redis, avoiding
+ * the overhead of multiple round-trips and full JSON re-serialization in Node.js
+ */
+async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') {
+    const redis = getRedis();
+    const gameKey = `room:${roomCode}:game`;
+
+    // Validate index before executing
+    validateCardIndex(index);
+
+    try {
+        const resultStr = await redis.eval(
+            OPTIMIZED_REVEAL_SCRIPT,
+            {
+                keys: [gameKey],
+                arguments: [
+                    index.toString(),
+                    Date.now().toString(),
+                    playerNickname,
+                    MAX_HISTORY_ENTRIES.toString()
+                ]
+            }
+        );
+
+        const result = JSON.parse(resultStr);
+
+        // Handle errors returned by the Lua script
+        if (result.error) {
+            const errorMap = {
+                'NO_GAME': { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' },
+                'GAME_OVER': { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' },
+                'NO_CLUE': { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must give a clue before guessing' },
+                'NO_GUESSES': { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' },
+                'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' }
+            };
+            const err = errorMap[result.error] || { code: ERROR_CODES.SERVER_ERROR, message: result.error };
+            throw err;
+        }
+
+        logger.debug(`Optimized reveal completed for card ${index} in room ${roomCode}`);
+        return result;
+
+    } catch (error) {
+        // If it's already a known error, rethrow
+        if (error.code) {
+            throw error;
+        }
+        // Otherwise, log and rethrow
+        logger.error(`Optimized reveal failed for room ${roomCode}:`, error.message);
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to reveal card' };
+    }
+}
+
+/**
  * Reveal a card with distributed lock to prevent race conditions
  * Uses a lock to ensure only one reveal operation runs at a time per room
  * Orchestrates the reveal process using helper functions
+ *
+ * ISSUE #36 FIX: Now uses optimized Lua script path with fallback to
+ * original implementation if Lua evaluation fails
  */
 async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     const redis = getRedis();
@@ -457,76 +666,88 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
         throw { code: ERROR_CODES.SERVER_ERROR, message: 'Another card reveal is in progress, please try again' };
     }
 
-    // Use optimistic locking with retries
-    const maxRetries = 3;
-    let retries = 0;
-
     try {
-    while (retries < maxRetries) {
+        // ISSUE #36 FIX: Try optimized Lua script first
         try {
-            // Watch the key for changes
-            await redis.watch(gameKey);
-
-            const gameData = await redis.get(gameKey);
-            if (!gameData) {
-                await redis.unwatch();
-                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+            return await revealCardOptimized(roomCode, index, playerNickname);
+        } catch (luaError) {
+            // If Lua script fails due to script-specific issues, fall back to original
+            // But propagate game logic errors (like GAME_OVER, CARD_ALREADY_REVEALED)
+            if (luaError.code && luaError.code !== ERROR_CODES.SERVER_ERROR) {
+                throw luaError;
             }
-
-            const game = safeParseGameData(gameData, roomCode);
-            if (!game) {
-                await redis.unwatch();
-                await redis.del(gameKey);
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
-            }
-
-            // Validate preconditions
-            validateRevealPreconditions(game, index);
-
-            const previousTurn = game.currentTurn;
-
-            // Execute the reveal
-            const cardType = executeCardReveal(game, index);
-
-            // Determine outcome
-            const outcome = determineRevealOutcome(game, cardType, previousTurn);
-
-            // Add to history
-            addToHistory(game, {
-                action: 'reveal',
-                index,
-                word: game.words[index],
-                type: cardType,
-                team: previousTurn,
-                player: playerNickname,
-                guessNumber: game.guessesUsed,
-                timestamp: Date.now()
-            });
-
-            // Increment state version for conflict detection
-            incrementVersion(game);
-
-            // Execute transaction
-            const result = await redis.multi()
-                .set(gameKey, JSON.stringify(game))
-                .exec();
-
-            // If transaction failed (key was modified), retry
-            if (result === null) {
-                await redis.unwatch();
-                retries++;
-                continue;
-            }
-
-            return buildRevealResult(game, index, cardType, outcome);
-
-        } catch (error) {
-            await redis.unwatch();
-            throw error;
+            logger.warn(`Lua reveal failed, falling back to standard reveal for room ${roomCode}: ${luaError.message}`);
         }
-    }
 
-    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to reveal card due to concurrent modifications' };
+        // Fallback to original implementation
+        const maxRetries = 3;
+        let retries = 0;
+
+        while (retries < maxRetries) {
+            try {
+                // Watch the key for changes
+                await redis.watch(gameKey);
+
+                const gameData = await redis.get(gameKey);
+                if (!gameData) {
+                    await redis.unwatch();
+                    throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' };
+                }
+
+                const game = safeParseGameData(gameData, roomCode);
+                if (!game) {
+                    await redis.unwatch();
+                    await redis.del(gameKey);
+                    throw { code: ERROR_CODES.SERVER_ERROR, message: 'Game data corrupted, please start a new game' };
+                }
+
+                // Validate preconditions
+                validateRevealPreconditions(game, index);
+
+                const previousTurn = game.currentTurn;
+
+                // Execute the reveal
+                const cardType = executeCardReveal(game, index);
+
+                // Determine outcome
+                const outcome = determineRevealOutcome(game, cardType, previousTurn);
+
+                // Add to history
+                addToHistory(game, {
+                    action: 'reveal',
+                    index,
+                    word: game.words[index],
+                    type: cardType,
+                    team: previousTurn,
+                    player: playerNickname,
+                    guessNumber: game.guessesUsed,
+                    timestamp: Date.now()
+                });
+
+                // Increment state version for conflict detection
+                incrementVersion(game);
+
+                // Execute transaction
+                const result = await redis.multi()
+                    .set(gameKey, JSON.stringify(game))
+                    .exec();
+
+                // If transaction failed (key was modified), retry
+                if (result === null) {
+                    await redis.unwatch();
+                    retries++;
+                    continue;
+                }
+
+                return buildRevealResult(game, index, cardType, outcome);
+
+            } catch (error) {
+                await redis.unwatch();
+                throw error;
+            }
+        }
+
+        throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to reveal card due to concurrent modifications' };
     } finally {
         // ISSUE #32 FIX: Always release the distributed lock
         await redis.del(lockKey).catch(err => {
@@ -872,6 +1093,7 @@ module.exports = {
     getGame,
     getGameStateForPlayer,
     revealCard,
+    revealCardOptimized, // ISSUE #36 FIX: Exported for direct use and testing
     giveClue,
     endTurn,
     forfeitGame,

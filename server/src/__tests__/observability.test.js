@@ -162,8 +162,8 @@ describe('Health Check Endpoints', () => {
     test('health endpoints are excluded from static file serving', () => {
         const appCode = fs.readFileSync(appPath, 'utf8');
 
-        expect(appCode).toContain("/health");
-        expect(appCode).toContain("/metrics");
+        expect(appCode).toContain('/health');
+        expect(appCode).toContain('/metrics');
     });
 });
 

@@ -318,7 +318,7 @@ describe('Express Application - Production Mode', () => {
         // This should call process.exit(1)
         try {
             require('../app');
-        } catch (e) {
+        } catch {
             // Expected - module may throw after process.exit is called
         }
 

@@ -143,6 +143,7 @@ const pendingAddTimeCallbacks = new Map();
 
 /**
  * Handle timer events from pub/sub
+ * ISSUE #34 FIX: Added 'addTime' event handling for multi-instance routing
  */
 function handleTimerEvent(event, onExpireCallback) {
     switch (event.type) {
@@ -169,6 +170,37 @@ function handleTimerEvent(event, onExpireCallback) {
                 timer.paused = true;
                 timer.remainingWhenPaused = event.remainingSeconds;
                 // Don't delete - keep the paused state locally
+            }
+            break;
+        case 'addTime':
+            // ISSUE #34 FIX: Handle addTime from another instance
+            // Only the instance that owns the timer should process this
+            if (localTimers.has(event.roomCode)) {
+                const localTimer = localTimers.get(event.roomCode);
+                // Update local timer with new end time
+                clearTimeout(localTimer.timeoutId);
+                localTimer.endTime = event.newEndTime;
+                localTimer.duration = event.newDuration;
+
+                const remainingMs = event.newEndTime - Date.now();
+                if (remainingMs > 0) {
+                    localTimer.timeoutId = setTimeout(async () => {
+                        try {
+                            logger.info(`Timer expired for room ${event.roomCode}`);
+                            localTimers.delete(event.roomCode);
+                            const redis = getRedis();
+                            await redis.del(`${TIMER_KEY_PREFIX}${event.roomCode}`);
+
+                            if (onExpireCallback) {
+                                await onExpireCallback(event.roomCode);
+                            }
+                        } catch (error) {
+                            logger.error(`Error handling timer expiration for room ${event.roomCode}:`, error);
+                        }
+                    }, remainingMs);
+
+                    logger.debug(`Updated local timer for room ${event.roomCode} via pub/sub addTime`);
+                }
             }
             break;
         case 'expired':
@@ -580,22 +612,24 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
                 onExpire
             });
         } else {
-            // No local timer exists - create one to handle the Redis timer
-            // This happens when addTime is called on an instance that doesn't own the timer
-            // or when pub/sub routing fails
-            logger.info(`Creating local timer for room ${roomCode} (taking ownership via addTime)`);
+            // ISSUE #34 FIX: No local timer exists - publish addTime event via pub/sub
+            // The owning instance will handle updating its local timer
+            logger.info(`Publishing addTime event for room ${roomCode} (not timer owner)`);
 
-            const timeoutId = setTimeout(createTimeoutCallback(), newTimer.remainingSeconds * 1000);
-
-            localTimers.set(roomCode, {
-                roomCode,
-                startTime: Date.now(),
-                endTime: newTimer.endTime,
-                duration: newTimer.duration,
-                instanceId: process.pid.toString(),
-                timeoutId,
-                onExpire
-            });
+            try {
+                const { pubClient } = getPubSubClients();
+                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
+                    type: 'addTime',
+                    roomCode,
+                    secondsAdded: secondsToAdd,
+                    newEndTime: newTimer.endTime,
+                    newDuration: newTimer.duration,
+                    remainingSeconds: newTimer.remainingSeconds,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                logger.warn(`Failed to publish addTime event for room ${roomCode}:`, e.message);
+            }
         }
 
         logger.info(`Added ${secondsToAdd}s to timer for room ${roomCode}, new remaining: ${newTimer.remainingSeconds}s`);

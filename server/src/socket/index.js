@@ -217,6 +217,7 @@ function createTimerExpireCallback() {
 /**
  * Handle player disconnection with room notification
  * Uses lock to prevent race conditions during host transfer
+ * ISSUE #17 FIX: Generate reconnection token for secure reconnection
  */
 async function handleDisconnect(io, socket, reason) {
     const playerService = require('../services/playerService');
@@ -233,6 +234,14 @@ async function handleDisconnect(io, socket, reason) {
 
         const roomCode = player.roomCode;
 
+        // ISSUE #17 FIX: Generate reconnection token before marking as disconnected
+        let reconnectionToken = null;
+        try {
+            reconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);
+        } catch (tokenError) {
+            logger.warn(`Failed to generate reconnection token for ${socket.sessionId}:`, tokenError.message);
+        }
+
         // Update player's connected status
         await playerService.handleDisconnect(socket.sessionId);
 
@@ -243,7 +252,10 @@ async function handleDisconnect(io, socket, reason) {
                 nickname: player.nickname,
                 team: player.team,
                 reason: reason,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                // ISSUE #17 FIX: Include reconnection token in disconnect notification
+                // This allows clients to store it for secure reconnection
+                reconnectionToken: reconnectionToken
             });
 
             // Log disconnect event for reconnection recovery
@@ -369,7 +381,7 @@ async function stopTurnTimer(roomCode) {
  * Get timer status for a room (async)
  */
 async function getTimerStatus(roomCode) {
-    return await timerService.getTimerStatus(roomCode);
+    return timerService.getTimerStatus(roomCode);
 }
 
 /**

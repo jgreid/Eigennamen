@@ -4,6 +4,7 @@
 
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
+const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../validators/schemas');
@@ -78,6 +79,9 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = room.code;
 
+            // ISSUE #17 FIX: Invalidate any existing reconnection token on successful join
+            await playerService.invalidateReconnectionToken(socket.sessionId);
+
             // Send room state to the joining player
             socket.emit('room:joined', { room, players, game, you: player });
 
@@ -145,6 +149,9 @@ module.exports = function roomHandlers(io, socket) {
             if (!socket.roomCode) {
                 return;
             }
+
+            // ISSUE #17 FIX: Invalidate reconnection token when explicitly leaving
+            await playerService.invalidateReconnectionToken(socket.sessionId);
 
             const result = await roomService.leaveRoom(socket.roomCode, socket.sessionId);
 
@@ -287,6 +294,159 @@ module.exports = function roomHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error resyncing state:', error);
+            socket.emit('room:error', {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
+
+    /**
+     * ISSUE #17 FIX: Request a reconnection token for secure reconnection
+     * Clients should call this before intentional disconnects or periodically
+     * to have a token ready for reconnection
+     */
+    socket.on('room:getReconnectionToken', createRateLimitedHandler(socket, 'room:settings', async () => {
+        try {
+            if (!socket.roomCode) {
+                throw RoomError.notFound(socket.roomCode);
+            }
+
+            // Check if there's an existing valid token
+            let token = await playerService.getExistingReconnectionToken(socket.sessionId);
+
+            // If no existing token, generate a new one
+            if (!token) {
+                token = await playerService.generateReconnectionToken(socket.sessionId);
+            }
+
+            if (!token) {
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to generate reconnection token' };
+            }
+
+            socket.emit('room:reconnectionToken', {
+                token,
+                sessionId: socket.sessionId,
+                roomCode: socket.roomCode
+            });
+
+            logger.debug(`Reconnection token sent to player ${socket.sessionId}`);
+
+        } catch (error) {
+            logger.error('Error generating reconnection token:', error);
+            socket.emit('room:error', {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
+
+    /**
+     * ISSUE #17 FIX: Reconnect with a secure token
+     * Allows clients to reconnect using a previously obtained token
+     */
+    socket.on('room:reconnect', createRateLimitedHandler(socket, 'room:join', async (data) => {
+        try {
+            const { code, reconnectionToken } = data || {};
+
+            if (!code || !reconnectionToken) {
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Room code and reconnection token required' };
+            }
+
+            // Validate the reconnection token
+            const validation = await playerService.validateReconnectionToken(reconnectionToken, socket.sessionId);
+
+            if (!validation.valid) {
+                throw { code: ERROR_CODES.NOT_AUTHORIZED, message: `Invalid reconnection token: ${validation.reason}` };
+            }
+
+            // Token is valid - reconnect the player
+            const { tokenData } = validation;
+
+            // Verify room code matches
+            if (tokenData.roomCode !== code) {
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Token does not match room' };
+            }
+
+            // Get current room state
+            const room = await roomService.getRoom(code);
+            if (!room) {
+                throw RoomError.notFound(code);
+            }
+
+            // Restore player's connected status
+            await playerService.updatePlayer(socket.sessionId, {
+                connected: true,
+                lastSeen: Date.now()
+            });
+
+            // Join the socket to the room
+            socket.join(`room:${code}`);
+            socket.join(`player:${socket.sessionId}`);
+            socket.roomCode = code;
+
+            // Get full state for the reconnected player
+            const player = await playerService.getPlayer(socket.sessionId);
+            const players = await playerService.getPlayersInRoom(code);
+            const game = await gameService.getGame(code);
+
+            let gameState = null;
+            if (game) {
+                gameState = gameService.getGameStateForPlayer(game, player);
+            }
+
+            // Send reconnection success with full state
+            socket.emit('room:reconnected', {
+                room,
+                players,
+                game: gameState,
+                you: player
+            });
+
+            // If player is spymaster and game active, send spymaster view
+            if (player.role === 'spymaster' && game && !game.gameOver) {
+                socket.emit('game:spymasterView', { types: game.types });
+            }
+
+            // Send timer status
+            try {
+                const { getTimerStatus } = require('../index');
+                const timerStatus = await getTimerStatus(code);
+                if (timerStatus && timerStatus.endTime) {
+                    socket.emit('timer:status', {
+                        roomCode: code,
+                        remainingSeconds: timerStatus.remainingSeconds,
+                        endTime: timerStatus.endTime,
+                        isPaused: timerStatus.isPaused || false
+                    });
+                }
+            } catch (timerError) {
+                logger.warn(`Failed to send timer status on reconnect: ${timerError.message}`);
+            }
+
+            // Notify others in the room
+            socket.to(`room:${code}`).emit('room:playerReconnected', {
+                sessionId: socket.sessionId,
+                nickname: player.nickname,
+                team: player.team
+            });
+
+            // Log event
+            await eventLogService.logEvent(
+                code,
+                eventLogService.EVENT_TYPES.PLAYER_JOINED,
+                {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    isReconnect: true,
+                    usedToken: true
+                }
+            );
+
+            logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
+
+        } catch (error) {
+            logger.error('Error during secure reconnection:', error);
             socket.emit('room:error', {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message

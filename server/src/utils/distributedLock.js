@@ -245,7 +245,7 @@ class DistributedLock {
     async getLockOwner(lockKey) {
         const redis = getRedis();
         const key = `lock:${lockKey}`;
-        return await redis.get(key);
+        return redis.get(key);
     }
 
     /**

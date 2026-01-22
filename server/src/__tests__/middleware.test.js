@@ -9,7 +9,7 @@ const request = require('supertest');
 const { ZodError } = require('zod');
 
 // Mock Redis
-let mockRedisStorage = new Map();
+const mockRedisStorage = new Map();
 jest.mock('../config/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
@@ -319,7 +319,7 @@ describe('Validation Middleware', () => {
 
             try {
                 validateInput(schema, { name: 123 });
-                fail('Should have thrown');
+                throw new Error('Should have thrown');
             } catch (error) {
                 expect(error.code).toBe(ERROR_CODES.INVALID_INPUT);
             }
@@ -333,7 +333,7 @@ describe('Validation Middleware', () => {
 
             try {
                 validateInput(schema, { name: 123, email: 'invalid' });
-                fail('Should have thrown');
+                throw new Error('Should have thrown');
             } catch (error) {
                 expect(error.details).toBeDefined();
                 expect(Array.isArray(error.details)).toBe(true);
