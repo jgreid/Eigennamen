@@ -1094,6 +1094,464 @@ However, the sprints successfully:
 
 ---
 
+## Phase 2: Codebase Hardening (Sprints 13-18)
+
+**Created:** January 22, 2026
+**Focus:** Security hardening, reliability improvements, and remaining issue resolution
+
+Based on the comprehensive code review (CODE_REVIEW_FINDINGS.md - 74 issues identified), this phase addresses remaining vulnerabilities and improves overall system robustness.
+
+---
+
+### Sprint 13: Word List API Security (Priority: HIGH)
+
+**Goal:** Secure the word list API against abuse
+
+#### Task 13.1: Word List Creation Rate Limiting
+**Issues:** #22, #24
+**Files:** `server/src/routes/wordListRoutes.js`, `server/src/middleware/rateLimit.js`
+
+**Problem:** Anyone can create word lists without rate limiting or authentication.
+
+**Implementation:**
+- [ ] Add aggressive rate limiting (10 creates/minute/IP)
+- [ ] Add proof-of-work or CAPTCHA for anonymous creation
+- [ ] Log all word list creation attempts with IP and fingerprint
+- [ ] Add optional API key authentication for management
+
+```javascript
+// In wordListRoutes.js
+const createWordListLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: { error: 'Too many word list creations, please try again later' },
+    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for']
+});
+
+router.post('/', createWordListLimiter, validateBody(createWordListSchema), async (req, res, next) => {
+    // Log creation attempt
+    logger.info('Word list creation attempt', {
+        ip: req.ip,
+        fingerprint: req.headers['x-fingerprint'],
+        correlationId: req.correlationId
+    });
+    // ... rest of handler
+});
+```
+
+#### Task 13.2: Anonymous Word List Protection
+**Problem:** Anonymous word lists could still be abused for spam/inappropriate content.
+
+**Implementation:**
+- [ ] Add content moderation flags
+- [ ] Require minimum 25 valid words
+- [ ] Block duplicate word lists (hash comparison)
+- [ ] Add rate limit metrics to `/metrics` endpoint
+
+**Tests Required:** 10
+**Estimated Effort:** 6 hours
+
+---
+
+### Sprint 14: Session Security Enhancement (Priority: HIGH)
+
+**Goal:** Reduce session hijacking risk and improve authentication flow
+
+#### Task 14.1: Session Validation Rate Limiting
+**Issues:** #17, #74
+**Files:** `server/src/middleware/socketAuth.js`
+
+**Problem:** 10-minute reconnection window allows session hijacking. No rate limiting on session ID validation.
+
+**Implementation:**
+- [ ] Add rate limiting to session validation attempts per IP
+- [ ] Implement reconnection token (generated at disconnect, required for reconnect)
+- [ ] Add IP change detection with logging and optional re-authentication
+- [ ] Reduce grace period for spymasters (higher value sessions)
+
+```javascript
+// In socketAuth.js
+async function validateSessionWithRateLimit(sessionId, clientIP) {
+    const key = `session:validation:${clientIP}`;
+    const attempts = await redis.incr(key);
+
+    if (attempts === 1) {
+        await redis.expire(key, SESSION_SECURITY.SESSION_VALIDATION_WINDOW);
+    }
+
+    if (attempts > SESSION_SECURITY.MAX_VALIDATION_ATTEMPTS_PER_IP) {
+        throw new RateLimitError('SESSION_VALIDATION_RATE_LIMITED',
+            'Too many session validation attempts');
+    }
+
+    return validateSession(sessionId);
+}
+```
+
+#### Task 14.2: Reconnection Token System
+**Implementation:**
+- [ ] Generate secure token on disconnect (stored in Redis)
+- [ ] Require token for reconnection within grace period
+- [ ] Token expires with session
+- [ ] Log token mismatches for monitoring
+
+```javascript
+// On disconnect
+async function handleDisconnect(socket) {
+    const reconnectToken = crypto.randomBytes(32).toString('hex');
+    await redis.set(
+        `reconnect:${socket.sessionId}`,
+        reconnectToken,
+        'EX', REDIS_TTL.DISCONNECTED_PLAYER
+    );
+    // Client receives token via socket disconnect event
+}
+
+// On reconnect
+async function validateReconnection(sessionId, token) {
+    const storedToken = await redis.get(`reconnect:${sessionId}`);
+    if (!storedToken || storedToken !== token) {
+        logger.warn('Invalid reconnection token', { sessionId });
+        return false;
+    }
+    await redis.del(`reconnect:${sessionId}`);
+    return true;
+}
+```
+
+**Tests Required:** 15
+**Estimated Effort:** 8 hours
+
+---
+
+### Sprint 15: CSRF and Cross-Origin Hardening (Priority: MEDIUM)
+
+**Goal:** Strengthen CSRF protection and CORS configuration
+
+#### Task 15.1: CSRF Enhancement
+**Issue:** #23
+**Files:** `server/src/middleware/csrf.js`
+
+**Problem:** When CORS allows wildcard, Content-Type check can be bypassed.
+
+**Implementation:**
+- [ ] Block Content-Type bypass when CORS_ORIGIN is `*`
+- [ ] Add double-submit cookie pattern as backup
+- [ ] Log CSRF validation failures
+- [ ] Add integration tests for CSRF protection
+
+```javascript
+// In csrf.js
+function csrfProtection(req, res, next) {
+    const corsOrigin = process.env.CORS_ORIGIN;
+    const isWildcard = corsOrigin === '*';
+
+    // When CORS is wildcard, require X-Requested-With header
+    if (isWildcard) {
+        const requestedWith = req.headers['x-requested-with'];
+        if (requestedWith !== 'XMLHttpRequest') {
+            logger.warn('CSRF: Missing X-Requested-With header with wildcard CORS', {
+                correlationId: req.correlationId,
+                ip: req.ip
+            });
+            return res.status(403).json({ error: 'CSRF validation failed' });
+        }
+    }
+
+    next();
+}
+```
+
+#### Task 15.2: Password Re-Authentication
+**Issue:** #60
+**Files:** `server/src/services/roomService.js`
+
+**Problem:** Players can reconnect without password verification after host changes room password.
+
+**Implementation:**
+- [ ] Track password version/timestamp in room
+- [ ] Verify password on reconnection if version changed
+- [ ] Emit event to prompt re-authentication when password changes
+
+**Tests Required:** 12
+**Estimated Effort:** 6 hours
+
+---
+
+### Sprint 16: Multi-Instance Reliability (Priority: HIGH)
+
+**Goal:** Fix remaining timer and state synchronization issues
+
+#### Task 16.1: Timer Resume Distributed Lock
+**Issues:** #33, #34
+**Files:** `server/src/services/timerService.js`
+
+**Problem:** Timer resume/addTime operations can create duplicate timers across instances.
+
+**Implementation:**
+- [ ] Add distributed lock for timer resume operations
+- [ ] Route addTime through owning instance via pub/sub
+- [ ] Add timer ownership tracking in Redis
+- [ ] Create integration test for multi-instance scenarios
+
+```javascript
+// In timerService.js
+async function resumeTimer(roomCode) {
+    const lockKey = `lock:timer:resume:${roomCode}`;
+    const acquired = await redis.set(lockKey, instanceId, 'NX', 'EX', 5);
+
+    if (!acquired) {
+        logger.debug('Another instance resuming timer', { roomCode });
+        return false;
+    }
+
+    try {
+        // Check ownership
+        const owner = await redis.get(`timer:${roomCode}:owner`);
+        if (owner && owner !== instanceId) {
+            // Route to owner via pub/sub
+            await pubClient.publish('timer:resume', JSON.stringify({ roomCode }));
+            return true;
+        }
+
+        // Resume locally
+        return await doResumeTimer(roomCode);
+    } finally {
+        await redis.del(lockKey);
+    }
+}
+```
+
+#### Task 16.2: State Versioning
+**Issue:** #56
+**Files:** `server/src/services/gameService.js`, `server/src/services/roomService.js`
+
+**Problem:** Game state has no version numbers, making it impossible to detect missed updates.
+
+**Implementation:**
+- [ ] Add `stateVersion` field to game and room objects
+- [ ] Increment version on every mutation
+- [ ] Include version in all game/room events
+- [ ] Client validates version continuity, requests resync on gap
+
+```javascript
+// In gameService.js
+async function updateGameState(roomCode, updateFn) {
+    const game = await getGame(roomCode);
+    const updatedGame = updateFn(game);
+    updatedGame.stateVersion = (game.stateVersion || 0) + 1;
+    updatedGame.lastUpdated = Date.now();
+
+    await redis.set(`game:${roomCode}`, JSON.stringify(updatedGame));
+    return updatedGame;
+}
+```
+
+**Tests Required:** 20
+**Estimated Effort:** 10 hours
+
+---
+
+### Sprint 17: Resource Management & Cleanup (Priority: MEDIUM)
+
+**Goal:** Prevent resource leaks and improve cleanup
+
+#### Task 17.1: Orphaned Player Cleanup
+**Issue:** #57
+**Files:** `server/src/services/playerService.js`
+
+**Problem:** Disconnected players remain in Redis for 24 hours instead of 10-minute grace period.
+
+**Implementation:**
+- [ ] Schedule player removal after grace period expires
+- [ ] Use Redis keyspace notifications or delayed task queue
+- [ ] Clean up player from room's player set when removed
+- [ ] Add metrics for orphan cleanup
+
+```javascript
+// In playerService.js
+async function schedulePlayerCleanup(sessionId, roomCode) {
+    const cleanupKey = `cleanup:player:${sessionId}`;
+    const cleanupTime = Date.now() + REDIS_TTL.DISCONNECTED_PLAYER * 1000;
+
+    await redis.zadd('scheduled:player:cleanup', cleanupTime, sessionId);
+
+    // Set TTL as backup
+    await redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER);
+}
+
+// Periodic cleanup task
+async function processScheduledCleanups() {
+    const now = Date.now();
+    const toCleanup = await redis.zrangebyscore(
+        'scheduled:player:cleanup', 0, now, 'LIMIT', 0, 100
+    );
+
+    for (const sessionId of toCleanup) {
+        await cleanupPlayer(sessionId);
+        await redis.zrem('scheduled:player:cleanup', sessionId);
+    }
+}
+```
+
+#### Task 17.2: Event Listener Memory Leaks
+**Issues:** #63, #64
+**Files:** `index.html`, `server/public/js/ui.js`
+
+**Problem:** Event listeners added but never removed on element recreation.
+
+**Implementation:**
+- [ ] Track added listeners for removal
+- [ ] Clean up listeners when elements are recreated
+- [ ] Implement proper modal listener management
+- [ ] Use event delegation where appropriate
+
+**Tests Required:** 8
+**Estimated Effort:** 4 hours
+
+---
+
+### Sprint 18: Observability & Monitoring (Priority: MEDIUM)
+
+**Goal:** Improve debugging and operational visibility
+
+#### Task 18.1: Audit Logging for Sensitive Operations
+**Issue:** #70
+**Files:** `server/src/utils/audit.js` (new), various handlers
+
+**Operations to audit:**
+- Room password changes
+- Host transfers
+- Role changes (especially spymaster)
+- Player kicks/bans
+- Game start/end
+- Word list modifications
+
+```javascript
+// utils/audit.js
+const auditLogger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    defaultMeta: { service: 'codenames-audit' },
+    transports: [
+        new winston.transports.File({ filename: 'audit.log' })
+    ]
+});
+
+function audit(action, details) {
+    auditLogger.info({
+        action,
+        timestamp: new Date().toISOString(),
+        correlationId: getCorrelationId(),
+        instanceId: process.env.FLY_ALLOC_ID || 'local',
+        ...details
+    });
+}
+
+// Usage in handlers
+audit('PASSWORD_CHANGED', { roomCode, changedBy: sessionId, ip: getClientIP(socket) });
+audit('HOST_TRANSFERRED', { roomCode, from: oldHost, to: newHost, reason });
+audit('SPYMASTER_ASSIGNED', { roomCode, sessionId, team });
+```
+
+#### Task 18.2: Operation Latency Metrics
+**Issue:** #71
+**Files:** `server/src/utils/metrics.js`
+
+**Implementation:**
+- [ ] Add timing wrapper for Redis operations
+- [ ] Add timing for Prisma queries
+- [ ] Add timing for complex game operations
+- [ ] Expose latency percentiles via `/metrics`
+
+```javascript
+// In metrics.js
+const latencyBuckets = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+
+function recordOperationLatency(operation, durationMs) {
+    recordHistogram(`operation_latency_${operation}`, durationMs, latencyBuckets);
+
+    // Log slow operations
+    if (durationMs > SLOW_THRESHOLDS[operation] || 100) {
+        logger.warn('Slow operation', { operation, durationMs, correlationId: getCorrelationId() });
+    }
+}
+
+// Timing wrapper
+function withTiming(operation, fn) {
+    return async (...args) => {
+        const start = performance.now();
+        try {
+            return await fn(...args);
+        } finally {
+            recordOperationLatency(operation, performance.now() - start);
+        }
+    };
+}
+```
+
+**Tests Required:** 10
+**Estimated Effort:** 6 hours
+
+---
+
+## Phase 2 Summary
+
+### Sprint Overview
+
+| Sprint | Focus | Priority | Est. Hours | Tests |
+|--------|-------|----------|------------|-------|
+| 13 | Word List API Security | HIGH | 6 | 10 |
+| 14 | Session Security | HIGH | 8 | 15 |
+| 15 | CSRF & Cross-Origin | MEDIUM | 6 | 12 |
+| 16 | Multi-Instance Reliability | HIGH | 10 | 20 |
+| 17 | Resource Management | MEDIUM | 4 | 8 |
+| 18 | Observability | MEDIUM | 6 | 10 |
+| **Total** | | | **40 hours** | **75 tests** |
+
+### Success Criteria
+
+| Metric | Current | Target |
+|--------|---------|--------|
+| Critical Security Issues | 2 | 0 |
+| High Priority Issues | 6 | 0 |
+| Test Coverage | 63.21% | 70% |
+| Audit Log Coverage | 0% | 100% |
+| P99 Latency Visibility | Partial | Full |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Breaking reconnection flow | Medium | High | Feature flag, gradual rollout |
+| Timer sync regression | Low | High | Comprehensive integration tests |
+| Performance impact from auditing | Low | Medium | Async logging, sampling |
+| Session security too strict | Medium | Medium | Configurable enforcement levels |
+
+---
+
+## Remaining Issues Summary
+
+After Phase 2 completion, the following lower-priority issues will remain:
+
+### Low Priority (Future Work)
+| # | Issue | Category |
+|---|-------|----------|
+| 52 | 23 inline onclick handlers | Frontend |
+| 62 | Missing ARIA labels | Accessibility |
+| 72 | window.onload overwrite | Frontend |
+| 73 | CSP allows unsafe-inline | Security (documented) |
+| 36 | Full JSON serialization on reveal | Performance |
+| 37 | Rate limiter array allocation | Performance |
+| 45 | Long function decomposition | Code Quality |
+
+These can be addressed in a future Phase 3 focusing on frontend modernization and performance optimization.
+
+---
+
 *This development plan follows software engineering best practices including:*
 - *Incremental improvement with measurable goals*
 - *Test-driven development approach*
