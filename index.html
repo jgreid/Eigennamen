@@ -37,16 +37,18 @@
 
         /* Left Sidebar - Compact */
         .sidebar {
-            width: 340px;
-            min-width: 320px;
-            max-width: 360px;
+            width: 300px;
+            min-width: 280px;
+            max-width: 320px;
             flex-shrink: 0;
-            padding: 12px 16px;
+            padding: 10px 12px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
             background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
             border-right: 1px solid rgba(255, 255, 255, 0.06);
+            overflow-y: auto;
+            max-height: 100vh;
         }
 
         /* Right Main Area - 75% width */
@@ -95,24 +97,26 @@
         /* ========== QR CODE SECTION ========== */
         .qr-section {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            padding: 12px;
+            gap: 10px;
+            padding: 8px 12px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
+            border-radius: 10px;
         }
 
         #qr-canvas {
-            border-radius: 8px;
+            border-radius: 4px;
             background: white;
-            padding: 8px;
+            padding: 4px;
+            width: 56px;
+            height: 56px;
         }
 
         .qr-label {
             font-size: 0.7rem;
             color: rgba(255, 255, 255, 0.5);
-            margin-top: 6px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -207,9 +211,18 @@
         }
 
         .role-banner .host-badge {
-            font-size: 0.75em;
-            opacity: 0.8;
-            font-weight: 500;
+            display: inline-block;
+            font-size: 0.65em;
+            font-weight: 600;
+            padding: 2px 6px;
+            margin-left: 6px;
+            border-radius: 4px;
+            background: rgba(255, 215, 0, 0.2);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            color: #ffd700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
         }
 
         /* ========== SCOREBOARD ========== */
@@ -923,8 +936,9 @@
         /* Wide modals for settings and help - no scroll needed */
         #settings-modal .modal,
         #help-modal .modal {
-            max-width: 720px;
+            max-width: 800px;
             max-height: 90vh;
+            width: 95%;
         }
 
         #settings-modal .modal-section,
@@ -992,11 +1006,11 @@
 
         .modal-section textarea {
             width: 100%;
-            height: 150px;
-            padding: 12px 14px;
+            height: 120px;
+            padding: 10px 12px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-family: monospace;
             resize: vertical;
             background: rgba(0, 0, 0, 0.3);
@@ -1030,6 +1044,57 @@
             border-radius: 8px;
             margin-top: 10px;
             border: 1px solid rgba(79, 172, 254, 0.2);
+        }
+
+        /* Word list mode radio options */
+        .wordlist-mode-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .radio-option:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .radio-option input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .radio-option span {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Active state for radio option - use class for broader browser support */
+        .radio-option.selected {
+            background: rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        /* Modern browsers: use :has() as enhancement */
+        @supports selector(:has(*)) {
+            .radio-option:has(input:checked) {
+                background: rgba(102, 126, 234, 0.15);
+                border-color: rgba(102, 126, 234, 0.4);
+            }
         }
 
         .modal-buttons {
@@ -1124,24 +1189,100 @@
             font-size: 0.9rem;
         }
 
-        /* ========== TABLET RESPONSIVE (768px - 1024px) ========== */
+        /* ========== TABLET/LAPTOP RESPONSIVE (768px - 1024px) ========== */
         @media (max-width: 1024px) {
             .sidebar {
-                width: 280px;
-                min-width: 260px;
-                padding: 20px 16px;
+                width: 260px;
+                min-width: 240px;
+                max-width: 280px;
+                padding: 8px 10px;
+                gap: 5px;
             }
 
             .team-controls-row {
                 flex-direction: column;
+                gap: 6px;
+            }
+
+            .control-group.team-red,
+            .control-group.team-blue {
+                padding: 8px;
+            }
+
+            .control-group-label {
+                font-size: 0.75rem;
+                margin-bottom: 4px;
+            }
+
+            .role-banner {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            .scoreboard {
+                gap: 6px;
+            }
+
+            .score {
+                padding: 8px 6px;
+            }
+
+            .score .team-name {
+                font-size: 0.7rem;
+            }
+
+            .score .count {
+                font-size: 1.1rem;
+            }
+
+            .turn-indicator {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            button {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+            }
+
+            .btn-team-red,
+            .btn-team-blue,
+            .btn-spymaster-red,
+            .btn-spymaster-blue,
+            .btn-clicker-red,
+            .btn-clicker-blue {
+                min-width: 55px;
             }
 
             .main-content {
-                padding: 20px 24px;
+                padding: 16px 20px;
             }
 
             .card {
                 font-size: clamp(0.8rem, 2vw, 1.1rem);
+            }
+
+            .instructions {
+                display: none;
+            }
+
+            h1 {
+                font-size: 1.4rem;
+            }
+        }
+
+        /* ========== SMALL LAPTOP / LARGER TABLET (1024px - 1200px) ========== */
+        @media (min-width: 1025px) and (max-width: 1200px) {
+            .sidebar {
+                width: 280px;
+                min-width: 260px;
+                max-width: 300px;
+                padding: 10px 12px;
+                gap: 6px;
+            }
+
+            .instructions {
+                display: none;
             }
         }
 
@@ -1225,6 +1366,10 @@
             .control-group.team-red,
             .control-group.team-blue {
                 padding: 8px;
+            }
+
+            .qr-section {
+                display: none; /* QR code not useful on mobile - can't scan own screen */
             }
 
             .instructions {
@@ -1574,7 +1719,7 @@
 
             <!-- QR Code for easy game joining -->
             <div class="qr-section" id="qr-section">
-                <canvas id="qr-canvas" width="120" height="120"></canvas>
+                <canvas id="qr-canvas" width="56" height="56"></canvas>
                 <div class="qr-label">Scan to join</div>
             </div>
 
@@ -1653,7 +1798,7 @@
             <div class="board-container">
                 <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
                 <div class="board-footer">
-                    <span class="version">v2.1.0</span>
+                    <span class="version">v2.2.0</span>
                 </div>
             </div>
         </main>
@@ -1676,13 +1821,26 @@
             </div>
 
             <div class="modal-section">
-                <h3>Custom Word List</h3>
-                <label for="custom-words">Words (one per line):</label>
+                <h3>Word List</h3>
+                <div class="wordlist-mode-options">
+                    <label class="radio-option">
+                        <input type="radio" name="wordlist-mode" value="default" id="wordlist-mode-default">
+                        <span>Default words only (400 classic Codenames words)</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="wordlist-mode" value="combined" id="wordlist-mode-combined" checked>
+                        <span>Default + Custom words (combine both)</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="wordlist-mode" value="custom" id="wordlist-mode-custom">
+                        <span>Custom words only (use only the words below)</span>
+                    </label>
+                </div>
+                <label for="custom-words" style="margin-top: 12px;">Custom words (one per line):</label>
                 <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
-                <div class="word-count" id="word-count">0 words (need at least 25)</div>
-                <div id="word-error" class="input-error">You need at least 25 words. Please add more or leave empty to use default words.</div>
+                <div class="word-count" id="word-count">0 words</div>
+                <div id="word-error" class="input-error">You need at least 25 custom words when using "Custom words only" mode.</div>
                 <p class="info">Custom words are embedded in the game link when you create a new game. All players will see the same words!</p>
-                <p>You can also place a <code>wordlist.txt</code> file alongside this page.</p>
             </div>
 
             <div class="modal-section">
@@ -2270,6 +2428,8 @@
         // Active word list for creating NEW games (can be customized by host)
         let activeWords = [...DEFAULT_WORDS];
         let wordSource = 'default';
+        let wordListMode = 'combined'; // 'default', 'combined', or 'custom'
+        let customWordsList = []; // Stores custom words separately
 
         // Team names (stored in URL for consistency across players)
         let teamNames = {
@@ -2610,18 +2770,23 @@
         // Update QR code with current game URL
         function updateQRCode(url) {
             const canvas = document.getElementById('qr-canvas');
+            const qrSection = document.getElementById('qr-section');
             if (!canvas) return;
 
             try {
                 const matrix = QRCode.generate(url || window.location.href);
                 QRCode.toCanvas(canvas, matrix, {
-                    scale: 3,
-                    margin: 1,
+                    scale: 2,
+                    margin: 0,
                     dark: '#1a1a2e',
                     light: '#ffffff'
                 });
+                // Show QR section on success
+                if (qrSection) qrSection.style.display = '';
             } catch (e) {
-                console.warn('QR code generation failed:', e);
+                // Hide QR section if URL is too long for QR code
+                console.warn('QR code generation failed (URL may be too long):', e);
+                if (qrSection) qrSection.style.display = 'none';
             }
         }
 
@@ -2629,8 +2794,8 @@
             const banner = cachedElements.roleBanner || document.getElementById('role-banner');
             if (!banner) return;
 
-            // Build simplified role text: Role + Host indicator
-            const hostBadge = isHost ? ' <span class="host-badge">(Host)</span>' : '';
+            // Build simplified role text: Role + Host indicator (always visible when host)
+            const hostBadge = isHost ? '<span class="host-badge">Host</span>' : '';
 
             if (spymasterTeam === 'red') {
                 banner.className = 'role-banner spymaster-red';
@@ -2652,7 +2817,7 @@
                 banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Team${hostBadge}`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
-                banner.innerHTML = `Host`;
+                banner.innerHTML = `<span class="host-badge">Host</span> Spectator`;
             } else {
                 banner.className = 'role-banner viewer';
                 banner.innerHTML = `Spectator`;
@@ -3202,6 +3367,18 @@
             updateCharCounter('red-name-input', 'red-char-counter', 20);
             updateCharCounter('blue-name-input', 'blue-char-counter', 20);
 
+            // Load word list mode
+            const savedMode = localStorage.getItem('codenames-wordlist-mode') || 'combined';
+            const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`);
+            if (modeRadio) {
+                modeRadio.checked = true;
+                // Update selected class for older browsers
+                const radios = document.querySelectorAll('input[name="wordlist-mode"]');
+                radios.forEach(r => {
+                    r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+                });
+            }
+
             const customWords = localStorage.getItem('codenames-custom-words');
             if (customWordsTextarea) {
                 customWordsTextarea.value = customWords || '';
@@ -3224,30 +3401,47 @@
             const words = parseWords(textarea.value);
             const count = words.length;
 
-            if (count === 0) {
-                countEl.textContent = `Using default word list (${DEFAULT_WORDS.length} words)`;
+            // Get current mode selection
+            const modeRadio = document.querySelector('input[name="wordlist-mode"]:checked');
+            const mode = modeRadio ? modeRadio.value : 'combined';
+
+            if (mode === 'default') {
+                countEl.textContent = `Using ${DEFAULT_WORDS.length} default words`;
                 countEl.className = 'word-count';
-                // Clear error state when empty (will use defaults)
                 if (errorEl) errorEl.classList.remove('visible');
                 textarea.classList.remove('invalid');
-            } else if (count < BOARD_SIZE) {
-                countEl.textContent = `${count} words (need at least ${BOARD_SIZE})`;
-                countEl.className = 'word-count error';
-                // Show inline validation feedback
-                if (errorEl) errorEl.classList.add('visible');
-                textarea.classList.add('invalid');
-            } else if (count < 50) {
-                countEl.textContent = `${count} words (works, but more variety is better)`;
-                countEl.className = 'word-count warning';
-                // Clear error state - valid but with warning
-                if (errorEl) errorEl.classList.remove('visible');
-                textarea.classList.remove('invalid');
-            } else {
-                countEl.textContent = `${count} words`;
+            } else if (mode === 'combined') {
+                if (count === 0) {
+                    countEl.textContent = `Using ${DEFAULT_WORDS.length} default words`;
+                } else {
+                    const totalUnique = new Set([...DEFAULT_WORDS, ...words]).size;
+                    countEl.textContent = `${count} custom + ${DEFAULT_WORDS.length} default = ${totalUnique} unique words`;
+                }
                 countEl.className = 'word-count';
-                // Clear error state - fully valid
                 if (errorEl) errorEl.classList.remove('visible');
                 textarea.classList.remove('invalid');
+            } else if (mode === 'custom') {
+                if (count === 0) {
+                    countEl.textContent = `0 words (need at least ${BOARD_SIZE})`;
+                    countEl.className = 'word-count error';
+                    if (errorEl) errorEl.classList.add('visible');
+                    textarea.classList.add('invalid');
+                } else if (count < BOARD_SIZE) {
+                    countEl.textContent = `${count} words (need at least ${BOARD_SIZE})`;
+                    countEl.className = 'word-count error';
+                    if (errorEl) errorEl.classList.add('visible');
+                    textarea.classList.add('invalid');
+                } else if (count < 50) {
+                    countEl.textContent = `${count} words (works, but more variety is better)`;
+                    countEl.className = 'word-count warning';
+                    if (errorEl) errorEl.classList.remove('visible');
+                    textarea.classList.remove('invalid');
+                } else {
+                    countEl.textContent = `${count} custom words`;
+                    countEl.className = 'word-count';
+                    if (errorEl) errorEl.classList.remove('visible');
+                    textarea.classList.remove('invalid');
+                }
             }
         }
 
@@ -3274,36 +3468,56 @@
             localStorage.setItem('codenames-colorblind', colorblindMode ? '1' : '0');
             applyColorblindMode();
 
+            // Get word list mode
+            const modeRadio = document.querySelector('input[name="wordlist-mode"]:checked');
+            const selectedMode = modeRadio ? modeRadio.value : 'combined';
+            localStorage.setItem('codenames-wordlist-mode', selectedMode);
+            wordListMode = selectedMode;
+
             const textarea = document.getElementById('custom-words');
             const customWordsText = textarea ? textarea.value.trim() : '';
             const wordError = document.getElementById('word-error');
 
-            if (customWordsText) {
-                const words = parseWords(customWordsText);
-                if (words.length >= BOARD_SIZE) {
-                    localStorage.setItem('codenames-custom-words', customWordsText);
-                    activeWords = words;
-                    wordSource = 'custom';
-                    // Clear any error state
-                    if (wordError) wordError.classList.remove('visible');
-                    if (textarea) textarea.classList.remove('invalid');
-                } else {
-                    // Show inline error instead of alert
-                    if (wordError) wordError.classList.add('visible');
-                    if (textarea) {
-                        textarea.classList.add('invalid');
-                        textarea.focus();
-                    }
-                    return;
+            // Parse custom words
+            const customWords = customWordsText ? parseWords(customWordsText) : [];
+
+            // Validate based on mode
+            if (selectedMode === 'custom' && customWords.length < BOARD_SIZE) {
+                // Custom only mode requires at least 25 words
+                if (wordError) wordError.classList.add('visible');
+                if (textarea) {
+                    textarea.classList.add('invalid');
+                    textarea.focus();
                 }
+                return;
+            }
+
+            // Save custom words if any
+            if (customWordsText) {
+                localStorage.setItem('codenames-custom-words', customWordsText);
+                customWordsList = customWords;
             } else {
                 localStorage.removeItem('codenames-custom-words');
+                customWordsList = [];
+            }
+
+            // Build active word list based on mode
+            if (selectedMode === 'default') {
                 activeWords = [...DEFAULT_WORDS];
                 wordSource = 'default';
-                // Clear any error state
-                if (wordError) wordError.classList.remove('visible');
-                if (textarea) textarea.classList.remove('invalid');
+            } else if (selectedMode === 'combined') {
+                // Combine default + custom, removing duplicates
+                const combined = new Set([...DEFAULT_WORDS, ...customWords]);
+                activeWords = [...combined];
+                wordSource = customWords.length > 0 ? 'combined' : 'default';
+            } else if (selectedMode === 'custom') {
+                activeWords = [...customWords];
+                wordSource = 'custom';
             }
+
+            // Clear any error state
+            if (wordError) wordError.classList.remove('visible');
+            if (textarea) textarea.classList.remove('invalid');
 
             updateURL();
             updateWordSourceDisplay();
@@ -3319,6 +3533,18 @@
         function resetWords() {
             const textarea = document.getElementById('custom-words');
             if (textarea) textarea.value = '';
+
+            // Reset word list mode to 'combined' (default)
+            const combinedRadio = document.getElementById('wordlist-mode-combined');
+            if (combinedRadio) {
+                combinedRadio.checked = true;
+                // Update selected class for older browsers
+                const radios = document.querySelectorAll('input[name="wordlist-mode"]');
+                radios.forEach(r => {
+                    r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+                });
+            }
+
             updateWordCount();
         }
 
@@ -3327,8 +3553,10 @@
             if (!sourceEl) return;
             if (gameState.customWords) {
                 sourceEl.textContent = 'Using custom words (shared via link)';
+            } else if (wordSource === 'combined') {
+                sourceEl.textContent = `${activeWords.length} words (default + custom) - will apply to new games`;
             } else if (wordSource === 'custom') {
-                sourceEl.textContent = `Custom words loaded (${activeWords.length}) - will apply to new games`;
+                sourceEl.textContent = `${activeWords.length} custom words - will apply to new games`;
             } else if (wordSource === 'file') {
                 sourceEl.textContent = `Words from wordlist.txt (${activeWords.length}) - will apply to new games`;
             } else {
@@ -3341,19 +3569,40 @@
             colorblindMode = localStorage.getItem('codenames-colorblind') === '1';
             applyColorblindMode();
 
+            // Load word list mode
+            wordListMode = localStorage.getItem('codenames-wordlist-mode') || 'combined';
+
             // Load custom words
-            const customWords = localStorage.getItem('codenames-custom-words');
-            if (customWords) {
-                const words = parseWords(customWords);
-                if (words.length >= BOARD_SIZE) {
-                    activeWords = words;
-                    wordSource = 'custom';
+            const customWordsText = localStorage.getItem('codenames-custom-words');
+            const customWords = customWordsText ? parseWords(customWordsText) : [];
+            customWordsList = customWords;
+
+            // Apply word list based on mode
+            if (wordListMode === 'default') {
+                activeWords = [...DEFAULT_WORDS];
+                wordSource = 'default';
+            } else if (wordListMode === 'combined') {
+                if (customWords.length > 0) {
+                    const combined = new Set([...DEFAULT_WORDS, ...customWords]);
+                    activeWords = [...combined];
+                    wordSource = 'combined';
+                } else {
+                    activeWords = [...DEFAULT_WORDS];
+                    wordSource = 'default';
                 }
+            } else if (wordListMode === 'custom' && customWords.length >= BOARD_SIZE) {
+                activeWords = [...customWords];
+                wordSource = 'custom';
+            } else {
+                // Fallback to default if custom mode but not enough words
+                activeWords = [...DEFAULT_WORDS];
+                wordSource = 'default';
             }
         }
 
         async function tryLoadWordlistFile() {
-            if (localStorage.getItem('codenames-custom-words')) {
+            // Skip if custom words exist or mode is 'default' only
+            if (localStorage.getItem('codenames-custom-words') || wordListMode === 'default') {
                 return;
             }
 
@@ -3361,10 +3610,17 @@
                 const response = await fetch('wordlist.txt');
                 if (response.ok) {
                     const text = await response.text();
-                    const words = parseWords(text);
-                    if (words.length >= BOARD_SIZE) {
-                        activeWords = words;
-                        wordSource = 'file';
+                    const fileWords = parseWords(text);
+                    if (fileWords.length >= BOARD_SIZE) {
+                        // Apply based on current mode
+                        if (wordListMode === 'combined') {
+                            const combined = new Set([...DEFAULT_WORDS, ...fileWords]);
+                            activeWords = [...combined];
+                            wordSource = 'file';
+                        } else if (wordListMode === 'custom') {
+                            activeWords = fileWords;
+                            wordSource = 'file';
+                        }
                     }
                 }
                 // 404 is expected when file doesn't exist - no need to log
@@ -3381,6 +3637,26 @@
         if (customWordsEl) {
             customWordsEl.addEventListener('input', updateWordCount);
         }
+
+        // Add event listeners for word list mode radio buttons
+        const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
+        wordlistModeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                // Update selected class for older browser support
+                wordlistModeRadios.forEach(r => {
+                    r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+                });
+                updateWordCount();
+            });
+        });
+
+        // Initialize selected class on page load
+        function initRadioOptionStyles() {
+            wordlistModeRadios.forEach(r => {
+                r.closest('.radio-option')?.classList.toggle('selected', r.checked);
+            });
+        }
+        initRadioOptionStyles();
 
         // ========== EVENT LISTENER SETUP ==========
         // Centralized event handling using event delegation for better testability
