@@ -807,7 +807,7 @@
             right: 4px;
             width: auto;
             height: auto;
-            font-size: 1.1rem;
+            font-size: 1.65rem;
             color: #ff4444;
             background: transparent;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -1714,13 +1714,12 @@
         <!-- LEFT SIDEBAR - Controls & Info -->
         <aside class="sidebar">
             <header>
-                <h1>Die Eigennamen</h1>
+                <h1>Eigen-Namen</h1>
             </header>
 
             <!-- QR Code for easy game joining -->
             <div class="qr-section" id="qr-section">
                 <canvas id="qr-canvas" width="56" height="56"></canvas>
-                <div class="qr-label">Scan to join</div>
             </div>
 
             <div class="role-banner" id="role-banner">
@@ -3563,11 +3562,11 @@
             if (gameState.customWords) {
                 sourceEl.textContent = 'Using custom words (shared via link)';
             } else if (wordSource === 'combined') {
-                sourceEl.textContent = `${activeWords.length} words (default + custom) - will apply to new games`;
+                sourceEl.textContent = `${activeWords.length} words (default + custom)`;
             } else if (wordSource === 'custom') {
-                sourceEl.textContent = `${activeWords.length} custom words - will apply to new games`;
+                sourceEl.textContent = `${activeWords.length} custom words`;
             } else if (wordSource === 'file') {
-                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length}) - will apply to new games`;
+                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length})`;
             } else {
                 sourceEl.textContent = '';
             }

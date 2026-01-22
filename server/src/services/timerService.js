@@ -177,44 +177,44 @@ function handleTimerEvent(event, onExpireCallback) {
             // Only the instance that owns the timer should process this
             if (localTimers.has(event.roomCode)) {
                 const localTimer = localTimers.get(event.roomCode);
-                // Update local timer with new end time
-                clearTimeout(localTimer.timeoutId);
-                localTimer.endTime = event.newEndTime;
-                localTimer.duration = event.newDuration;
 
-                const remainingMs = event.newEndTime - Date.now();
-                if (remainingMs > 0) {
-                    localTimer.timeoutId = setTimeout(async () => {
-                        try {
-                            logger.info(`Timer expired for room ${event.roomCode}`);
-                            localTimers.delete(event.roomCode);
-                            const redis = getRedis();
-                            await redis.del(`${TIMER_KEY_PREFIX}${event.roomCode}`);
+                // If event contains newEndTime, it's a notification of completed addTime
+                // If event contains secondsToAdd, it's a request to add time
+                if (event.newEndTime) {
+                    // Update local timer with new end time from completed operation
+                    clearTimeout(localTimer.timeoutId);
+                    localTimer.endTime = event.newEndTime;
+                    localTimer.duration = event.newDuration;
 
-                            if (onExpireCallback) {
-                                await onExpireCallback(event.roomCode);
+                    const remainingMs = event.newEndTime - Date.now();
+                    if (remainingMs > 0) {
+                        localTimer.timeoutId = setTimeout(async () => {
+                            try {
+                                logger.info(`Timer expired for room ${event.roomCode}`);
+                                localTimers.delete(event.roomCode);
+                                const redis = getRedis();
+                                await redis.del(`${TIMER_KEY_PREFIX}${event.roomCode}`);
+
+                                if (onExpireCallback) {
+                                    await onExpireCallback(event.roomCode);
+                                }
+                            } catch (error) {
+                                logger.error(`Error handling timer expiration for room ${event.roomCode}:`, error);
                             }
-                        } catch (error) {
-                            logger.error(`Error handling timer expiration for room ${event.roomCode}:`, error);
-                        }
-                    }, remainingMs);
+                        }, remainingMs);
 
-                    logger.debug(`Updated local timer for room ${event.roomCode} via pub/sub addTime`);
+                        logger.debug(`Updated local timer for room ${event.roomCode} via pub/sub addTime`);
+                    }
+                } else if (event.secondsToAdd) {
+                    // Process addTime request locally since we own the timer
+                    logger.debug(`Processing addTime event for room ${event.roomCode} (we own this timer)`);
+                    addTimeLocal(event.roomCode, event.secondsToAdd, onExpireCallback)
+                        .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err));
                 }
             }
             break;
         case 'expired':
             // Timer expired on another instance - no action needed
-            break;
-        case 'addTime':
-            // ISSUE #34 FIX: Handle addTime request from another instance
-            // Only process if we own the timer locally
-            if (localTimers.has(event.roomCode)) {
-                logger.debug(`Processing addTime event for room ${event.roomCode} (we own this timer)`);
-                // Process addTime locally since we own the timer
-                addTimeLocal(event.roomCode, event.secondsToAdd, onExpireCallback)
-                    .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err));
-            }
             break;
         case 'addTimeResult':
             // ISSUE #34 FIX: Receive result from the instance that owns the timer
