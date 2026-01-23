@@ -960,6 +960,49 @@
             gap: 12px;
         }
 
+        /* Compact rules modal - fit on screen without scrollbar */
+        #help-modal .modal {
+            max-height: none;
+            overflow: visible;
+            padding: 20px 28px;
+        }
+
+        #help-modal .modal h2 {
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+
+        #help-modal .modal-section {
+            margin-bottom: 12px;
+        }
+
+        #help-modal .modal-section h3 {
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+
+        #help-modal .modal-section p,
+        #help-modal .modal-section ul {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        #help-modal .modal-section ul li {
+            margin-top: 4px;
+        }
+
+        #help-modal .rules-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            #help-modal .rules-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Two-column layout for settings inputs */
         #settings-modal .modal-section label {
             display: inline-block;
@@ -1281,6 +1324,10 @@
             h1 {
                 font-size: 1.4rem;
             }
+
+            .spymaster-warning {
+                left: 260px; /* Match narrower sidebar width at tablet size */
+            }
         }
 
         /* ========== SMALL LAPTOP / LARGER TABLET (1024px - 1200px) ========== */
@@ -1580,7 +1627,7 @@
         .spymaster-warning {
             position: fixed;
             top: 0;
-            left: 0;
+            left: 300px; /* Align with main content, don't overlap sidebar */
             right: 0;
             background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
             color: white;
@@ -1625,6 +1672,7 @@
             .spymaster-warning {
                 font-size: 0.75rem;
                 padding: 6px 12px;
+                left: 0; /* Full width on mobile since sidebar stacks vertically */
             }
         }
 
@@ -1732,7 +1780,7 @@
             <header>
                 <!-- QR Code for easy game joining -->
                 <div class="qr-section" id="qr-section">
-                    <canvas id="qr-canvas" width="52" height="52"></canvas>
+                    <canvas id="qr-canvas" width="78" height="78"></canvas>
                 </div>
                 <div class="title-text">
                     <span>Eigen-</span>
@@ -1779,7 +1827,7 @@
                 <div class="control-group bottom-controls">
                     <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate">Spectate</button>
                     <button type="button" class="btn-settings" data-action="open-settings">Settings</button>
-                    <button type="button" class="btn-help" data-action="open-help">Help</button>
+                    <button type="button" class="btn-help" data-action="open-help">Rules</button>
                 </div>
 
                 <div class="action-buttons-row">
@@ -1917,35 +1965,36 @@
         </div>
     </div>
 
-    <!-- Help Modal (for mobile) -->
+    <!-- Rules Modal -->
     <div class="modal-overlay" id="help-modal">
         <div class="modal">
-            <h2>How to Play Codenames</h2>
+            <h2>Game Rules</h2>
 
             <div class="modal-section">
-                <h3>Game Overview</h3>
-                <p style="color: rgba(255,255,255,0.8); line-height: 1.6;">
-                    Two teams compete to find all their words first. Each team has a <strong>Spymaster</strong> who sees which words belong to which team, and <strong>Clickers</strong> who reveal cards based on the team's guesses.
+                <p style="color: rgba(255,255,255,0.8);">
+                    Two teams compete to find all their words first. Each team has a <strong>Spymaster</strong> who gives clues, and <strong>Clickers</strong> who reveal cards.
                 </p>
             </div>
 
-            <div class="modal-section">
-                <h3>Roles</h3>
-                <ul style="color: rgba(255,255,255,0.8); line-height: 1.8; list-style: none; padding: 0;">
-                    <li><strong style="color: #ff6b6b;">Spymaster (Spy):</strong> Sees the key showing all card types. Gives one-word clues to help your team guess. Cannot click cards.</li>
-                    <li style="margin-top: 8px;"><strong style="color: #74b9ff;">Clicker (Click):</strong> Reveals cards based on team discussion. Can end the turn when your team is done guessing.</li>
-                    <li style="margin-top: 8px;"><strong style="color: #adb5bd;">Team Member (Join):</strong> Discuss guesses with your team. Watch and participate in team decisions.</li>
-                </ul>
-            </div>
+            <div class="rules-columns">
+                <div class="modal-section">
+                    <h3>Roles</h3>
+                    <ul style="color: rgba(255,255,255,0.8); list-style: none; padding: 0;">
+                        <li><strong style="color: #ff6b6b;">Spymaster:</strong> Sees the key. Gives one-word clues.</li>
+                        <li><strong style="color: #74b9ff;">Clicker:</strong> Reveals cards. Can end the turn.</li>
+                        <li><strong style="color: #adb5bd;">Team Member:</strong> Discuss and participate.</li>
+                    </ul>
+                </div>
 
-            <div class="modal-section">
-                <h3>Card Types</h3>
-                <ul style="color: rgba(255,255,255,0.8); line-height: 1.8; list-style: none; padding: 0;">
-                    <li><span style="color: #ff6b6b;">Red cards:</span> Red team's words</li>
-                    <li><span style="color: #74b9ff;">Blue cards:</span> Blue team's words</li>
-                    <li><span style="color: #bdc3c7;">Neutral cards:</span> End your turn but no penalty</li>
-                    <li><span style="color: #e74c3c;">Assassin (black):</span> Instant loss for the team that reveals it!</li>
-                </ul>
+                <div class="modal-section">
+                    <h3>Card Types</h3>
+                    <ul style="color: rgba(255,255,255,0.8); list-style: none; padding: 0;">
+                        <li><span style="color: #ff6b6b;">Red:</span> Red team's words</li>
+                        <li><span style="color: #74b9ff;">Blue:</span> Blue team's words</li>
+                        <li><span style="color: #bdc3c7;">Neutral:</span> Ends your turn</li>
+                        <li><span style="color: #e74c3c;">Assassin:</span> Instant loss!</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="modal-buttons">
@@ -2802,7 +2851,7 @@
             try {
                 const matrix = QRCode.generate(url || window.location.href);
                 QRCode.toCanvas(canvas, matrix, {
-                    scale: 2,
+                    scale: 3,
                     margin: 0,
                     dark: '#1a1a2e',
                     light: '#ffffff'
@@ -2955,7 +3004,7 @@
             } else {
                 spymasterTeam = team;
                 playerTeam = team; // Automatically set team affiliation
-                isHost = false; // Spymasters shouldn't also be hosts
+                // Host status persists even when taking a role
                 clickerTeam = null; // Can't be both spymaster and clicker
             }
             updateRoleBanner();
@@ -2971,7 +3020,7 @@
             } else {
                 clickerTeam = team;
                 playerTeam = team; // Automatically set team affiliation
-                isHost = false; // Clickers shouldn't also be hosts
+                // Host status persists even when taking a role
                 spymasterTeam = null; // Can't be both spymaster and clicker
             }
             updateRoleBanner();
