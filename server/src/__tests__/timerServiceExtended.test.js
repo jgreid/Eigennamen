@@ -229,8 +229,10 @@ describe('Timer Service Extended Tests', () => {
 
             // Advance past all retry delays (3 retries * 2s each = 6s)
             for (let i = 0; i < 3; i++) {
+                // eslint-disable-next-line no-await-in-loop -- Sequential timer advancement required for accurate simulation
                 await flushPromises();
                 jest.advanceTimersByTime(2500);
+                // eslint-disable-next-line no-await-in-loop
                 await flushPromises();
             }
 

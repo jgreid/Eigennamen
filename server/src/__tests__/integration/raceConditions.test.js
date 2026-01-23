@@ -239,6 +239,7 @@ describe('Race Condition Tests', () => {
             try {
                 // Create 5 clients simultaneously creating rooms
                 for (let i = 0; i < 5; i++) {
+                    // eslint-disable-next-line no-await-in-loop -- Sequential client creation for controlled test setup
                     const client = await createClient();
                     clients.push(client);
 
@@ -287,11 +288,13 @@ describe('Race Condition Tests', () => {
 
                 // Try to join with 5 players (within limit)
                 for (let i = 0; i < 5; i++) {
+                    // eslint-disable-next-line no-await-in-loop -- Sequential joins to test order-dependent behavior
                     const client = await createClient();
                     clients.push(client);
 
                     const joinPromise = waitForEvent(client, 'room:joined');
                     client.emit('room:join', { code: room.code, nickname: `Player${i}` });
+                    // eslint-disable-next-line no-await-in-loop
                     await joinPromise;
                 }
 

@@ -15,6 +15,34 @@ const router = express.Router();
 // Track server start time for uptime calculation
 const serverStartTime = Date.now();
 
+// Health check timeout (prevents hanging if Redis is slow)
+const HEALTH_CHECK_TIMEOUT_MS = 3000;
+
+/**
+ * Wrap a promise with a timeout
+ * @param {Promise} promise - The promise to wrap
+ * @param {number} timeoutMs - Timeout in milliseconds
+ * @param {string} operation - Operation name for error message
+ * @returns {Promise} - Resolves with result or rejects on timeout
+ */
+async function withTimeout(promise, timeoutMs, operation) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+    });
+
+    try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        clearTimeout(timeoutId);
+        return result;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+    }
+}
+
 /**
  * Basic health check - always returns 200 if server is running
  * Used for basic availability monitoring
@@ -39,12 +67,16 @@ router.get('/ready', async (req, res) => {
     };
 
     try {
-        // Check Redis connection
+        // Check Redis connection with timeout protection
         if (isUsingMemoryMode()) {
             checks.redis = { healthy: true, mode: 'memory' };
             checks.pubsub = { healthy: true, status: 'memory_mode' };
         } else {
-            const redisHealthy = await isRedisHealthy();
+            const redisHealthy = await withTimeout(
+                isRedisHealthy(),
+                HEALTH_CHECK_TIMEOUT_MS,
+                'Redis health check'
+            );
             checks.redis = { healthy: redisHealthy, mode: 'redis' };
 
             // Check pub/sub health
@@ -113,7 +145,7 @@ router.get('/metrics', async (req, res) => {
             },
             redis: {
                 mode: isUsingMemoryMode() ? 'memory' : 'redis',
-                healthy: await isRedisHealthy()
+                healthy: await withTimeout(isRedisHealthy(), HEALTH_CHECK_TIMEOUT_MS, 'Redis health check')
             },
             pubsub: {
                 healthy: pubSubStatus.isHealthy,

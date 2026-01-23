@@ -228,20 +228,21 @@ class MemoryStorage {
     async keys(pattern) {
         // Convert glob pattern to regex with proper escaping
         const regex = this._globToRegex(pattern);
-        const result = [];
+        // Use Set for O(1) deduplication instead of O(n) includes() check
+        const resultSet = new Set();
 
         for (const key of this.data.keys()) {
             if (!this._isExpired(key) && regex.test(key)) {
-                result.push(key);
+                resultSet.add(key);
             }
         }
         for (const key of this.sets.keys()) {
-            if (!this._isExpired(key) && regex.test(key) && !result.includes(key)) {
-                result.push(key);
+            if (!this._isExpired(key) && regex.test(key)) {
+                resultSet.add(key);
             }
         }
 
-        return result;
+        return [...resultSet];
     }
 
     // Scan for pattern matching (simplified implementation)
@@ -482,8 +483,14 @@ class MemoryStorage {
                                     results.push(0);
                                 }
                                 break;
+                            default:
+                                // Unknown command - log and push null for Redis compatibility
+                                logger.warn(`Unknown transaction command: ${cmd.cmd}`);
+                                results.push(null);
                         }
                     } catch (e) {
+                        // Log error for debugging but continue (Redis returns null for failed commands)
+                        logger.error(`Transaction command failed: ${cmd.cmd}`, { error: e.message, key: cmd.key });
                         results.push(null);
                     }
                 }

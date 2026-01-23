@@ -217,7 +217,9 @@ describe('Password-Protected Room Data Structures', () => {
                     nickname: `Player ${i}`,
                     connected: true
                 });
+                // eslint-disable-next-line no-await-in-loop -- Sequential setup required for deterministic test state
                 await mockRedis.set(`player:${sessionId}`, JSON.stringify(player));
+                // eslint-disable-next-line no-await-in-loop
                 await mockRedis.sAdd(`room:${roomCode}:players`, [sessionId]);
             }
 
@@ -237,6 +239,7 @@ describe('Password-Protected Room Data Structures', () => {
                     role: 'spectator'
                 });
                 players.push(player);
+                // eslint-disable-next-line no-await-in-loop -- Sequential setup required
                 await mockRedis.set(`player:player-${i}`, JSON.stringify(player));
             }
 
@@ -253,6 +256,7 @@ describe('Password-Protected Room Data Structures', () => {
 
             // Verify team assignments
             for (let i = 0; i < 4; i++) {
+                // eslint-disable-next-line no-await-in-loop -- Sequential verification required
                 const stored = await mockRedis.get(`player:player-${i}`);
                 const parsed = JSON.parse(stored);
                 expect(parsed.team).toBe(i % 2 === 0 ? 'red' : 'blue');
