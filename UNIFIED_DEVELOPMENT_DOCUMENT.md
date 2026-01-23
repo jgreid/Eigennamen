@@ -1,7 +1,7 @@
 # Unified Development Document - Die Eigennamen (Codenames Online)
 
 **Last Updated:** January 23, 2026
-**Version:** 2.3.0
+**Version:** 3.2.0 (Frontend) / 2.2.0 (Backend)
 **Review Status:** COMPLETE - All critical and high-priority issues resolved, test coverage improved
 
 ---
