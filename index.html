@@ -12,6 +12,9 @@
     <title>Codenames Online</title>
     <!-- QR Code library from CDN (proven, well-tested implementation) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <!-- Socket.io client for multiplayer mode -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/js/socket-client.js"></script>
     <style>
         /* ========== CSS CUSTOM PROPERTIES (Design Tokens) ========== */
         :root {
@@ -2058,6 +2061,268 @@
             padding: 10px 16px;
             font-size: 0.85rem;
         }
+
+        /* ========== MULTIPLAYER MODAL STYLES ========== */
+        .multiplayer-modal {
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .multiplayer-modal h2 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+
+        .multiplayer-modal .subtitle {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .multiplayer-modal .mode-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .multiplayer-modal .mode-btn {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        .multiplayer-modal .mode-btn:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .multiplayer-modal .mode-btn.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .multiplayer-modal .mode-btn .mode-icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .multiplayer-modal .mode-btn .mode-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .multiplayer-modal .mode-btn .mode-desc {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+        }
+
+        .multiplayer-modal .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .multiplayer-modal .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .multiplayer-modal .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .multiplayer-modal .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .multiplayer-modal .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .multiplayer-modal .form-group .input-hint {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 4px;
+        }
+
+        .multiplayer-modal .form-group.error input {
+            border-color: var(--color-red-primary);
+        }
+
+        .multiplayer-modal .form-group .error-text {
+            color: var(--color-red-light);
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .multiplayer-modal .form-group.error .error-text {
+            display: block;
+        }
+
+        .multiplayer-modal .join-form,
+        .multiplayer-modal .create-form {
+            display: none;
+        }
+
+        .multiplayer-modal .join-form.active,
+        .multiplayer-modal .create-form.active {
+            display: block;
+        }
+
+        .multiplayer-modal .modal-buttons {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .multiplayer-modal .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .multiplayer-modal .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .multiplayer-modal .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .multiplayer-modal .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .multiplayer-modal .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        .multiplayer-modal .connection-status {
+            margin-top: 16px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .multiplayer-modal .connection-status.connecting {
+            display: block;
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+
+        .multiplayer-modal .connection-status.error {
+            display: block;
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--color-red-light);
+        }
+
+        .multiplayer-modal .connection-status.success {
+            display: block;
+            background: rgba(56, 239, 125, 0.15);
+            color: var(--color-success);
+        }
+
+        .multiplayer-modal .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.8rem;
+        }
+
+        .multiplayer-modal .divider::before,
+        .multiplayer-modal .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .multiplayer-modal .divider span {
+            padding: 0 12px;
+        }
+
+        /* Multiplayer indicator in sidebar */
+        .multiplayer-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(56, 239, 125, 0.1);
+            border: 1px solid rgba(56, 239, 125, 0.3);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: var(--color-success);
+            margin-bottom: 8px;
+        }
+
+        .multiplayer-indicator.active {
+            display: flex;
+        }
+
+        .multiplayer-indicator .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color-success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .multiplayer-indicator .room-code {
+            font-family: monospace;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .multiplayer-indicator .player-count {
+            margin-left: auto;
+            color: rgba(255, 255, 255, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -2075,6 +2340,13 @@
             <header>
                 <h1 class="game-title">Eigennamen</h1>
             </header>
+
+            <!-- Multiplayer Status Indicator -->
+            <div class="multiplayer-indicator" id="mp-indicator">
+                <span class="status-dot"></span>
+                <span>Room: <span class="room-code" id="mp-room-code">----</span></span>
+                <span class="player-count" id="mp-player-count">0 players</span>
+            </div>
 
             <div class="role-banner" id="role-banner">
                 <!-- Filled by JS -->
@@ -2114,6 +2386,10 @@
                 <div class="utility-buttons-row">
                     <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate">Spectate</button>
                     <button type="button" class="btn-settings" data-action="open-settings">Settings</button>
+                </div>
+
+                <div class="utility-buttons-row">
+                    <button type="button" class="btn-settings" id="btn-multiplayer" data-action="open-multiplayer" style="width: 100%;">Play Online</button>
                 </div>
             </div>
 
@@ -2353,6 +2629,64 @@
         </div>
     </div>
 
+    <!-- Multiplayer Modal -->
+    <div class="modal-overlay" id="multiplayer-modal">
+        <div class="modal multiplayer-modal">
+            <h2>Play Online</h2>
+            <p class="subtitle">Play with friends in real-time</p>
+
+            <div class="mode-buttons">
+                <button type="button" class="mode-btn active" data-mode="join">
+                    <span class="mode-icon">🎮</span>
+                    <span class="mode-title">Join Game</span>
+                    <span class="mode-desc">Enter a game password</span>
+                </button>
+                <button type="button" class="mode-btn" data-mode="create">
+                    <span class="mode-icon">🏠</span>
+                    <span class="mode-title">Host Game</span>
+                    <span class="mode-desc">Create a new room</span>
+                </button>
+            </div>
+
+            <!-- Join Form -->
+            <div class="join-form active" id="join-form">
+                <div class="form-group">
+                    <label for="join-nickname">Your Nickname</label>
+                    <input type="text" id="join-nickname" placeholder="Enter your name" maxlength="20" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="join-password">Game Password</label>
+                    <input type="text" id="join-password" placeholder="Enter password from host" maxlength="50" autocomplete="off">
+                    <span class="input-hint">Ask the host for the game password</span>
+                    <span class="error-text" id="join-error"></span>
+                </div>
+            </div>
+
+            <!-- Create Form -->
+            <div class="create-form" id="create-form">
+                <div class="form-group">
+                    <label for="create-nickname">Your Nickname</label>
+                    <input type="text" id="create-nickname" placeholder="Enter your name" maxlength="20" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="create-password">Game Password</label>
+                    <input type="text" id="create-password" placeholder="Create a password to share" maxlength="50" autocomplete="off">
+                    <span class="input-hint">Share this password with friends to let them join</span>
+                </div>
+            </div>
+
+            <div class="connection-status" id="mp-status"></div>
+
+            <div class="modal-buttons">
+                <button type="button" class="btn-primary" id="btn-mp-action">Join Game</button>
+                <button type="button" class="btn-secondary" data-action="close-multiplayer">Cancel</button>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+            <button type="button" class="btn-secondary" data-action="play-offline" style="width: 100%;">Play Offline (URL-based)</button>
+        </div>
+    </div>
+
     <script>
         // ========== CACHED DOM ELEMENTS ==========
         // Cache frequently accessed DOM elements to avoid repeated queries
@@ -2498,6 +2832,324 @@
             closeModal('error-modal');
         }
 
+        // ========== MULTIPLAYER FUNCTIONALITY ==========
+        let isMultiplayerMode = false;
+        let multiplayerPlayers = [];
+        let currentMpMode = 'join'; // 'join' or 'create'
+
+        function openMultiplayer() {
+            // Pre-fill nickname from storage
+            const storedNickname = localStorage.getItem('codenames-nickname') || '';
+            document.getElementById('join-nickname').value = storedNickname;
+            document.getElementById('create-nickname').value = storedNickname;
+
+            // Reset forms
+            document.getElementById('join-password').value = '';
+            document.getElementById('create-password').value = '';
+            setMpStatus('', '');
+
+            // Reset to join mode
+            setMpMode('join');
+
+            openModal('multiplayer-modal');
+        }
+
+        function closeMultiplayer() {
+            closeModal('multiplayer-modal');
+        }
+
+        function setMpMode(mode) {
+            currentMpMode = mode;
+
+            // Update mode buttons
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+
+            // Show correct form
+            document.getElementById('join-form').classList.toggle('active', mode === 'join');
+            document.getElementById('create-form').classList.toggle('active', mode === 'create');
+
+            // Update action button text
+            const actionBtn = document.getElementById('btn-mp-action');
+            actionBtn.textContent = mode === 'join' ? 'Join Game' : 'Create Game';
+        }
+
+        function setMpStatus(message, type) {
+            const statusEl = document.getElementById('mp-status');
+            statusEl.textContent = message;
+            statusEl.className = 'connection-status';
+            if (type) {
+                statusEl.classList.add(type);
+            }
+        }
+
+        function setMpError(message) {
+            const errorEl = document.getElementById('join-error');
+            const formGroup = errorEl.closest('.form-group');
+            errorEl.textContent = message;
+            if (message) {
+                formGroup.classList.add('error');
+            } else {
+                formGroup.classList.remove('error');
+            }
+        }
+
+        async function handleMpAction() {
+            const actionBtn = document.getElementById('btn-mp-action');
+            actionBtn.disabled = true;
+
+            try {
+                if (currentMpMode === 'join') {
+                    await handleJoinGame();
+                } else {
+                    await handleCreateGame();
+                }
+            } catch (error) {
+                console.error('Multiplayer action failed:', error);
+                setMpStatus(error.message || 'Connection failed', 'error');
+            } finally {
+                actionBtn.disabled = false;
+            }
+        }
+
+        async function handleJoinGame() {
+            const nickname = document.getElementById('join-nickname').value.trim();
+            const password = document.getElementById('join-password').value.trim();
+
+            // Validation
+            if (!nickname) {
+                setMpError('Please enter your nickname');
+                return;
+            }
+            if (!password) {
+                setMpError('Please enter the game password');
+                return;
+            }
+
+            setMpError('');
+            setMpStatus('Connecting...', 'connecting');
+
+            // Connect to server
+            if (!CodenamesClient.isConnected()) {
+                await CodenamesClient.connect();
+            }
+
+            // Try to find room by password
+            try {
+                const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        setMpStatus('No game found with that password', 'error');
+                        return;
+                    }
+                    throw new Error('Failed to find game');
+                }
+
+                const { code } = await response.json();
+
+                // Join the room
+                const result = await CodenamesClient.joinRoom(code, nickname, password);
+                onMultiplayerJoined(result);
+
+            } catch (error) {
+                console.error('Join failed:', error);
+                if (error.code === 'ROOM_PASSWORD_INVALID') {
+                    setMpStatus('Invalid password', 'error');
+                } else if (error.code === 'ROOM_NOT_FOUND') {
+                    setMpStatus('Game not found', 'error');
+                } else {
+                    setMpStatus(error.message || 'Failed to join game', 'error');
+                }
+            }
+        }
+
+        async function handleCreateGame() {
+            const nickname = document.getElementById('create-nickname').value.trim();
+            const password = document.getElementById('create-password').value.trim();
+
+            // Validation
+            if (!nickname) {
+                setMpStatus('Please enter your nickname', 'error');
+                return;
+            }
+            if (!password) {
+                setMpStatus('Please create a password to share with friends', 'error');
+                return;
+            }
+
+            setMpStatus('Creating game...', 'connecting');
+
+            // Connect to server
+            if (!CodenamesClient.isConnected()) {
+                await CodenamesClient.connect();
+            }
+
+            try {
+                // Create room with password
+                const result = await CodenamesClient.createRoom({
+                    password: password,
+                    nickname: nickname
+                });
+
+                onMultiplayerJoined(result);
+
+            } catch (error) {
+                console.error('Create failed:', error);
+                setMpStatus(error.message || 'Failed to create game', 'error');
+            }
+        }
+
+        function onMultiplayerJoined(result) {
+            isMultiplayerMode = true;
+            localStorage.setItem('codenames-nickname', CodenamesClient.player?.nickname || '');
+
+            // Update UI
+            setMpStatus('Connected!', 'success');
+            updateMpIndicator(result.room, result.players);
+
+            // Close modal after brief delay
+            setTimeout(() => {
+                closeMultiplayer();
+                showToast('Connected to multiplayer game!', 'success');
+            }, 500);
+
+            // Set up multiplayer event listeners
+            setupMultiplayerListeners();
+        }
+
+        function updateMpIndicator(room, players) {
+            const indicator = document.getElementById('mp-indicator');
+            const codeEl = document.getElementById('mp-room-code');
+            const countEl = document.getElementById('mp-player-count');
+
+            if (room) {
+                codeEl.textContent = room.code;
+                countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
+                indicator.classList.add('active');
+            } else {
+                indicator.classList.remove('active');
+            }
+        }
+
+        function setupMultiplayerListeners() {
+            // Game state updates
+            CodenamesClient.on('gameStarted', (data) => {
+                // Sync game state from server
+                if (data.game && data.game.board) {
+                    syncGameState(data.game);
+                }
+            });
+
+            CodenamesClient.on('cardRevealed', (data) => {
+                if (data.index !== undefined) {
+                    revealCardFromServer(data.index);
+                }
+            });
+
+            CodenamesClient.on('turnEnded', (data) => {
+                if (data.nextTeam) {
+                    // Update turn locally
+                    gameState.currentTurn = data.nextTeam;
+                    updateTurnIndicator();
+                }
+            });
+
+            CodenamesClient.on('gameOver', (data) => {
+                if (data.winner) {
+                    showGameOver(data.winner, data.reason);
+                }
+            });
+
+            // Player updates
+            CodenamesClient.on('playerJoined', (data) => {
+                multiplayerPlayers = data.players || multiplayerPlayers;
+                updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                showToast(`${data.player?.nickname || 'Someone'} joined`, 'success');
+            });
+
+            CodenamesClient.on('playerLeft', (data) => {
+                multiplayerPlayers = data.players || multiplayerPlayers;
+                updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+            });
+
+            // Disconnect handling
+            CodenamesClient.on('disconnected', () => {
+                showToast('Disconnected from server', 'warning');
+            });
+
+            CodenamesClient.on('reconnected', () => {
+                showToast('Reconnected!', 'success');
+            });
+        }
+
+        function syncGameState(game) {
+            // Sync board state from server
+            if (game.board && Array.isArray(game.board)) {
+                // Update revealed state
+                game.board.forEach((card, i) => {
+                    if (card.revealed && !gameState.revealed[i]) {
+                        gameState.revealed[i] = true;
+                    }
+                });
+                renderBoard();
+            }
+
+            // Sync turn
+            if (game.currentTeam) {
+                gameState.currentTurn = game.currentTeam;
+                updateTurnIndicator();
+            }
+        }
+
+        /**
+         * Reveal a card from server sync (bypasses local validation)
+         */
+        function revealCardFromServer(index) {
+            if (gameState.revealed[index]) return; // Already revealed
+
+            gameState.revealed[index] = true;
+            const type = gameState.types[index];
+
+            // Update scores
+            if (type === 'red') {
+                gameState.redScore++;
+            } else if (type === 'blue') {
+                gameState.blueScore++;
+            }
+
+            // Check for assassin
+            if (type === 'assassin') {
+                gameState.gameOver = true;
+                gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            checkGameOver();
+            renderBoard();
+            updateScoreboard();
+        }
+
+        // Initialize multiplayer modal interactions
+        function initMultiplayerModal() {
+            // Mode toggle buttons
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => setMpMode(btn.dataset.mode));
+            });
+
+            // Action button
+            document.getElementById('btn-mp-action').addEventListener('click', handleMpAction);
+
+            // Enter key submits
+            ['join-nickname', 'join-password', 'create-nickname', 'create-password'].forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') handleMpAction();
+                    });
+                }
+            });
+        }
+
         // Modal management with focus trapping and keyboard support
         let activeModal = null;
         let previouslyFocusedElement = null;
@@ -2557,6 +3209,7 @@
                 else if (activeModal.id === 'confirm-modal') closeConfirm();
                 else if (activeModal.id === 'game-over-modal') closeGameOver();
                 else if (activeModal.id === 'error-modal') closeError();
+                else if (activeModal.id === 'multiplayer-modal') closeMultiplayer();
                 return;
             }
 
@@ -2585,6 +3238,7 @@
                 else if (e.target.id === 'confirm-modal') closeConfirm();
                 else if (e.target.id === 'game-over-modal') closeGameOver();
                 else if (e.target.id === 'error-modal') closeError();
+                else if (e.target.id === 'multiplayer-modal') closeMultiplayer();
             }
         }
 
@@ -4097,6 +4751,17 @@
                     case 'close-error':
                         closeError();
                         break;
+
+                    // Multiplayer modal
+                    case 'open-multiplayer':
+                        openMultiplayer();
+                        break;
+                    case 'close-multiplayer':
+                        closeMultiplayer();
+                        break;
+                    case 'play-offline':
+                        closeMultiplayer();
+                        break;
                 }
             });
 
@@ -4120,6 +4785,8 @@
                 setupEventListeners();
                 // Initialize settings navigation
                 initSettingsNav();
+                // Initialize multiplayer modal
+                initMultiplayerModal();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 loadGameFromURL();

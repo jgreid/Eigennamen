@@ -354,11 +354,16 @@
          * Join an existing room
          * @param {string} code - Room code
          * @param {string} nickname - Player nickname
+         * @param {string} password - Room password (optional)
          * @returns {Promise}
          */
-        joinRoom(code, nickname) {
+        joinRoom(code, nickname, password = null) {
             return new Promise((resolve, reject) => {
-                this.socket.emit('room:join', { code, nickname });
+                const payload = { code, nickname };
+                if (password) {
+                    payload.password = password;
+                }
+                this.socket.emit('room:join', payload);
 
                 const onJoined = (data) => {
                     this.off('roomJoined', onJoined);

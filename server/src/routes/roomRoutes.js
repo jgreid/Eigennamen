@@ -16,6 +16,41 @@ const roomCodeSchema = z.object({
 });
 
 /**
+ * Find room by password
+ * GET /api/rooms/by-password/:password
+ * NOTE: This route MUST be defined before /:code to avoid route conflicts
+ */
+router.get('/by-password/:password', async (req, res, next) => {
+    try {
+        const password = decodeURIComponent(req.params.password);
+
+        if (!password || password.length > 50) {
+            return res.status(400).json({
+                error: {
+                    code: 'INVALID_PASSWORD',
+                    message: 'Invalid password format'
+                }
+            });
+        }
+
+        const result = await roomService.findRoomByPassword(password);
+
+        if (!result) {
+            return res.status(404).json({
+                error: {
+                    code: 'ROOM_NOT_FOUND',
+                    message: 'No room found with that password'
+                }
+            });
+        }
+
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * Check if room exists
  * GET /api/rooms/:code/exists
  */

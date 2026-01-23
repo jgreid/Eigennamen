@@ -25,7 +25,9 @@ const roomCreateSchema = z.object({
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
-        password: z.string().max(50).optional()
+        password: z.string().max(50).optional(),
+        // Host nickname for room creation
+        nickname: z.string().max(20).optional()
     }).optional().default({})
 });
 

@@ -6,6 +6,7 @@ const { getRedis } = require('../config/redis');
 const { v4: uuidv4 } = require('uuid');
 const { customAlphabet } = require('nanoid');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const playerService = require('./playerService');
 const gameService = require('./gameService');
@@ -25,6 +26,19 @@ const BCRYPT_SALT_ROUNDS = PASSWORD_SECURITY.BCRYPT_SALT_ROUNDS;
 
 // Generate room codes (uppercase alphanumeric, no confusing chars)
 const generateRoomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', ROOM_CODE_LENGTH);
+
+/**
+ * Generate a deterministic lookup key from password
+ * Uses SHA-256 for fast lookups (bcrypt is for actual auth)
+ */
+/**
+ * Generate a deterministic lookup key from password
+ * Uses SHA-256 for fast lookups (bcrypt is for actual auth)
+ * Note: Case-sensitive to match bcrypt validation behavior
+ */
+function generatePasswordLookupKey(password) {
+    return crypto.createHash('sha256').update(password.trim()).digest('hex');
+}
 
 /**
  * Lua script for atomic room creation
@@ -77,8 +91,8 @@ async function createRoom(hostSessionId, settings = {}) {
         }
     }
 
-    // Remove raw password from settings (don't store plaintext)
-    const { password: _password, ...cleanSettings } = settings;
+    // Remove raw password and nickname from settings (don't store in room settings)
+    const { password: _password, nickname: hostNickname, ...cleanSettings } = settings;
 
     while (attempts < maxAttempts) {
         code = generateRoomCode();
@@ -112,8 +126,17 @@ async function createRoom(hostSessionId, settings = {}) {
         );
 
         if (created === 1) {
-            // Room created successfully, now create host player
-            const player = await playerService.createPlayer(hostSessionId, code, 'Host', true);
+            // Room created successfully
+
+            // If password protected, store lookup key for password-based room discovery
+            if (settings.password && settings.password.trim()) {
+                const lookupKey = generatePasswordLookupKey(settings.password);
+                await redis.set(`password-lookup:${lookupKey}`, code, { EX: REDIS_TTL.ROOM });
+                logger.debug(`Password lookup key stored for room ${code}`);
+            }
+
+            // Create host player with provided nickname or default to 'Host'
+            const player = await playerService.createPlayer(hostSessionId, code, hostNickname || 'Host', true);
             logger.info(`Room ${code} created by ${hostSessionId}${passwordHash ? ' (password protected)' : ''}`);
 
             // Return room without passwordHash for security
@@ -500,6 +523,39 @@ async function deleteRoom(code) {
     await cleanupRoom(code);
 }
 
+/**
+ * Find a room by password
+ * Uses a SHA-256 lookup key for fast discovery
+ * @param {string} password - The room password
+ * @returns {Promise<{code: string, hasPassword: boolean}|null>} Room info or null if not found
+ */
+async function findRoomByPassword(password) {
+    if (!password || !password.trim()) {
+        return null;
+    }
+
+    const redis = getRedis();
+    const lookupKey = generatePasswordLookupKey(password);
+    const roomCode = await redis.get(`password-lookup:${lookupKey}`);
+
+    if (!roomCode) {
+        return null;
+    }
+
+    // Verify room still exists
+    const room = await getRoom(roomCode);
+    if (!room) {
+        // Room expired, clean up stale lookup key
+        await redis.del(`password-lookup:${lookupKey}`);
+        return null;
+    }
+
+    return {
+        code: roomCode,
+        hasPassword: room.hasPassword
+    };
+}
+
 module.exports = {
     createRoom,
     getRoom,
@@ -509,5 +565,6 @@ module.exports = {
     roomExists,
     refreshRoomTTL,
     cleanupRoom,
-    deleteRoom
+    deleteRoom,
+    findRoomByPassword
 };
