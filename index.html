@@ -699,10 +699,10 @@
         }
 
         .card.revealed.neutral {
-            background: linear-gradient(145deg, #e8dcc8, #d4c4a8);
-            color: #5a4a38;
-            border-color: #c4b090;
-            box-shadow: 0 2px 8px rgba(180, 160, 130, 0.3);
+            background: linear-gradient(145deg, #c4a882, #a89060);
+            color: #3d3020;
+            border-color: #8a7550;
+            box-shadow: 0 2px 8px rgba(120, 100, 70, 0.4);
         }
 
         .card.revealed.assassin {
@@ -2961,17 +2961,14 @@
                 clickerBtn.setAttribute('aria-pressed', isClicker.toString());
             }
 
-            // Update role hint
+            // Update role hint - only show when helpful (hide when role is in banner)
             if (roleHint) {
                 if (!playerTeam) {
                     roleHint.textContent = 'Select a team above to choose a role';
                     roleHint.classList.remove('hidden');
-                } else if (isSpy) {
-                    roleHint.textContent = 'You are the ' + teamNames[playerTeam] + ' Spymaster';
-                    roleHint.classList.remove('hidden');
-                } else if (isClicker) {
-                    roleHint.textContent = 'You are the ' + teamNames[playerTeam] + ' Clicker';
-                    roleHint.classList.remove('hidden');
+                } else if (isSpy || isClicker) {
+                    // Role already displayed in banner - hide redundant hint
+                    roleHint.classList.add('hidden');
                 } else {
                     roleHint.textContent = 'Choose Spymaster or Clicker';
                     roleHint.classList.remove('hidden');
@@ -3433,6 +3430,8 @@
         // Settings functions
         function openSettings() {
             openModal('settings-modal');
+            // Refresh QR code with current URL when opening settings
+            updateQRCode(window.location.href);
             const redNameInput = document.getElementById('red-name-input');
             const blueNameInput = document.getElementById('blue-name-input');
             const customWordsTextarea = document.getElementById('custom-words');
