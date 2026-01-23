@@ -170,11 +170,24 @@ class GameStateError extends GameError {
         );
     }
 
-    static corrupted(roomCode) {
+    static corrupted(roomCode, context = {}) {
         return new GameStateError(
             ERROR_CODES.SERVER_ERROR,
             'Game data corrupted, please start a new game',
-            { roomCode }
+            {
+                roomCode,
+                recoverable: true,
+                suggestion: 'Start a new game to continue playing',
+                ...context
+            }
+        );
+    }
+
+    static invalidState(roomCode, expectedState, actualState) {
+        return new GameStateError(
+            ERROR_CODES.SERVER_ERROR,
+            `Invalid game state: expected ${expectedState}, got ${actualState}`,
+            { roomCode, expectedState, actualState }
         );
     }
 }
@@ -243,9 +256,37 @@ class ServerError extends GameError {
         this.name = 'ServerError';
     }
 
-    static concurrentModification() {
+    static concurrentModification(roomCode = null, operation = null) {
         return new ServerError(
-            'Failed due to concurrent modifications, please try again'
+            'Failed due to concurrent modifications, please try again',
+            {
+                roomCode,
+                operation,
+                retryable: true
+            }
+        );
+    }
+
+    static redisError(operation, roomCode = null, originalError = null) {
+        return new ServerError(
+            `Database operation failed: ${operation}`,
+            {
+                roomCode,
+                operation,
+                originalError: originalError?.message,
+                retryable: true
+            }
+        );
+    }
+
+    static lockAcquisitionFailed(lockType, roomCode) {
+        return new ServerError(
+            `Another ${lockType} operation is in progress, please try again`,
+            {
+                roomCode,
+                lockType,
+                retryable: true
+            }
         );
     }
 }

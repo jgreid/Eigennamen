@@ -10,6 +10,7 @@
 
 const { getRedis, getPubSubClients } = require('../config/redis');
 const logger = require('../utils/logger');
+const pubSubHealth = require('../utils/pubSubHealth');
 const { TIMER, REDIS_TTL } = require('../config/constants');
 
 // Local timers for this instance
@@ -110,6 +111,7 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
             await subClient.subscribe(TIMER_CHANNEL, (message) => {
                 try {
                     const event = JSON.parse(message);
+                    pubSubHealth.recordSuccess('subscribe');
                     handleTimerEvent(event, onExpireCallback);
                 } catch (e) {
                     logger.error('Error handling timer event:', e);
@@ -119,10 +121,12 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
             // Start orphan timer check
             startOrphanCheck(onExpireCallback);
 
+            pubSubHealth.recordSuccess('subscribe');
             logger.info('Timer service initialized with Redis backing');
             return true;
         } catch (error) {
             retries++;
+            pubSubHealth.recordFailure('subscribe', error);
             if (retries < maxRetries) {
                 logger.warn(`Timer service pub/sub subscription failed (attempt ${retries}/${maxRetries}), retrying in 2s...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -256,8 +260,7 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
             // Remove from Redis
             await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
 
-            // Publish expiration event
-            // ISSUE #68 FIX: Log pub/sub failures instead of silent catch
+            // Publish expiration event with health tracking
             try {
                 const { pubClient } = getPubSubClients();
                 await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
@@ -265,7 +268,9 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
                     roomCode,
                     timestamp: Date.now()
                 }));
+                pubSubHealth.recordSuccess('publish');
             } catch (e) {
+                pubSubHealth.recordFailure('publish', e);
                 logger.warn(`Failed to publish timer expiration event for room ${roomCode}:`, e.message);
             }
 
@@ -287,8 +292,7 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
         onExpire
     });
 
-    // Publish start event
-    // ISSUE #68 FIX: Log pub/sub failures instead of silent catch
+    // Publish start event with health tracking
     try {
         const { pubClient } = getPubSubClients();
         await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
@@ -298,7 +302,9 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
             duration: durationSeconds,
             timestamp: Date.now()
         }));
+        pubSubHealth.recordSuccess('publish');
     } catch (e) {
+        pubSubHealth.recordFailure('publish', e);
         logger.warn(`Failed to publish timer start event for room ${roomCode}:`, e.message);
     }
 
@@ -329,8 +335,7 @@ async function stopTimer(roomCode) {
     // Remove from Redis
     await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
 
-    // Publish stop event
-    // ISSUE #68 FIX: Log pub/sub failures instead of silent catch
+    // Publish stop event with health tracking
     try {
         const { pubClient } = getPubSubClients();
         await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
@@ -338,7 +343,9 @@ async function stopTimer(roomCode) {
             roomCode,
             timestamp: Date.now()
         }));
+        pubSubHealth.recordSuccess('publish');
     } catch (e) {
+        pubSubHealth.recordFailure('publish', e);
         logger.warn(`Failed to publish timer stop event for room ${roomCode}:`, e.message);
     }
 
@@ -415,7 +422,7 @@ async function pauseTimer(roomCode) {
         localTimer.remainingWhenPaused = remainingSeconds;
     }
 
-    // ISSUE #30 FIX: Publish pause event to all instances
+    // Publish pause event to all instances with health tracking
     try {
         const { pubClient } = getPubSubClients();
         await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
@@ -424,8 +431,9 @@ async function pauseTimer(roomCode) {
             remainingSeconds,
             timestamp: Date.now()
         }));
+        pubSubHealth.recordSuccess('publish');
     } catch (e) {
-        // Pub/sub not available - log for observability
+        pubSubHealth.recordFailure('publish', e);
         logger.warn(`Failed to publish pause event for room ${roomCode}:`, e.message);
     }
 
@@ -517,6 +525,7 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
             secondsToAdd,
             timestamp: Date.now()
         }));
+        pubSubHealth.recordSuccess('publish');
 
         logger.debug(`Routed addTime request for room ${roomCode} via pub/sub`);
 
@@ -525,6 +534,7 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
         // Callers needing the updated value should poll getTimerStatus after a brief delay
         return getTimerStatus(roomCode);
     } catch (pubSubError) {
+        pubSubHealth.recordFailure('publish', pubSubError);
         logger.warn(`Failed to route addTime via pub/sub for room ${roomCode}, falling back to local:`, pubSubError.message);
         // Fallback to local processing if pub/sub fails
         return addTimeLocal(roomCode, secondsToAdd, onExpire);
@@ -561,7 +571,7 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
                 localTimers.delete(roomCode);
                 await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
 
-                // ISSUE #68 FIX: Log pub/sub failures instead of silent catch
+                // Publish expiration event with health tracking
                 try {
                     const { pubClient } = getPubSubClients();
                     await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
@@ -569,7 +579,9 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
                         roomCode,
                         timestamp: Date.now()
                     }));
+                    pubSubHealth.recordSuccess('publish');
                 } catch (e) {
+                    pubSubHealth.recordFailure('publish', e);
                     logger.warn(`Failed to publish timer expiration event for room ${roomCode}:`, e.message);
                 }
 
@@ -601,7 +613,7 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
                 onExpire
             });
         } else {
-            // ISSUE #34 FIX: No local timer exists - publish addTime event via pub/sub
+            // No local timer exists - publish addTime event via pub/sub
             // The owning instance will handle updating its local timer
             logger.info(`Publishing addTime event for room ${roomCode} (not timer owner)`);
 
@@ -616,7 +628,9 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
                     remainingSeconds: newTimer.remainingSeconds,
                     timestamp: Date.now()
                 }));
+                pubSubHealth.recordSuccess('publish');
             } catch (e) {
+                pubSubHealth.recordFailure('publish', e);
                 logger.warn(`Failed to publish addTime event for room ${roomCode}:`, e.message);
             }
         }

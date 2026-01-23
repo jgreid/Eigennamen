@@ -5,6 +5,7 @@
 const express = require('express');
 const roomRoutes = require('./roomRoutes');
 const wordListRoutes = require('./wordListRoutes');
+const healthRoutes = require('./healthRoutes');
 
 const router = express.Router();
 
@@ -12,12 +13,7 @@ const router = express.Router();
 router.use('/rooms', roomRoutes);
 router.use('/wordlists', wordListRoutes);
 
-// Health check endpoint
-router.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString()
-    });
-});
+// Health routes (also mounted at root level in app.js for /health access)
+router.use('/health', healthRoutes);
 
 module.exports = router;
