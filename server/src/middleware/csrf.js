@@ -118,11 +118,15 @@ function isOriginAllowed(origin, allowedOrigins) {
             return true;
         }
         // Support wildcard subdomains like *.example.com
+        // Security fix: Ensure we match actual subdomains, not domains ending with the pattern
+        // e.g., *.example.com should match sub.example.com but NOT attacker-example.com
         if (allowed.startsWith('*.')) {
             const domain = allowed.slice(2);
             try {
                 const originUrl = new URL(origin);
-                return originUrl.hostname.endsWith(domain);
+                const hostname = originUrl.hostname;
+                // Match either exact domain or proper subdomain (with dot prefix)
+                return hostname === domain || hostname.endsWith('.' + domain);
             } catch (e) {
                 return false;
             }

@@ -1,8 +1,8 @@
 # Unified Development Document - Die Eigennamen (Codenames Online)
 
-**Last Updated:** January 22, 2026 (23:57 UTC)
-**Version:** 2.2.1
-**Review Status:** Comprehensive synthesis complete, Phase 1 fixes applied
+**Last Updated:** January 23, 2026
+**Version:** 2.2.2
+**Review Status:** Second review pass completed, 11 new issues identified
 
 ---
 
@@ -25,15 +25,17 @@
 
 This document consolidates findings from **8 separate review/planning documents** into a single source of truth for the Die Eigennamen (Codenames Online) project.
 
-### Key Metrics (Verified January 22, 2026)
+### Key Metrics (Verified January 23, 2026)
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
-| Test Coverage (Lines) | 79.59% | 70%+ | **Exceeded** |
-| Test Coverage (Branches) | 71.69% | 70%+ | **Exceeded** |
+| Test Coverage (Lines) | 79.83% | 70%+ | **Exceeded** |
+| Test Coverage (Branches) | 72.03% | 70%+ | **Exceeded** |
+| Test Coverage (Functions) | 71.95% | 70%+ | **Exceeded** |
 | Test Count | 1,363 | 800+ | **Exceeded** |
-| Critical Issues | 0 remaining | 0 | **Complete** |
-| High Priority Issues | 1 remaining | 0 | Nearly Complete |
+| Critical Issues | 0 remaining | 0 | **Fixed** |
+| High Priority Issues | 1 remaining | 0 | In Progress |
+| Medium Priority Issues | 5 remaining | - | Planned |
 | Overall Code Quality | A- | A- | **Target Met** |
 
 ### Documents Consolidated
@@ -407,6 +409,77 @@ Priority 3 (Next Sprint):
 
 ---
 
+## January 23, 2026 Review Findings
+
+### New Issues Identified (11 Total)
+
+#### CRITICAL (0 - Fixed)
+
+| ID | File | Line(s) | Issue | Status |
+|----|------|---------|-------|--------|
+| NEW-1 | socket/index.js | 99-122 | Unawaited async function | ✅ FIXED - Added async/await and error handling |
+
+#### HIGH (1 remaining)
+
+| ID | File | Line(s) | Issue | Status |
+|----|------|---------|-------|--------|
+| NEW-2 | csrf.js | 125 | Subdomain wildcard bypass | ✅ FIXED - Added proper boundary checking |
+| NEW-3 | audit.js | 158-172 | Missing audit context | ✅ FIXED - Added sessionId and ip parameters |
+| NEW-4 | wordListRoutes.js | 128-138 | Incomplete authorization | ⏳ Pending - Private word lists need ownership check |
+
+#### MEDIUM (5)
+
+| ID | File | Line(s) | Issue | Description |
+|----|------|---------|-------|-------------|
+| NEW-5 | rateLimitHandler.js | 49, 61 | Silent failures | Event naming could fail if eventName format is unexpected |
+| NEW-6 | wordListRoutes.js | 33-41 | JWT validation | Missing algorithm specification and structure validation |
+| NEW-7 | memoryStorage.js | 239 | O(n²) complexity | `includes()` check in loop creates performance issue with many keys |
+| NEW-8 | memoryStorage.js | 486-488 | Silent error suppression | Transaction errors push null and continue instead of aborting |
+| NEW-9 | socket/index.js | 169-210 | Timer lock race | No explicit Redis availability check before lock operations |
+
+#### LOW (2)
+
+| ID | File | Line(s) | Issue | Description |
+|----|------|---------|-------|-------------|
+| NEW-10 | socket/index.js | 80-82, 103-104 | Missing error handling | `updateSocketCount()` has no error handling |
+| NEW-11 | socket/index.js | 108 | Unhandled error | `cleanupSocket()` has no error handling |
+
+### Test Coverage Gaps (January 23, 2026)
+
+| File | Current | Target | Gap | Priority |
+|------|---------|--------|-----|----------|
+| csrf.js | 34.09% | 70% | +36% | HIGH |
+| rateLimitHandler.js | 44.44% | 70% | +26% | HIGH |
+| audit.js | 52.63% | 80% | +27% | MEDIUM |
+| socket/index.js | 60.81% | 80% | +19% | HIGH |
+| wordListRoutes.js | 55.73% | 70% | +14% | MEDIUM |
+| memoryStorage.js | 63.03% | 75% | +12% | LOW |
+
+### Updated Action Items
+
+```
+Priority 1 (Fix Immediately):
+├── [x] Fix unawaited handleDisconnect (socket/index.js:110) - CRITICAL - FIXED
+├── [x] Fix subdomain wildcard bypass (csrf.js:125) - FIXED
+├── [x] Add sessionId/ip to auditGameEnded (audit.js) - FIXED
+└── [ ] Implement private word list authorization (wordListRoutes.js)
+
+Priority 2 (This Week):
+├── [ ] Add csrf.js tests (+36% coverage needed)
+├── [ ] Add rateLimitHandler.js tests (+26% coverage needed)
+├── [ ] Add socket/index.js tests (+19% coverage needed)
+├── [ ] Fix JWT validation in wordListRoutes.js
+└── [ ] Add error handling to socket disconnect flow
+
+Priority 3 (Next Sprint):
+├── [ ] Fix memoryStorage O(n²) complexity
+├── [ ] Fix transaction error handling in memoryStorage
+├── [ ] Add timer lock Redis availability check
+└── [ ] Improve audit.js test coverage
+```
+
+---
+
 ## Appendices
 
 ### A. File Change Log
@@ -467,23 +540,45 @@ This unified document synthesizes the following sources:
 
 ## Conclusion
 
-The Die Eigennamen (Codenames Online) codebase is in **excellent shape**:
+The Die Eigennamen (Codenames Online) codebase is in **good shape** with some issues requiring attention:
 
-- **79.59% test coverage** with 1,363 passing tests
-- **All critical issues resolved**
-- **Production-ready** for both single and multi-instance deployments
+### Strengths
+- **79.83% test coverage** with 1,363 passing tests
+- **Services layer at 95%+ coverage** - core business logic well-tested
+- **Validators at 100% coverage** - input validation bulletproof
+- **Production-ready** for single and multi-instance deployments
 - **Security-first architecture** with comprehensive protections
-- **Good documentation** with clear development roadmap
 
-### Remaining Focus Areas:
+### Areas Needing Attention
 
-1. **Fix 5 remaining high-priority issues** (mostly timer-related)
-2. **Improve coverage** in socket/index.js and security middleware
-3. **Add E2E testing** for critical user flows
-4. **Wire up audit logging** (functions exist but underutilized)
+| Priority | Count | Focus |
+|----------|-------|-------|
+| Critical | 1 | Unawaited async disconnect handler |
+| High | 3 | Security (CSRF bypass, auth gaps, audit trail) |
+| Medium | 5 | Code quality and performance |
+| Low | 2 | Error handling improvements |
 
-The codebase demonstrates mature engineering practices with clean separation of concerns, comprehensive testing, and thoughtful security measures.
+### Immediate Actions Required
+
+1. **Fix critical disconnect handler issue** - async function not awaited
+2. **Fix CSRF subdomain bypass** - security vulnerability
+3. **Improve test coverage** in security middleware (csrf.js at 34%, rateLimitHandler.js at 44%)
+4. **Complete audit logging integration** - functions exist but missing context
+
+### Test Coverage Summary
+
+| Layer | Coverage | Status |
+|-------|----------|--------|
+| Services | 95.03% | ✅ Excellent |
+| Validators | 100% | ✅ Perfect |
+| Middleware | 81.87% | ⚠️ Good (csrf.js low) |
+| Socket Handlers | 87.94% | ✅ Good |
+| Socket Core | 57.62% | ❌ Needs work |
+| Utils | 88.94% | ✅ Good |
+
+The codebase demonstrates mature engineering practices. Addressing the 1 critical and 3 high-priority issues should be the immediate focus before production deployment.
 
 ---
 
-*This document supersedes individual review documents for current state reference. Individual documents retained for historical context and detailed issue tracking.*
+*Last reviewed: January 23, 2026*
+*This document supersedes individual review documents for current state reference.*

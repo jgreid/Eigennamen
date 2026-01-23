@@ -213,7 +213,8 @@ module.exports = function gameHandlers(io, socket) {
                 });
 
                 // Audit log game end
-                auditGameEnded(socket.roomCode, result.winner, result.endReason, null);
+                const clientIpEnd = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+                auditGameEnded(socket.roomCode, socket.sessionId, clientIpEnd, result.winner, result.endReason, null);
             }
 
             logger.info(`Card ${validated.index} revealed in room ${socket.roomCode}`);
@@ -377,7 +378,8 @@ module.exports = function gameHandlers(io, socket) {
             });
 
             // Audit log game end (forfeit)
-            auditGameEnded(socket.roomCode, result.winner, 'forfeit', null);
+            const forfeitIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+            auditGameEnded(socket.roomCode, socket.sessionId, forfeitIp, result.winner, 'forfeit', null);
 
             // Log event for reconnection recovery
             await eventLogService.logEvent(

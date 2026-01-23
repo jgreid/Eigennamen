@@ -154,10 +154,18 @@ function auditGameStarted(roomCode, sessionId, playerCount, ip) {
 
 /**
  * Log game end
+ * @param {string} roomCode - Room code
+ * @param {string} sessionId - Session ID of player who triggered game end (optional for timeouts)
+ * @param {string} ip - IP address of player (optional)
+ * @param {string} winner - Winning team
+ * @param {string} endReason - Reason game ended
+ * @param {number} duration - Game duration in seconds (optional)
  */
-function auditGameEnded(roomCode, winner, endReason, duration) {
+function auditGameEnded(roomCode, sessionId, ip, winner, endReason, duration) {
     return audit(AUDIT_EVENTS.GAME_ENDED, {
         roomCode,
+        sessionId,
+        ip,
         metadata: { winner, endReason, duration }
     });
 }
