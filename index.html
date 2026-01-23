@@ -71,16 +71,19 @@
         }
 
         .game-title {
-            font-size: 1.6rem;
+            font-size: 2.2rem;
             margin: 0;
             background: linear-gradient(135deg, #c9b037 0%, #f0e68c 25%, #daa520 50%, #f0e68c 75%, #c9b037 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            font-weight: 800;
-            letter-spacing: 3px;
+            font-weight: 900;
+            letter-spacing: 4px;
             text-transform: uppercase;
-            font-family: 'Segoe UI', 'Arial Black', sans-serif;
+            font-family: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+            line-height: 1.1;
         }
 
         .version {
@@ -726,17 +729,7 @@
             box-shadow: 0 4px 16px rgba(255, 59, 59, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
-        .spymaster-mode .card.spy-red:not(.revealed)::before {
-            content: '';
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #ff5252, #d32f2f);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+        /* Dots removed - using symbols for accessibility instead */
 
         .spymaster-mode .card.spy-blue:not(.revealed) {
             border-color: #2196f3;
@@ -746,17 +739,7 @@
             box-shadow: 0 4px 16px rgba(33, 150, 243, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
-        .spymaster-mode .card.spy-blue:not(.revealed)::before {
-            content: '';
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #42a5f5, #1976d2);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+        /* Dots removed - using symbols for accessibility instead */
 
         .spymaster-mode .card.spy-neutral:not(.revealed) {
             border-color: #d4c4a8;
@@ -766,17 +749,7 @@
             box-shadow: 0 3px 10px rgba(139, 115, 85, 0.2);
         }
 
-        .spymaster-mode .card.spy-neutral:not(.revealed)::before {
-            content: '';
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #e0d5c0, #c4b896);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        }
+        /* Dots removed - using symbols for accessibility instead */
 
         .spymaster-mode .card.spy-assassin:not(.revealed) {
             border-color: #000000;
@@ -800,42 +773,45 @@
         }
 
         /* ========== CARD TYPE SYMBOLS (Spymaster View) ========== */
-        /* Always show symbols on spymaster view for accessibility */
+        /* Color-blind accessible symbols replace dots for better accessibility */
         .spymaster-mode .card.spy-red:not(.revealed)::after {
             content: '■';
             position: absolute;
-            top: 4px;
-            right: 6px;
-            font-size: 1rem;
-            opacity: 0.85;
+            top: 2px;
+            right: 4px;
+            font-size: 1.1rem;
+            color: #d32f2f;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
         }
 
         .spymaster-mode .card.spy-blue:not(.revealed)::after {
             content: '●';
             position: absolute;
-            top: 4px;
-            right: 6px;
-            font-size: 1rem;
-            opacity: 0.85;
+            top: 2px;
+            right: 4px;
+            font-size: 1.1rem;
+            color: #1976d2;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
         }
 
         .spymaster-mode .card.spy-neutral:not(.revealed)::after {
             content: '─';
             position: absolute;
-            top: 4px;
-            right: 6px;
-            font-size: 1rem;
-            opacity: 0.85;
+            top: 2px;
+            right: 4px;
+            font-size: 1.1rem;
+            color: #8d7b5e;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .spymaster-mode .card.spy-assassin:not(.revealed)::after {
             content: '✕';
             position: absolute;
-            top: 4px;
-            right: 6px;
-            font-size: 1rem;
-            opacity: 0.85;
-            color: #e74c3c;
+            top: 2px;
+            right: 4px;
+            font-size: 1.1rem;
+            color: #ff4444;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
 
         /* ========== MODALS ========== */
@@ -1036,6 +1012,87 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             font-size: 0.85rem;
             color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Link panel styling */
+        .link-share-content {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .link-description {
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .link-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .share-link-input {
+            flex: 1;
+            padding: 12px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+
+        .btn-copy-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-copy-link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .copy-feedback {
+            font-size: 0.85rem;
+            color: #4caf50;
+            min-height: 20px;
+            margin-bottom: 24px;
+        }
+
+        .qr-container {
+            text-align: center;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .qr-container h3 {
+            color: #667eea;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .qr-description {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 16px;
+        }
+
+        .qr-container canvas {
+            border-radius: 8px;
+            background: white;
+            padding: 12px;
         }
 
         /* Settings footer with buttons */
@@ -1472,7 +1529,8 @@
             }
 
             h1, .game-title {
-                font-size: 1.4rem;
+                font-size: 1.8rem;
+                letter-spacing: 3px;
             }
         }
 
@@ -1936,6 +1994,10 @@
                             <span class="nav-icon">ℹ️</span>
                             <span class="nav-text">About</span>
                         </button>
+                        <button type="button" class="settings-nav-item" data-panel="link">
+                            <span class="nav-icon">🔗</span>
+                            <span class="nav-text">Link</span>
+                        </button>
                     </nav>
                     <!-- QR Code in sidebar bottom -->
                     <div class="settings-sidebar-qr" id="qr-section">
@@ -2047,6 +2109,29 @@
                             <div class="credits">
                                 <p>Codenames is a game by Vlaada Chvátil, published by Czech Games Edition.</p>
                                 <p>This implementation is open source under the GPL v3.0 license.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Link Panel -->
+                    <div class="settings-panel" id="panel-link">
+                        <h2>Share Game Link</h2>
+                        <div class="link-share-content">
+                            <p class="link-description">Share this link with other players to join the same game. All players using this link will see the same board!</p>
+
+                            <div class="link-input-group">
+                                <input type="text" id="share-link-input" readonly class="share-link-input">
+                                <button type="button" class="btn-copy-link" data-action="copy-link" title="Copy link to clipboard">
+                                    <span class="copy-icon">📋</span>
+                                    <span class="copy-text">Copy</span>
+                                </button>
+                            </div>
+                            <div id="copy-feedback" class="copy-feedback"></div>
+
+                            <div class="qr-container">
+                                <h3>QR Code</h3>
+                                <p class="qr-description">Scan with a mobile device to join instantly</p>
+                                <canvas id="share-qr-canvas" width="256" height="256"></canvas>
                             </div>
                         </div>
                     </div>
@@ -3124,23 +3209,64 @@
         // Update QR code with current game URL
         function updateQRCode(url) {
             const canvas = document.getElementById('qr-canvas');
+            const shareCanvas = document.getElementById('share-qr-canvas');
             const qrSection = document.getElementById('qr-section');
-            if (!canvas) return;
+            const shareLinkInput = document.getElementById('share-link-input');
+            const targetUrl = url || window.location.href;
+
+            // Update share link input
+            if (shareLinkInput) {
+                shareLinkInput.value = targetUrl;
+            }
 
             try {
-                const matrix = QRCode.generate(url || window.location.href);
-                QRCode.toCanvas(canvas, matrix, {
+                const matrix = QRCode.generate(targetUrl);
+                const qrOptions = {
                     scale: 10,
                     margin: 1,
                     dark: '#1a1a2e',
                     light: '#ffffff'
-                });
+                };
+
+                // Update sidebar QR canvas
+                if (canvas) {
+                    QRCode.toCanvas(canvas, matrix, qrOptions);
+                }
+
+                // Update share panel QR canvas
+                if (shareCanvas) {
+                    QRCode.toCanvas(shareCanvas, matrix, qrOptions);
+                }
+
                 // Show QR section on success
                 if (qrSection) qrSection.style.display = '';
             } catch (e) {
                 // Hide QR section if URL is too long for QR code
                 if (qrSection) qrSection.style.display = 'none';
             }
+        }
+
+        // Copy link to clipboard
+        function copyShareLink() {
+            const shareLinkInput = document.getElementById('share-link-input');
+            const feedback = document.getElementById('copy-feedback');
+
+            if (!shareLinkInput) return;
+
+            navigator.clipboard.writeText(shareLinkInput.value).then(() => {
+                if (feedback) {
+                    feedback.textContent = 'Link copied to clipboard!';
+                    setTimeout(() => { feedback.textContent = ''; }, 3000);
+                }
+            }).catch(() => {
+                // Fallback for older browsers
+                shareLinkInput.select();
+                document.execCommand('copy');
+                if (feedback) {
+                    feedback.textContent = 'Link copied to clipboard!';
+                    setTimeout(() => { feedback.textContent = ''; }, 3000);
+                }
+            });
         }
 
         function updateRoleBanner() {
@@ -3687,9 +3813,13 @@
         const COPY_BUTTON_TEXT = 'Copy';
 
         async function copyLink() {
-            const input = cachedElements.shareLink;
+            // Get URL from either share link input
+            const input = cachedElements.shareLink || document.getElementById('share-link-input');
             const btn = document.querySelector('.btn-copy');
-            if (!input || !btn) return;
+            const linkPanelBtn = document.querySelector('.btn-copy-link');
+            const feedback = document.getElementById('copy-feedback');
+
+            if (!input) return;
 
             // Clear any existing timeout to prevent flickering
             if (copyButtonTimeoutId) {
@@ -3697,8 +3827,10 @@
                 copyButtonTimeoutId = null;
             }
 
+            const urlToCopy = input.value || window.location.href;
+
             try {
-                await navigator.clipboard.writeText(input.value);
+                await navigator.clipboard.writeText(urlToCopy);
                 showToast('Link copied to clipboard!', 'success', 3000);
             } catch (err) {
                 input.select();
@@ -3706,9 +3838,21 @@
                 showToast('Link copied to clipboard!', 'success', 3000);
             }
 
-            btn.textContent = 'Copied!';
+            // Update feedback for both buttons
+            if (btn) {
+                btn.textContent = 'Copied!';
+            }
+            if (linkPanelBtn) {
+                linkPanelBtn.querySelector('.copy-text').textContent = 'Copied!';
+            }
+            if (feedback) {
+                feedback.textContent = 'Link copied to clipboard!';
+            }
+
             copyButtonTimeoutId = setTimeout(() => {
-                btn.textContent = COPY_BUTTON_TEXT;
+                if (btn) btn.textContent = COPY_BUTTON_TEXT;
+                if (linkPanelBtn) linkPanelBtn.querySelector('.copy-text').textContent = 'Copy';
+                if (feedback) feedback.textContent = '';
                 copyButtonTimeoutId = null;
             }, 3000);
         }
