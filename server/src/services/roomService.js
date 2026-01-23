@@ -86,8 +86,8 @@ async function createRoom(hostSessionId, settings = {}) {
         }
     }
 
-    // Remove raw password from settings (don't store plaintext)
-    const { password: _password, ...cleanSettings } = settings;
+    // Remove raw password and nickname from settings (don't store in room settings)
+    const { password: _password, nickname: hostNickname, ...cleanSettings } = settings;
 
     while (attempts < maxAttempts) {
         code = generateRoomCode();
@@ -130,8 +130,8 @@ async function createRoom(hostSessionId, settings = {}) {
                 logger.debug(`Password lookup key stored for room ${code}`);
             }
 
-            // Create host player
-            const player = await playerService.createPlayer(hostSessionId, code, 'Host', true);
+            // Create host player with provided nickname or default to 'Host'
+            const player = await playerService.createPlayer(hostSessionId, code, hostNickname || 'Host', true);
             logger.info(`Room ${code} created by ${hostSessionId}${passwordHash ? ' (password protected)' : ''}`);
 
             // Return room without passwordHash for security
