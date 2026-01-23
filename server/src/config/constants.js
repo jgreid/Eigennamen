@@ -99,7 +99,7 @@ module.exports = {
     VALIDATION: {
         NICKNAME_MIN_LENGTH: 1,
         NICKNAME_MAX_LENGTH: 30,
-        TEAM_NAME_MAX_LENGTH: 20,
+        TEAM_NAME_MAX_LENGTH: 32,
         CLUE_MAX_LENGTH: 50,
         CLUE_NUMBER_MIN: 0,
         CLUE_NUMBER_MAX: 25,

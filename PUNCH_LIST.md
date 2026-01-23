@@ -1,8 +1,8 @@
 # Risley-Codenames Punch List
 
 **Generated:** January 23, 2026
-**Updated:** January 23, 2026 (Final)
-**Branch:** `claude/repo-review-punch-list-10HAo`
+**Updated:** January 23, 2026 (Session 2: UI/UX Fixes)
+**Branch:** `claude/fix-spymaster-symbols-4F312`
 **Overall Status:** ✅ All Items Completed
 
 ---
@@ -26,7 +26,8 @@ All punch list items have been addressed. The codebase now has excellent test co
 | Lint/Code Quality | 2 |
 | Bug Fixes | 3 |
 | Performance Optimizations | 3 |
-| **Total** | **18** |
+| UI/UX Improvements (Session 2) | 7 |
+| **Total** | **25** |
 
 ---
 
@@ -183,6 +184,84 @@ All punch list items have been addressed. The codebase now has excellent test co
 
 ---
 
+## Session 2: UI/UX Fixes (January 23, 2026)
+
+### 8. SPYMASTER VIEW IMPROVEMENTS ✅ RESOLVED
+
+#### PUNCH-22: Remove Neutral Card Dash Symbol ✅ FIXED
+- **Issue:** Neutral cards displayed a dash symbol (─) in spymaster view, inconsistent with the cleaner approach of using color differentiation
+- **File:** `index.html` (CSS)
+- **Fix Applied:** Removed `.spymaster-mode .card.spy-neutral:not(.revealed)::after` rule
+- **Result:** Neutral cards now distinguished by beige color scheme alone
+
+#### PUNCH-23: Remove Assassin Red X Symbol ✅ FIXED
+- **Issue:** Assassin card displayed both skull (☠) and red X (✕) symbols, which was redundant
+- **File:** `index.html` (CSS)
+- **Fix Applied:** Removed `.spymaster-mode .card.spy-assassin:not(.revealed)::after` rule
+- **Result:** Assassin card now shows only skull symbol for cleaner appearance
+
+#### PUNCH-24: Update Rules Panel Symbols ✅ FIXED
+- **Issue:** Rules panel displayed outdated symbols (dash for neutral, X for assassin)
+- **File:** `index.html` (HTML)
+- **Fix Applied:** Updated card type legend to show correct symbols
+- **Result:** Rules panel now shows: ■ Red, ● Blue, Neutral (no symbol), ☠ Assassin
+
+---
+
+### 9. QR CODE GENERATION FIX ✅ RESOLVED
+
+#### PUNCH-25: QR Code Shows Blank White Square ✅ FIXED
+- **Issue:** QR code generator produced blank output due to incorrect EC_BLOCKS array parsing
+- **Root Cause:** Code checked `Array.isArray(blocks[0])` which was always false since blocks is a flat array `[count, size]` or `[count1, size1, count2, size2]`
+- **File:** `index.html` (JavaScript)
+- **Fix Applied:** Corrected block info parsing to check `blocks.length === 2` for single block type vs multi-block type
+- **Result:** QR codes now generate correctly for game sharing
+
+---
+
+### 10. SETTINGS MENU IMPROVEMENTS ✅ RESOLVED
+
+#### PUNCH-26: Context-Aware Reset Words Button ✅ FIXED
+- **Issue:** "Reset Words" button appeared on all settings panels but only applies to Words panel
+- **File:** `index.html` (HTML + JavaScript + CSS)
+- **Fix Applied:**
+  - Added ID `btn-reset-words` to button
+  - Updated `switchSettingsPanel()` to show/hide button based on active panel
+  - Added footer-spacer for improved layout
+- **Result:** Reset Words button only visible on Words panel
+
+#### PUNCH-27: Renamed Cancel to Close ✅ FIXED
+- **Issue:** "Cancel" button text was misleading since changes auto-apply
+- **File:** `index.html` (HTML)
+- **Fix Applied:** Renamed button from "Cancel" to "Close"
+- **Result:** Clearer UI semantics
+
+---
+
+### 11. TEAM NAME CHARACTER LIMIT ✅ RESOLVED
+
+#### PUNCH-28: Increase Team Name Limit to 32 Characters ✅ FIXED
+- **Issue:** Team name limit of 20 characters was too restrictive
+- **Files Modified:**
+  - `server/src/config/constants.js` - Updated `TEAM_NAME_MAX_LENGTH: 32`
+  - `index.html` - Updated input maxlength, data-max, char counters, and sanitizeTeamName slice
+  - `server/src/__tests__/validators.test.js` - Updated test to use constant instead of hardcoded value
+- **Impact Assessment:** No breaking changes - database stores as varchar, URL encoding handles longer names
+- **Result:** Teams can now have names up to 32 characters
+
+---
+
+## Files Modified in Session 2
+
+### UI/UX Changes
+- `index.html` - Spymaster symbols, QR code fix, settings menu improvements, team name limits
+
+### Server Changes
+- `server/src/config/constants.js` - Team name max length
+- `server/src/__tests__/validators.test.js` - Import VALIDATION constant, use it in test
+
+---
+
 ## Verification Commands
 
 ```bash
@@ -204,12 +283,24 @@ cd server && npm test
 ## Final Test Results
 
 ```
-Test Suites: 50 passed
-Tests: 1690 passed, 1 skipped
+Test Suites: 52 passed
+Tests: 1760 passed, 1 skipped
 Coverage: All thresholds passing
 Lint: 0 errors
 ```
 
 ---
 
-*Punch list completed on January 23, 2026*
+## What's Next
+
+### Future Improvements (Backlog)
+1. **Multiplayer Mode Testing** - Full integration tests with Socket.io
+2. **Mobile Responsiveness** - Further UI testing on smaller devices
+3. **Accessibility Audit** - WCAG compliance review
+4. **Performance Profiling** - Memory and render performance optimization
+5. **Documentation Consolidation** - Archive old development documents
+
+---
+
+*Session 1 completed: January 23, 2026*
+*Session 2 (UI/UX Fixes) completed: January 23, 2026*
