@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#1a1a2e"/>
+  <g transform="translate(64, 64)">
+    <!-- 5x5 grid representing the game board -->
+    <rect x="0" y="0" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="77" y="0" width="70" height="70" rx="8" fill="#007bff"/>
+    <rect x="154" y="0" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="231" y="0" width="70" height="70" rx="8" fill="#6c757d"/>
+    <rect x="308" y="0" width="70" height="70" rx="8" fill="#007bff"/>
+
+    <rect x="0" y="77" width="70" height="70" rx="8" fill="#6c757d"/>
+    <rect x="77" y="77" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="154" y="77" width="70" height="70" rx="8" fill="#007bff"/>
+    <rect x="231" y="77" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="308" y="77" width="70" height="70" rx="8" fill="#6c757d"/>
+
+    <rect x="0" y="154" width="70" height="70" rx="8" fill="#007bff"/>
+    <rect x="77" y="154" width="70" height="70" rx="8" fill="#6c757d"/>
+    <rect x="154" y="154" width="70" height="70" rx="8" fill="#2c3e50"/>
+    <rect x="231" y="154" width="70" height="70" rx="8" fill="#007bff"/>
+    <rect x="308" y="154" width="70" height="70" rx="8" fill="#dc3545"/>
+
+    <rect x="0" y="231" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="77" y="231" width="70" height="70" rx="8" fill="#007bff"/>
+    <rect x="154" y="231" width="70" height="70" rx="8" fill="#6c757d"/>
+    <rect x="231" y="231" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="308" y="231" width="70" height="70" rx="8" fill="#007bff"/>
+
+    <rect x="0" y="308" width="70" height="70" rx="8" fill="#6c757d"/>
+    <rect x="77" y="308" width="70" height="70" rx="8" fill="#dc3545"/>
+    <rect x="154" y="308" width="70" height="70" rx="8" fill="#007bff"/>
+    <rect x="231" y="308" width="70" height="70" rx="8" fill="#6c757d"/>
+    <rect x="308" y="308" width="70" height="70" rx="8" fill="#dc3545"/>
+  </g>
+</svg>

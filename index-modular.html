@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Play Codenames online with friends. No account required, just share a link!">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta property="og:title" content="Codenames Online">
+    <meta property="og:description" content="Play Codenames online with friends. No account required!">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <title>Codenames Online</title>
+    <link rel="stylesheet" href="/src/css/main.css">
+</head>
+<body>
+    <a href="#board" class="skip-link">Skip to game board</a>
+
+    <!-- Screen reader announcements -->
+    <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Toast notification container -->
+    <div id="toast-container" class="toast-container" role="alert" aria-live="polite"></div>
+
+    <div class="app-layout">
+        <!-- LEFT SIDEBAR - Controls & Info -->
+        <aside class="sidebar">
+            <header>
+                <h1 class="game-title">Eigennamen</h1>
+            </header>
+
+            <div class="role-banner" id="role-banner">
+                <!-- Filled by JS -->
+            </div>
+
+            <!-- Scoreboard with clickable team names for team selection -->
+            <div class="scoreboard">
+                <button type="button" class="score red" id="btn-team-red" data-action="team-red" title="Click to join Red team">
+                    <span id="red-team-name" class="team-name">Red</span>
+                    <span class="count"><span id="red-remaining">9</span> left</span>
+                </button>
+                <button type="button" class="score blue" id="btn-team-blue" data-action="team-blue" title="Click to join Blue team">
+                    <span id="blue-team-name" class="team-name">Blue</span>
+                    <span class="count"><span id="blue-remaining">8</span> left</span>
+                </button>
+            </div>
+
+            <div class="turn-indicator" id="turn-indicator">
+                Red Team's Turn
+            </div>
+
+            <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
+                <!-- Role selection for current team -->
+                <div class="role-controls" id="role-controls">
+                    <div class="role-buttons-row">
+                        <button type="button" class="btn-spymaster" id="btn-spymaster" data-action="spymaster">Spymaster</button>
+                        <button type="button" class="btn-clicker" id="btn-clicker" data-action="clicker">Clicker</button>
+                    </div>
+                    <span class="role-hint" id="role-hint">Select a team above to choose a role</span>
+                </div>
+
+                <div class="action-buttons-row">
+                    <button type="button" class="btn-end-turn" id="btn-end-turn" data-action="end-turn">End Turn</button>
+                    <button type="button" class="btn-new-game" data-action="new-game">New Game</button>
+                </div>
+
+                <div class="utility-buttons-row">
+                    <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate">Spectate</button>
+                    <button type="button" class="btn-settings" data-action="open-settings">Settings</button>
+                </div>
+            </div>
+
+            <!-- Share section -->
+            <div class="share-section">
+                <div class="share-input-group">
+                    <input type="text" id="share-link" readonly placeholder="Game link..." aria-label="Share game link">
+                    <button type="button" class="btn-copy" data-action="copy-link">Copy</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- RIGHT MAIN AREA - Game Board -->
+        <main class="main-content" id="main-content">
+            <div class="board-container">
+                <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <div class="settings-layout">
+                <!-- Sidebar Navigation -->
+                <aside class="settings-sidebar">
+                    <nav class="settings-nav">
+                        <button type="button" class="settings-nav-item active" data-panel="teams">
+                            <span class="nav-icon">👥</span>
+                            <span class="nav-text">Teams</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="words">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-text">Words</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="rules">
+                            <span class="nav-icon">📖</span>
+                            <span class="nav-text">Rules</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="about">
+                            <span class="nav-icon">ℹ️</span>
+                            <span class="nav-text">About</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="link">
+                            <span class="nav-icon">🔗</span>
+                            <span class="nav-text">Link</span>
+                        </button>
+                    </nav>
+                    <!-- QR Code in sidebar bottom -->
+                    <div class="settings-sidebar-qr" id="qr-section">
+                        <canvas id="qr-canvas" width="256" height="256"></canvas>
+                        <span class="qr-label">Scan to join</span>
+                        <span class="version">v4.0.0</span>
+                    </div>
+                </aside>
+
+                <!-- Content Area -->
+                <div class="settings-content">
+                    <!-- Teams Panel -->
+                    <div class="settings-panel active" id="panel-teams">
+                        <h2>Team Names</h2>
+                        <p class="panel-description">Customize team names for this game. Names are encoded in the shareable link.</p>
+                        <div class="team-inputs-row">
+                            <div class="modal-section">
+                                <label for="red-name-input">Red Team</label>
+                                <input type="text" id="red-name-input" placeholder="Red" maxlength="32">
+                                <div id="red-char-counter" class="char-counter">0/32</div>
+                            </div>
+                            <div class="modal-section">
+                                <label for="blue-name-input">Blue Team</label>
+                                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="32">
+                                <div id="blue-char-counter" class="char-counter">0/32</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Words Panel -->
+                    <div class="settings-panel" id="panel-words">
+                        <h2>Word List</h2>
+                        <p class="panel-description">Choose which words appear on the board. Custom words are encoded in the shareable link.</p>
+                        <div class="modal-section wordlist-mode-section">
+                            <div class="wordlist-mode-options">
+                                <label class="radio-option">
+                                    <input type="radio" name="wordlist-mode" value="default" id="wordlist-mode-default">
+                                    <span>Default only <em>(400 classic words)</em></span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="wordlist-mode" value="combined" id="wordlist-mode-combined" checked>
+                                    <span>Default + Custom <em>(combine both)</em></span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="wordlist-mode" value="custom" id="wordlist-mode-custom">
+                                    <span>Custom only <em>(min 25 words required)</em></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="modal-section">
+                            <label for="custom-words">Custom words <span class="word-count-inline" id="word-count">0 words</span></label>
+                            <textarea id="custom-words" placeholder="Enter words, one per line..."></textarea>
+                            <div id="word-error" class="input-error">Need at least 25 custom words for "Custom only" mode.</div>
+                        </div>
+                    </div>
+
+                    <!-- Rules Panel -->
+                    <div class="settings-panel" id="panel-rules">
+                        <h2>How to Play</h2>
+                        <div class="rules-content compact">
+                            <p class="rules-intro">Two teams race to find all their words. <strong>Spymasters</strong> give clues, <strong>Clickers</strong> reveal cards.</p>
+                            <div class="rules-grid">
+                                <div class="rules-card">
+                                    <h4>Card Types</h4>
+                                    <div class="card-types">
+                                        <span class="card-type red">■ Red Team</span>
+                                        <span class="card-type blue">● Blue Team</span>
+                                        <span class="card-type neutral">◆ Neutral</span>
+                                        <span class="card-type assassin">☠ Assassin</span>
+                                    </div>
+                                </div>
+                                <div class="rules-card">
+                                    <h4>Turn Flow</h4>
+                                    <ol class="turn-flow">
+                                        <li>Spymaster gives a <strong>one-word clue + number</strong></li>
+                                        <li>Clickers reveal cards matching the clue</li>
+                                        <li>Your color = keep going, Neutral/Enemy = turn ends</li>
+                                        <li><strong>Assassin = instant loss!</strong></li>
+                                    </ol>
+                                </div>
+                            </div>
+                            <p class="rules-note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
+                        </div>
+                    </div>
+
+                    <!-- About Panel -->
+                    <div class="settings-panel" id="panel-about">
+                        <h2>About</h2>
+                        <div class="about-content compact">
+                            <p class="about-intro">A free, open-source Codenames for remote play or in-person games.</p>
+                            <div class="features-grid">
+                                <div class="feature-item"><span class="feature-icon">🌐</span> Works offline (URL-encoded state)</div>
+                                <div class="feature-item"><span class="feature-icon">👥</span> Real-time multiplayer sync</div>
+                                <div class="feature-item"><span class="feature-icon">📝</span> Custom words &amp; team names</div>
+                                <div class="feature-item"><span class="feature-icon">📱</span> Mobile-friendly design</div>
+                            </div>
+                            <div class="credits">
+                                <p>Codenames by Vlaada Chvátil (Czech Games Edition)</p>
+                                <p>Open source under GPL v3.0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Link Panel -->
+                    <div class="settings-panel" id="panel-link">
+                        <h2>Share Game</h2>
+                        <div class="link-share-content compact">
+                            <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
+
+                            <div class="link-input-group">
+                                <input type="text" id="share-link-input" readonly class="share-link-input">
+                                <button type="button" class="btn-copy-link" data-action="copy-link" title="Copy link to clipboard">
+                                    <span class="copy-icon">📋</span>
+                                    <span class="copy-text">Copy</span>
+                                </button>
+                            </div>
+                            <div id="copy-feedback" class="copy-feedback"></div>
+
+                            <div class="qr-container compact">
+                                <canvas id="share-qr-canvas" width="200" height="200"></canvas>
+                                <span class="qr-hint">Scan to join on mobile</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer with buttons -->
+            <div class="settings-footer">
+                <button type="button" id="btn-reset-words" class="btn-reset" data-action="reset-words" style="display: none;">Reset Words</button>
+                <div class="footer-spacer"></div>
+                <button type="button" class="btn-cancel" data-action="close-settings">Close</button>
+                <button type="button" class="btn-save" data-action="save-settings">Save & Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm New Game Modal -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal confirm-dialog">
+            <h2>Start New Game?</h2>
+            <p>This will end the current game. Are you sure?</p>
+            <div class="modal-buttons">
+                <button type="button" class="btn-new-game" data-action="confirm-yes-new-game">Yes, New Game</button>
+                <button type="button" class="btn-cancel" data-action="close-confirm">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm End Turn Modal -->
+    <div class="modal-overlay" id="confirm-end-turn-modal">
+        <div class="modal confirm-dialog">
+            <h2>End Turn?</h2>
+            <p>Are you sure you want to end your team's turn?</p>
+            <div class="modal-buttons">
+                <button type="button" class="btn-end-turn" data-action="confirm-yes-end-turn">Yes, End Turn</button>
+                <button type="button" class="btn-cancel" data-action="close-end-turn-confirm">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div class="modal-overlay" id="game-over-modal">
+        <div class="modal game-over-content">
+            <h2>Game Over!</h2>
+            <div class="winner" id="winner-display"></div>
+            <div class="rotation-reminder">
+                <h4>Time to Rotate Roles!</h4>
+                <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-new-game" data-action="game-over-new-game">New Game</button>
+                <button type="button" class="btn-cancel" data-action="close-game-over">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal-overlay" id="error-modal">
+        <div class="modal error-modal-content">
+            <div class="error-icon">&#9888;</div>
+            <h2>Something Went Wrong</h2>
+            <p id="error-message">An error occurred while loading the game.</p>
+            <p>Please try refreshing the page. If the problem persists, clear your browser cache.</p>
+            <div id="error-details" class="error-details" style="display: none;"></div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-new-game" data-action="refresh-page">Refresh Page</button>
+                <button type="button" class="btn-cancel" data-action="close-error">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load main application module -->
+    <script type="module" src="/src/js/main.js"></script>
+
+    <!-- Service worker registration for PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {
+                    // Service worker registration failed - that's OK for development
+                });
+            });
+        }
+    </script>
+</body>
+</html>

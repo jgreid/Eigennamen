@@ -927,8 +927,8 @@
 
         /* Wide modals for settings */
         #settings-modal .modal {
-            max-width: 900px;
-            max-height: 90vh;
+            max-width: 780px;
+            max-height: 85vh;
             width: 95%;
             padding: 0;
             overflow: hidden;
@@ -937,18 +937,18 @@
         /* Settings layout with sidebar */
         .settings-layout {
             display: flex;
-            min-height: 500px;
-            max-height: calc(90vh - 40px);
+            min-height: 420px;
+            max-height: calc(85vh - 60px);
         }
 
         .settings-sidebar {
-            width: 200px;
-            min-width: 200px;
+            width: 160px;
+            min-width: 160px;
             background: rgba(0, 0, 0, 0.3);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             flex-direction: column;
-            padding: 20px 0;
+            padding: 12px 0;
         }
 
         .settings-nav {
@@ -958,10 +958,10 @@
         .settings-nav-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 14px 20px;
+            gap: 8px;
+            padding: 10px 14px;
             color: rgba(255, 255, 255, 0.6);
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 500;
             cursor: pointer;
             border: none;
@@ -984,25 +984,28 @@
         }
 
         .settings-nav-item .nav-icon {
-            font-size: 1.1rem;
-            width: 24px;
+            font-size: 1rem;
+            width: 20px;
             text-align: center;
         }
 
         /* QR section in sidebar bottom */
         .settings-sidebar-qr {
-            padding: 16px;
+            padding: 12px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .settings-sidebar-qr canvas {
-            border-radius: 8px;
+            border-radius: 6px;
             background: white;
-            padding: 8px;
+            padding: 6px;
+            /* Constrain display size while keeping crisp internal resolution */
+            width: 100px !important;
+            height: 100px !important;
         }
 
         .settings-sidebar-qr .qr-label {
@@ -1019,13 +1022,13 @@
         /* Settings content area */
         .settings-content {
             flex: 1;
-            padding: 28px 32px;
+            padding: 20px 24px;
             overflow-y: auto;
         }
 
         .settings-content h2 {
-            margin-bottom: 24px;
-            font-size: 1.3rem;
+            margin-bottom: 16px;
+            font-size: 1.15rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -1043,46 +1046,87 @@
         #settings-modal .modal-section {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 8px;
+            margin-bottom: 14px;
         }
 
-        /* About panel styling */
-        .about-content {
+        /* Panel description text */
+        .panel-description {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        /* Team inputs side by side */
+        .team-inputs-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 500px) {
+            .team-inputs-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Word count inline with label */
+        .word-count-inline {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-left: 8px;
+        }
+
+        .wordlist-mode-section {
+            margin-bottom: 12px !important;
+        }
+
+        .wordlist-mode-options .radio-option em {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.8rem;
+        }
+
+        /* About panel compact styling */
+        .about-content.compact {
             color: rgba(255, 255, 255, 0.8);
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        .about-content h3 {
-            color: #667eea;
-            font-size: 1rem;
-            margin: 20px 0 10px;
+        .about-intro {
+            font-size: 0.9rem;
+            margin-bottom: 16px;
         }
 
-        .about-content h3:first-child {
-            margin-top: 0;
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
         }
 
-        .about-content p {
-            margin-bottom: 12px;
+        .feature-item {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .feature-icon {
             font-size: 0.9rem;
         }
 
-        .about-content a {
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        .about-content a:hover {
-            text-decoration: underline;
-        }
-
         .about-content .credits {
-            margin-top: 20px;
-            padding-top: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .about-content .credits p {
+            margin: 4px 0;
         }
 
         /* Link panel styling */
@@ -1090,26 +1134,24 @@
             color: rgba(255, 255, 255, 0.8);
         }
 
-        .link-description {
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            line-height: 1.5;
+        .link-share-content.compact .panel-description {
+            margin-bottom: 12px;
         }
 
         .link-input-group {
             display: flex;
             gap: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .share-link-input {
             flex: 1;
-            padding: 12px 14px;
+            padding: 10px 12px;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 8px;
             color: rgba(255, 255, 255, 0.9);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-family: monospace;
         }
 
@@ -1134,41 +1176,51 @@
         }
 
         .copy-feedback {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #4caf50;
-            min-height: 20px;
-            margin-bottom: 24px;
+            min-height: 18px;
+            margin-bottom: 16px;
         }
 
         .qr-container {
             text-align: center;
-            padding: 24px;
+            padding: 16px;
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .qr-container.compact {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
 
         .qr-container h3 {
             color: #667eea;
-            font-size: 1rem;
-            margin-bottom: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
         }
 
-        .qr-description {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.5);
-            margin-bottom: 16px;
+        .qr-hint {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
         }
 
         .qr-container canvas {
-            border-radius: 8px;
+            border-radius: 6px;
             background: white;
-            padding: 12px;
+            padding: 8px;
+            /* Constrain display size */
+            width: 140px !important;
+            height: 140px !important;
         }
 
         /* Settings footer with buttons */
         .settings-footer {
-            padding: 16px 32px;
+            padding: 12px 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             gap: 10px;
@@ -1257,37 +1309,72 @@
         }
 
         .rules-content {
-            margin-top: 12px;
+            margin-top: 0;
             color: rgba(255, 255, 255, 0.8);
             font-size: 0.85rem;
-            line-height: 1.5;
+            line-height: 1.4;
         }
 
-        .rules-content p {
+        .rules-content.compact .rules-intro {
             margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .rules-content.compact .rules-note {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .rules-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            gap: 12px;
         }
 
-        .rules-grid h4 {
+        .rules-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .rules-card h4 {
             color: #667eea;
-            font-size: 0.8rem;
-            margin-bottom: 6px;
+            font-size: 0.75rem;
+            margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .rules-grid ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+        .card-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
-        .rules-grid ul li {
+        .card-type {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .card-type.red { color: #ff6b6b; }
+        .card-type.blue { color: #74b9ff; }
+        .card-type.neutral { color: #a89060; }
+        .card-type.assassin { color: #e74c3c; }
+
+        .turn-flow {
+            margin: 0;
+            padding-left: 16px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .turn-flow li {
             margin-bottom: 4px;
         }
 
@@ -2086,112 +2173,100 @@
                     <!-- Teams Panel -->
                     <div class="settings-panel active" id="panel-teams">
                         <h2>Team Names</h2>
-                        <div class="modal-section">
-                            <label for="red-name-input">Red Team Name:</label>
-                            <input type="text" id="red-name-input" placeholder="Red" maxlength="32" data-counter="red-char-counter" data-max="32">
-                            <div id="red-char-counter" class="char-counter">0/32</div>
+                        <p class="panel-description">Customize team names for this game. Names are encoded in the shareable link.</p>
+                        <div class="team-inputs-row">
+                            <div class="modal-section">
+                                <label for="red-name-input">Red Team</label>
+                                <input type="text" id="red-name-input" placeholder="Red" maxlength="32" data-counter="red-char-counter" data-max="32">
+                                <div id="red-char-counter" class="char-counter">0/32</div>
+                            </div>
+                            <div class="modal-section">
+                                <label for="blue-name-input">Blue Team</label>
+                                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="32" data-counter="blue-char-counter" data-max="32">
+                                <div id="blue-char-counter" class="char-counter">0/32</div>
+                            </div>
                         </div>
-                        <div class="modal-section">
-                            <label for="blue-name-input">Blue Team Name:</label>
-                            <input type="text" id="blue-name-input" placeholder="Blue" maxlength="32" data-counter="blue-char-counter" data-max="32">
-                            <div id="blue-char-counter" class="char-counter">0/32</div>
-                        </div>
-                        <p class="warning">Team names are shared via the game link.</p>
                     </div>
 
                     <!-- Words Panel -->
                     <div class="settings-panel" id="panel-words">
                         <h2>Word List</h2>
-                        <div class="modal-section">
+                        <p class="panel-description">Choose which words appear on the board. Custom words are encoded in the shareable link.</p>
+                        <div class="modal-section wordlist-mode-section">
                             <div class="wordlist-mode-options">
                                 <label class="radio-option">
                                     <input type="radio" name="wordlist-mode" value="default" id="wordlist-mode-default">
-                                    <span>Default words only (400 classic Codenames words)</span>
+                                    <span>Default only <em>(400 classic words)</em></span>
                                 </label>
                                 <label class="radio-option">
                                     <input type="radio" name="wordlist-mode" value="combined" id="wordlist-mode-combined" checked>
-                                    <span>Default + Custom words (combine both)</span>
+                                    <span>Default + Custom <em>(combine both)</em></span>
                                 </label>
                                 <label class="radio-option">
                                     <input type="radio" name="wordlist-mode" value="custom" id="wordlist-mode-custom">
-                                    <span>Custom words only (use only the words below)</span>
+                                    <span>Custom only <em>(min 25 words required)</em></span>
                                 </label>
                             </div>
                         </div>
                         <div class="modal-section">
-                            <label for="custom-words">Custom words (one per line):</label>
-                            <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
-                            <div class="word-count" id="word-count">0 words</div>
-                            <div id="word-error" class="input-error">You need at least 25 custom words when using "Custom words only" mode.</div>
-                            <p class="info">Custom words are embedded in the game link when you create a new game.</p>
+                            <label for="custom-words">Custom words <span class="word-count-inline" id="word-count">0 words</span></label>
+                            <textarea id="custom-words" placeholder="Enter words, one per line..."></textarea>
+                            <div id="word-error" class="input-error">Need at least 25 custom words for "Custom only" mode.</div>
                         </div>
                     </div>
 
                     <!-- Rules Panel -->
                     <div class="settings-panel" id="panel-rules">
-                        <h2>Game Rules</h2>
-                        <div class="rules-content">
-                            <p>Two teams compete to find all their words first. Each team has a <strong>Spymaster</strong> who gives clues, and <strong>Clickers</strong> who reveal cards.</p>
+                        <h2>How to Play</h2>
+                        <div class="rules-content compact">
+                            <p class="rules-intro">Two teams race to find all their words. <strong>Spymasters</strong> give clues, <strong>Clickers</strong> reveal cards.</p>
                             <div class="rules-grid">
-                                <div>
-                                    <h4>Roles</h4>
-                                    <ul>
-                                        <li><strong style="color: #ff6b6b;">Spymaster:</strong> Sees the key. Gives one-word clues with a number.</li>
-                                        <li><strong style="color: #74b9ff;">Clicker:</strong> Reveals cards based on clues. Can end the turn.</li>
-                                    </ul>
-                                </div>
-                                <div>
+                                <div class="rules-card">
                                     <h4>Card Types</h4>
-                                    <ul>
-                                        <li><span style="color: #ff6b6b;">■ Red:</span> Red team's words</li>
-                                        <li><span style="color: #74b9ff;">● Blue:</span> Blue team's words</li>
-                                        <li><span style="color: #a89060;">Neutral:</span> Ends your turn</li>
-                                        <li><span style="color: #2c3e50;">☠ Assassin:</span> Instant loss!</li>
-                                    </ul>
+                                    <div class="card-types">
+                                        <span class="card-type red">■ Red Team</span>
+                                        <span class="card-type blue">● Blue Team</span>
+                                        <span class="card-type neutral">◆ Neutral</span>
+                                        <span class="card-type assassin">☠ Assassin</span>
+                                    </div>
+                                </div>
+                                <div class="rules-card">
+                                    <h4>Turn Flow</h4>
+                                    <ol class="turn-flow">
+                                        <li>Spymaster gives a <strong>one-word clue + number</strong></li>
+                                        <li>Clickers reveal cards matching the clue</li>
+                                        <li>Your color = keep going, Neutral/Enemy = turn ends</li>
+                                        <li><strong>Assassin = instant loss!</strong></li>
+                                    </ol>
                                 </div>
                             </div>
-                            <h4 style="margin-top: 20px;">How to Play</h4>
-                            <ol style="margin-left: 20px; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                                <li>Teams take turns. The starting team has 9 words to find, the other has 8.</li>
-                                <li>The Spymaster gives a one-word clue and a number (how many cards relate).</li>
-                                <li>Clickers discuss and reveal cards one at a time.</li>
-                                <li>Revealing your color: keep going. Neutral: turn ends. Other team: turn ends. Assassin: you lose!</li>
-                                <li>First team to find all their words wins!</li>
-                            </ol>
+                            <p class="rules-note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
                         </div>
                     </div>
 
                     <!-- About Panel -->
                     <div class="settings-panel" id="panel-about">
-                        <h2>About Codenames Online</h2>
-                        <div class="about-content">
-                            <h3>What is this?</h3>
-                            <p>A free, open-source implementation of the popular word game Codenames, designed for remote play over video calls or in person.</p>
-
-                            <h3>Features</h3>
-                            <ul style="margin-left: 20px; color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 12px;">
-                                <li>Works offline - game state is encoded in the URL</li>
-                                <li>Multiplayer mode with real-time sync</li>
-                                <li>Custom word lists</li>
-                                <li>Custom team names</li>
-                                <li>Mobile-friendly design</li>
-                            </ul>
-
-                            <h3>How to Share</h3>
-                            <p>Share the game link or scan the QR code in the sidebar. All players see the same board when using the same link!</p>
-
+                        <h2>About</h2>
+                        <div class="about-content compact">
+                            <p class="about-intro">A free, open-source Codenames for remote play or in-person games.</p>
+                            <div class="features-grid">
+                                <div class="feature-item"><span class="feature-icon">🌐</span> Works offline (URL-encoded state)</div>
+                                <div class="feature-item"><span class="feature-icon">👥</span> Real-time multiplayer sync</div>
+                                <div class="feature-item"><span class="feature-icon">📝</span> Custom words &amp; team names</div>
+                                <div class="feature-item"><span class="feature-icon">📱</span> Mobile-friendly design</div>
+                            </div>
                             <div class="credits">
-                                <p>Codenames is a game by Vlaada Chvátil, published by Czech Games Edition.</p>
-                                <p>This implementation is open source under the GPL v3.0 license.</p>
+                                <p>Codenames by Vlaada Chvátil (Czech Games Edition)</p>
+                                <p>Open source under GPL v3.0</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Link Panel -->
                     <div class="settings-panel" id="panel-link">
-                        <h2>Share Game Link</h2>
-                        <div class="link-share-content">
-                            <p class="link-description">Share this link with other players to join the same game. All players using this link will see the same board!</p>
+                        <h2>Share Game</h2>
+                        <div class="link-share-content compact">
+                            <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
 
                             <div class="link-input-group">
                                 <input type="text" id="share-link-input" readonly class="share-link-input">
@@ -2202,10 +2277,9 @@
                             </div>
                             <div id="copy-feedback" class="copy-feedback"></div>
 
-                            <div class="qr-container">
-                                <h3>QR Code</h3>
-                                <p class="qr-description">Scan with a mobile device to join instantly</p>
-                                <canvas id="share-qr-canvas" width="256" height="256"></canvas>
+                            <div class="qr-container compact">
+                                <canvas id="share-qr-canvas" width="200" height="200"></canvas>
+                                <span class="qr-hint">Scan to join on mobile</span>
                             </div>
                         </div>
                     </div>
