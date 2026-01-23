@@ -1087,6 +1087,8 @@ describe('giveClue', () => {
         mockRedis.del.mockReset().mockResolvedValue(1);
         mockRedis.get.mockReset();
         mockMulti.exec.mockReset().mockResolvedValue(mockMultiResult);
+        // Reset eval to reject so tests use fallback WATCH/MULTI path
+        mockRedis.eval.mockReset().mockRejectedValue(new Error('Lua not supported in test'));
     });
 
     const createMockGameData = (overrides = {}) => ({
@@ -1294,6 +1296,8 @@ describe('endTurn', () => {
         mockRedis.del.mockReset().mockResolvedValue(1);
         mockRedis.get.mockReset();
         mockMulti.exec.mockReset().mockResolvedValue(mockMultiResult);
+        // Reset eval to reject so tests use fallback WATCH/MULTI path
+        mockRedis.eval.mockReset().mockRejectedValue(new Error('Lua not supported in test'));
     });
 
     const createMockGameData = (overrides = {}) => ({
