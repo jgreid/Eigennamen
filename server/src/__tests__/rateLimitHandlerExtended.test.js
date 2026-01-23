@@ -315,7 +315,7 @@ describe('Rate Limit Handler Extended Tests', () => {
         });
 
         test('getLimiter returns function for game events', () => {
-            const limiter = socketRateLimiter.getLimiter('game:reveal');
+            socketRateLimiter.getLimiter('game:reveal');
             expect(mockGetLimiter).toHaveBeenCalledWith('game:reveal');
         });
 

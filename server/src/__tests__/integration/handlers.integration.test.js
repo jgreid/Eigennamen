@@ -10,8 +10,9 @@ const { Server } = require('socket.io');
 const Client = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
 
-// Test configuration
-const TEST_PORT = 3097;
+// Test configuration - use random port offset to avoid conflicts
+const TEST_PORT_BASE = 3097;
+const TEST_PORT = TEST_PORT_BASE + Math.floor(Math.random() * 50);
 const SOCKET_URL = `http://localhost:${TEST_PORT}`;
 const CONNECTION_TIMEOUT = 5000;
 

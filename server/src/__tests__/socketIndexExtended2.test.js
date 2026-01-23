@@ -119,7 +119,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 }));
 
 const http = require('http');
-const logger = require('../utils/logger');
 
 describe('Socket Index Extended Tests', () => {
     let server;
