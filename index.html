@@ -880,15 +880,222 @@
 
         /* Wide modals for settings */
         #settings-modal .modal {
-            max-width: 800px;
+            max-width: 900px;
             max-height: 90vh;
             width: 95%;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* Settings layout with sidebar */
+        .settings-layout {
+            display: flex;
+            min-height: 500px;
+            max-height: calc(90vh - 40px);
+        }
+
+        .settings-sidebar {
+            width: 200px;
+            min-width: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .settings-nav {
+            flex: 1;
+        }
+
+        .settings-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .settings-nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .settings-nav-item.active {
+            background: rgba(102, 126, 234, 0.15);
+            color: #667eea;
+            border-left-color: #667eea;
+        }
+
+        .settings-nav-item .nav-icon {
+            font-size: 1.1rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* QR section in sidebar bottom */
+        .settings-sidebar-qr {
+            padding: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-sidebar-qr canvas {
+            border-radius: 8px;
+            background: white;
+            padding: 8px;
+        }
+
+        .settings-sidebar-qr .qr-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+        }
+
+        .settings-sidebar-qr .version {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Settings content area */
+        .settings-content {
+            flex: 1;
+            padding: 28px 32px;
+            overflow-y: auto;
+        }
+
+        .settings-content h2 {
+            margin-bottom: 24px;
+            font-size: 1.3rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .settings-panel {
+            display: none;
+        }
+
+        .settings-panel.active {
+            display: block;
         }
 
         #settings-modal .modal-section {
             display: grid;
             grid-template-columns: 1fr;
             gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        /* About panel styling */
+        .about-content {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+        }
+
+        .about-content h3 {
+            color: #667eea;
+            font-size: 1rem;
+            margin: 20px 0 10px;
+        }
+
+        .about-content h3:first-child {
+            margin-top: 0;
+        }
+
+        .about-content p {
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .about-content a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .about-content a:hover {
+            text-decoration: underline;
+        }
+
+        .about-content .credits {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Settings footer with buttons */
+        .settings-footer {
+            padding: 16px 32px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Mobile responsive for settings */
+        @media (max-width: 700px) {
+            .settings-layout {
+                flex-direction: column;
+                min-height: auto;
+            }
+
+            .settings-sidebar {
+                width: 100%;
+                min-width: auto;
+                flex-direction: row;
+                padding: 0;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .settings-nav {
+                display: flex;
+                overflow-x: auto;
+                flex: 1;
+            }
+
+            .settings-nav-item {
+                flex: 1;
+                padding: 12px 8px;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+                justify-content: center;
+                min-width: 60px;
+            }
+
+            .settings-nav-item.active {
+                border-left-color: transparent;
+                border-bottom-color: #667eea;
+            }
+
+            .settings-nav-item .nav-text {
+                display: none;
+            }
+
+            .settings-sidebar-qr {
+                display: none;
+            }
+
+            .settings-content {
+                padding: 20px;
+            }
         }
 
         /* Rules section in Settings (collapsible) */
@@ -1702,79 +1909,148 @@
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settings-modal">
         <div class="modal">
-            <h2>Game Settings</h2>
+            <div class="settings-layout">
+                <!-- Sidebar Navigation -->
+                <aside class="settings-sidebar">
+                    <nav class="settings-nav">
+                        <button type="button" class="settings-nav-item active" data-panel="teams">
+                            <span class="nav-icon">👥</span>
+                            <span class="nav-text">Teams</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="words">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-text">Words</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="rules">
+                            <span class="nav-icon">📖</span>
+                            <span class="nav-text">Rules</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="about">
+                            <span class="nav-icon">ℹ️</span>
+                            <span class="nav-text">About</span>
+                        </button>
+                    </nav>
+                    <!-- QR Code in sidebar bottom -->
+                    <div class="settings-sidebar-qr" id="qr-section">
+                        <canvas id="qr-canvas" width="256" height="256"></canvas>
+                        <span class="qr-label">Scan to join</span>
+                        <span class="version">v3.2.0</span>
+                    </div>
+                </aside>
 
-            <div class="modal-section">
-                <h3>Team Names</h3>
-                <label for="red-name-input">Red Team Name:</label>
-                <input type="text" id="red-name-input" placeholder="Red" maxlength="20" data-counter="red-char-counter" data-max="20">
-                <div id="red-char-counter" class="char-counter">0/20</div>
-                <label for="blue-name-input">Blue Team Name:</label>
-                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20" data-counter="blue-char-counter" data-max="20">
-                <div id="blue-char-counter" class="char-counter">0/20</div>
-                <p class="warning">Team names are shared via the game link.</p>
-            </div>
-
-            <div class="modal-section">
-                <h3>Word List</h3>
-                <div class="wordlist-mode-options">
-                    <label class="radio-option">
-                        <input type="radio" name="wordlist-mode" value="default" id="wordlist-mode-default">
-                        <span>Default words only (400 classic Codenames words)</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="wordlist-mode" value="combined" id="wordlist-mode-combined" checked>
-                        <span>Default + Custom words (combine both)</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="wordlist-mode" value="custom" id="wordlist-mode-custom">
-                        <span>Custom words only (use only the words below)</span>
-                    </label>
-                </div>
-                <label for="custom-words" style="margin-top: 12px;">Custom words (one per line):</label>
-                <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
-                <div class="word-count" id="word-count">0 words</div>
-                <div id="word-error" class="input-error">You need at least 25 custom words when using "Custom words only" mode.</div>
-                <p class="info">Custom words are embedded in the game link when you create a new game. All players will see the same words!</p>
-            </div>
-
-            <details class="rules-section">
-                <summary><h3 style="display: inline; cursor: pointer;">Game Rules</h3></summary>
-                <div class="rules-content">
-                    <p>Two teams compete to find all their words first. Each team has a <strong>Spymaster</strong> who gives clues, and <strong>Clickers</strong> who reveal cards.</p>
-                    <div class="rules-grid">
-                        <div>
-                            <h4>Roles</h4>
-                            <ul>
-                                <li><strong style="color: #ff6b6b;">Spymaster:</strong> Sees the key. Gives one-word clues.</li>
-                                <li><strong style="color: #74b9ff;">Clicker:</strong> Reveals cards. Can end the turn.</li>
-                            </ul>
+                <!-- Content Area -->
+                <div class="settings-content">
+                    <!-- Teams Panel -->
+                    <div class="settings-panel active" id="panel-teams">
+                        <h2>Team Names</h2>
+                        <div class="modal-section">
+                            <label for="red-name-input">Red Team Name:</label>
+                            <input type="text" id="red-name-input" placeholder="Red" maxlength="20" data-counter="red-char-counter" data-max="20">
+                            <div id="red-char-counter" class="char-counter">0/20</div>
                         </div>
-                        <div>
-                            <h4>Card Types</h4>
-                            <ul>
-                                <li><span style="color: #ff6b6b;">■ Red:</span> Red team's words</li>
-                                <li><span style="color: #74b9ff;">● Blue:</span> Blue team's words</li>
-                                <li><span style="color: #bdc3c7;">─ Neutral:</span> Ends turn</li>
-                                <li><span style="color: #e74c3c;">✕ Assassin:</span> Instant loss!</li>
+                        <div class="modal-section">
+                            <label for="blue-name-input">Blue Team Name:</label>
+                            <input type="text" id="blue-name-input" placeholder="Blue" maxlength="20" data-counter="blue-char-counter" data-max="20">
+                            <div id="blue-char-counter" class="char-counter">0/20</div>
+                        </div>
+                        <p class="warning">Team names are shared via the game link.</p>
+                    </div>
+
+                    <!-- Words Panel -->
+                    <div class="settings-panel" id="panel-words">
+                        <h2>Word List</h2>
+                        <div class="modal-section">
+                            <div class="wordlist-mode-options">
+                                <label class="radio-option">
+                                    <input type="radio" name="wordlist-mode" value="default" id="wordlist-mode-default">
+                                    <span>Default words only (400 classic Codenames words)</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="wordlist-mode" value="combined" id="wordlist-mode-combined" checked>
+                                    <span>Default + Custom words (combine both)</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="wordlist-mode" value="custom" id="wordlist-mode-custom">
+                                    <span>Custom words only (use only the words below)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="modal-section">
+                            <label for="custom-words">Custom words (one per line):</label>
+                            <textarea id="custom-words" placeholder="Enter custom words, one per line..."></textarea>
+                            <div class="word-count" id="word-count">0 words</div>
+                            <div id="word-error" class="input-error">You need at least 25 custom words when using "Custom words only" mode.</div>
+                            <p class="info">Custom words are embedded in the game link when you create a new game.</p>
+                        </div>
+                    </div>
+
+                    <!-- Rules Panel -->
+                    <div class="settings-panel" id="panel-rules">
+                        <h2>Game Rules</h2>
+                        <div class="rules-content">
+                            <p>Two teams compete to find all their words first. Each team has a <strong>Spymaster</strong> who gives clues, and <strong>Clickers</strong> who reveal cards.</p>
+                            <div class="rules-grid">
+                                <div>
+                                    <h4>Roles</h4>
+                                    <ul>
+                                        <li><strong style="color: #ff6b6b;">Spymaster:</strong> Sees the key. Gives one-word clues with a number.</li>
+                                        <li><strong style="color: #74b9ff;">Clicker:</strong> Reveals cards based on clues. Can end the turn.</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4>Card Types</h4>
+                                    <ul>
+                                        <li><span style="color: #ff6b6b;">■ Red:</span> Red team's words</li>
+                                        <li><span style="color: #74b9ff;">● Blue:</span> Blue team's words</li>
+                                        <li><span style="color: #a89060;">─ Neutral:</span> Ends your turn</li>
+                                        <li><span style="color: #2c3e50;">✕ Assassin:</span> Instant loss!</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <h4 style="margin-top: 20px;">How to Play</h4>
+                            <ol style="margin-left: 20px; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                                <li>Teams take turns. The starting team has 9 words to find, the other has 8.</li>
+                                <li>The Spymaster gives a one-word clue and a number (how many cards relate).</li>
+                                <li>Clickers discuss and reveal cards one at a time.</li>
+                                <li>Revealing your color: keep going. Neutral: turn ends. Other team: turn ends. Assassin: you lose!</li>
+                                <li>First team to find all their words wins!</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- About Panel -->
+                    <div class="settings-panel" id="panel-about">
+                        <h2>About Codenames Online</h2>
+                        <div class="about-content">
+                            <h3>What is this?</h3>
+                            <p>A free, open-source implementation of the popular word game Codenames, designed for remote play over video calls or in person.</p>
+
+                            <h3>Features</h3>
+                            <ul style="margin-left: 20px; color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 12px;">
+                                <li>Works offline - game state is encoded in the URL</li>
+                                <li>Multiplayer mode with real-time sync</li>
+                                <li>Custom word lists</li>
+                                <li>Custom team names</li>
+                                <li>Mobile-friendly design</li>
                             </ul>
+
+                            <h3>How to Share</h3>
+                            <p>Share the game link or scan the QR code in the sidebar. All players see the same board when using the same link!</p>
+
+                            <div class="credits">
+                                <p>Codenames is a game by Vlaada Chvátil, published by Czech Games Edition.</p>
+                                <p>This implementation is open source under the GPL v3.0 license.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </details>
-
-            <!-- QR Code for sharing -->
-            <div class="modal-section qr-section" id="qr-section">
-                <h3>Share Game</h3>
-                <canvas id="qr-canvas" width="180" height="180"></canvas>
-                <p class="qr-hint">Scan to join this game</p>
-                <span class="version">v3.2.0</span>
             </div>
 
-            <div class="modal-buttons">
-                <button type="button" class="btn-save" data-action="save-settings">Save & Apply</button>
-                <button type="button" class="btn-reset" data-action="reset-words">Reset to Default Words</button>
+            <!-- Footer with buttons -->
+            <div class="settings-footer">
+                <button type="button" class="btn-reset" data-action="reset-words">Reset Words</button>
                 <button type="button" class="btn-cancel" data-action="close-settings">Cancel</button>
+                <button type="button" class="btn-save" data-action="save-settings">Save & Apply</button>
             </div>
         </div>
     </div>
@@ -2844,7 +3120,7 @@
             try {
                 const matrix = QRCode.generate(url || window.location.href);
                 QRCode.toCanvas(canvas, matrix, {
-                    scale: 7,
+                    scale: 10,
                     margin: 1,
                     dark: '#1a1a2e',
                     light: '#ffffff'
@@ -3430,6 +3706,8 @@
         // Settings functions
         function openSettings() {
             openModal('settings-modal');
+            // Reset to Teams panel when opening
+            switchSettingsPanel('teams');
             // Refresh QR code with current URL when opening settings
             updateQRCode(window.location.href);
             const redNameInput = document.getElementById('red-name-input');
@@ -3464,6 +3742,31 @@
 
         function closeSettings() {
             closeModal('settings-modal');
+        }
+
+        // Settings tab navigation
+        function switchSettingsPanel(panelId) {
+            // Update nav items
+            const navItems = document.querySelectorAll('.settings-nav-item');
+            navItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.panel === panelId);
+            });
+
+            // Update panels
+            const panels = document.querySelectorAll('.settings-panel');
+            panels.forEach(panel => {
+                panel.classList.toggle('active', panel.id === `panel-${panelId}`);
+            });
+        }
+
+        // Initialize settings nav listeners
+        function initSettingsNav() {
+            const navItems = document.querySelectorAll('.settings-nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    switchSettingsPanel(item.dataset.panel);
+                });
+            });
         }
 
         function updateWordCount() {
@@ -3820,6 +4123,8 @@
                 initCachedElements();
                 // Set up centralized event listeners
                 setupEventListeners();
+                // Initialize settings navigation
+                initSettingsNav();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 loadGameFromURL();
