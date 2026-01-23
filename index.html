@@ -3011,7 +3011,7 @@
             // Close modal after brief delay
             setTimeout(() => {
                 closeMultiplayer();
-                showToast('Connected to multiplayer game!');
+                showToast('Connected to multiplayer game!', 'success');
             }, 500);
 
             // Set up multiplayer event listeners
@@ -3043,18 +3043,14 @@
 
             CodenamesClient.on('cardRevealed', (data) => {
                 if (data.index !== undefined) {
-                    // Reveal the card locally
-                    const card = document.querySelector(`[data-index="${data.index}"]`);
-                    if (card) {
-                        revealCard(data.index, true); // true = from server
-                    }
+                    revealCardFromServer(data.index);
                 }
             });
 
             CodenamesClient.on('turnEnded', (data) => {
                 if (data.nextTeam) {
                     // Update turn locally
-                    currentTeam = data.nextTeam;
+                    gameState.currentTurn = data.nextTeam;
                     updateTurnIndicator();
                 }
             });
@@ -3069,7 +3065,7 @@
             CodenamesClient.on('playerJoined', (data) => {
                 multiplayerPlayers = data.players || multiplayerPlayers;
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
-                showToast(`${data.player?.nickname || 'Someone'} joined`);
+                showToast(`${data.player?.nickname || 'Someone'} joined`, 'success');
             });
 
             CodenamesClient.on('playerLeft', (data) => {
@@ -3092,8 +3088,8 @@
             if (game.board && Array.isArray(game.board)) {
                 // Update revealed state
                 game.board.forEach((card, i) => {
-                    if (card.revealed && !revealed[i]) {
-                        revealed[i] = true;
+                    if (card.revealed && !gameState.revealed[i]) {
+                        gameState.revealed[i] = true;
                     }
                 });
                 renderBoard();
@@ -3101,9 +3097,36 @@
 
             // Sync turn
             if (game.currentTeam) {
-                currentTeam = game.currentTeam;
+                gameState.currentTurn = game.currentTeam;
                 updateTurnIndicator();
             }
+        }
+
+        /**
+         * Reveal a card from server sync (bypasses local validation)
+         */
+        function revealCardFromServer(index) {
+            if (gameState.revealed[index]) return; // Already revealed
+
+            gameState.revealed[index] = true;
+            const type = gameState.types[index];
+
+            // Update scores
+            if (type === 'red') {
+                gameState.redScore++;
+            } else if (type === 'blue') {
+                gameState.blueScore++;
+            }
+
+            // Check for assassin
+            if (type === 'assassin') {
+                gameState.gameOver = true;
+                gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            checkGameOver();
+            renderBoard();
+            updateScoreboard();
         }
 
         // Initialize multiplayer modal interactions

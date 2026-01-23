@@ -31,8 +31,13 @@ const generateRoomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', ROOM
  * Generate a deterministic lookup key from password
  * Uses SHA-256 for fast lookups (bcrypt is for actual auth)
  */
+/**
+ * Generate a deterministic lookup key from password
+ * Uses SHA-256 for fast lookups (bcrypt is for actual auth)
+ * Note: Case-sensitive to match bcrypt validation behavior
+ */
 function generatePasswordLookupKey(password) {
-    return crypto.createHash('sha256').update(password.trim().toLowerCase()).digest('hex');
+    return crypto.createHash('sha256').update(password.trim()).digest('hex');
 }
 
 /**
