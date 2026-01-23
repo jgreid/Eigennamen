@@ -5,7 +5,7 @@
 const express = require('express');
 const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
-const { validateParams } = require('../middleware/validation');
+const { validateParams, validateBody } = require('../middleware/validation');
 const { z } = require('zod');
 
 const router = express.Router();
@@ -13,6 +13,11 @@ const router = express.Router();
 // Schema for room code param
 const roomCodeSchema = z.object({
     code: z.string().length(6).transform(s => s.toUpperCase()).refine(s => /^[A-Z0-9]+$/.test(s), 'Invalid room code format')
+});
+
+// Schema for password lookup
+const passwordLookupSchema = z.object({
+    password: z.string().min(1).max(50)
 });
 
 /**
@@ -57,6 +62,40 @@ router.get('/:code', validateParams(roomCodeSchema), async (req, res, next) => {
             },
             playerCount: (await playerService.getPlayersInRoom(req.params.code)).length
         });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * Find room by password
+ * GET /api/rooms/by-password/:password
+ */
+router.get('/by-password/:password', async (req, res, next) => {
+    try {
+        const password = decodeURIComponent(req.params.password);
+
+        if (!password || password.length > 50) {
+            return res.status(400).json({
+                error: {
+                    code: 'INVALID_PASSWORD',
+                    message: 'Invalid password format'
+                }
+            });
+        }
+
+        const result = await roomService.findRoomByPassword(password);
+
+        if (!result) {
+            return res.status(404).json({
+                error: {
+                    code: 'ROOM_NOT_FOUND',
+                    message: 'No room found with that password'
+                }
+            });
+        }
+
+        res.json(result);
     } catch (error) {
         next(error);
     }
