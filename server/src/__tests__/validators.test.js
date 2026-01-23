@@ -13,6 +13,7 @@ const {
     gameClueSchema,
     chatMessageSchema
 } = require('../validators/schemas');
+const { VALIDATION } = require('../config/constants');
 
 describe('roomJoinSchema', () => {
     test('accepts valid room code and nickname', () => {
@@ -382,7 +383,7 @@ describe('roomCreateSchema', () => {
         const result = roomCreateSchema.safeParse({
             settings: {
                 teamNames: {
-                    red: 'A'.repeat(21),
+                    red: 'A'.repeat(VALIDATION.TEAM_NAME_MAX_LENGTH + 1),
                     blue: 'Blue'
                 }
             }
