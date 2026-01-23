@@ -534,38 +534,24 @@
         }
 
         /* Checkmark for active role buttons */
-        .btn-team-red.active::before,
-        .btn-team-blue.active::before,
-        .btn-spymaster-red.active::before,
-        .btn-spymaster-blue.active::before,
-        .btn-clicker-red.active::before,
-        .btn-clicker-blue.active::before,
+        .btn-spymaster.active::before,
+        .btn-clicker.active::before,
         .btn-spectate.active::before {
             content: '✓ ';
             font-weight: bold;
         }
 
         /* Muted inactive role buttons */
-        .btn-team-red:not(.active),
-        .btn-team-blue:not(.active),
-        .btn-spymaster-red:not(.active),
-        .btn-spymaster-blue:not(.active),
-        .btn-clicker-red:not(.active),
-        .btn-clicker-blue:not(.active),
+        .btn-spymaster:not(.active),
+        .btn-clicker:not(.active),
         .btn-spectate:not(.active) {
-            opacity: 0.65;
-            filter: saturate(0.7);
+            opacity: 0.75;
         }
 
-        .btn-team-red:not(.active):hover,
-        .btn-team-blue:not(.active):hover,
-        .btn-spymaster-red:not(.active):hover,
-        .btn-spymaster-blue:not(.active):hover,
-        .btn-clicker-red:not(.active):hover,
-        .btn-clicker-blue:not(.active):hover,
+        .btn-spymaster:not(.active):hover,
+        .btn-clicker:not(.active):hover,
         .btn-spectate:not(.active):hover {
             opacity: 1;
-            filter: saturate(1);
         }
 
         .btn-copy {
@@ -608,14 +594,6 @@
         .share-section .btn-copy {
             padding: 8px 14px;
             font-size: 0.75rem;
-        }
-
-        /* ========== WORD SOURCE ========== */
-        .word-source {
-            text-align: center;
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.4);
-            padding: 8px 0;
         }
 
         /* ========== GAME BOARD ========== */
@@ -1271,15 +1249,6 @@
                 font-size: 0.75rem;
             }
 
-            .btn-team-red,
-            .btn-team-blue,
-            .btn-spymaster-red,
-            .btn-spymaster-blue,
-            .btn-clicker-red,
-            .btn-clicker-blue {
-                min-width: 55px;
-            }
-
             .main-content {
                 padding: 16px 20px;
             }
@@ -1412,17 +1381,6 @@
                 font-size: clamp(0.6rem, 3.5vw, 0.8rem);
                 aspect-ratio: 1.4;
                 padding: 4px;
-            }
-
-            .btn-team-red,
-            .btn-team-blue,
-            .btn-spymaster-red,
-            .btn-spymaster-blue,
-            .btn-clicker-red,
-            .btn-clicker-blue {
-                min-width: 60px;
-                padding: 10px 8px;
-                font-size: 0.75rem;
             }
 
             .scoreboard {
@@ -2236,10 +2194,8 @@
             roleBanner: null,
             turnIndicator: null,
             endTurnBtn: null,
-            redSpyBtn: null,
-            blueSpyBtn: null,
-            redClickerBtn: null,
-            blueClickerBtn: null,
+            spymasterBtn: null,
+            clickerBtn: null,
             redTeamBtn: null,
             blueTeamBtn: null,
             spectateBtn: null,
@@ -2247,11 +2203,7 @@
             blueRemaining: null,
             redTeamName: null,
             blueTeamName: null,
-            redTeamLabel: null,
-            blueTeamLabel: null,
             shareLink: null,
-            wordSource: null,
-            spymasterWarning: null,
             srAnnouncements: null
         };
 
@@ -2261,10 +2213,8 @@
             cachedElements.roleBanner = document.getElementById('role-banner');
             cachedElements.turnIndicator = document.getElementById('turn-indicator');
             cachedElements.endTurnBtn = document.getElementById('btn-end-turn');
-            cachedElements.redSpyBtn = document.getElementById('btn-spymaster-red');
-            cachedElements.blueSpyBtn = document.getElementById('btn-spymaster-blue');
-            cachedElements.redClickerBtn = document.getElementById('btn-clicker-red');
-            cachedElements.blueClickerBtn = document.getElementById('btn-clicker-blue');
+            cachedElements.spymasterBtn = document.getElementById('btn-spymaster');
+            cachedElements.clickerBtn = document.getElementById('btn-clicker');
             cachedElements.redTeamBtn = document.getElementById('btn-team-red');
             cachedElements.blueTeamBtn = document.getElementById('btn-team-blue');
             cachedElements.spectateBtn = document.getElementById('btn-spectate');
@@ -2272,10 +2222,7 @@
             cachedElements.blueRemaining = document.getElementById('blue-remaining');
             cachedElements.redTeamName = document.getElementById('red-team-name');
             cachedElements.blueTeamName = document.getElementById('blue-team-name');
-            cachedElements.redTeamLabel = document.getElementById('red-team-label');
-            cachedElements.blueTeamLabel = document.getElementById('blue-team-label');
             cachedElements.shareLink = document.getElementById('share-link');
-            cachedElements.wordSource = document.getElementById('word-source');
             cachedElements.srAnnouncements = document.getElementById('sr-announcements');
         }
 
@@ -3425,12 +3372,6 @@
             if (blueRemainingEl) blueRemainingEl.textContent = blueRemaining;
             if (redTeamNameEl) redTeamNameEl.textContent = teamNames.red;
             if (blueTeamNameEl) blueTeamNameEl.textContent = teamNames.blue;
-
-            // Update team control labels
-            const redLabelEl = cachedElements.redTeamLabel || document.getElementById('red-team-label');
-            const blueLabelEl = cachedElements.blueTeamLabel || document.getElementById('blue-team-label');
-            if (redLabelEl) redLabelEl.textContent = teamNames.red;
-            if (blueLabelEl) blueLabelEl.textContent = teamNames.blue;
         }
 
         function updateTurnIndicator() {
@@ -3652,7 +3593,6 @@
             if (textarea) textarea.classList.remove('invalid');
 
             updateURL();
-            updateWordSourceDisplay();
             updateScoreboard();
             updateTurnIndicator();
             closeSettings();
@@ -3674,22 +3614,6 @@
             }
 
             updateWordCount();
-        }
-
-        function updateWordSourceDisplay() {
-            const sourceEl = cachedElements.wordSource;
-            if (!sourceEl) return;
-            if (gameState.customWords) {
-                sourceEl.textContent = 'Using custom words (shared via link)';
-            } else if (wordSource === 'combined') {
-                sourceEl.textContent = `${activeWords.length} words (default + custom)`;
-            } else if (wordSource === 'custom') {
-                sourceEl.textContent = `${activeWords.length} custom words`;
-            } else if (wordSource === 'file') {
-                sourceEl.textContent = `Words from wordlist.txt (${activeWords.length})`;
-            } else {
-                sourceEl.textContent = '';
-            }
         }
 
         function loadLocalSettings() {
@@ -3901,7 +3825,6 @@
                 setupEventListeners();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
-                updateWordSourceDisplay();
                 loadGameFromURL();
                 // Initialize QR code with current URL
                 updateQRCode(window.location.href);
