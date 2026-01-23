@@ -6,7 +6,7 @@
  * requiring a running Redis instance.
  */
 
-const { createMockRedis, generateRoomCode, sleep } = require('../helpers/mocks');
+const { createMockRedis, generateRoomCode } = require('../helpers/mocks');
 
 describe('Timer Data Structure Tests', () => {
     let mockRedis;

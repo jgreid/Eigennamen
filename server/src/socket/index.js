@@ -179,10 +179,18 @@ function createTimerExpireCallback() {
             // BUG-6 FIX: Use distributed lock to prevent multiple timer restarts
             // when multiple timer expirations queue setImmediate callbacks
             setImmediate(async () => {
-                const redis = require('../config/redis').getRedis();
+                const { getRedis, isRedisHealthy } = require('../config/redis');
+                const redis = getRedis();
                 const lockKey = `lock:timer-restart:${roomCode}`;
 
                 try {
+                    // Check Redis availability before attempting lock
+                    const redisHealthy = await isRedisHealthy();
+                    if (!redisHealthy) {
+                        logger.warn(`Timer restart skipped for room ${roomCode}: Redis not healthy`);
+                        return;
+                    }
+
                     // Acquire lock to prevent concurrent timer restarts
                     const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
                     if (!lockAcquired) {

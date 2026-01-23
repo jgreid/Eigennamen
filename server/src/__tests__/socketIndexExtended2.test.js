@@ -393,7 +393,7 @@ describe('Socket Index Extended Tests', () => {
             expect(() => {
                 try {
                     socketRateLimiter.cleanupSocket('test-socket');
-                } catch (e) {
+                } catch {
                     // Error is expected but should be caught
                 }
             }).not.toThrow();

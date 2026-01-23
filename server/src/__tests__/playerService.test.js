@@ -298,7 +298,7 @@ describe('Player Service', () => {
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player)]);
             mockRedis.del.mockResolvedValue(1);
 
-            const result = await playerService.setRole('session-123', 'spymaster');
+            const _result = await playerService.setRole('session-123', 'spymaster');
 
             expect(mockRedis.set).toHaveBeenCalledWith(
                 expect.stringContaining('lock:spymaster'),

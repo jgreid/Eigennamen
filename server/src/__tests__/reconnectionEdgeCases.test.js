@@ -164,7 +164,7 @@ describe('Reconnection Edge Cases', () => {
 
     describe('Token Expiration', () => {
         test('validates token expiration', async () => {
-            const expiredToken = {
+            const _expiredToken = {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 createdAt: Date.now() - 6 * 60 * 1000, // 6 minutes ago
@@ -291,7 +291,7 @@ describe('Reconnection Edge Cases', () => {
 
     describe('Game State Changes During Disconnect', () => {
         test('player sees updated game state after reconnection', async () => {
-            const sessionId = 'session-456';
+            const _sessionId = 'session-456';
 
             // Game progressed during disconnect
             gameService.getGame.mockResolvedValue({

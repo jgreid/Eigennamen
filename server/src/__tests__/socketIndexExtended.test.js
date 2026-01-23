@@ -60,6 +60,9 @@ jest.mock('@socket.io/redis-adapter', () => ({
     createAdapter: jest.fn(() => function MockAdapter() {})
 }));
 
+// Control Redis health check result
+let mockIsRedisHealthy = true;
+
 jest.mock('../config/redis', () => ({
     getRedis: () => mockRedis,
     getPubSubClients: () => {
@@ -68,7 +71,8 @@ jest.mock('../config/redis', () => ({
         }
         return { pubClient: mockPubClient, subClient: mockSubClient };
     },
-    isUsingMemoryMode: jest.fn(() => mockIsMemoryMode)
+    isUsingMemoryMode: jest.fn(() => mockIsMemoryMode),
+    isRedisHealthy: jest.fn(async () => mockIsRedisHealthy)
 }));
 
 const mockLogger = {
@@ -176,6 +180,7 @@ beforeEach(() => {
     mockRedisStorage = {};
     mockIsMemoryMode = true;
     mockPubSubShouldThrow = false;
+    mockIsRedisHealthy = true;
     capturedTimerCallback = null;
 
     // Reset service mocks to default states
@@ -363,8 +368,46 @@ describe('Socket Index Extended - Timer Callback', () => {
 });
 
 describe('Socket Index Extended - Timer Restart Logic', () => {
+    test('timer restart skips when Redis not healthy', async () => {
+        jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(false);
+
+        const socketMod = require('../socket/index');
+        socketMod.initializeSocket(testServer);
+
+        mockGameService.getGame.mockResolvedValue({
+            id: 'game-1',
+            currentTurn: 'red',
+            gameOver: false
+        });
+
+        mockGameService.endTurn.mockResolvedValue({
+            currentTurn: 'blue',
+            previousTurn: 'red'
+        });
+
+        await capturedTimerCallback('UNHEAL');
+
+        // Wait for setImmediate and async operations
+        await new Promise(resolve => setImmediate(resolve));
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+            'Timer restart skipped for room UNHEAL: Redis not healthy'
+        );
+
+        socketMod.cleanupSocketModule();
+    });
+
     test('timer restart skips when lock not acquired', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -385,8 +428,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('LOCKED');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
             'Timer restart skipped for room LOCKED: another instance handling it'
@@ -397,6 +441,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart skips when room not found', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -416,8 +464,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('NOROOM');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
             'Timer restart skipped for room NOROOM: room not found'
@@ -428,6 +477,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart skips when timer not configured', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -450,8 +503,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('NOTMR');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
             'Timer restart skipped for room NOTMR: timer not configured'
@@ -462,6 +516,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart skips when room has no settings', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -484,8 +542,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('NOSET');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
             'Timer restart skipped for room NOSET: timer not configured'
@@ -496,6 +555,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart skips when game not found after lock', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -516,8 +579,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('DELGM');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
             'Timer restart skipped for room DELGM: game not found'
@@ -528,6 +592,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart skips when game over after lock', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -548,8 +616,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('OVGM');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
             expect.stringContaining('Timer restart skipped for room OVGM: game over')
@@ -560,6 +629,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart proceeds when all conditions met', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -587,8 +660,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('RESTART');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150));
 
         // Verify timer was checked to be restarted
         expect(mockRoomService.getRoom).toHaveBeenCalled();
@@ -598,6 +672,10 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
     test('timer restart logs error on exception', async () => {
         jest.resetModules();
+
+        // Get fresh mock after resetModules
+        const redisMock = require('../config/redis');
+        redisMock.isRedisHealthy.mockResolvedValue(true);
 
         const socketMod = require('../socket/index');
         socketMod.initializeSocket(testServer);
@@ -617,8 +695,9 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
 
         await capturedTimerCallback('ERRDB');
 
+        // Wait for setImmediate and async operations
         await new Promise(resolve => setImmediate(resolve));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.error).toHaveBeenCalledWith(
             expect.stringContaining('Timer restart failed for room ERRDB')

@@ -91,6 +91,26 @@ jest.mock('../config/database', () => ({
     isDatabaseEnabled: jest.fn(() => false)
 }));
 
+// Mock pubSubHealth for health routes
+jest.mock('../utils/pubSubHealth', () => ({
+    getHealth: jest.fn(() => ({
+        isHealthy: true,
+        totalPublishes: 0,
+        totalFailures: 0,
+        failureRate: 0,
+        consecutiveFailures: 0,
+        lastError: null
+    }))
+}));
+
+// Mock logger to suppress output
+jest.mock('../utils/logger', () => ({
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn()
+}));
+
 // Mock word list service for routes that need it
 const mockWordLists = new Map();
 jest.mock('../services/wordListService', () => ({
@@ -145,6 +165,7 @@ jest.mock('../services/wordListService', () => ({
 // Import routes after mocks
 const roomRoutes = require('../routes/roomRoutes');
 const wordListRoutes = require('../routes/wordListRoutes');
+const healthRoutes = require('../routes/healthRoutes');
 const { errorHandler } = require('../middleware/errorHandler');
 
 // Create test app
@@ -153,6 +174,7 @@ function createTestApp() {
     app.use(express.json());
     app.use('/api/rooms', roomRoutes);
     app.use('/api/wordlists', wordListRoutes);
+    app.use('/api/health', healthRoutes);
     app.use(errorHandler);
     return app;
 }
@@ -481,15 +503,487 @@ describe('WordList Routes', () => {
             expect(response.body.error.code).toBe('NOT_AUTHORIZED');
         });
     });
+
+    describe('Authentication with JWT', () => {
+        const jwt = require('jsonwebtoken');
+        const testSecret = 'test-jwt-secret';
+
+        beforeEach(() => {
+            process.env.JWT_SECRET = testSecret;
+        });
+
+        afterEach(() => {
+            delete process.env.JWT_SECRET;
+        });
+
+        it('should allow authenticated user to create word list', async () => {
+            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+
+            const response = await request(app)
+                .post('/api/wordlists')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    name: 'My Word List',
+                    words: Array(25).fill('word').map((w, i) => `${w}${i}`),
+                    isPublic: true
+                })
+                .expect(201);
+
+            expect(response.body.wordList).toBeDefined();
+            expect(response.body.wordList.name).toBe('My Word List');
+        });
+
+        it('should allow authenticated owner to update word list', async () => {
+            const userId = 'owner-user-123';
+            const token = jwt.sign({ id: userId }, testSecret, { algorithm: 'HS256' });
+            const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
+
+            mockWordLists.set(listId, {
+                id: listId,
+                name: 'Original Name',
+                words: Array(25).fill('word'),
+                isPublic: true,
+                ownerId: userId
+            });
+
+            const response = await request(app)
+                .put(`/api/wordlists/${listId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .send({ name: 'Updated Name' })
+                .expect(200);
+
+            expect(response.body.wordList.name).toBe('Updated Name');
+        });
+
+        it('should allow authenticated owner to delete word list', async () => {
+            const userId = 'owner-user-456';
+            const token = jwt.sign({ id: userId }, testSecret, { algorithm: 'HS256' });
+            const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
+
+            mockWordLists.set(listId, {
+                id: listId,
+                name: 'To Be Deleted',
+                words: Array(25).fill('word'),
+                isPublic: true,
+                ownerId: userId
+            });
+
+            const response = await request(app)
+                .delete(`/api/wordlists/${listId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+        });
+
+        it('should reject invalid JWT token', async () => {
+            const response = await request(app)
+                .post('/api/wordlists')
+                .set('Authorization', 'Bearer invalid-token')
+                .send({
+                    name: 'My Word List',
+                    words: Array(25).fill('word'),
+                    isPublic: true
+                })
+                .expect(403);
+
+            expect(response.body.error.code).toBe('NOT_AUTHORIZED');
+        });
+
+        it('should reject JWT with invalid structure (missing id)', async () => {
+            const token = jwt.sign({ name: 'user' }, testSecret, { algorithm: 'HS256' });
+
+            const response = await request(app)
+                .post('/api/wordlists')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    name: 'My Word List',
+                    words: Array(25).fill('word'),
+                    isPublic: true
+                })
+                .expect(403);
+
+            expect(response.body.error.code).toBe('NOT_AUTHORIZED');
+        });
+
+        it('should allow authenticated owner to view private word list', async () => {
+            const userId = 'owner-user-789';
+            const token = jwt.sign({ id: userId }, testSecret, { algorithm: 'HS256' });
+            const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
+
+            mockWordLists.set(listId, {
+                id: listId,
+                name: 'Private List',
+                words: Array(25).fill('word'),
+                isPublic: false,
+                ownerId: userId
+            });
+
+            const response = await request(app)
+                .get(`/api/wordlists/${listId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .expect(200);
+
+            expect(response.body.wordList.name).toBe('Private List');
+        });
+
+        it('should handle service errors gracefully in POST', async () => {
+            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+
+            wordListService.createWordList.mockRejectedValueOnce(new Error('Database error'));
+
+            const response = await request(app)
+                .post('/api/wordlists')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    name: 'My Word List',
+                    words: Array(25).fill('word').map((w, i) => `${w}${i}`),
+                    isPublic: true
+                })
+                .expect(500);
+
+            expect(response.body.error).toBeDefined();
+        });
+
+        it('should handle service errors gracefully in PUT', async () => {
+            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+            const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
+
+            wordListService.updateWordList.mockRejectedValueOnce(new Error('Database error'));
+
+            const response = await request(app)
+                .put(`/api/wordlists/${listId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .send({ name: 'Updated Name' })
+                .expect(500);
+
+            expect(response.body.error).toBeDefined();
+        });
+
+        it('should handle service errors gracefully in DELETE', async () => {
+            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+            const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
+
+            wordListService.deleteWordList.mockRejectedValueOnce(new Error('Database error'));
+
+            const response = await request(app)
+                .delete(`/api/wordlists/${listId}`)
+                .set('Authorization', `Bearer ${token}`)
+                .expect(500);
+
+            expect(response.body.error).toBeDefined();
+        });
+
+        it('should handle service errors gracefully in GET list', async () => {
+            wordListService.getPublicWordLists.mockRejectedValueOnce(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/wordlists')
+                .expect(500);
+
+            expect(response.body.error).toBeDefined();
+        });
+
+        it('should handle service errors gracefully in GET by id', async () => {
+            wordListService.getWordList.mockRejectedValueOnce(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/wordlists/e8f8c9a0-1234-5678-9abc-def012345678')
+                .expect(500);
+
+            expect(response.body.error).toBeDefined();
+        });
+    });
+
+    describe('extractUser middleware', () => {
+        it('should skip JWT verification when JWT_SECRET not configured', async () => {
+            delete process.env.JWT_SECRET;
+
+            const response = await request(app)
+                .get('/api/wordlists')
+                .set('Authorization', 'Bearer some-token')
+                .expect(200);
+
+            expect(response.body.wordLists).toBeDefined();
+        });
+
+        it('should continue without auth header', async () => {
+            const response = await request(app)
+                .get('/api/wordlists')
+                .expect(200);
+
+            expect(response.body.wordLists).toBeDefined();
+        });
+    });
 });
 
-describe('Health Endpoints', () => {
-    // Note: Health endpoints are defined in app.js, not in the routes we're testing
-    // This is just to document they exist - full tests would need the actual app
+describe('Health Routes (/api/health)', () => {
+    let app;
+    const { isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
+    const pubSubHealth = require('../utils/pubSubHealth');
 
-    it('should have tests for /health endpoint', () => {
-        // Placeholder - health endpoints are tested via app integration
-        expect(true).toBe(true);
+    beforeEach(() => {
+        app = createTestApp();
+        jest.clearAllMocks();
+    });
+
+    describe('GET /api/health', () => {
+        it('should return 200 with basic health status', async () => {
+            const response = await request(app)
+                .get('/api/health')
+                .expect(200);
+
+            expect(response.body).toMatchObject({
+                status: 'ok',
+                timestamp: expect.any(String),
+                uptime: expect.any(Number)
+            });
+        });
+
+        it('should include valid ISO timestamp', async () => {
+            const response = await request(app)
+                .get('/api/health')
+                .expect(200);
+
+            const timestamp = new Date(response.body.timestamp);
+            expect(timestamp.toISOString()).toBe(response.body.timestamp);
+        });
+
+        it('should include non-negative uptime', async () => {
+            const response = await request(app)
+                .get('/api/health')
+                .expect(200);
+
+            expect(response.body.uptime).toBeGreaterThanOrEqual(0);
+        });
+    });
+
+    describe('GET /api/health/live', () => {
+        it('should return 200 with live status', async () => {
+            const response = await request(app)
+                .get('/api/health/live')
+                .expect(200);
+
+            expect(response.body).toMatchObject({
+                status: 'live',
+                timestamp: expect.any(String)
+            });
+        });
+    });
+
+    describe('GET /api/health/ready', () => {
+        it('should return 200 when in memory mode', async () => {
+            isUsingMemoryMode.mockReturnValue(true);
+
+            const response = await request(app)
+                .get('/api/health/ready')
+                .expect(200);
+
+            expect(response.body).toMatchObject({
+                status: 'ready',
+                timestamp: expect.any(String),
+                checks: {
+                    redis: { healthy: true, mode: 'memory' },
+                    pubsub: { healthy: true, status: 'memory_mode' }
+                }
+            });
+        });
+
+        it('should return 200 when Redis is healthy', async () => {
+            isUsingMemoryMode.mockReturnValue(false);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({
+                isHealthy: true,
+                consecutiveFailures: 0,
+                lastError: null
+            });
+
+            const response = await request(app)
+                .get('/api/health/ready')
+                .expect(200);
+
+            expect(response.body).toMatchObject({
+                status: 'ready',
+                checks: {
+                    redis: { healthy: true, mode: 'redis' },
+                    pubsub: { healthy: true, status: 'connected' }
+                }
+            });
+        });
+
+        it('should return 503 when Redis is unhealthy', async () => {
+            isUsingMemoryMode.mockReturnValue(false);
+            isRedisHealthy.mockResolvedValue(false);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({
+                isHealthy: true,
+                consecutiveFailures: 0,
+                lastError: null
+            });
+
+            const response = await request(app)
+                .get('/api/health/ready')
+                .expect(503);
+
+            expect(response.body).toMatchObject({
+                status: 'degraded',
+                checks: {
+                    redis: { healthy: false, mode: 'redis' }
+                }
+            });
+        });
+
+        it('should return 503 when pub/sub is unhealthy', async () => {
+            isUsingMemoryMode.mockReturnValue(false);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({
+                isHealthy: false,
+                consecutiveFailures: 5,
+                lastError: 'Connection lost'
+            });
+
+            const response = await request(app)
+                .get('/api/health/ready')
+                .expect(503);
+
+            expect(response.body).toMatchObject({
+                status: 'degraded',
+                checks: {
+                    pubsub: {
+                        healthy: false,
+                        status: 'degraded',
+                        consecutiveFailures: 5,
+                        lastError: 'Connection lost'
+                    }
+                }
+            });
+        });
+
+        it('should return 503 when health check throws error', async () => {
+            isUsingMemoryMode.mockReturnValue(false);
+            isRedisHealthy.mockRejectedValue(new Error('Redis connection failed'));
+
+            const response = await request(app)
+                .get('/api/health/ready')
+                .expect(503);
+
+            expect(response.body).toMatchObject({
+                status: 'error',
+                error: 'Redis connection failed'
+            });
+        });
+    });
+
+    describe('GET /api/health/metrics', () => {
+        it('should return 200 with detailed metrics', async () => {
+            isUsingMemoryMode.mockReturnValue(true);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({
+                isHealthy: true,
+                totalPublishes: 100,
+                totalFailures: 2,
+                failureRate: 0.02,
+                consecutiveFailures: 0
+            });
+
+            const response = await request(app)
+                .get('/api/health/metrics')
+                .expect(200);
+
+            expect(response.body).toMatchObject({
+                timestamp: expect.any(String),
+                uptime: expect.any(Object),
+                memory: expect.any(Object),
+                redis: expect.any(Object),
+                pubsub: expect.any(Object),
+                process: expect.any(Object)
+            });
+        });
+
+        it('should include memory usage in correct format', async () => {
+            isUsingMemoryMode.mockReturnValue(true);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({ isHealthy: true });
+
+            const response = await request(app)
+                .get('/api/health/metrics')
+                .expect(200);
+
+            expect(response.body.memory).toMatchObject({
+                heapUsed: expect.stringMatching(/^\d+MB$/),
+                heapTotal: expect.stringMatching(/^\d+MB$/),
+                rss: expect.stringMatching(/^\d+MB$/),
+                external: expect.stringMatching(/^\d+MB$/)
+            });
+        });
+
+        it('should include uptime information', async () => {
+            isUsingMemoryMode.mockReturnValue(true);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({ isHealthy: true });
+
+            const response = await request(app)
+                .get('/api/health/metrics')
+                .expect(200);
+
+            expect(response.body.uptime).toMatchObject({
+                seconds: expect.any(Number),
+                startTime: expect.any(String)
+            });
+        });
+
+        it('should include process information', async () => {
+            isUsingMemoryMode.mockReturnValue(true);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({ isHealthy: true });
+
+            const response = await request(app)
+                .get('/api/health/metrics')
+                .expect(200);
+
+            expect(response.body.process).toMatchObject({
+                pid: expect.any(Number),
+                nodeVersion: expect.any(String),
+                platform: expect.any(String)
+            });
+        });
+
+        it('should include pub/sub statistics', async () => {
+            isUsingMemoryMode.mockReturnValue(true);
+            isRedisHealthy.mockResolvedValue(true);
+            pubSubHealth.getHealth = jest.fn().mockReturnValue({
+                isHealthy: true,
+                totalPublishes: 500,
+                totalFailures: 10,
+                failureRate: 0.02,
+                consecutiveFailures: 0
+            });
+
+            const response = await request(app)
+                .get('/api/health/metrics')
+                .expect(200);
+
+            expect(response.body.pubsub).toMatchObject({
+                healthy: true,
+                totalPublishes: 500,
+                totalFailures: 10,
+                failureRate: 0.02,
+                consecutiveFailures: 0
+            });
+        });
+
+        it('should return 500 when metrics collection fails', async () => {
+            isUsingMemoryMode.mockReturnValue(false);
+            isRedisHealthy.mockRejectedValue(new Error('Metrics collection error'));
+
+            const response = await request(app)
+                .get('/api/health/metrics')
+                .expect(500);
+
+            expect(response.body).toMatchObject({
+                error: 'Failed to collect metrics',
+                message: 'Metrics collection error'
+            });
+        });
     });
 });
 

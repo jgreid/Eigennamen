@@ -69,6 +69,10 @@ async function getPublicWordLists({ search = '', limit = 50, offset = 0 } = {}) 
             ];
         }
 
+        // Note: We fetch words array to calculate wordCount because Prisma doesn't support
+        // array_length in select. For typical word lists (25-500 words), this overhead is minimal.
+        // If this becomes a bottleneck, consider: 1) Adding wordCount column to schema, or
+        // 2) Using $queryRaw with PostgreSQL's array_length function.
         const wordLists = await prisma.wordList.findMany({
             where,
             select: {
@@ -85,7 +89,7 @@ async function getPublicWordLists({ search = '', limit = 50, offset = 0 } = {}) 
             skip: offset
         });
 
-        // Add word count to each list, exclude full words array
+        // Add word count to each list, exclude full words array from response
         return wordLists.map(({ words, ...rest }) => ({
             ...rest,
             wordCount: words.length
