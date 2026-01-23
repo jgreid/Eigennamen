@@ -12,8 +12,8 @@
  * - cleanupAllTimers and shutdownTimerService
  */
 
-// Store original process.pid
-const originalPid = process.pid;
+// Store original process.pid (unused but kept for future debugging)
+const _originalPid = process.pid;
 
 // Mock logger before requiring any modules
 const mockLogger = {
@@ -62,7 +62,8 @@ jest.mock('../config/redis', () => {
 
 // Now require the service
 const timerService = require('../services/timerService');
-const { getRedis, getPubSubClients } = require('../config/redis');
+// These imports verify the mock is working but aren't directly used in tests
+const { getRedis: _getRedis, getPubSubClients: _getPubSubClients } = require('../config/redis');
 
 // Use fake timers
 jest.useFakeTimers();
@@ -536,10 +537,10 @@ describe('Timer Service Extended Tests', () => {
             await timerService.startTimer('ROOM_LOCK_REL', 60, jest.fn());
             await timerService.pauseTimer('ROOM_LOCK_REL');
 
-            let lockKey = null;
+            let _lockKey = null;
             mockRedis.set.mockImplementation(async (key, value, options) => {
                 if (options && options.NX) {
-                    lockKey = key;
+                    _lockKey = key;
                     return 'OK';
                 }
                 mockRedis._storage[key] = value;
@@ -613,7 +614,7 @@ describe('Timer Service Extended Tests', () => {
             // Use real timers for this test since it has a small delay
             jest.useRealTimers();
 
-            const result = await timerService.addTime('OTHER_ROOM', 30, jest.fn());
+            const _result = await timerService.addTime('OTHER_ROOM', 30, jest.fn());
 
             // Restore fake timers
             jest.useFakeTimers();
@@ -641,7 +642,7 @@ describe('Timer Service Extended Tests', () => {
 
             mockPubClient.publish.mockRejectedValue(new Error('Pub/sub failed'));
 
-            const result = await timerService.addTime('FALLBACK_ROOM', 30, jest.fn());
+            const _result = await timerService.addTime('FALLBACK_ROOM', 30, jest.fn());
 
             expect(mockLogger.warn).toHaveBeenCalledWith(
                 'Failed to route addTime via pub/sub for room FALLBACK_ROOM, falling back to local:',
@@ -705,7 +706,7 @@ describe('Timer Service Extended Tests', () => {
             mockPubClient.publish.mockRejectedValue(new Error('Publish failed'));
 
             // Call addTimeLocal directly through the pub/sub fallback path
-            const result = await timerService.addTime('PUB_FAIL', 30, jest.fn());
+            const _result = await timerService.addTime('PUB_FAIL', 30, jest.fn());
 
             expect(mockLogger.warn).toHaveBeenCalledWith(
                 expect.stringContaining('Failed to'),
@@ -817,7 +818,7 @@ describe('Timer Service Extended Tests', () => {
             mockRedis._storage['timer:ORPHAN_ACTIVE'] = JSON.stringify(activeTimer);
 
             // Make sure eval returns null for claim script (timer is not expired)
-            mockRedis.eval.mockImplementation(async (script, options) => {
+            mockRedis.eval.mockImplementation(async (_script, _options) => {
                 // For active timers, the claim should not succeed (timer is still valid)
                 return null;
             });

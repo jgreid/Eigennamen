@@ -618,7 +618,7 @@ describe('createGame', () => {
     test('falls back to default when custom word list too small after cleaning', async () => {
         // List looks big enough but has duplicates
         const listWithDuplicates = Array.from({ length: 30 }, () => 'SAME');
-        const game = await createGame('TEST05', { wordList: listWithDuplicates });
+        const _game = await createGame('TEST05', { wordList: listWithDuplicates });
 
         // Should fall back to default words (only 1 unique word)
         expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('too small after cleaning'));
@@ -1057,7 +1057,7 @@ describe('revealCard', () => {
 
         try {
             await revealCard('TEST01', 5);
-        } catch (e) {
+        } catch {
             // Expected error
         }
 

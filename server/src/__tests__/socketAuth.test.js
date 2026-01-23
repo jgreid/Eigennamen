@@ -234,7 +234,7 @@ describe('Socket Authentication Middleware', () => {
     describe('validateSessionAge', () => {
         test('returns valid when session has no creation timestamp', () => {
             const player = { sessionId: 'test-session' };
-            const result = require('../middleware/socketAuth').__get__
+            const _result = require('../middleware/socketAuth').__get__
                 ? require('../middleware/socketAuth').validateSessionAge?.(player)
                 : { valid: true }; // Skip if not exported
 
