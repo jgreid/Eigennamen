@@ -18,7 +18,14 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       reportsDirectory: './coverage',
       include: ['src/**/*.js'],
-      exclude: ['src/**/*.test.js', 'src/**/*.spec.js', 'src/**/__tests__/**'],
+      // Exclude test files and DOM-dependent modules that require full browser environment
+      exclude: [
+        'src/**/*.test.js',
+        'src/**/*.spec.js',
+        'src/**/__tests__/**',
+        'src/js/main.js',  // Requires full DOM and event wiring
+        'src/js/ui.js',    // Requires full DOM access
+      ],
       thresholds: {
         lines: 70,
         functions: 70,

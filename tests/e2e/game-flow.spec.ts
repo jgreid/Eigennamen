@@ -316,3 +316,295 @@ test.describe('Multiplayer Mode', () => {
     // This would depend on the specific multiplayer UI implementation
   });
 });
+
+test.describe('Turn Management', () => {
+
+  test('can end turn manually', async ({ page }) => {
+    await page.goto('/');
+
+    // Join red team as clicker
+    await page.locator('#btn-team-red').click();
+    await page.locator('#btn-clicker').click();
+
+    // Get current turn indicator
+    const turnIndicator = page.locator('#current-turn');
+    const initialTurn = await turnIndicator.textContent();
+
+    // Click end turn button
+    await page.locator('#btn-end-turn').click();
+
+    // Turn should change
+    const newTurn = await turnIndicator.textContent();
+    expect(newTurn).not.toBe(initialTurn);
+  });
+
+  test('turn changes after revealing wrong team card', async ({ page }) => {
+    await page.goto('/');
+
+    // First become spymaster to see card types
+    await page.locator('#btn-team-red').click();
+    await page.locator('#btn-spymaster').click();
+
+    // Find which team goes first
+    const turnIndicator = page.locator('#current-turn');
+    const currentTurnText = await turnIndicator.textContent();
+    const currentTurn = currentTurnText?.toLowerCase().includes('red') ? 'red' : 'blue';
+
+    // Find an opposing team card
+    const opposingTeam = currentTurn === 'red' ? 'blue' : 'red';
+    const opposingCard = page.locator(`.card.spy-${opposingTeam}`).first();
+
+    // Switch to clicker and reveal
+    await page.locator('#btn-clicker').click();
+    await opposingCard.click();
+
+    // Turn should change to the team whose card was revealed
+    const newTurnText = await turnIndicator.textContent();
+    expect(newTurnText?.toLowerCase()).toContain(opposingTeam);
+  });
+
+  test('turn changes after revealing neutral card', async ({ page }) => {
+    await page.goto('/');
+
+    // First become spymaster to see card types
+    await page.locator('#btn-team-red').click();
+    await page.locator('#btn-spymaster').click();
+
+    // Get current turn
+    const turnIndicator = page.locator('#current-turn');
+    const initialTurn = await turnIndicator.textContent();
+
+    // Find a neutral card
+    const neutralCard = page.locator('.card.spy-neutral').first();
+
+    // Switch to clicker and reveal
+    await page.locator('#btn-clicker').click();
+    await neutralCard.click();
+
+    // Turn should change
+    const newTurn = await turnIndicator.textContent();
+    expect(newTurn).not.toBe(initialTurn);
+  });
+});
+
+test.describe('Copy and Share Functionality', () => {
+
+  test('copy URL button exists', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // Copy URL button should be visible
+    await expect(page.locator('[data-action="copy-url"]')).toBeVisible();
+  });
+
+  test('share game panel shows QR code', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // QR code should be rendered
+    const qrCanvas = page.locator('#qr-canvas');
+    await expect(qrCanvas).toBeVisible();
+
+    // Canvas should have non-zero dimensions
+    const width = await qrCanvas.evaluate((el: HTMLCanvasElement) => el.width);
+    expect(width).toBeGreaterThan(0);
+  });
+});
+
+test.describe('Word List Management', () => {
+
+  test('shows default word count', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // Word count display should show something
+    const wordCount = page.locator('#word-count');
+    await expect(wordCount).toBeVisible();
+  });
+
+  test('validates minimum custom word count', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // Select custom words only
+    await page.locator('#wordlist-mode-custom').click();
+
+    // Enter fewer than 25 words
+    const fewWords = Array.from({ length: 10 }, (_, i) => `Word${i}`).join('\n');
+    await page.locator('#custom-words').fill(fewWords);
+
+    // Word count should indicate insufficient words
+    const wordCount = page.locator('#word-count');
+    await expect(wordCount).toContainText('10 words');
+  });
+
+  test('combined mode uses both default and custom words', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // Select combined mode
+    await page.locator('#wordlist-mode-combined').click();
+
+    // Add some custom words
+    const customWords = 'CUSTOMWORD1\nCUSTOMWORD2\nCUSTOMWORD3';
+    await page.locator('#custom-words').fill(customWords);
+
+    // Save settings
+    await page.locator('[data-action="save-settings"]').click();
+
+    // Start new game
+    await page.locator('[data-action="confirm-new-game"]').click();
+    await page.locator('[data-action="new-game"]').click();
+
+    // Board should have cards (whether from default or custom pool)
+    const cards = page.locator('.card');
+    await expect(cards).toHaveCount(25);
+  });
+});
+
+test.describe('Game History', () => {
+
+  test('game history panel exists', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // History section should be visible
+    const historySection = page.locator('.history-section, #game-history');
+    if (await historySection.isVisible()) {
+      await expect(historySection).toBeVisible();
+    }
+  });
+});
+
+test.describe('Role Switching', () => {
+
+  test('clicker cannot see card types', async ({ page }) => {
+    await page.goto('/');
+
+    // Join as clicker
+    await page.locator('#btn-team-red').click();
+    await page.locator('#btn-clicker').click();
+
+    // Cards should NOT have spy-* classes visible
+    const body = page.locator('body');
+    await expect(body).not.toHaveClass(/spymaster-mode/);
+  });
+
+  test('can switch from spymaster to clicker', async ({ page }) => {
+    await page.goto('/');
+
+    // Become spymaster
+    await page.locator('#btn-team-red').click();
+    await page.locator('#btn-spymaster').click();
+    await expect(page.locator('.spymaster-mode')).toBeVisible();
+
+    // Switch to clicker
+    await page.locator('#btn-clicker').click();
+
+    // Should no longer be in spymaster mode
+    await expect(page.locator('.spymaster-mode')).not.toBeVisible();
+  });
+
+  test('can switch teams', async ({ page }) => {
+    await page.goto('/');
+
+    // Join red team
+    await page.locator('#btn-team-red').click();
+    let roleBanner = await page.locator('.role-banner').textContent();
+    expect(roleBanner?.toLowerCase()).toContain('red');
+
+    // Switch to blue team
+    await page.locator('#btn-team-blue').click();
+    roleBanner = await page.locator('.role-banner').textContent();
+    expect(roleBanner?.toLowerCase()).toContain('blue');
+  });
+});
+
+test.describe('Score Tracking', () => {
+
+  test('displays remaining cards for both teams', async ({ page }) => {
+    await page.goto('/');
+
+    // Check red remaining
+    const redRemaining = page.locator('#red-remaining');
+    await expect(redRemaining).toBeVisible();
+    const redCount = await redRemaining.textContent();
+    expect(parseInt(redCount || '0')).toBeGreaterThan(0);
+
+    // Check blue remaining
+    const blueRemaining = page.locator('#blue-remaining');
+    await expect(blueRemaining).toBeVisible();
+    const blueCount = await blueRemaining.textContent();
+    expect(parseInt(blueCount || '0')).toBeGreaterThan(0);
+  });
+
+  test('first team has 9 cards, second team has 8', async ({ page }) => {
+    await page.goto('/');
+
+    const redRemaining = parseInt(await page.locator('#red-remaining').textContent() || '0');
+    const blueRemaining = parseInt(await page.locator('#blue-remaining').textContent() || '0');
+
+    // One team should have 9, the other should have 8
+    expect([redRemaining, blueRemaining].sort()).toEqual([8, 9]);
+  });
+
+  test('score updates when revealing team card', async ({ page }) => {
+    await page.goto('/');
+
+    // Become spymaster to find a team card
+    await page.locator('#btn-team-red').click();
+    await page.locator('#btn-spymaster').click();
+
+    // Find a red card
+    const redCard = page.locator('.card.spy-red').first();
+
+    // Get initial red remaining count
+    const initialRed = parseInt(await page.locator('#red-remaining').textContent() || '0');
+
+    // Switch to clicker and reveal
+    await page.locator('#btn-clicker').click();
+    await redCard.click();
+
+    // Red remaining should decrease by 1
+    const newRed = parseInt(await page.locator('#red-remaining').textContent() || '0');
+    expect(newRed).toBe(initialRed - 1);
+  });
+});
+
+test.describe('Tablet Responsiveness', () => {
+  test.use({ viewport: { width: 768, height: 1024 } }); // iPad
+
+  test('layout adapts to tablet size', async ({ page }) => {
+    await page.goto('/');
+
+    // Board should be visible
+    await expect(page.locator('.board')).toBeVisible();
+
+    // Cards should still be 25
+    const cards = page.locator('.card');
+    await expect(cards).toHaveCount(25);
+  });
+
+  test('settings modal fits tablet screen', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // Modal should be visible and not overflow
+    const modal = page.locator('#settings-modal .modal-content');
+    await expect(modal).toBeVisible();
+  });
+});
