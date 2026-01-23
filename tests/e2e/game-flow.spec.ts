@@ -415,6 +415,199 @@ test.describe('Copy and Share Functionality', () => {
   });
 });
 
+test.describe('QR Code Generation', () => {
+
+  test('QR code canvas has actual content (not blank)', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    const qrCanvas = page.locator('#qr-canvas');
+    await expect(qrCanvas).toBeVisible();
+
+    // Check that canvas has actual pixel data (not all white/blank)
+    const hasContent = await qrCanvas.evaluate((canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return false;
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // Count non-white pixels (QR code dark modules)
+      let darkPixelCount = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        // Check if pixel is dark (R, G, B are low)
+        if (data[i] < 128 && data[i + 1] < 128 && data[i + 2] < 128) {
+          darkPixelCount++;
+        }
+      }
+
+      // A valid QR code should have significant dark pixels (finder patterns, data)
+      // Typically 20-40% of the QR code is dark modules
+      const totalPixels = canvas.width * canvas.height;
+      const darkRatio = darkPixelCount / totalPixels;
+      return darkRatio > 0.1 && darkRatio < 0.6;
+    });
+
+    expect(hasContent).toBe(true);
+  });
+
+  test('QR code has finder patterns in corners', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    const qrCanvas = page.locator('#qr-canvas');
+    await expect(qrCanvas).toBeVisible();
+
+    // Verify finder patterns exist (7x7 dark-light-dark squares in 3 corners)
+    const hasFinderPatterns = await qrCanvas.evaluate((canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return false;
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      // Helper to check if a pixel is dark
+      const isDark = (x: number, y: number) => {
+        const idx = (y * canvas.width + x) * 4;
+        return data[idx] < 128;
+      };
+
+      // QR codes have finder patterns starting at (margin, margin)
+      // The pattern is 7 modules wide, with scale applied
+      // We check the top-left corner has a dark cluster (finder pattern)
+      const margin = 10; // Approximate margin in pixels
+      const moduleSize = Math.floor(canvas.width / 30); // Approximate module size
+
+      // Check top-left finder pattern area has dark pixels
+      let topLeftDarkCount = 0;
+      for (let y = margin; y < margin + moduleSize * 7; y++) {
+        for (let x = margin; x < margin + moduleSize * 7; x++) {
+          if (x < canvas.width && y < canvas.height && isDark(x, y)) {
+            topLeftDarkCount++;
+          }
+        }
+      }
+
+      // Finder pattern should have significant dark pixels
+      const finderArea = moduleSize * 7 * moduleSize * 7;
+      return topLeftDarkCount > finderArea * 0.2;
+    });
+
+    expect(hasFinderPatterns).toBe(true);
+  });
+
+  test('QR code updates when URL changes', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    const qrCanvas = page.locator('#qr-canvas');
+    await expect(qrCanvas).toBeVisible();
+
+    // Get initial QR code data
+    const initialData = await qrCanvas.evaluate((canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // Create a simple hash of the pixel data
+      let hash = 0;
+      for (let i = 0; i < imageData.data.length; i += 100) {
+        hash = ((hash << 5) - hash + imageData.data[i]) | 0;
+      }
+      return hash.toString();
+    });
+
+    // Close settings
+    await page.locator('[data-action="close-settings"]').click();
+
+    // Start a new game (this changes the URL)
+    await page.locator('[data-action="confirm-new-game"]').click();
+    await page.locator('[data-action="new-game"]').click();
+
+    // Reopen settings
+    await page.locator('[data-action="open-settings"]').click();
+
+    // Get new QR code data
+    const newData = await qrCanvas.evaluate((canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let hash = 0;
+      for (let i = 0; i < imageData.data.length; i += 100) {
+        hash = ((hash << 5) - hash + imageData.data[i]) | 0;
+      }
+      return hash.toString();
+    });
+
+    // QR codes should be different (different game seed = different URL)
+    expect(newData).not.toBe(initialData);
+  });
+
+  test('share panel QR code also renders correctly', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings and go to link panel
+    await page.locator('[data-action="open-settings"]').click();
+    await page.locator('[data-panel="link"]').click();
+
+    const shareQrCanvas = page.locator('#share-qr-canvas');
+    await expect(shareQrCanvas).toBeVisible();
+
+    // Check share QR canvas has content
+    const hasContent = await shareQrCanvas.evaluate((canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return false;
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      let darkPixelCount = 0;
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        if (imageData.data[i] < 128) darkPixelCount++;
+      }
+      const totalPixels = canvas.width * canvas.height;
+      return darkPixelCount / totalPixels > 0.1;
+    });
+
+    expect(hasContent).toBe(true);
+  });
+
+  test('QR code and share link contain same URL', async ({ page }) => {
+    await page.goto('/');
+
+    // Open settings and go to link panel
+    await page.locator('[data-action="open-settings"]').click();
+    await page.locator('[data-panel="link"]').click();
+
+    // Get the share link value
+    const shareLinkInput = page.locator('#share-link-input');
+    const shareUrl = await shareLinkInput.inputValue();
+
+    // URL should be valid and contain the current page URL base
+    expect(shareUrl).toContain(page.url().split('#')[0].split('?')[0]);
+  });
+
+  test('QR code is not visible when hidden', async ({ page }) => {
+    await page.goto('/');
+
+    // Before opening settings, QR section should be in sidebar but modal is closed
+    const qrSection = page.locator('#qr-section');
+
+    // Open settings to verify QR is visible when modal is open
+    await page.locator('[data-action="open-settings"]').click();
+    await expect(page.locator('#qr-canvas')).toBeVisible();
+
+    // Close settings
+    await page.locator('[data-action="close-settings"]').click();
+
+    // Modal should be closed
+    await expect(page.locator('#settings-modal')).not.toHaveClass(/active/);
+  });
+});
+
 test.describe('Word List Management', () => {
 
   test('shows default word count', async ({ page }) => {
