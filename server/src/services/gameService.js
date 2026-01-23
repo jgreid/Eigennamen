@@ -239,6 +239,190 @@ return cjson.encode(result)
 `;
 
 /**
+ * Lua script for optimized clue giving
+ * Performs atomic clue validation and state update in Redis
+ */
+const OPTIMIZED_GIVE_CLUE_SCRIPT = `
+local gameKey = KEYS[1]
+local team = ARGV[1]
+local clueWord = ARGV[2]
+local clueNumber = tonumber(ARGV[3])
+local spymasterNickname = ARGV[4]
+local timestamp = tonumber(ARGV[5])
+local maxHistoryEntries = tonumber(ARGV[6])
+local boardSize = tonumber(ARGV[7])
+
+local gameData = redis.call('GET', gameKey)
+if not gameData then
+    return cjson.encode({error = 'NO_GAME'})
+end
+
+local game = cjson.decode(gameData)
+
+-- Validate preconditions
+if game.gameOver then
+    return cjson.encode({error = 'GAME_OVER'})
+end
+if game.currentTurn ~= team then
+    return cjson.encode({error = 'NOT_YOUR_TURN'})
+end
+if game.currentClue then
+    return cjson.encode({error = 'CLUE_ALREADY_GIVEN'})
+end
+
+-- Validate clue number
+if clueNumber < 0 or clueNumber > boardSize then
+    return cjson.encode({error = 'INVALID_NUMBER'})
+end
+
+-- Validate clue word is not on the board (case-insensitive)
+local normalizedClue = string.upper(clueWord)
+for i, word in ipairs(game.words) do
+    local normalizedWord = string.upper(word)
+    -- Exact match
+    if normalizedClue == normalizedWord then
+        return cjson.encode({error = 'WORD_ON_BOARD', word = word})
+    end
+    -- Clue contains board word
+    if string.len(normalizedWord) > 1 and string.find(normalizedClue, normalizedWord, 1, true) then
+        return cjson.encode({error = 'CONTAINS_BOARD_WORD', word = word})
+    end
+    -- Board word contains clue
+    if string.len(normalizedClue) > 1 and string.find(normalizedWord, normalizedClue, 1, true) then
+        return cjson.encode({error = 'BOARD_CONTAINS_CLUE', word = word})
+    end
+end
+
+-- Create and set clue
+local clue = {
+    team = team,
+    word = string.upper(clueWord),
+    number = clueNumber,
+    spymaster = spymasterNickname,
+    timestamp = timestamp
+}
+
+game.currentClue = clue
+-- 0 means unlimited guesses, otherwise number + 1
+game.guessesAllowed = clueNumber == 0 and 0 or clueNumber + 1
+game.guessesUsed = 0
+
+if not game.clues then
+    game.clues = {}
+end
+table.insert(game.clues, clue)
+
+-- Add to history
+if not game.history then
+    game.history = {}
+end
+table.insert(game.history, {
+    action = 'clue',
+    team = team,
+    word = clue.word,
+    number = clueNumber,
+    guessesAllowed = game.guessesAllowed,
+    spymaster = spymasterNickname,
+    timestamp = timestamp
+})
+
+-- Cap history
+if #game.history > maxHistoryEntries then
+    local newHistory = {}
+    for i = #game.history - maxHistoryEntries + 1, #game.history do
+        table.insert(newHistory, game.history[i])
+    end
+    game.history = newHistory
+end
+
+-- Increment version
+game.stateVersion = (game.stateVersion or 0) + 1
+
+-- Save game
+redis.call('SET', gameKey, cjson.encode(game))
+
+return cjson.encode({
+    success = true,
+    team = team,
+    word = clue.word,
+    number = clueNumber,
+    spymaster = spymasterNickname,
+    guessesAllowed = game.guessesAllowed,
+    timestamp = timestamp
+})
+`;
+
+/**
+ * Lua script for optimized end turn
+ * Atomically switches turn and resets clue state
+ */
+const OPTIMIZED_END_TURN_SCRIPT = `
+local gameKey = KEYS[1]
+local playerNickname = ARGV[1]
+local timestamp = tonumber(ARGV[2])
+local maxHistoryEntries = tonumber(ARGV[3])
+
+local gameData = redis.call('GET', gameKey)
+if not gameData then
+    return cjson.encode({error = 'NO_GAME'})
+end
+
+local game = cjson.decode(gameData)
+
+-- Validate preconditions
+if game.gameOver then
+    return cjson.encode({error = 'GAME_OVER'})
+end
+
+local previousTurn = game.currentTurn
+
+-- Switch turn
+if game.currentTurn == 'red' then
+    game.currentTurn = 'blue'
+else
+    game.currentTurn = 'red'
+end
+
+-- Reset clue state
+game.currentClue = cjson.null
+game.guessesUsed = 0
+game.guessesAllowed = 0
+
+-- Add to history
+if not game.history then
+    game.history = {}
+end
+table.insert(game.history, {
+    action = 'endTurn',
+    fromTeam = previousTurn,
+    toTeam = game.currentTurn,
+    player = playerNickname,
+    timestamp = timestamp
+})
+
+-- Cap history
+if #game.history > maxHistoryEntries then
+    local newHistory = {}
+    for i = #game.history - maxHistoryEntries + 1, #game.history do
+        table.insert(newHistory, game.history[i])
+    end
+    game.history = newHistory
+end
+
+-- Increment version
+game.stateVersion = (game.stateVersion or 0) + 1
+
+-- Save game
+redis.call('SET', gameKey, cjson.encode(game))
+
+return cjson.encode({
+    success = true,
+    previousTurn = previousTurn,
+    currentTurn = game.currentTurn
+})
+`;
+
+/**
  * Seeded random number generator using Mulberry32 algorithm
  * Provides better distribution than Math.sin-based approach
  * Must stay in sync with client-side implementation in index.html
@@ -866,8 +1050,60 @@ function validateClueWord(clueWord, boardWords) {
 }
 
 /**
+ * Optimized clue giving using Lua script
+ * Performs atomic clue validation and state update
+ */
+async function giveClueOptimized(roomCode, team, word, number, spymasterNickname) {
+    const redis = getRedis();
+    const gameKey = `room:${roomCode}:game`;
+
+    try {
+        const resultStr = await redis.eval(
+            OPTIMIZED_GIVE_CLUE_SCRIPT,
+            {
+                keys: [gameKey],
+                arguments: [
+                    team,
+                    word,
+                    number.toString(),
+                    spymasterNickname || 'Unknown',
+                    Date.now().toString(),
+                    MAX_HISTORY_ENTRIES.toString(),
+                    BOARD_SIZE.toString()
+                ]
+            }
+        );
+
+        const result = JSON.parse(resultStr);
+
+        if (result.error) {
+            const errorMap = {
+                'NO_GAME': GameStateError.noActiveGame(),
+                'GAME_OVER': GameStateError.gameOver(),
+                'NOT_YOUR_TURN': PlayerError.notYourTurn(team),
+                'CLUE_ALREADY_GIVEN': ValidationError.clueAlreadyGiven(),
+                'INVALID_NUMBER': new ValidationError(`Clue number must be 0-${BOARD_SIZE}`),
+                'WORD_ON_BOARD': ValidationError.invalidClue(`"${word}" is a word on the board`),
+                'CONTAINS_BOARD_WORD': ValidationError.invalidClue(`"${word}" contains board word "${result.word}"`),
+                'BOARD_CONTAINS_CLUE': ValidationError.invalidClue(`Board word "${result.word}" contains "${word}"`)
+            };
+            throw errorMap[result.error] || new ServerError(result.error);
+        }
+
+        logger.debug(`Optimized giveClue completed for room ${roomCode}`);
+        return result;
+    } catch (error) {
+        if (error.code) {
+            throw error;
+        }
+        logger.error('Optimized giveClue failed', { roomCode, error: error.message });
+        throw error;
+    }
+}
+
+/**
  * Give a clue with validation
- * Uses optimistic locking with retries for consistency
+ * Uses optimized Lua script with fallback to standard implementation
  */
 async function giveClue(roomCode, team, word, number, spymasterNickname) {
     const redis = getRedis();
@@ -878,6 +1114,23 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
         throw ValidationError.invalidTeam();
     }
 
+    // BUG-3 FIX: Validate clue number is within valid range (0-25)
+    if (typeof number !== 'number' || !Number.isInteger(number) || number < 0 || number > BOARD_SIZE) {
+        throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
+    }
+
+    // Try optimized Lua script first
+    try {
+        return await giveClueOptimized(roomCode, team, word, number, spymasterNickname);
+    } catch (luaError) {
+        // Propagate game logic errors
+        if (luaError.code && luaError.code !== ERROR_CODES.SERVER_ERROR) {
+            throw luaError;
+        }
+        logger.warn(`Lua giveClue failed, falling back to standard for room ${roomCode}: ${luaError.message}`);
+    }
+
+    // Fallback to original implementation
     const maxRetries = 3;
     let retries = 0;
 
@@ -985,10 +1238,64 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
 }
 
 /**
+ * Optimized end turn using Lua script
+ * Atomically switches turn and resets clue state
+ */
+async function endTurnOptimized(roomCode, playerNickname = 'Unknown') {
+    const redis = getRedis();
+    const gameKey = `room:${roomCode}:game`;
+
+    try {
+        const resultStr = await redis.eval(
+            OPTIMIZED_END_TURN_SCRIPT,
+            {
+                keys: [gameKey],
+                arguments: [
+                    playerNickname,
+                    Date.now().toString(),
+                    MAX_HISTORY_ENTRIES.toString()
+                ]
+            }
+        );
+
+        const result = JSON.parse(resultStr);
+
+        if (result.error) {
+            const errorMap = {
+                'NO_GAME': GameStateError.noActiveGame(),
+                'GAME_OVER': GameStateError.gameOver()
+            };
+            throw errorMap[result.error] || new ServerError(result.error);
+        }
+
+        logger.debug(`Optimized endTurn completed for room ${roomCode}`);
+        return result;
+    } catch (error) {
+        if (error.code) {
+            throw error;
+        }
+        logger.error('Optimized endTurn failed', { roomCode, error: error.message });
+        throw error;
+    }
+}
+
+/**
  * End the current turn
- * Uses optimistic locking with retries for consistency
+ * Uses optimized Lua script with fallback to standard implementation
  */
 async function endTurn(roomCode, playerNickname = 'Unknown') {
+    // Try optimized Lua script first
+    try {
+        return await endTurnOptimized(roomCode, playerNickname);
+    } catch (luaError) {
+        // Propagate game logic errors
+        if (luaError.code && luaError.code !== ERROR_CODES.SERVER_ERROR) {
+            throw luaError;
+        }
+        logger.warn(`Lua endTurn failed, falling back to standard for room ${roomCode}: ${luaError.message}`);
+    }
+
+    // Fallback to original implementation
     const gameKey = `room:${roomCode}:game`;
 
     return executeGameTransaction(gameKey, (game) => {
@@ -1075,9 +1382,11 @@ module.exports = {
     getGame,
     getGameStateForPlayer,
     revealCard,
-    revealCardOptimized, // ISSUE #36 FIX: Exported for direct use and testing
+    revealCardOptimized,
     giveClue,
+    giveClueOptimized,
     endTurn,
+    endTurnOptimized,
     forfeitGame,
     getGameHistory,
     cleanupGame,

@@ -101,6 +101,10 @@ const strictLimiter = rateLimit({
 // IP multiplier - allows multiple legitimate users on same IP (corporate, shared wifi)
 const IP_RATE_LIMIT_MULTIPLIER = 5;
 
+// LRU eviction configuration - prevents unbounded memory growth
+const MAX_TRACKED_ENTRIES = parseInt(process.env.RATE_LIMIT_MAX_ENTRIES) || 10000;
+const LRU_EVICTION_PERCENTAGE = 0.1; // Evict 10% when limit reached
+
 /**
  * In-place filter for timestamp arrays - avoids memory allocation per request
  * @param {number[]} timestamps - Array of timestamps to filter
@@ -236,9 +240,57 @@ function createSocketRateLimiter(limits) {
     };
 
     /**
+     * Perform LRU eviction when entry count exceeds threshold
+     * Removes the oldest entries (by last activity) to prevent unbounded memory growth
+     */
+    const performLRUEviction = () => {
+        const totalEntries = socketRequests.size + ipRequests.size;
+        if (totalEntries <= MAX_TRACKED_ENTRIES) {
+            return 0;
+        }
+
+        const entriesToRemove = Math.ceil(totalEntries * LRU_EVICTION_PERCENTAGE);
+        let removed = 0;
+
+        // Collect all entries with their last activity time
+        const allEntries = [];
+
+        for (const [key, timestamps] of socketRequests.entries()) {
+            const lastActivity = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+            allEntries.push({ key, map: 'socket', lastActivity });
+        }
+
+        for (const [key, timestamps] of ipRequests.entries()) {
+            const lastActivity = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+            allEntries.push({ key, map: 'ip', lastActivity });
+        }
+
+        // Sort by last activity (oldest first)
+        allEntries.sort((a, b) => a.lastActivity - b.lastActivity);
+
+        // Remove the oldest entries
+        for (let i = 0; i < entriesToRemove && i < allEntries.length; i++) {
+            const entry = allEntries[i];
+            if (entry.map === 'socket') {
+                socketRequests.delete(entry.key);
+            } else {
+                ipRequests.delete(entry.key);
+            }
+            removed++;
+        }
+
+        if (removed > 0) {
+            logger.info(`LRU eviction: removed ${removed} oldest rate limit entries (was ${totalEntries}, now ${totalEntries - removed})`);
+        }
+
+        return removed;
+    };
+
+    /**
      * Periodic cleanup of stale entries (call from a setInterval)
      * Wrapped in try-catch to prevent cleanup failures from causing memory leaks
      * Uses in-place filtering for performance
+     * Also performs LRU eviction if entry count exceeds threshold
      */
     const cleanupStale = () => {
         try {
@@ -273,6 +325,9 @@ function createSocketRateLimiter(limits) {
             if (cleanedSocket > 0 || cleanedIP > 0) {
                 logger.debug(`Cleaned up ${cleanedSocket} socket and ${cleanedIP} IP rate limit entries`);
             }
+
+            // Perform LRU eviction if we still have too many entries
+            performLRUEviction();
         } catch (error) {
             logger.error('Error during rate limit cleanup:', error);
         }
@@ -339,6 +394,7 @@ function createSocketRateLimiter(limits) {
         getLimiter,
         cleanupSocket,
         cleanupStale,
+        performLRUEviction,
         getSize,
         getMetrics,
         resetMetrics
