@@ -33,8 +33,14 @@ function extractUser(req, res, next) {
         try {
             const token = authHeader.substring(7);
             const jwt = require('jsonwebtoken');
-            const decoded = jwt.verify(token, secret);
-            req.user = decoded;
+            // Specify allowed algorithms to prevent algorithm confusion attacks
+            const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
+            // Validate token structure
+            if (decoded && typeof decoded.id === 'string') {
+                req.user = decoded;
+            } else {
+                logger.debug('Invalid auth token structure in word list request');
+            }
         } catch (error) {
             // Invalid token - continue without user
             logger.debug('Invalid auth token in word list request');
@@ -126,15 +132,17 @@ router.get('/:id', validateParams(wordListIdSchema), async (req, res, next) => {
         }
 
         // Only return full word list if public or owned by requester
-        // For now, return full list for public ones
         if (!wordList.isPublic) {
-            // In a full implementation, check ownership here
-            return res.status(403).json({
-                error: {
-                    code: 'NOT_AUTHORIZED',
-                    message: 'Not authorized to view this word list'
-                }
-            });
+            // Check ownership - user must be authenticated and be the owner
+            const isOwner = req.user && req.user.id && wordList.ownerId === req.user.id;
+            if (!isOwner) {
+                return res.status(403).json({
+                    error: {
+                        code: 'NOT_AUTHORIZED',
+                        message: 'Not authorized to view this word list'
+                    }
+                });
+            }
         }
 
         res.json({
