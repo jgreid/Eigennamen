@@ -138,28 +138,6 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
     return attemptSubscription();
 }
 
-// Store pending addTime callbacks for pub/sub coordination with timestamps for cleanup
-const pendingAddTimeCallbacks = new Map();
-const PENDING_CALLBACK_TTL_MS = 30000; // 30 seconds TTL for pending callbacks
-
-/**
- * Clean up stale pending addTime callbacks to prevent memory leaks
- * Called periodically from orphan check interval
- */
-function cleanupStalePendingCallbacks() {
-    const now = Date.now();
-    let cleaned = 0;
-    for (const [requestId, entry] of pendingAddTimeCallbacks) {
-        if (now - entry.timestamp > PENDING_CALLBACK_TTL_MS) {
-            pendingAddTimeCallbacks.delete(requestId);
-            cleaned++;
-        }
-    }
-    if (cleaned > 0) {
-        logger.debug(`Cleaned up ${cleaned} stale pending addTime callbacks`);
-    }
-}
-
 /**
  * Handle timer events from pub/sub
  * ISSUE #34 FIX: Added 'addTime' event handling for multi-instance routing
@@ -234,14 +212,6 @@ function handleTimerEvent(event, onExpireCallback) {
             break;
         case 'expired':
             // Timer expired on another instance - no action needed
-            break;
-        case 'addTimeResult':
-            // ISSUE #34 FIX: Receive result from the instance that owns the timer
-            const callback = pendingAddTimeCallbacks.get(event.requestId);
-            if (callback) {
-                pendingAddTimeCallbacks.delete(event.requestId);
-                callback(event.result);
-            }
             break;
     }
 }
@@ -550,9 +520,9 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
 
         logger.debug(`Routed addTime request for room ${roomCode} via pub/sub`);
 
-        // Return timer status from Redis (the owning instance will update it)
-        // Give a brief delay for the owning instance to process
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Return current timer status from Redis
+        // Note: The owning instance will update Redis asynchronously via pub/sub
+        // Callers needing the updated value should poll getTimerStatus after a brief delay
         return getTimerStatus(roomCode);
     } catch (pubSubError) {
         logger.warn(`Failed to route addTime via pub/sub for room ${roomCode}, falling back to local:`, pubSubError.message);
@@ -684,8 +654,6 @@ function startOrphanCheck(onExpireCallback) {
 
     orphanCheckInterval = setInterval(async () => {
         await checkOrphanedTimers(onExpireCallback);
-        // Clean up stale pending callbacks to prevent memory leaks
-        cleanupStalePendingCallbacks();
     }, ORPHAN_CHECK_INTERVAL);
 }
 

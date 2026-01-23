@@ -96,18 +96,31 @@ function initializeSocket(server, expressApp = null) {
         chatHandlers(io, socket);
 
         // Handle disconnection
-        socket.on('disconnect', (reason) => {
+        socket.on('disconnect', async (reason) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
 
             // Update cached socket count for fast health checks
-            if (app && typeof app.updateSocketCount === 'function') {
-                app.updateSocketCount(-1);
+            try {
+                if (app && typeof app.updateSocketCount === 'function') {
+                    app.updateSocketCount(-1);
+                }
+            } catch (error) {
+                logger.error('Error updating socket count:', error);
             }
 
             // Clean up rate limiter entries for this socket to prevent memory leaks
-            socketRateLimiter.cleanupSocket(socket.id);
+            try {
+                socketRateLimiter.cleanupSocket(socket.id);
+            } catch (error) {
+                logger.error('Error cleaning up rate limiter:', error);
+            }
 
-            handleDisconnect(io, socket, reason);
+            // Await the async disconnect handler to ensure cleanup completes
+            try {
+                await handleDisconnect(io, socket, reason);
+            } catch (error) {
+                logger.error('Error in disconnect handler:', error);
+            }
         });
 
         // Handle errors
