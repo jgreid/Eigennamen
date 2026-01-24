@@ -10,6 +10,7 @@ const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const { RoomError, PlayerError, ValidationError } = require('../../errors/GameError');
+const { sanitizeHtml } = require('../../utils/sanitize');
 
 module.exports = function playerHandlers(io, socket) {
 
@@ -19,7 +20,8 @@ module.exports = function playerHandlers(io, socket) {
      * Issue #59 Fix: Prevent team from becoming empty during active game
      * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
-    socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
+    // ISSUE #27 FIX: Rate limit key matches event name for consistency
+    socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:setTeam', async (data) => {
         try {
             // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
@@ -84,7 +86,8 @@ module.exports = function playerHandlers(io, socket) {
      * Set player's role
      * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
-    socket.on('player:setRole', createRateLimitedHandler(socket, 'player:role', async (data) => {
+    // ISSUE #27 FIX: Rate limit key matches event name for consistency
+    socket.on('player:setRole', createRateLimitedHandler(socket, 'player:setRole', async (data) => {
         try {
             // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
@@ -141,7 +144,8 @@ module.exports = function playerHandlers(io, socket) {
      * Update nickname
      * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
-    socket.on('player:setNickname', createRateLimitedHandler(socket, 'player:nickname', async (data) => {
+    // ISSUE #27 FIX: Rate limit key matches event name for consistency
+    socket.on('player:setNickname', createRateLimitedHandler(socket, 'player:setNickname', async (data) => {
         try {
             // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
@@ -157,10 +161,13 @@ module.exports = function playerHandlers(io, socket) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
             }
 
+            // ISSUE #24 FIX: Sanitize nickname before broadcasting (defense-in-depth)
+            const sanitizedNickname = sanitizeHtml(player.nickname);
+
             // Broadcast to room
             io.to(`room:${socket.roomCode}`).emit('player:updated', {
                 sessionId: socket.sessionId,
-                changes: { nickname: player.nickname }
+                changes: { nickname: sanitizedNickname }
             });
 
             // Log event for reconnection recovery
@@ -169,11 +176,11 @@ module.exports = function playerHandlers(io, socket) {
                 eventLogService.EVENT_TYPES.NICKNAME_CHANGED,
                 {
                     sessionId: socket.sessionId,
-                    nickname: player.nickname
+                    nickname: sanitizedNickname
                 }
             );
 
-            logger.info(`Player ${socket.sessionId} changed nickname to ${player.nickname}`);
+            logger.info(`Player ${socket.sessionId} changed nickname to ${sanitizedNickname}`);
 
         } catch (error) {
             logger.error('Error setting nickname:', error);
@@ -220,22 +227,23 @@ module.exports = function playerHandlers(io, socket) {
             // Get target player's socket ID
             const targetSocketId = await playerService.getSocketId(data.targetSessionId);
 
+            // ISSUE #24 FIX: Sanitize nicknames before broadcasting (defense-in-depth)
             // Broadcast kick event before removing player
             io.to(`room:${socket.roomCode}`).emit('player:kicked', {
                 sessionId: data.targetSessionId,
-                nickname: targetPlayer.nickname,
-                kickedBy: requester.nickname
+                nickname: sanitizeHtml(targetPlayer.nickname),
+                kickedBy: sanitizeHtml(requester.nickname)
             });
 
-            // Log the kick event
+            // Log the kick event (sanitize nicknames for log safety)
             await eventLogService.logEvent(
                 socket.roomCode,
                 eventLogService.EVENT_TYPES.PLAYER_LEFT,
                 {
                     sessionId: data.targetSessionId,
-                    nickname: targetPlayer.nickname,
+                    nickname: sanitizeHtml(targetPlayer.nickname),
                     reason: 'kicked',
-                    kickedBy: requester.nickname
+                    kickedBy: sanitizeHtml(requester.nickname)
                 }
             );
 
@@ -263,7 +271,7 @@ module.exports = function playerHandlers(io, socket) {
                 players: remainingPlayers
             });
 
-            logger.info(`Host ${requester.nickname} kicked player ${targetPlayer.nickname} from room ${socket.roomCode}`);
+            logger.info(`Host ${sanitizeHtml(requester.nickname)} kicked player ${sanitizeHtml(targetPlayer.nickname)} from room ${socket.roomCode}`);
 
         } catch (error) {
             logger.error('Error kicking player:', error);

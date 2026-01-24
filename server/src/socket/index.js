@@ -298,12 +298,17 @@ async function handleDisconnect(io, socket, reason) {
 
         // Notify other players in the room
         if (roomCode) {
+            // ISSUE #15 FIX: Get updated player list to ensure clients have consistent state
+            const updatedPlayers = await playerService.getPlayersInRoom(roomCode);
+
             io.to(`room:${roomCode}`).emit('player:disconnected', {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team,
                 reason: reason,
                 timestamp: Date.now(),
+                // ISSUE #15 FIX: Include updated player list for state consistency
+                players: updatedPlayers,
                 // ISSUE #17 FIX: Include reconnection token in disconnect notification
                 // This allows clients to store it for secure reconnection
                 reconnectionToken: reconnectionToken
