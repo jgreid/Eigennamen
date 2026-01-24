@@ -27,17 +27,32 @@ jest.mock('../utils/logger', () => ({
 }));
 
 // Mock socket/index for timer functions
+const mockGetTimerStatus = jest.fn().mockResolvedValue(null);
 jest.mock('../socket/index', () => ({
     getTimerStatus: jest.fn().mockResolvedValue(null),
     startTurnTimer: jest.fn().mockResolvedValue({}),
     stopTurnTimer: jest.fn().mockResolvedValue()
 }));
 
+// Mock socketFunctionProvider to provide timer functions
+jest.mock('../socket/socketFunctionProvider', () => ({
+    getSocketFunctions: jest.fn(() => ({
+        getTimerStatus: mockGetTimerStatus,
+        startTurnTimer: jest.fn().mockResolvedValue({}),
+        stopTurnTimer: jest.fn().mockResolvedValue(),
+        emitToRoom: jest.fn(),
+        emitToPlayer: jest.fn(),
+        getIO: jest.fn()
+    })),
+    isRegistered: jest.fn(() => true)
+}));
+
 const roomService = require('../services/roomService');
 const gameService = require('../services/gameService');
 const playerService = require('../services/playerService');
 const eventLogService = require('../services/eventLogService');
-const { getTimerStatus } = require('../socket/index');
+// Use the mock directly since socketFunctionProvider will use it
+const getTimerStatus = mockGetTimerStatus;
 const { ERROR_CODES } = require('../config/constants');
 
 describe('Room Resync and Recovery Handlers', () => {
