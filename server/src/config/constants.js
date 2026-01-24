@@ -67,6 +67,9 @@ module.exports = {
         'room:join': { window: 60000, max: 10 },      // 10 per minute
         'room:leave': { window: 60000, max: 10 },     // 10 per minute
         'room:settings': { window: 5000, max: 5 },    // 5 per 5 seconds
+        'room:resync': { window: 5000, max: 3 },      // 3 per 5 seconds
+        'room:reconnect': { window: 10000, max: 5 },  // 5 per 10 seconds
+        'room:getReconnectionToken': { window: 10000, max: 5 },  // 5 per 10 seconds
         // Game events
         'game:start': { window: 5000, max: 2 },       // 2 per 5 seconds
         'game:reveal': { window: 1000, max: 5 },      // 5 per second
