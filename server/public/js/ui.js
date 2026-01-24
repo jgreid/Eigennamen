@@ -13,6 +13,7 @@
 /**
  * DOM Element Cache Manager
  * Caches frequently accessed DOM elements for performance
+ * Implements cleanup to prevent memory leaks
  */
 class ElementCache {
     constructor() {
@@ -60,11 +61,21 @@ class ElementCache {
         this.cache[id] = document.getElementById(id);
         return this.cache[id];
     }
+
+    /**
+     * Clear all cached references
+     * Call this before re-initializing or when unmounting
+     */
+    destroy() {
+        this.cache = {};
+        this.initialized = false;
+    }
 }
 
 /**
  * Screen Reader Announcer
  * Handles announcements to screen readers via aria-live regions
+ * Implements cleanup to prevent memory leaks from pending timeouts
  */
 class ScreenReaderAnnouncer {
     constructor(cache) {
@@ -105,14 +116,29 @@ class ScreenReaderAnnouncer {
     announceTurnChange(message) {
         this.announce(message, 'turn');
     }
+
+    /**
+     * Clear all pending timeouts
+     * Call this before re-initializing or when unmounting
+     */
+    destroy() {
+        Object.keys(this.timeouts).forEach(type => {
+            if (this.timeouts[type]) {
+                clearTimeout(this.timeouts[type]);
+                this.timeouts[type] = null;
+            }
+        });
+    }
 }
 
 /**
  * Toast Notification System
+ * Implements cleanup to prevent memory leaks from pending timeouts
  */
 class ToastManager {
     constructor(cache) {
         this.cache = cache;
+        this.activeTimeouts = new Set();
     }
 
     show(message, type = 'error', duration = 4000) {
@@ -136,9 +162,11 @@ class ToastManager {
 
         container.appendChild(toast);
 
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
+            this.activeTimeouts.delete(timeoutId);
             this.dismiss(toast);
         }, duration);
+        this.activeTimeouts.add(timeoutId);
 
         return toast;
     }
@@ -146,17 +174,34 @@ class ToastManager {
     dismiss(toast) {
         if (!toast || toast.classList.contains('hiding')) return;
         toast.classList.add('hiding');
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
+            this.activeTimeouts.delete(timeoutId);
             if (toast.parentElement) {
                 toast.parentElement.removeChild(toast);
             }
         }, 300);
+        this.activeTimeouts.add(timeoutId);
+    }
+
+    /**
+     * Clear all pending timeouts and remove all toasts
+     * Call this before re-initializing or when unmounting
+     */
+    destroy() {
+        this.activeTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+        this.activeTimeouts.clear();
+
+        const container = this.cache.get('toastContainer');
+        if (container) {
+            container.innerHTML = '';
+        }
     }
 }
 
 /**
  * Modal Manager
  * Handles modal dialogs with focus trapping and keyboard support
+ * Implements cleanup to prevent memory leaks from event listeners
  */
 class ModalManager {
     constructor() {
@@ -165,6 +210,7 @@ class ModalManager {
         this.boundKeydownHandler = this.handleKeydown.bind(this);
         this.boundClickHandler = this.handleOverlayClick.bind(this);
         this.closeHandlers = {};
+        this.focusTimeoutId = null;
     }
 
     registerCloseHandler(modalId, handler) {
@@ -185,7 +231,13 @@ class ModalManager {
         // Focus first focusable element
         const focusable = modal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
         if (focusable.length > 0) {
-            setTimeout(() => focusable[0].focus(), 50);
+            if (this.focusTimeoutId) {
+                clearTimeout(this.focusTimeoutId);
+            }
+            this.focusTimeoutId = setTimeout(() => {
+                focusable[0].focus();
+                this.focusTimeoutId = null;
+            }, 50);
         }
     }
 
@@ -245,22 +297,46 @@ class ModalManager {
             }
         }
     }
+
+    /**
+     * Clean up all event listeners and state
+     * Call this before re-initializing or when unmounting
+     */
+    destroy() {
+        if (this.focusTimeoutId) {
+            clearTimeout(this.focusTimeoutId);
+            this.focusTimeoutId = null;
+        }
+
+        document.removeEventListener('keydown', this.boundKeydownHandler);
+        document.removeEventListener('click', this.boundClickHandler);
+
+        this.activeModal = null;
+        this.previouslyFocusedElement = null;
+        this.closeHandlers = {};
+    }
 }
 
 /**
  * Board Renderer
  * Handles rendering and updating the game board
+ * Uses AbortController pattern for proper event listener cleanup
  */
 class BoardRenderer {
     constructor(cache, announcer) {
         this.cache = cache;
         this.announcer = announcer;
         this.initialized = false;
+        this.abortController = null;
     }
 
     init(onCardClick) {
         const board = this.cache.get('board');
         if (!board || board.hasAttribute('data-delegated')) return;
+
+        // Create abort controller for cleanup
+        this.abortController = new AbortController();
+        const { signal } = this.abortController;
 
         // Event delegation for clicks
         board.addEventListener('click', (e) => {
@@ -268,7 +344,7 @@ class BoardRenderer {
             if (!card || card.classList.contains('revealed')) return;
             const index = parseInt(card.dataset.index, 10);
             if (!isNaN(index)) onCardClick(index);
-        });
+        }, { signal });
 
         // Event delegation for keyboard navigation
         board.addEventListener('keydown', (e) => {
@@ -286,7 +362,7 @@ class BoardRenderer {
                 e.preventDefault();
                 this.navigateCards(index, e.key);
             }
-        });
+        }, { signal });
 
         board.setAttribute('data-delegated', 'true');
     }
@@ -403,6 +479,24 @@ class BoardRenderer {
                 cards[newIndex].focus();
             }
         }
+    }
+
+    /**
+     * Clean up all event listeners and reset state
+     * Call this before re-initializing or when unmounting
+     */
+    destroy() {
+        if (this.abortController) {
+            this.abortController.abort();
+            this.abortController = null;
+        }
+
+        const board = this.cache.get('board');
+        if (board) {
+            board.removeAttribute('data-delegated');
+        }
+
+        this.initialized = false;
     }
 }
 
