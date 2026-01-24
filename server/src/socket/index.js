@@ -98,6 +98,7 @@ function initializeSocket(server, expressApp = null) {
         chatHandlers(io, socket);
 
         // Handle disconnection
+        // ISSUE #9 FIX: Wrap disconnect handler in timeout to prevent hangs
         socket.on('disconnect', async (reason) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
 
@@ -117,11 +118,21 @@ function initializeSocket(server, expressApp = null) {
                 logger.error('Error cleaning up rate limiter:', error);
             }
 
-            // Await the async disconnect handler to ensure cleanup completes
+            // ISSUE #9 FIX: Add timeout to prevent disconnect handler from hanging indefinitely
+            const DISCONNECT_TIMEOUT_MS = 10000; // 10 seconds
             try {
-                await handleDisconnect(io, socket, reason);
+                await Promise.race([
+                    handleDisconnect(io, socket, reason),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Disconnect handler timeout')), DISCONNECT_TIMEOUT_MS)
+                    )
+                ]);
             } catch (error) {
-                logger.error('Error in disconnect handler:', error);
+                if (error.message === 'Disconnect handler timeout') {
+                    logger.error(`Disconnect handler timed out after ${DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
+                } else {
+                    logger.error('Error in disconnect handler:', error);
+                }
             }
         });
 
@@ -190,12 +201,13 @@ function createTimerExpireCallback() {
             );
 
             // Restart timer for the new turn (if timer is configured and game not over)
-            // BUG-6 FIX: Use distributed lock to prevent multiple timer restarts
+            // BUG-6 & ISSUE #3 FIX: Use distributed lock with improved error handling
             // when multiple timer expirations queue setImmediate callbacks
             setImmediate(async () => {
                 const { getRedis, isRedisHealthy } = require('../config/redis');
                 const redis = getRedis();
                 const lockKey = `lock:timer-restart:${roomCode}`;
+                let lockAcquired = false;
 
                 try {
                     // Check Redis availability before attempting lock
@@ -205,42 +217,46 @@ function createTimerExpireCallback() {
                         return;
                     }
 
-                    // Acquire lock to prevent concurrent timer restarts
-                    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
+                    // ISSUE #3 FIX: Increase lock TTL to 10s and track acquisition state
+                    lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 10 });
                     if (!lockAcquired) {
                         logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`);
                         return;
                     }
 
-                    try {
-                        const room = await roomService.getRoom(roomCode);
-                        const game = await gameService.getGame(roomCode);
+                    const room = await roomService.getRoom(roomCode);
+                    const game = await gameService.getGame(roomCode);
 
-                        if (!room) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
-                            return;
-                        }
-                        if (!room.settings || !room.settings.turnTimer) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
-                            return;
-                        }
-                        if (!game) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
-                            return;
-                        }
-                        if (game.gameOver) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
-                            return;
-                        }
-
-                        await startTurnTimer(roomCode, room.settings.turnTimer);
-                        logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
-                    } finally {
-                        // Release lock
-                        await redis.del(lockKey);
+                    if (!room) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
+                        return;
                     }
+                    if (!room.settings || !room.settings.turnTimer) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
+                        return;
+                    }
+                    if (!game) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
+                        return;
+                    }
+                    if (game.gameOver) {
+                        logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
+                        return;
+                    }
+
+                    await startTurnTimer(roomCode, room.settings.turnTimer);
+                    logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
                 } catch (err) {
                     logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
+                } finally {
+                    // ISSUE #3 FIX: Always release lock if we acquired it
+                    if (lockAcquired) {
+                        try {
+                            await redis.del(lockKey);
+                        } catch (delErr) {
+                            logger.error(`Failed to release timer restart lock for ${roomCode}: ${delErr.message}`);
+                        }
+                    }
                 }
             });
         } catch (error) {
@@ -282,12 +298,17 @@ async function handleDisconnect(io, socket, reason) {
 
         // Notify other players in the room
         if (roomCode) {
+            // ISSUE #15 FIX: Get updated player list to ensure clients have consistent state
+            const updatedPlayers = await playerService.getPlayersInRoom(roomCode);
+
             io.to(`room:${roomCode}`).emit('player:disconnected', {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team,
                 reason: reason,
                 timestamp: Date.now(),
+                // ISSUE #15 FIX: Include updated player list for state consistency
+                players: updatedPlayers,
                 // ISSUE #17 FIX: Include reconnection token in disconnect notification
                 // This allows clients to store it for secure reconnection
                 reconnectionToken: reconnectionToken
@@ -305,16 +326,17 @@ async function handleDisconnect(io, socket, reason) {
                 }
             );
 
-            // Check if disconnected player was host - use lock to prevent race condition
+            // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL
             if (player.isHost) {
                 const redis = getRedis();
                 const lockKey = `lock:host-transfer:${roomCode}`;
+                let hostTransferLockAcquired = false;
 
-                // Try to acquire lock (expires after 3 seconds - enough for DB operations)
-                const lockAcquired = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 3 });
+                try {
+                    // ISSUE #7 FIX: Increase lock TTL to 10s for slow Redis operations
+                    hostTransferLockAcquired = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 10 });
 
-                if (lockAcquired) {
-                    try {
+                    if (hostTransferLockAcquired) {
                         const room = await roomService.getRoom(roomCode);
                         const players = await playerService.getPlayersInRoom(roomCode);
                         const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
@@ -353,12 +375,20 @@ async function handleDisconnect(io, socket, reason) {
 
                             logger.info(`Host transferred to ${newHost.nickname} in room ${roomCode}`);
                         }
-                    } finally {
-                        // Release lock
-                        await redis.del(lockKey);
+                    } else {
+                        logger.debug(`Host transfer lock not acquired for room ${roomCode}, another instance handling it`);
                     }
-                } else {
-                    logger.debug(`Host transfer lock not acquired for room ${roomCode}, another instance handling it`);
+                } catch (hostTransferError) {
+                    logger.error(`Host transfer failed for room ${roomCode}: ${hostTransferError.message}`);
+                } finally {
+                    // ISSUE #7 FIX: Only release lock if we acquired it
+                    if (hostTransferLockAcquired) {
+                        try {
+                            await redis.del(lockKey);
+                        } catch (delErr) {
+                            logger.error(`Failed to release host transfer lock for ${roomCode}: ${delErr.message}`);
+                        }
+                    }
                 }
             }
         }

@@ -53,8 +53,10 @@ module.exports = function roomHandlers(io, socket) {
 
     /**
      * Create a new room
+     * ISSUE #2 FIX: Added cleanup on failure to prevent socket room membership desync
      */
     socket.on('room:create', createRateLimitedHandler(socket, 'room:create', async (data) => {
+        let createdRoomCode = null;
         try {
             const validated = validateInput(roomCreateSchema, data);
 
@@ -63,6 +65,9 @@ module.exports = function roomHandlers(io, socket) {
                 TIMEOUTS.SOCKET_HANDLER,
                 'room:create'
             );
+
+            // Track the room code in case we need to clean up on error
+            createdRoomCode = room.code;
 
             // Join the socket to the room
             socket.join(`room:${room.code}`);
@@ -85,6 +90,13 @@ module.exports = function roomHandlers(io, socket) {
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
 
         } catch (error) {
+            // ISSUE #2 FIX: Clean up socket room membership if we partially created
+            if (createdRoomCode) {
+                socket.leave(`room:${createdRoomCode}`);
+                socket.leave(`player:${socket.sessionId}`);
+                socket.roomCode = null;
+            }
+
             logger.error('Error creating room:', error);
             socket.emit('room:error', {
                 code: error.code || ERROR_CODES.SERVER_ERROR,

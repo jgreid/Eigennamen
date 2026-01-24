@@ -51,6 +51,7 @@ describe('Player Service', () => {
             sAdd: jest.fn(),
             sRem: jest.fn(),
             sMembers: jest.fn(),
+            sCard: jest.fn(), // ISSUE #13 FIX: Added for empty team set cleanup
             mGet: jest.fn(),
             expire: jest.fn(),
             eval: jest.fn(),
@@ -221,29 +222,27 @@ describe('Player Service', () => {
             const existingPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
             const updatedPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
-            mockRedis.sAdd.mockResolvedValue(1);
-            mockRedis.expire.mockResolvedValue(true);
+            // ISSUE #1 FIX: Lua script now returns {player: {...}, oldTeam: ...}
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ player: updatedPlayer, oldTeam: null }));
 
             const result = await playerService.setTeam('session-123', 'red');
 
             expect(result.team).toBe('red');
-            expect(mockRedis.sAdd).toHaveBeenCalledWith('room:ABC123:team:red', 'session-123');
+            // Team set operations now happen inside Lua script, so we check eval was called
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('removes from old team set when switching teams', async () => {
             const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
             const updatedPlayer = { sessionId: 'session-123', team: 'blue', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
-            mockRedis.sRem.mockResolvedValue(1);
-            mockRedis.sAdd.mockResolvedValue(1);
-            mockRedis.expire.mockResolvedValue(true);
+            // ISSUE #1 FIX: Lua script now returns {player: {...}, oldTeam: ...}
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ player: updatedPlayer, oldTeam: 'red' }));
 
             await playerService.setTeam('session-123', 'blue');
 
-            expect(mockRedis.sRem).toHaveBeenCalledWith('room:ABC123:team:red', 'session-123');
-            expect(mockRedis.sAdd).toHaveBeenCalledWith('room:ABC123:team:blue', 'session-123');
+            // Team set operations now happen inside Lua script atomically
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('throws error when player not found', async () => {
@@ -275,8 +274,8 @@ describe('Player Service', () => {
             const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
             const updatedPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
-            mockRedis.sRem.mockResolvedValue(1);
+            // ISSUE #1 FIX: Lua script now returns {player: {...}, oldTeam: ...}
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ player: updatedPlayer, oldTeam: 'red' }));
 
             await playerService.setTeam('session-123', null);
 

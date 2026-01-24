@@ -494,26 +494,68 @@ async function roomExists(code) {
 }
 
 /**
- * Refresh TTL for all room-related keys
+ * Lua script for atomic TTL refresh of all room-related keys
+ * ISSUE #8 FIX: Prevents TTL race condition by refreshing all keys atomically
+ */
+const ATOMIC_REFRESH_TTL_SCRIPT = `
+local roomKey = KEYS[1]
+local playersKey = KEYS[2]
+local gameKey = KEYS[3]
+local redTeamKey = KEYS[4]
+local blueTeamKey = KEYS[5]
+local ttl = tonumber(ARGV[1])
+
+-- Refresh room TTL (only if key exists)
+if redis.call('EXISTS', roomKey) == 1 then
+    redis.call('EXPIRE', roomKey, ttl)
+end
+
+-- Refresh players list TTL (only if key exists)
+if redis.call('EXISTS', playersKey) == 1 then
+    redis.call('EXPIRE', playersKey, ttl)
+end
+
+-- Refresh game TTL (only if key exists)
+if redis.call('EXISTS', gameKey) == 1 then
+    redis.call('EXPIRE', gameKey, ttl)
+end
+
+-- Refresh team sets TTL (only if key exists)
+if redis.call('EXISTS', redTeamKey) == 1 then
+    redis.call('EXPIRE', redTeamKey, ttl)
+end
+if redis.call('EXISTS', blueTeamKey) == 1 then
+    redis.call('EXPIRE', blueTeamKey, ttl)
+end
+
+return 1
+`;
+
+/**
+ * Refresh TTL for all room-related keys atomically
+ * ISSUE #8 FIX: Uses Lua script to prevent TTL race condition
  */
 async function refreshRoomTTL(code) {
     const redis = getRedis();
 
-    // Refresh room TTL
-    await redis.expire(`room:${code}`, REDIS_TTL.ROOM);
-
-    // Refresh players list TTL
-    await redis.expire(`room:${code}:players`, REDIS_TTL.ROOM);
-
-    // Refresh game TTL if exists
-    const gameExists = await redis.exists(`room:${code}:game`);
-    if (gameExists) {
-        await redis.expire(`room:${code}:game`, REDIS_TTL.ROOM);
-    }
+    await redis.eval(
+        ATOMIC_REFRESH_TTL_SCRIPT,
+        {
+            keys: [
+                `room:${code}`,
+                `room:${code}:players`,
+                `room:${code}:game`,
+                `room:${code}:team:red`,
+                `room:${code}:team:blue`
+            ],
+            arguments: [REDIS_TTL.ROOM.toString()]
+        }
+    );
 }
 
 /**
  * Clean up all data associated with a room
+ * ISSUE #4 FIX: Now includes team sets in cleanup
  * Uses parallel operations for better performance
  */
 async function cleanupRoom(code) {
@@ -528,12 +570,15 @@ async function cleanupRoom(code) {
     // Get all players in room
     const sessionIds = await redis.sMembers(`room:${code}:players`);
 
-    // Build list of all keys to delete (players + room keys + password lookup)
+    // ISSUE #4 FIX: Build list of all keys to delete including team sets
     const keysToDelete = [
         ...sessionIds.map(sessionId => `player:${sessionId}`),
+        ...sessionIds.map(sessionId => `session:${sessionId}:socket`), // Also clean socket mappings
         `room:${code}`,
         `room:${code}:players`,
-        `room:${code}:game`
+        `room:${code}:game`,
+        `room:${code}:team:red`,   // ISSUE #4 FIX: Include team sets
+        `room:${code}:team:blue`   // ISSUE #4 FIX: Include team sets
     ];
 
     // Add password lookup key if exists

@@ -165,6 +165,24 @@ const winstonLogger = winston.createLogger({
 });
 
 /**
+ * ISSUE #22 FIX: Sanitize user input for safe logging
+ * Removes/escapes control characters that could be used for log injection
+ * @param {string} input - User input to sanitize
+ * @returns {string} Sanitized string safe for logging
+ */
+function sanitizeForLog(input) {
+    if (typeof input !== 'string') {
+        return String(input);
+    }
+    // Remove control characters and escape newlines/carriage returns
+    return input
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control chars except \t, \n, \r
+        .replace(/\r?\n/g, '\\n') // Escape newlines
+        .replace(/\r/g, '\\r')    // Escape carriage returns
+        .substring(0, 500);       // Limit length to prevent log flooding
+}
+
+/**
  * Enhanced logger wrapper with structured logging support
  */
 const logger = {
@@ -258,4 +276,6 @@ const logger = {
     }
 };
 
+// Export both the logger and the sanitize function
 module.exports = logger;
+module.exports.sanitizeForLog = sanitizeForLog;

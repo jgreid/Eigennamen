@@ -491,24 +491,35 @@ describe('Room Service', () => {
     });
 
     describe('refreshRoomTTL', () => {
-        test('refreshes all room-related keys', async () => {
-            mockRedis.exists.mockResolvedValue(1);
+        test('refreshes all room-related keys atomically using Lua script', async () => {
+            // ISSUE #8 FIX: Now uses Lua script for atomic TTL refresh
+            mockRedis.eval.mockResolvedValue(1);
 
             await roomService.refreshRoomTTL('TEST12');
 
-            expect(mockRedis.expire).toHaveBeenCalledWith('room:TEST12', expect.any(Number));
-            expect(mockRedis.expire).toHaveBeenCalledWith('room:TEST12:players', expect.any(Number));
-            expect(mockRedis.expire).toHaveBeenCalledWith('room:TEST12:game', expect.any(Number));
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    keys: expect.arrayContaining([
+                        'room:TEST12',
+                        'room:TEST12:players',
+                        'room:TEST12:game',
+                        'room:TEST12:team:red',
+                        'room:TEST12:team:blue'
+                    ])
+                })
+            );
         });
 
-        test('skips game TTL when no game exists', async () => {
-            mockRedis.exists.mockResolvedValue(0);
+        test('includes team sets in TTL refresh', async () => {
+            // ISSUE #8 FIX: TTL refresh now includes team sets
+            mockRedis.eval.mockResolvedValue(1);
 
             await roomService.refreshRoomTTL('TEST12');
 
-            expect(mockRedis.expire).toHaveBeenCalledWith('room:TEST12', expect.any(Number));
-            expect(mockRedis.expire).toHaveBeenCalledWith('room:TEST12:players', expect.any(Number));
-            expect(mockRedis.expire).toHaveBeenCalledTimes(2);
+            const evalCall = mockRedis.eval.mock.calls[0];
+            expect(evalCall[1].keys).toContain('room:TEST12:team:red');
+            expect(evalCall[1].keys).toContain('room:TEST12:team:blue');
         });
     });
 

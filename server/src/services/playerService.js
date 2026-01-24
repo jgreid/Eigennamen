@@ -83,8 +83,9 @@ async function updatePlayer(sessionId, updates) {
 }
 
 /**
- * Lua script for atomic team switch with empty-team validation
- * ISSUE #59 FIX: Prevents team from becoming empty during active game
+ * Lua script for atomic team switch with empty-team validation AND team set maintenance
+ * ISSUE #1 & #59 FIX: Team set operations now inside Lua script for atomicity
+ * Prevents team from becoming empty during active game
  * Checks all team members' connected status atomically before allowing switch
  * Returns: {success: true, player: {...}} on success
  *          {success: false, reason: 'TEAM_WOULD_BE_EMPTY'} if team would become empty
@@ -93,6 +94,7 @@ async function updatePlayer(sessionId, updates) {
 const ATOMIC_SAFE_TEAM_SWITCH_SCRIPT = `
 local playerKey = KEYS[1]
 local teamSetKey = KEYS[2]
+local roomCode = KEYS[3]
 local newTeam = ARGV[1]
 local sessionId = ARGV[2]
 local ttl = tonumber(ARGV[3])
@@ -109,8 +111,14 @@ local player = cjson.decode(playerData)
 local oldTeam = player.team
 local oldRole = player.role
 
+-- Determine actual new team value
+local actualNewTeam = nil
+if newTeam ~= '__NULL__' then
+    actualNewTeam = newTeam
+end
+
 -- If we need to check for empty team (during active game with team change)
-if checkEmpty and oldTeam and oldTeam ~= newTeam then
+if checkEmpty and oldTeam and oldTeam ~= cjson.null and oldTeam ~= actualNewTeam then
     -- Get all session IDs on the old team
     local teamMembers = redis.call('SMEMBERS', teamSetKey)
     local otherConnectedCount = 0
@@ -134,31 +142,54 @@ if checkEmpty and oldTeam and oldTeam ~= newTeam then
 end
 
 -- Proceed with team change
-if newTeam == '__NULL__' then
-    player.team = cjson.null
+if actualNewTeam then
+    player.team = actualNewTeam
 else
-    player.team = newTeam
+    player.team = cjson.null
 end
 player.lastSeen = now
 
 -- Clear team-specific roles when switching teams
-if oldTeam ~= newTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
+if oldTeam ~= actualNewTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
     player.role = 'spectator'
 end
 
 redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
+
+-- ISSUE #1 FIX: Atomic team set maintenance
+-- Remove from old team set if was on a team
+if oldTeam and oldTeam ~= cjson.null then
+    local oldTeamKey = 'room:' .. roomCode .. ':team:' .. oldTeam
+    redis.call('SREM', oldTeamKey, sessionId)
+    -- ISSUE #13 FIX: Clean up empty team sets
+    if redis.call('SCARD', oldTeamKey) == 0 then
+        redis.call('DEL', oldTeamKey)
+    end
+end
+
+-- Add to new team set if joining a team
+if actualNewTeam then
+    local newTeamKey = 'room:' .. roomCode .. ':team:' .. actualNewTeam
+    redis.call('SADD', newTeamKey, sessionId)
+    redis.call('EXPIRE', newTeamKey, ttl)
+end
+
 return cjson.encode({success = true, player = player})
 `;
 
 /**
- * Lua script for atomic team change with role clearing
+ * Lua script for atomic team change with role clearing AND team set maintenance
+ * ISSUE #1 FIX: Team set operations are now inside the Lua script for atomicity
  * Prevents race condition where role changes between read and write
  * Uses special '__NULL__' sentinel to properly handle null team values
  */
 const ATOMIC_SET_TEAM_SCRIPT = `
 local playerKey = KEYS[1]
+local roomCode = KEYS[2]
 local newTeam = ARGV[1]
 local ttl = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local sessionId = ARGV[4]
 
 local playerData = redis.call('GET', playerKey)
 if not playerData then
@@ -170,47 +201,69 @@ local oldTeam = player.team
 local oldRole = player.role
 
 -- Handle null team: convert sentinel value to actual nil for proper JSON encoding
-if newTeam == '__NULL__' then
-    player.team = cjson.null
-else
+local actualNewTeam = nil
+if newTeam ~= '__NULL__' then
+    actualNewTeam = newTeam
     player.team = newTeam
+else
+    player.team = cjson.null
 end
-player.lastSeen = tonumber(ARGV[3])
+player.lastSeen = now
 
 -- Clear team-specific roles when switching teams
-if oldTeam ~= newTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
+if oldTeam ~= actualNewTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
     player.role = 'spectator'
 end
 
 redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
-return cjson.encode(player)
+
+-- ISSUE #1 FIX: Atomic team set maintenance
+-- Remove from old team set if was on a team
+if oldTeam and oldTeam ~= cjson.null then
+    local oldTeamKey = 'room:' .. roomCode .. ':team:' .. oldTeam
+    redis.call('SREM', oldTeamKey, sessionId)
+    -- ISSUE #13 FIX: Clean up empty team sets
+    if redis.call('SCARD', oldTeamKey) == 0 then
+        redis.call('DEL', oldTeamKey)
+    end
+end
+
+-- Add to new team set if joining a team
+if actualNewTeam then
+    local newTeamKey = 'room:' .. roomCode .. ':team:' .. actualNewTeam
+    redis.call('SADD', newTeamKey, sessionId)
+    redis.call('EXPIRE', newTeamKey, ttl)
+end
+
+return cjson.encode({player = player, oldTeam = oldTeam})
 `;
 
 /**
  * Set player's team (atomic operation)
+ * ISSUE #1 FIX: Team set operations now happen atomically inside Lua script
  * Clears spymaster/clicker role when switching teams (those roles are team-specific)
  * Also maintains team sets for O(1) team member lookups
  */
 async function setTeam(sessionId, team) {
     const redis = getRedis();
 
-    // Get player first to get room code and old team for team set maintenance
+    // Get player first to get room code
     const existingPlayer = await getPlayer(sessionId);
     if (!existingPlayer) {
         throw new ServerError('Player not found');
     }
 
-    const oldTeam = existingPlayer.team;
     const roomCode = existingPlayer.roomCode;
 
     // Use sentinel value for null to properly handle in Lua script
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
 
+    // ISSUE #1 FIX: All operations now happen atomically in Lua script
     const result = await redis.eval(
         ATOMIC_SET_TEAM_SCRIPT,
         {
-            keys: [`player:${sessionId}`],
-            arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString()]
+            keys: [`player:${sessionId}`, roomCode],
+            arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString(), sessionId]
         }
     );
 
@@ -219,19 +272,8 @@ async function setTeam(sessionId, team) {
     }
 
     try {
-        const player = JSON.parse(result);
-
-        // Maintain team sets for O(1) lookups (outside Lua script for simplicity)
-        // Remove from old team set if was on a team
-        if (oldTeam) {
-            await redis.sRem(`room:${roomCode}:team:${oldTeam}`, sessionId);
-        }
-
-        // Add to new team set if joining a team
-        if (team) {
-            await redis.sAdd(`room:${roomCode}:team:${team}`, sessionId);
-            await redis.expire(`room:${roomCode}:team:${team}`, REDIS_TTL.PLAYER);
-        }
+        const parsed = JSON.parse(result);
+        const player = parsed.player;
 
         logger.debug(`Player ${sessionId} team set to ${team}`);
         return player;
@@ -243,7 +285,8 @@ async function setTeam(sessionId, team) {
 
 /**
  * Safely set player's team with atomic empty-team check
- * ISSUE #59 FIX: Prevents team from becoming empty during active game
+ * ISSUE #1 & #59 FIX: Team set operations now happen atomically inside Lua script
+ * Prevents team from becoming empty during active game
  * @param {string} sessionId - Player's session ID
  * @param {string} team - New team (or null to leave team)
  * @param {boolean} checkEmpty - Whether to check if team would become empty
@@ -268,10 +311,11 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
     // Build team set key for the OLD team (the one we're checking for emptiness)
     const teamSetKey = oldTeam ? `room:${roomCode}:team:${oldTeam}` : 'nonexistent:key';
 
+    // ISSUE #1 FIX: All operations now happen atomically in Lua script
     const result = await redis.eval(
         ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
         {
-            keys: [`player:${sessionId}`, teamSetKey],
+            keys: [`player:${sessionId}`, teamSetKey, roomCode],
             arguments: [
                 teamValue,
                 sessionId,
@@ -298,15 +342,6 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
         }
 
         const player = parsed.player;
-
-        // Maintain team sets for O(1) lookups (outside Lua script for simplicity)
-        if (oldTeam) {
-            await redis.sRem(`room:${roomCode}:team:${oldTeam}`, sessionId);
-        }
-        if (team) {
-            await redis.sAdd(`room:${roomCode}:team:${team}`, sessionId);
-            await redis.expire(`room:${roomCode}:team:${team}`, REDIS_TTL.PLAYER);
-        }
 
         logger.debug(`Player ${sessionId} safely set team to ${team}`);
         return player;
@@ -379,6 +414,7 @@ async function setNickname(sessionId, nickname) {
 
 /**
  * Get all players on a specific team - O(1) lookup using team sets
+ * ISSUE #12 FIX: Also cleans up expired player data keys
  * Uses pipeline for batch fetching player data
  * @param {string} roomCode - Room code
  * @param {string} team - Team name ('red' or 'blue')
@@ -424,10 +460,24 @@ async function getTeamMembers(roomCode, team) {
         }
     }
 
-    // Clean up orphaned entries
+    // ISSUE #12 FIX: Clean up orphaned entries and their lingering data
     if (orphanedIds.length > 0) {
-        await redis.sRem(teamKey, ...orphanedIds);
+        const cleanupPromises = [redis.sRem(teamKey, ...orphanedIds)];
+
+        // Also clean up any lingering player data keys
+        for (const sessionId of orphanedIds) {
+            cleanupPromises.push(redis.del(`player:${sessionId}`));
+        }
+
+        await Promise.all(cleanupPromises);
         logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey}`);
+
+        // ISSUE #13 FIX: If team set is now empty, delete it
+        const remainingCount = await redis.sCard(teamKey);
+        if (remainingCount === 0) {
+            await redis.del(teamKey);
+            logger.debug(`Deleted empty team set ${teamKey}`);
+        }
     }
 
     return players;
@@ -435,7 +485,7 @@ async function getTeamMembers(roomCode, team) {
 
 /**
  * Get all players in a room
- * Also cleans up orphaned session IDs (where player data has expired)
+ * ISSUE #12 FIX: Now cleans up all orphaned data including player keys and team sets
  * Uses MGET batching for better performance (single Redis round-trip instead of N)
  */
 async function getPlayersInRoom(roomCode) {
@@ -476,9 +526,24 @@ async function getPlayersInRoom(roomCode) {
         }
     }
 
-    // Clean up orphaned session IDs atomically
+    // ISSUE #12 FIX: Clean up all orphaned data atomically
     if (orphanedSessionIds.length > 0) {
+        // Remove from players set
         await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
+
+        // Also remove from team sets (both teams since we don't know which team they were on)
+        const cleanupPromises = [
+            redis.sRem(`room:${roomCode}:team:red`, ...orphanedSessionIds),
+            redis.sRem(`room:${roomCode}:team:blue`, ...orphanedSessionIds)
+        ];
+
+        // Also clean up any lingering player data keys and socket mappings
+        for (const sessionId of orphanedSessionIds) {
+            cleanupPromises.push(redis.del(`player:${sessionId}`));
+            cleanupPromises.push(redis.del(`session:${sessionId}:socket`));
+        }
+
+        await Promise.all(cleanupPromises);
         logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
     }
 

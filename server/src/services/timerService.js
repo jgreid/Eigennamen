@@ -529,10 +529,18 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
 
         logger.debug(`Routed addTime request for room ${roomCode} via pub/sub`);
 
-        // Return current timer status from Redis
-        // Note: The owning instance will update Redis asynchronously via pub/sub
-        // Callers needing the updated value should poll getTimerStatus after a brief delay
-        return getTimerStatus(roomCode);
+        // ISSUE #16 FIX: Return current status with a flag indicating async routing
+        // The owning instance will update Redis asynchronously via pub/sub
+        // Callers should use the 'pending' flag to know the returned values may be stale
+        const currentStatus = await getTimerStatus(roomCode);
+        if (currentStatus) {
+            return {
+                ...currentStatus,
+                pending: true,  // Indicates the addTime is being processed asynchronously
+                secondsAdded: secondsToAdd
+            };
+        }
+        return null;
     } catch (pubSubError) {
         pubSubHealth.recordFailure('publish', pubSubError);
         logger.warn(`Failed to route addTime via pub/sub for room ${roomCode}, falling back to local:`, pubSubError.message);
