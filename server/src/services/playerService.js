@@ -83,6 +83,74 @@ async function updatePlayer(sessionId, updates) {
 }
 
 /**
+ * Lua script for atomic team switch with empty-team validation
+ * ISSUE #59 FIX: Prevents team from becoming empty during active game
+ * Checks all team members' connected status atomically before allowing switch
+ * Returns: {success: true, player: {...}} on success
+ *          {success: false, reason: 'TEAM_WOULD_BE_EMPTY'} if team would become empty
+ *          nil if player not found
+ */
+const ATOMIC_SAFE_TEAM_SWITCH_SCRIPT = `
+local playerKey = KEYS[1]
+local teamSetKey = KEYS[2]
+local newTeam = ARGV[1]
+local sessionId = ARGV[2]
+local ttl = tonumber(ARGV[3])
+local now = tonumber(ARGV[4])
+local checkEmpty = ARGV[5] == 'true'
+
+-- Get current player data
+local playerData = redis.call('GET', playerKey)
+if not playerData then
+    return nil
+end
+
+local player = cjson.decode(playerData)
+local oldTeam = player.team
+local oldRole = player.role
+
+-- If we need to check for empty team (during active game with team change)
+if checkEmpty and oldTeam and oldTeam ~= newTeam then
+    -- Get all session IDs on the old team
+    local teamMembers = redis.call('SMEMBERS', teamSetKey)
+    local otherConnectedCount = 0
+
+    for _, memberId in ipairs(teamMembers) do
+        if memberId ~= sessionId then
+            local memberData = redis.call('GET', 'player:' .. memberId)
+            if memberData then
+                local member = cjson.decode(memberData)
+                if member.connected then
+                    otherConnectedCount = otherConnectedCount + 1
+                end
+            end
+        end
+    end
+
+    -- If no other connected members would remain, reject the switch
+    if otherConnectedCount == 0 then
+        return cjson.encode({success = false, reason = 'TEAM_WOULD_BE_EMPTY'})
+    end
+end
+
+-- Proceed with team change
+if newTeam == '__NULL__' then
+    player.team = cjson.null
+else
+    player.team = newTeam
+end
+player.lastSeen = now
+
+-- Clear team-specific roles when switching teams
+if oldTeam ~= newTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
+    player.role = 'spectator'
+end
+
+redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
+return cjson.encode({success = true, player = player})
+`;
+
+/**
  * Lua script for atomic team change with role clearing
  * Prevents race condition where role changes between read and write
  * Uses special '__NULL__' sentinel to properly handle null team values
@@ -169,6 +237,84 @@ async function setTeam(sessionId, team) {
         return player;
     } catch (e) {
         logger.error('Failed to parse player data after team change', { sessionId, error: e.message });
+        throw new ServerError('Failed to update player team');
+    }
+}
+
+/**
+ * Safely set player's team with atomic empty-team check
+ * ISSUE #59 FIX: Prevents team from becoming empty during active game
+ * @param {string} sessionId - Player's session ID
+ * @param {string} team - New team (or null to leave team)
+ * @param {boolean} checkEmpty - Whether to check if team would become empty
+ * @returns {Object} Updated player object
+ * @throws {ValidationError} If team would become empty
+ */
+async function safeSetTeam(sessionId, team, checkEmpty = false) {
+    const redis = getRedis();
+
+    // Get player first to get room code and old team
+    const existingPlayer = await getPlayer(sessionId);
+    if (!existingPlayer) {
+        throw new ServerError('Player not found');
+    }
+
+    const oldTeam = existingPlayer.team;
+    const roomCode = existingPlayer.roomCode;
+
+    // Use sentinel value for null
+    const teamValue = team === null || team === undefined ? '__NULL__' : team;
+
+    // Build team set key for the OLD team (the one we're checking for emptiness)
+    const teamSetKey = oldTeam ? `room:${roomCode}:team:${oldTeam}` : 'nonexistent:key';
+
+    const result = await redis.eval(
+        ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
+        {
+            keys: [`player:${sessionId}`, teamSetKey],
+            arguments: [
+                teamValue,
+                sessionId,
+                REDIS_TTL.PLAYER.toString(),
+                Date.now().toString(),
+                checkEmpty.toString()
+            ]
+        }
+    );
+
+    if (!result) {
+        throw new ServerError('Player not found');
+    }
+
+    try {
+        const parsed = JSON.parse(result);
+
+        // Check if the operation was rejected due to empty team
+        if (parsed.success === false) {
+            if (parsed.reason === 'TEAM_WOULD_BE_EMPTY') {
+                throw new ValidationError(`Cannot leave team ${oldTeam} - your team cannot be empty during an active game`);
+            }
+            throw new ServerError('Failed to update player team');
+        }
+
+        const player = parsed.player;
+
+        // Maintain team sets for O(1) lookups (outside Lua script for simplicity)
+        if (oldTeam) {
+            await redis.sRem(`room:${roomCode}:team:${oldTeam}`, sessionId);
+        }
+        if (team) {
+            await redis.sAdd(`room:${roomCode}:team:${team}`, sessionId);
+            await redis.expire(`room:${roomCode}:team:${team}`, REDIS_TTL.PLAYER);
+        }
+
+        logger.debug(`Player ${sessionId} safely set team to ${team}`);
+        return player;
+    } catch (e) {
+        if (e instanceof ValidationError) {
+            throw e;
+        }
+        logger.error('Failed to parse player data after safe team change', { sessionId, error: e.message });
         throw new ServerError('Failed to update player team');
     }
 }
@@ -706,6 +852,7 @@ module.exports = {
     getPlayer,
     updatePlayer,
     setTeam,
+    safeSetTeam,
     setRole,
     setNickname,
     getTeamMembers,

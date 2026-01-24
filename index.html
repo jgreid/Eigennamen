@@ -3174,16 +3174,121 @@
                 }
             });
 
+            // Handle clue given by spymaster
+            CodenamesClient.on('clueGiven', (data) => {
+                if (data.word && data.number !== undefined) {
+                    // Store current clue in game state for tracking guesses
+                    gameState.currentClue = {
+                        word: data.word,
+                        number: data.number,
+                        team: data.team,
+                        spymaster: data.spymaster,
+                        guessesAllowed: data.guessesAllowed
+                    };
+                    gameState.guessesUsed = 0;
+
+                    // Show clue as toast notification (visible for 5 seconds)
+                    const teamName = data.team === 'red' ? teamNames.red : teamNames.blue;
+                    showToast(`${teamName} clue: ${data.word} (${data.number})`, 'info', 5000);
+                    announceToScreenReader(`${teamName} spymaster gives clue: ${data.word}, ${data.number}`);
+                }
+            });
+
+            // Handle spymaster view (card types for spymasters)
+            CodenamesClient.on('spymasterView', (data) => {
+                if (data.types && Array.isArray(data.types)) {
+                    gameState.types = data.types;
+                    renderBoard();
+                }
+            });
+
             // Player updates
             CodenamesClient.on('playerJoined', (data) => {
-                multiplayerPlayers = data.players || multiplayerPlayers;
+                if (data.players) {
+                    multiplayerPlayers = data.players;
+                } else if (data.player) {
+                    // Add new player to list if not already present
+                    const exists = multiplayerPlayers.some(p => p.sessionId === data.player.sessionId);
+                    if (!exists) {
+                        multiplayerPlayers = [...multiplayerPlayers, data.player];
+                    }
+                }
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
                 showToast(`${data.player?.nickname || 'Someone'} joined`, 'success');
             });
 
             CodenamesClient.on('playerLeft', (data) => {
-                multiplayerPlayers = data.players || multiplayerPlayers;
+                if (data.players) {
+                    multiplayerPlayers = data.players;
+                } else if (data.sessionId) {
+                    // Remove player from list
+                    multiplayerPlayers = multiplayerPlayers.filter(p => p.sessionId !== data.sessionId);
+                }
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                if (data.nickname) {
+                    showToast(`${data.nickname} left`, 'info');
+                }
+            });
+
+            // Handle player state updates (role, team, nickname changes)
+            CodenamesClient.on('playerUpdated', (data) => {
+                if (data.sessionId && data.changes) {
+                    // Update player in local list
+                    multiplayerPlayers = multiplayerPlayers.map(p =>
+                        p.sessionId === data.sessionId ? { ...p, ...data.changes } : p
+                    );
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                }
+            });
+
+            // Handle player disconnection (network issues)
+            CodenamesClient.on('playerDisconnected', (data) => {
+                // Mark player as disconnected in local list
+                if (data.sessionId) {
+                    multiplayerPlayers = multiplayerPlayers.map(p =>
+                        p.sessionId === data.sessionId ? { ...p, connected: false } : p
+                    );
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                }
+                showToast(`${data.nickname || 'A player'} disconnected`, 'warning');
+            });
+
+            // Handle player reconnection
+            CodenamesClient.on('playerReconnected', (data) => {
+                // Mark player as connected in local list
+                if (data.sessionId) {
+                    multiplayerPlayers = multiplayerPlayers.map(p =>
+                        p.sessionId === data.sessionId ? { ...p, connected: true } : p
+                    );
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                }
+                showToast(`${data.nickname || 'A player'} reconnected`, 'success');
+            });
+
+            // Timer events (for turn timers when enabled)
+            CodenamesClient.on('timerStatus', (data) => {
+                // Timer status received on join/reconnect - ready for future timer UI
+                // data contains: { active, remaining, duration, paused }
+            });
+
+            CodenamesClient.on('timerStarted', (data) => {
+                // Timer started - ready for future timer UI
+                // data contains: { duration/durationSeconds }
+            });
+
+            CodenamesClient.on('timerExpired', (data) => {
+                showToast('Turn time expired!', 'warning');
+            });
+
+            // Room resync (state recovery)
+            CodenamesClient.on('roomResynced', (data) => {
+                if (data.game) {
+                    syncGameStateFromServer(data.game);
+                }
+                if (data.players) {
+                    multiplayerPlayers = data.players;
+                    updateMpIndicator(data.room, multiplayerPlayers);
+                }
             });
 
             // Disconnect handling
@@ -3203,9 +3308,8 @@
                 } else {
                     showToast('Could not rejoin previous game', 'warning');
                 }
-                // Reset multiplayer state
-                isMultiplayerMode = false;
-                currentRoomPassword = null;
+                // Reset multiplayer state properly
+                leaveMultiplayerMode();
             });
 
             // Error handling for game actions
@@ -3217,8 +3321,48 @@
                     showToast(error.message || 'Player action failed', 'error');
                 } else if (error.type === 'room') {
                     showToast(error.message || 'Room error', 'error');
+                } else {
+                    // Generic error
+                    showToast(error.message || 'An error occurred', 'error');
                 }
             });
+        }
+
+        // List of multiplayer event names for cleanup
+        const multiplayerEventNames = [
+            'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
+            'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
+            'playerUpdated', 'clueGiven', 'spymasterView',
+            'timerStatus', 'timerStarted', 'timerExpired', 'roomResynced',
+            'disconnected', 'rejoined', 'rejoinFailed', 'error'
+        ];
+
+        function cleanupMultiplayerListeners() {
+            // Remove all multiplayer event listeners
+            multiplayerEventNames.forEach(eventName => {
+                if (CodenamesClient && typeof CodenamesClient.off === 'function') {
+                    CodenamesClient.off(eventName);
+                }
+            });
+            multiplayerListenersSetup = false;
+        }
+
+        function leaveMultiplayerMode() {
+            // Clean up listeners
+            cleanupMultiplayerListeners();
+
+            // Leave room and disconnect
+            if (CodenamesClient && CodenamesClient.isConnected()) {
+                CodenamesClient.leaveRoom();
+            }
+
+            // Reset state
+            isMultiplayerMode = false;
+            multiplayerPlayers = [];
+            currentRoomPassword = null;
+
+            // Update UI
+            updateMpIndicator(null, []);
         }
 
         function syncGameState(game) {
@@ -3289,8 +3433,6 @@
             renderBoard();
             updateScoreboard();
             updateTurnIndicator();
-
-            console.log('Game state synced from server:', serverGame);
         }
 
         /**
@@ -3556,7 +3698,9 @@
             gameOver: false,
             winner: null,
             seed: null,
-            customWords: false // Whether this game uses custom words encoded in URL
+            customWords: false, // Whether this game uses custom words encoded in URL
+            currentClue: null, // { word, number, team, spymaster, guessesAllowed }
+            guessesUsed: 0 // Number of guesses used for current clue
         };
 
         // Seeded random number generator using Mulberry32 algorithm

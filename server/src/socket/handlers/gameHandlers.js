@@ -20,6 +20,7 @@ const {
     ValidationError
 } = require('../../errors/GameError');
 const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
+const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 
 // Lazy-load socket functions to avoid circular dependency
 // (socket/index.js loads gameHandlers, but these are only called at runtime)
@@ -47,23 +48,34 @@ module.exports = function gameHandlers(io, socket) {
             // Stop any existing timer
             await getSocketFunctions().stopTurnTimer(socket.roomCode);
 
-            // ISSUE #28 FIX: Check if game already exists and is in progress
-            const existingGame = await gameService.getGame(socket.roomCode);
-            if (existingGame && !existingGame.gameOver) {
-                throw RoomError.gameInProgress(socket.roomCode);
-            }
+            // Wrap game creation in timeout to prevent hanging
+            const gameSetupPromise = (async () => {
+                // ISSUE #28 FIX: Check if game already exists and is in progress
+                const existingGame = await gameService.getGame(socket.roomCode);
+                if (existingGame && !existingGame.gameOver) {
+                    throw RoomError.gameInProgress(socket.roomCode);
+                }
 
-            // Pass options to createGame (supports wordListId or wordList array)
-            const game = await gameService.createGame(socket.roomCode, {
-                wordListId: validated.wordListId,
-                wordList: validated.wordList
-            });
+                // Pass options to createGame (supports wordListId or wordList array)
+                const game = await gameService.createGame(socket.roomCode, {
+                    wordListId: validated.wordListId,
+                    wordList: validated.wordList
+                });
 
-            // Get room for timer settings
-            const room = await roomService.getRoom(socket.roomCode);
+                // Get room for timer settings
+                const room = await roomService.getRoom(socket.roomCode);
 
-            // Get all players in room to send appropriate game state
-            const players = await playerService.getPlayersInRoom(socket.roomCode);
+                // Get all players in room to send appropriate game state
+                const players = await playerService.getPlayersInRoom(socket.roomCode);
+
+                return { game, room, players };
+            })();
+
+            const { game, room, players } = await withTimeout(
+                gameSetupPromise,
+                TIMEOUTS.GAME_ACTION,
+                'game:start'
+            );
 
             // Send game state to each player (spymasters see card types)
             // Wrap each emit in try-catch to ensure all players get notified even if one fails
@@ -148,10 +160,10 @@ module.exports = function gameHandlers(io, socket) {
                 throw new GameStateError(`No connected players on ${game.currentTurn} team`);
             }
 
-            const result = await gameService.revealCard(
-                socket.roomCode,
-                validated.index,
-                player.nickname
+            const result = await withTimeout(
+                gameService.revealCard(socket.roomCode, validated.index, player.nickname),
+                TIMEOUTS.GAME_ACTION,
+                'game:reveal'
             );
 
             // Broadcast the reveal to all players
@@ -316,9 +328,11 @@ module.exports = function gameHandlers(io, socket) {
             const result = await gameService.endTurn(socket.roomCode, player.nickname);
 
             // Broadcast turn change
+            // Note: nextTeam is included for frontend compatibility (legacy field name)
             io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
-                previousTurn: result.previousTurn
+                previousTurn: result.previousTurn,
+                nextTeam: result.currentTurn
             });
 
             // Log event for reconnection recovery

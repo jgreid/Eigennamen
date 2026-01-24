@@ -163,6 +163,21 @@
                 this._emit('error', { type: 'room', ...error });
             });
 
+            // Handle room:resynced (response to requestResync)
+            this.socket.on('room:resynced', (data) => {
+                this.roomCode = data.room.code;
+                this.player = data.you;
+                this._emit('roomResynced', data);
+            });
+
+            // Handle room:reconnected (response to token-based reconnection)
+            this.socket.on('room:reconnected', (data) => {
+                this.roomCode = data.room.code;
+                this.player = data.you;
+                this._saveSession();
+                this._emit('roomReconnected', data);
+            });
+
             // Player events
             this.socket.on('player:updated', (data) => {
                 if (data.sessionId === this.player?.sessionId) {
@@ -176,6 +191,11 @@
             });
 
             this.socket.on('player:reconnected', (data) => {
+                this._emit('playerReconnected', data);
+            });
+
+            // Handle room:playerReconnected (from secure token reconnection)
+            this.socket.on('room:playerReconnected', (data) => {
                 this._emit('playerReconnected', data);
             });
 
@@ -231,6 +251,10 @@
 
             this.socket.on('timer:expired', (data) => {
                 this._emit('timerExpired', data);
+            });
+
+            this.socket.on('timer:status', (data) => {
+                this._emit('timerStatus', data);
             });
 
             // Chat events
@@ -406,6 +430,45 @@
          */
         updateSettings(settings) {
             this.socket.emit('room:settings', settings);
+        },
+
+        /**
+         * Request full state resync from server
+         * Use this if you detect you're out of sync
+         * @returns {Promise}
+         */
+        requestResync() {
+            return new Promise((resolve, reject) => {
+                if (!this.roomCode) {
+                    reject(new Error('Not in a room'));
+                    return;
+                }
+
+                this.socket.emit('room:resync');
+
+                const onResynced = (data) => {
+                    this.off('roomResynced', onResynced);
+                    this.off('error', onError);
+                    resolve(data);
+                };
+
+                const onError = (error) => {
+                    if (error.type === 'room') {
+                        this.off('roomResynced', onResynced);
+                        this.off('error', onError);
+                        reject(error);
+                    }
+                };
+
+                this.on('roomResynced', onResynced);
+                this.on('error', onError);
+
+                setTimeout(() => {
+                    this.off('roomResynced', onResynced);
+                    this.off('error', onError);
+                    reject(new Error('Resync timeout'));
+                }, 10000);
+            });
         },
 
         // =====================

@@ -41,24 +41,10 @@ module.exports = function playerHandlers(io, socket) {
                 }
             }
 
-            // ISSUE #59 FIX: Prevent team from becoming empty during active game
-            if (game && !game.gameOver && currentPlayer && currentPlayer.team && currentPlayer.team !== validated.team) {
-                // Player is leaving their current team - check if it would become empty
-                const teamMembers = await playerService.getTeamMembers(socket.roomCode, currentPlayer.team);
-                // Filter to only connected players (excluding this player)
-                const remainingMembers = teamMembers.filter(p =>
-                    p.sessionId !== socket.sessionId && p.connected
-                );
-
-                if (remainingMembers.length === 0) {
-                    throw {
-                        code: ERROR_CODES.INVALID_INPUT,
-                        message: `Cannot leave team ${currentPlayer.team} - your team cannot be empty during an active game`
-                    };
-                }
-            }
-
-            const player = await playerService.setTeam(socket.sessionId, validated.team);
+            // ISSUE #59 FIX: Use atomic safeSetTeam to prevent team from becoming empty during active game
+            // The checkEmpty flag triggers atomic validation in the Lua script
+            const shouldCheckEmpty = game && !game.gameOver && currentPlayer && currentPlayer.team && currentPlayer.team !== validated.team;
+            const player = await playerService.safeSetTeam(socket.sessionId, validated.team, shouldCheckEmpty);
 
             // Broadcast to room
             io.to(`room:${socket.roomCode}`).emit('player:updated', {
