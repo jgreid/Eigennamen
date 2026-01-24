@@ -3007,6 +3007,10 @@
                 console.error('Join failed:', error);
                 if (error.code === 'ROOM_PASSWORD_INVALID') {
                     setMpStatus('Invalid password', 'error');
+                } else if (error.code === 'ROOM_PASSWORD_REQUIRED') {
+                    setMpStatus('This game requires a password', 'error');
+                } else if (error.code === 'ROOM_PASSWORD_CHANGED') {
+                    setMpStatus('Game password has changed - please get the new password', 'error');
                 } else if (error.code === 'ROOM_NOT_FOUND') {
                     setMpStatus('Game not found', 'error');
                 } else if (error.code === 'ROOM_FULL') {
@@ -3189,6 +3193,19 @@
 
             CodenamesClient.on('rejoined', () => {
                 showToast('Reconnected!', 'success');
+            });
+
+            CodenamesClient.on('rejoinFailed', (data) => {
+                if (data.error?.code === 'ROOM_PASSWORD_CHANGED') {
+                    showToast('Game password changed - please rejoin with new password', 'warning', 6000);
+                } else if (data.error?.code === 'ROOM_NOT_FOUND') {
+                    showToast('Previous game no longer exists', 'warning');
+                } else {
+                    showToast('Could not rejoin previous game', 'warning');
+                }
+                // Reset multiplayer state
+                isMultiplayerMode = false;
+                currentRoomPassword = null;
             });
 
             // Error handling for game actions
