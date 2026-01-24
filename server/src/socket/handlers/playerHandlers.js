@@ -9,7 +9,7 @@ const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('..
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
-const { RoomError } = require('../../errors/GameError');
+const { RoomError, PlayerError, ValidationError } = require('../../errors/GameError');
 
 module.exports = function playerHandlers(io, socket) {
 
@@ -175,36 +175,24 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             if (!data || !data.targetSessionId) {
-                throw {
-                    code: ERROR_CODES.VALIDATION_ERROR,
-                    message: 'Target player session ID required'
-                };
+                throw new ValidationError('Target player session ID required');
             }
 
             // Verify requester is the host
             const requester = await playerService.getPlayer(socket.sessionId);
             if (!requester || !requester.isHost) {
-                throw {
-                    code: ERROR_CODES.UNAUTHORIZED,
-                    message: 'Only the host can kick players'
-                };
+                throw PlayerError.notHost();
             }
 
             // Cannot kick yourself
             if (data.targetSessionId === socket.sessionId) {
-                throw {
-                    code: ERROR_CODES.VALIDATION_ERROR,
-                    message: 'Cannot kick yourself'
-                };
+                throw new ValidationError('Cannot kick yourself');
             }
 
             // Get target player
             const targetPlayer = await playerService.getPlayer(data.targetSessionId);
             if (!targetPlayer || targetPlayer.roomCode !== socket.roomCode) {
-                throw {
-                    code: ERROR_CODES.PLAYER_NOT_FOUND,
-                    message: 'Player not found in this room'
-                };
+                throw PlayerError.notFound(data.targetSessionId);
             }
 
             // Get target player's socket ID

@@ -90,6 +90,7 @@ module.exports = {
         'player:team': { window: 2000, max: 5 },      // 5 per 2 seconds
         'player:role': { window: 2000, max: 5 },      // 5 per 2 seconds
         'player:nickname': { window: 5000, max: 3 },  // 3 per 5 seconds
+        'player:kick': { window: 5000, max: 3 },      // 3 per 5 seconds (host only)
         // Chat events
         'chat:message': { window: 5000, max: 10 },    // 10 per 5 seconds
         // Timer events
@@ -247,7 +248,8 @@ module.exports = {
         SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
         SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
         RESERVED_NAME: 'RESERVED_NAME',
-        CANNOT_SWITCH_TEAM_DURING_TURN: 'CANNOT_SWITCH_TEAM_DURING_TURN'
+        CANNOT_SWITCH_TEAM_DURING_TURN: 'CANNOT_SWITCH_TEAM_DURING_TURN',
+        PLAYER_NOT_FOUND: 'PLAYER_NOT_FOUND'
     },
 
     // Reserved nicknames (case-insensitive)
