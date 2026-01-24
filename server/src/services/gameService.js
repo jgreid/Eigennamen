@@ -673,8 +673,10 @@ function addToHistory(game, entry) {
     if (!game.history) game.history = [];
     game.history.push(entry);
 
-    // Cap history to prevent memory growth
-    if (game.history.length > MAX_HISTORY_ENTRIES) {
+    // Lazy history slicing: Only slice when exceeding 1.5x threshold
+    // This reduces O(n) allocations on every entry to occasional cleanup
+    const lazyThreshold = Math.floor(MAX_HISTORY_ENTRIES * 1.5);
+    if (game.history.length > lazyThreshold) {
         // Keep most recent entries
         game.history = game.history.slice(-MAX_HISTORY_ENTRIES);
     }

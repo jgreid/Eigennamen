@@ -29,6 +29,51 @@ const TIMER_KEY_PREFIX = 'timer:';
 const TIMER_CHANNEL = 'timer:events';
 
 /**
+ * Creates a timer expiration callback function
+ * Extracted to avoid duplication between startTimer and addTimeLocal
+ * @param {string} roomCode - Room code
+ * @param {Function} onExpire - User-provided callback
+ * @returns {Function} Async callback for setTimeout
+ */
+function createTimerExpirationCallback(roomCode, onExpire) {
+    return async () => {
+        try {
+            const redis = getRedis();
+            logger.info(`Timer expired for room ${roomCode}`);
+            localTimers.delete(roomCode);
+
+            // Remove from Redis
+            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+            // Publish expiration event with health tracking
+            try {
+                const { pubClient } = getPubSubClients();
+                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
+                    type: 'expired',
+                    roomCode,
+                    timestamp: Date.now()
+                }));
+                pubSubHealth.recordSuccess('publish');
+            } catch (e) {
+                pubSubHealth.recordFailure('publish', e);
+                logger.warn(`Failed to publish timer expiration event for room ${roomCode}:`, e.message);
+            }
+
+            // Call user callback if provided
+            if (onExpire) {
+                try {
+                    await onExpire(roomCode);
+                } catch (callbackError) {
+                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                }
+            }
+        } catch (error) {
+            logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
+        }
+    };
+}
+
+/**
  * Lua script for atomic timer claim (prevents duplicate expiration handling)
  * Returns: timer data if claimed, nil if already claimed/expired by another instance
  */
@@ -251,40 +296,11 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
         { EX: durationSeconds + TIMER_TTL_BUFFER } // TTL slightly longer than timer duration
     );
 
-    // Set up local timeout
-    const timeoutId = setTimeout(async () => {
-        try {
-            logger.info(`Timer expired for room ${roomCode}`);
-            localTimers.delete(roomCode);
-
-            // Remove from Redis
-            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-            // Publish expiration event with health tracking
-            try {
-                const { pubClient } = getPubSubClients();
-                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                    type: 'expired',
-                    roomCode,
-                    timestamp: Date.now()
-                }));
-                pubSubHealth.recordSuccess('publish');
-            } catch (e) {
-                pubSubHealth.recordFailure('publish', e);
-                logger.warn(`Failed to publish timer expiration event for room ${roomCode}:`, e.message);
-            }
-
-            if (onExpire) {
-                try {
-                    await onExpire(roomCode);
-                } catch (callbackError) {
-                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                }
-            }
-        } catch (error) {
-            logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
-        }
-    }, durationSeconds * 1000);
+    // Set up local timeout using shared expiration callback
+    const timeoutId = setTimeout(
+        createTimerExpirationCallback(roomCode, onExpire),
+        durationSeconds * 1000
+    );
 
     localTimers.set(roomCode, {
         ...timerData,
@@ -572,46 +588,16 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
     try {
         const newTimer = JSON.parse(result);
 
-        // Helper to create timeout callback
-        const createTimeoutCallback = () => async () => {
-            try {
-                logger.info(`Timer expired for room ${roomCode}`);
-                localTimers.delete(roomCode);
-                await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-                // Publish expiration event with health tracking
-                try {
-                    const { pubClient } = getPubSubClients();
-                    await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                        type: 'expired',
-                        roomCode,
-                        timestamp: Date.now()
-                    }));
-                    pubSubHealth.recordSuccess('publish');
-                } catch (e) {
-                    pubSubHealth.recordFailure('publish', e);
-                    logger.warn(`Failed to publish timer expiration event for room ${roomCode}:`, e.message);
-                }
-
-                if (onExpire) {
-                    try {
-                        await onExpire(roomCode);
-                    } catch (callbackError) {
-                        logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                    }
-                }
-            } catch (error) {
-                logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
-            }
-        };
-
         // Update or create local timer
         const localTimer = localTimers.get(roomCode);
         if (localTimer) {
-            // Clear existing timeout and create new one
+            // Clear existing timeout and create new one using shared expiration callback
             clearTimeout(localTimer.timeoutId);
 
-            const timeoutId = setTimeout(createTimeoutCallback(), newTimer.remainingSeconds * 1000);
+            const timeoutId = setTimeout(
+                createTimerExpirationCallback(roomCode, onExpire),
+                newTimer.remainingSeconds * 1000
+            );
 
             localTimers.set(roomCode, {
                 ...localTimer,
