@@ -2285,6 +2285,7 @@
         /* Multiplayer indicator in sidebar */
         .multiplayer-indicator {
             display: none;
+            flex-wrap: wrap;
             align-items: center;
             gap: 8px;
             padding: 8px 12px;
@@ -2323,6 +2324,37 @@
             margin-left: auto;
             color: rgba(255, 255, 255, 0.6);
         }
+
+        .multiplayer-indicator .mp-password-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+        }
+
+        .multiplayer-indicator .mp-password-display strong {
+            color: var(--color-success);
+            font-family: monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .multiplayer-indicator .btn-copy-password {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .multiplayer-indicator .btn-copy-password:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -2346,6 +2378,10 @@
                 <span class="status-dot"></span>
                 <span>Room: <span class="room-code" id="mp-room-code">----</span></span>
                 <span class="player-count" id="mp-player-count">0 players</span>
+                <div class="mp-password-display" id="mp-password-display" style="display: none;">
+                    <span>Password: <strong id="mp-password-text"></strong></span>
+                    <button type="button" class="btn-copy-password" id="btn-copy-password" title="Copy password">📋</button>
+                </div>
             </div>
 
             <div class="role-banner" id="role-banner">
@@ -2836,6 +2872,8 @@
         let isMultiplayerMode = false;
         let multiplayerPlayers = [];
         let currentMpMode = 'join'; // 'join' or 'create'
+        let multiplayerListenersSetup = false; // Prevent duplicate listeners
+        let currentRoomPassword = null; // Store password for display
 
         function openMultiplayer() {
             // Pre-fill nickname from storage
@@ -2847,6 +2885,7 @@
             document.getElementById('join-password').value = '';
             document.getElementById('create-password').value = '';
             setMpStatus('', '');
+            setMpError('');
 
             // Reset to join mode
             setMpMode('join');
@@ -2931,12 +2970,19 @@
             setMpStatus('Connecting...', 'connecting');
 
             // Connect to server
-            if (!CodenamesClient.isConnected()) {
-                await CodenamesClient.connect();
+            try {
+                if (!CodenamesClient.isConnected()) {
+                    await CodenamesClient.connect();
+                }
+            } catch (connectError) {
+                console.error('Connection failed:', connectError);
+                setMpStatus('Could not connect to server', 'error');
+                return;
             }
 
             // Try to find room by password
             try {
+                setMpStatus('Finding game...', 'connecting');
                 const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
                 if (!response.ok) {
                     if (response.status === 404) {
@@ -2948,9 +2994,14 @@
 
                 const { code } = await response.json();
 
+                setMpStatus('Joining game...', 'connecting');
                 // Join the room
                 const result = await CodenamesClient.joinRoom(code, nickname, password);
-                onMultiplayerJoined(result);
+
+                // Store password for potential reconnection
+                currentRoomPassword = password;
+
+                onMultiplayerJoined(result, false); // false = not host
 
             } catch (error) {
                 console.error('Join failed:', error);
@@ -2958,6 +3009,8 @@
                     setMpStatus('Invalid password', 'error');
                 } else if (error.code === 'ROOM_NOT_FOUND') {
                     setMpStatus('Game not found', 'error');
+                } else if (error.code === 'ROOM_FULL') {
+                    setMpStatus('Game is full', 'error');
                 } else {
                     setMpStatus(error.message || 'Failed to join game', 'error');
                 }
@@ -2977,12 +3030,22 @@
                 setMpStatus('Please create a password to share with friends', 'error');
                 return;
             }
+            if (password.length < 3) {
+                setMpStatus('Password must be at least 3 characters', 'error');
+                return;
+            }
 
             setMpStatus('Creating game...', 'connecting');
 
             // Connect to server
-            if (!CodenamesClient.isConnected()) {
-                await CodenamesClient.connect();
+            try {
+                if (!CodenamesClient.isConnected()) {
+                    await CodenamesClient.connect();
+                }
+            } catch (connectError) {
+                console.error('Connection failed:', connectError);
+                setMpStatus('Could not connect to server', 'error');
+                return;
             }
 
             try {
@@ -2992,7 +3055,10 @@
                     nickname: nickname
                 });
 
-                onMultiplayerJoined(result);
+                // Store password for display
+                currentRoomPassword = password;
+
+                onMultiplayerJoined(result, true); // true = isHost
 
             } catch (error) {
                 console.error('Create failed:', error);
@@ -3000,35 +3066,71 @@
             }
         }
 
-        function onMultiplayerJoined(result) {
+        function onMultiplayerJoined(result, isHost = false) {
             isMultiplayerMode = true;
             localStorage.setItem('codenames-nickname', CodenamesClient.player?.nickname || '');
 
+            // Store players list
+            multiplayerPlayers = result.players || [result.player];
+
+            // Sync game state from server if available
+            if (result.game) {
+                syncGameStateFromServer(result.game);
+            }
+
             // Update UI
             setMpStatus('Connected!', 'success');
-            updateMpIndicator(result.room, result.players);
+            updateMpIndicator(result.room, multiplayerPlayers);
 
-            // Close modal after brief delay
+            // Set up multiplayer event listeners (only once)
+            if (!multiplayerListenersSetup) {
+                setupMultiplayerListeners();
+                multiplayerListenersSetup = true;
+            }
+
+            // Close modal after brief delay and show appropriate message
             setTimeout(() => {
                 closeMultiplayer();
-                showToast('Connected to multiplayer game!', 'success');
+                if (isHost && currentRoomPassword) {
+                    showToast(`Game created! Share password: ${currentRoomPassword}`, 'success', 8000);
+                } else {
+                    showToast('Connected to multiplayer game!', 'success');
+                }
             }, 500);
-
-            // Set up multiplayer event listeners
-            setupMultiplayerListeners();
         }
 
         function updateMpIndicator(room, players) {
             const indicator = document.getElementById('mp-indicator');
             const codeEl = document.getElementById('mp-room-code');
             const countEl = document.getElementById('mp-player-count');
+            const passwordDisplay = document.getElementById('mp-password-display');
+            const passwordText = document.getElementById('mp-password-text');
 
             if (room) {
                 codeEl.textContent = room.code;
                 countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
                 indicator.classList.add('active');
+
+                // Show password if we're the host and have it stored
+                if (currentRoomPassword && CodenamesClient.player?.isHost) {
+                    passwordText.textContent = currentRoomPassword;
+                    passwordDisplay.style.display = 'flex';
+                } else {
+                    passwordDisplay.style.display = 'none';
+                }
             } else {
                 indicator.classList.remove('active');
+                passwordDisplay.style.display = 'none';
+            }
+        }
+
+        function copyRoomPassword() {
+            if (currentRoomPassword) {
+                navigator.clipboard.writeText(currentRoomPassword).then(() => {
+                    showToast('Password copied!', 'success', 2000);
+                }).catch(() => {
+                    showToast('Failed to copy', 'error', 2000);
+                });
             }
         }
 
@@ -3084,7 +3186,7 @@
         }
 
         function syncGameState(game) {
-            // Sync board state from server
+            // Sync board state from server (for incremental updates)
             if (game.board && Array.isArray(game.board)) {
                 // Update revealed state
                 game.board.forEach((card, i) => {
@@ -3100,6 +3202,59 @@
                 gameState.currentTurn = game.currentTeam;
                 updateTurnIndicator();
             }
+        }
+
+        /**
+         * Full game state sync from server (used when joining a room)
+         */
+        function syncGameStateFromServer(serverGame) {
+            if (!serverGame) return;
+
+            // If server has a board, sync full state
+            if (serverGame.board && Array.isArray(serverGame.board)) {
+                // Sync words
+                gameState.words = serverGame.board.map(card => card.word);
+
+                // Sync types (card colors)
+                gameState.types = serverGame.board.map(card => card.type);
+
+                // Sync revealed state
+                gameState.revealed = serverGame.board.map(card => card.revealed || false);
+
+                // Calculate scores from revealed cards
+                gameState.redScore = serverGame.board.filter(c => c.revealed && c.type === 'red').length;
+                gameState.blueScore = serverGame.board.filter(c => c.revealed && c.type === 'blue').length;
+
+                // Set totals
+                gameState.redTotal = serverGame.board.filter(c => c.type === 'red').length;
+                gameState.blueTotal = serverGame.board.filter(c => c.type === 'blue').length;
+            }
+
+            // Sync turn
+            if (serverGame.currentTeam) {
+                gameState.currentTurn = serverGame.currentTeam;
+            }
+
+            // Sync game over state
+            if (serverGame.status === 'finished' || serverGame.winner) {
+                gameState.gameOver = true;
+                gameState.winner = serverGame.winner;
+            } else {
+                gameState.gameOver = false;
+                gameState.winner = null;
+            }
+
+            // Sync seed if available
+            if (serverGame.seed) {
+                gameState.seed = serverGame.seed;
+            }
+
+            // Update all UI components
+            renderBoard();
+            updateScoreboard();
+            updateTurnIndicator();
+
+            console.log('Game state synced from server:', serverGame);
         }
 
         /**
@@ -3148,6 +3303,12 @@
                     });
                 }
             });
+
+            // Copy password button
+            const copyBtn = document.getElementById('btn-copy-password');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', copyRoomPassword);
+            }
         }
 
         // Modal management with focus trapping and keyboard support
