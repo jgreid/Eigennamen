@@ -85,6 +85,7 @@ router.get('/:code', validateParams(roomCodeSchema), async (req, res, next) => {
             room: {
                 code: room.code,
                 status: room.status,
+                hasPassword: !!room.passwordHash,
                 settings: {
                     teamNames: room.settings.teamNames,
                     allowSpectators: room.settings.allowSpectators

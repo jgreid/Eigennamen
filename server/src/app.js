@@ -119,8 +119,12 @@ app.use('/api', csrfProtection);
 // API routes
 app.use('/api', routes);
 
-// Serve static files (the game client)
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve static files (the game client) with caching headers
+app.use(express.static(path.join(__dirname, '../public'), {
+    maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+    etag: true,
+    lastModified: true
+}));
 
 // Basic health check (fast, for load balancer keep-alive)
 app.get('/health', (req, res) => {
