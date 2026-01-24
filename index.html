@@ -3190,6 +3190,18 @@
             CodenamesClient.on('rejoined', () => {
                 showToast('Reconnected!', 'success');
             });
+
+            // Error handling for game actions
+            CodenamesClient.on('error', (error) => {
+                console.error('Multiplayer error:', error);
+                if (error.type === 'game') {
+                    showToast(error.message || 'Game action failed', 'error');
+                } else if (error.type === 'player') {
+                    showToast(error.message || 'Player action failed', 'error');
+                } else if (error.type === 'room') {
+                    showToast(error.message || 'Room error', 'error');
+                }
+            });
         }
 
         function syncGameState(game) {
