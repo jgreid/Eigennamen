@@ -203,61 +203,67 @@ function createTimerExpireCallback() {
             // Restart timer for the new turn (if timer is configured and game not over)
             // BUG-6 & ISSUE #3 FIX: Use distributed lock with improved error handling
             // when multiple timer expirations queue setImmediate callbacks
-            setImmediate(async () => {
-                const { getRedis, isRedisHealthy } = require('../config/redis');
-                const redis = getRedis();
-                const lockKey = `lock:timer-restart:${roomCode}`;
-                let lockAcquired = false;
+            // SPRINT-15 FIX: Wrap in IIFE with .catch() to prevent unhandled promise rejections
+            setImmediate(() => {
+                (async () => {
+                    const { getRedis, isRedisHealthy } = require('../config/redis');
+                    const redis = getRedis();
+                    const lockKey = `lock:timer-restart:${roomCode}`;
+                    let lockAcquired = false;
 
-                try {
-                    // Check Redis availability before attempting lock
-                    const redisHealthy = await isRedisHealthy();
-                    if (!redisHealthy) {
-                        logger.warn(`Timer restart skipped for room ${roomCode}: Redis not healthy`);
-                        return;
-                    }
+                    try {
+                        // Check Redis availability before attempting lock
+                        const redisHealthy = await isRedisHealthy();
+                        if (!redisHealthy) {
+                            logger.warn(`Timer restart skipped for room ${roomCode}: Redis not healthy`);
+                            return;
+                        }
 
-                    // ISSUE #3 FIX: Increase lock TTL to 10s and track acquisition state
-                    lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 10 });
-                    if (!lockAcquired) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`);
-                        return;
-                    }
+                        // ISSUE #3 FIX: Increase lock TTL to 10s and track acquisition state
+                        lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 10 });
+                        if (!lockAcquired) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`);
+                            return;
+                        }
 
-                    const room = await roomService.getRoom(roomCode);
-                    const game = await gameService.getGame(roomCode);
+                        const room = await roomService.getRoom(roomCode);
+                        const game = await gameService.getGame(roomCode);
 
-                    if (!room) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
-                        return;
-                    }
-                    if (!room.settings || !room.settings.turnTimer) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
-                        return;
-                    }
-                    if (!game) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
-                        return;
-                    }
-                    if (game.gameOver) {
-                        logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
-                        return;
-                    }
+                        if (!room) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
+                            return;
+                        }
+                        if (!room.settings || !room.settings.turnTimer) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
+                            return;
+                        }
+                        if (!game) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
+                            return;
+                        }
+                        if (game.gameOver) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
+                            return;
+                        }
 
-                    await startTurnTimer(roomCode, room.settings.turnTimer);
-                    logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
-                } catch (err) {
-                    logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
-                } finally {
-                    // ISSUE #3 FIX: Always release lock if we acquired it
-                    if (lockAcquired) {
-                        try {
-                            await redis.del(lockKey);
-                        } catch (delErr) {
-                            logger.error(`Failed to release timer restart lock for ${roomCode}: ${delErr.message}`);
+                        await startTurnTimer(roomCode, room.settings.turnTimer);
+                        logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
+                    } catch (err) {
+                        logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
+                    } finally {
+                        // ISSUE #3 FIX: Always release lock if we acquired it
+                        if (lockAcquired) {
+                            try {
+                                await redis.del(lockKey);
+                            } catch (delErr) {
+                                logger.error(`Failed to release timer restart lock for ${roomCode}: ${delErr.message}`);
+                            }
                         }
                     }
-                }
+                })().catch(err => {
+                    // SPRINT-15 FIX: Catch any unhandled promise rejections from the async IIFE
+                    logger.error(`Unhandled timer restart error for room ${roomCode}:`, err);
+                });
             });
         } catch (error) {
             logger.error(`Timer expiry error for room ${roomCode}:`, error);
