@@ -179,6 +179,11 @@
                 this._emit('playerReconnected', data);
             });
 
+            // Handle room:playerReconnected (from secure token reconnection)
+            this.socket.on('room:playerReconnected', (data) => {
+                this._emit('playerReconnected', data);
+            });
+
             this.socket.on('player:error', (error) => {
                 this._emit('error', { type: 'player', ...error });
             });
@@ -231,6 +236,10 @@
 
             this.socket.on('timer:expired', (data) => {
                 this._emit('timerExpired', data);
+            });
+
+            this.socket.on('timer:status', (data) => {
+                this._emit('timerStatus', data);
             });
 
             // Chat events

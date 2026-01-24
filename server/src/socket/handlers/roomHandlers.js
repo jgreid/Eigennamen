@@ -12,6 +12,7 @@ const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const { RoomError } = require('../../errors/GameError');
+const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 
 /**
  * Helper: Send timer status to a socket
@@ -56,9 +57,10 @@ module.exports = function roomHandlers(io, socket) {
         try {
             const validated = validateInput(roomCreateSchema, data);
 
-            const { room, player } = await roomService.createRoom(
-                socket.sessionId,
-                validated.settings
+            const { room, player } = await withTimeout(
+                roomService.createRoom(socket.sessionId, validated.settings),
+                TIMEOUTS.SOCKET_HANDLER,
+                'room:create'
             );
 
             // Join the socket to the room
@@ -98,11 +100,15 @@ module.exports = function roomHandlers(io, socket) {
         try {
             const validated = validateInput(roomJoinSchema, data);
 
-            const { room, players, game, player } = await roomService.joinRoom(
-                validated.code,
-                socket.sessionId,
-                validated.nickname,
-                validated.password // Pass password if provided
+            const { room, players, game, player } = await withTimeout(
+                roomService.joinRoom(
+                    validated.code,
+                    socket.sessionId,
+                    validated.nickname,
+                    validated.password // Pass password if provided
+                ),
+                TIMEOUTS.JOIN_ROOM,
+                'room:join'
             );
 
             // Track the room code in case we need to leave on error
@@ -125,8 +131,20 @@ module.exports = function roomHandlers(io, socket) {
             // ISSUE #50 FIX: Send timer status for full state recovery on reconnection
             await sendTimerStatus(socket, room.code, 'join');
 
-            // Notify others in the room
-            socket.to(`room:${room.code}`).emit('room:playerJoined', { player });
+            // Detect if this is a reconnection (player existed before with lastConnected timestamp)
+            const isReconnect = !!player.lastConnected;
+
+            // Notify others in the room with appropriate event type
+            if (isReconnect) {
+                // Use room:playerReconnected for consistency with token-based reconnection
+                socket.to(`room:${room.code}`).emit('room:playerReconnected', {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    team: player.team
+                });
+            } else {
+                socket.to(`room:${room.code}`).emit('room:playerJoined', { player });
+            }
 
             // Log event for reconnection recovery
             await eventLogService.logEvent(
@@ -135,7 +153,7 @@ module.exports = function roomHandlers(io, socket) {
                 {
                     sessionId: socket.sessionId,
                     nickname: validated.nickname,
-                    isReconnect: !!player.lastConnected
+                    isReconnect
                 }
             );
 
@@ -253,29 +271,38 @@ module.exports = function roomHandlers(io, socket) {
                 throw RoomError.notFound(socket.roomCode);
             }
 
-            const playerService = require('../../services/playerService');
+            // Wrap all state fetching in a timeout to prevent hanging
+            const statePromise = (async () => {
+                // Get full room state
+                const room = await roomService.getRoom(socket.roomCode);
+                if (!room) {
+                    throw RoomError.notFound(socket.roomCode);
+                }
 
-            // Get full room state
-            const room = await roomService.getRoom(socket.roomCode);
-            if (!room) {
-                throw RoomError.notFound(socket.roomCode);
-            }
+                // Get player data
+                const player = await playerService.getPlayer(socket.sessionId);
+                if (!player) {
+                    throw RoomError.notFound(socket.roomCode);
+                }
 
-            // Get player data
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player) {
-                throw RoomError.notFound(socket.roomCode);
-            }
+                // Get all players in room
+                const players = await playerService.getPlayersInRoom(socket.roomCode);
 
-            // Get all players in room
-            const players = await playerService.getPlayersInRoom(socket.roomCode);
+                // Get game state if exists
+                const game = await gameService.getGame(socket.roomCode);
+                let gameState = null;
+                if (game) {
+                    gameState = gameService.getGameStateForPlayer(game, player);
+                }
 
-            // Get game state if exists
-            const game = await gameService.getGame(socket.roomCode);
-            let gameState = null;
-            if (game) {
-                gameState = gameService.getGameStateForPlayer(game, player);
-            }
+                return { room, player, players, game, gameState };
+            })();
+
+            const { room, player, players, game, gameState } = await withTimeout(
+                statePromise,
+                TIMEOUTS.RECONNECT,
+                'room:resync'
+            );
 
             // Send full state
             socket.emit('room:resynced', {
@@ -285,19 +312,20 @@ module.exports = function roomHandlers(io, socket) {
                 you: player
             });
 
-            // If player is spymaster and game active, send spymaster view
+            // If player is spymaster and game active, send spymaster view (non-critical, no timeout needed)
             await sendSpymasterViewIfNeeded(socket, player, game, socket.roomCode);
 
-            // Send timer status
+            // Send timer status (non-critical, has its own error handling)
             await sendTimerStatus(socket, socket.roomCode, 'resync');
 
             logger.info(`State resynced for player ${socket.sessionId} in room ${socket.roomCode}`);
 
         } catch (error) {
-            logger.error('Error resyncing state:', error);
+            const isTimeout = error.code === 'OPERATION_TIMEOUT';
+            logger.error(`Error resyncing state${isTimeout ? ' (timeout)' : ''}:`, error);
             socket.emit('room:error', {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
+                code: isTimeout ? ERROR_CODES.SERVER_ERROR : (error.code || ERROR_CODES.SERVER_ERROR),
+                message: isTimeout ? 'Server is busy, please try again' : error.message
             });
         }
     }));
@@ -354,47 +382,58 @@ module.exports = function roomHandlers(io, socket) {
                 throw { code: ERROR_CODES.INVALID_INPUT, message: 'Room code and reconnection token required' };
             }
 
-            // Validate the reconnection token
-            const validation = await playerService.validateReconnectionToken(reconnectionToken, socket.sessionId);
+            // Wrap reconnection logic in timeout
+            const reconnectPromise = (async () => {
+                // Validate the reconnection token
+                const validation = await playerService.validateReconnectionToken(reconnectionToken, socket.sessionId);
 
-            if (!validation.valid) {
-                throw { code: ERROR_CODES.NOT_AUTHORIZED, message: `Invalid reconnection token: ${validation.reason}` };
-            }
+                if (!validation.valid) {
+                    throw { code: ERROR_CODES.NOT_AUTHORIZED, message: `Invalid reconnection token: ${validation.reason}` };
+                }
 
-            // Token is valid - reconnect the player
-            const { tokenData } = validation;
+                // Token is valid - reconnect the player
+                const { tokenData } = validation;
 
-            // Verify room code matches
-            if (tokenData.roomCode !== code) {
-                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Token does not match room' };
-            }
+                // Verify room code matches
+                if (tokenData.roomCode !== code) {
+                    throw { code: ERROR_CODES.INVALID_INPUT, message: 'Token does not match room' };
+                }
 
-            // Get current room state
-            const room = await roomService.getRoom(code);
-            if (!room) {
-                throw RoomError.notFound(code);
-            }
+                // Get current room state
+                const room = await roomService.getRoom(code);
+                if (!room) {
+                    throw RoomError.notFound(code);
+                }
 
-            // Restore player's connected status
-            await playerService.updatePlayer(socket.sessionId, {
-                connected: true,
-                lastSeen: Date.now()
-            });
+                // Restore player's connected status
+                await playerService.updatePlayer(socket.sessionId, {
+                    connected: true,
+                    lastSeen: Date.now()
+                });
 
-            // Join the socket to the room
+                // Get full state for the reconnected player
+                const player = await playerService.getPlayer(socket.sessionId);
+                const players = await playerService.getPlayersInRoom(code);
+                const game = await gameService.getGame(code);
+
+                let gameState = null;
+                if (game) {
+                    gameState = gameService.getGameStateForPlayer(game, player);
+                }
+
+                return { room, player, players, game, gameState };
+            })();
+
+            const { room, player, players, game, gameState } = await withTimeout(
+                reconnectPromise,
+                TIMEOUTS.RECONNECT,
+                'room:reconnect'
+            );
+
+            // Join the socket to the room (after timeout check passes)
             socket.join(`room:${code}`);
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = code;
-
-            // Get full state for the reconnected player
-            const player = await playerService.getPlayer(socket.sessionId);
-            const players = await playerService.getPlayersInRoom(code);
-            const game = await gameService.getGame(code);
-
-            let gameState = null;
-            if (game) {
-                gameState = gameService.getGameStateForPlayer(game, player);
-            }
 
             // Send reconnection success with full state
             socket.emit('room:reconnected', {
@@ -404,10 +443,10 @@ module.exports = function roomHandlers(io, socket) {
                 you: player
             });
 
-            // If player is spymaster and game active, send spymaster view
+            // If player is spymaster and game active, send spymaster view (non-critical)
             await sendSpymasterViewIfNeeded(socket, player, game, code);
 
-            // Send timer status
+            // Send timer status (non-critical, has its own error handling)
             await sendTimerStatus(socket, code, 'reconnect');
 
             // Notify others in the room
@@ -417,7 +456,7 @@ module.exports = function roomHandlers(io, socket) {
                 team: player.team
             });
 
-            // Log event
+            // Log event (non-critical)
             await eventLogService.logEvent(
                 code,
                 eventLogService.EVENT_TYPES.PLAYER_JOINED,
@@ -432,10 +471,11 @@ module.exports = function roomHandlers(io, socket) {
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
 
         } catch (error) {
-            logger.error('Error during secure reconnection:', error);
+            const isTimeout = error.code === 'OPERATION_TIMEOUT';
+            logger.error(`Error during secure reconnection${isTimeout ? ' (timeout)' : ''}:`, error);
             socket.emit('room:error', {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
+                code: isTimeout ? ERROR_CODES.SERVER_ERROR : (error.code || ERROR_CODES.SERVER_ERROR),
+                message: isTimeout ? 'Server is busy, please try again' : error.message
             });
         }
     }));
