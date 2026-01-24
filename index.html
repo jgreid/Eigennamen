@@ -3174,6 +3174,34 @@
                 }
             });
 
+            // Handle clue given by spymaster
+            CodenamesClient.on('clueGiven', (data) => {
+                if (data.word && data.number !== undefined) {
+                    // Store current clue in game state for tracking guesses
+                    gameState.currentClue = {
+                        word: data.word,
+                        number: data.number,
+                        team: data.team,
+                        spymaster: data.spymaster,
+                        guessesAllowed: data.guessesAllowed
+                    };
+                    gameState.guessesUsed = 0;
+
+                    // Show clue as toast notification (visible for 5 seconds)
+                    const teamName = data.team === 'red' ? teamNames.red : teamNames.blue;
+                    showToast(`${teamName} clue: ${data.word} (${data.number})`, 'info', 5000);
+                    announceToScreenReader(`${teamName} spymaster gives clue: ${data.word}, ${data.number}`);
+                }
+            });
+
+            // Handle spymaster view (card types for spymasters)
+            CodenamesClient.on('spymasterView', (data) => {
+                if (data.types && Array.isArray(data.types)) {
+                    gameState.types = data.types;
+                    renderBoard();
+                }
+            });
+
             // Player updates
             CodenamesClient.on('playerJoined', (data) => {
                 if (data.players) {
@@ -3199,6 +3227,17 @@
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
                 if (data.nickname) {
                     showToast(`${data.nickname} left`, 'info');
+                }
+            });
+
+            // Handle player state updates (role, team, nickname changes)
+            CodenamesClient.on('playerUpdated', (data) => {
+                if (data.sessionId && data.changes) {
+                    // Update player in local list
+                    multiplayerPlayers = multiplayerPlayers.map(p =>
+                        p.sessionId === data.sessionId ? { ...p, ...data.changes } : p
+                    );
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
                 }
             });
 
@@ -3228,14 +3267,13 @@
 
             // Timer events (for turn timers when enabled)
             CodenamesClient.on('timerStatus', (data) => {
-                // Timer status received on join/reconnect
-                if (data.active && data.remaining) {
-                    console.log(`Timer active: ${data.remaining}s remaining`);
-                }
+                // Timer status received on join/reconnect - ready for future timer UI
+                // data contains: { active, remaining, duration, paused }
             });
 
             CodenamesClient.on('timerStarted', (data) => {
-                console.log(`Turn timer started: ${data.duration || data.durationSeconds}s`);
+                // Timer started - ready for future timer UI
+                // data contains: { duration/durationSeconds }
             });
 
             CodenamesClient.on('timerExpired', (data) => {
@@ -3294,6 +3332,7 @@
         const multiplayerEventNames = [
             'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
             'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
+            'playerUpdated', 'clueGiven', 'spymasterView',
             'timerStatus', 'timerStarted', 'timerExpired', 'roomResynced',
             'disconnected', 'rejoined', 'rejoinFailed', 'error'
         ];
@@ -3394,8 +3433,6 @@
             renderBoard();
             updateScoreboard();
             updateTurnIndicator();
-
-            console.log('Game state synced from server:', serverGame);
         }
 
         /**
@@ -3661,7 +3698,9 @@
             gameOver: false,
             winner: null,
             seed: null,
-            customWords: false // Whether this game uses custom words encoded in URL
+            customWords: false, // Whether this game uses custom words encoded in URL
+            currentClue: null, // { word, number, team, spymaster, guessesAllowed }
+            guessesUsed: 0 // Number of guesses used for current clue
         };
 
         // Seeded random number generator using Mulberry32 algorithm
