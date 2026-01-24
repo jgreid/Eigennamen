@@ -172,6 +172,19 @@
                 this._emit('hostChanged', data);
             });
 
+            // Handle being kicked from the room
+            this._registerSocketListener('room:kicked', (data) => {
+                this.roomCode = null;
+                this.player = null;
+                sessionStorage.removeItem('codenames-room-code');
+                this._emit('kicked', data);
+            });
+
+            // Handle another player being kicked
+            this._registerSocketListener('player:kicked', (data) => {
+                this._emit('playerKicked', data);
+            });
+
             this._registerSocketListener('room:error', (error) => {
                 this._emit('error', { type: 'room', ...error });
             });
@@ -466,6 +479,18 @@
          */
         updateSettings(settings) {
             this.socket.emit('room:settings', settings);
+        },
+
+        /**
+         * Kick a player from the room (host only)
+         * @param {string} targetSessionId - Session ID of player to kick
+         */
+        kickPlayer(targetSessionId) {
+            if (!this.player?.isHost) {
+                console.warn('Only the host can kick players');
+                return;
+            }
+            this.socket.emit('player:kick', { targetSessionId });
         },
 
         /**

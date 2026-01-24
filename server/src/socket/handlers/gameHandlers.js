@@ -118,7 +118,8 @@ module.exports = function gameHandlers(io, socket) {
     }));
 
     /**
-     * Reveal a card (current team's clicker only)
+     * Reveal a card (current team's clicker, or any team member if clicker disconnected)
+     * PHASE 1 FIX: Allow any team member to reveal if clicker is disconnected
      */
     socket.on(SOCKET_EVENTS.GAME_REVEAL, createRateLimitedHandler(socket, 'game:reveal', async (data) => {
         try {
@@ -128,13 +129,13 @@ module.exports = function gameHandlers(io, socket) {
 
             const validated = validateInput(gameRevealSchema, data);
 
-            // Verify player is the current team's clicker
+            // Get player data
             const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || player.role !== 'clicker') {
-                throw PlayerError.notClicker();
+            if (!player) {
+                throw PlayerError.notFound(socket.sessionId);
             }
 
-            // Verify clicker has a team assigned
+            // Verify player has a team assigned
             if (!player.team) {
                 throw new ValidationError('You must join a team before revealing cards');
             }
@@ -145,13 +146,22 @@ module.exports = function gameHandlers(io, socket) {
                 throw GameStateError.noActiveGame();
             }
 
-            // Verify it's the clicker's team's turn
+            // Verify it's the player's team's turn
             if (player.team !== game.currentTurn) {
                 throw PlayerError.notYourTurn(player.team);
             }
 
-            // ISSUE #59 FIX: Validate that the current team has connected players
+            // PHASE 1 FIX: Allow reveal if player is clicker OR if clicker is disconnected
             const teamMembers = await playerService.getTeamMembers(socket.roomCode, game.currentTurn);
+            const teamClicker = teamMembers.find(p => p.role === 'clicker');
+            const clickerDisconnected = !teamClicker || !teamClicker.connected;
+
+            // Player can reveal if they are the clicker, or if the clicker is disconnected
+            if (player.role !== 'clicker' && !clickerDisconnected) {
+                throw PlayerError.notClicker();
+            }
+
+            // Validate that the current team has connected players
             const connectedTeamMembers = teamMembers.filter(p => p.connected);
             if (connectedTeamMembers.length === 0) {
                 throw new GameStateError(`No connected players on ${game.currentTurn} team`);

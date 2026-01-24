@@ -163,4 +163,104 @@ module.exports = function playerHandlers(io, socket) {
             });
         }
     }));
+
+    /**
+     * Kick a player from the room (host only)
+     * PHASE 1 FIX: Allow host to remove disruptive players
+     */
+    socket.on('player:kick', createRateLimitedHandler(socket, 'player:kick', async (data) => {
+        try {
+            if (!socket.roomCode) {
+                throw RoomError.notFound(socket.roomCode);
+            }
+
+            if (!data || !data.targetSessionId) {
+                throw {
+                    code: ERROR_CODES.VALIDATION_ERROR,
+                    message: 'Target player session ID required'
+                };
+            }
+
+            // Verify requester is the host
+            const requester = await playerService.getPlayer(socket.sessionId);
+            if (!requester || !requester.isHost) {
+                throw {
+                    code: ERROR_CODES.UNAUTHORIZED,
+                    message: 'Only the host can kick players'
+                };
+            }
+
+            // Cannot kick yourself
+            if (data.targetSessionId === socket.sessionId) {
+                throw {
+                    code: ERROR_CODES.VALIDATION_ERROR,
+                    message: 'Cannot kick yourself'
+                };
+            }
+
+            // Get target player
+            const targetPlayer = await playerService.getPlayer(data.targetSessionId);
+            if (!targetPlayer || targetPlayer.roomCode !== socket.roomCode) {
+                throw {
+                    code: ERROR_CODES.PLAYER_NOT_FOUND,
+                    message: 'Player not found in this room'
+                };
+            }
+
+            // Get target player's socket ID
+            const targetSocketId = await playerService.getSocketId(data.targetSessionId);
+
+            // Broadcast kick event before removing player
+            io.to(`room:${socket.roomCode}`).emit('player:kicked', {
+                sessionId: data.targetSessionId,
+                nickname: targetPlayer.nickname,
+                kickedBy: requester.nickname
+            });
+
+            // Log the kick event
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.PLAYER_LEFT,
+                {
+                    sessionId: data.targetSessionId,
+                    nickname: targetPlayer.nickname,
+                    reason: 'kicked',
+                    kickedBy: requester.nickname
+                }
+            );
+
+            // Remove player from room data
+            await playerService.removePlayer(data.targetSessionId);
+
+            // Disconnect the target player's socket
+            if (targetSocketId) {
+                const targetSocket = io.sockets.sockets.get(targetSocketId);
+                if (targetSocket) {
+                    // Send kick notification to the kicked player before disconnecting
+                    targetSocket.emit('room:kicked', {
+                        reason: 'You were removed from the room by the host'
+                    });
+                    targetSocket.leave(`room:${socket.roomCode}`);
+                    targetSocket.roomCode = null;
+                    targetSocket.disconnect(true);
+                }
+            }
+
+            // Update player list for remaining players
+            const remainingPlayers = await playerService.getPlayersInRoom(socket.roomCode);
+            io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
+                sessionId: data.targetSessionId,
+                players: remainingPlayers
+            });
+
+            logger.info(`Host ${requester.nickname} kicked player ${targetPlayer.nickname} from room ${socket.roomCode}`);
+
+        } catch (error) {
+            logger.error('Error kicking player:', error);
+            socket.emit('player:error', {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
 };
