@@ -97,6 +97,11 @@ async function createRoom(hostSessionId, settings = {}) {
     while (attempts < maxAttempts) {
         code = generateRoomCode();
 
+        // Generate lookup key for password-based room discovery
+        const passwordLookupKey = settings.password && settings.password.trim()
+            ? generatePasswordLookupKey(settings.password)
+            : null;
+
         const room = {
             id: uuidv4(),
             code,
@@ -112,6 +117,7 @@ async function createRoom(hostSessionId, settings = {}) {
             hasPassword: !!passwordHash, // Flag for UI
             passwordVersion: passwordHash ? 1 : 0, // Track password changes for reconnection validation
             passwordChangedAt: passwordHash ? Date.now() : null,
+            passwordLookupKey, // Store lookup key for cleanup
             createdAt: Date.now(),
             expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
         };
@@ -140,7 +146,7 @@ async function createRoom(hostSessionId, settings = {}) {
             logger.info(`Room ${code} created by ${hostSessionId}${passwordHash ? ' (password protected)' : ''}`);
 
             // Return room without passwordHash for security
-            const { passwordHash: _, ...safeRoom } = room;
+            const { passwordHash: _, passwordLookupKey: _lookupKey, ...safeRoom } = room;
             return { room: safeRoom, player };
         }
 
@@ -341,8 +347,8 @@ async function joinRoom(code, sessionId, nickname, password = null) {
     // Refresh all room-related TTLs
     await refreshRoomTTL(code);
 
-    // Return room without passwordHash for security
-    const { passwordHash: _hash, ...safeRoom } = room;
+    // Return room without passwordHash and passwordLookupKey for security
+    const { passwordHash: _hash, passwordLookupKey: _lookupKey2, ...safeRoom } = room;
 
     return {
         room: safeRoom,
@@ -411,13 +417,19 @@ async function updateSettings(code, sessionId, newSettings) {
     // Handle password update separately
     if ('password' in newSettings) {
         const currentPasswordVersion = room.passwordVersion || 0;
+        const oldLookupKey = room.passwordLookupKey;
 
         if (newSettings.password === null || newSettings.password === '') {
-            // Remove password
+            // Remove password - delete old lookup key
+            if (oldLookupKey) {
+                await redis.del(`password-lookup:${oldLookupKey}`);
+                logger.debug(`Deleted password lookup key for room ${code}`);
+            }
             room.passwordHash = null;
             room.hasPassword = false;
             room.passwordVersion = 0;
             room.passwordChangedAt = null;
+            room.passwordLookupKey = null;
             logger.info(`Password removed from room ${code}`, {
                 roomCode: code,
                 changedBy: sessionId,
@@ -426,10 +438,23 @@ async function updateSettings(code, sessionId, newSettings) {
         } else if (newSettings.password && newSettings.password.trim()) {
             // Set new password (ISSUE #39 FIX: wrap bcrypt in try-catch)
             try {
+                // Delete old lookup key if exists
+                if (oldLookupKey) {
+                    await redis.del(`password-lookup:${oldLookupKey}`);
+                    logger.debug(`Deleted old password lookup key for room ${code}`);
+                }
+
                 room.passwordHash = await bcrypt.hash(newSettings.password.trim(), BCRYPT_SALT_ROUNDS);
                 room.hasPassword = true;
                 room.passwordVersion = currentPasswordVersion + 1;
                 room.passwordChangedAt = Date.now();
+
+                // Create new lookup key
+                const newLookupKey = generatePasswordLookupKey(newSettings.password);
+                room.passwordLookupKey = newLookupKey;
+                await redis.set(`password-lookup:${newLookupKey}`, code, { EX: REDIS_TTL.ROOM });
+                logger.debug(`Created new password lookup key for room ${code}`);
+
                 logger.info(`Password updated for room ${code}`, {
                     roomCode: code,
                     changedBy: sessionId,
@@ -497,16 +522,24 @@ async function cleanupRoom(code) {
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);
 
+    // Get room data to find password lookup key
+    const room = await getRoom(code);
+
     // Get all players in room
     const sessionIds = await redis.sMembers(`room:${code}:players`);
 
-    // Build list of all keys to delete (players + room keys)
+    // Build list of all keys to delete (players + room keys + password lookup)
     const keysToDelete = [
         ...sessionIds.map(sessionId => `player:${sessionId}`),
         `room:${code}`,
         `room:${code}:players`,
         `room:${code}:game`
     ];
+
+    // Add password lookup key if exists
+    if (room?.passwordLookupKey) {
+        keysToDelete.push(`password-lookup:${room.passwordLookupKey}`);
+    }
 
     // Delete all keys in parallel using DEL with multiple keys (single Redis call)
     if (keysToDelete.length > 0) {
