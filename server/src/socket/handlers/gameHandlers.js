@@ -328,9 +328,11 @@ module.exports = function gameHandlers(io, socket) {
             const result = await gameService.endTurn(socket.roomCode, player.nickname);
 
             // Broadcast turn change
+            // Note: nextTeam is included for frontend compatibility (legacy field name)
             io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
-                previousTurn: result.previousTurn
+                previousTurn: result.previousTurn,
+                nextTeam: result.currentTurn
             });
 
             // Log event for reconnection recovery

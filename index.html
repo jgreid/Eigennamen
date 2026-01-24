@@ -3176,14 +3176,81 @@
 
             // Player updates
             CodenamesClient.on('playerJoined', (data) => {
-                multiplayerPlayers = data.players || multiplayerPlayers;
+                if (data.players) {
+                    multiplayerPlayers = data.players;
+                } else if (data.player) {
+                    // Add new player to list if not already present
+                    const exists = multiplayerPlayers.some(p => p.sessionId === data.player.sessionId);
+                    if (!exists) {
+                        multiplayerPlayers = [...multiplayerPlayers, data.player];
+                    }
+                }
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
                 showToast(`${data.player?.nickname || 'Someone'} joined`, 'success');
             });
 
             CodenamesClient.on('playerLeft', (data) => {
-                multiplayerPlayers = data.players || multiplayerPlayers;
+                if (data.players) {
+                    multiplayerPlayers = data.players;
+                } else if (data.sessionId) {
+                    // Remove player from list
+                    multiplayerPlayers = multiplayerPlayers.filter(p => p.sessionId !== data.sessionId);
+                }
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                if (data.nickname) {
+                    showToast(`${data.nickname} left`, 'info');
+                }
+            });
+
+            // Handle player disconnection (network issues)
+            CodenamesClient.on('playerDisconnected', (data) => {
+                // Mark player as disconnected in local list
+                if (data.sessionId) {
+                    multiplayerPlayers = multiplayerPlayers.map(p =>
+                        p.sessionId === data.sessionId ? { ...p, connected: false } : p
+                    );
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                }
+                showToast(`${data.nickname || 'A player'} disconnected`, 'warning');
+            });
+
+            // Handle player reconnection
+            CodenamesClient.on('playerReconnected', (data) => {
+                // Mark player as connected in local list
+                if (data.sessionId) {
+                    multiplayerPlayers = multiplayerPlayers.map(p =>
+                        p.sessionId === data.sessionId ? { ...p, connected: true } : p
+                    );
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                }
+                showToast(`${data.nickname || 'A player'} reconnected`, 'success');
+            });
+
+            // Timer events (for turn timers when enabled)
+            CodenamesClient.on('timerStatus', (data) => {
+                // Timer status received on join/reconnect
+                if (data.active && data.remaining) {
+                    console.log(`Timer active: ${data.remaining}s remaining`);
+                }
+            });
+
+            CodenamesClient.on('timerStarted', (data) => {
+                console.log(`Turn timer started: ${data.duration || data.durationSeconds}s`);
+            });
+
+            CodenamesClient.on('timerExpired', (data) => {
+                showToast('Turn time expired!', 'warning');
+            });
+
+            // Room resync (state recovery)
+            CodenamesClient.on('roomResynced', (data) => {
+                if (data.game) {
+                    syncGameStateFromServer(data.game);
+                }
+                if (data.players) {
+                    multiplayerPlayers = data.players;
+                    updateMpIndicator(data.room, multiplayerPlayers);
+                }
             });
 
             // Disconnect handling
@@ -3203,9 +3270,8 @@
                 } else {
                     showToast('Could not rejoin previous game', 'warning');
                 }
-                // Reset multiplayer state
-                isMultiplayerMode = false;
-                currentRoomPassword = null;
+                // Reset multiplayer state properly
+                leaveMultiplayerMode();
             });
 
             // Error handling for game actions
@@ -3217,8 +3283,47 @@
                     showToast(error.message || 'Player action failed', 'error');
                 } else if (error.type === 'room') {
                     showToast(error.message || 'Room error', 'error');
+                } else {
+                    // Generic error
+                    showToast(error.message || 'An error occurred', 'error');
                 }
             });
+        }
+
+        // List of multiplayer event names for cleanup
+        const multiplayerEventNames = [
+            'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
+            'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
+            'timerStatus', 'timerStarted', 'timerExpired', 'roomResynced',
+            'disconnected', 'rejoined', 'rejoinFailed', 'error'
+        ];
+
+        function cleanupMultiplayerListeners() {
+            // Remove all multiplayer event listeners
+            multiplayerEventNames.forEach(eventName => {
+                if (CodenamesClient && typeof CodenamesClient.off === 'function') {
+                    CodenamesClient.off(eventName);
+                }
+            });
+            multiplayerListenersSetup = false;
+        }
+
+        function leaveMultiplayerMode() {
+            // Clean up listeners
+            cleanupMultiplayerListeners();
+
+            // Leave room and disconnect
+            if (CodenamesClient && CodenamesClient.isConnected()) {
+                CodenamesClient.leaveRoom();
+            }
+
+            // Reset state
+            isMultiplayerMode = false;
+            multiplayerPlayers = [];
+            currentRoomPassword = null;
+
+            // Update UI
+            updateMpIndicator(null, []);
         }
 
         function syncGameState(game) {
