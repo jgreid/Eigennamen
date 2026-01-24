@@ -9,7 +9,7 @@ const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('..
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
-const { RoomError } = require('../../errors/GameError');
+const { RoomError, PlayerError, ValidationError } = require('../../errors/GameError');
 
 module.exports = function playerHandlers(io, socket) {
 
@@ -157,6 +157,94 @@ module.exports = function playerHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error setting nickname:', error);
+            socket.emit('player:error', {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
+
+    /**
+     * Kick a player from the room (host only)
+     * PHASE 1 FIX: Allow host to remove disruptive players
+     */
+    socket.on('player:kick', createRateLimitedHandler(socket, 'player:kick', async (data) => {
+        try {
+            if (!socket.roomCode) {
+                throw RoomError.notFound(socket.roomCode);
+            }
+
+            if (!data || !data.targetSessionId) {
+                throw new ValidationError('Target player session ID required');
+            }
+
+            // Verify requester is the host
+            const requester = await playerService.getPlayer(socket.sessionId);
+            if (!requester || !requester.isHost) {
+                throw PlayerError.notHost();
+            }
+
+            // Cannot kick yourself
+            if (data.targetSessionId === socket.sessionId) {
+                throw new ValidationError('Cannot kick yourself');
+            }
+
+            // Get target player
+            const targetPlayer = await playerService.getPlayer(data.targetSessionId);
+            if (!targetPlayer || targetPlayer.roomCode !== socket.roomCode) {
+                throw PlayerError.notFound(data.targetSessionId);
+            }
+
+            // Get target player's socket ID
+            const targetSocketId = await playerService.getSocketId(data.targetSessionId);
+
+            // Broadcast kick event before removing player
+            io.to(`room:${socket.roomCode}`).emit('player:kicked', {
+                sessionId: data.targetSessionId,
+                nickname: targetPlayer.nickname,
+                kickedBy: requester.nickname
+            });
+
+            // Log the kick event
+            await eventLogService.logEvent(
+                socket.roomCode,
+                eventLogService.EVENT_TYPES.PLAYER_LEFT,
+                {
+                    sessionId: data.targetSessionId,
+                    nickname: targetPlayer.nickname,
+                    reason: 'kicked',
+                    kickedBy: requester.nickname
+                }
+            );
+
+            // Remove player from room data
+            await playerService.removePlayer(data.targetSessionId);
+
+            // Disconnect the target player's socket
+            if (targetSocketId) {
+                const targetSocket = io.sockets.sockets.get(targetSocketId);
+                if (targetSocket) {
+                    // Send kick notification to the kicked player before disconnecting
+                    targetSocket.emit('room:kicked', {
+                        reason: 'You were removed from the room by the host'
+                    });
+                    targetSocket.leave(`room:${socket.roomCode}`);
+                    targetSocket.roomCode = null;
+                    targetSocket.disconnect(true);
+                }
+            }
+
+            // Update player list for remaining players
+            const remainingPlayers = await playerService.getPlayersInRoom(socket.roomCode);
+            io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
+                sessionId: data.targetSessionId,
+                players: remainingPlayers
+            });
+
+            logger.info(`Host ${requester.nickname} kicked player ${targetPlayer.nickname} from room ${socket.roomCode}`);
+
+        } catch (error) {
+            logger.error('Error kicking player:', error);
             socket.emit('player:error', {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message

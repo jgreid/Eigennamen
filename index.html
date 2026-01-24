@@ -424,6 +424,54 @@
             will-change: opacity;
         }
 
+        /* ========== TIMER DISPLAY ========== */
+        .timer-display {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            margin-top: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        .timer-display.active {
+            display: flex;
+        }
+
+        .timer-display .timer-icon {
+            font-size: 1rem;
+        }
+
+        .timer-display .timer-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .timer-display.warning .timer-value {
+            color: #ffc107;
+        }
+
+        .timer-display.critical .timer-value {
+            color: #ff6b6b;
+            animation: timer-pulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes timer-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .timer-display .timer-label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
         /* ========== CONTROLS ========== */
         .controls {
             display: flex;
@@ -1221,6 +1269,86 @@
             /* Constrain display size */
             width: 140px !important;
             height: 140px !important;
+        }
+
+        /* Preferences panel */
+        .prefs-content {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .pref-group {
+            margin-bottom: 20px;
+        }
+
+        .pref-group h3 {
+            font-size: 0.9rem;
+            color: #667eea;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 8px 0;
+            user-select: none;
+        }
+
+        .toggle-checkbox {
+            display: none;
+        }
+
+        .toggle-switch {
+            width: 42px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-checkbox:checked + .toggle-switch {
+            background: #667eea;
+        }
+
+        .toggle-checkbox:checked + .toggle-switch::after {
+            transform: translateX(18px);
+        }
+
+        .toggle-text {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .btn-test-sound {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-test-sound:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
         }
 
         /* Settings footer with buttons */
@@ -2355,6 +2483,116 @@
         .multiplayer-indicator .btn-copy-password:hover {
             opacity: 1;
         }
+
+        .multiplayer-indicator .player-count-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: inherit;
+            transition: background 0.2s;
+        }
+
+        .multiplayer-indicator .player-count-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .multiplayer-indicator .expand-icon {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+
+        .multiplayer-indicator .player-count-btn.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .mp-player-list {
+            width: 100%;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mp-player-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .mp-player-list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .mp-player-list .player-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mp-player-list .player-name {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .mp-player-list .player-name.you {
+            font-weight: 600;
+            color: var(--color-success);
+        }
+
+        .mp-player-list .player-role {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .mp-player-list .player-team-red {
+            color: #ff6b6b;
+        }
+
+        .mp-player-list .player-team-blue {
+            color: #74b9ff;
+        }
+
+        .mp-player-list .player-disconnected {
+            opacity: 0.5;
+        }
+
+        .mp-player-list .host-badge {
+            font-size: 0.6rem;
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        .mp-player-list .btn-kick {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.4);
+            color: #ff6b6b;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mp-player-list .btn-kick:hover {
+            background: rgba(220, 53, 69, 0.4);
+            border-color: rgba(220, 53, 69, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -2377,10 +2615,17 @@
             <div class="multiplayer-indicator" id="mp-indicator">
                 <span class="status-dot"></span>
                 <span>Room: <span class="room-code" id="mp-room-code">----</span></span>
-                <span class="player-count" id="mp-player-count">0 players</span>
+                <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players">
+                    <span id="mp-player-count">0 players</span>
+                    <span class="expand-icon">▾</span>
+                </button>
                 <div class="mp-password-display" id="mp-password-display" style="display: none;">
                     <span>Password: <strong id="mp-password-text"></strong></span>
                     <button type="button" class="btn-copy-password" id="btn-copy-password" title="Copy password">📋</button>
+                </div>
+                <!-- Player list (expandable) -->
+                <div class="mp-player-list" id="mp-player-list" style="display: none;">
+                    <ul id="mp-players-ul"></ul>
                 </div>
             </div>
 
@@ -2402,6 +2647,13 @@
 
             <div class="turn-indicator" id="turn-indicator">
                 Red Team's Turn
+            </div>
+
+            <!-- Timer countdown display -->
+            <div class="timer-display" id="timer-display" role="timer" aria-live="polite">
+                <span class="timer-icon" aria-hidden="true">⏱️</span>
+                <span class="timer-value" id="timer-value">--:--</span>
+                <span class="timer-label">remaining</span>
             </div>
 
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
@@ -2472,6 +2724,10 @@
                         <button type="button" class="settings-nav-item" data-panel="link">
                             <span class="nav-icon">🔗</span>
                             <span class="nav-text">Link</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="prefs">
+                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-text">Prefs</span>
                         </button>
                     </nav>
                     <!-- QR Code in sidebar bottom -->
@@ -2594,6 +2850,32 @@
                             <div class="qr-container compact">
                                 <canvas id="share-qr-canvas" width="200" height="200"></canvas>
                                 <span class="qr-hint">Scan to join on mobile</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preferences Panel -->
+                    <div class="settings-panel" id="panel-prefs">
+                        <h2>Preferences</h2>
+                        <div class="prefs-content">
+                            <p class="panel-description">Customize your game experience. Settings are saved locally.</p>
+
+                            <div class="pref-group">
+                                <h3>Notifications</h3>
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="pref-sound-notifications" class="toggle-checkbox">
+                                    <span class="toggle-switch"></span>
+                                    <span class="toggle-text">Sound notifications when it's your turn</span>
+                                </label>
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="pref-tab-notification" class="toggle-checkbox">
+                                    <span class="toggle-switch"></span>
+                                    <span class="toggle-text">Browser tab notification when it's your turn</span>
+                                </label>
+                            </div>
+
+                            <div class="pref-group">
+                                <button type="button" class="btn-test-sound" id="btn-test-sound">🔊 Test Sound</button>
                             </div>
                         </div>
                     </div>
@@ -2741,7 +3023,9 @@
             redTeamName: null,
             blueTeamName: null,
             shareLink: null,
-            srAnnouncements: null
+            srAnnouncements: null,
+            timerDisplay: null,
+            timerValue: null
         };
 
         // Initialize cached elements (called once on page load)
@@ -2761,6 +3045,8 @@
             cachedElements.blueTeamName = document.getElementById('blue-team-name');
             cachedElements.shareLink = document.getElementById('share-link');
             cachedElements.srAnnouncements = document.getElementById('sr-announcements');
+            cachedElements.timerDisplay = document.getElementById('timer-display');
+            cachedElements.timerValue = document.getElementById('timer-value');
         }
 
         // ========== SCREEN READER ANNOUNCEMENTS ==========
@@ -2955,6 +3241,7 @@
         async function handleJoinGame() {
             const nickname = document.getElementById('join-nickname').value.trim();
             const password = document.getElementById('join-password').value.trim();
+            const urlRoomCode = getRoomCodeFromURL();
 
             // Validation
             if (!nickname) {
@@ -2980,23 +3267,28 @@
                 return;
             }
 
-            // Try to find room by password
             try {
-                setMpStatus('Finding game...', 'connecting');
-                const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        setMpStatus('No game found with that password', 'error');
-                        return;
-                    }
-                    throw new Error('Failed to find game');
-                }
+                let roomCode = urlRoomCode;
 
-                const { code } = await response.json();
+                // If we have a room code from URL, try to join directly
+                // Otherwise, look up by password
+                if (!roomCode) {
+                    setMpStatus('Finding game...', 'connecting');
+                    const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            setMpStatus('No game found with that password', 'error');
+                            return;
+                        }
+                        throw new Error('Failed to find game');
+                    }
+                    const data = await response.json();
+                    roomCode = data.code;
+                }
 
                 setMpStatus('Joining game...', 'connecting');
                 // Join the room
-                const result = await CodenamesClient.joinRoom(code, nickname, password);
+                const result = await CodenamesClient.joinRoom(roomCode, nickname, password);
 
                 // Store password for potential reconnection
                 currentRoomPassword = password;
@@ -3082,6 +3374,11 @@
                 syncGameStateFromServer(result.game);
             }
 
+            // Update URL with room code for shareable links
+            if (result.room?.code) {
+                updateURLWithRoomCode(result.room.code);
+            }
+
             // Update UI
             setMpStatus('Connected!', 'success');
             updateMpIndicator(result.room, multiplayerPlayers);
@@ -3109,6 +3406,8 @@
             const countEl = document.getElementById('mp-player-count');
             const passwordDisplay = document.getElementById('mp-password-display');
             const passwordText = document.getElementById('mp-password-text');
+            const playerListEl = document.getElementById('mp-player-list');
+            const playersUl = document.getElementById('mp-players-ul');
 
             if (room) {
                 codeEl.textContent = room.code;
@@ -3122,9 +3421,66 @@
                 } else {
                     passwordDisplay.style.display = 'none';
                 }
+
+                // Update player list
+                if (playersUl && players) {
+                    updatePlayerList(playersUl, players);
+                }
             } else {
                 indicator.classList.remove('active');
                 passwordDisplay.style.display = 'none';
+                if (playerListEl) playerListEl.style.display = 'none';
+            }
+        }
+
+        function updatePlayerList(ul, players) {
+            const mySessionId = CodenamesClient.player?.sessionId;
+            const amHost = CodenamesClient.player?.isHost;
+
+            ul.innerHTML = players.map(p => {
+                const isMe = p.sessionId === mySessionId;
+                const teamClass = p.team ? `player-team-${p.team}` : '';
+                const disconnectedClass = p.connected === false ? 'player-disconnected' : '';
+                const roleText = p.role ? `(${p.role})` : '';
+                const hostBadge = p.isHost ? '<span class="host-badge">Host</span>' : '';
+                const kickBtn = amHost && !isMe ?
+                    `<button class="btn-kick" data-session="${p.sessionId}" title="Kick player">Kick</button>` : '';
+
+                return `<li class="${disconnectedClass}">
+                    <span class="player-info">
+                        <span class="player-name ${isMe ? 'you' : ''} ${teamClass}">${escapeHTML(p.nickname)}${isMe ? ' (you)' : ''}</span>
+                        ${hostBadge}
+                        <span class="player-role">${roleText}${p.connected === false ? ' - offline' : ''}</span>
+                    </span>
+                    ${kickBtn}
+                </li>`;
+            }).join('');
+        }
+
+        function initPlayerListUI() {
+            const playerCountBtn = document.getElementById('mp-player-count-btn');
+            const playerListEl = document.getElementById('mp-player-list');
+            const playersUl = document.getElementById('mp-players-ul');
+
+            if (playerCountBtn && playerListEl) {
+                playerCountBtn.addEventListener('click', () => {
+                    const isExpanded = playerListEl.style.display !== 'none';
+                    playerListEl.style.display = isExpanded ? 'none' : 'block';
+                    playerCountBtn.classList.toggle('expanded', !isExpanded);
+                });
+            }
+
+            // Event delegation for kick buttons
+            if (playersUl) {
+                playersUl.addEventListener('click', (e) => {
+                    const kickBtn = e.target.closest('.btn-kick');
+                    if (kickBtn) {
+                        const sessionId = kickBtn.dataset.session;
+                        if (sessionId && confirm('Are you sure you want to kick this player?')) {
+                            CodenamesClient.kickPlayer(sessionId);
+                        }
+                    }
+                });
             }
         }
 
@@ -3134,6 +3490,22 @@
                     showToast('Password copied!', 'success', 2000);
                 }).catch(() => {
                     showToast('Failed to copy', 'error', 2000);
+                });
+            }
+        }
+
+        /**
+         * Copy shareable link with room code to clipboard
+         */
+        function copyRoomLink() {
+            const roomCode = CodenamesClient.getRoomCode();
+            if (roomCode) {
+                const url = new URL(window.location.origin);
+                url.searchParams.set('room', roomCode);
+                navigator.clipboard.writeText(url.toString()).then(() => {
+                    showToast('Room link copied! Share with the password.', 'success', 3000);
+                }).catch(() => {
+                    showToast('Failed to copy link', 'error', 2000);
                 });
             }
         }
@@ -3156,11 +3528,15 @@
 
             CodenamesClient.on('turnEnded', (data) => {
                 if (data.nextTeam) {
+                    const previousTurn = gameState.currentTurn;
                     // Update turn locally
                     gameState.currentTurn = data.nextTeam;
                     updateTurnIndicator();
                     updateRoleBanner();
                     updateControls();
+
+                    // Check and send notifications if it's now our turn
+                    checkAndNotifyTurn(data.nextTeam, previousTurn);
 
                     // Announce turn change
                     const newTeamName = data.nextTeam === 'red' ? teamNames.red : teamNames.blue;
@@ -3171,6 +3547,8 @@
             CodenamesClient.on('gameOver', (data) => {
                 if (data.winner) {
                     showGameOver(data.winner, data.reason);
+                    // Clear tab notification on game over
+                    setTabNotification(false);
                 }
             });
 
@@ -3249,6 +3627,9 @@
                         p.sessionId === data.sessionId ? { ...p, connected: false } : p
                     );
                     updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                    // Update controls and board - clicker disconnecting enables other team members
+                    updateControls();
+                    renderBoard();
                 }
                 showToast(`${data.nickname || 'A player'} disconnected`, 'warning');
             });
@@ -3261,22 +3642,28 @@
                         p.sessionId === data.sessionId ? { ...p, connected: true } : p
                     );
                     updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                    // Update controls and board - clicker reconnecting restores normal behavior
+                    updateControls();
+                    renderBoard();
                 }
                 showToast(`${data.nickname || 'A player'} reconnected`, 'success');
             });
 
             // Timer events (for turn timers when enabled)
             CodenamesClient.on('timerStatus', (data) => {
-                // Timer status received on join/reconnect - ready for future timer UI
-                // data contains: { active, remaining, duration, paused }
+                handleTimerStatus(data);
             });
 
             CodenamesClient.on('timerStarted', (data) => {
-                // Timer started - ready for future timer UI
-                // data contains: { duration/durationSeconds }
+                handleTimerStarted(data);
+            });
+
+            CodenamesClient.on('timerStopped', (data) => {
+                handleTimerStopped();
             });
 
             CodenamesClient.on('timerExpired', (data) => {
+                handleTimerStopped();
                 showToast('Turn time expired!', 'warning');
             });
 
@@ -3312,6 +3699,20 @@
                 leaveMultiplayerMode();
             });
 
+            // Handle being kicked from the room
+            CodenamesClient.on('kicked', (data) => {
+                leaveMultiplayerMode();
+                showToast(data.reason || 'You were kicked from the room', 'error', 5000);
+            });
+
+            // Handle another player being kicked
+            CodenamesClient.on('playerKicked', (data) => {
+                // Update player list
+                multiplayerPlayers = multiplayerPlayers.filter(p => p.sessionId !== data.sessionId);
+                updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                showToast(`${data.nickname} was kicked by the host`, 'info');
+            });
+
             // Error handling for game actions
             CodenamesClient.on('error', (error) => {
                 console.error('Multiplayer error:', error);
@@ -3333,8 +3734,9 @@
             'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
             'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
             'playerUpdated', 'clueGiven', 'spymasterView',
-            'timerStatus', 'timerStarted', 'timerExpired', 'roomResynced',
-            'disconnected', 'rejoined', 'rejoinFailed', 'error'
+            'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
+            'disconnected', 'rejoined', 'rejoinFailed', 'error',
+            'kicked', 'playerKicked'
         ];
 
         function cleanupMultiplayerListeners() {
@@ -3351,6 +3753,12 @@
             // Clean up listeners
             cleanupMultiplayerListeners();
 
+            // Stop timer display
+            handleTimerStopped();
+
+            // Reset tab notification
+            setTabNotification(false);
+
             // Leave room and disconnect
             if (CodenamesClient && CodenamesClient.isConnected()) {
                 CodenamesClient.leaveRoom();
@@ -3360,6 +3768,9 @@
             isMultiplayerMode = false;
             multiplayerPlayers = [];
             currentRoomPassword = null;
+
+            // Clear room code from URL
+            clearRoomCodeFromURL();
 
             // Update UI
             updateMpIndicator(null, []);
@@ -3433,6 +3844,10 @@
             renderBoard();
             updateScoreboard();
             updateTurnIndicator();
+
+            // Update tab notification based on current turn
+            const isYourTurn = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
+            setTabNotification(isYourTurn);
         }
 
         /**
@@ -3481,6 +3896,61 @@
         }
 
         // Initialize multiplayer modal interactions
+        /**
+         * Parse room code from URL query parameters
+         * Supports: ?room=ABCDEF or ?join=ABCDEF
+         * @returns {string|null} Room code or null if not present
+         */
+        function getRoomCodeFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('room') || params.get('join') || null;
+        }
+
+        /**
+         * Update URL with room code after joining (for shareable links)
+         * @param {string} roomCode - The room code to add to URL
+         */
+        function updateURLWithRoomCode(roomCode) {
+            if (!roomCode) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', roomCode);
+            // Remove standalone game parameters when in multiplayer
+            url.searchParams.delete('game');
+            url.searchParams.delete('r');
+            url.searchParams.delete('t');
+            url.searchParams.delete('w');
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        /**
+         * Clear room code from URL when leaving multiplayer
+         */
+        function clearRoomCodeFromURL() {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('room');
+            url.searchParams.delete('join');
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        /**
+         * Check for room code in URL and auto-open join modal
+         */
+        function checkURLForRoomJoin() {
+            const roomCode = getRoomCodeFromURL();
+            if (roomCode && roomCode.length === 6) {
+                // Pre-fill nickname from storage
+                const storedNickname = localStorage.getItem('codenames-nickname') || '';
+                document.getElementById('join-nickname').value = storedNickname;
+
+                // Show multiplayer modal in join mode
+                setMpMode('join');
+                openModal('multiplayer-modal');
+
+                // Show message about the room code
+                setMpStatus(`Room code: ${roomCode.toUpperCase()} - Enter password to join`, 'info');
+            }
+        }
+
         function initMultiplayerModal() {
             // Mode toggle buttons
             document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -3505,6 +3975,9 @@
             if (copyBtn) {
                 copyBtn.addEventListener('click', copyRoomPassword);
             }
+
+            // Check for room code in URL after modal is initialized
+            setTimeout(checkURLForRoomJoin, 100);
         }
 
         // Modal management with focus trapping and keyboard support
@@ -3702,6 +4175,208 @@
             currentClue: null, // { word, number, team, spymaster, guessesAllowed }
             guessesUsed: 0 // Number of guesses used for current clue
         };
+
+        // ========== TIMER STATE ==========
+        let timerState = {
+            active: false,
+            endTime: null,
+            duration: null,
+            remainingSeconds: null,
+            intervalId: null
+        };
+
+        // Format seconds as MM:SS
+        function formatTimerValue(seconds) {
+            if (seconds === null || seconds === undefined || seconds < 0) return '--:--';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Update timer display UI
+        function updateTimerDisplay() {
+            const display = cachedElements.timerDisplay || document.getElementById('timer-display');
+            const value = cachedElements.timerValue || document.getElementById('timer-value');
+            if (!display || !value) return;
+
+            if (!timerState.active || timerState.remainingSeconds === null) {
+                display.classList.remove('active', 'warning', 'critical');
+                value.textContent = '--:--';
+                return;
+            }
+
+            display.classList.add('active');
+            value.textContent = formatTimerValue(timerState.remainingSeconds);
+
+            // Visual warnings
+            display.classList.remove('warning', 'critical');
+            if (timerState.remainingSeconds <= 10) {
+                display.classList.add('critical');
+            } else if (timerState.remainingSeconds <= 30) {
+                display.classList.add('warning');
+            }
+        }
+
+        // Start local countdown interval
+        function startTimerCountdown() {
+            stopTimerCountdown(); // Clear any existing interval
+
+            if (!timerState.active || !timerState.endTime) return;
+
+            timerState.intervalId = setInterval(() => {
+                const now = Date.now();
+                const remaining = Math.max(0, Math.ceil((timerState.endTime - now) / 1000));
+                timerState.remainingSeconds = remaining;
+                updateTimerDisplay();
+
+                if (remaining <= 0) {
+                    stopTimerCountdown();
+                }
+            }, 250); // Update 4x per second for smooth display
+        }
+
+        // Stop local countdown interval
+        function stopTimerCountdown() {
+            if (timerState.intervalId) {
+                clearInterval(timerState.intervalId);
+                timerState.intervalId = null;
+            }
+        }
+
+        // Handle timer started event
+        function handleTimerStarted(data) {
+            timerState.active = true;
+            timerState.endTime = data.endTime;
+            timerState.duration = data.duration || data.durationSeconds;
+            timerState.remainingSeconds = data.remainingSeconds || timerState.duration;
+            updateTimerDisplay();
+            startTimerCountdown();
+        }
+
+        // Handle timer stopped/expired event
+        function handleTimerStopped() {
+            timerState.active = false;
+            timerState.endTime = null;
+            timerState.remainingSeconds = null;
+            stopTimerCountdown();
+            updateTimerDisplay();
+        }
+
+        // Handle timer status on join/reconnect
+        function handleTimerStatus(data) {
+            if (data && (data.active || data.remainingSeconds > 0)) {
+                timerState.active = true;
+                timerState.endTime = data.endTime || (Date.now() + (data.remainingSeconds || data.remaining) * 1000);
+                timerState.duration = data.duration;
+                timerState.remainingSeconds = data.remainingSeconds || data.remaining;
+                updateTimerDisplay();
+                startTimerCountdown();
+            } else {
+                handleTimerStopped();
+            }
+        }
+
+        // ========== NOTIFICATION PREFERENCES ==========
+        let notificationPrefs = {
+            soundEnabled: false,
+            tabNotificationEnabled: false
+        };
+        let originalDocumentTitle = document.title;
+        let audioContext = null;
+
+        // Load notification preferences from localStorage
+        function loadNotificationPrefs() {
+            notificationPrefs.soundEnabled = localStorage.getItem('codenames-pref-sound') === 'true';
+            notificationPrefs.tabNotificationEnabled = localStorage.getItem('codenames-pref-tab-notification') === 'true';
+
+            // Update checkboxes if they exist
+            const soundCheckbox = document.getElementById('pref-sound-notifications');
+            const tabCheckbox = document.getElementById('pref-tab-notification');
+            if (soundCheckbox) soundCheckbox.checked = notificationPrefs.soundEnabled;
+            if (tabCheckbox) tabCheckbox.checked = notificationPrefs.tabNotificationEnabled;
+        }
+
+        // Save notification preferences to localStorage
+        function saveNotificationPrefs() {
+            localStorage.setItem('codenames-pref-sound', notificationPrefs.soundEnabled.toString());
+            localStorage.setItem('codenames-pref-tab-notification', notificationPrefs.tabNotificationEnabled.toString());
+        }
+
+        // Initialize Audio Context (must be triggered by user gesture)
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            // Resume if suspended (browsers require user gesture)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
+        }
+
+        // Play a notification sound using Web Audio API
+        function playNotificationSound() {
+            if (!notificationPrefs.soundEnabled) return;
+
+            try {
+                const ctx = initAudioContext();
+                if (!ctx) return;
+
+                // Create a pleasant two-tone notification
+                const now = ctx.currentTime;
+
+                // First tone
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(587.33, now); // D5
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.2);
+
+                // Second tone (slightly delayed)
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880, now + 0.1); // A5
+                gain2.gain.setValueAtTime(0, now);
+                gain2.gain.setValueAtTime(0.3, now + 0.1);
+                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.1);
+                osc2.stop(now + 0.3);
+            } catch (e) {
+                console.warn('Could not play notification sound:', e);
+            }
+        }
+
+        // Update browser tab title with notification
+        function setTabNotification(isYourTurn) {
+            if (isYourTurn && notificationPrefs.tabNotificationEnabled) {
+                document.title = '🔴 Your Turn - Codenames';
+            } else {
+                document.title = originalDocumentTitle;
+            }
+        }
+
+        // Check and notify if it's the player's turn
+        function checkAndNotifyTurn(newTurn, previousTurn) {
+            // Check if it became our turn
+            const isYourTurn = clickerTeam && clickerTeam === newTurn;
+            const wasYourTurn = clickerTeam && clickerTeam === previousTurn;
+
+            if (isYourTurn && !wasYourTurn) {
+                // It just became our turn
+                playNotificationSound();
+            }
+
+            // Update tab notification
+            setTabNotification(isYourTurn);
+        }
 
         // Seeded random number generator using Mulberry32 algorithm
         // Provides better distribution than Math.sin-based approach
@@ -4242,8 +4917,24 @@
                     // Role already displayed in banner - hide redundant hint
                     roleHint.classList.add('hidden');
                 } else {
-                    roleHint.textContent = 'Choose Spymaster or Clicker';
-                    roleHint.classList.remove('hidden');
+                    // Check if player can click due to clicker disconnected
+                    const canClickDueToDisconnect = isMultiplayerMode &&
+                        playerTeam === gameState.currentTurn &&
+                        !gameState.gameOver &&
+                        (() => {
+                            const teamClicker = multiplayerPlayers.find(
+                                p => p.team === gameState.currentTurn && p.role === 'clicker'
+                            );
+                            return !teamClicker || !teamClicker.connected;
+                        })();
+
+                    if (canClickDueToDisconnect) {
+                        roleHint.textContent = 'Clicker offline - you can reveal cards';
+                        roleHint.classList.remove('hidden');
+                    } else {
+                        roleHint.textContent = 'Choose Spymaster or Clicker';
+                        roleHint.classList.remove('hidden');
+                    }
                 }
             }
         }
@@ -4310,8 +5001,25 @@
         }
 
         function canClickCards() {
-            // Only the clicker for the current team can click cards
-            return clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
+            if (gameState.gameOver) return false;
+
+            // Clicker for the current team can always click
+            if (clickerTeam && clickerTeam === gameState.currentTurn) {
+                return true;
+            }
+
+            // In multiplayer: any team member can click if clicker is disconnected
+            if (isMultiplayerMode && playerTeam === gameState.currentTurn) {
+                const teamClicker = multiplayerPlayers.find(
+                    p => p.team === gameState.currentTurn && p.role === 'clicker'
+                );
+                // Allow if no clicker assigned or clicker is disconnected
+                if (!teamClicker || !teamClicker.connected) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Track if board has been initialized (for incremental updates)
@@ -5173,6 +5881,11 @@
                 initSettingsNav();
                 // Initialize multiplayer modal
                 initMultiplayerModal();
+                // Initialize player list UI (kick buttons)
+                initPlayerListUI();
+                // Load notification preferences
+                loadNotificationPrefs();
+                initNotificationPrefsUI();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 loadGameFromURL();
@@ -5184,6 +5897,40 @@
                     'Failed to load the game. This might be due to corrupted data or a browser issue.',
                     e.message || 'Unknown error'
                 );
+            }
+        }
+
+        // Initialize notification preferences UI handlers
+        function initNotificationPrefsUI() {
+            const soundCheckbox = document.getElementById('pref-sound-notifications');
+            const tabCheckbox = document.getElementById('pref-tab-notification');
+            const testSoundBtn = document.getElementById('btn-test-sound');
+
+            if (soundCheckbox) {
+                soundCheckbox.addEventListener('change', (e) => {
+                    notificationPrefs.soundEnabled = e.target.checked;
+                    saveNotificationPrefs();
+                    // Initialize audio context on user interaction
+                    if (e.target.checked) initAudioContext();
+                });
+            }
+
+            if (tabCheckbox) {
+                tabCheckbox.addEventListener('change', (e) => {
+                    notificationPrefs.tabNotificationEnabled = e.target.checked;
+                    saveNotificationPrefs();
+                });
+            }
+
+            if (testSoundBtn) {
+                testSoundBtn.addEventListener('click', () => {
+                    // Temporarily enable sound for test
+                    const wasEnabled = notificationPrefs.soundEnabled;
+                    notificationPrefs.soundEnabled = true;
+                    initAudioContext();
+                    playNotificationSound();
+                    notificationPrefs.soundEnabled = wasEnabled;
+                });
             }
         }
 

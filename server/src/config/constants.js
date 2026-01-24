@@ -59,6 +59,15 @@ module.exports = {
         TIMER_TTL_BUFFER_SECONDS: 60      // Extra TTL buffer for timer keys
     },
 
+    // Socket.io configuration
+    SOCKET: {
+        PING_TIMEOUT_MS: 60000,           // Ping timeout (60 seconds)
+        PING_INTERVAL_MS: 25000,          // Ping interval (25 seconds)
+        MAX_DISCONNECTION_DURATION_MS: 2 * 60 * 1000,  // 2 minutes for connection recovery
+        SOCKET_COUNT_CACHE_MS: 5000,      // Cache socket count for 5 seconds
+        REDIS_KEEPALIVE_MS: 10000         // Redis keepalive interval
+    },
+
     // Rate limits for socket events
     // Keys match the rate limit identifiers used in handlers (not necessarily the event names)
     RATE_LIMITS: {
@@ -81,6 +90,7 @@ module.exports = {
         'player:team': { window: 2000, max: 5 },      // 5 per 2 seconds
         'player:role': { window: 2000, max: 5 },      // 5 per 2 seconds
         'player:nickname': { window: 5000, max: 3 },  // 3 per 5 seconds
+        'player:kick': { window: 5000, max: 3 },      // 3 per 5 seconds (host only)
         // Chat events
         'chat:message': { window: 5000, max: 10 },    // 10 per 5 seconds
         // Timer events
@@ -238,7 +248,8 @@ module.exports = {
         SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
         SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
         RESERVED_NAME: 'RESERVED_NAME',
-        CANNOT_SWITCH_TEAM_DURING_TURN: 'CANNOT_SWITCH_TEAM_DURING_TURN'
+        CANNOT_SWITCH_TEAM_DURING_TURN: 'CANNOT_SWITCH_TEAM_DURING_TURN',
+        PLAYER_NOT_FOUND: 'PLAYER_NOT_FOUND'
     },
 
     // Reserved nicknames (case-insensitive)

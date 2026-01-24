@@ -30,6 +30,19 @@ jest.mock('../socket/index', () => ({
     stopTurnTimer: jest.fn().mockResolvedValue()
 }));
 
+// Mock socketFunctionProvider to provide timer functions
+jest.mock('../socket/socketFunctionProvider', () => ({
+    getSocketFunctions: jest.fn(() => ({
+        startTurnTimer: jest.fn().mockResolvedValue({}),
+        stopTurnTimer: jest.fn().mockResolvedValue(),
+        emitToRoom: jest.fn(),
+        emitToPlayer: jest.fn(),
+        getTimerStatus: jest.fn().mockResolvedValue(null),
+        getIO: jest.fn()
+    })),
+    isRegistered: jest.fn(() => true)
+}));
+
 describe('Game Handlers', () => {
     let mockSocket;
     let mockIo;
@@ -132,6 +145,12 @@ describe('Game Handlers', () => {
 
         test('validates player is clicker', async () => {
             playerService.getPlayer.mockResolvedValue({ role: 'spectator', team: 'red' });
+            // PHASE 1 FIX: Need game to check if clicker is disconnected
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // Mock team with connected clicker so spectator can't reveal
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'other-session', connected: true, team: 'red', role: 'clicker' }
+            ]);
 
             const handlers = mockSocket.on.mock.calls;
             const revealHandler = handlers.find(h => h[0] === 'game:reveal');
@@ -224,10 +243,14 @@ describe('Game Handlers', () => {
             const revealHandler = handlers.find(h => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(mockIo.emit).toHaveBeenCalledWith('game:over', expect.objectContaining({
+            // Check that game:over was emitted (among multiple emit calls)
+            const emitCalls = mockIo.emit.mock.calls;
+            const gameOverCall = emitCalls.find(call => call[0] === 'game:over');
+            expect(gameOverCall).toBeDefined();
+            expect(gameOverCall[1]).toMatchObject({
                 winner: 'blue',
                 reason: 'assassin'
-            }));
+            });
         });
     });
 

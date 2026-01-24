@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const { authenticateSocket } = require('../middleware/socketAuth');
 const timerService = require('../services/timerService');
 const eventLogService = require('../services/eventLogService');
+const { SOCKET } = require('../config/constants');
 const {
     socketRateLimiter,
     createRateLimitedHandler,
@@ -17,6 +18,7 @@ const {
     startRateLimitCleanup,
     stopRateLimitCleanup
 } = require('./rateLimitHandler');
+const { registerSocketFunctions } = require('./socketFunctionProvider');
 
 // Import handlers AFTER rate limiter is set up to avoid circular dependency issues
 const roomHandlers = require('./handlers/roomHandlers');
@@ -42,13 +44,13 @@ function initializeSocket(server, expressApp = null) {
         transports: isProduction ? ['websocket'] : ['polling', 'websocket'],
         // Allow upgrades in development
         allowUpgrades: !isProduction,
-        // Increase timeouts for better stability on Fly.io
-        pingTimeout: 60000,
-        pingInterval: 25000,
+        // Increase timeouts for better stability on Fly.io (from centralized constants)
+        pingTimeout: SOCKET.PING_TIMEOUT_MS,
+        pingInterval: SOCKET.PING_INTERVAL_MS,
         // Connection state recovery for reconnections
         connectionStateRecovery: {
-            // Maximum number of minutes a connection can be offline
-            maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+            // Maximum duration a connection can be offline
+            maxDisconnectionDuration: SOCKET.MAX_DISCONNECTION_DURATION_MS,
             // Skip middlewares on reconnection
             skipMiddlewares: false
         },
@@ -134,6 +136,16 @@ function initializeSocket(server, expressApp = null) {
 
     // Start periodic cleanup of stale rate limit entries
     startRateLimitCleanup();
+
+    // Register socket functions for handlers (breaks circular dependency)
+    registerSocketFunctions({
+        emitToRoom,
+        emitToPlayer,
+        startTurnTimer,
+        stopTurnTimer,
+        getTimerStatus,
+        getIO
+    });
 
     return io;
 }

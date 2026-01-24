@@ -15,13 +15,13 @@ const routes = require('./routes');
 const logger = require('./utils/logger');
 const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
 const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
+const { SOCKET } = require('./config/constants');
 
 const app = express();
 
 // Cached socket count for fast health checks
 let cachedSocketCount = 0;
 let lastSocketCountUpdate = 0;
-const SOCKET_COUNT_CACHE_MS = 5000;
 
 /**
  * Get cached socket count (updated on connect/disconnect)
@@ -31,7 +31,7 @@ async function getCachedSocketCount(io, forceRefresh = false) {
     const now = Date.now();
 
     // Return cached value if fresh
-    if (!forceRefresh && now - lastSocketCountUpdate < SOCKET_COUNT_CACHE_MS) {
+    if (!forceRefresh && now - lastSocketCountUpdate < SOCKET.SOCKET_COUNT_CACHE_MS) {
         return { count: cachedSocketCount, cached: true };
     }
 

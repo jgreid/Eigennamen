@@ -13,6 +13,7 @@ const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const { RoomError } = require('../../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
+const { getSocketFunctions } = require('../socketFunctionProvider');
 
 /**
  * Helper: Send timer status to a socket
@@ -20,7 +21,7 @@ const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
  */
 async function sendTimerStatus(socket, roomCode, context) {
     try {
-        const { getTimerStatus } = require('../index');
+        const { getTimerStatus } = getSocketFunctions();
         const timerStatus = await getTimerStatus(roomCode);
         if (timerStatus && timerStatus.endTime) {
             socket.emit('timer:status', {

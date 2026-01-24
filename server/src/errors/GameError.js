@@ -137,6 +137,14 @@ class PlayerError extends GameError {
             'Not authorized to perform this action'
         );
     }
+
+    static notFound(sessionId) {
+        return new PlayerError(
+            ERROR_CODES.PLAYER_NOT_FOUND,
+            'Player not found',
+            { sessionId }
+        );
+    }
 }
 
 /**
