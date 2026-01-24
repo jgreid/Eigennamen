@@ -582,9 +582,10 @@
 
         /**
          * Clear all stored session data
+         * ISSUE #48 FIX: Session ID is in sessionStorage (per-tab), others in localStorage
          */
         clearSession() {
-            localStorage.removeItem('codenames-session-id');
+            sessionStorage.removeItem('codenames-session-id');
             localStorage.removeItem('codenames-room-code');
             localStorage.removeItem('codenames-nickname');
             this.sessionId = null;
