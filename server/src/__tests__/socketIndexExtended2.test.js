@@ -125,15 +125,23 @@ describe('Socket Index Extended Tests', () => {
     const TEST_PORT = 3087 + Math.floor(Math.random() * 10);
 
     beforeAll((done) => {
+        let doneCalled = false;
+        const callDone = (err) => {
+            if (!doneCalled) {
+                doneCalled = true;
+                done(err);
+            }
+        };
+
         server = http.createServer();
         server.on('error', (err) => {
             if (err.code === 'EADDRINUSE') {
-                server.listen(TEST_PORT + 10, done);
+                server.listen(TEST_PORT + 10, callDone);
             } else {
-                done(err);
+                callDone(err);
             }
         });
-        server.listen(TEST_PORT, done);
+        server.listen(TEST_PORT, callDone);
     });
 
     afterAll((done) => {
