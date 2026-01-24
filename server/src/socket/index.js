@@ -55,7 +55,19 @@ function initializeSocket(server, expressApp = null) {
             skipMiddlewares: false
         },
         // Allow EIO4 for older clients
-        allowEIO3: true
+        allowEIO3: true,
+        // US-16.4: Enable per-message deflate compression for reduced bandwidth
+        perMessageDeflate: {
+            threshold: 1024, // Only compress messages larger than 1KB
+            zlibDeflateOptions: {
+                chunkSize: 16 * 1024 // 16KB chunks
+            },
+            zlibInflateOptions: {
+                chunkSize: 16 * 1024
+            },
+            clientNoContextTakeover: true, // Don't keep compression context between messages
+            serverNoContextTakeover: true
+        }
     });
 
     // Use Redis adapter for horizontal scaling (skip in memory mode)
@@ -307,6 +319,10 @@ async function handleDisconnect(io, socket, reason) {
             // ISSUE #15 FIX: Get updated player list to ensure clients have consistent state
             const updatedPlayers = await playerService.getPlayersInRoom(roomCode);
 
+            // US-16.3: Calculate reconnection deadline for frontend display
+            const { SESSION_SECURITY } = require('./config/constants');
+            const reconnectionDeadline = Date.now() + (SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000);
+
             io.to(`room:${roomCode}`).emit('player:disconnected', {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
@@ -317,7 +333,10 @@ async function handleDisconnect(io, socket, reason) {
                 players: updatedPlayers,
                 // ISSUE #17 FIX: Include reconnection token in disconnect notification
                 // This allows clients to store it for secure reconnection
-                reconnectionToken: reconnectionToken
+                reconnectionToken: reconnectionToken,
+                // US-16.3: Indicate player may reconnect and when the window closes
+                reconnecting: !!reconnectionToken,
+                reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
             });
 
             // Log disconnect event for reconnection recovery
@@ -472,6 +491,7 @@ function cleanupSocketModule() {
     logger.info('Socket module cleaned up');
 }
 
+// Export internal functions for testing (prefixed with _ to indicate internal use)
 module.exports = {
     initializeSocket,
     getIO,
@@ -482,5 +502,8 @@ module.exports = {
     getTimerStatus,
     getSocketRateLimiter,
     createRateLimitedHandler,
-    cleanupSocketModule
+    cleanupSocketModule,
+    // Exported for testing only - do not use directly in production code
+    _handleDisconnect: handleDisconnect,
+    _createTimerExpireCallback: createTimerExpireCallback
 };

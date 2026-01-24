@@ -912,6 +912,72 @@ async function invalidateReconnectionToken(sessionId) {
     }
 }
 
+/**
+ * Get spectator count and list for a room (US-16.1)
+ * Spectators are players with role='spectator'
+ * @param {string} roomCode - Room code
+ * @returns {Object} { count: number, spectators: Array }
+ */
+async function getSpectators(roomCode) {
+    const players = await getPlayersInRoom(roomCode);
+    const spectators = players.filter(p => p.role === 'spectator' && p.connected);
+    return {
+        count: spectators.length,
+        spectators: spectators.map(s => ({
+            sessionId: s.sessionId,
+            nickname: s.nickname,
+            team: s.team // team affiliation (can be null)
+        }))
+    };
+}
+
+/**
+ * Get spectator count only (lightweight version) (US-16.1)
+ * @param {string} roomCode - Room code
+ * @returns {number} Number of connected spectators
+ */
+async function getSpectatorCount(roomCode) {
+    const players = await getPlayersInRoom(roomCode);
+    return players.filter(p => p.role === 'spectator' && p.connected).length;
+}
+
+/**
+ * Get room player statistics (US-16.1)
+ * Returns counts by role and team for UI display
+ * @param {string} roomCode - Room code
+ * @returns {Object} Player statistics
+ */
+async function getRoomStats(roomCode) {
+    const players = await getPlayersInRoom(roomCode);
+    const connected = players.filter(p => p.connected);
+
+    const stats = {
+        totalPlayers: connected.length,
+        spectatorCount: 0,
+        teams: {
+            red: { total: 0, spymaster: null, clicker: null },
+            blue: { total: 0, spymaster: null, clicker: null }
+        }
+    };
+
+    for (const player of connected) {
+        if (player.role === 'spectator') {
+            stats.spectatorCount++;
+        }
+
+        if (player.team === 'red' || player.team === 'blue') {
+            stats.teams[player.team].total++;
+            if (player.role === 'spymaster') {
+                stats.teams[player.team].spymaster = player.nickname;
+            } else if (player.role === 'clicker') {
+                stats.teams[player.team].clicker = player.nickname;
+            }
+        }
+    }
+
+    return stats;
+}
+
 module.exports = {
     createPlayer,
     getPlayer,
@@ -937,5 +1003,9 @@ module.exports = {
     generateReconnectionToken,
     validateReconnectionToken,
     getExistingReconnectionToken,
-    invalidateReconnectionToken
+    invalidateReconnectionToken,
+    // US-16.1: Spectator mode enhancements
+    getSpectators,
+    getSpectatorCount,
+    getRoomStats
 };

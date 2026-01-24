@@ -74,7 +74,10 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = room.code;
 
-            socket.emit('room:created', { room, player });
+            // US-16.1: Get initial room stats
+            const roomStats = await playerService.getRoomStats(room.code);
+
+            socket.emit('room:created', { room, player, stats: roomStats });
 
             // Log event for room history
             await eventLogService.logEvent(
@@ -135,8 +138,11 @@ module.exports = function roomHandlers(io, socket) {
             // ISSUE #17 FIX: Invalidate any existing reconnection token on successful join
             await playerService.invalidateReconnectionToken(socket.sessionId);
 
+            // US-16.1: Get room stats including spectator count
+            const roomStats = await playerService.getRoomStats(room.code);
+
             // Send room state to the joining player
-            socket.emit('room:joined', { room, players, game, you: player });
+            socket.emit('room:joined', { room, players, game, you: player, stats: roomStats });
 
             // ISSUE #49 FIX: If player is a spymaster and game is active, send spymaster view
             await sendSpymasterViewIfNeeded(socket, player, game, room.code);
@@ -317,12 +323,16 @@ module.exports = function roomHandlers(io, socket) {
                 'room:resync'
             );
 
+            // US-16.1: Get room stats including spectator count
+            const roomStats = await playerService.getRoomStats(socket.roomCode);
+
             // Send full state
             socket.emit('room:resynced', {
                 room,
                 players,
                 game: gameState,
-                you: player
+                you: player,
+                stats: roomStats
             });
 
             // If player is spymaster and game active, send spymaster view (non-critical, no timeout needed)
@@ -448,12 +458,16 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = code;
 
+            // US-16.1: Get room stats including spectator count
+            const roomStats = await playerService.getRoomStats(code);
+
             // Send reconnection success with full state
             socket.emit('room:reconnected', {
                 room,
                 players,
                 game: gameState,
-                you: player
+                you: player,
+                stats: roomStats
             });
 
             // If player is spymaster and game active, send spymaster view (non-critical)
