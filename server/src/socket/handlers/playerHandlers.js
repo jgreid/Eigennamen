@@ -17,18 +17,24 @@ module.exports = function playerHandlers(io, socket) {
      * Set player's team
      * Issue #61 Fix: Prevent clickers/spymasters from switching teams during their active turn
      * Issue #59 Fix: Prevent team from becoming empty during active game
+     * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
     socket.on('player:setTeam', createRateLimitedHandler(socket, 'player:team', async (data) => {
         try {
+            // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
             }
 
             const validated = validateInput(playerTeamSchema, data);
             const gameService = require('../../services/gameService');
 
-            // Get current player and game state
+            // ISSUE #10 FIX: Verify player exists before proceeding
             const currentPlayer = await playerService.getPlayer(socket.sessionId);
+            if (!currentPlayer || currentPlayer.roomCode !== socket.roomCode) {
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
+            }
+
             const game = await gameService.getGame(socket.roomCode);
 
             // Check if player has an active role during their team's turn (Issue #61)
@@ -76,16 +82,23 @@ module.exports = function playerHandlers(io, socket) {
 
     /**
      * Set player's role
+     * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
     socket.on('player:setRole', createRateLimitedHandler(socket, 'player:role', async (data) => {
         try {
+            // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
             }
 
             const validated = validateInput(playerRoleSchema, data);
 
             const player = await playerService.setRole(socket.sessionId, validated.role);
+
+            // ISSUE #10 FIX: Verify player is still in the room before broadcasting
+            if (!player || player.roomCode !== socket.roomCode) {
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
+            }
 
             // Broadcast to room
             io.to(`room:${socket.roomCode}`).emit('player:updated', {
@@ -126,16 +139,23 @@ module.exports = function playerHandlers(io, socket) {
 
     /**
      * Update nickname
+     * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
     socket.on('player:setNickname', createRateLimitedHandler(socket, 'player:nickname', async (data) => {
         try {
+            // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
             }
 
             const validated = validateInput(playerNicknameSchema, data);
 
             const player = await playerService.setNickname(socket.sessionId, validated.nickname);
+
+            // ISSUE #10 FIX: Verify player is still in the room before broadcasting
+            if (!player || player.roomCode !== socket.roomCode) {
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
+            }
 
             // Broadcast to room
             io.to(`room:${socket.roomCode}`).emit('player:updated', {
@@ -167,11 +187,13 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Kick a player from the room (host only)
      * PHASE 1 FIX: Allow host to remove disruptive players
+     * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
      */
     socket.on('player:kick', createRateLimitedHandler(socket, 'player:kick', async (data) => {
         try {
+            // ISSUE #18 FIX: Better error message for missing roomCode
             if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
             }
 
             if (!data || !data.targetSessionId) {

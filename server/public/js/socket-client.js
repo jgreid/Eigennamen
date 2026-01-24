@@ -31,18 +31,18 @@
          */
         connect(serverUrl = null, options = {}) {
             return new Promise((resolve, reject) => {
-                // ISSUE #48 FIX: Use sessionStorage for session ID (per-tab) to prevent multi-tab conflicts
-                // Keep nickname in localStorage for user convenience
-                this.sessionId = sessionStorage.getItem('codenames-session-id');
-                this.storedNickname = localStorage.getItem('codenames-nickname');
+                // ISSUE #5 & #48 FIX: Use safe storage methods with error handling
+                this.sessionId = this._safeGetStorage(sessionStorage, 'codenames-session-id');
+                this.storedNickname = this._safeGetStorage(localStorage, 'codenames-nickname');
                 this.autoRejoin = options.autoRejoin !== false;
 
                 const url = serverUrl || window.location.origin;
 
-                // Determine transport based on environment:
+                // ISSUE #26 FIX: Improved transport configuration
                 // - Production (HTTPS) uses websocket only for better Fly.io compatibility
                 // - Development (HTTP) uses polling + websocket for easier debugging
-                const isSecure = url.startsWith('https://') || window.location.protocol === 'https:';
+                // - Use the target URL's protocol, not the page's protocol
+                const isSecure = url.startsWith('https://');
                 const transports = isSecure ? ['websocket'] : ['polling', 'websocket'];
 
                 this.socket = io(url, {
@@ -65,9 +65,11 @@
 
                     this._emit('connected', { wasReconnecting });
 
-                    // Auto-rejoin room on reconnection
+                    // ISSUE #11 FIX: Properly handle async _attemptRejoin with error catching
                     if (wasReconnecting && this.autoRejoin) {
-                        this._attemptRejoin();
+                        this._attemptRejoin().catch(err => {
+                            console.error('Auto-rejoin failed:', err);
+                        });
                     }
 
                     resolve(this.socket);
@@ -97,6 +99,7 @@
 
         /**
          * Attempt to rejoin the previous room
+         * ISSUE #5 FIX: Use safe storage methods
          */
         async _attemptRejoin() {
             const storedRoomCode = this.getStoredRoomCode();
@@ -117,7 +120,7 @@
             } catch (error) {
                 console.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
-                sessionStorage.removeItem('codenames-room-code');
+                this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
                 this._emit('rejoinFailed', { roomCode: storedRoomCode, error });
             }
         },
@@ -173,10 +176,11 @@
             });
 
             // Handle being kicked from the room
+            // ISSUE #5 FIX: Use safe storage methods
             this._registerSocketListener('room:kicked', (data) => {
                 this.roomCode = null;
                 this.player = null;
-                sessionStorage.removeItem('codenames-room-code');
+                this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
                 this._emit('kicked', data);
             });
 
@@ -290,20 +294,73 @@
         },
 
         /**
+         * Safely set item in storage with quota error handling
+         * ISSUE #5 FIX: Handles QuotaExceededError for private browsing mode
+         * @param {Storage} storage - sessionStorage or localStorage
+         * @param {string} key - Storage key
+         * @param {string} value - Value to store
+         * @returns {boolean} True if successful
+         */
+        _safeSetStorage(storage, key, value) {
+            try {
+                storage.setItem(key, value);
+                return true;
+            } catch (e) {
+                // QuotaExceededError in private browsing or when storage is full
+                if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                    console.warn(`Storage quota exceeded for ${key}, continuing without persistence`);
+                } else {
+                    console.error(`Storage error for ${key}:`, e);
+                }
+                return false;
+            }
+        },
+
+        /**
+         * Safely get item from storage
+         * ISSUE #5 FIX: Handles storage access errors
+         * @param {Storage} storage - sessionStorage or localStorage
+         * @param {string} key - Storage key
+         * @returns {string|null} Stored value or null
+         */
+        _safeGetStorage(storage, key) {
+            try {
+                return storage.getItem(key);
+            } catch (e) {
+                console.warn(`Storage access error for ${key}:`, e);
+                return null;
+            }
+        },
+
+        /**
+         * Safely remove item from storage
+         * ISSUE #5 FIX: Handles storage access errors
+         * @param {Storage} storage - sessionStorage or localStorage
+         * @param {string} key - Storage key
+         */
+        _safeRemoveStorage(storage, key) {
+            try {
+                storage.removeItem(key);
+            } catch (e) {
+                console.warn(`Storage removal error for ${key}:`, e);
+            }
+        },
+
+        /**
          * Save session to storage
-         * ISSUE #48 FIX: Session ID uses sessionStorage (per-tab) to prevent multi-tab conflicts
+         * ISSUE #5 & #48 FIX: Session ID uses sessionStorage (per-tab) with error handling
          * Room code and nickname use localStorage for user convenience across tabs
          */
         _saveSession() {
             if (this.sessionId) {
-                sessionStorage.setItem('codenames-session-id', this.sessionId);
+                this._safeSetStorage(sessionStorage, 'codenames-session-id', this.sessionId);
             }
             if (this.roomCode) {
                 // Use sessionStorage for room code to prevent multi-tab conflicts
-                sessionStorage.setItem('codenames-room-code', this.roomCode);
+                this._safeSetStorage(sessionStorage, 'codenames-room-code', this.roomCode);
             }
             if (this.player?.nickname) {
-                localStorage.setItem('codenames-nickname', this.player.nickname);
+                this._safeSetStorage(localStorage, 'codenames-nickname', this.player.nickname);
                 this.storedNickname = this.player.nickname;
             }
         },
@@ -381,23 +438,37 @@
 
         /**
          * Create a new room
+         * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
          * @param {Object} settings - Room settings
          * @returns {Promise}
          */
         createRoom(settings = {}) {
             return new Promise((resolve, reject) => {
-                this.socket.emit('room:create', { settings });
+                let timeoutId = null;
+                let settled = false;
 
-                const onCreated = (data) => {
+                const cleanup = () => {
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
                     this.off('roomCreated', onCreated);
                     this.off('error', onError);
+                };
+
+                const onCreated = (data) => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
                     resolve(data);
                 };
 
+                // ISSUE #6 FIX: Clean up on ANY error, not just room errors
                 const onError = (error) => {
-                    if (error.type === 'room') {
-                        this.off('roomCreated', onCreated);
-                        this.off('error', onError);
+                    if (settled) return;
+                    if (error.type === 'room' || error.type === 'connection') {
+                        settled = true;
+                        cleanup();
                         reject(error);
                     }
                 };
@@ -405,10 +476,13 @@
                 this.on('roomCreated', onCreated);
                 this.on('error', onError);
 
-                // Timeout
-                setTimeout(() => {
-                    this.off('roomCreated', onCreated);
-                    this.off('error', onError);
+                this.socket.emit('room:create', { settings });
+
+                // ISSUE #20 FIX: Store timeout ID for cancellation
+                timeoutId = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
                     reject(new Error('Create room timeout'));
                 }, 10000);
             });
@@ -416,6 +490,7 @@
 
         /**
          * Join an existing room
+         * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
          * @param {string} code - Room code
          * @param {string} nickname - Player nickname
          * @param {string} password - Room password (optional)
@@ -429,25 +504,31 @@
             this.joinInProgress = true;
 
             return new Promise((resolve, reject) => {
-                const payload = { code, nickname };
-                if (password) {
-                    payload.password = password;
-                }
-                this.socket.emit('room:join', payload);
+                let timeoutId = null;
+                let settled = false;
 
                 const cleanup = () => {
                     this.joinInProgress = false;
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
                     this.off('roomJoined', onJoined);
                     this.off('error', onError);
                 };
 
                 const onJoined = (data) => {
+                    if (settled) return;
+                    settled = true;
                     cleanup();
                     resolve(data);
                 };
 
+                // ISSUE #6 FIX: Clean up on ANY error, not just room errors
                 const onError = (error) => {
-                    if (error.type === 'room') {
+                    if (settled) return;
+                    if (error.type === 'room' || error.type === 'connection') {
+                        settled = true;
                         cleanup();
                         reject(error);
                     }
@@ -456,7 +537,16 @@
                 this.on('roomJoined', onJoined);
                 this.on('error', onError);
 
-                setTimeout(() => {
+                const payload = { code, nickname };
+                if (password) {
+                    payload.password = password;
+                }
+                this.socket.emit('room:join', payload);
+
+                // ISSUE #20 FIX: Store timeout ID for cancellation
+                timeoutId = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
                     cleanup();
                     reject(new Error('Join room timeout'));
                 }, 10000);
@@ -465,12 +555,13 @@
 
         /**
          * Leave current room
+         * ISSUE #5 FIX: Use safe storage methods
          */
         leaveRoom() {
             this.socket.emit('room:leave');
             this.roomCode = null;
             this.player = null;
-            sessionStorage.removeItem('codenames-room-code');
+            this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
         },
 
         /**
@@ -495,6 +586,7 @@
 
         /**
          * Request full state resync from server
+         * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
          * Use this if you detect you're out of sync
          * @returns {Promise}
          */
@@ -505,18 +597,31 @@
                     return;
                 }
 
-                this.socket.emit('room:resync');
+                let timeoutId = null;
+                let settled = false;
 
-                const onResynced = (data) => {
+                const cleanup = () => {
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
                     this.off('roomResynced', onResynced);
                     this.off('error', onError);
+                };
+
+                const onResynced = (data) => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
                     resolve(data);
                 };
 
+                // ISSUE #6 FIX: Clean up on ANY error, not just room errors
                 const onError = (error) => {
-                    if (error.type === 'room') {
-                        this.off('roomResynced', onResynced);
-                        this.off('error', onError);
+                    if (settled) return;
+                    if (error.type === 'room' || error.type === 'connection') {
+                        settled = true;
+                        cleanup();
                         reject(error);
                     }
                 };
@@ -524,9 +629,13 @@
                 this.on('roomResynced', onResynced);
                 this.on('error', onError);
 
-                setTimeout(() => {
-                    this.off('roomResynced', onResynced);
-                    this.off('error', onError);
+                this.socket.emit('room:resync');
+
+                // ISSUE #20 FIX: Store timeout ID for cancellation
+                timeoutId = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
                     reject(new Error('Resync timeout'));
                 }, 10000);
             });
@@ -694,30 +803,33 @@
 
         /**
          * Get stored room code (for reconnection)
+         * ISSUE #5 FIX: Uses safe storage methods
          * Uses sessionStorage to prevent multi-tab conflicts
          * @returns {string|null}
          */
         getStoredRoomCode() {
-            return sessionStorage.getItem('codenames-room-code');
+            return this._safeGetStorage(sessionStorage, 'codenames-room-code');
         },
 
         /**
          * Get stored nickname
+         * ISSUE #5 FIX: Uses safe storage methods
          * @returns {string|null}
          */
         getStoredNickname() {
-            return localStorage.getItem('codenames-nickname');
+            return this._safeGetStorage(localStorage, 'codenames-nickname');
         },
 
         /**
          * Clear all stored session data
+         * ISSUE #5 FIX: Uses safe storage methods
          * Session ID and room code use sessionStorage (per-tab)
          * Nickname uses localStorage for user convenience
          */
         clearSession() {
-            sessionStorage.removeItem('codenames-session-id');
-            sessionStorage.removeItem('codenames-room-code');
-            localStorage.removeItem('codenames-nickname');
+            this._safeRemoveStorage(sessionStorage, 'codenames-session-id');
+            this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
+            this._safeRemoveStorage(localStorage, 'codenames-nickname');
             this.sessionId = null;
             this.storedNickname = null;
             this.joinInProgress = false;

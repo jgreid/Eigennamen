@@ -910,8 +910,9 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     // Validate index before starting transaction
     validateCardIndex(index);
 
-    // ISSUE #32 FIX: Acquire distributed lock before reveal to prevent race conditions
-    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
+    // ISSUE #17 & #32 FIX: Acquire distributed lock with longer TTL to prevent race conditions
+    // Increased from 5s to 15s to accommodate retry loops and slow Redis operations
+    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 15 });
     if (!lockAcquired) {
         throw new ServerError('Another card reveal is in progress, please try again');
     }

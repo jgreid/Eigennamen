@@ -26,11 +26,17 @@ module.exports = function chatHandlers(io, socket) {
 
     /**
      * Send a chat message
+     * ISSUE #29 FIX: Added type check for data before validation
      */
     socket.on('chat:message', createRateLimitedHandler(socket, 'chat:message', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+            }
+
+            // ISSUE #29 FIX: Validate data is an object before passing to Zod
+            if (!data || typeof data !== 'object') {
+                throw { code: ERROR_CODES.VALIDATION_ERROR, message: 'Invalid message format' };
             }
 
             const validated = validateInput(chatMessageSchema, data);
