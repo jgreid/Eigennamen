@@ -3137,9 +3137,10 @@
         function setupMultiplayerListeners() {
             // Game state updates
             CodenamesClient.on('gameStarted', (data) => {
-                // Sync game state from server
-                if (data.game && data.game.board) {
-                    syncGameState(data.game);
+                // Full sync game state from server for new games
+                if (data.game) {
+                    syncGameStateFromServer(data.game);
+                    showToast('New game started!', 'success');
                 }
             });
 
@@ -3154,6 +3155,12 @@
                     // Update turn locally
                     gameState.currentTurn = data.nextTeam;
                     updateTurnIndicator();
+                    updateRoleBanner();
+                    updateControls();
+
+                    // Announce turn change
+                    const newTeamName = data.nextTeam === 'red' ? teamNames.red : teamNames.blue;
+                    announceToScreenReader(`Turn ended. Now ${newTeamName}'s turn.`);
                 }
             });
 
@@ -3266,6 +3273,10 @@
             gameState.revealed[index] = true;
             const type = gameState.types[index];
 
+            // Track for animation (same as local reveal)
+            lastRevealedIndex = index;
+            lastRevealedWasCorrect = (type === gameState.currentTurn);
+
             // Update scores
             if (type === 'red') {
                 gameState.redScore++;
@@ -3279,9 +3290,23 @@
                 gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
             }
 
+            // Check for win by completing all words
             checkGameOver();
-            renderBoard();
-            updateScoreboard();
+
+            // End turn if wrong guess (and game not over)
+            if (!gameState.gameOver && type !== gameState.currentTurn) {
+                gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            // Batch DOM updates using requestAnimationFrame for better performance
+            requestAnimationFrame(() => {
+                updateSingleCard(index);
+                updateBoardIncremental();
+                updateScoreboard();
+                updateTurnIndicator();
+                updateRoleBanner();
+                updateControls();
+            });
         }
 
         // Initialize multiplayer modal interactions
@@ -3656,6 +3681,18 @@
             newGameDebounce = true;
             setTimeout(() => { newGameDebounce = false; }, 500);
 
+            // In multiplayer mode, request new game from server
+            if (isMultiplayerMode && CodenamesClient.isConnected()) {
+                // Server will generate and broadcast the game to all players
+                CodenamesClient.startGame({});
+                // Reset local state - will be synced when gameStarted event arrives
+                spymasterTeam = null;
+                clickerTeam = null;
+                boardInitialized = false;
+                return;
+            }
+
+            // Standalone mode: generate game locally
             const seed = generateGameSeed();
             if (initGame(seed, activeWords)) {
                 isHost = true;
@@ -4311,6 +4348,13 @@
             if (!canClickCards()) return;
             if (gameState.revealed[index] || gameState.gameOver) return;
 
+            // In multiplayer mode, send reveal to server and let it broadcast
+            if (isMultiplayerMode && CodenamesClient.isConnected()) {
+                CodenamesClient.revealCard(index);
+                // Don't update local state - wait for server confirmation via cardRevealed event
+                return;
+            }
+
             gameState.revealed[index] = true;
             const type = gameState.types[index];
 
@@ -4406,6 +4450,14 @@
         function endTurn() {
             // Only the current team's clicker can end the turn
             if (!clickerTeam || clickerTeam !== gameState.currentTurn || gameState.gameOver) return;
+
+            // In multiplayer mode, send end turn to server
+            if (isMultiplayerMode && CodenamesClient.isConnected()) {
+                CodenamesClient.endTurn();
+                // Don't update local state - wait for server confirmation via turnEnded event
+                return;
+            }
+
             gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
             updateURL();
             updateTurnIndicator();
