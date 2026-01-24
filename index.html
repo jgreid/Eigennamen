@@ -2955,6 +2955,7 @@
         async function handleJoinGame() {
             const nickname = document.getElementById('join-nickname').value.trim();
             const password = document.getElementById('join-password').value.trim();
+            const urlRoomCode = getRoomCodeFromURL();
 
             // Validation
             if (!nickname) {
@@ -2980,23 +2981,28 @@
                 return;
             }
 
-            // Try to find room by password
             try {
-                setMpStatus('Finding game...', 'connecting');
-                const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        setMpStatus('No game found with that password', 'error');
-                        return;
-                    }
-                    throw new Error('Failed to find game');
-                }
+                let roomCode = urlRoomCode;
 
-                const { code } = await response.json();
+                // If we have a room code from URL, try to join directly
+                // Otherwise, look up by password
+                if (!roomCode) {
+                    setMpStatus('Finding game...', 'connecting');
+                    const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            setMpStatus('No game found with that password', 'error');
+                            return;
+                        }
+                        throw new Error('Failed to find game');
+                    }
+                    const data = await response.json();
+                    roomCode = data.code;
+                }
 
                 setMpStatus('Joining game...', 'connecting');
                 // Join the room
-                const result = await CodenamesClient.joinRoom(code, nickname, password);
+                const result = await CodenamesClient.joinRoom(roomCode, nickname, password);
 
                 // Store password for potential reconnection
                 currentRoomPassword = password;
@@ -3082,6 +3088,11 @@
                 syncGameStateFromServer(result.game);
             }
 
+            // Update URL with room code for shareable links
+            if (result.room?.code) {
+                updateURLWithRoomCode(result.room.code);
+            }
+
             // Update UI
             setMpStatus('Connected!', 'success');
             updateMpIndicator(result.room, multiplayerPlayers);
@@ -3134,6 +3145,22 @@
                     showToast('Password copied!', 'success', 2000);
                 }).catch(() => {
                     showToast('Failed to copy', 'error', 2000);
+                });
+            }
+        }
+
+        /**
+         * Copy shareable link with room code to clipboard
+         */
+        function copyRoomLink() {
+            const roomCode = CodenamesClient.getRoomCode();
+            if (roomCode) {
+                const url = new URL(window.location.origin);
+                url.searchParams.set('room', roomCode);
+                navigator.clipboard.writeText(url.toString()).then(() => {
+                    showToast('Room link copied! Share with the password.', 'success', 3000);
+                }).catch(() => {
+                    showToast('Failed to copy link', 'error', 2000);
                 });
             }
         }
@@ -3361,6 +3388,9 @@
             multiplayerPlayers = [];
             currentRoomPassword = null;
 
+            // Clear room code from URL
+            clearRoomCodeFromURL();
+
             // Update UI
             updateMpIndicator(null, []);
         }
@@ -3481,6 +3511,61 @@
         }
 
         // Initialize multiplayer modal interactions
+        /**
+         * Parse room code from URL query parameters
+         * Supports: ?room=ABCDEF or ?join=ABCDEF
+         * @returns {string|null} Room code or null if not present
+         */
+        function getRoomCodeFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('room') || params.get('join') || null;
+        }
+
+        /**
+         * Update URL with room code after joining (for shareable links)
+         * @param {string} roomCode - The room code to add to URL
+         */
+        function updateURLWithRoomCode(roomCode) {
+            if (!roomCode) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', roomCode);
+            // Remove standalone game parameters when in multiplayer
+            url.searchParams.delete('game');
+            url.searchParams.delete('r');
+            url.searchParams.delete('t');
+            url.searchParams.delete('w');
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        /**
+         * Clear room code from URL when leaving multiplayer
+         */
+        function clearRoomCodeFromURL() {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('room');
+            url.searchParams.delete('join');
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        /**
+         * Check for room code in URL and auto-open join modal
+         */
+        function checkURLForRoomJoin() {
+            const roomCode = getRoomCodeFromURL();
+            if (roomCode && roomCode.length === 6) {
+                // Pre-fill nickname from storage
+                const storedNickname = localStorage.getItem('codenames-nickname') || '';
+                document.getElementById('join-nickname').value = storedNickname;
+
+                // Show multiplayer modal in join mode
+                setMpMode('join');
+                openModal('multiplayer-modal');
+
+                // Show message about the room code
+                setMpStatus(`Room code: ${roomCode.toUpperCase()} - Enter password to join`, 'info');
+            }
+        }
+
         function initMultiplayerModal() {
             // Mode toggle buttons
             document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -3505,6 +3590,9 @@
             if (copyBtn) {
                 copyBtn.addEventListener('click', copyRoomPassword);
             }
+
+            // Check for room code in URL after modal is initialized
+            setTimeout(checkURLForRoomJoin, 100);
         }
 
         // Modal management with focus trapping and keyboard support

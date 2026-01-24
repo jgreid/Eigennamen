@@ -21,10 +21,7 @@ const {
 } = require('../../errors/GameError');
 const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-
-// Lazy-load socket functions to avoid circular dependency
-// (socket/index.js loads gameHandlers, but these are only called at runtime)
-const getSocketFunctions = () => require('../index');
+const { getSocketFunctions } = require('../socketFunctionProvider');
 
 module.exports = function gameHandlers(io, socket) {
 

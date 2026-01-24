@@ -59,6 +59,15 @@ module.exports = {
         TIMER_TTL_BUFFER_SECONDS: 60      // Extra TTL buffer for timer keys
     },
 
+    // Socket.io configuration
+    SOCKET: {
+        PING_TIMEOUT_MS: 60000,           // Ping timeout (60 seconds)
+        PING_INTERVAL_MS: 25000,          // Ping interval (25 seconds)
+        MAX_DISCONNECTION_DURATION_MS: 2 * 60 * 1000,  // 2 minutes for connection recovery
+        SOCKET_COUNT_CACHE_MS: 5000,      // Cache socket count for 5 seconds
+        REDIS_KEEPALIVE_MS: 10000         // Redis keepalive interval
+    },
+
     // Rate limits for socket events
     // Keys match the rate limit identifiers used in handlers (not necessarily the event names)
     RATE_LIMITS: {

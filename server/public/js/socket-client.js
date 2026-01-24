@@ -20,6 +20,8 @@
         autoRejoin: true,           // Automatically rejoin room on reconnection
         storedNickname: null,       // Remember nickname for reconnection
         listeners: {},
+        joinInProgress: false,      // Prevent double-join race condition
+        _socketListeners: [],       // Track socket.io listeners for cleanup
 
         /**
          * Connect to the server
@@ -115,43 +117,54 @@
             } catch (error) {
                 console.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
-                localStorage.removeItem('codenames-room-code');
+                sessionStorage.removeItem('codenames-room-code');
                 this._emit('rejoinFailed', { roomCode: storedRoomCode, error });
             }
+        },
+
+        /**
+         * Register a socket listener with tracking for cleanup
+         */
+        _registerSocketListener(event, handler) {
+            this.socket.on(event, handler);
+            this._socketListeners.push({ event, handler });
         },
 
         /**
          * Set up Socket.io event listeners
          */
         _setupEventListeners() {
+            // Clear any previous listeners first
+            this._cleanupSocketListeners();
+
             // Room events
-            this.socket.on('room:created', (data) => {
+            this._registerSocketListener('room:created', (data) => {
                 this.roomCode = data.room.code;
                 this.player = data.player;
                 this._saveSession();
                 this._emit('roomCreated', data);
             });
 
-            this.socket.on('room:joined', (data) => {
+            this._registerSocketListener('room:joined', (data) => {
                 this.roomCode = data.room.code;
                 this.player = data.you;
                 this._saveSession();
                 this._emit('roomJoined', data);
             });
 
-            this.socket.on('room:playerJoined', (data) => {
+            this._registerSocketListener('room:playerJoined', (data) => {
                 this._emit('playerJoined', data);
             });
 
-            this.socket.on('room:playerLeft', (data) => {
+            this._registerSocketListener('room:playerLeft', (data) => {
                 this._emit('playerLeft', data);
             });
 
-            this.socket.on('room:settingsUpdated', (data) => {
+            this._registerSocketListener('room:settingsUpdated', (data) => {
                 this._emit('settingsUpdated', data);
             });
 
-            this.socket.on('room:hostChanged', (data) => {
+            this._registerSocketListener('room:hostChanged', (data) => {
                 // Update local player if we became host
                 if (this.player && data.newHostSessionId === this.player.sessionId) {
                     this.player.isHost = true;
@@ -159,19 +172,19 @@
                 this._emit('hostChanged', data);
             });
 
-            this.socket.on('room:error', (error) => {
+            this._registerSocketListener('room:error', (error) => {
                 this._emit('error', { type: 'room', ...error });
             });
 
             // Handle room:resynced (response to requestResync)
-            this.socket.on('room:resynced', (data) => {
+            this._registerSocketListener('room:resynced', (data) => {
                 this.roomCode = data.room.code;
                 this.player = data.you;
                 this._emit('roomResynced', data);
             });
 
             // Handle room:reconnected (response to token-based reconnection)
-            this.socket.on('room:reconnected', (data) => {
+            this._registerSocketListener('room:reconnected', (data) => {
                 this.roomCode = data.room.code;
                 this.player = data.you;
                 this._saveSession();
@@ -179,86 +192,86 @@
             });
 
             // Player events
-            this.socket.on('player:updated', (data) => {
+            this._registerSocketListener('player:updated', (data) => {
                 if (data.sessionId === this.player?.sessionId) {
                     this.player = { ...this.player, ...data.changes };
                 }
                 this._emit('playerUpdated', data);
             });
 
-            this.socket.on('player:disconnected', (data) => {
+            this._registerSocketListener('player:disconnected', (data) => {
                 this._emit('playerDisconnected', data);
             });
 
-            this.socket.on('player:reconnected', (data) => {
+            this._registerSocketListener('player:reconnected', (data) => {
                 this._emit('playerReconnected', data);
             });
 
             // Handle room:playerReconnected (from secure token reconnection)
-            this.socket.on('room:playerReconnected', (data) => {
+            this._registerSocketListener('room:playerReconnected', (data) => {
                 this._emit('playerReconnected', data);
             });
 
-            this.socket.on('player:error', (error) => {
+            this._registerSocketListener('player:error', (error) => {
                 this._emit('error', { type: 'player', ...error });
             });
 
             // Game events
-            this.socket.on('game:started', (data) => {
+            this._registerSocketListener('game:started', (data) => {
                 this._emit('gameStarted', data);
             });
 
-            this.socket.on('game:cardRevealed', (data) => {
+            this._registerSocketListener('game:cardRevealed', (data) => {
                 this._emit('cardRevealed', data);
             });
 
-            this.socket.on('game:clueGiven', (data) => {
+            this._registerSocketListener('game:clueGiven', (data) => {
                 this._emit('clueGiven', data);
             });
 
-            this.socket.on('game:turnEnded', (data) => {
+            this._registerSocketListener('game:turnEnded', (data) => {
                 this._emit('turnEnded', data);
             });
 
-            this.socket.on('game:over', (data) => {
+            this._registerSocketListener('game:over', (data) => {
                 this._emit('gameOver', data);
             });
 
-            this.socket.on('game:spymasterView', (data) => {
+            this._registerSocketListener('game:spymasterView', (data) => {
                 this._emit('spymasterView', data);
             });
 
-            this.socket.on('game:historyData', (data) => {
+            this._registerSocketListener('game:historyData', (data) => {
                 this._emit('historyData', data);
             });
 
-            this.socket.on('game:error', (error) => {
+            this._registerSocketListener('game:error', (error) => {
                 this._emit('error', { type: 'game', ...error });
             });
 
             // Timer events
-            this.socket.on('timer:started', (data) => {
+            this._registerSocketListener('timer:started', (data) => {
                 this._emit('timerStarted', data);
             });
 
-            this.socket.on('timer:stopped', (data) => {
+            this._registerSocketListener('timer:stopped', (data) => {
                 this._emit('timerStopped', data);
             });
 
-            this.socket.on('timer:tick', (data) => {
+            this._registerSocketListener('timer:tick', (data) => {
                 this._emit('timerTick', data);
             });
 
-            this.socket.on('timer:expired', (data) => {
+            this._registerSocketListener('timer:expired', (data) => {
                 this._emit('timerExpired', data);
             });
 
-            this.socket.on('timer:status', (data) => {
+            this._registerSocketListener('timer:status', (data) => {
                 this._emit('timerStatus', data);
             });
 
             // Chat events
-            this.socket.on('chat:message', (data) => {
+            this._registerSocketListener('chat:message', (data) => {
                 this._emit('chatMessage', data);
             });
         },
@@ -273,12 +286,26 @@
                 sessionStorage.setItem('codenames-session-id', this.sessionId);
             }
             if (this.roomCode) {
-                localStorage.setItem('codenames-room-code', this.roomCode);
+                // Use sessionStorage for room code to prevent multi-tab conflicts
+                sessionStorage.setItem('codenames-room-code', this.roomCode);
             }
             if (this.player?.nickname) {
                 localStorage.setItem('codenames-nickname', this.player.nickname);
                 this.storedNickname = this.player.nickname;
             }
+        },
+
+        /**
+         * Cleanup socket listeners to prevent memory leaks
+         * Call this before reinitializing or disconnecting
+         */
+        _cleanupSocketListeners() {
+            if (this.socket && this._socketListeners.length > 0) {
+                this._socketListeners.forEach(({ event, handler }) => {
+                    this.socket.off(event, handler);
+                });
+            }
+            this._socketListeners = [];
         },
 
         /**
@@ -382,6 +409,12 @@
          * @returns {Promise}
          */
         joinRoom(code, nickname, password = null) {
+            // Prevent double-join race condition
+            if (this.joinInProgress) {
+                return Promise.reject(new Error('Join already in progress'));
+            }
+            this.joinInProgress = true;
+
             return new Promise((resolve, reject) => {
                 const payload = { code, nickname };
                 if (password) {
@@ -389,16 +422,20 @@
                 }
                 this.socket.emit('room:join', payload);
 
-                const onJoined = (data) => {
+                const cleanup = () => {
+                    this.joinInProgress = false;
                     this.off('roomJoined', onJoined);
                     this.off('error', onError);
+                };
+
+                const onJoined = (data) => {
+                    cleanup();
                     resolve(data);
                 };
 
                 const onError = (error) => {
                     if (error.type === 'room') {
-                        this.off('roomJoined', onJoined);
-                        this.off('error', onError);
+                        cleanup();
                         reject(error);
                     }
                 };
@@ -407,8 +444,7 @@
                 this.on('error', onError);
 
                 setTimeout(() => {
-                    this.off('roomJoined', onJoined);
-                    this.off('error', onError);
+                    cleanup();
                     reject(new Error('Join room timeout'));
                 }, 10000);
             });
@@ -421,7 +457,7 @@
             this.socket.emit('room:leave');
             this.roomCode = null;
             this.player = null;
-            localStorage.removeItem('codenames-room-code');
+            sessionStorage.removeItem('codenames-room-code');
         },
 
         /**
@@ -570,6 +606,9 @@
          * Disconnect from server
          */
         disconnect() {
+            // Cleanup socket listeners before disconnecting
+            this._cleanupSocketListeners();
+
             if (this.socket) {
                 this.socket.disconnect();
                 this.socket = null;
@@ -577,6 +616,7 @@
             this.connected = false;
             this.roomCode = null;
             this.player = null;
+            this.joinInProgress = false;
         },
 
         /**
@@ -629,10 +669,11 @@
 
         /**
          * Get stored room code (for reconnection)
+         * Uses sessionStorage to prevent multi-tab conflicts
          * @returns {string|null}
          */
         getStoredRoomCode() {
-            return localStorage.getItem('codenames-room-code');
+            return sessionStorage.getItem('codenames-room-code');
         },
 
         /**
@@ -645,14 +686,16 @@
 
         /**
          * Clear all stored session data
-         * ISSUE #48 FIX: Session ID is in sessionStorage (per-tab), others in localStorage
+         * Session ID and room code use sessionStorage (per-tab)
+         * Nickname uses localStorage for user convenience
          */
         clearSession() {
             sessionStorage.removeItem('codenames-session-id');
-            localStorage.removeItem('codenames-room-code');
+            sessionStorage.removeItem('codenames-room-code');
             localStorage.removeItem('codenames-nickname');
             this.sessionId = null;
             this.storedNickname = null;
+            this.joinInProgress = false;
         },
 
         /**
