@@ -53,7 +53,7 @@ module.exports = function roomHandlers(io, socket) {
 
     /**
      * Create a new room
-     * ISSUE #2 FIX: Added cleanup on failure to prevent socket room membership desync
+     * Host provides a room ID which serves as both room name and access key
      */
     socket.on('room:create', createRateLimitedHandler(socket, 'room:create', async (data) => {
         let createdRoomCode = null;
@@ -61,7 +61,7 @@ module.exports = function roomHandlers(io, socket) {
             const validated = validateInput(roomCreateSchema, data);
 
             const { room, player } = await withTimeout(
-                roomService.createRoom(socket.sessionId, validated.settings),
+                roomService.createRoom(validated.roomId, socket.sessionId, validated.settings),
                 TIMEOUTS.SOCKET_HANDLER,
                 'room:create'
             );
@@ -110,6 +110,7 @@ module.exports = function roomHandlers(io, socket) {
 
     /**
      * Join an existing room
+     * Players join by entering the room ID provided by the host
      */
     socket.on('room:join', createRateLimitedHandler(socket, 'room:join', async (data) => {
         let joinedRoomCode = null;
@@ -118,10 +119,9 @@ module.exports = function roomHandlers(io, socket) {
 
             const { room, players, game, player } = await withTimeout(
                 roomService.joinRoom(
-                    validated.code,
+                    validated.roomId,
                     socket.sessionId,
-                    validated.nickname,
-                    validated.password // Pass password if provided
+                    validated.nickname
                 ),
                 TIMEOUTS.JOIN_ROOM,
                 'room:join'

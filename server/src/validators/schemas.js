@@ -15,8 +15,17 @@ const { removeControlChars, isReservedName } = require('../utils/sanitize');
 // Team name validation regex - alphanumeric, spaces, hyphens only (defense-in-depth against XSS)
 const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
 
+// Room ID validation regex - alphanumeric, hyphens, underscores (no spaces for easier sharing)
+const roomIdRegex = /^[a-zA-Z0-9\-_]+$/;
+
 // Room schemas
 const roomCreateSchema = z.object({
+    // Room ID provided by host - serves as both room name and access key
+    roomId: z.string()
+        .min(3, 'Room ID must be at least 3 characters')
+        .max(20, 'Room ID must be at most 20 characters')
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => roomIdRegex.test(val), 'Room ID can only contain letters, numbers, hyphens, and underscores'),
     settings: z.object({
         teamNames: z.object({
             red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens').default('Red'),
@@ -25,7 +34,6 @@ const roomCreateSchema = z.object({
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
-        password: z.string().max(50).optional(),
         // Host nickname for room creation
         nickname: z.string().max(20).optional()
     }).optional().default({})
@@ -48,14 +56,12 @@ const createNicknameSchema = () => z.string()
     .refine(val => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
 
 const roomJoinSchema = z.object({
-    // Room code validation - matches characters used by roomService.js generator
-    // Excludes: I, L (look like 1), O (looks like 0), 0 (zero), 1 (one)
-    code: z.string()
-        .length(6)
-        .transform(s => s.toUpperCase())
-        .refine(s => /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/.test(s), 'Invalid room code format'),
-    nickname: createNicknameSchema(),
-    password: z.string().max(50).optional()
+    // Room ID - the same ID the host used when creating the room
+    roomId: z.string()
+        .min(3, 'Room ID must be at least 3 characters')
+        .max(20, 'Room ID must be at most 20 characters')
+        .transform(val => removeControlChars(val).trim()),
+    nickname: createNicknameSchema()
 });
 
 const roomSettingsSchema = z.object({
@@ -64,8 +70,7 @@ const roomSettingsSchema = z.object({
         blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens')
     }).optional(),
     turnTimer: z.number().int().min(30).max(300).nullable().optional(),
-    allowSpectators: z.boolean().optional(),
-    password: z.string().max(50).nullable().optional()
+    allowSpectators: z.boolean().optional()
 });
 
 // Player schemas
