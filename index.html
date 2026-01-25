@@ -4413,6 +4413,13 @@
             // Store players list
             multiplayerPlayers = result.players || [result.player];
 
+            // Sync current player's team and role from server
+            // result.you is set for joinRoom, result.player for createRoom
+            const currentPlayer = result.you || result.player || CodenamesClient.player;
+            if (currentPlayer) {
+                syncLocalPlayerState(currentPlayer);
+            }
+
             // Sync game state from server if available
             if (result.game) {
                 syncGameStateFromServer(result.game);
@@ -4438,6 +4445,10 @@
             // Update room info in settings panel
             updateRoomInfoDisplay();
 
+            // Update role-specific UI
+            updateControls();
+            updateRoleBanner();
+
             // Close modal after brief delay and show appropriate message
             setTimeout(() => {
                 closeMultiplayer();
@@ -4447,6 +4458,29 @@
                     showToast('Connected to multiplayer game!', 'success');
                 }
             }, 500);
+        }
+
+        /**
+         * Sync local player state variables from server player data
+         */
+        function syncLocalPlayerState(player) {
+            if (!player) return;
+
+            // Set team affiliation
+            playerTeam = player.team || null;
+
+            // Set role-specific variables
+            if (player.role === 'spymaster' && player.team) {
+                spymasterTeam = player.team;
+                clickerTeam = null;
+            } else if (player.role === 'clicker' && player.team) {
+                clickerTeam = player.team;
+                spymasterTeam = null;
+            } else {
+                // Spectator or unassigned
+                spymasterTeam = null;
+                clickerTeam = null;
+            }
         }
 
         function updateMpIndicator(room, players) {
@@ -4581,7 +4615,7 @@
 
             CodenamesClient.on('cardRevealed', (data) => {
                 if (data.index !== undefined) {
-                    revealCardFromServer(data.index);
+                    revealCardFromServer(data.index, data);
                     playNotificationSound('reveal');
                 }
             });
@@ -4679,6 +4713,17 @@
                         p.sessionId === data.sessionId ? { ...p, ...data.changes } : p
                     );
                     updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+
+                    // If this is the current player, update local state variables
+                    if (data.sessionId === CodenamesClient.player?.sessionId) {
+                        const updatedPlayer = multiplayerPlayers.find(p => p.sessionId === data.sessionId);
+                        if (updatedPlayer) {
+                            syncLocalPlayerState(updatedPlayer);
+                            updateControls();
+                            updateRoleBanner();
+                            renderBoard();
+                        }
+                    }
                 }
             });
 
@@ -4732,6 +4777,12 @@
 
             // Room resync (state recovery)
             CodenamesClient.on('roomResynced', (data) => {
+                // Sync current player's state from server response
+                const currentPlayer = data.you || CodenamesClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer);
+                }
+
                 if (data.game) {
                     syncGameStateFromServer(data.game);
                 }
@@ -4739,6 +4790,10 @@
                     multiplayerPlayers = data.players;
                     updateMpIndicator(data.room, multiplayerPlayers);
                 }
+
+                // Update all UI elements
+                updateControls();
+                updateRoleBanner();
             });
 
             // Disconnect handling
@@ -4746,7 +4801,54 @@
                 showToast('Disconnected from server', 'warning');
             });
 
-            CodenamesClient.on('rejoined', () => {
+            CodenamesClient.on('rejoined', (data) => {
+                // Sync current player's state after auto-rejoin
+                const currentPlayer = data?.you || CodenamesClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer);
+                }
+
+                // Sync game state if available
+                if (data?.game) {
+                    syncGameStateFromServer(data.game);
+                }
+
+                // Update player list
+                if (data?.players) {
+                    multiplayerPlayers = data.players;
+                    updateMpIndicator(data?.room, multiplayerPlayers);
+                }
+
+                // Update UI elements
+                updateControls();
+                updateRoleBanner();
+
+                showToast('Reconnected!', 'success');
+            });
+
+            // Handle token-based reconnection
+            CodenamesClient.on('roomReconnected', (data) => {
+                // Sync current player's state after token-based reconnection
+                const currentPlayer = data?.you || CodenamesClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer);
+                }
+
+                // Sync game state if available
+                if (data?.game) {
+                    syncGameStateFromServer(data.game);
+                }
+
+                // Update player list
+                if (data?.players) {
+                    multiplayerPlayers = data.players;
+                    updateMpIndicator(data?.room, multiplayerPlayers);
+                }
+
+                // Update UI elements
+                updateControls();
+                updateRoleBanner();
+
                 showToast('Reconnected!', 'success');
             });
 
@@ -4818,7 +4920,7 @@
             'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
             'playerUpdated', 'clueGiven', 'spymasterView',
             'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
-            'disconnected', 'rejoined', 'rejoinFailed', 'error',
+            'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
             'kicked', 'playerKicked', 'settingsUpdated'
         ];
 
@@ -4886,33 +4988,34 @@
         function syncGameStateFromServer(serverGame) {
             if (!serverGame) return;
 
-            // If server has a board, sync full state
-            if (serverGame.board && Array.isArray(serverGame.board)) {
-                // Sync words
-                gameState.words = serverGame.board.map(card => card.word);
+            // Server sends arrays: words, types, revealed (not a board object)
+            if (serverGame.words && Array.isArray(serverGame.words)) {
+                gameState.words = serverGame.words;
+                gameState.types = serverGame.types || [];
+                gameState.revealed = serverGame.revealed || [];
 
-                // Sync types (card colors)
-                gameState.types = serverGame.board.map(card => card.type);
-
-                // Sync revealed state
-                gameState.revealed = serverGame.board.map(card => card.revealed || false);
-
-                // Calculate scores from revealed cards
-                gameState.redScore = serverGame.board.filter(c => c.revealed && c.type === 'red').length;
-                gameState.blueScore = serverGame.board.filter(c => c.revealed && c.type === 'blue').length;
-
-                // Set totals
-                gameState.redTotal = serverGame.board.filter(c => c.type === 'red').length;
-                gameState.blueTotal = serverGame.board.filter(c => c.type === 'blue').length;
+                // Use server-provided scores if available
+                if (typeof serverGame.redScore === 'number') {
+                    gameState.redScore = serverGame.redScore;
+                }
+                if (typeof serverGame.blueScore === 'number') {
+                    gameState.blueScore = serverGame.blueScore;
+                }
+                if (typeof serverGame.redTotal === 'number') {
+                    gameState.redTotal = serverGame.redTotal;
+                }
+                if (typeof serverGame.blueTotal === 'number') {
+                    gameState.blueTotal = serverGame.blueTotal;
+                }
             }
 
-            // Sync turn
-            if (serverGame.currentTeam) {
-                gameState.currentTurn = serverGame.currentTeam;
+            // Server uses 'currentTurn' not 'currentTeam'
+            if (serverGame.currentTurn) {
+                gameState.currentTurn = serverGame.currentTurn;
             }
 
             // Sync game over state
-            if (serverGame.status === 'finished' || serverGame.winner) {
+            if (serverGame.gameOver || serverGame.winner) {
                 gameState.gameOver = true;
                 gameState.winner = serverGame.winner;
             } else {
@@ -4925,10 +5028,16 @@
                 gameState.seed = serverGame.seed;
             }
 
+            // Sync clue state if available
+            if (serverGame.currentClue) {
+                gameState.currentClue = serverGame.currentClue;
+            }
+
             // Update all UI components
             renderBoard();
             updateScoreboard();
             updateTurnIndicator();
+            updateControls();
 
             // Update tab notification based on current turn
             const isYourTurn = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
@@ -4937,35 +5046,51 @@
 
         /**
          * Reveal a card from server sync (bypasses local validation)
+         * @param {number} index - Card index to reveal
+         * @param {Object} serverData - Data from server including currentTurn, scores, etc.
          */
-        function revealCardFromServer(index) {
+        function revealCardFromServer(index, serverData = {}) {
             if (gameState.revealed[index]) return; // Already revealed
 
             gameState.revealed[index] = true;
-            const type = gameState.types[index];
+            const type = serverData.type || gameState.types[index];
 
             // Track for animation (same as local reveal)
             lastRevealedIndex = index;
             lastRevealedWasCorrect = (type === gameState.currentTurn);
 
-            // Update scores
-            if (type === 'red') {
+            // Use server-provided scores if available, otherwise calculate locally
+            if (typeof serverData.redScore === 'number') {
+                gameState.redScore = serverData.redScore;
+            } else if (type === 'red') {
                 gameState.redScore++;
+            }
+
+            if (typeof serverData.blueScore === 'number') {
+                gameState.blueScore = serverData.blueScore;
             } else if (type === 'blue') {
                 gameState.blueScore++;
             }
 
-            // Check for assassin
-            if (type === 'assassin') {
-                gameState.gameOver = true;
-                gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            // Use server game over state if provided
+            if (serverData.gameOver !== undefined) {
+                gameState.gameOver = serverData.gameOver;
+                gameState.winner = serverData.winner || null;
+            } else {
+                // Check for assassin locally
+                if (type === 'assassin') {
+                    gameState.gameOver = true;
+                    gameState.winner = gameState.currentTurn === 'red' ? 'blue' : 'red';
+                }
+                // Check for win by completing all words
+                checkGameOver();
             }
 
-            // Check for win by completing all words
-            checkGameOver();
-
-            // End turn if wrong guess (and game not over)
-            if (!gameState.gameOver && type !== gameState.currentTurn) {
+            // Use server-provided turn state (authoritative)
+            if (serverData.currentTurn) {
+                gameState.currentTurn = serverData.currentTurn;
+            } else if (!gameState.gameOver && type !== gameState.currentTurn) {
+                // Fallback: end turn if wrong guess (and game not over)
                 gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
             }
 
