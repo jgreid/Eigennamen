@@ -21,6 +21,8 @@ import {
   getPlayerState,
   getWordListState,
   getTeamNames,
+  getMultiplayerState,
+  isMultiplayerMode,
   subscribe,
   initGame,
   initGameWithWords,
@@ -43,6 +45,7 @@ import {
   setTeamNames,
   saveGameToHistory,
   loadGameHistory,
+  setMultiplayerMode,
 } from './state.js';
 import {
   initCachedElements,
@@ -64,12 +67,353 @@ import {
   updateCharCounter,
   updateWordCount,
   announceToScreenReader,
+  updateMultiplayerPanel,
+  updateRoomInfo,
+  renderPlayerList,
+  updateClueDisplay,
+  updateGuessesDisplay,
+  updateTimerDisplay,
+  showConnectionStatus,
+  updateMultiplayerControls,
+  showMultiplayerSection,
 } from './ui.js';
 import { generate as generateQR, toCanvas as qrToCanvas } from './qrcode.js';
+import * as multiplayer from './multiplayer.js';
 
 // ============ Application State ============
 
 let newGameDebounce = false;
+let multiplayerInitialized = false;
+
+// ============ Multiplayer Integration ============
+
+/**
+ * Initialize multiplayer functionality
+ */
+async function initMultiplayerSupport() {
+  if (multiplayerInitialized) return;
+
+  // Initialize multiplayer with event handlers
+  multiplayer.initMultiplayer({
+    onConnected: handleMpConnected,
+    onDisconnected: handleMpDisconnected,
+    onRoomCreated: handleMpRoomCreated,
+    onRoomJoined: handleMpRoomJoined,
+    onPlayerJoined: handleMpPlayerJoined,
+    onPlayerLeft: handleMpPlayerLeft,
+    onPlayerUpdated: handleMpPlayerUpdated,
+    onGameStarted: handleMpGameStarted,
+    onCardRevealed: handleMpCardRevealed,
+    onClueGiven: handleMpClueGiven,
+    onTurnEnded: handleMpTurnEnded,
+    onGameOver: handleMpGameOver,
+    onTimerTick: handleMpTimerTick,
+    onKicked: handleMpKicked,
+    onError: handleMpError,
+  });
+
+  // Try to connect to server
+  const connected = await multiplayer.connectToServer();
+  showConnectionStatus(connected);
+
+  multiplayerInitialized = true;
+}
+
+// Multiplayer Event Handlers
+
+function handleMpConnected({ wasReconnecting }) {
+  showConnectionStatus(true);
+}
+
+function handleMpDisconnected({ reason }) {
+  showConnectionStatus(false);
+}
+
+function handleMpRoomCreated(data) {
+  updateMultiplayerPanel('room');
+  refreshMultiplayerUI();
+}
+
+function handleMpRoomJoined(data) {
+  updateMultiplayerPanel('room');
+  refreshMultiplayerUI();
+  refreshUI();
+}
+
+function handleMpPlayerJoined(data) {
+  refreshMultiplayerUI();
+}
+
+function handleMpPlayerLeft(data) {
+  refreshMultiplayerUI();
+}
+
+function handleMpPlayerUpdated(data) {
+  refreshMultiplayerUI();
+  refreshUI();
+}
+
+function handleMpGameStarted(data) {
+  refreshUI();
+  refreshMultiplayerUI();
+}
+
+function handleMpCardRevealed(data) {
+  refreshUI();
+  refreshMultiplayerUI();
+
+  if (data.gameOver) {
+    showGameOverModal(getGameState(), getTeamNames());
+  }
+}
+
+function handleMpClueGiven(data) {
+  refreshMultiplayerUI();
+}
+
+function handleMpTurnEnded(data) {
+  refreshUI();
+  refreshMultiplayerUI();
+}
+
+function handleMpGameOver(data) {
+  refreshUI();
+  showGameOverModal(getGameState(), getTeamNames());
+}
+
+function handleMpTimerTick(data) {
+  const mpState = getMultiplayerState();
+  updateTimerDisplay(mpState.timer);
+}
+
+function handleMpKicked(data) {
+  updateMultiplayerPanel('standalone');
+  refreshUI();
+}
+
+function handleMpError(error) {
+  console.error('Multiplayer error:', error);
+}
+
+/**
+ * Refresh multiplayer-specific UI elements
+ */
+function refreshMultiplayerUI() {
+  const mpState = getMultiplayerState();
+  const playerState = getPlayerState();
+  const gameState = getGameState();
+  const teamNames = getTeamNames();
+  const currentPlayer = multiplayer.getPlayer();
+
+  // Update room info
+  updateRoomInfo(mpState.roomCode, mpState.players.length);
+
+  // Update player list
+  renderPlayerList(mpState.players, currentPlayer?.sessionId, mpState.isHost);
+
+  // Update clue display
+  updateClueDisplay(mpState.currentClue, teamNames);
+
+  // Update guesses
+  updateGuessesDisplay(mpState.guessesUsed, mpState.guessesAllowed);
+
+  // Update timer
+  updateTimerDisplay(mpState.timer);
+
+  // Update controls
+  const isMyTurn = playerState.clickerTeam === gameState.currentTurn ||
+                   playerState.spymasterTeam === gameState.currentTurn;
+  updateMultiplayerControls({
+    isHost: mpState.isHost,
+    isSpymaster: !!playerState.spymasterTeam,
+    isClicker: !!playerState.clickerTeam,
+    isMyTurn,
+    gameInProgress: gameState.words.length > 0 && !gameState.gameOver,
+    gameOver: gameState.gameOver,
+  });
+}
+
+// ============ Multiplayer Actions ============
+
+/**
+ * Show create room panel
+ */
+function showCreateRoom() {
+  updateMultiplayerPanel('create');
+  const nicknameInput = document.getElementById('create-nickname');
+  if (nicknameInput) {
+    nicknameInput.value = multiplayer.getStoredNickname() || '';
+    nicknameInput.focus();
+  }
+}
+
+/**
+ * Show join room panel
+ */
+function showJoinRoom() {
+  updateMultiplayerPanel('join');
+  const nicknameInput = document.getElementById('join-nickname');
+  if (nicknameInput) {
+    nicknameInput.value = multiplayer.getStoredNickname() || '';
+  }
+  const codeInput = document.getElementById('join-code');
+  if (codeInput) {
+    codeInput.focus();
+  }
+}
+
+/**
+ * Create a multiplayer room
+ */
+async function createRoom() {
+  const nicknameInput = document.getElementById('create-nickname');
+  const passwordInput = document.getElementById('create-password');
+
+  const nickname = nicknameInput?.value.trim();
+  if (!nickname) {
+    showToast('Please enter a nickname', 'warning');
+    nicknameInput?.focus();
+    return;
+  }
+
+  const password = passwordInput?.value.trim() || null;
+
+  try {
+    await multiplayer.createMultiplayerRoom(nickname, { password });
+  } catch (error) {
+    // Error already shown by multiplayer module
+  }
+}
+
+/**
+ * Join a multiplayer room
+ */
+async function joinRoom() {
+  const codeInput = document.getElementById('join-code');
+  const nicknameInput = document.getElementById('join-nickname');
+  const passwordInput = document.getElementById('join-password');
+
+  const code = codeInput?.value.trim().toUpperCase();
+  const nickname = nicknameInput?.value.trim();
+  const password = passwordInput?.value.trim() || null;
+
+  if (!code || code.length !== 6) {
+    showToast('Please enter a valid 6-character room code', 'warning');
+    codeInput?.focus();
+    return;
+  }
+
+  if (!nickname) {
+    showToast('Please enter a nickname', 'warning');
+    nicknameInput?.focus();
+    return;
+  }
+
+  try {
+    await multiplayer.joinMultiplayerRoom(code, nickname, password);
+  } catch (error) {
+    // Error already shown by multiplayer module
+  }
+}
+
+/**
+ * Leave the current room
+ */
+function leaveRoom() {
+  multiplayer.leaveMultiplayerRoom();
+  updateMultiplayerPanel('standalone');
+  newGame();
+}
+
+/**
+ * Start multiplayer game (host only)
+ */
+function startMultiplayerGame() {
+  const wordListState = getWordListState();
+  multiplayer.startMultiplayerGame({
+    wordList: wordListState.activeWords,
+  });
+}
+
+/**
+ * Handle card click in multiplayer mode
+ */
+function handleMultiplayerCardClick(index) {
+  multiplayer.revealMultiplayerCard(index);
+}
+
+/**
+ * Handle end turn in multiplayer mode
+ */
+function handleMultiplayerEndTurn() {
+  multiplayer.endMultiplayerTurn();
+}
+
+/**
+ * Set team in multiplayer
+ */
+function setMultiplayerTeam(team) {
+  multiplayer.setMultiplayerTeam(team);
+}
+
+/**
+ * Set role in multiplayer
+ */
+function setMultiplayerRole(role) {
+  multiplayer.setMultiplayerRole(role);
+}
+
+/**
+ * Give clue in multiplayer
+ */
+function giveClue() {
+  const wordInput = document.getElementById('clue-word-input');
+  const numberInput = document.getElementById('clue-number-input');
+
+  const word = wordInput?.value.trim().toUpperCase();
+  const number = parseInt(numberInput?.value, 10);
+
+  if (!word) {
+    showToast('Please enter a clue word', 'warning');
+    wordInput?.focus();
+    return;
+  }
+
+  if (isNaN(number) || number < 0 || number > BOARD_SIZE) {
+    showToast('Please enter a valid number (0-25)', 'warning');
+    numberInput?.focus();
+    return;
+  }
+
+  multiplayer.giveMultiplayerClue(word, number);
+
+  // Clear inputs
+  if (wordInput) wordInput.value = '';
+  if (numberInput) numberInput.value = '';
+}
+
+/**
+ * Kick a player
+ */
+function kickPlayer(sessionId) {
+  if (confirm('Are you sure you want to kick this player?')) {
+    multiplayer.kickMultiplayerPlayer(sessionId);
+  }
+}
+
+/**
+ * Copy room code to clipboard
+ */
+function copyRoomCode() {
+  const mpState = getMultiplayerState();
+  if (mpState.roomCode) {
+    navigator.clipboard.writeText(mpState.roomCode).then(() => {
+      showToast('Room code copied!', 'success', 2000);
+    }).catch(() => {
+      showToast('Failed to copy', 'error');
+    });
+  }
+}
 
 // ============ URL Management ============
 
@@ -261,6 +605,12 @@ function confirmNewGame() {
  * @param {number} index - Card index
  */
 function handleCardClick(index) {
+  // Use multiplayer handler if in multiplayer mode
+  if (isMultiplayerMode()) {
+    handleMultiplayerCardClick(index);
+    return;
+  }
+
   const gameState = getGameState();
   const playerState = getPlayerState();
 
@@ -308,6 +658,13 @@ function canClickCards(gameState, playerState) {
  * Handle end turn action
  */
 function handleEndTurn() {
+  // Use multiplayer handler if in multiplayer mode
+  if (isMultiplayerMode()) {
+    closeModal('confirm-end-turn-modal');
+    handleMultiplayerEndTurn();
+    return;
+  }
+
   const gameState = getGameState();
   const playerState = getPlayerState();
 
@@ -689,6 +1046,65 @@ function setupEventListeners() {
       case 'close-error':
         closeModal('error-modal');
         break;
+      // Multiplayer actions
+      case 'show-create-room':
+        showCreateRoom();
+        break;
+      case 'show-join-room':
+        showJoinRoom();
+        break;
+      case 'back-to-standalone':
+        updateMultiplayerPanel('standalone');
+        break;
+      case 'create-room':
+        createRoom();
+        break;
+      case 'join-room':
+        joinRoom();
+        break;
+      case 'leave-room':
+        leaveRoom();
+        break;
+      case 'start-mp-game':
+        startMultiplayerGame();
+        break;
+      case 'give-clue':
+        giveClue();
+        break;
+      case 'copy-room-code':
+        copyRoomCode();
+        break;
+      case 'mp-team-red':
+        setMultiplayerTeam('red');
+        break;
+      case 'mp-team-blue':
+        setMultiplayerTeam('blue');
+        break;
+      case 'mp-spectate':
+        setMultiplayerTeam(null);
+        break;
+      case 'mp-spymaster':
+        setMultiplayerRole('spymaster');
+        break;
+      case 'mp-clicker':
+        setMultiplayerRole('clicker');
+        break;
+      case 'forfeit-game':
+        if (confirm('Are you sure you want to forfeit?')) {
+          multiplayer.forfeitMultiplayerGame();
+        }
+        break;
+    }
+  });
+
+  // Handle kick button clicks (delegated)
+  document.addEventListener('click', (e) => {
+    const kickBtn = e.target.closest('.btn-kick');
+    if (kickBtn) {
+      const sessionId = kickBtn.dataset.session;
+      if (sessionId) {
+        kickPlayer(sessionId);
+      }
     }
   });
 
@@ -770,6 +1186,12 @@ async function init() {
     await tryLoadWordlistFile();
     loadGameFromURL();
     updateQRCode(window.location.href);
+
+    // Initialize multiplayer support (non-blocking)
+    initMultiplayerSupport().catch(err => {
+      console.warn('Multiplayer initialization failed:', err);
+      // Game still works in standalone mode
+    });
   } catch (e) {
     showErrorModal(
       'Failed to load the game. This might be due to corrupted data or a browser issue.',
@@ -799,4 +1221,14 @@ export {
   loadGameFromURL,
   updateURL,
   refreshUI,
+  // Multiplayer exports
+  initMultiplayerSupport,
+  showCreateRoom,
+  showJoinRoom,
+  createRoom,
+  joinRoom,
+  leaveRoom,
+  startMultiplayerGame,
+  giveClue,
+  refreshMultiplayerUI,
 };

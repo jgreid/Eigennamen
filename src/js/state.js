@@ -139,11 +139,36 @@ function createInitialTeamState() {
   };
 }
 
+/**
+ * Create initial multiplayer state
+ * @returns {Object} Fresh multiplayer state object
+ */
+function createInitialMultiplayerState() {
+  return {
+    mode: 'standalone',      // 'standalone' or 'multiplayer'
+    connected: false,
+    roomCode: null,
+    roomPassword: null,
+    players: [],             // Array of player objects
+    isHost: false,
+    currentClue: null,       // { word, number, team, spymaster }
+    guessesAllowed: 0,
+    guessesUsed: 0,
+    timer: null,             // { remaining, total, running }
+    settings: {
+      turnTimeLimit: 0,      // 0 = no limit
+      strictSpymaster: false,
+      allowSpectators: true,
+    },
+  };
+}
+
 // State containers
 let gameState = createInitialGameState();
 let playerState = createInitialPlayerState();
 let wordListState = createInitialWordListState();
 let teamNames = createInitialTeamState();
+let multiplayerState = createInitialMultiplayerState();
 
 // State change listeners
 const listeners = new Set();
@@ -205,6 +230,28 @@ export function getWordListState() {
  */
 export function getTeamNames() {
   return { ...teamNames };
+}
+
+/**
+ * Get current multiplayer state (read-only copy)
+ * @returns {Object} Current multiplayer state
+ */
+export function getMultiplayerState() {
+  return {
+    ...multiplayerState,
+    players: [...multiplayerState.players],
+    settings: { ...multiplayerState.settings },
+    timer: multiplayerState.timer ? { ...multiplayerState.timer } : null,
+    currentClue: multiplayerState.currentClue ? { ...multiplayerState.currentClue } : null,
+  };
+}
+
+/**
+ * Check if in multiplayer mode
+ * @returns {boolean}
+ */
+export function isMultiplayerMode() {
+  return multiplayerState.mode === 'multiplayer';
 }
 
 // ============ Game State Setters ============
@@ -590,6 +637,161 @@ export function resetTeamNames() {
   notifyListeners('teamNameChange', { ...teamNames });
 }
 
+// ============ Multiplayer State Setters ============
+
+/**
+ * Set multiplayer mode
+ * @param {string} mode - 'standalone' or 'multiplayer'
+ */
+export function setMultiplayerMode(mode) {
+  multiplayerState.mode = mode;
+  notifyListeners('modeChange', { mode });
+}
+
+/**
+ * Set connection status
+ * @param {boolean} connected - Connection status
+ */
+export function setConnected(connected) {
+  multiplayerState.connected = connected;
+  notifyListeners('connectionChange', { connected });
+}
+
+/**
+ * Set room info
+ * @param {string} code - Room code
+ * @param {string} [password] - Room password (optional)
+ */
+export function setRoomInfo(code, password = null) {
+  multiplayerState.roomCode = code;
+  multiplayerState.roomPassword = password;
+  notifyListeners('roomChange', { code, password });
+}
+
+/**
+ * Clear room info (when leaving)
+ */
+export function clearRoomInfo() {
+  multiplayerState.roomCode = null;
+  multiplayerState.roomPassword = null;
+  multiplayerState.players = [];
+  multiplayerState.currentClue = null;
+  multiplayerState.guessesAllowed = 0;
+  multiplayerState.guessesUsed = 0;
+  multiplayerState.timer = null;
+  notifyListeners('roomCleared');
+}
+
+/**
+ * Set players list
+ * @param {Array} players - Array of player objects
+ */
+export function setPlayers(players) {
+  multiplayerState.players = [...players];
+  notifyListeners('playersChange', { players: multiplayerState.players });
+}
+
+/**
+ * Update a single player
+ * @param {string} sessionId - Player's session ID
+ * @param {Object} changes - Changes to apply
+ */
+export function updatePlayer(sessionId, changes) {
+  const index = multiplayerState.players.findIndex(p => p.sessionId === sessionId);
+  if (index !== -1) {
+    multiplayerState.players[index] = { ...multiplayerState.players[index], ...changes };
+    notifyListeners('playerUpdated', { sessionId, changes, player: multiplayerState.players[index] });
+  }
+}
+
+/**
+ * Add a player
+ * @param {Object} player - Player object
+ */
+export function addPlayer(player) {
+  const exists = multiplayerState.players.some(p => p.sessionId === player.sessionId);
+  if (!exists) {
+    multiplayerState.players.push(player);
+    notifyListeners('playerJoined', { player });
+  }
+}
+
+/**
+ * Remove a player
+ * @param {string} sessionId - Player's session ID
+ */
+export function removePlayer(sessionId) {
+  const index = multiplayerState.players.findIndex(p => p.sessionId === sessionId);
+  if (index !== -1) {
+    const player = multiplayerState.players[index];
+    multiplayerState.players.splice(index, 1);
+    notifyListeners('playerLeft', { sessionId, player });
+  }
+}
+
+/**
+ * Set multiplayer host status
+ * @param {boolean} isHost - Host status
+ */
+export function setMultiplayerHost(isHost) {
+  multiplayerState.isHost = isHost;
+  playerState.isHost = isHost;
+  notifyListeners('hostChange', { isHost });
+}
+
+/**
+ * Set current clue
+ * @param {Object|null} clue - Clue object { word, number, team, spymaster }
+ */
+export function setCurrentClue(clue) {
+  multiplayerState.currentClue = clue ? { ...clue } : null;
+  if (clue) {
+    multiplayerState.guessesAllowed = clue.number === 0 ? Infinity : clue.number + 1;
+    multiplayerState.guessesUsed = 0;
+  } else {
+    multiplayerState.guessesAllowed = 0;
+    multiplayerState.guessesUsed = 0;
+  }
+  notifyListeners('clueChange', { clue: multiplayerState.currentClue });
+}
+
+/**
+ * Increment guesses used
+ */
+export function incrementGuessesUsed() {
+  multiplayerState.guessesUsed++;
+  notifyListeners('guessesChange', {
+    used: multiplayerState.guessesUsed,
+    allowed: multiplayerState.guessesAllowed,
+  });
+}
+
+/**
+ * Set timer state
+ * @param {Object|null} timer - Timer object { remaining, total, running }
+ */
+export function setTimer(timer) {
+  multiplayerState.timer = timer ? { ...timer } : null;
+  notifyListeners('timerChange', { timer: multiplayerState.timer });
+}
+
+/**
+ * Update room settings
+ * @param {Object} settings - Settings to merge
+ */
+export function updateRoomSettings(settings) {
+  multiplayerState.settings = { ...multiplayerState.settings, ...settings };
+  notifyListeners('settingsChange', { settings: multiplayerState.settings });
+}
+
+/**
+ * Reset multiplayer state
+ */
+export function resetMultiplayerState() {
+  multiplayerState = createInitialMultiplayerState();
+  notifyListeners('multiplayerReset');
+}
+
 // ============ Game History ============
 
 // History of completed games (for replay feature)
@@ -682,6 +884,8 @@ export default {
   getWordListState,
   getTeamNames,
   getGameHistory,
+  getMultiplayerState,
+  isMultiplayerMode,
 
   // Game state
   setupGameBoard,
@@ -711,6 +915,22 @@ export default {
   setTeamName,
   setTeamNames,
   resetTeamNames,
+
+  // Multiplayer
+  setMultiplayerMode,
+  setConnected,
+  setRoomInfo,
+  clearRoomInfo,
+  setPlayers,
+  updatePlayer,
+  addPlayer,
+  removePlayer,
+  setMultiplayerHost,
+  setCurrentClue,
+  incrementGuessesUsed,
+  setTimer,
+  updateRoomSettings,
+  resetMultiplayerState,
 
   // History
   saveGameToHistory,

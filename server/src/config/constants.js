@@ -65,6 +65,7 @@ module.exports = {
         PING_INTERVAL_MS: 25000,          // Ping interval (25 seconds)
         MAX_DISCONNECTION_DURATION_MS: 2 * 60 * 1000,  // 2 minutes for connection recovery
         SOCKET_COUNT_CACHE_MS: 5000,      // Cache socket count for 5 seconds
+        SOCKET_COUNT_TIMEOUT_MS: 2000,    // Timeout for fetching socket count
         REDIS_KEEPALIVE_MS: 10000         // Redis keepalive interval
     },
 

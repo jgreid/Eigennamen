@@ -6184,13 +6184,19 @@
 
         // Set spymaster for current team (used by unified role button)
         function setSpymasterCurrent() {
-            if (!playerTeam) return;
+            if (!playerTeam) {
+                showToast('Please join a team first by clicking on a team score', 'warning');
+                return;
+            }
             setSpymaster(playerTeam);
         }
 
         // Set clicker for current team (used by unified role button)
         function setClickerCurrent() {
-            if (!playerTeam) return;
+            if (!playerTeam) {
+                showToast('Please join a team first by clicking on a team score', 'warning');
+                return;
+            }
             setClicker(playerTeam);
         }
 
@@ -6420,8 +6426,32 @@
         let pendingUIUpdate = false;
 
         function revealCard(index) {
-            if (!canClickCards()) return;
-            if (gameState.revealed[index] || gameState.gameOver) return;
+            // Provide specific feedback for why card click is blocked
+            if (gameState.gameOver) {
+                showToast('Game is over - start a new game to continue', 'warning');
+                return;
+            }
+            if (gameState.revealed[index]) {
+                // Card already revealed - silent return is OK here as it's visually obvious
+                return;
+            }
+            if (!canClickCards()) {
+                // Determine specific reason
+                if (spymasterTeam) {
+                    showToast('Spymasters cannot reveal cards', 'warning');
+                } else if (clickerTeam && clickerTeam !== gameState.currentTurn) {
+                    const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
+                    showToast(`It's ${currentTeamName}'s turn`, 'warning');
+                } else if (!clickerTeam && !playerTeam) {
+                    showToast('Join a team and become a clicker to reveal cards', 'warning');
+                } else if (playerTeam && playerTeam !== gameState.currentTurn) {
+                    const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
+                    showToast(`It's ${currentTeamName}'s turn`, 'warning');
+                } else {
+                    showToast('Only the clicker can reveal cards', 'warning');
+                }
+                return;
+            }
 
             // In multiplayer mode, send reveal to server and let it broadcast
             if (isMultiplayerMode && CodenamesClient.isConnected()) {
@@ -6523,8 +6553,20 @@
         }
 
         function endTurn() {
-            // Only the current team's clicker can end the turn
-            if (!clickerTeam || clickerTeam !== gameState.currentTurn || gameState.gameOver) return;
+            // Provide specific feedback for why end turn is blocked
+            if (gameState.gameOver) {
+                showToast('Game is over - start a new game to continue', 'warning');
+                return;
+            }
+            if (!clickerTeam) {
+                showToast('Only clickers can end the turn', 'warning');
+                return;
+            }
+            if (clickerTeam !== gameState.currentTurn) {
+                const currentTeamName = gameState.currentTurn === 'red' ? teamNames.red : teamNames.blue;
+                showToast(`It's ${currentTeamName}'s turn - only their clicker can end it`, 'warning');
+                return;
+            }
 
             // In multiplayer mode, send end turn to server
             if (isMultiplayerMode && CodenamesClient.isConnected()) {
