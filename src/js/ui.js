@@ -92,6 +92,9 @@ const toastIcons = {
   info: '&#8505;',
 };
 
+// Maximum number of toasts to display at once (prevents DOM overflow)
+const MAX_TOAST_COUNT = 5;
+
 /**
  * Show a toast notification
  * @param {string} message - Message to display
@@ -102,6 +105,16 @@ const toastIcons = {
 export function showToast(message, type = 'error', duration = 4000) {
   const container = cachedElements.toastContainer || document.getElementById('toast-container');
   if (!container) return null;
+
+  // Enforce queue limit to prevent DOM overflow
+  const existingToasts = container.querySelectorAll('.toast:not(.hiding)');
+  if (existingToasts.length >= MAX_TOAST_COUNT) {
+    // Remove the oldest toast(s) to make room
+    const toastsToRemove = existingToasts.length - MAX_TOAST_COUNT + 1;
+    for (let i = 0; i < toastsToRemove; i++) {
+      dismissToast(existingToasts[i]);
+    }
+  }
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
