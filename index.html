@@ -4753,7 +4753,20 @@
 
                     // If this is the current player, update local state variables
                     if (data.sessionId === CodenamesClient.player?.sessionId) {
-                        const updatedPlayer = multiplayerPlayers.find(p => p.sessionId === data.sessionId);
+                        let updatedPlayer = multiplayerPlayers.find(p => p.sessionId === data.sessionId);
+
+                        // If player not in list (edge case), add them or use CodenamesClient.player
+                        if (!updatedPlayer) {
+                            // Player might not be in multiplayerPlayers yet (e.g., just created room)
+                            // Use the updated CodenamesClient.player as fallback
+                            updatedPlayer = CodenamesClient.player;
+                            if (updatedPlayer) {
+                                // Ensure the player is in the list for future updates
+                                multiplayerPlayers = [...multiplayerPlayers, updatedPlayer];
+                                updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                            }
+                        }
+
                         if (updatedPlayer) {
                             syncLocalPlayerState(updatedPlayer);
 
@@ -4772,6 +4785,13 @@
                             updateControls();
                             updateRoleBanner();
                             renderBoard();
+                        } else {
+                            // Even if player not found, clear the flag to prevent blocking
+                            // This should not normally happen, but handles edge cases
+                            console.warn('playerUpdated: current player not found in list, clearing isChangingRole');
+                            if (!pendingRoleChange) {
+                                isChangingRole = false;
+                            }
                         }
                     }
                 }
