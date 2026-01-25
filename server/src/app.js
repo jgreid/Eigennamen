@@ -41,7 +41,7 @@ async function getCachedSocketCount(io, forceRefresh = false) {
     try {
         const socketCountPromise = io.fetchSockets().then(s => s.length);
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Socket count timeout')), 2000)
+            setTimeout(() => reject(new Error('Socket count timeout')), SOCKET.SOCKET_COUNT_TIMEOUT_MS)
         );
 
         cachedSocketCount = await Promise.race([socketCountPromise, timeoutPromise]);

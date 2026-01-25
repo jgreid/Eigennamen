@@ -247,7 +247,8 @@ describe('Health Check Timeout', () => {
 
         expect(appCode).toContain('Promise.race');
         expect(appCode).toContain('Socket count timeout');
-        expect(appCode).toContain('2000');
+        // Timeout value should use constant from config/constants.js
+        expect(appCode).toContain('SOCKET.SOCKET_COUNT_TIMEOUT_MS');
     });
 });
 
