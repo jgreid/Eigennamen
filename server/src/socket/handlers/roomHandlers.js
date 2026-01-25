@@ -74,6 +74,9 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = room.code;
 
+            // Host starts as spectator, so add to spectators room for consistency with join behavior
+            socket.join(`spectators:${room.code}`);
+
             // US-16.1: Get initial room stats
             const roomStats = await playerService.getRoomStats(room.code);
 
@@ -96,6 +99,7 @@ module.exports = function roomHandlers(io, socket) {
             // ISSUE #2 FIX: Clean up socket room membership if we partially created
             if (createdRoomCode) {
                 socket.leave(`room:${createdRoomCode}`);
+                socket.leave(`spectators:${createdRoomCode}`);
                 socket.leave(`player:${socket.sessionId}`);
                 socket.roomCode = null;
             }
