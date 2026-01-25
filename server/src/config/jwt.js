@@ -95,14 +95,29 @@ function signToken(payload, options = {}) {
     });
 }
 
+// JWT error codes for structured error handling
+const JWT_ERROR_CODES = {
+    TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+    TOKEN_INVALID: 'TOKEN_INVALID',
+    TOKEN_MALFORMED: 'TOKEN_MALFORMED',
+    TOKEN_NOT_ACTIVE: 'TOKEN_NOT_ACTIVE',
+    CLAIMS_MISMATCH: 'CLAIMS_MISMATCH',
+    JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED'
+};
+
 /**
- * Verify and decode a JWT token
+ * Verify and decode a JWT token with detailed error information
  * @param {string} token - Token to verify
- * @returns {object|null} - Decoded payload or null if invalid
+ * @param {object} options - Optional verification options
+ * @param {boolean} options.returnError - If true, returns error object instead of null on failure
+ * @returns {object|null} - Decoded payload, or error object if returnError is true, or null if invalid
  */
-function verifyToken(token) {
+function verifyToken(token, options = {}) {
     const secret = getJwtSecret();
     if (!secret) {
+        if (options.returnError) {
+            return { error: JWT_ERROR_CODES.JWT_NOT_CONFIGURED, message: 'JWT authentication not configured' };
+        }
         return null;
     }
 
@@ -113,15 +128,75 @@ function verifyToken(token) {
             audience: JWT_CONFIG.audience
         });
     } catch (error) {
+        let errorCode;
+        let errorMessage;
+
         if (error.name === 'TokenExpiredError') {
-            logger.debug('JWT token expired');
+            errorCode = JWT_ERROR_CODES.TOKEN_EXPIRED;
+            errorMessage = `Token expired at ${error.expiredAt}`;
+            logger.debug('JWT token expired', { expiredAt: error.expiredAt });
+        } else if (error.name === 'NotBeforeError') {
+            errorCode = JWT_ERROR_CODES.TOKEN_NOT_ACTIVE;
+            errorMessage = `Token not active until ${error.date}`;
+            logger.debug('JWT token not yet active', { notBefore: error.date });
         } else if (error.name === 'JsonWebTokenError') {
+            // Distinguish between malformed and other JWT errors
+            if (error.message.includes('malformed') || error.message.includes('invalid')) {
+                errorCode = JWT_ERROR_CODES.TOKEN_MALFORMED;
+            } else {
+                errorCode = JWT_ERROR_CODES.TOKEN_INVALID;
+            }
+            errorMessage = error.message;
             logger.debug('Invalid JWT token:', error.message);
         } else {
+            errorCode = JWT_ERROR_CODES.TOKEN_INVALID;
+            errorMessage = error.message;
             logger.warn('JWT verification error:', error.message);
+        }
+
+        if (options.returnError) {
+            return { error: errorCode, message: errorMessage };
         }
         return null;
     }
+}
+
+/**
+ * Verify token and validate that claims match expected values
+ * @param {string} token - Token to verify
+ * @param {object} expectedClaims - Claims to validate (e.g., { userId, sessionId })
+ * @returns {{valid: boolean, decoded?: object, error?: string, message?: string}}
+ */
+function verifyTokenWithClaims(token, expectedClaims = {}) {
+    const result = verifyToken(token, { returnError: true });
+
+    // Check if verification failed
+    if (result && result.error) {
+        return { valid: false, error: result.error, message: result.message };
+    }
+
+    // Check if token decoded successfully
+    if (!result) {
+        return { valid: false, error: JWT_ERROR_CODES.TOKEN_INVALID, message: 'Token verification failed' };
+    }
+
+    // Validate expected claims
+    for (const [key, expectedValue] of Object.entries(expectedClaims)) {
+        if (expectedValue !== undefined && result[key] !== expectedValue) {
+            logger.debug('JWT claims mismatch', {
+                claim: key,
+                expected: expectedValue,
+                actual: result[key]
+            });
+            return {
+                valid: false,
+                error: JWT_ERROR_CODES.CLAIMS_MISMATCH,
+                message: `Claim '${key}' does not match expected value`
+            };
+        }
+    }
+
+    return { valid: true, decoded: result };
 }
 
 /**
@@ -155,11 +230,13 @@ function generateSessionToken(userId, sessionId, additionalClaims = {}) {
 
 module.exports = {
     JWT_CONFIG,
+    JWT_ERROR_CODES,
     MIN_SECRET_LENGTH,
     getJwtSecret,
     isJwtEnabled,
     signToken,
     verifyToken,
+    verifyTokenWithClaims,
     decodeToken,
     generateSessionToken
 };

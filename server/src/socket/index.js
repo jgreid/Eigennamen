@@ -148,11 +148,106 @@ function initializeSocket(server, expressApp = null) {
             }
         });
 
-        // Handle errors
+        // Handle errors with classification and structured logging
         socket.on('error', (error) => {
-            logger.error(`Socket error for ${socket.id}:`, error);
+            // Classify error type for metrics and handling
+            const errorInfo = classifySocketError(error);
+
+            logger.error(`Socket error for ${socket.id}:`, {
+                errorType: errorInfo.type,
+                errorCode: errorInfo.code,
+                message: error.message,
+                sessionId: socket.sessionId,
+                clientIP: socket.clientIP,
+                stack: error.stack
+            });
+
+            // Emit error event to client with sanitized info (no internal details)
+            socket.emit('socket:error', {
+                code: errorInfo.code,
+                message: errorInfo.userMessage,
+                recoverable: errorInfo.recoverable
+            });
+
+            // Handle specific error types
+            if (!errorInfo.recoverable) {
+                logger.warn(`Non-recoverable socket error, disconnecting ${socket.id}`, {
+                    errorType: errorInfo.type
+                });
+                socket.disconnect(true);
+            }
+        });
+
+        // Handle connect error (client-side errors reported to server)
+        socket.on('connect_error', (error) => {
+            logger.warn(`Connection error for ${socket.id}:`, {
+                message: error.message,
+                sessionId: socket.sessionId
+            });
         });
     });
+
+/**
+ * Classify socket errors for appropriate handling
+ * @param {Error} error - The error to classify
+ * @returns {{type: string, code: string, userMessage: string, recoverable: boolean}}
+ */
+function classifySocketError(error) {
+    const errorMessage = error.message?.toLowerCase() || '';
+    const errorName = error.name || 'Error';
+
+    // Transport/network errors
+    if (errorMessage.includes('transport') || errorMessage.includes('network') ||
+        errorMessage.includes('connection') || errorMessage.includes('timeout')) {
+        return {
+            type: 'TRANSPORT_ERROR',
+            code: 'NETWORK_ERROR',
+            userMessage: 'Connection error occurred. Please try reconnecting.',
+            recoverable: true
+        };
+    }
+
+    // Authentication errors
+    if (errorMessage.includes('auth') || errorMessage.includes('unauthorized') ||
+        errorMessage.includes('token') || errorMessage.includes('permission')) {
+        return {
+            type: 'AUTH_ERROR',
+            code: 'AUTHENTICATION_ERROR',
+            userMessage: 'Authentication error. Please refresh the page.',
+            recoverable: false
+        };
+    }
+
+    // Validation errors
+    if (errorMessage.includes('validation') || errorMessage.includes('invalid') ||
+        errorName === 'ValidationError' || errorName === 'ZodError') {
+        return {
+            type: 'VALIDATION_ERROR',
+            code: 'VALIDATION_ERROR',
+            userMessage: 'Invalid data received. Please try again.',
+            recoverable: true
+        };
+    }
+
+    // Rate limiting
+    if (errorMessage.includes('rate') || errorMessage.includes('limit') ||
+        errorMessage.includes('too many')) {
+        return {
+            type: 'RATE_LIMIT_ERROR',
+            code: 'RATE_LIMITED',
+            userMessage: 'Too many requests. Please slow down.',
+            recoverable: true
+        };
+    }
+
+    // Default: unknown/server error
+    return {
+        type: 'SERVER_ERROR',
+        code: 'INTERNAL_ERROR',
+        userMessage: 'An unexpected error occurred. Please try again.',
+        recoverable: true
+    };
+}
 
     // Initialize timer service for distributed operation
     timerService.initializeTimerService(createTimerExpireCallback());
@@ -232,11 +327,23 @@ function createTimerExpireCallback() {
                         }
 
                         // ISSUE #3 FIX: Increase lock TTL to 10s and track acquisition state
-                        lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 10 });
+                        // SPRINT-15 FIX: Explicit verification of lock result (Redis returns 'OK' or null)
+                        const lockValue = `${process.pid}:${Date.now()}`;
+                        const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: 10 });
+                        lockAcquired = lockResult === 'OK' || lockResult === true;
+
                         if (!lockAcquired) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`);
+                            logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`, {
+                                lockKey
+                            });
                             return;
                         }
+
+                        logger.debug(`Timer restart lock acquired for room ${roomCode}`, {
+                            lockKey,
+                            lockValue,
+                            ttlSeconds: 10
+                        });
 
                         const room = await roomService.getRoom(roomCode);
                         const game = await gameService.getGame(roomCode);

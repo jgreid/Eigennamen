@@ -273,4 +273,104 @@ describe('JWT Configuration', () => {
             expect(jwtModule.MIN_SECRET_LENGTH).toBe(32);
         });
     });
+
+    describe('JWT_ERROR_CODES', () => {
+        it('should export error codes for JWT validation', () => {
+            process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
+            jwtModule = require('../config/jwt');
+
+            expect(jwtModule.JWT_ERROR_CODES).toBeDefined();
+            expect(jwtModule.JWT_ERROR_CODES.TOKEN_EXPIRED).toBe('TOKEN_EXPIRED');
+            expect(jwtModule.JWT_ERROR_CODES.TOKEN_INVALID).toBe('TOKEN_INVALID');
+            expect(jwtModule.JWT_ERROR_CODES.TOKEN_MALFORMED).toBe('TOKEN_MALFORMED');
+            expect(jwtModule.JWT_ERROR_CODES.CLAIMS_MISMATCH).toBe('CLAIMS_MISMATCH');
+            expect(jwtModule.JWT_ERROR_CODES.JWT_NOT_CONFIGURED).toBe('JWT_NOT_CONFIGURED');
+        });
+    });
+
+    describe('verifyToken with returnError option', () => {
+        beforeEach(() => {
+            process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
+            jwtModule = require('../config/jwt');
+        });
+
+        it('should return error object for expired token when returnError is true', () => {
+            const jwt = require('jsonwebtoken');
+            const token = jwt.sign(
+                { userId: 'test' },
+                'a-valid-secret-that-is-long-enough-32chars',
+                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'die-eigennamen', audience: 'game-client' }
+            );
+
+            const result = jwtModule.verifyToken(token, { returnError: true });
+            expect(result.error).toBe(jwtModule.JWT_ERROR_CODES.TOKEN_EXPIRED);
+            expect(result.message).toContain('expired');
+        });
+
+        it('should return error object for invalid token when returnError is true', () => {
+            const result = jwtModule.verifyToken('invalid-token', { returnError: true });
+            expect(result.error).toBeDefined();
+            expect(result.message).toBeDefined();
+        });
+
+        it('should return decoded payload for valid token', () => {
+            const token = jwtModule.signToken({ userId: 'test-user' });
+            const result = jwtModule.verifyToken(token, { returnError: true });
+            expect(result.userId).toBe('test-user');
+            expect(result.error).toBeUndefined();
+        });
+    });
+
+    describe('verifyTokenWithClaims', () => {
+        beforeEach(() => {
+            process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
+            jwtModule = require('../config/jwt');
+        });
+
+        it('should return valid:true for token with matching claims', () => {
+            const token = jwtModule.signToken({ userId: 'user-123', role: 'admin' });
+            const result = jwtModule.verifyTokenWithClaims(token, { userId: 'user-123' });
+
+            expect(result.valid).toBe(true);
+            expect(result.decoded).toBeDefined();
+            expect(result.decoded.userId).toBe('user-123');
+        });
+
+        it('should return valid:false for mismatched claims', () => {
+            const token = jwtModule.signToken({ userId: 'user-123' });
+            const result = jwtModule.verifyTokenWithClaims(token, { userId: 'different-user' });
+
+            expect(result.valid).toBe(false);
+            expect(result.error).toBe(jwtModule.JWT_ERROR_CODES.CLAIMS_MISMATCH);
+            expect(result.message).toContain('userId');
+        });
+
+        it('should return valid:false for expired token', () => {
+            const jwt = require('jsonwebtoken');
+            const token = jwt.sign(
+                { userId: 'test' },
+                'a-valid-secret-that-is-long-enough-32chars',
+                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'die-eigennamen', audience: 'game-client' }
+            );
+
+            const result = jwtModule.verifyTokenWithClaims(token, { userId: 'test' });
+            expect(result.valid).toBe(false);
+            expect(result.error).toBe(jwtModule.JWT_ERROR_CODES.TOKEN_EXPIRED);
+        });
+
+        it('should return valid:true when no claims to validate', () => {
+            const token = jwtModule.signToken({ userId: 'user-123' });
+            const result = jwtModule.verifyTokenWithClaims(token, {});
+
+            expect(result.valid).toBe(true);
+            expect(result.decoded.userId).toBe('user-123');
+        });
+
+        it('should skip undefined expected claims', () => {
+            const token = jwtModule.signToken({ userId: 'user-123' });
+            const result = jwtModule.verifyTokenWithClaims(token, { userId: 'user-123', role: undefined });
+
+            expect(result.valid).toBe(true);
+        });
+    });
 });

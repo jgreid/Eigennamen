@@ -499,7 +499,8 @@ describe('Timer Service Extended Tests', () => {
 
             expect(result).toBeNull();
             expect(mockLogger.debug).toHaveBeenCalledWith(
-                'Another instance is resuming timer for room ROOM_LOCK'
+                'Another instance is resuming timer for room ROOM_LOCK',
+                expect.objectContaining({ lockKey: expect.any(String) })
             );
         });
 

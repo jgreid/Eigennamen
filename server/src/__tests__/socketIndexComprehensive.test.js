@@ -350,7 +350,8 @@ describe('Socket Index Comprehensive Tests', () => {
             await new Promise(resolve => setTimeout(resolve, 50));
 
             expect(mockLogger.debug).toHaveBeenCalledWith(
-                expect.stringContaining('another instance handling it')
+                expect.stringContaining('another instance handling it'),
+                expect.objectContaining({ lockKey: expect.any(String) })
             );
         });
 
