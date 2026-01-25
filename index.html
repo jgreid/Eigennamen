@@ -4662,6 +4662,12 @@
                     const previousTurn = gameState.currentTurn;
                     // Update turn locally
                     gameState.currentTurn = data.currentTurn;
+
+                    // Reset clue and guess state for new turn
+                    gameState.currentClue = null;
+                    gameState.guessesUsed = 0;
+                    gameState.guessesAllowed = 0;
+
                     updateTurnIndicator();
                     updateRoleBanner();
                     updateControls();
@@ -5169,9 +5175,17 @@
                 gameState.seed = serverGame.seed;
             }
 
-            // Sync clue state if available
-            if (serverGame.currentClue) {
+            // Sync clue state (explicitly handle null to clear old clue)
+            if (serverGame.currentClue !== undefined) {
                 gameState.currentClue = serverGame.currentClue;
+            }
+
+            // Sync guess tracking state
+            if (typeof serverGame.guessesUsed === 'number') {
+                gameState.guessesUsed = serverGame.guessesUsed;
+            }
+            if (typeof serverGame.guessesAllowed === 'number') {
+                gameState.guessesAllowed = serverGame.guessesAllowed;
             }
 
             // Update all UI components
@@ -5233,6 +5247,14 @@
             } else if (!gameState.gameOver && type !== gameState.currentTurn) {
                 // Fallback: end turn if wrong guess (and game not over)
                 gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            // Sync guess tracking from server
+            if (typeof serverData.guessesUsed === 'number') {
+                gameState.guessesUsed = serverData.guessesUsed;
+            }
+            if (typeof serverData.guessesAllowed === 'number') {
+                gameState.guessesAllowed = serverData.guessesAllowed;
             }
 
             // Batch DOM updates using requestAnimationFrame for better performance
