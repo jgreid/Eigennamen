@@ -11,8 +11,7 @@ const roomRoutes = require('../routes/roomRoutes');
 // Mock services
 jest.mock('../services/roomService', () => ({
     roomExists: jest.fn(),
-    getRoom: jest.fn(),
-    findRoomByPassword: jest.fn()
+    getRoom: jest.fn()
 }));
 
 jest.mock('../services/playerService', () => ({
@@ -42,80 +41,6 @@ describe('Room Routes Coverage Tests', () => {
                     message: err.message || 'Internal server error'
                 }
             });
-        });
-    });
-
-    describe('GET /api/rooms/by-password/:password', () => {
-        test('returns room when password matches', async () => {
-            roomService.findRoomByPassword.mockResolvedValue({
-                code: 'ABCD12',
-                hasPassword: true
-            });
-
-            const response = await request(app)
-                .get('/api/rooms/by-password/mysecretpassword')
-                .expect(200);
-
-            expect(response.body.code).toBe('ABCD12');
-            expect(roomService.findRoomByPassword).toHaveBeenCalledWith('mysecretpassword');
-        });
-
-        test('returns 404 when no room found with password', async () => {
-            roomService.findRoomByPassword.mockResolvedValue(null);
-
-            const response = await request(app)
-                .get('/api/rooms/by-password/wrongpassword')
-                .expect(404);
-
-            expect(response.body.error.code).toBe('ROOM_NOT_FOUND');
-            expect(response.body.error.message).toBe('No room found with that password');
-        });
-
-        test('handles empty password correctly', async () => {
-            // A single space decodes to " " which is truthy but treated as
-            // a valid password that won't find a room
-            roomService.findRoomByPassword.mockResolvedValue(null);
-
-            const response = await request(app)
-                .get('/api/rooms/by-password/%20') // URL-encoded space
-                .expect(404);
-
-            expect(response.body.error.code).toBe('ROOM_NOT_FOUND');
-        });
-
-        test('returns 400 for password exceeding max length', async () => {
-            const longPassword = 'a'.repeat(51);
-
-            const response = await request(app)
-                .get(`/api/rooms/by-password/${longPassword}`)
-                .expect(400);
-
-            expect(response.body.error.code).toBe('INVALID_PASSWORD');
-        });
-
-        test('handles URL-encoded passwords correctly', async () => {
-            roomService.findRoomByPassword.mockResolvedValue({
-                code: 'ROOM99'
-            });
-
-            const password = 'test+password&special=chars';
-            const encodedPassword = encodeURIComponent(password);
-
-            const response = await request(app)
-                .get(`/api/rooms/by-password/${encodedPassword}`)
-                .expect(200);
-
-            expect(roomService.findRoomByPassword).toHaveBeenCalledWith(password);
-        });
-
-        test('handles service error', async () => {
-            roomService.findRoomByPassword.mockRejectedValue(new Error('Database error'));
-
-            const response = await request(app)
-                .get('/api/rooms/by-password/test')
-                .expect(500);
-
-            expect(response.body.error.code).toBe('INTERNAL_ERROR');
         });
     });
 
@@ -165,7 +90,6 @@ describe('Room Routes Coverage Tests', () => {
             roomService.getRoom.mockResolvedValue({
                 code: 'ABCD12',
                 status: 'waiting',
-                passwordHash: 'hash123',
                 settings: {
                     teamNames: { red: 'Red Team', blue: 'Blue Team' },
                     allowSpectators: true
@@ -182,16 +106,14 @@ describe('Room Routes Coverage Tests', () => {
 
             expect(response.body.room.code).toBe('ABCD12');
             expect(response.body.room.status).toBe('waiting');
-            expect(response.body.room.hasPassword).toBe(true);
             expect(response.body.room.settings.teamNames).toBeDefined();
             expect(response.body.playerCount).toBe(2);
         });
 
-        test('returns room info without password', async () => {
+        test('returns room info with spectators disabled', async () => {
             roomService.getRoom.mockResolvedValue({
-                code: 'NOPASS',
+                code: 'NOSPEC',
                 status: 'playing',
-                passwordHash: null,
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
                     allowSpectators: false
@@ -200,10 +122,10 @@ describe('Room Routes Coverage Tests', () => {
             playerService.getPlayersInRoom.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/api/rooms/NOPASS')
+                .get('/api/rooms/NOSPEC')
                 .expect(200);
 
-            expect(response.body.room.hasPassword).toBe(false);
+            expect(response.body.room.settings.allowSpectators).toBe(false);
             expect(response.body.playerCount).toBe(0);
         });
 

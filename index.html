@@ -4536,19 +4536,19 @@
             });
 
             CodenamesClient.on('turnEnded', (data) => {
-                if (data.nextTeam) {
+                if (data.currentTurn) {
                     const previousTurn = gameState.currentTurn;
                     // Update turn locally
-                    gameState.currentTurn = data.nextTeam;
+                    gameState.currentTurn = data.currentTurn;
                     updateTurnIndicator();
                     updateRoleBanner();
                     updateControls();
 
                     // Check and send notifications if it's now our turn
-                    checkAndNotifyTurn(data.nextTeam, previousTurn);
+                    checkAndNotifyTurn(data.currentTurn, previousTurn);
 
                     // Announce turn change
-                    const newTeamName = data.nextTeam === 'red' ? teamNames.red : teamNames.blue;
+                    const newTeamName = data.currentTurn === 'red' ? teamNames.red : teamNames.blue;
                     announceToScreenReader(`Turn ended. Now ${newTeamName}'s turn.`);
                 }
             });
@@ -7087,11 +7087,6 @@
             if (codeEl) codeEl.textContent = currentRoomId || CodenamesClient?.getRoomCode() || '----';
             if (playersEl) playersEl.textContent = multiplayerPlayers?.length || 0;
             if (statusEl) statusEl.textContent = gameState.status === 'ended' ? 'Game Over' : (gameState.status === 'playing' ? 'In Progress' : 'Waiting');
-        }
-
-        // Legacy function for compatibility - now just updates room info
-        function updateRoomIdStatus(hasRoomId) {
-            updateRoomInfoDisplay();
         }
 
         // ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
