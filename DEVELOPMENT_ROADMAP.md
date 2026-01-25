@@ -1,7 +1,7 @@
 # Development Roadmap - Die Eigennamen (Codenames Online)
 
-**Last Updated:** January 2026
-**Project Version:** v2.2.0
+**Last Updated:** January 25, 2026
+**Project Version:** v2.3.0
 
 This document outlines the development roadmap, planned features, and technical improvements for the Codenames Online project.
 
@@ -36,30 +36,35 @@ This document outlines the development roadmap, planned features, and technical 
 
 ### Code Review Status
 - **74 issues identified** in comprehensive code review
-- **53 implemented** (72%)
-- **6 partially implemented** (8%)
-- **11 not implemented** (15%)
+- **65 implemented** (88%)
+- **5 partially implemented** (7%)
+- **0 critical/high issues remaining**
 - **4 documented as acceptable** (5%)
 
 ---
 
-## Priority 1: Critical Improvements
+## Priority 1: Critical Improvements ✅ COMPLETED
 
-### 1.1 Remaining Security Issues
+All critical and high-priority security and reliability issues have been resolved as of January 2026.
 
-| Issue | Description | Effort | Impact |
-|-------|-------------|--------|--------|
-| Session Hijacking | Complete reconnection token implementation (#17) | Medium | High |
-| Rate Limiting | Add rate limiting on session ID validation (#74) | Low | High |
-| Team Validation | Validate both teams have players during game (#59) | Low | Medium |
+### 1.1 Security Issues - RESOLVED
 
-### 1.2 Multi-Instance Reliability
+| Issue | Description | Status |
+|-------|-------------|--------|
+| Session Hijacking | Reconnection token implementation (#17) | ✅ Fixed |
+| Rate Limiting | Rate limiting on session ID validation (#74) | ✅ Fixed |
+| Team Validation | Validate both teams have players during game (#59) | ✅ Fixed |
+| XSS Prevention | Nickname and team name sanitization | ✅ Fixed |
+| CSRF Protection | Subdomain wildcard bypass fixed | ✅ Fixed |
 
-| Issue | Description | Effort | Impact |
-|-------|-------------|--------|--------|
-| addTime Routing | Route addTime to correct timer instance (#34) | High | High |
-| Timer Orphan Check | Implement Redis keyspace notifications (#8) | High | Medium |
-| Pub/Sub Reliability | Add retry logic for pub/sub failures | Medium | High |
+### 1.2 Multi-Instance Reliability - RESOLVED
+
+| Issue | Description | Status |
+|-------|-------------|--------|
+| addTime Routing | Route addTime to correct timer instance (#34) | ✅ Fixed |
+| Timer Orphan Check | Redis keyspace notifications (#8) | ✅ Fixed |
+| Pub/Sub Reliability | Retry logic for pub/sub failures | ✅ Fixed |
+| Distributed Locks | Race condition prevention | ✅ Implemented |
 
 ---
 
@@ -147,14 +152,17 @@ This document outlines the development roadmap, planned features, and technical 
 - Update all handlers to use constants
 - Add TypeScript definitions for event payloads
 
-### 3.3 Testing Improvements
+### 3.3 Testing Improvements ✅ EXCEEDED TARGETS
 
-| Area | Current | Target |
-|------|---------|--------|
-| Line Coverage | 70% | 85% |
-| Branch Coverage | 70% | 80% |
-| Integration Tests | 3 files | 10 files |
-| E2E Tests | 0 | Full game flow coverage |
+| Area | Previous | Current | Target | Status |
+|------|----------|---------|--------|--------|
+| Line Coverage | 70% | 90.47% | 85% | ✅ Exceeded |
+| Branch Coverage | 70% | 83.91% | 80% | ✅ Exceeded |
+| Statement Coverage | 70% | 90.21% | 85% | ✅ Exceeded |
+| Function Coverage | 70% | 90.35% | 85% | ✅ Exceeded |
+| Total Tests | ~800 | 2,320 | 1,000+ | ✅ Exceeded |
+| Test Suites | 35 | 71 | 50+ | ✅ Exceeded |
+| E2E Tests | 0 | Pending | Full game flow | 🔄 Next Sprint |
 
 ---
 
@@ -285,17 +293,22 @@ Coverage targets by component:
 
 ## Release Schedule
 
-### v2.3.0 (Next Release)
-- Complete remaining Priority 1 issues
-- Add comprehensive integration tests
-- Performance optimization pass
+### v2.3.0 ✅ RELEASED (January 2026)
+- ✅ All Priority 1 issues resolved
+- ✅ Comprehensive test coverage (90%+)
+- ✅ Performance optimizations (Redis pooling, batch operations)
+- ✅ Spectator mode enhancements
+- ✅ Basic admin dashboard
+- ✅ OpenAPI/Swagger documentation
 
-### v2.4.0
-- Spectator chat channel
-- Enhanced game history
+### v2.4.0 (Next Release)
+- Room password protection
+- Sound notifications
+- Game history & stats dashboard
 - Mobile-responsive improvements
+- E2E testing framework (Playwright)
 
-### v3.0.0 (Major)
+### v3.0.0 (Major - Future)
 - Optional user accounts
 - Tournament mode (beta)
 - AI Spymaster (experimental)
