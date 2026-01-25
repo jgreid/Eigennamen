@@ -16,54 +16,53 @@ const {
 const { VALIDATION } = require('../config/constants');
 
 describe('roomJoinSchema', () => {
-    test('accepts valid room code and nickname', () => {
-        // Note: Room codes exclude 0, 1, I, L, O to avoid confusion
+    test('accepts valid room ID and nickname', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
+            roomId: 'my-room',
             nickname: 'Player1'
         });
         expect(result.success).toBe(true);
-        expect(result.data.code).toBe('ABC234');
+        expect(result.data.roomId).toBe('my-room');
         expect(result.data.nickname).toBe('Player1');
     });
 
-    test('transforms code to uppercase', () => {
+    test('trims room ID whitespace', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'abc234',
+            roomId: '  my-room  ',
             nickname: 'Player1'
         });
         expect(result.success).toBe(true);
-        expect(result.data.code).toBe('ABC234');
+        expect(result.data.roomId).toBe('my-room');
     });
 
     test('trims nickname whitespace', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
+            roomId: 'my-room',
             nickname: '  Player1  '
         });
         expect(result.success).toBe(true);
         expect(result.data.nickname).toBe('Player1');
     });
 
-    test('rejects invalid code length', () => {
+    test('rejects room ID too short', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC',
+            roomId: 'AB',
             nickname: 'Player1'
         });
         expect(result.success).toBe(false);
     });
 
-    test('rejects invalid code characters', () => {
+    test('accepts room ID with hyphen and underscore', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC-23',
+            roomId: 'my-room_123',
             nickname: 'Player1'
         });
-        expect(result.success).toBe(false);
+        expect(result.success).toBe(true);
     });
 
     test('rejects empty nickname', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
+            roomId: 'my-room',
             nickname: ''
         });
         expect(result.success).toBe(false);
@@ -71,7 +70,7 @@ describe('roomJoinSchema', () => {
 
     test('rejects too long nickname', () => {
         const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
+            roomId: 'my-room',
             nickname: 'A'.repeat(31)
         });
         expect(result.success).toBe(false);
@@ -361,13 +360,22 @@ describe('chatMessageSchema', () => {
 });
 
 describe('roomCreateSchema', () => {
-    test('accepts empty settings', () => {
+    test('requires roomId', () => {
         const result = roomCreateSchema.safeParse({});
+        expect(result.success).toBe(false);
+    });
+
+    test('accepts valid roomId with default settings', () => {
+        const result = roomCreateSchema.safeParse({
+            roomId: 'my-game'
+        });
         expect(result.success).toBe(true);
+        expect(result.data.roomId).toBe('my-game');
     });
 
     test('accepts custom team names', () => {
         const result = roomCreateSchema.safeParse({
+            roomId: 'my-game',
             settings: {
                 teamNames: {
                     red: 'Fire',
@@ -381,6 +389,7 @@ describe('roomCreateSchema', () => {
 
     test('rejects team names too long', () => {
         const result = roomCreateSchema.safeParse({
+            roomId: 'my-game',
             settings: {
                 teamNames: {
                     red: 'A'.repeat(VALIDATION.TEAM_NAME_MAX_LENGTH + 1),
@@ -393,6 +402,7 @@ describe('roomCreateSchema', () => {
 
     test('accepts valid turn timer', () => {
         const result = roomCreateSchema.safeParse({
+            roomId: 'my-game',
             settings: {
                 turnTimer: 60
             }
@@ -402,6 +412,7 @@ describe('roomCreateSchema', () => {
 
     test('rejects turn timer too short', () => {
         const result = roomCreateSchema.safeParse({
+            roomId: 'my-game',
             settings: {
                 turnTimer: 10
             }
@@ -411,6 +422,7 @@ describe('roomCreateSchema', () => {
 
     test('rejects turn timer too long', () => {
         const result = roomCreateSchema.safeParse({
+            roomId: 'my-game',
             settings: {
                 turnTimer: 600
             }
@@ -418,93 +430,56 @@ describe('roomCreateSchema', () => {
         expect(result.success).toBe(false);
     });
 
-    test('accepts room with password', () => {
+    test('rejects roomId too short', () => {
         const result = roomCreateSchema.safeParse({
-            settings: {
-                password: 'secret123'
-            }
-        });
-        expect(result.success).toBe(true);
-        expect(result.data.settings.password).toBe('secret123');
-    });
-
-    test('accepts empty password', () => {
-        const result = roomCreateSchema.safeParse({
-            settings: {
-                password: ''
-            }
-        });
-        expect(result.success).toBe(true);
-    });
-
-    test('rejects password too long', () => {
-        const result = roomCreateSchema.safeParse({
-            settings: {
-                password: 'A'.repeat(51)
-            }
+            roomId: 'AB'
         });
         expect(result.success).toBe(false);
     });
-});
 
-describe('roomJoinSchema password validation', () => {
-    test('accepts join with password', () => {
-        const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
-            nickname: 'Player1',
-            password: 'secret123'
-        });
-        expect(result.success).toBe(true);
-        expect(result.data.password).toBe('secret123');
-    });
-
-    test('accepts join without password', () => {
-        const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
-            nickname: 'Player1'
-        });
-        expect(result.success).toBe(true);
-        expect(result.data.password).toBeUndefined();
-    });
-
-    test('rejects password too long', () => {
-        const result = roomJoinSchema.safeParse({
-            code: 'ABC234',
-            nickname: 'Player1',
-            password: 'A'.repeat(51)
+    test('rejects roomId too long', () => {
+        const result = roomCreateSchema.safeParse({
+            roomId: 'A'.repeat(21)
         });
         expect(result.success).toBe(false);
+    });
+
+    test('accepts roomId with allowed characters', () => {
+        const result = roomCreateSchema.safeParse({
+            roomId: 'My-Game_123'
+        });
+        expect(result.success).toBe(true);
     });
 });
 
 describe('roomSettingsSchema', () => {
-    test('accepts valid settings with password', () => {
+    test('accepts valid settings with turn timer', () => {
         const result = roomSettingsSchema.safeParse({
-            password: 'secret123'
+            turnTimer: 90
         });
         expect(result.success).toBe(true);
-        expect(result.data.password).toBe('secret123');
+        expect(result.data.turnTimer).toBe(90);
     });
 
-    test('accepts null password to remove it', () => {
+    test('accepts null turn timer to disable it', () => {
         const result = roomSettingsSchema.safeParse({
-            password: null
+            turnTimer: null
         });
         expect(result.success).toBe(true);
-        expect(result.data.password).toBeNull();
+        expect(result.data.turnTimer).toBeNull();
     });
 
-    test('accepts team names with password', () => {
+    test('accepts team names with turn timer', () => {
         const result = roomSettingsSchema.safeParse({
             teamNames: {
                 red: 'Fire',
                 blue: 'Ice'
             },
-            password: 'secret'
+            turnTimer: 90
         });
         expect(result.success).toBe(true);
         expect(result.data.teamNames.red).toBe('Fire');
-        expect(result.data.password).toBe('secret');
+        expect(result.data.turnTimer).toBe(90);
     });
 
     test('accepts turn timer setting', () => {

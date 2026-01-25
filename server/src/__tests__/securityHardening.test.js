@@ -226,14 +226,14 @@ describe('Input Validation Hardening', () => {
     });
 
     describe('Nickname Validation', () => {
-        const VALID_ROOM_CODE = 'ABCDEF'; // Valid code for all nickname tests
+        const VALID_ROOM_ID = 'test-room'; // Valid room ID for all nickname tests
 
         test('accepts valid nicknames', () => {
             const validNames = ['Player1', 'JohnDoe', 'test-user', 'user_123'];
 
             for (const name of validNames) {
                 const result = schemas.roomJoinSchema.safeParse({
-                    code: VALID_ROOM_CODE,
+                    roomId: VALID_ROOM_ID,
                     nickname: name
                 });
                 expect(result.success).toBe(true);
@@ -251,7 +251,7 @@ describe('Input Validation Hardening', () => {
 
             for (const name of maliciousNames) {
                 const result = schemas.roomJoinSchema.safeParse({
-                    code: VALID_ROOM_CODE,
+                    roomId: VALID_ROOM_ID,
                     nickname: name
                 });
                 expect(result.success).toBe(false);
@@ -261,7 +261,7 @@ describe('Input Validation Hardening', () => {
         test('control characters are removed before validation', () => {
             // Control chars are stripped by removeControlChars transform
             const result = schemas.roomJoinSchema.safeParse({
-                code: VALID_ROOM_CODE,
+                roomId: VALID_ROOM_ID,
                 nickname: 'test\x00null'  // Becomes 'testnull' after transform
             });
             // Passes because control chars are removed, leaving valid 'testnull'
@@ -270,7 +270,7 @@ describe('Input Validation Hardening', () => {
 
         test('rejects empty nicknames', () => {
             const result = schemas.roomJoinSchema.safeParse({
-                code: VALID_ROOM_CODE,
+                roomId: VALID_ROOM_ID,
                 nickname: ''
             });
             expect(result.success).toBe(false);
@@ -278,7 +278,7 @@ describe('Input Validation Hardening', () => {
 
         test('rejects nicknames that are only whitespace', () => {
             const result = schemas.roomJoinSchema.safeParse({
-                code: VALID_ROOM_CODE,
+                roomId: VALID_ROOM_ID,
                 nickname: '   '
             });
             expect(result.success).toBe(false);
@@ -287,7 +287,7 @@ describe('Input Validation Hardening', () => {
         test('rejects nicknames exceeding max length', () => {
             const longName = 'a'.repeat(VALIDATION.NICKNAME_MAX_LENGTH + 1);
             const result = schemas.roomJoinSchema.safeParse({
-                code: VALID_ROOM_CODE,
+                roomId: VALID_ROOM_ID,
                 nickname: longName
             });
             expect(result.success).toBe(false);
@@ -333,57 +333,55 @@ describe('Input Validation Hardening', () => {
         });
     });
 
-    describe('Room Code Validation', () => {
-        test('accepts valid room codes', () => {
-            // Only uses allowed chars: ABCDEFGHJKLMNPQRSTUVWXYZ23456789
-            const validCodes = ['ABC234', 'XYZDEF', 'QRSTUV', 'AB2345', 'KLMNPQ'];
+    describe('Room ID Validation', () => {
+        test('accepts valid room IDs', () => {
+            // Room IDs can contain letters, numbers, hyphens, and underscores
+            const validIds = ['my-game', 'room123', 'test_room', 'MyRoom', 'game-room-1'];
 
-            for (const code of validCodes) {
+            for (const roomId of validIds) {
                 const result = schemas.roomJoinSchema.safeParse({
-                    code,
+                    roomId,
                     nickname: 'Player'
                 });
                 expect(result.success).toBe(true);
             }
         });
 
-        test('converts room code to uppercase', () => {
+        test('trims room ID whitespace', () => {
             const result = schemas.roomJoinSchema.safeParse({
-                code: 'abcdef',
+                roomId: '  my-room  ',
                 nickname: 'Player'
             });
             expect(result.success).toBe(true);
-            expect(result.data.code).toBe('ABCDEF');
+            expect(result.data.roomId).toBe('my-room');
         });
 
-        test('rejects room codes with ambiguous characters (I, O, 0, 1)', () => {
-            // O (looks like 0), I (looks like 1), 0 (zero), 1 (one) are excluded
-            // Note: L is actually allowed in the current implementation
-            const ambiguousCodes = ['ABC0EF', 'ABC1EF', 'ABCOEF', 'ABCIEF'];
+        test('rejects room IDs with invalid characters', () => {
+            const invalidIds = ['room@123', 'game!test', 'my room', 'test.room'];
 
-            for (const code of ambiguousCodes) {
+            for (const roomId of invalidIds) {
                 const result = schemas.roomJoinSchema.safeParse({
-                    code,
+                    roomId,
                     nickname: 'Player'
                 });
                 expect(result.success).toBe(false);
             }
         });
 
-        test('accepts room codes with L (currently allowed)', () => {
+        test('accepts room IDs with hyphens and underscores', () => {
             const result = schemas.roomJoinSchema.safeParse({
-                code: 'ABCLEF',
+                roomId: 'my-game_123',
                 nickname: 'Player'
             });
             expect(result.success).toBe(true);
         });
 
-        test('rejects room codes with wrong length', () => {
-            const wrongLengths = ['ABC', 'ABCDEFGH'];
+        test('rejects room IDs with wrong length', () => {
+            const wrongLengths = ['AB', 'A'.repeat(21)];
 
-            for (const code of wrongLengths) {
+            for (const roomId of wrongLengths) {
                 const result = schemas.roomJoinSchema.safeParse({
-                    code,
+                    roomId,
                     nickname: 'Player'
                 });
                 expect(result.success).toBe(false);

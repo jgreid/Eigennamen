@@ -525,11 +525,43 @@ class MemoryStorage {
         return 0;
     }
 
-    // Lua script support - implement the atomic join script logic
+    // Lua script support - implement atomic room operations
     async eval(script, options) {
-        // Handle the atomic room join script from roomService.js
-        // Script expects: KEYS[1] = playersKey, ARGV[1] = maxPlayers, ARGV[2] = sessionId
-        if (options && options.keys && options.keys.length > 0 && options.arguments && options.arguments.length >= 2) {
+        if (!options || !options.keys || options.keys.length === 0) {
+            logger.debug('Memory storage eval called with no keys');
+            return null;
+        }
+
+        // Detect script type based on keys and arguments pattern
+        const numKeys = options.keys.length;
+        const numArgs = options.arguments ? options.arguments.length : 0;
+
+        // Room CREATE script: 2 keys (roomKey, playersKey), 2 args (roomData, ttl)
+        if (numKeys === 2 && numArgs === 2) {
+            const roomKey = options.keys[0];
+            const playersKey = options.keys[1];
+            const roomData = options.arguments[0];
+            const ttl = parseInt(options.arguments[1], 10);
+
+            // Check if room already exists (SETNX behavior)
+            if (this.data.has(roomKey) && !this._isExpired(roomKey)) {
+                return 0; // Room already exists
+            }
+
+            // Create the room
+            this.data.set(roomKey, roomData);
+            this.expiries.set(roomKey, Date.now() + (ttl * 1000));
+
+            // Initialize empty players set
+            this.sets.delete(playersKey);
+            this.sets.set(playersKey, new Set());
+            this.expiries.set(playersKey, Date.now() + (ttl * 1000));
+
+            return 1; // Successfully created
+        }
+
+        // Room JOIN script: 1 key (playersKey), 2 args (maxPlayers, sessionId)
+        if (numKeys === 1 && numArgs === 2) {
             const playersKey = options.keys[0];
             const maxPlayers = parseInt(options.arguments[0], 10);
             const sessionId = options.arguments[1];
@@ -560,7 +592,9 @@ class MemoryStorage {
             return 1; // Successfully added
         }
 
-        logger.debug('Memory storage eval called with unsupported script');
+        logger.debug('Memory storage eval called with unsupported script pattern', {
+            numKeys, numArgs
+        });
         return null;
     }
 

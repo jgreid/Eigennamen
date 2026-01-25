@@ -1,40 +1,25 @@
 /**
  * Room Service - Room management logic
+ *
+ * Simplified room system:
+ * - Host provides a room ID when creating (serves as both name and access key)
+ * - Players join by entering the room ID
+ * - No separate password needed
  */
 
 const { getRedis } = require('../config/redis');
 const { v4: uuidv4 } = require('uuid');
-const { customAlphabet } = require('nanoid');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
 const logger = require('../utils/logger');
 const playerService = require('./playerService');
 const gameService = require('./gameService');
 const timerService = require('./timerService');
 const {
-    ROOM_CODE_LENGTH,
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
     ROOM_STATUS,
-    ERROR_CODES,
-    PASSWORD_SECURITY
+    ERROR_CODES
 } = require('../config/constants');
 const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
-
-// Password hashing cost factor - from centralized config
-const BCRYPT_SALT_ROUNDS = PASSWORD_SECURITY.BCRYPT_SALT_ROUNDS;
-
-// Generate room codes (uppercase alphanumeric, no confusing chars)
-const generateRoomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', ROOM_CODE_LENGTH);
-
-/**
- * Generate a deterministic lookup key from password
- * Uses SHA-256 for fast lookups (bcrypt is for actual auth)
- * Note: Case-sensitive to match bcrypt validation behavior
- */
-function generatePasswordLookupKey(password) {
-    return crypto.createHash('sha256').update(password.trim()).digest('hex');
-}
 
 /**
  * Lua script for atomic room creation
@@ -64,102 +49,69 @@ return 1
 `;
 
 /**
- * Create a new room
+ * Create a new room with host-provided room ID
+ * @param {string} roomId - Room ID provided by the host (serves as room name/access key)
  * @param {string} hostSessionId - Session ID of the host
- * @param {object} settings - Room settings including optional password
+ * @param {object} settings - Room settings
  */
-async function createRoom(hostSessionId, settings = {}) {
+async function createRoom(roomId, hostSessionId, settings = {}) {
     const redis = getRedis();
 
-    // Atomic room creation with unique code generation
-    let code;
-    let attempts = 0;
-    const maxAttempts = 10;
+    // Normalize room ID (case-insensitive)
+    const normalizedRoomId = roomId.toLowerCase();
 
-    // Hash password if provided (ISSUE #39 FIX: wrap bcrypt in try-catch)
-    let passwordHash = null;
-    if (settings.password && settings.password.trim()) {
-        try {
-            passwordHash = await bcrypt.hash(settings.password.trim(), BCRYPT_SALT_ROUNDS);
-        } catch (hashError) {
-            logger.error('Failed to hash room password', { error: hashError.message });
-            throw new ServerError('Failed to create password-protected room');
+    // Extract nickname from settings
+    const { nickname: hostNickname, ...cleanSettings } = settings;
+
+    const room = {
+        id: uuidv4(),
+        code: normalizedRoomId,  // Use normalized room ID as the code
+        roomId: roomId,          // Keep original for display
+        hostSessionId,
+        status: ROOM_STATUS.WAITING,
+        settings: {
+            teamNames: { red: 'Red', blue: 'Blue' },
+            turnTimer: null,
+            allowSpectators: true,
+            ...cleanSettings
+        },
+        createdAt: Date.now(),
+        expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
+    };
+
+    // Atomically try to create the room
+    const created = await redis.eval(
+        ATOMIC_CREATE_ROOM_SCRIPT,
+        {
+            keys: [`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`],
+            arguments: [JSON.stringify(room), REDIS_TTL.ROOM.toString()]
         }
-    }
+    );
 
-    // Remove raw password and nickname from settings (don't store in room settings)
-    const { password: _password, nickname: hostNickname, ...cleanSettings } = settings;
-
-    while (attempts < maxAttempts) {
-        code = generateRoomCode();
-
-        // Generate lookup key for password-based room discovery
-        const passwordLookupKey = settings.password && settings.password.trim()
-            ? generatePasswordLookupKey(settings.password)
-            : null;
-
-        const room = {
-            id: uuidv4(),
-            code,
-            hostSessionId,
-            status: ROOM_STATUS.WAITING,
-            settings: {
-                teamNames: { red: 'Red', blue: 'Blue' },
-                turnTimer: null,
-                allowSpectators: true,
-                ...cleanSettings
-            },
-            passwordHash, // Store hash, not plaintext
-            hasPassword: !!passwordHash, // Flag for UI
-            passwordVersion: passwordHash ? 1 : 0, // Track password changes for reconnection validation
-            passwordChangedAt: passwordHash ? Date.now() : null,
-            passwordLookupKey, // Store lookup key for cleanup
-            createdAt: Date.now(),
-            expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
-        };
-
-        // Atomically try to create the room
-        const created = await redis.eval(
-            ATOMIC_CREATE_ROOM_SCRIPT,
-            {
-                keys: [`room:${code}`, `room:${code}:players`],
-                arguments: [JSON.stringify(room), REDIS_TTL.ROOM.toString()]
-            }
+    if (created === 0) {
+        // Room already exists
+        throw new RoomError(
+            ERROR_CODES.ROOM_ALREADY_EXISTS,
+            `Room "${roomId}" already exists. Choose a different room ID or join the existing room.`,
+            { roomId }
         );
-
-        if (created === 1) {
-            // Room created successfully
-
-            // If password protected, store lookup key for password-based room discovery
-            if (settings.password && settings.password.trim()) {
-                const lookupKey = generatePasswordLookupKey(settings.password);
-                await redis.set(`password-lookup:${lookupKey}`, code, { EX: REDIS_TTL.ROOM });
-                logger.debug(`Password lookup key stored for room ${code}`);
-            }
-
-            // Create host player with provided nickname or default to 'Host'
-            const player = await playerService.createPlayer(hostSessionId, code, hostNickname || 'Host', true);
-            logger.info(`Room ${code} created by ${hostSessionId}${passwordHash ? ' (password protected)' : ''}`);
-
-            // Return room without passwordHash for security
-            const { passwordHash: _, passwordLookupKey: _lookupKey, ...safeRoom } = room;
-            return { room: safeRoom, player };
-        }
-
-        // Room code collision, try again
-        attempts++;
-        logger.debug(`Room code collision for ${code}, attempt ${attempts}/${maxAttempts}`);
     }
 
-    throw new ServerError('Failed to generate room code');
+    // Create host player with provided nickname or default to 'Host'
+    const player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Host', true);
+    logger.info(`Room "${roomId}" created by ${hostSessionId}`);
+
+    return { room, player };
 }
 
 /**
- * Get room by code
+ * Get room by room ID (case-insensitive)
  */
-async function getRoom(code) {
+async function getRoom(roomId) {
     const redis = getRedis();
-    const roomData = await redis.get(`room:${code}`);
+    // Normalize room ID for case-insensitive lookup
+    const normalizedId = roomId.toLowerCase();
+    const roomData = await redis.get(`room:${normalizedId}`);
 
     if (!roomData) {
         return null;
@@ -168,7 +120,7 @@ async function getRoom(code) {
     try {
         return JSON.parse(roomData);
     } catch (e) {
-        logger.error(`Failed to parse room data for ${code}:`, e.message);
+        logger.error(`Failed to parse room data for ${roomId}:`, e.message);
         return null;
     }
 }
@@ -200,155 +152,78 @@ return 1
 /**
  * Join an existing room
  * Uses Lua script for atomic capacity check and add to prevent race conditions
- * @param {string} code - Room code
+ * @param {string} roomId - Room ID (case-insensitive)
  * @param {string} sessionId - Player's session ID
  * @param {string} nickname - Player's nickname
- * @param {string} password - Room password (if required)
  */
-async function joinRoom(code, sessionId, nickname, password = null) {
+async function joinRoom(roomId, sessionId, nickname) {
     const redis = getRedis();
 
+    // Normalize room ID (case-insensitive)
+    const normalizedRoomId = roomId.toLowerCase();
+
     // Get room
-    const room = await getRoom(code);
+    const room = await getRoom(normalizedRoomId);
     if (!room) {
-        throw RoomError.notFound(code);
+        throw RoomError.notFound(roomId);
     }
 
     // Check if player is already in room (reconnecting)
     let player = await playerService.getPlayer(sessionId);
     let isReconnecting = false;
 
-    if (player && player.roomCode === code) {
-        // Reconnection - check if password has changed since player joined
-        if (room.passwordHash && PASSWORD_SECURITY.REQUIRE_REAUTH_ON_CHANGE) {
-            const playerPasswordVersion = player.passwordVersion || 0;
-            const roomPasswordVersion = room.passwordVersion || 0;
-
-            if (playerPasswordVersion < roomPasswordVersion) {
-                // Password changed since player joined - require re-authentication
-                if (!password) {
-                    throw new RoomError(
-                        ERROR_CODES.ROOM_PASSWORD_CHANGED,
-                        'Room password has changed - please re-enter the password',
-                        { roomCode: code }
-                    );
-                }
-                // Verify the new password
-                let passwordValid = false;
-                try {
-                    passwordValid = await bcrypt.compare(password, room.passwordHash);
-                } catch (compareError) {
-                    logger.error('Failed to verify room password on reconnection', { error: compareError.message });
-                    throw new ServerError('Password verification failed');
-                }
-                if (!passwordValid) {
-                    throw new RoomError(
-                        ERROR_CODES.ROOM_PASSWORD_INVALID,
-                        'Incorrect room password',
-                        { roomCode: code }
-                    );
-                }
-                // Update player's password version
-                player = await playerService.updatePlayer(sessionId, {
-                    connected: true,
-                    lastSeen: Date.now(),
-                    passwordVersion: roomPasswordVersion
-                });
-                logger.info(`Player ${sessionId} re-authenticated after password change in room ${code}`);
-                isReconnecting = true;
-            } else {
-                // Password version matches - normal reconnection
-                player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
-                isReconnecting = true;
-            }
-        } else {
-            // No password or re-auth not required - normal reconnection
-            player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
-            isReconnecting = true;
-        }
+    if (player && player.roomCode === normalizedRoomId) {
+        // Reconnection - update player status
+        player = await playerService.updatePlayer(sessionId, { connected: true, lastSeen: Date.now() });
+        isReconnecting = true;
+        logger.info(`Player ${sessionId} reconnected to room "${roomId}"`);
     } else {
-        // New join - check password
-        if (room.passwordHash) {
-            if (!password) {
-                throw new RoomError(
-                    ERROR_CODES.ROOM_PASSWORD_REQUIRED,
-                    'This room requires a password',
-                    { roomCode: code }
-                );
-            }
-            // ISSUE #39 FIX: wrap bcrypt.compare in try-catch
-            let passwordValid = false;
-            try {
-                passwordValid = await bcrypt.compare(password, room.passwordHash);
-            } catch (compareError) {
-                logger.error('Failed to verify room password', { error: compareError.message });
-                throw new ServerError('Password verification failed');
-            }
-            if (!passwordValid) {
-                throw new RoomError(
-                    ERROR_CODES.ROOM_PASSWORD_INVALID,
-                    'Incorrect room password',
-                    { roomCode: code }
-                );
-            }
-        }
-        // Use Lua script for atomic capacity check and add
+        // New join - use Lua script for atomic capacity check and add
         const result = await redis.eval(
             ATOMIC_JOIN_SCRIPT,
             {
-                keys: [`room:${code}:players`],
+                keys: [`room:${normalizedRoomId}:players`],
                 arguments: [ROOM_MAX_PLAYERS.toString(), sessionId]
             }
         );
 
         if (result === 0) {
-            throw RoomError.full(code);
+            throw RoomError.full(roomId);
         }
 
         if (result === -1) {
             // Already a member but player data might be missing - treat as reconnection
-            player = await playerService.createPlayer(sessionId, code, nickname, false);
-            // Store password version if room has password
-            if (room.passwordVersion) {
-                player = await playerService.updatePlayer(sessionId, { passwordVersion: room.passwordVersion });
-            }
+            player = await playerService.createPlayer(sessionId, normalizedRoomId, nickname, false);
             isReconnecting = true;
         } else if (result === 1) {
             // Successfully added to set, now create player data
-            // ISSUE #42 FIX: Use createPlayer with addToSet=false instead of deprecated createPlayerData
-            // Use try-catch to rollback the set addition if player data creation fails
             try {
-                player = await playerService.createPlayer(sessionId, code, nickname, false, false);
-                // Store password version if room has password (for reconnection validation)
-                if (room.passwordVersion) {
-                    player = await playerService.updatePlayer(sessionId, { passwordVersion: room.passwordVersion });
-                }
+                player = await playerService.createPlayer(sessionId, normalizedRoomId, nickname, false, false);
             } catch (error) {
                 // Rollback: remove from players set
                 logger.warn(`Player data creation failed for ${sessionId}, rolling back set addition`);
-                await redis.sRem(`room:${code}:players`, sessionId);
+                await redis.sRem(`room:${normalizedRoomId}:players`, sessionId);
                 throw error;
             }
         } else {
-            // Unexpected result (null, undefined, or other) - log and throw error
-            logger.error('Unexpected result from room join script', { result, roomCode: code });
+            // Unexpected result - log and throw error
+            logger.error('Unexpected result from room join script', { result, roomId });
             throw new ServerError('Failed to join room due to unexpected error');
         }
+
+        logger.info(`Player ${nickname} (${sessionId}) joined room "${roomId}"`);
     }
 
     // Get current game if any
-    const game = await gameService.getGame(code);
+    const game = await gameService.getGame(normalizedRoomId);
     const gameState = game ? gameService.getGameStateForPlayer(game, player) : null;
 
     // Refresh all room-related TTLs
-    await refreshRoomTTL(code);
-
-    // Return room without passwordHash and passwordLookupKey for security
-    const { passwordHash: _hash, passwordLookupKey: _lookupKey2, ...safeRoom } = room;
+    await refreshRoomTTL(normalizedRoomId);
 
     return {
-        room: safeRoom,
-        players: await playerService.getPlayersInRoom(code),
+        room,
+        players: await playerService.getPlayersInRoom(normalizedRoomId),
         game: gameState,
         player,
         isReconnecting
@@ -486,7 +361,8 @@ async function updateSettings(code, sessionId, newSettings) {
  */
 async function roomExists(code) {
     const redis = getRedis();
-    return await redis.exists(`room:${code}`) === 1;
+    const normalizedCode = code.toLowerCase();
+    return await redis.exists(`room:${normalizedCode}`) === 1;
 }
 
 /**

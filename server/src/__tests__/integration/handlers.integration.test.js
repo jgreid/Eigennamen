@@ -262,11 +262,11 @@ describe('Socket Handler Integration Tests', () => {
 
                 try {
                     const responsePromise = waitForEvent(client, 'room:created');
-                    client.emit('room:create', { settings: { redTeamName: 'Team Red' } });
+                    client.emit('room:create', { roomId: 'test-room', settings: { redTeamName: 'Team Red' } });
 
                     const response = await responsePromise;
                     expect(response.room).toBeDefined();
-                    expect(response.room.code).toHaveLength(6);
+                    expect(response.room.code).toBe('test-room');
                     expect(response.player).toBeDefined();
                     expect(response.player.isHost).toBe(true);
                 } finally {
@@ -274,18 +274,19 @@ describe('Socket Handler Integration Tests', () => {
                 }
             });
 
-            test('creates password-protected room', async () => {
+            test('creates room with custom settings', async () => {
                 const client = await createClient();
 
                 try {
                     const responsePromise = waitForEvent(client, 'room:created');
                     client.emit('room:create', {
-                        settings: { password: 'secret123' }
+                        roomId: 'custom-room',
+                        settings: { turnTimer: 90 }
                     });
 
                     const response = await responsePromise;
-                    expect(response.room.hasPassword).toBe(true);
-                    expect(response.room.passwordHash).toBeUndefined(); // Should not expose hash
+                    expect(response.room.code).toBe('custom-room');
+                    expect(response.room.settings.turnTimer).toBe(90);
                 } finally {
                     client.disconnect();
                 }
@@ -297,7 +298,7 @@ describe('Socket Handler Integration Tests', () => {
                 // Create room first
                 const hostClient = await createClient();
                 const hostResponsePromise = waitForEvent(hostClient, 'room:created');
-                hostClient.emit('room:create', {});
+                hostClient.emit('room:create', { roomId: 'join-test' });
                 const { room } = await hostResponsePromise;
 
                 // Join with another client
@@ -306,7 +307,7 @@ describe('Socket Handler Integration Tests', () => {
                 try {
                     const joinResponsePromise = waitForEvent(joinerClient, 'room:joined');
                     joinerClient.emit('room:join', {
-                        code: room.code,
+                        roomId: room.code,
                         nickname: 'TestPlayer'
                     });
 
@@ -325,7 +326,7 @@ describe('Socket Handler Integration Tests', () => {
                 try {
                     const errorPromise = waitForEvent(client, 'room:error');
                     client.emit('room:join', {
-                        code: 'ZZZZZZ',
+                        roomId: 'nonexistent',
                         nickname: 'TestPlayer'
                     });
 
@@ -336,25 +337,25 @@ describe('Socket Handler Integration Tests', () => {
                 }
             });
 
-            test('requires password for protected room', async () => {
-                // Create protected room
+            test('is case insensitive for room ID', async () => {
+                // Create room first
                 const hostClient = await createClient();
                 const hostResponsePromise = waitForEvent(hostClient, 'room:created');
-                hostClient.emit('room:create', { settings: { password: 'secret' } });
+                hostClient.emit('room:create', { roomId: 'CaseTest' });
                 const { room } = await hostResponsePromise;
 
-                // Try to join without password
+                // Join with another client using different case
                 const joinerClient = await createClient();
 
                 try {
-                    const errorPromise = waitForEvent(joinerClient, 'room:error');
+                    const joinResponsePromise = waitForEvent(joinerClient, 'room:joined');
                     joinerClient.emit('room:join', {
-                        code: room.code,
+                        roomId: 'CASETEST',
                         nickname: 'TestPlayer'
                     });
 
-                    const error = await errorPromise;
-                    expect(error.code).toBe(ERROR_CODES.ROOM_PASSWORD_REQUIRED);
+                    const joinResponse = await joinResponsePromise;
+                    expect(joinResponse.room.code).toBe(room.code);
                 } finally {
                     hostClient.disconnect();
                     joinerClient.disconnect();
@@ -369,7 +370,7 @@ describe('Socket Handler Integration Tests', () => {
                 try {
                     // Create room
                     const createPromise = waitForEvent(client, 'room:created');
-                    client.emit('room:create', {});
+                    client.emit('room:create', { roomId: 'settings-test' });
                     await createPromise;
 
                     // Update settings - we just verify we get a response
@@ -397,13 +398,13 @@ describe('Socket Handler Integration Tests', () => {
             // Create room and join with another player
             hostClient = await createClient();
             const createPromise = waitForEvent(hostClient, 'room:created');
-            hostClient.emit('room:create', {});
+            hostClient.emit('room:create', { roomId: 'player-test' });
             const { room } = await createPromise;
             roomCode = room.code;
 
             playerClient = await createClient();
             const joinPromise = waitForEvent(playerClient, 'room:joined');
-            playerClient.emit('room:join', { code: roomCode, nickname: 'Player1' });
+            playerClient.emit('room:join', { roomId: roomCode, nickname: 'Player1' });
             await joinPromise;
         });
 
@@ -483,7 +484,7 @@ describe('Socket Handler Integration Tests', () => {
                 try {
                     // Create room
                     const createPromise = waitForEvent(hostClient, 'room:created');
-                    hostClient.emit('room:create', {});
+                    hostClient.emit('room:create', { roomId: 'game-test1' });
                     await createPromise;
 
                     // Start game
@@ -506,12 +507,12 @@ describe('Socket Handler Integration Tests', () => {
                 try {
                     // Create room
                     const createPromise = waitForEvent(hostClient, 'room:created');
-                    hostClient.emit('room:create', {});
+                    hostClient.emit('room:create', { roomId: 'game-test2' });
                     const { room } = await createPromise;
 
                     // Join room
                     const joinPromise = waitForEvent(playerClient, 'room:joined');
-                    playerClient.emit('room:join', { code: room.code, nickname: 'Player' });
+                    playerClient.emit('room:join', { roomId: room.code, nickname: 'Player' });
                     await joinPromise;
 
                     // Non-host tries to start game
@@ -532,7 +533,7 @@ describe('Socket Handler Integration Tests', () => {
                 try {
                     // Create room
                     const createPromise = waitForEvent(hostClient, 'room:created');
-                    hostClient.emit('room:create', {});
+                    hostClient.emit('room:create', { roomId: 'game-test3' });
                     await createPromise;
 
                     // Start first game
@@ -559,8 +560,8 @@ describe('Socket Handler Integration Tests', () => {
 
             try {
                 const errorPromise = waitForEvent(client, 'room:error');
-                // Send invalid data (code too short)
-                client.emit('room:join', { code: 'AB', nickname: 'Test' });
+                // Send invalid data (roomId too short)
+                client.emit('room:join', { roomId: 'AB', nickname: 'Test' });
 
                 const error = await errorPromise;
                 expect(error.code).toBe(ERROR_CODES.INVALID_INPUT);
@@ -590,7 +591,7 @@ describe('Socket Handler Integration Tests', () => {
             // Create room
             const hostClient = await createClient();
             const createPromise = waitForEvent(hostClient, 'room:created');
-            hostClient.emit('room:create', {});
+            hostClient.emit('room:create', { roomId: 'broadcast-test' });
             const { room } = await createPromise;
 
             // Join with player
@@ -598,7 +599,7 @@ describe('Socket Handler Integration Tests', () => {
             const hostNotifyPromise = waitForEvent(hostClient, 'room:playerJoined');
             const joinPromise = waitForEvent(playerClient, 'room:joined');
 
-            playerClient.emit('room:join', { code: room.code, nickname: 'Player1' });
+            playerClient.emit('room:join', { roomId: room.code, nickname: 'Player1' });
 
             const [joinResponse, notification] = await Promise.all([joinPromise, hostNotifyPromise]);
 
@@ -695,12 +696,12 @@ describe('Chat Handlers', () => {
         try {
             // Create room
             const createPromise = waitForChatEvent(sender, 'room:created');
-            sender.emit('room:create', {});
+            sender.emit('room:create', { roomId: 'chat-test' });
             const { room } = await createPromise;
 
             // Join room
             const joinPromise = waitForChatEvent(receiver, 'room:joined');
-            receiver.emit('room:join', { code: room.code, nickname: 'Receiver' });
+            receiver.emit('room:join', { roomId: room.code, nickname: 'Receiver' });
             await joinPromise;
 
             // Send chat message
