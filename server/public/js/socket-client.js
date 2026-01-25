@@ -447,11 +447,21 @@
         /**
          * Create a new room
          * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
-         * @param {Object} settings - Room settings
+         * @param {Object} options - Room options including roomId and settings
+         * @param {string} options.roomId - Room ID (required) - serves as room name and access key
+         * @param {string} options.nickname - Host nickname (optional)
+         * @param {Object} options.settings - Additional room settings (optional)
          * @returns {Promise}
          */
-        createRoom(settings = {}) {
+        createRoom(options = {}) {
             return new Promise((resolve, reject) => {
+                const { roomId, nickname, ...settings } = options;
+
+                if (!roomId) {
+                    reject(new Error('Room ID is required'));
+                    return;
+                }
+
                 let timeoutId = null;
                 let settled = false;
 
@@ -484,7 +494,11 @@
                 this.on('roomCreated', onCreated);
                 this.on('error', onError);
 
-                this.socket.emit('room:create', { settings });
+                // Send roomId and settings to server
+                this.socket.emit('room:create', {
+                    roomId,
+                    settings: { nickname, ...settings }
+                });
 
                 // ISSUE #20 FIX: Store timeout ID for cancellation
                 timeoutId = setTimeout(() => {
@@ -499,12 +513,11 @@
         /**
          * Join an existing room
          * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
-         * @param {string} code - Room code
+         * @param {string} roomId - Room ID to join
          * @param {string} nickname - Player nickname
-         * @param {string} password - Room password (optional)
          * @returns {Promise}
          */
-        joinRoom(code, nickname, password = null) {
+        joinRoom(roomId, nickname) {
             // Prevent double-join race condition
             if (this.joinInProgress) {
                 return Promise.reject(new Error('Join already in progress'));
@@ -545,11 +558,8 @@
                 this.on('roomJoined', onJoined);
                 this.on('error', onError);
 
-                const payload = { code, nickname };
-                if (password) {
-                    payload.password = password;
-                }
-                this.socket.emit('room:join', payload);
+                // Send roomId and nickname to server (no password needed)
+                this.socket.emit('room:join', { roomId, nickname });
 
                 // ISSUE #20 FIX: Store timeout ID for cancellation
                 timeoutId = setTimeout(() => {

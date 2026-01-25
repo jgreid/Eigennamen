@@ -1367,73 +1367,6 @@
             margin-bottom: 12px;
         }
 
-        .password-status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-
-        .password-status .status-icon {
-            font-size: 1.5rem;
-        }
-
-        .password-status .status-text {
-            font-size: 0.9rem;
-        }
-
-        .password-status.has-password {
-            background: rgba(102, 126, 234, 0.15);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-        }
-
-        .password-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        .btn-danger {
-            padding: 8px 16px;
-            background: rgba(220, 53, 69, 0.2);
-            border: 1px solid rgba(220, 53, 69, 0.4);
-            border-radius: 6px;
-            color: #ff6b6b;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-danger:hover {
-            background: rgba(220, 53, 69, 0.3);
-            border-color: rgba(220, 53, 69, 0.6);
-        }
-
-        .room-password-feedback {
-            margin-top: 12px;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            display: none;
-        }
-
-        .room-password-feedback.success {
-            display: block;
-            background: rgba(40, 167, 69, 0.2);
-            border: 1px solid rgba(40, 167, 69, 0.4);
-            color: #5dff79;
-        }
-
-        .room-password-feedback.error {
-            display: block;
-            background: rgba(220, 53, 69, 0.2);
-            border: 1px solid rgba(220, 53, 69, 0.4);
-            color: #ff6b6b;
-        }
-
         .room-info-display {
             background: rgba(255, 255, 255, 0.05);
             padding: 12px;
@@ -3277,8 +3210,8 @@
                     <span class="expand-icon">▾</span>
                 </button>
                 <div class="mp-password-display" id="mp-password-display" style="display: none;">
-                    <span>Password: <strong id="mp-password-text"></strong></span>
-                    <button type="button" class="btn-copy-password" id="btn-copy-password" title="Copy password">📋</button>
+                    <span>Room ID: <strong id="mp-password-text"></strong></span>
+                    <button type="button" class="btn-copy-password" id="btn-copy-password" title="Copy Room ID">📋</button>
                 </div>
                 <!-- Player list (expandable) -->
                 <div class="mp-player-list" id="mp-player-list" style="display: none;">
@@ -3552,32 +3485,11 @@
 
                         <div class="room-settings-content">
                             <div class="pref-group">
-                                <h3>Room Password</h3>
-                                <p class="setting-hint">Control who can join your room.</p>
-
-                                <div class="password-status" id="room-password-status">
-                                    <span class="status-icon" id="password-status-icon">🔓</span>
-                                    <span class="status-text" id="password-status-text">No password set</span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="room-password-input">New Password</label>
-                                    <input type="text" id="room-password-input" placeholder="Enter new password" maxlength="50" autocomplete="off">
-                                    <span class="input-hint">Leave empty and click "Remove Password" to make room public</span>
-                                </div>
-
-                                <div class="password-actions">
-                                    <button type="button" class="btn-secondary" id="btn-update-room-password">Update Password</button>
-                                    <button type="button" class="btn-danger" id="btn-remove-room-password">Remove Password</button>
-                                </div>
-
-                                <div class="room-password-feedback" id="room-password-feedback"></div>
-                            </div>
-
-                            <div class="pref-group">
                                 <h3>Room Info</h3>
+                                <p class="setting-hint">Share the Room ID with friends to let them join.</p>
+
                                 <div class="room-info-display">
-                                    <p><strong>Room Code:</strong> <span id="room-info-code">----</span></p>
+                                    <p><strong>Room ID:</strong> <span id="room-info-code">----</span></p>
                                     <p><strong>Players:</strong> <span id="room-info-players">0</span></p>
                                     <p><strong>Status:</strong> <span id="room-info-status">Waiting</span></p>
                                 </div>
@@ -3662,7 +3574,7 @@
                 <button type="button" class="mode-btn active" data-mode="join">
                     <span class="mode-icon">🎮</span>
                     <span class="mode-title">Join Game</span>
-                    <span class="mode-desc">Enter a game password</span>
+                    <span class="mode-desc">Enter a Room ID</span>
                 </button>
                 <button type="button" class="mode-btn" data-mode="create">
                     <span class="mode-icon">🏠</span>
@@ -3678,14 +3590,9 @@
                     <input type="text" id="join-nickname" placeholder="Enter your name" maxlength="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                    <label for="join-room-code">Room Code <span class="optional-label">(optional)</span></label>
-                    <input type="text" id="join-room-code" placeholder="e.g. ABC123" maxlength="6" autocomplete="off" style="text-transform: uppercase;">
-                    <span class="input-hint">Enter room code OR password below</span>
-                </div>
-                <div class="form-group">
-                    <label for="join-password">Game Password <span class="optional-label">(if required)</span></label>
-                    <input type="text" id="join-password" placeholder="Enter password from host" maxlength="50" autocomplete="off">
-                    <span class="input-hint">Only needed if the room has a password</span>
+                    <label for="join-room-id">Room ID</label>
+                    <input type="text" id="join-room-id" placeholder="e.g. my-game or game-night" maxlength="20" autocomplete="off">
+                    <span class="input-hint">Enter the Room ID shared by the host</span>
                     <span class="error-text" id="join-error"></span>
                 </div>
             </div>
@@ -3697,9 +3604,9 @@
                     <input type="text" id="create-nickname" placeholder="Enter your name" maxlength="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                    <label for="create-password">Game Password</label>
-                    <input type="text" id="create-password" placeholder="Create a password to share" maxlength="50" autocomplete="off">
-                    <span class="input-hint">Share this password with friends to let them join</span>
+                    <label for="create-room-id">Room ID</label>
+                    <input type="text" id="create-room-id" placeholder="e.g. my-game or game-night" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
+                    <span class="input-hint">Share this Room ID with friends to let them join</span>
                 </div>
             </div>
 
@@ -3923,7 +3830,7 @@
         let multiplayerPlayers = [];
         let currentMpMode = 'join'; // 'join' or 'create'
         let multiplayerListenersSetup = false; // Prevent duplicate listeners
-        let currentRoomPassword = null; // Store password for display
+        let currentRoomId = null; // Store room ID for display
 
         function openMultiplayer() {
             // Pre-fill nickname from storage
@@ -3932,8 +3839,8 @@
             document.getElementById('create-nickname').value = storedNickname;
 
             // Reset forms
-            document.getElementById('join-password').value = '';
-            document.getElementById('create-password').value = '';
+            document.getElementById('join-room-id').value = '';
+            document.getElementById('create-room-id').value = '';
             setMpStatus('', '');
             setMpError('');
 
@@ -4321,8 +4228,7 @@
 
         async function handleJoinGame() {
             const nickname = document.getElementById('join-nickname').value.trim();
-            const password = document.getElementById('join-password').value.trim();
-            const roomCodeInput = document.getElementById('join-room-code').value.trim().toUpperCase();
+            const roomIdInput = document.getElementById('join-room-id').value.trim();
             const urlRoomCode = getRoomCodeFromURL();
 
             // Validation
@@ -4331,9 +4237,22 @@
                 return;
             }
 
-            // Need either room code or password
-            if (!roomCodeInput && !urlRoomCode && !password) {
-                setMpError('Please enter a room code or password');
+            // Use URL room code or input room ID
+            const roomId = urlRoomCode || roomIdInput;
+
+            if (!roomId) {
+                setMpError('Please enter a Room ID');
+                return;
+            }
+
+            // Validate room ID format (3-20 chars, alphanumeric + hyphens + underscores)
+            if (roomId.length < 3) {
+                setMpError('Room ID must be at least 3 characters');
+                return;
+            }
+
+            if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
+                setMpError('Room ID can only contain letters, numbers, hyphens, and underscores');
                 return;
             }
 
@@ -4352,66 +4271,23 @@
             }
 
             try {
-                // Priority: URL room code > input room code > password lookup
-                let roomCode = urlRoomCode || roomCodeInput;
-                let roomRequiresPassword = false;
-
-                // If we have a room code, check if room exists and needs password
-                if (roomCode) {
-                    setMpStatus('Checking room...', 'connecting');
-                    const roomResponse = await fetch(`/api/rooms/${encodeURIComponent(roomCode)}`);
-                    if (!roomResponse.ok) {
-                        if (roomResponse.status === 404) {
-                            setMpStatus('Room not found', 'error');
-                            return;
-                        }
-                        throw new Error('Failed to check room');
-                    }
-                    const roomData = await roomResponse.json();
-                    roomRequiresPassword = roomData.room.hasPassword;
-
-                    // If room requires password but none provided, show error
-                    if (roomRequiresPassword && !password) {
-                        setMpStatus('This room requires a password', 'error');
-                        return;
-                    }
-                } else {
-                    // No room code - look up by password
-                    setMpStatus('Finding game...', 'connecting');
-                    const response = await fetch(`/api/rooms/by-password/${encodeURIComponent(password)}`);
-                    if (!response.ok) {
-                        if (response.status === 404) {
-                            setMpStatus('No game found with that password', 'error');
-                            return;
-                        }
-                        throw new Error('Failed to find game');
-                    }
-                    const data = await response.json();
-                    roomCode = data.code;
-                    roomRequiresPassword = true; // If found by password, it has a password
-                }
-
                 setMpStatus('Joining game...', 'connecting');
-                // Join the room (pass password only if room requires it)
-                const result = await CodenamesClient.joinRoom(roomCode, nickname, roomRequiresPassword ? password : null);
+                // Join the room with roomId (no password needed)
+                const result = await CodenamesClient.joinRoom(roomId, nickname);
 
-                // Store password for potential reconnection
-                currentRoomPassword = password || null;
+                // Store roomId for display
+                currentRoomId = roomId;
 
                 onMultiplayerJoined(result, false); // false = not host
 
             } catch (error) {
                 console.error('Join failed:', error);
-                if (error.code === 'ROOM_PASSWORD_INVALID') {
-                    setMpStatus('Invalid password', 'error');
-                } else if (error.code === 'ROOM_PASSWORD_REQUIRED') {
-                    setMpStatus('This room requires a password', 'error');
-                } else if (error.code === 'ROOM_PASSWORD_CHANGED') {
-                    setMpStatus('Game password has changed - please get the new password', 'error');
-                } else if (error.code === 'ROOM_NOT_FOUND') {
-                    setMpStatus('Game not found', 'error');
+                if (error.code === 'ROOM_NOT_FOUND') {
+                    setMpStatus('Room not found - check the Room ID', 'error');
                 } else if (error.code === 'ROOM_FULL') {
-                    setMpStatus('Game is full', 'error');
+                    setMpStatus('Room is full', 'error');
+                } else if (error.code === 'INVALID_INPUT') {
+                    setMpStatus('Invalid Room ID format', 'error');
                 } else {
                     setMpStatus(error.message || 'Failed to join game', 'error');
                 }
@@ -4420,19 +4296,27 @@
 
         async function handleCreateGame() {
             const nickname = document.getElementById('create-nickname').value.trim();
-            const password = document.getElementById('create-password').value.trim();
+            const roomId = document.getElementById('create-room-id').value.trim();
 
             // Validation
             if (!nickname) {
                 setMpStatus('Please enter your nickname', 'error');
                 return;
             }
-            if (!password) {
-                setMpStatus('Please create a password to share with friends', 'error');
+            if (!roomId) {
+                setMpStatus('Please enter a Room ID', 'error');
                 return;
             }
-            if (password.length < 3) {
-                setMpStatus('Password must be at least 3 characters', 'error');
+            if (roomId.length < 3) {
+                setMpStatus('Room ID must be at least 3 characters', 'error');
+                return;
+            }
+            if (roomId.length > 20) {
+                setMpStatus('Room ID must be at most 20 characters', 'error');
+                return;
+            }
+            if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
+                setMpStatus('Room ID can only contain letters, numbers, hyphens, and underscores', 'error');
                 return;
             }
 
@@ -4450,20 +4334,24 @@
             }
 
             try {
-                // Create room with password
+                // Create room with roomId
                 const result = await CodenamesClient.createRoom({
-                    password: password,
+                    roomId: roomId,
                     nickname: nickname
                 });
 
-                // Store password for display
-                currentRoomPassword = password;
+                // Store roomId for display
+                currentRoomId = roomId;
 
                 onMultiplayerJoined(result, true); // true = isHost
 
             } catch (error) {
                 console.error('Create failed:', error);
-                setMpStatus(error.message || 'Failed to create game', 'error');
+                if (error.code === 'ROOM_ALREADY_EXISTS') {
+                    setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
+                } else {
+                    setMpStatus(error.message || 'Failed to create game', 'error');
+                }
             }
         }
 
@@ -4496,14 +4384,14 @@
 
             // Show/hide room settings nav item based on host status
             updateRoomSettingsNavVisibility();
-            // Update room password status in settings panel
-            updateRoomPasswordStatus(!!currentRoomPassword);
+            // Update room info in settings panel
+            updateRoomInfoDisplay();
 
             // Close modal after brief delay and show appropriate message
             setTimeout(() => {
                 closeMultiplayer();
-                if (isHost && currentRoomPassword) {
-                    showToast(`Game created! Share password: ${currentRoomPassword}`, 'success', 8000);
+                if (isHost && currentRoomId) {
+                    showToast(`Game created! Share Room ID: ${currentRoomId}`, 'success', 8000);
                 } else {
                     showToast('Connected to multiplayer game!', 'success');
                 }
@@ -4530,9 +4418,9 @@
                     historyBtnRow.style.display = 'flex';
                 }
 
-                // Show password if we're the host and have it stored
-                if (currentRoomPassword && CodenamesClient.player?.isHost) {
-                    passwordText.textContent = currentRoomPassword;
+                // Show Room ID if we're the host
+                if (currentRoomId && CodenamesClient.player?.isHost) {
+                    passwordText.textContent = currentRoomId;
                     passwordDisplay.style.display = 'flex';
                 } else {
                     passwordDisplay.style.display = 'none';
@@ -4604,10 +4492,10 @@
             }
         }
 
-        function copyRoomPassword() {
-            if (currentRoomPassword) {
-                navigator.clipboard.writeText(currentRoomPassword).then(() => {
-                    showToast('Password copied!', 'success', 2000);
+        function copyRoomId() {
+            if (currentRoomId) {
+                navigator.clipboard.writeText(currentRoomId).then(() => {
+                    showToast('Room ID copied!', 'success', 2000);
                 }).catch(() => {
                     showToast('Failed to copy', 'error', 2000);
                 });
@@ -4623,7 +4511,7 @@
                 const url = new URL(window.location.origin);
                 url.searchParams.set('room', roomCode);
                 navigator.clipboard.writeText(url.toString()).then(() => {
-                    showToast('Room link copied! Share with the password.', 'success', 3000);
+                    showToast('Room link copied!', 'success', 3000);
                 }).catch(() => {
                     showToast('Failed to copy link', 'error', 2000);
                 });
@@ -4812,9 +4700,7 @@
             });
 
             CodenamesClient.on('rejoinFailed', (data) => {
-                if (data.error?.code === 'ROOM_PASSWORD_CHANGED') {
-                    showToast('Game password changed - please rejoin with new password', 'warning', 6000);
-                } else if (data.error?.code === 'ROOM_NOT_FOUND') {
+                if (data.error?.code === 'ROOM_NOT_FOUND') {
                     showToast('Previous game no longer exists', 'warning');
                 } else {
                     showToast('Could not rejoin previous game', 'warning');
@@ -4861,19 +4747,13 @@
                 }
             });
 
-            // Handle room settings updates (password changes)
+            // Handle room settings updates
             CodenamesClient.on('settingsUpdated', (data) => {
                 if (data.settings) {
-                    // Update local room password status
-                    const hasPassword = data.settings.hasPassword !== undefined ? data.settings.hasPassword : !!currentRoomPassword;
-                    updateRoomPasswordStatus(hasPassword);
+                    // Update room info display
+                    updateRoomInfoDisplay();
 
-                    // If password was changed and we're the host, update stored password
-                    if (data.settings.hasPassword === false) {
-                        currentRoomPassword = null;
-                    }
-
-                    // Update multiplayer indicator password display
+                    // Update multiplayer indicator
                     updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
 
                     showToast('Room settings updated', 'info');
@@ -4919,7 +4799,7 @@
             // Reset state
             isMultiplayerMode = false;
             multiplayerPlayers = [];
-            currentRoomPassword = null;
+            currentRoomId = null;
 
             // Clear room code from URL
             clearRoomCodeFromURL();
@@ -5101,7 +4981,7 @@
                 openModal('multiplayer-modal');
 
                 // Show message about the room code
-                setMpStatus(`Room code: ${roomCode.toUpperCase()} - Enter password to join`, 'info');
+                setMpStatus(`Room ID: ${roomCode} - Enter your nickname to join`, 'info');
             }
         }
 
@@ -5115,7 +4995,7 @@
             document.getElementById('btn-mp-action').addEventListener('click', handleMpAction);
 
             // Enter key submits
-            ['join-nickname', 'join-room-code', 'join-password', 'create-nickname', 'create-password'].forEach(id => {
+            ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach(id => {
                 const input = document.getElementById(id);
                 if (input) {
                     input.addEventListener('keypress', (e) => {
@@ -5124,10 +5004,10 @@
                 }
             });
 
-            // Copy password button
+            // Copy Room ID button
             const copyBtn = document.getElementById('btn-copy-password');
             if (copyBtn) {
-                copyBtn.addEventListener('click', copyRoomPassword);
+                copyBtn.addEventListener('click', copyRoomId);
             }
 
             // Check for room code in URL after modal is initialized
@@ -7185,50 +7065,8 @@
 
         // Initialize room settings UI handlers (for multiplayer host)
         function initRoomSettingsUI() {
-            const updateBtn = document.getElementById('btn-update-room-password');
-            const removeBtn = document.getElementById('btn-remove-room-password');
-            const passwordInput = document.getElementById('room-password-input');
-
-            if (updateBtn) {
-                updateBtn.addEventListener('click', async () => {
-                    const newPassword = passwordInput?.value?.trim();
-                    if (!newPassword) {
-                        showRoomPasswordFeedback('Please enter a password', 'error');
-                        return;
-                    }
-                    if (newPassword.length < 3) {
-                        showRoomPasswordFeedback('Password must be at least 3 characters', 'error');
-                        return;
-                    }
-                    try {
-                        CodenamesClient.updateSettings({ password: newPassword });
-                        currentRoomPassword = newPassword;
-                        showRoomPasswordFeedback('Password updated successfully!', 'success');
-                        updateRoomPasswordStatus(true);
-                        updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
-                        if (passwordInput) passwordInput.value = '';
-                    } catch (err) {
-                        showRoomPasswordFeedback(err.message || 'Failed to update password', 'error');
-                    }
-                });
-            }
-
-            if (removeBtn) {
-                removeBtn.addEventListener('click', async () => {
-                    if (!confirm('Remove password? Anyone with the room code will be able to join.')) {
-                        return;
-                    }
-                    try {
-                        CodenamesClient.updateSettings({ password: null });
-                        currentRoomPassword = null;
-                        showRoomPasswordFeedback('Password removed - room is now public', 'success');
-                        updateRoomPasswordStatus(false);
-                        updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
-                    } catch (err) {
-                        showRoomPasswordFeedback(err.message || 'Failed to remove password', 'error');
-                    }
-                });
-            }
+            // Room settings initialization - update room info display
+            updateRoomInfoDisplay();
         }
 
         // Show/hide room settings nav item based on multiplayer host status
@@ -7240,45 +7078,20 @@
             }
         }
 
-        // Update room password status display in settings panel
-        function updateRoomPasswordStatus(hasPassword) {
-            const statusDiv = document.getElementById('room-password-status');
-            const statusIcon = document.getElementById('password-status-icon');
-            const statusText = document.getElementById('password-status-text');
-
-            if (statusDiv && statusIcon && statusText) {
-                if (hasPassword) {
-                    statusDiv.classList.add('has-password');
-                    statusIcon.textContent = '🔒';
-                    statusText.textContent = 'Password protected';
-                } else {
-                    statusDiv.classList.remove('has-password');
-                    statusIcon.textContent = '🔓';
-                    statusText.textContent = 'No password - room is public';
-                }
-            }
-
-            // Update room info display
+        // Update room info display in settings panel
+        function updateRoomInfoDisplay() {
             const codeEl = document.getElementById('room-info-code');
             const playersEl = document.getElementById('room-info-players');
             const statusEl = document.getElementById('room-info-status');
 
-            if (codeEl) codeEl.textContent = CodenamesClient?.getRoomCode() || '----';
+            if (codeEl) codeEl.textContent = currentRoomId || CodenamesClient?.getRoomCode() || '----';
             if (playersEl) playersEl.textContent = multiplayerPlayers?.length || 0;
             if (statusEl) statusEl.textContent = gameState.status === 'ended' ? 'Game Over' : (gameState.status === 'playing' ? 'In Progress' : 'Waiting');
         }
 
-        // Show feedback message for room password actions
-        function showRoomPasswordFeedback(message, type) {
-            const feedbackEl = document.getElementById('room-password-feedback');
-            if (feedbackEl) {
-                feedbackEl.textContent = message;
-                feedbackEl.className = 'room-password-feedback ' + type;
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    feedbackEl.className = 'room-password-feedback';
-                }, 5000);
-            }
+        // Legacy function for compatibility - now just updates room info
+        function updateRoomPasswordStatus(hasRoomId) {
+            updateRoomInfoDisplay();
         }
 
         // ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
