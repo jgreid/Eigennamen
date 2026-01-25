@@ -860,6 +860,37 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
         }
 
+        /* ========== CARD LOADING STATE ========== */
+        .card.revealing {
+            position: relative;
+            opacity: 0.7;
+            pointer-events: none;
+            animation: card-pulse 0.8s ease-in-out infinite;
+        }
+
+        .card.revealing::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: card-spinner 0.6s linear infinite;
+        }
+
+        @keyframes card-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.98); }
+        }
+
+        @keyframes card-spinner {
+            to { transform: rotate(360deg); }
+        }
+
         /* ========== SPYMASTER VIEW ========== */
         .spymaster-mode .card:not(.revealed) {
             position: relative;
@@ -4614,6 +4645,12 @@
             });
 
             CodenamesClient.on('cardRevealed', (data) => {
+                // Clear reveal-in-progress flag
+                isRevealingCard = false;
+
+                // Remove pending visual state from all cards
+                document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+
                 if (data.index !== undefined) {
                     revealCardFromServer(data.index, data);
                     playNotificationSound('reveal');
@@ -4719,6 +4756,19 @@
                         const updatedPlayer = multiplayerPlayers.find(p => p.sessionId === data.sessionId);
                         if (updatedPlayer) {
                             syncLocalPlayerState(updatedPlayer);
+
+                            // Check for pending role change after team change completed
+                            if (pendingRoleChange && data.changes.team) {
+                                // Team change completed, now send the queued role change
+                                const roleToSet = pendingRoleChange;
+                                pendingRoleChange = null;
+                                // Don't clear isChangingRole yet - let it clear after role is set
+                                CodenamesClient.setRole(roleToSet);
+                            } else if (data.changes.role || !pendingRoleChange) {
+                                // Role change completed or no pending change - clear the flag
+                                isChangingRole = false;
+                            }
+
                             updateControls();
                             updateRoleBanner();
                             renderBoard();
@@ -4888,17 +4938,78 @@
             // Error handling for game actions
             CodenamesClient.on('error', (error) => {
                 console.error('Multiplayer error:', error);
+
+                // Clear any in-progress flags
+                isRevealingCard = false;
+                isChangingRole = false;
+                document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+
+                // Map technical error codes to user-friendly messages
+                const userFriendlyMessage = getErrorMessage(error);
+
                 if (error.type === 'game') {
-                    showToast(error.message || 'Game action failed', 'error');
+                    showToast(userFriendlyMessage, 'error');
                 } else if (error.type === 'player') {
-                    showToast(error.message || 'Player action failed', 'error');
+                    showToast(userFriendlyMessage, 'error');
                 } else if (error.type === 'room') {
-                    showToast(error.message || 'Room error', 'error');
+                    showToast(userFriendlyMessage, 'error');
                 } else {
                     // Generic error
-                    showToast(error.message || 'An error occurred', 'error');
+                    showToast(userFriendlyMessage, 'error');
                 }
             });
+
+            /**
+             * Map server error codes to user-friendly messages
+             */
+            function getErrorMessage(error) {
+                const code = error.code || '';
+                const message = error.message || '';
+
+                // Common error code mappings
+                const errorMessages = {
+                    'RATE_LIMITED': 'Please wait a moment before trying again',
+                    'NOT_YOUR_TURN': "It's not your team's turn",
+                    'NOT_CLICKER': 'Only the team clicker can reveal cards',
+                    'NOT_SPYMASTER': 'Only the spymaster can give clues',
+                    'GAME_NOT_STARTED': 'Wait for the host to start the game',
+                    'GAME_OVER': 'The game has ended - start a new game',
+                    'CARD_ALREADY_REVEALED': 'That card has already been revealed',
+                    'TEAM_WOULD_BE_EMPTY': 'Cannot leave - your team needs at least one player',
+                    'CANNOT_SWITCH_TEAM_DURING_TURN': 'Cannot switch teams during your active turn',
+                    'MUST_JOIN_TEAM': 'Join a team first before selecting a role',
+                    'ROLE_TAKEN': 'That role is already taken by another player',
+                    'ROOM_NOT_FOUND': 'Room not found - it may have been closed',
+                    'PLAYER_NOT_FOUND': 'Session expired - please rejoin the room',
+                    'INVALID_INPUT': 'Invalid request - please try again',
+                    'SERVER_ERROR': 'Server error - please try again'
+                };
+
+                // Check for exact code match first
+                if (errorMessages[code]) {
+                    return errorMessages[code];
+                }
+
+                // Check for partial matches in message
+                if (message.toLowerCase().includes('rate limit')) {
+                    return errorMessages['RATE_LIMITED'];
+                }
+                if (message.toLowerCase().includes('not your turn')) {
+                    return errorMessages['NOT_YOUR_TURN'];
+                }
+                if (message.toLowerCase().includes('must join a team')) {
+                    return 'Join a team first before selecting a role';
+                }
+                if (message.toLowerCase().includes('already has a')) {
+                    return 'That role is already taken on your team';
+                }
+                if (message.toLowerCase().includes('another player is becoming')) {
+                    return 'Someone else is selecting that role - please wait';
+                }
+
+                // Return original message if no mapping found
+                return message || 'An error occurred - please try again';
+            }
 
             // Handle room settings updates
             CodenamesClient.on('settingsUpdated', (data) => {
@@ -5381,6 +5492,8 @@
         let spymasterTeam = null; // null, 'red', or 'blue'
         let clickerTeam = null; // null, 'red', or 'blue'
         let playerTeam = null; // null, 'red', or 'blue' - team affiliation for spectators
+        let isChangingRole = false; // Flag to prevent double-click during role/team changes
+        let pendingRoleChange = null; // Queued role change after team change completes
 
         let gameState = {
             words: [],
@@ -6196,8 +6309,15 @@
         function setTeam(team) {
             // In multiplayer mode, send to server and let server response update state
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                // Prevent double-click while request in progress
+                if (isChangingRole) {
+                    return;
+                }
+                isChangingRole = true;
+
                 CodenamesClient.setTeam(team);
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
+                // isChangingRole is cleared in playerUpdated handler
                 return;
             }
 
@@ -6225,15 +6345,26 @@
         function setSpymaster(team) {
             // In multiplayer mode, send to server and let server response update state
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                // Prevent double-click while request in progress
+                if (isChangingRole) {
+                    return;
+                }
+                isChangingRole = true;
+
                 if (spymasterTeam === team) {
                     // Toggle off - become spectator (team member without role)
                     CodenamesClient.setRole('spectator');
                 } else {
                     // First ensure we're on the right team, then set role
                     if (playerTeam !== team) {
+                        // Queue the role change to execute after team change completes
+                        pendingRoleChange = 'spymaster';
                         CodenamesClient.setTeam(team);
+                        // Role will be sent when playerUpdated confirms team change
+                    } else {
+                        // Already on correct team, just change role
+                        CodenamesClient.setRole('spymaster');
                     }
-                    CodenamesClient.setRole('spymaster');
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
                 return;
@@ -6256,15 +6387,26 @@
         function setClicker(team) {
             // In multiplayer mode, send to server and let server response update state
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                // Prevent double-click while request in progress
+                if (isChangingRole) {
+                    return;
+                }
+                isChangingRole = true;
+
                 if (clickerTeam === team) {
                     // Toggle off - become spectator (team member without role)
                     CodenamesClient.setRole('spectator');
                 } else {
                     // First ensure we're on the right team, then set role
                     if (playerTeam !== team) {
+                        // Queue the role change to execute after team change completes
+                        pendingRoleChange = 'clicker';
                         CodenamesClient.setTeam(team);
+                        // Role will be sent when playerUpdated confirms team change
+                    } else {
+                        // Already on correct team, just change role
+                        CodenamesClient.setRole('clicker');
                     }
-                    CodenamesClient.setRole('clicker');
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
                 return;
@@ -6527,6 +6669,9 @@
         // Pending UI update flag to prevent duplicate RAF calls
         let pendingUIUpdate = false;
 
+        // Flag to prevent double-click during card reveal in multiplayer
+        let isRevealingCard = false;
+
         function revealCard(index) {
             // Provide specific feedback for why card click is blocked
             if (gameState.gameOver) {
@@ -6557,8 +6702,21 @@
 
             // In multiplayer mode, send reveal to server and let it broadcast
             if (isMultiplayerMode && CodenamesClient.isConnected()) {
+                // Prevent double-click while waiting for server response
+                if (isRevealingCard) {
+                    return;
+                }
+                isRevealingCard = true;
+
+                // Add visual feedback - show card as "pending"
+                const card = document.querySelector(`.card[data-index="${index}"]`);
+                if (card) {
+                    card.classList.add('revealing');
+                }
+
                 CodenamesClient.revealCard(index);
                 // Don't update local state - wait for server confirmation via cardRevealed event
+                // isRevealingCard is cleared in cardRevealed or error handler
                 return;
             }
 
