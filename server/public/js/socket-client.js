@@ -262,6 +262,14 @@
                 this._emit('historyData', data);
             });
 
+            this._registerSocketListener('game:historyResult', (data) => {
+                this._emit('historyResult', data);
+            });
+
+            this._registerSocketListener('game:replayData', (data) => {
+                this._emit('replayData', data);
+            });
+
             this._registerSocketListener('game:error', (error) => {
                 this._emit('error', { type: 'game', ...error });
             });
@@ -713,10 +721,26 @@
         },
 
         /**
-         * Request game history
+         * Request game history (current game moves)
          */
         getHistory() {
             this.socket.emit('game:history');
+        },
+
+        /**
+         * Request past games history for replay
+         * @param {number} limit - Maximum number of games to return
+         */
+        getGameHistory(limit = 10) {
+            this.socket.emit('game:getHistory', { limit });
+        },
+
+        /**
+         * Request replay data for a specific game
+         * @param {string} gameId - Game ID to replay
+         */
+        getReplay(gameId) {
+            this.socket.emit('game:getReplay', { gameId });
         },
 
         // =====================

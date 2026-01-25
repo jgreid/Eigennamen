@@ -9,6 +9,11 @@
     <meta property="og:description" content="Play Codenames online with friends. No account required!">
     <meta property="og:type" content="website">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Codenames">
     <title>Codenames Online</title>
     <!-- QR Code library from CDN (proven, well-tested implementation) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -2805,6 +2810,446 @@
             background: rgba(220, 53, 69, 0.4);
             border-color: rgba(220, 53, 69, 0.6);
         }
+
+        /* ========== GAME HISTORY MODAL ========== */
+        .history-modal {
+            max-width: 600px;
+            width: 95%;
+            max-height: 80vh;
+        }
+
+        .history-modal h2 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 4px;
+        }
+
+        .history-modal .subtitle {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .history-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 30px 0;
+        }
+
+        .history-loading .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .history-empty {
+            text-align: center;
+            padding: 30px 0;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .history-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .history-item-winner {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .history-item-winner.red { color: #ff6b6b; }
+        .history-item-winner.blue { color: #74b9ff; }
+
+        .history-item-date {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .history-item-stats {
+            text-align: right;
+        }
+
+        .history-item-score {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .history-item-score .red-score { color: #ff6b6b; }
+        .history-item-score .blue-score { color: #74b9ff; }
+
+        .history-item-moves {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ========== GAME REPLAY MODAL ========== */
+        .replay-modal {
+            max-width: 700px;
+            width: 95%;
+            max-height: 90vh;
+        }
+
+        .replay-modal h2 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .replay-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+
+        .replay-info .winner-badge {
+            font-weight: 600;
+        }
+
+        .replay-info .winner-badge.red { color: #ff6b6b; }
+        .replay-info .winner-badge.blue { color: #74b9ff; }
+
+        .replay-board-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .replay-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .replay-card {
+            aspect-ratio: 1.4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            text-align: center;
+            word-break: break-word;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .replay-card.revealed {
+            color: white;
+        }
+
+        .replay-card.revealed.red {
+            background: var(--color-red);
+            border-color: var(--color-red);
+        }
+
+        .replay-card.revealed.blue {
+            background: var(--color-blue);
+            border-color: var(--color-blue);
+        }
+
+        .replay-card.revealed.neutral {
+            background: #7f8c8d;
+            border-color: #7f8c8d;
+        }
+
+        .replay-card.revealed.assassin {
+            background: #1a1a2e;
+            border-color: #333;
+            color: #ff4444;
+        }
+
+        .replay-card.current-move {
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.8);
+        }
+
+        .replay-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .replay-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .replay-btn:hover:not(:disabled) {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+        }
+
+        .replay-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .replay-btn#replay-next {
+            transform: rotate(0deg);
+        }
+
+        .replay-progress {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .replay-event-log {
+            max-height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .replay-event {
+            display: flex;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.8rem;
+        }
+
+        .replay-event:last-child {
+            border-bottom: none;
+        }
+
+        .replay-event.current {
+            background: rgba(102, 126, 234, 0.15);
+            margin: 0 -12px;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+
+        .replay-event .event-team {
+            font-weight: 600;
+            min-width: 40px;
+        }
+
+        .replay-event .event-team.red { color: #ff6b6b; }
+        .replay-event .event-team.blue { color: #74b9ff; }
+
+        .replay-event .event-action {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .replay-event .event-detail {
+            color: white;
+            font-weight: 500;
+        }
+
+        /* Mobile responsive for replay modal */
+        @media (max-width: 600px) {
+            .replay-modal {
+                max-width: 100%;
+            }
+
+            .replay-card {
+                font-size: 0.55rem;
+            }
+
+            .replay-controls {
+                gap: 8px;
+            }
+
+            .replay-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            .history-modal {
+                max-width: 100%;
+                max-height: 90vh;
+            }
+
+            .history-list {
+                max-height: 55vh;
+            }
+
+            .history-item {
+                padding: 14px;
+            }
+
+            .replay-event-log {
+                max-height: 120px;
+            }
+        }
+
+        /* Additional mobile touch improvements */
+        @media (max-width: 768px) {
+            /* Ensure all buttons have adequate touch targets */
+            .btn-settings,
+            .btn-spectate,
+            .btn-new-game,
+            .btn-end-turn,
+            .btn-cancel,
+            .btn-primary,
+            .btn-secondary {
+                min-height: 44px;
+                padding: 12px 16px;
+            }
+
+            /* Better spacing for team controls on mobile */
+            .control-group {
+                padding: 12px;
+            }
+
+            .control-group button {
+                padding: 10px 12px;
+            }
+
+            /* History items need larger tap targets */
+            .history-item {
+                min-height: 60px;
+                touch-action: manipulation;
+            }
+
+            /* Improve scrolling on touch devices */
+            .history-list,
+            .replay-event-log,
+            .settings-content {
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+            }
+
+            /* Game title responsive sizing */
+            .game-title {
+                font-size: 1.3rem;
+            }
+
+            /* Toast positioning for mobile */
+            .toast-container {
+                left: 10px;
+                right: 10px;
+                bottom: 20px;
+                width: auto;
+            }
+
+            .toast {
+                width: 100%;
+                max-width: none;
+            }
+
+            /* Utility buttons row stacking */
+            .utility-buttons-row {
+                gap: 8px;
+            }
+
+            /* Clue display improvements */
+            .clue-display {
+                font-size: 0.9rem;
+                padding: 10px 14px;
+            }
+        }
+
+        /* Landscape mobile improvements */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .modal {
+                max-height: 95vh;
+            }
+
+            .settings-content {
+                max-height: 60vh;
+            }
+        }
+
+        /* Dark mode color scheme for system preference */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                color-scheme: dark;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .card {
+                border-width: 2px;
+            }
+
+            .card.revealed.red {
+                border-color: #ff3333;
+            }
+
+            .card.revealed.blue {
+                border-color: #3399ff;
+            }
+
+            button:focus {
+                outline: 3px solid white;
+                outline-offset: 2px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2890,6 +3335,10 @@
 
                 <div class="utility-buttons-row">
                     <button type="button" class="btn-settings" id="btn-multiplayer" data-action="open-multiplayer" style="width: 100%;">Play Online</button>
+                </div>
+
+                <div class="utility-buttons-row mp-only" id="history-btn-row" style="display: none;">
+                    <button type="button" class="btn-settings" id="btn-history" data-action="open-history" style="width: 100%;">Game History</button>
                 </div>
             </div>
 
@@ -3266,6 +3715,60 @@
         </div>
     </div>
 
+    <!-- Game History Modal -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal history-modal">
+            <h2>Game History</h2>
+            <p class="subtitle">View past games in this room</p>
+
+            <div class="history-loading" id="history-loading">
+                <div class="spinner"></div>
+                <p>Loading game history...</p>
+            </div>
+
+            <div class="history-empty" id="history-empty" style="display: none;">
+                <p>No games have been played in this room yet.</p>
+            </div>
+
+            <div class="history-list" id="history-list" style="display: none;">
+                <!-- Game history entries will be added here -->
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="btn-secondary" data-action="close-history">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Replay Modal -->
+    <div class="modal-overlay" id="replay-modal">
+        <div class="modal replay-modal">
+            <h2>Game Replay</h2>
+            <div class="replay-info" id="replay-info"></div>
+
+            <div class="replay-board-container">
+                <div class="replay-board" id="replay-board">
+                    <!-- 5x5 grid of cards will be generated -->
+                </div>
+            </div>
+
+            <div class="replay-controls">
+                <button type="button" class="replay-btn" id="replay-prev" title="Previous Move">&#9664;</button>
+                <button type="button" class="replay-btn" id="replay-play" title="Play/Pause">&#9654;</button>
+                <button type="button" class="replay-btn" id="replay-next" title="Next Move">&#9654;</button>
+                <span class="replay-progress" id="replay-progress">Move 0 / 0</span>
+            </div>
+
+            <div class="replay-event-log" id="replay-event-log">
+                <!-- Event log will be shown here -->
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="btn-secondary" data-action="close-replay">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ========== CACHED DOM ELEMENTS ==========
         // Cache frequently accessed DOM elements to avoid repeated queries
@@ -3442,6 +3945,323 @@
 
         function closeMultiplayer() {
             closeModal('multiplayer-modal');
+        }
+
+        // ========== GAME HISTORY FUNCTIONS ==========
+        let currentReplayData = null;
+        let currentReplayIndex = -1;
+        let replayPlaying = false;
+        let replayInterval = null;
+
+        function openGameHistory() {
+            if (!isMultiplayerMode || !CodenamesClient.isConnected()) {
+                showToast('Game history is only available in multiplayer mode', 'info');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('history-loading').style.display = 'flex';
+            document.getElementById('history-empty').style.display = 'none';
+            document.getElementById('history-list').style.display = 'none';
+
+            openModal('history-modal');
+
+            // Request game history from server
+            CodenamesClient.getGameHistory(10);
+        }
+
+        function closeGameHistory() {
+            closeModal('history-modal');
+        }
+
+        function renderGameHistory(games) {
+            const loadingEl = document.getElementById('history-loading');
+            const emptyEl = document.getElementById('history-empty');
+            const listEl = document.getElementById('history-list');
+
+            loadingEl.style.display = 'none';
+
+            if (!games || games.length === 0) {
+                emptyEl.style.display = 'block';
+                listEl.style.display = 'none';
+                return;
+            }
+
+            emptyEl.style.display = 'none';
+            listEl.style.display = 'flex';
+
+            listEl.innerHTML = games.map(game => {
+                const date = new Date(game.timestamp);
+                const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const winnerName = game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue');
+
+                return `
+                    <div class="history-item" data-game-id="${game.id}">
+                        <div class="history-item-info">
+                            <div class="history-item-winner ${game.winner}">${winnerName} Team Wins!</div>
+                            <div class="history-item-date">${dateStr}</div>
+                        </div>
+                        <div class="history-item-stats">
+                            <div class="history-item-score">
+                                <span class="red-score">${game.redScore || 0}</span> - <span class="blue-score">${game.blueScore || 0}</span>
+                            </div>
+                            <div class="history-item-moves">${game.moveCount || 0} moves, ${game.clueCount || 0} clues</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers for game items
+            listEl.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const gameId = item.dataset.gameId;
+                    openReplay(gameId);
+                });
+            });
+        }
+
+        function openReplay(gameId) {
+            closeGameHistory();
+
+            // Show loading in replay modal
+            document.getElementById('replay-info').innerHTML = '<p>Loading replay...</p>';
+            document.getElementById('replay-board').innerHTML = '';
+            document.getElementById('replay-event-log').innerHTML = '';
+            document.getElementById('replay-progress').textContent = 'Loading...';
+
+            openModal('replay-modal');
+
+            // Request replay data
+            CodenamesClient.getReplay(gameId);
+        }
+
+        function closeReplay() {
+            // Stop any playing replay
+            if (replayInterval) {
+                clearInterval(replayInterval);
+                replayInterval = null;
+            }
+            replayPlaying = false;
+            currentReplayData = null;
+            currentReplayIndex = -1;
+            closeModal('replay-modal');
+        }
+
+        function renderReplayData(data) {
+            currentReplayData = data;
+            currentReplayIndex = -1;
+            replayPlaying = false;
+
+            if (!data) {
+                document.getElementById('replay-info').innerHTML = '<p>Could not load replay data.</p>';
+                return;
+            }
+
+            // Render replay info
+            const winnerName = data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown';
+            const durationStr = formatDuration(data.duration || 0);
+            document.getElementById('replay-info').innerHTML = `
+                <span class="winner-badge ${data.finalState?.winner}">${winnerName} Team Wins!</span>
+                <span>Duration: ${durationStr} | ${data.totalMoves || 0} moves</span>
+            `;
+
+            // Initialize board with words (all hidden)
+            renderReplayBoard();
+
+            // Render event log
+            renderReplayEventLog();
+
+            // Update controls
+            updateReplayControls();
+
+            // Set up control buttons
+            setupReplayControls();
+        }
+
+        function formatDuration(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function renderReplayBoard() {
+            const board = document.getElementById('replay-board');
+            const words = currentReplayData?.initialBoard?.words || [];
+            const types = currentReplayData?.initialBoard?.types || [];
+
+            board.innerHTML = words.map((word, index) => {
+                return `<div class="replay-card" data-index="${index}">${word}</div>`;
+            }).join('');
+
+            // Apply revealed state up to current index
+            applyReplayState();
+        }
+
+        function applyReplayState() {
+            if (!currentReplayData) return;
+
+            const types = currentReplayData.initialBoard?.types || [];
+            const events = currentReplayData.events || [];
+            const cards = document.querySelectorAll('.replay-card');
+
+            // Reset all cards
+            cards.forEach((card, index) => {
+                card.className = 'replay-card';
+            });
+
+            // Apply reveals up to current index
+            for (let i = 0; i <= currentReplayIndex; i++) {
+                const event = events[i];
+                if (event && event.type === 'reveal') {
+                    const cardIndex = event.data?.index;
+                    const cardType = event.data?.type;
+                    if (cardIndex !== undefined && cards[cardIndex]) {
+                        cards[cardIndex].classList.add('revealed', cardType);
+                        // Highlight current move
+                        if (i === currentReplayIndex) {
+                            cards[cardIndex].classList.add('current-move');
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderReplayEventLog() {
+            const logEl = document.getElementById('replay-event-log');
+            const events = currentReplayData?.events || [];
+
+            if (events.length === 0) {
+                logEl.innerHTML = '<p style="opacity: 0.5;">No events recorded.</p>';
+                return;
+            }
+
+            logEl.innerHTML = events.map((event, index) => {
+                let actionText = '';
+                let detailText = '';
+                const team = event.data?.team || '';
+
+                switch (event.type) {
+                    case 'clue':
+                        actionText = 'gave clue';
+                        detailText = `"${event.data?.word}" for ${event.data?.number}`;
+                        break;
+                    case 'reveal':
+                        actionText = 'revealed';
+                        detailText = `${event.data?.word} (${event.data?.type})`;
+                        break;
+                    case 'endTurn':
+                        actionText = 'ended turn';
+                        detailText = '';
+                        break;
+                    case 'forfeit':
+                        actionText = 'forfeited';
+                        detailText = `${event.data?.winner} wins`;
+                        break;
+                    default:
+                        actionText = event.type;
+                        detailText = '';
+                }
+
+                return `
+                    <div class="replay-event ${index === currentReplayIndex ? 'current' : ''}" data-event-index="${index}">
+                        <span class="event-team ${team}">${team.toUpperCase()}</span>
+                        <span class="event-action">${actionText}</span>
+                        <span class="event-detail">${detailText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateReplayControls() {
+            const events = currentReplayData?.events || [];
+            const prevBtn = document.getElementById('replay-prev');
+            const nextBtn = document.getElementById('replay-next');
+            const playBtn = document.getElementById('replay-play');
+            const progressEl = document.getElementById('replay-progress');
+
+            prevBtn.disabled = currentReplayIndex < 0;
+            nextBtn.disabled = currentReplayIndex >= events.length - 1;
+            playBtn.innerHTML = replayPlaying ? '&#10074;&#10074;' : '&#9654;';
+            progressEl.textContent = `Move ${currentReplayIndex + 1} / ${events.length}`;
+        }
+
+        function setupReplayControls() {
+            const prevBtn = document.getElementById('replay-prev');
+            const nextBtn = document.getElementById('replay-next');
+            const playBtn = document.getElementById('replay-play');
+
+            // Remove old listeners by cloning
+            const newPrevBtn = prevBtn.cloneNode(true);
+            const newNextBtn = nextBtn.cloneNode(true);
+            const newPlayBtn = playBtn.cloneNode(true);
+
+            prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+            nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+            playBtn.parentNode.replaceChild(newPlayBtn, playBtn);
+
+            newPrevBtn.addEventListener('click', () => {
+                if (currentReplayIndex >= 0) {
+                    currentReplayIndex--;
+                    applyReplayState();
+                    renderReplayEventLog();
+                    updateReplayControls();
+                    scrollToCurrentEvent();
+                }
+            });
+
+            newNextBtn.addEventListener('click', () => {
+                const events = currentReplayData?.events || [];
+                if (currentReplayIndex < events.length - 1) {
+                    currentReplayIndex++;
+                    applyReplayState();
+                    renderReplayEventLog();
+                    updateReplayControls();
+                    scrollToCurrentEvent();
+                }
+            });
+
+            newPlayBtn.addEventListener('click', () => {
+                toggleReplayPlayback();
+            });
+        }
+
+        function toggleReplayPlayback() {
+            replayPlaying = !replayPlaying;
+
+            if (replayPlaying) {
+                replayInterval = setInterval(() => {
+                    const events = currentReplayData?.events || [];
+                    if (currentReplayIndex < events.length - 1) {
+                        currentReplayIndex++;
+                        applyReplayState();
+                        renderReplayEventLog();
+                        updateReplayControls();
+                        scrollToCurrentEvent();
+                    } else {
+                        // Reached the end
+                        replayPlaying = false;
+                        clearInterval(replayInterval);
+                        replayInterval = null;
+                        updateReplayControls();
+                    }
+                }, 1500); // 1.5 seconds between moves
+            } else {
+                if (replayInterval) {
+                    clearInterval(replayInterval);
+                    replayInterval = null;
+                }
+            }
+
+            updateReplayControls();
+        }
+
+        function scrollToCurrentEvent() {
+            const logEl = document.getElementById('replay-event-log');
+            const currentEventEl = logEl.querySelector('.replay-event.current');
+            if (currentEventEl) {
+                currentEventEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
 
         function setMpMode(mode) {
@@ -3698,11 +4518,17 @@
             const passwordText = document.getElementById('mp-password-text');
             const playerListEl = document.getElementById('mp-player-list');
             const playersUl = document.getElementById('mp-players-ul');
+            const historyBtnRow = document.getElementById('history-btn-row');
 
             if (room) {
                 codeEl.textContent = room.code;
                 countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
                 indicator.classList.add('active');
+
+                // Show game history button in multiplayer mode
+                if (historyBtnRow) {
+                    historyBtnRow.style.display = 'flex';
+                }
 
                 // Show password if we're the host and have it stored
                 if (currentRoomPassword && CodenamesClient.player?.isHost) {
@@ -3720,6 +4546,10 @@
                 indicator.classList.remove('active');
                 passwordDisplay.style.display = 'none';
                 if (playerListEl) playerListEl.style.display = 'none';
+                // Hide game history button when not in multiplayer mode
+                if (historyBtnRow) {
+                    historyBtnRow.style.display = 'none';
+                }
             }
         }
 
@@ -4005,6 +4835,15 @@
                 multiplayerPlayers = multiplayerPlayers.filter(p => p.sessionId !== data.sessionId);
                 updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
                 showToast(`${data.nickname} was kicked by the host`, 'info');
+            });
+
+            // Game history events
+            CodenamesClient.on('historyResult', (data) => {
+                renderGameHistory(data.games || []);
+            });
+
+            CodenamesClient.on('replayData', (data) => {
+                renderReplayData(data);
             });
 
             // Error handling for game actions
@@ -4343,18 +5182,30 @@
             }
         }
 
+        // Modal registry - maps modal IDs to their close handler functions
+        // Functions are referenced by name to work with hoisted function declarations
+        function getModalCloseHandler(modalId) {
+            const handlers = {
+                'settings-modal': closeSettings,
+                'confirm-modal': closeConfirm,
+                'game-over-modal': closeGameOver,
+                'error-modal': closeError,
+                'multiplayer-modal': closeMultiplayer,
+                'history-modal': () => closeModal('history-modal'),
+                'replay-modal': () => closeModal('replay-modal')
+            };
+            return handlers[modalId];
+        }
+
         // Focus trap handler
         function handleModalKeydown(e) {
             if (!activeModal) return;
 
-            // Escape key closes modal
+            // Escape key closes modal via registry lookup
             if (e.key === 'Escape') {
                 e.preventDefault();
-                if (activeModal.id === 'settings-modal') closeSettings();
-                else if (activeModal.id === 'confirm-modal') closeConfirm();
-                else if (activeModal.id === 'game-over-modal') closeGameOver();
-                else if (activeModal.id === 'error-modal') closeError();
-                else if (activeModal.id === 'multiplayer-modal') closeMultiplayer();
+                const closeHandler = getModalCloseHandler(activeModal.id);
+                if (closeHandler) closeHandler();
                 return;
             }
 
@@ -4376,14 +5227,11 @@
             }
         }
 
-        // Click outside modal to close (on overlay)
+        // Click outside modal to close (on overlay) via registry lookup
         function handleOverlayClick(e) {
             if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
-                if (e.target.id === 'settings-modal') closeSettings();
-                else if (e.target.id === 'confirm-modal') closeConfirm();
-                else if (e.target.id === 'game-over-modal') closeGameOver();
-                else if (e.target.id === 'error-modal') closeError();
-                else if (e.target.id === 'multiplayer-modal') closeMultiplayer();
+                const closeHandler = getModalCloseHandler(e.target.id);
+                if (closeHandler) closeHandler();
             }
         }
 
@@ -5142,31 +5990,39 @@
             });
         }
 
+        // Role banner configuration - maps role/team to CSS class and label
+        const ROLE_BANNER_CONFIG = {
+            spymaster: { red: 'spymaster-red', blue: 'spymaster-blue', label: 'Spymaster' },
+            clicker: { red: 'clicker-red', blue: 'clicker-blue', label: 'Clicker' },
+            spectator: { red: 'spectator-red', blue: 'spectator-blue', label: 'Team' }
+        };
+
         function updateRoleBanner() {
             const banner = cachedElements.roleBanner || document.getElementById('role-banner');
             if (!banner) return;
 
-            // Build simplified role text: Role + Host indicator (always visible when host)
             const hostBadge = isHost ? '<span class="host-badge">Host</span>' : '';
 
-            if (spymasterTeam === 'red') {
-                banner.className = 'role-banner spymaster-red';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.red)}</strong> Spymaster${hostBadge}`;
-            } else if (spymasterTeam === 'blue') {
-                banner.className = 'role-banner spymaster-blue';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Spymaster${hostBadge}`;
-            } else if (clickerTeam === 'red') {
-                banner.className = 'role-banner clicker-red';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.red)}</strong> Clicker${hostBadge}`;
-            } else if (clickerTeam === 'blue') {
-                banner.className = 'role-banner clicker-blue';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Clicker${hostBadge}`;
-            } else if (playerTeam === 'red') {
-                banner.className = 'role-banner spectator-red';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.red)}</strong> Team${hostBadge}`;
-            } else if (playerTeam === 'blue') {
-                banner.className = 'role-banner spectator-blue';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Team${hostBadge}`;
+            // Determine role and team for config lookup
+            let role = null;
+            let team = null;
+
+            if (spymasterTeam) {
+                role = 'spymaster';
+                team = spymasterTeam;
+            } else if (clickerTeam) {
+                role = 'clicker';
+                team = clickerTeam;
+            } else if (playerTeam) {
+                role = 'spectator';
+                team = playerTeam;
+            }
+
+            // Use config if role/team are set, otherwise fallback to host/viewer
+            if (role && team && ROLE_BANNER_CONFIG[role]) {
+                const config = ROLE_BANNER_CONFIG[role];
+                banner.className = `role-banner ${config[team]}`;
+                banner.innerHTML = `<strong>${escapeHTML(teamNames[team])}</strong> ${config.label}${hostBadge}`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
                 banner.innerHTML = `<span class="host-badge">Host</span> Spectator`;
@@ -6131,6 +6987,9 @@
                     case 'open-settings':
                         openSettings();
                         break;
+                    case 'open-history':
+                        openGameHistory();
+                        break;
                     case 'confirm-end-turn':
                         confirmEndTurn();
                         break;
@@ -6193,6 +7052,14 @@
                         break;
                     case 'play-offline':
                         closeMultiplayer();
+                        break;
+
+                    // Game history modal
+                    case 'close-history':
+                        closeGameHistory();
+                        break;
+                    case 'close-replay':
+                        closeReplay();
                         break;
                 }
             });
@@ -6379,6 +7246,35 @@
         } else {
             // DOM already loaded (e.g., script loaded asynchronously)
             init();
+        }
+    </script>
+
+    <!-- Service Worker Registration for PWA support -->
+    <script>
+        // Register service worker for offline support and PWA features
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registered:', registration.scope);
+
+                        // Check for updates periodically
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // New content available, show update notification
+                                        console.log('New version available! Refresh to update.');
+                                    }
+                                });
+                            }
+                        });
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
         }
     </script>
 </body>
