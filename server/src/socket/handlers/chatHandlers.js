@@ -8,19 +8,7 @@ const { chatMessageSchema, spectatorChatSchema } = require('../../validators/sch
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
-
-/**
- * Sanitize text by encoding HTML entities (defense-in-depth against XSS)
- * The frontend should also sanitize when rendering, but this adds extra protection
- */
-function sanitizeHtml(text) {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+const { sanitizeHtml } = require('../../utils/sanitize');
 
 module.exports = function chatHandlers(io, socket) {
 

@@ -4,6 +4,7 @@
 
 const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
+const gameService = require('../../services/gameService');
 const { validateInput } = require('../../middleware/validation');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -29,7 +30,6 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             const validated = validateInput(playerTeamSchema, data);
-            const gameService = require('../../services/gameService');
 
             // ISSUE #10 FIX: Verify player exists before proceeding
             const currentPlayer = await playerService.getPlayer(socket.sessionId);
@@ -148,8 +148,7 @@ module.exports = function playerHandlers(io, socket) {
 
             // If becoming spymaster, send them the card types
             if (player.role === 'spymaster') {
-                const gameService = require('../../services/gameService');
-                const game = await gameService.getGame(socket.roomCode);
+                    const game = await gameService.getGame(socket.roomCode);
                 if (game && !game.gameOver) {
                     socket.emit('game:spymasterView', { types: game.types });
                 }

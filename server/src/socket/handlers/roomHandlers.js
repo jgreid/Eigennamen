@@ -210,7 +210,7 @@ module.exports = function roomHandlers(io, socket) {
     socket.on('room:leave', createRateLimitedHandler(socket, 'room:leave', async () => {
         try {
             if (!socket.roomCode) {
-                return;
+                throw RoomError.notFound('Not currently in a room');
             }
 
             // ISSUE #17 FIX: Invalidate reconnection token when explicitly leaving
@@ -222,10 +222,10 @@ module.exports = function roomHandlers(io, socket) {
             socket.leave(`room:${socket.roomCode}`);
             socket.leave(`spectators:${socket.roomCode}`);
 
-            // Notify others
+            // Notify others (result may be null if room was already deleted)
             io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
                 sessionId: socket.sessionId,
-                newHost: result.newHostId
+                newHost: result?.newHostId || null
             });
 
             // Log event for room history
@@ -234,7 +234,7 @@ module.exports = function roomHandlers(io, socket) {
                 eventLogService.EVENT_TYPES.PLAYER_LEFT,
                 {
                     sessionId: socket.sessionId,
-                    newHostId: result.newHostId
+                    newHostId: result?.newHostId || null
                 }
             );
 

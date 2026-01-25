@@ -3758,6 +3758,9 @@
         // Track timeout to prevent race conditions
         let srAnnouncementTimeout = null;
 
+        // Track if board has been initialized (for incremental updates)
+        let boardInitialized = false;
+
         // Screen reader announcement helper
         function announceToScreenReader(message) {
             const announcer = cachedElements.srAnnouncements;
@@ -3935,12 +3938,12 @@
             listEl.innerHTML = games.map(game => {
                 const date = new Date(game.timestamp);
                 const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const winnerName = game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue');
+                const winnerName = escapeHTML(game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue'));
 
                 return `
-                    <div class="history-item" data-game-id="${game.id}">
+                    <div class="history-item" data-game-id="${escapeHTML(game.id)}">
                         <div class="history-item-info">
-                            <div class="history-item-winner ${game.winner}">${winnerName} Team Wins!</div>
+                            <div class="history-item-winner ${escapeHTML(game.winner)}">${winnerName} Team Wins!</div>
                             <div class="history-item-date">${dateStr}</div>
                         </div>
                         <div class="history-item-stats">
@@ -4000,10 +4003,11 @@
             }
 
             // Render replay info
-            const winnerName = data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown';
+            const winnerName = escapeHTML(data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown');
+            const winnerClass = escapeHTML(data.finalState?.winner || '');
             const durationStr = formatDuration(data.duration || 0);
             document.getElementById('replay-info').innerHTML = `
-                <span class="winner-badge ${data.finalState?.winner}">${winnerName} Team Wins!</span>
+                <span class="winner-badge ${winnerClass}">${winnerName} Team Wins!</span>
                 <span>Duration: ${durationStr} | ${data.totalMoves || 0} moves</span>
             `;
 
@@ -4033,7 +4037,7 @@
             const types = currentReplayData?.initialBoard?.types || [];
 
             board.innerHTML = words.map((word, index) => {
-                return `<div class="replay-card" data-index="${index}">${word}</div>`;
+                return `<div class="replay-card" data-index="${index}">${escapeHTML(word)}</div>`;
             }).join('');
 
             // Apply revealed state up to current index
@@ -4081,16 +4085,16 @@
             logEl.innerHTML = events.map((event, index) => {
                 let actionText = '';
                 let detailText = '';
-                const team = event.data?.team || '';
+                const team = escapeHTML(event.data?.team || '');
 
                 switch (event.type) {
                     case 'clue':
                         actionText = 'gave clue';
-                        detailText = `"${event.data?.word}" for ${event.data?.number}`;
+                        detailText = `"${escapeHTML(event.data?.word || '')}" for ${escapeHTML(String(event.data?.number ?? ''))}`;
                         break;
                     case 'reveal':
                         actionText = 'revealed';
-                        detailText = `${event.data?.word} (${event.data?.type})`;
+                        detailText = `${escapeHTML(event.data?.word || '')} (${escapeHTML(event.data?.type || '')})`;
                         break;
                     case 'endTurn':
                         actionText = 'ended turn';
@@ -4098,10 +4102,10 @@
                         break;
                     case 'forfeit':
                         actionText = 'forfeited';
-                        detailText = `${event.data?.winner} wins`;
+                        detailText = `${escapeHTML(event.data?.winner || '')} wins`;
                         break;
                     default:
-                        actionText = event.type;
+                        actionText = escapeHTML(event.type || '');
                         detailText = '';
                 }
 
@@ -5066,7 +5070,8 @@
             'playerUpdated', 'clueGiven', 'spymasterView',
             'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
             'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
-            'kicked', 'playerKicked', 'settingsUpdated'
+            'kicked', 'playerKicked', 'settingsUpdated',
+            'historyResult', 'replayData'
         ];
 
         function cleanupMultiplayerListeners() {
@@ -5539,7 +5544,6 @@
         let activeWords = [...DEFAULT_WORDS];
         let wordSource = 'default';
         let wordListMode = 'combined'; // 'default', 'combined', or 'custom'
-        let customWordsList = []; // Stores custom words separately
 
         // Team names (stored in URL for consistency across players)
         let teamNames = {
@@ -6526,9 +6530,6 @@
             return false;
         }
 
-        // Track if board has been initialized (for incremental updates)
-        let boardInitialized = false;
-
         // Initialize board event delegation (called once)
         function initBoardEventDelegation() {
             const board = cachedElements.board || document.getElementById('board');
@@ -7177,10 +7178,8 @@
             // Save custom words if any
             if (customWordsText) {
                 localStorage.setItem('codenames-custom-words', customWordsText);
-                customWordsList = customWords;
             } else {
                 localStorage.removeItem('codenames-custom-words');
-                customWordsList = [];
             }
 
             // Build active word list based on mode
@@ -7232,7 +7231,6 @@
             // Load custom words
             const customWordsText = localStorage.getItem('codenames-custom-words');
             const customWords = customWordsText ? parseWords(customWordsText) : [];
-            customWordsList = customWords;
 
             // Apply word list based on mode
             if (wordListMode === 'default') {

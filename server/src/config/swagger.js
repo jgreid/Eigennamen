@@ -376,54 +376,6 @@ See the project README for WebSocket event documentation.
                 }
             },
             // Room endpoints
-            '/api/rooms/by-password/{password}': {
-                get: {
-                    tags: ['Rooms'],
-                    summary: 'Find room by password',
-                    description: 'Search for a room using its password. Useful for joining password-protected rooms.',
-                    parameters: [
-                        {
-                            name: 'password',
-                            in: 'path',
-                            required: true,
-                            schema: { type: 'string', maxLength: 50 },
-                            description: 'Room password (URL-encoded if contains special characters)'
-                        }
-                    ],
-                    responses: {
-                        '200': {
-                            description: 'Room found',
-                            content: {
-                                'application/json': {
-                                    schema: {
-                                        type: 'object',
-                                        properties: {
-                                            code: { type: 'string' },
-                                            hasPassword: { type: 'boolean' }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        '400': {
-                            description: 'Invalid password format',
-                            content: {
-                                'application/json': {
-                                    schema: { $ref: '#/components/schemas/Error' }
-                                }
-                            }
-                        },
-                        '404': {
-                            description: 'No room found with that password',
-                            content: {
-                                'application/json': {
-                                    schema: { $ref: '#/components/schemas/Error' }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
             '/api/rooms/{code}/exists': {
                 get: {
                     tags: ['Rooms'],

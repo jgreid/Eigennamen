@@ -1198,12 +1198,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
                 throw ValidationError.clueAlreadyGiven();
             }
 
-            // BUG-3 FIX: Validate clue number is within valid range (0-25)
-            // 0 = unlimited guesses, max is 25 (board size)
-            if (typeof number !== 'number' || !Number.isInteger(number) || number < 0 || number > BOARD_SIZE) {
-                await redis.unwatch();
-                throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
-            }
+            // Note: Number validation already done at function entry (line 1147-1150)
 
             // Validate clue word is not on the board
             const validation = validateClueWord(word, game.words);

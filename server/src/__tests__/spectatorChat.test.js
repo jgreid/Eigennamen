@@ -258,7 +258,8 @@ describe('Spectator Chat Feature', () => {
                 await spectatorHandler[1]({ message: '<script>alert("xss")</script>' });
 
                 const emittedMessage = mockIo.emit.mock.calls[0][1];
-                expect(emittedMessage.text).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+                // Note: utils/sanitize.js uses OWASP-recommended encoding (&#x2F; for /)
+                expect(emittedMessage.text).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
                 expect(emittedMessage.text).not.toContain('<script>');
             });
 
