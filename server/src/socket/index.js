@@ -28,6 +28,7 @@ const chatHandlers = require('./handlers/chatHandlers');
 
 let io = null;
 let app = null; // Reference to Express app for socket count updates
+let inactivityCheckInterval = null; // Sprint 19: Interval for checking idle sockets
 
 function initializeSocket(server, expressApp = null) {
     app = expressApp;
@@ -100,8 +101,16 @@ function initializeSocket(server, expressApp = null) {
             socket.flyInstanceId = process.env.FLY_ALLOC_ID;
         }
 
+        // Sprint 19: Track activity for inactivity timeout
+        socket.lastActivity = Date.now();
+
         // Attach rate limiter to socket for use in handlers
         socket.rateLimiter = socketRateLimiter;
+
+        // Sprint 19: Update activity timestamp on any incoming event
+        socket.onAny(() => {
+            socket.lastActivity = Date.now();
+        });
 
         // Register all event handlers
         roomHandlers(io, socket);
@@ -249,11 +258,68 @@ function classifySocketError(error) {
     };
 }
 
+/**
+ * Sprint 19: Start periodic check for inactive sockets
+ * Disconnects sockets that have been idle for too long
+ */
+function startInactivityCheck(ioInstance) {
+    const { SESSION_SECURITY } = require('../config/constants');
+    // Default values if not defined (for testing compatibility)
+    const INACTIVITY_TIMEOUT = SESSION_SECURITY?.INACTIVITY_TIMEOUT_MS || 30 * 60 * 1000;
+    const CHECK_INTERVAL = SESSION_SECURITY?.INACTIVITY_CHECK_INTERVAL_MS || 60 * 1000;
+
+    // Clear any existing interval
+    if (inactivityCheckInterval) {
+        clearInterval(inactivityCheckInterval);
+    }
+
+    inactivityCheckInterval = setInterval(async () => {
+        try {
+            const sockets = await ioInstance.fetchSockets();
+            const now = Date.now();
+            let disconnectedCount = 0;
+
+            for (const socket of sockets) {
+                const lastActivity = socket.lastActivity || socket.handshake?.time || now;
+                const idleTime = now - lastActivity;
+
+                if (idleTime > INACTIVITY_TIMEOUT) {
+                    logger.info(`Disconnecting idle socket ${socket.id} (idle for ${Math.round(idleTime / 1000)}s)`, {
+                        sessionId: socket.sessionId,
+                        idleTimeMs: idleTime,
+                        threshold: INACTIVITY_TIMEOUT
+                    });
+
+                    // Emit inactivity warning before disconnect
+                    socket.emit('session:inactivityTimeout', {
+                        reason: 'inactivity',
+                        idleTimeSeconds: Math.round(idleTime / 1000)
+                    });
+
+                    socket.disconnect(true);
+                    disconnectedCount++;
+                }
+            }
+
+            if (disconnectedCount > 0) {
+                logger.info(`Inactivity check: disconnected ${disconnectedCount} idle socket(s)`);
+            }
+        } catch (error) {
+            logger.error('Error in inactivity check:', error.message);
+        }
+    }, CHECK_INTERVAL);
+
+    logger.info(`Inactivity check started (timeout: ${INACTIVITY_TIMEOUT / 1000}s, check interval: ${CHECK_INTERVAL / 1000}s)`);
+}
+
     // Initialize timer service for distributed operation
     timerService.initializeTimerService(createTimerExpireCallback());
 
     // Start periodic cleanup of stale rate limit entries
     startRateLimitCleanup();
+
+    // Sprint 19: Start inactivity check interval
+    startInactivityCheck(io);
 
     // Register socket functions for handlers (breaks circular dependency)
     registerSocketFunctions({
@@ -266,6 +332,17 @@ function classifySocketError(error) {
     });
 
     return io;
+}
+
+/**
+ * Stop the inactivity check interval
+ */
+function stopInactivityCheck() {
+    if (inactivityCheckInterval) {
+        clearInterval(inactivityCheckInterval);
+        inactivityCheckInterval = null;
+        logger.info('Inactivity check stopped');
+    }
 }
 
 /**
@@ -588,6 +665,9 @@ async function getTimerStatus(roomCode) {
 function cleanupSocketModule() {
     // Stop rate limiter cleanup interval
     stopRateLimitCleanup();
+
+    // Sprint 19: Stop inactivity check interval
+    stopInactivityCheck();
 
     // Close socket.io server if initialized
     if (io) {

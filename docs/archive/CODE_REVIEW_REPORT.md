@@ -1,308 +1,372 @@
-# Code Review Report - Risley-Codenames
+# Code Review Report - Codenames Online
 
-**Review Date:** January 22, 2026
-**Reviewer:** Claude (Opus 4.5)
-**Branch:** `claude/code-review-report-gdfBa`
+**Date**: January 24, 2026 (Updated: January 25, 2026)
+**Repository**: Risley-Codenames
+**Reviewer**: Claude Code Review
 
 ---
 
 ## Executive Summary
 
-Risley-Codenames is a well-architected multiplayer implementation of the Codenames board game with both standalone (URL-based) and server-based multiplayer modes. The codebase demonstrates professional patterns with comprehensive security measures, proper separation of concerns, and extensive test coverage.
-
-**Overall Assessment: GOOD** - Production-ready with minor improvements recommended.
+The Codenames Online codebase is a well-structured Node.js/Express application with a vanilla JavaScript frontend. The project demonstrates **good architectural decisions** with graceful degradation, comprehensive input validation, and solid security practices. However, there are several areas requiring attention, particularly around code duplication, consistency, and test coverage gaps.
 
 | Category | Rating | Notes |
 |----------|--------|-------|
-| Architecture | A | Clean service layer, proper separation of concerns |
-| Security | A- | Comprehensive protections, 7/7 critical issues fixed |
-| Code Quality | B+ | Well-structured, some minor technical debt |
-| Test Coverage | B+ | 28 test files, 70%+ coverage requirement |
-| Documentation | A | Comprehensive CLAUDE.md, API docs, and inline comments |
-| Performance | B+ | Redis-backed with proper caching, some optimization opportunities |
+| Architecture | ⭐⭐⭐⭐ | Solid layered design with good separation of concerns |
+| Security | ⭐⭐⭐⭐⭐ | Comprehensive protection, no critical vulnerabilities |
+| Code Quality | ⭐⭐⭐ | Good patterns but consistency issues |
+| Testing | ⭐⭐⭐ | Backend well-tested, frontend lacks tests |
+| Maintainability | ⭐⭐⭐ | Dual implementation creates burden |
 
 ---
 
-## Architecture Overview
+## Table of Contents
 
-### Technology Stack
-- **Frontend:** Vanilla HTML/CSS/JavaScript (3,218 lines single-file SPA)
-- **Backend:** Node.js 18+ / Express.js 4.18
-- **Real-time:** Socket.io 4.7 with Redis adapter
-- **Storage:** Redis 7+ (with in-memory fallback) / PostgreSQL 15+ via Prisma (optional)
-- **Validation:** Zod schemas
-- **Testing:** Jest 29 + Supertest
-- **Logging:** Winston
-
-### Key Design Patterns
-
-1. **Service Layer Pattern** - All business logic in `/services/`:
-   - `gameService.js` - Core game logic, PRNG, board generation
-   - `roomService.js` - Room lifecycle, atomic operations via Lua scripts
-   - `playerService.js` - Player/session management
-   - `timerService.js` - Distributed timers with Redis coordination
-   - `wordListService.js` - Custom word list management
-   - `eventLogService.js` - Event logging for reconnection recovery
-
-2. **Handler Pattern** - Socket/HTTP handlers delegate to services with rate limiting:
-   ```javascript
-   socket.on('game:reveal', createRateLimitedHandler(socket, 'game:reveal', async (data) => {
-       const validated = validateInput(gameRevealSchema, data);
-       const result = await gameService.revealCard(...);
-       io.to(`room:${roomCode}`).emit('game:cardRevealed', result);
-   }));
-   ```
-
-3. **Validation-First** - All inputs validated with Zod at entry points
-4. **Graceful Degradation** - Works without Redis (memory mode) or PostgreSQL
+1. [Critical Issues](#1-critical-issues)
+2. [Architecture Analysis](#2-architecture-analysis)
+3. [Frontend Analysis](#3-frontend-analysis)
+4. [Security Review](#4-security-review)
+5. [Test Coverage](#5-test-coverage)
+6. [Performance Considerations](#6-performance-considerations)
+7. [Recommendations](#7-recommendations)
 
 ---
 
-## Security Analysis
+## 1. Critical Issues
 
-### Strengths
+### 1.1 Dual Frontend Implementation (HIGH)
 
-| Feature | Implementation | Location |
-|---------|----------------|----------|
-| Input Validation | Zod schemas with regex constraints | `validators/schemas.js` |
-| XSS Prevention | Regex character restrictions on nicknames/team names | `schemas.js:33` |
-| Password Hashing | bcrypt with 10 salt rounds | `roomService.js:72` |
-| Rate Limiting | Dual-layer (HTTP + Socket.io per-event) | `middleware/rateLimit.js`, `rateLimitHandler.js` |
-| CSRF Protection | X-Requested-With header requirement | `middleware/csrf.js` |
-| Session Security | IP tracking, session age validation | `middleware/socketAuth.js` |
-| Race Condition Prevention | Redis distributed locks (NX + EX) | `gameService.js:455`, `playerService.js:204` |
-| Atomic Operations | Lua scripts for room joins | `roomService.js:33-53` |
-| Security Headers | Helmet.js properly configured | `app.js` |
-| Error Sanitization | Stack traces hidden in production | `middleware/errorHandler.js` |
+**Location**: `index.html` (5,200 lines) + `src/js/` (2,600+ lines)
 
-### Fixed Critical Issues (7/7)
+**Problem**: The frontend exists in two parallel implementations:
+- **Monolithic**: Entire application inline in `index.html`
+- **Modular**: ES6 modules in `src/js/` directory
 
-| Issue | Description | Fix Location |
-|-------|-------------|--------------|
-| #28 | Game start overwrites existing | `gameHandlers.js:50-54` - checks existing active game |
-| #29 | XSS in nicknames | `schemas.js:33` - regex validation |
-| #30 | Pause timer multi-instance | `timerService.js:376-387` - pub/sub events |
-| #31 | setRole without team | `playerService.js:194-200` - team requirement |
-| #48 | Multi-tab session conflict | Uses `sessionStorage` (per-tab) |
-| #49 | Spymaster view not restored | `roomHandlers.js:84-88` - sends on join |
-| #50 | No event recovery | `roomHandlers.js:224-286` - resync handler |
+**Impact**:
+- Maintenance burden doubles
+- Risk of implementations diverging
+- Confusion about which is canonical
 
-### Remaining Security Items
-
-| Priority | Issue | Status |
-|----------|-------|--------|
-| Medium | Session hijacking window (#17) | IP tracking added, reconnection token not implemented |
-| Medium | UUID session brute force (#74) | Rate limiting on session validation needed |
-| Low | Timer orphan check misses (#8) | Redis keyspace notifications not implemented |
+**Recommendation**: Consolidate to modular implementation and remove inline code from `index.html`.
 
 ---
 
-## Code Quality Analysis
+### 1.2 Circular Dependencies in Socket Handlers (HIGH)
 
-### Positive Observations
+**Location**: `server/src/socket/handlers/*.js` ↔ `server/src/socket/index.js`
 
-1. **Consistent Error Handling** - Custom `GameError` hierarchy with typed error codes:
-   ```javascript
-   class GameError extends Error { }
-   ├── RoomError
-   ├── PlayerError
-   ├── GameStateError
-   ├── ValidationError
-   └── RateLimitError
-   ```
+```javascript
+// gameHandlers.js line 27
+const getSocketFunctions = () => require('../index');
+```
 
-2. **Centralized Constants** - All configuration in `config/constants.js`:
-   - Board configuration (25 cards, 9/8 team split)
-   - Rate limits per event
-   - TTL values
-   - Socket event names (SOCKET_EVENTS constant)
-   - Error codes
+**Problem**: Handlers import from `socket/index.js` which imports handlers, creating circular dependency resolved via lazy loading.
 
-3. **Clean PRNG Implementation** - Mulberry32 algorithm for deterministic shuffling:
-   ```javascript
-   function seededRandom(seed) {
-       let t = (seed + 0x6D2B79F5) | 0;
-       t = Math.imul(t ^ (t >>> 15), t | 1);
-       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-   }
-   ```
+**Impact**:
+- Code smell indicating coupling issues
+- Harder to test and reason about
+- Potential for subtle bugs during module initialization
 
-4. **Comprehensive Test Suite** - 28 test files covering:
-   - Unit tests (services, validators, middleware)
-   - Integration tests (handlers, race conditions)
-   - Security hardening tests
-   - Performance tests
-   - Observability tests
-
-### Areas for Improvement
-
-| Issue | Description | Priority |
-|-------|-------------|----------|
-| Full JSON serialization | Every card reveal does full stringify/parse (#36) | Medium |
-| Rate limiter array allocation | Creates new array per request (#37) | Medium |
-| Missing integration tests | Not comprehensive for all flows (#47) | Medium |
-| Inconsistent structured logging | Mix of structured and string concatenation (#69) | Low |
-| Event listeners not removed | Some listeners leak on element recreation (#64) | Low |
+**Recommendation**: Use dependency injection or restructure to break circular dependency.
 
 ---
 
-## Test Coverage
+### 1.3 Memory Leaks from Event Listeners (HIGH)
 
-### Test Files (28 total)
+**Location**: `src/js/main.js`, `src/js/ui.js`, `server/public/js/socket-client.js`
 
-| Category | Files | Purpose |
-|----------|-------|---------|
-| Core Services | `gameService.test.js`, `timerService.test.js`, `eventLogService.test.js`, `wordListService.test.js` | Business logic |
-| Extended Services | `gameServiceExtended.test.js`, `roomServiceExtended.test.js` | Edge cases |
-| Handlers | `gameHandlers.test.js`, `handlerEdgeCases.test.js` | Socket events |
-| Infrastructure | `socketIndex.test.js`, `socketConnectionLifecycle.test.js`, `socketReconnection.test.js` | WebSocket |
-| Security | `security.test.js`, `securityHardening.test.js` | Vulnerabilities |
-| Integration | `handlers.integration.test.js`, `raceConditions.test.js` | End-to-end |
-| Middleware | `middleware.test.js`, `validators.test.js` | Input validation |
-| Config | `env.test.js`, `redisConfig.test.js`, `memoryStorage.test.js` | Configuration |
-| Utilities | `correlationId.test.js`, `distributedLock.test.js`, `metrics.test.js` | Helpers |
-| Quality | `codeQuality.test.js`, `observability.test.js`, `performance.test.js` | Standards |
+```javascript
+// Listeners added but never removed
+board.addEventListener('click', (e) => { ... });
+document.addEventListener('click', (e) => { ... });
+```
 
-### Coverage Requirements
+**Impact**:
+- Performance degradation over long sessions
+- If app reinitializes, duplicate listeners accumulate
 
-Minimum 70% for branches, functions, lines, and statements (configured in Jest).
+**Recommendation**: Implement proper cleanup patterns with AbortController or explicit listener removal.
 
 ---
 
-## Implementation Status Summary
+### 1.4 Inconsistent Transaction/Concurrency Patterns (MEDIUM)
 
-Based on CODE_REVIEW_FINDINGS.md:
+**Location**: Various services in `server/src/services/`
 
-| Status | Count | Percentage |
-|--------|-------|------------|
-| Implemented | 53 | 72% |
-| Partial | 6 | 8% |
-| Not Implemented | 11 | 15% |
-| Documented/Acceptable | 4 | 5% |
-| **Total Issues** | **74** | - |
+**Problem**: Different concurrency approaches used inconsistently:
+- `gameService.js`: Redis transactions with optimistic locking
+- `roomService.js`: Lua scripts
+- `playerService.js`: Mix of both approaches
 
-### Critical/High Issues: All Fixed
+**Impact**:
+- Different failure modes across operations
+- Hard to reason about consistency guarantees
 
-The 7 critical issues have all been addressed:
-- XSS prevention via regex validation
-- Race condition prevention via distributed locks
-- Multi-instance timer coordination via pub/sub
-- Session/reconnection handling improvements
+**Recommendation**: Standardize on Lua scripts for atomic operations across all services.
 
 ---
 
-## Performance Characteristics
+## 2. Architecture Analysis
 
-### Optimizations Present
+### 2.1 Strengths
 
-1. **Redis Lua Scripts** - Atomic room operations prevent race conditions
-2. **Parallel Operations** - `Promise.all()` for batch player fetching
-3. **State Versioning** - `stateVersion` field for conflict detection
-4. **History Capping** - Max 200 entries per game prevents unbounded growth
-5. **Health Check Timeout** - `Promise.race` prevents slow responses under load
+#### Graceful Degradation
+The system works fully without:
+- PostgreSQL (game works without database)
+- Redis (falls back to in-memory storage)
+- Server (standalone mode via URL-encoded state)
 
-### Optimization Opportunities
+#### Service Layer Architecture
+Clean separation with all business logic isolated in `/services/`:
+| Service | Purpose |
+|---------|---------|
+| `gameService` | Core game logic, PRNG, card shuffling |
+| `roomService` | Room lifecycle management |
+| `playerService` | Player/team management |
+| `timerService` | Turn timers with Redis backing |
+| `wordListService` | Word list management |
+| `eventLogService` | Event logging for reconnection |
 
-| Area | Current | Recommendation |
-|------|---------|----------------|
-| Card reveal | Full JSON parse/stringify | Partial updates for specific fields |
-| Rate limiter | New array per request | Pre-allocated sliding window |
-| Socket count | `io.fetchSockets()` iteration | Cached counter with connect/disconnect updates |
+#### Comprehensive Error Handling
+- Custom error classes (`RoomError`, `PlayerError`, `GameStateError`)
+- Centralized error codes in constants
+- Proper HTTP status code mapping
 
----
+### 2.2 Issues
 
-## Deployment Readiness
+#### Magic Numbers Scattered
+```javascript
+// app.js
+SOCKET_COUNT_CACHE_MS = 5000  // hardcoded
 
-### Production Configuration
+// socket/index.js
+pingTimeout: 60000            // not in constants
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| Docker Support | Ready | `docker-compose.yml` for local dev |
-| Fly.io Deployment | Ready | `fly.toml` configured |
-| Health Checks | Complete | `/health`, `/health/ready`, `/health/live` |
-| Graceful Shutdown | Implemented | Timer cleanup, connection closing |
-| TLS | Enforced | Redis TLS required in production |
-| CORS | Configurable | Warning logged for wildcard |
+// redis.js
+keepAlive: 10000              // scattered config
+```
 
-### Environment Variables
+**Recommendation**: Move all timing constants to `config/constants.js`.
 
-Critical variables properly validated:
-- `NODE_ENV` - development/production mode
-- `JWT_SECRET` - Enhanced warning if missing in production
-- `REDIS_URL` - Supports `memory` fallback
-- `DATABASE_URL` - Optional (graceful degradation)
+#### Rate Limit Key Inconsistency
+```javascript
+// Event name doesn't match rate limit key
+socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM,
+  createRateLimitedHandler(socket, 'player:team', ...)  // 'player:team' != 'player:setTeam'
+)
+```
 
----
+#### No Explicit State Machines
+Room states (WAITING, PLAYING, FINISHED) and game states are implicit rather than enforced through state machine patterns.
 
-## Recommendations
-
-### High Priority
-
-1. **Rate limit session validation (#74)** - Add per-IP rate limiting to prevent UUID brute force attacks on the session validation endpoint
-
-2. **Implement reconnection tokens (#17)** - Generate short-lived tokens at disconnect for secure reconnection verification
-
-### Medium Priority
-
-3. **Optimize JSON serialization (#36)** - Consider partial updates for card reveal operations to reduce CPU overhead
-
-4. **Cache socket count (#38)** - Maintain a counter updated on connect/disconnect instead of iterating all sockets
-
-5. **Complete integration tests (#47)** - Add comprehensive tests for full game flows
-
-### Low Priority
-
-6. **Use structured logging consistently (#69)** - Convert remaining string concatenation to structured logging
-
-7. **Clean up event listeners (#64)** - Ensure proper listener removal when recreating DOM elements
+**Recommendation**: Implement explicit state machines to prevent invalid transitions.
 
 ---
 
-## File Inventory
+## 3. Frontend Analysis
 
-### Key Files by Importance
+### 3.1 State Management
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `index.html` | 3,218 | Entire frontend SPA |
-| `server/src/services/gameService.js` | 896 | Core game logic |
-| `server/src/services/roomService.js` | 509 | Room management |
-| `server/src/services/timerService.js` | ~400 | Distributed timers |
-| `server/src/socket/index.js` | ~200 | Socket.io setup |
-| `server/src/middleware/socketAuth.js` | 340 | Session validation |
-| `server/src/config/constants.js` | 300 | Centralized config |
-| `server/src/validators/schemas.js` | 143 | Input validation |
+**Pattern**: Observer pattern (pub-sub) in `src/js/state.js`
 
-### Configuration Files
+**Issues**:
+- No state validation/constraints
+- No action/reducer pattern
+- Missing rollback logic on failures
+- Shallow copy returns don't prevent all mutation issues
 
-| File | Purpose |
-|------|---------|
-| `docker-compose.yml` | Local development setup |
-| `fly.toml` | Production deployment |
-| `server/package.json` | Dependencies and scripts |
-| `server/prisma/schema.prisma` | Database schema |
+### 3.2 Socket.io Integration
 
----
+**File**: `server/public/js/socket-client.js`
 
-## Conclusion
+**Issues**:
+1. **Memory leak risk**: Listeners stored indefinitely, `off()` must be called explicitly
+2. **Storage mixing**: Uses both `sessionStorage` and `localStorage` without clear documentation
+3. **No quota handling**: `localStorage.setItem()` can throw if quota exceeded
 
-The Risley-Codenames codebase is **production-ready** with a solid architecture and comprehensive security measures. The team has addressed all critical issues identified in previous reviews, achieving a 72% fix rate across 74 identified issues.
+### 3.3 UI Anti-Patterns
 
-**Key Strengths:**
-- Clean service layer architecture with proper separation of concerns
-- Comprehensive input validation and XSS prevention
-- Race condition handling via distributed locks
-- Graceful degradation (works without Redis/PostgreSQL)
-- Extensive test coverage (28 test files)
+| Issue | Location | Impact |
+|-------|----------|--------|
+| XSS risk via innerHTML | `ui.js:352` | Relies on single `escapeHTML()` function |
+| Stale element cache | `ui.js:15-32` | No cache invalidation mechanism |
+| Inline style manipulation | `main.js` throughout | Performance, maintainability |
+| Unlimited toast notifications | `ui.js:102-130` | DOM can fill with many elements |
+| Console logging in production | Multiple files | Could leak sensitive info |
 
-**Minor Improvements Needed:**
-- Session validation rate limiting
-- Some performance optimizations for high-load scenarios
-- Completion of partial fixes (reconnection tokens, integration tests)
+### 3.4 Silent Failures
 
-The codebase follows modern best practices and is well-suited for both casual development and production deployment.
+```javascript
+// main.js line 268
+const result = revealCard(index);
+if (!result) return;  // User doesn't know why click failed
+```
 
 ---
 
-*Report generated by Claude (Opus 4.5) on January 22, 2026*
+## 4. Security Review
+
+### 4.1 Strengths - No Critical Vulnerabilities
+
+| Protection | Implementation | Status |
+|------------|---------------|--------|
+| Input Validation | Zod schemas with regex | ✅ Comprehensive |
+| Rate Limiting | Dual-layer (socket + IP) | ✅ Well configured |
+| CSRF Protection | Custom header + origin validation | ✅ Effective |
+| XSS Prevention | HTML entity encoding | ✅ Defense-in-depth |
+| Password Security | bcryptjs with 10 rounds | ✅ Secure |
+| Session Management | UUID v4 + 24hr expiry | ✅ Proper |
+| Security Headers | Helmet.js | ✅ Enabled |
+
+### 4.2 Validation Patterns
+
+**Nickname Validation**:
+- Pattern: `^[a-zA-Z0-9\s\-_]+$`
+- Control character removal
+- Reserved name checking
+- 1-30 character limit
+
+**Clue Word Validation** (ReDoS-safe):
+- Pattern: `/^[A-Za-z]+(?:[\s\-'][A-Za-z]+){0,9}$/`
+- Bounded repetition (max 10 word parts)
+- 50 character limit
+
+**Room Code Validation**:
+- Exactly 6 characters
+- Excludes ambiguous chars (I, L, O, 0, 1)
+- Auto-uppercase conversion
+
+### 4.3 Rate Limits
+
+| Event | Limit |
+|-------|-------|
+| room:create | 5/min |
+| room:join | 10/min |
+| room:settings | 5/5sec |
+| game:reveal | 5/sec |
+| game:clue | 2/5sec |
+| chat:message | 10/5sec |
+
+### 4.4 Areas to Monitor
+
+| Area | Risk Level | Notes |
+|------|------------|-------|
+| CSP `unsafe-inline` | Medium | Required for inline scripts |
+| CDN dependencies | Low | Should pin versions |
+| IP mismatch allowed | Low | Logs for monitoring |
+
+---
+
+## 5. Test Coverage
+
+### 5.1 Coverage Summary (Updated January 25, 2026)
+
+| Area | Status | Score | Coverage |
+|------|--------|-------|----------|
+| Backend Services | Excellent | 9/10 | 91.08% |
+| Middleware | Excellent | 9/10 | 97.11% |
+| Handlers | Excellent | 9/10 | 92.85% |
+| Integration Tests | Good | 8/10 | 2,320 tests |
+| Frontend | Missing | 0/10 | No unit tests |
+| E2E Tests | Missing | 0/10 | Not yet implemented |
+
+**Overall**: 7.5/10 (significantly improved from 5.1/10)
+
+**Current Metrics**:
+- Statements: 90.21%
+- Branches: 83.91%
+- Functions: 90.35%
+- Lines: 90.47%
+- Total Tests: 2,320 passing, 36 skipped
+- Test Suites: 71
+
+### 5.2 Remaining Test Gaps
+
+1. **Frontend Testing**: No tests for 3,800+ line vanilla JS SPA
+2. **E2E Testing**: Playwright framework not yet configured
+3. **Database Layer**: 31.91% coverage (acceptable - optional feature)
+4. **Performance Testing**: No memory leak detection or stress tests
+
+### 5.3 Test Quality Improvements Made
+
+- ✅ Duplicate tests resolved
+- ✅ Test teardown improved
+- ✅ Mock storage cleanup implemented
+- ✅ Coverage increased from ~70% to 90%+
+- ✅ Test count increased from ~1,400 to 2,320
+
+---
+
+## 6. Performance Considerations
+
+### 6.1 Optimizations Present
+
+- Socket count caching (5s TTL)
+- Lua scripts for atomic operations
+- Memory storage fallback
+- Compression middleware enabled
+
+### 6.2 Potential Issues
+
+| Issue | Impact | Location |
+|-------|--------|----------|
+| Full board re-render | Performance | `ui.js` |
+| Full state serialization on card reveal | Bandwidth | `gameService.js` |
+| Event log in Redis | Memory (5min TTL) | `eventLogService.js` |
+| No pagination for game history | Memory | API endpoints |
+| All players receive all events | Bandwidth | Socket handlers |
+
+---
+
+## 7. Recommendations
+
+### 7.1 High Priority
+
+| # | Recommendation | Effort | Impact |
+|---|----------------|--------|--------|
+| 1 | Consolidate frontend to modular code only | Medium | High |
+| 2 | Resolve socket handler circular dependencies | Medium | High |
+| 3 | Implement event listener cleanup patterns | Low | High |
+| 4 | Standardize concurrency patterns (Lua scripts) | Medium | Medium |
+| 5 | Centralize all timing/config constants | Low | Medium |
+
+### 7.2 Medium Priority
+
+| # | Recommendation | Effort | Impact |
+|---|----------------|--------|--------|
+| 6 | Add frontend tests (Playwright/Puppeteer) | High | High |
+| 7 | Fix rate limit key naming inconsistencies | Low | Low |
+| 8 | Implement explicit state machines | Medium | Medium |
+| 9 | Add user feedback for silent failures | Low | Medium |
+| 10 | Improve test teardown and isolation | Medium | Medium |
+
+### 7.3 Low Priority
+
+| # | Recommendation | Effort | Impact |
+|---|----------------|--------|--------|
+| 11 | Split large handler files | Low | Low |
+| 12 | Add JSDoc documentation | Medium | Low |
+| 13 | Implement request tracing | Medium | Low |
+| 14 | Add performance metrics instrumentation | Medium | Low |
+| 15 | Remove duplicate tests | Low | Low |
+
+---
+
+## Appendix: Files Reviewed
+
+### Backend (35,000+ lines)
+- `server/src/services/*.js` - 6 service files
+- `server/src/socket/handlers/*.js` - 4 handler files
+- `server/src/middleware/*.js` - 5 middleware files
+- `server/src/config/*.js` - 6 config files
+- `server/src/validators/*.js` - Validation schemas
+- `server/src/__tests__/` - 55 test files
+
+### Frontend (7,800+ lines)
+- `index.html` - 5,200 lines (monolithic)
+- `src/js/*.js` - 2,600 lines (modular)
+- `server/public/js/socket-client.js` - 650 lines
+
+---
+
+*Report generated by Claude Code Review*

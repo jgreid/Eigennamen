@@ -35,7 +35,10 @@ module.exports = {
         IP_MISMATCH_ALLOWED: true,                   // Allow reconnection from different IP (logged for monitoring)
         SESSION_ID_MIN_LENGTH: 36,                   // UUID length
         RECONNECTION_TOKEN_TTL_SECONDS: 900,         // 15 minutes TTL for reconnection tokens (US-16.3)
-        RECONNECTION_TOKEN_LENGTH: 32                // Bytes for secure token
+        RECONNECTION_TOKEN_LENGTH: 32,               // Bytes for secure token
+        INACTIVITY_TIMEOUT_MS: 30 * 60 * 1000,       // 30 minutes idle timeout (Sprint 19)
+        INACTIVITY_CHECK_INTERVAL_MS: 60 * 1000,     // Check every minute for idle connections
+        ROTATE_SESSION_ON_RECONNECT: true            // Issue new session token after successful reconnection
     },
 
     // Password security configuration

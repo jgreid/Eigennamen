@@ -474,13 +474,28 @@ module.exports = function roomHandlers(io, socket) {
             // US-16.1: Get room stats including spectator count
             const roomStats = await playerService.getRoomStats(code);
 
+            // Sprint 19: Session rotation - generate new reconnection token after successful reconnect
+            let newReconnectionToken = null;
+            const { SESSION_SECURITY } = require('../../config/constants');
+            if (SESSION_SECURITY.ROTATE_SESSION_ON_RECONNECT) {
+                try {
+                    newReconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);
+                    logger.debug(`Session rotated for player ${player.nickname} in room ${code}`);
+                } catch (tokenError) {
+                    logger.warn(`Failed to rotate session token: ${tokenError.message}`);
+                    // Non-critical - continue without new token
+                }
+            }
+
             // Send reconnection success with full state
             socket.emit('room:reconnected', {
                 room,
                 players,
                 game: gameState,
                 you: player,
-                stats: roomStats
+                stats: roomStats,
+                // Sprint 19: Include new token for future reconnections
+                reconnectionToken: newReconnectionToken
             });
 
             // If player is spymaster and game active, send spymaster view (non-critical)

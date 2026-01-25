@@ -11,6 +11,7 @@ const path = require('path');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
+const { requestTiming, startMemoryMonitoring } = require('./middleware/timing');
 const routes = require('./routes');
 const adminRoutes = require('./routes/adminRoutes');
 const logger = require('./utils/logger');
@@ -77,7 +78,7 @@ if (isProduction && corsOrigin === '*') {
     process.exit(1);
 }
 
-// Security middleware with CSP enabled
+// Security middleware with CSP enabled (Sprint 19: Enhanced CSP)
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -91,11 +92,21 @@ app.use(helmet({
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
+            // Sprint 19: Additional security directives
+            baseUri: ["'self'"],                      // Prevent base tag hijacking
+            formAction: ["'self'"],                   // Control form submissions
+            frameAncestors: ["'none'"],               // Prevent clickjacking (defense in depth)
+            workerSrc: ["'self'", 'blob:'],           // Service worker support
+            manifestSrc: ["'self'"],                  // PWA manifest
             upgradeInsecureRequests: isProduction ? [] : null
         }
     },
     crossOriginEmbedderPolicy: false, // Required for some game assets
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    // Sprint 19: Additional security headers
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    dnsPrefetchControl: { allow: false },
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' }
 }));
 
 app.use(cors({
@@ -107,6 +118,9 @@ app.use(cors({
 
 // Compression
 app.use(compression());
+
+// Sprint 19: Request timing middleware
+app.use(requestTiming);
 
 // Body parsing
 app.use(express.json());
