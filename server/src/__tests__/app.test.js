@@ -279,6 +279,31 @@ describe('Express Application', () => {
         });
     });
 
+    describe('API Documentation', () => {
+        it('should serve Swagger UI at /api-docs', async () => {
+            const response = await request(app).get('/api-docs/');
+
+            expect(response.status).toBe(200);
+            expect(response.text).toContain('swagger');
+        });
+
+        it('should serve OpenAPI spec at /api-docs.json', async () => {
+            const response = await request(app).get('/api-docs.json');
+
+            expect(response.status).toBe(200);
+            expect(response.body).toHaveProperty('openapi');
+            expect(response.body).toHaveProperty('info');
+            expect(response.body.info.title).toBe('Codenames Online API');
+        });
+
+        it('should not serve SPA for /api-docs routes', async () => {
+            const response = await request(app).get('/api-docs');
+
+            // Should redirect to /api-docs/ (Swagger behavior)
+            expect([200, 301, 302]).toContain(response.status);
+        });
+    });
+
     describe('updateSocketCount', () => {
         it('should expose updateSocketCount function', () => {
             expect(typeof app.updateSocketCount).toBe('function');

@@ -13,6 +13,7 @@ const { apiLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit'
 const { csrfProtection } = require('./middleware/csrf');
 const routes = require('./routes');
 const logger = require('./utils/logger');
+const { setupSwagger } = require('./config/swagger');
 const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
 const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
 const { SOCKET } = require('./config/constants');
@@ -221,6 +222,9 @@ app.get('/health/live', (req, res) => {
     res.status(200).json({ status: 'alive' });
 });
 
+// OpenAPI/Swagger documentation (accessible at /api-docs)
+setupSwagger(app);
+
 // Metrics endpoint with rate limit visibility and application metrics
 app.get('/metrics', async (req, res) => {
     const metricsData = {
@@ -291,7 +295,7 @@ app.get('/metrics', async (req, res) => {
 
 // Serve the game for any non-API route (SPA support)
 app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/health') || req.path.startsWith('/metrics')) {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/health') || req.path.startsWith('/metrics') || req.path.startsWith('/api-docs')) {
         return next();
     }
     res.sendFile(path.join(__dirname, '../public/index.html'));

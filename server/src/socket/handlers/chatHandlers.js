@@ -50,14 +50,29 @@ module.exports = function chatHandlers(io, socket) {
                 from: {
                     sessionId: player.sessionId,
                     nickname: sanitizeHtml(player.nickname),
-                    team: player.team
+                    team: player.team,
+                    role: player.role // US-16.1: Include role for spectator identification
                 },
                 text: sanitizeHtml(validated.text),
                 teamOnly: validated.teamOnly,
+                spectatorOnly: validated.spectatorOnly || false, // US-16.1: Spectator-only flag
                 timestamp: Date.now()
             };
 
-            if (validated.teamOnly && player.team) {
+            // US-16.1: Spectator-only chat
+            if (validated.spectatorOnly && player.role === 'spectator') {
+                // Send only to other spectators
+                const allPlayers = await playerService.getPlayersInRoom(socket.roomCode);
+                const spectators = allPlayers.filter(p => p.role === 'spectator' && p.connected);
+
+                for (const spectator of spectators) {
+                    try {
+                        io.to(`player:${spectator.sessionId}`).emit('chat:message', message);
+                    } catch (emitError) {
+                        logger.error(`Failed to emit chat:message to spectator ${spectator.sessionId}:`, emitError);
+                    }
+                }
+            } else if (validated.teamOnly && player.team) {
                 // Send only to teammates - O(1) lookup using team sets
                 const teammates = await playerService.getTeamMembers(socket.roomCode, player.team);
 

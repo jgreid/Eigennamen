@@ -125,7 +125,8 @@ const chatMessageSchema = z.object({
         .max(500, 'Message too long')
         .transform(val => removeControlChars(val).trim())
         .refine(val => val.length >= 1, 'Message is required'),
-    teamOnly: z.boolean().default(false)
+    teamOnly: z.boolean().default(false),
+    spectatorOnly: z.boolean().default(false) // US-16.1: Spectator-only chat
 });
 
 module.exports = {

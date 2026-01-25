@@ -548,6 +548,10 @@ class MemoryStorage {
             clearInterval(this.cleanupInterval);
             this.cleanupInterval = null;
         }
+        // SPRINT-15 FIX: Clean up event handlers and pub/sub channels to prevent memory leaks
+        // in long-running single-instance deployments
+        this._eventHandlers.clear();
+        this.pubsubChannels.clear();
         return 'OK';
     }
 

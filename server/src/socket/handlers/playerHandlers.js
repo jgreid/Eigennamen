@@ -60,6 +60,10 @@ module.exports = function playerHandlers(io, socket) {
                 changes: { team: player.team }
             });
 
+            // US-16.1: Broadcast updated stats (team change may trigger role->spectator)
+            const roomStats = await playerService.getRoomStats(socket.roomCode);
+            io.to(`room:${socket.roomCode}`).emit('room:statsUpdated', { stats: roomStats });
+
             // Log event for reconnection recovery
             await eventLogService.logEvent(
                 socket.roomCode,
@@ -108,6 +112,10 @@ module.exports = function playerHandlers(io, socket) {
                 sessionId: socket.sessionId,
                 changes: { role: player.role }
             });
+
+            // US-16.1: Broadcast updated stats (role change affects spectator count)
+            const roomStats = await playerService.getRoomStats(socket.roomCode);
+            io.to(`room:${socket.roomCode}`).emit('room:statsUpdated', { stats: roomStats });
 
             // If becoming spymaster, send them the card types
             if (player.role === 'spymaster') {

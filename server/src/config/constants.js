@@ -34,7 +34,7 @@ module.exports = {
         MAX_VALIDATION_ATTEMPTS_PER_IP: 20,          // Max validation attempts per IP per minute
         IP_MISMATCH_ALLOWED: true,                   // Allow reconnection from different IP (logged for monitoring)
         SESSION_ID_MIN_LENGTH: 36,                   // UUID length
-        RECONNECTION_TOKEN_TTL_SECONDS: 300,         // 5 minutes TTL for reconnection tokens
+        RECONNECTION_TOKEN_TTL_SECONDS: 900,         // 15 minutes TTL for reconnection tokens (US-16.3)
         RECONNECTION_TOKEN_LENGTH: 32                // Bytes for secure token
     },
 
