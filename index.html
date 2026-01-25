@@ -4290,6 +4290,7 @@
             const nickname = document.getElementById('join-nickname').value.trim();
             const roomIdInput = document.getElementById('join-room-id').value.trim();
             const urlRoomCode = getRoomCodeFromURL();
+            const joinBtn = document.getElementById('join-game-btn');
 
             // Nickname validation
             if (!nickname) {
@@ -4327,20 +4328,17 @@
                 return;
             }
 
-            setMpStatus('Connecting...', 'connecting');
+            // Disable button to prevent double-click race condition
+            if (joinBtn) joinBtn.disabled = true;
 
-            // Connect to server
             try {
+                setMpStatus('Connecting...', 'connecting');
+
+                // Connect to server
                 if (!CodenamesClient.isConnected()) {
                     await CodenamesClient.connect();
                 }
-            } catch (connectError) {
-                console.error('Connection failed:', connectError);
-                setMpStatus('Could not connect to server', 'error');
-                return;
-            }
 
-            try {
                 setMpStatus('Joining game...', 'connecting');
                 // Join the room with roomId (no password needed)
                 const result = await CodenamesClient.joinRoom(roomId, nickname);
@@ -4358,9 +4356,14 @@
                     setMpStatus('Room is full', 'error');
                 } else if (error.code === 'INVALID_INPUT') {
                     setMpStatus('Invalid Room ID format', 'error');
+                } else if (error.message?.includes('connect')) {
+                    setMpStatus('Could not connect to server', 'error');
                 } else {
                     setMpStatus(error.message || 'Failed to join game', 'error');
                 }
+            } finally {
+                // Re-enable button
+                if (joinBtn) joinBtn.disabled = false;
             }
         }
 
@@ -4369,6 +4372,7 @@
 
             const nickname = document.getElementById('create-nickname').value.trim();
             const roomId = document.getElementById('create-room-id').value.trim();
+            const createBtn = document.getElementById('create-game-btn');
 
             // Nickname validation
             if (!nickname) {
@@ -4402,20 +4406,17 @@
                 return;
             }
 
-            setMpStatus('Creating game...', 'connecting');
+            // Disable button to prevent double-click race condition
+            if (createBtn) createBtn.disabled = true;
 
-            // Connect to server
             try {
+                setMpStatus('Creating game...', 'connecting');
+
+                // Connect to server
                 if (!CodenamesClient.isConnected()) {
                     await CodenamesClient.connect();
                 }
-            } catch (connectError) {
-                console.error('Connection failed:', connectError);
-                setMpStatus('Could not connect to server', 'error');
-                return;
-            }
 
-            try {
                 // Create room with roomId
                 const result = await CodenamesClient.createRoom({
                     roomId: roomId,
@@ -4431,15 +4432,27 @@
                 console.error('Create failed:', error);
                 if (error.code === 'ROOM_ALREADY_EXISTS') {
                     setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
+                } else if (error.message?.includes('connect')) {
+                    setMpStatus('Could not connect to server', 'error');
                 } else {
                     setMpStatus(error.message || 'Failed to create game', 'error');
                 }
+            } finally {
+                // Re-enable button
+                if (createBtn) createBtn.disabled = false;
             }
         }
 
         function onMultiplayerJoined(result, isHost = false) {
             isMultiplayerMode = true;
             localStorage.setItem('codenames-nickname', CodenamesClient.player?.nickname || '');
+
+            // CRITICAL: Set up multiplayer event listeners FIRST to avoid race condition
+            // where game:started arrives before listeners are ready
+            if (!multiplayerListenersSetup) {
+                setupMultiplayerListeners();
+                multiplayerListenersSetup = true;
+            }
 
             // Store players list
             multiplayerPlayers = result.players || [result.player];
@@ -4464,12 +4477,6 @@
             // Update UI
             setMpStatus('Connected!', 'success');
             updateMpIndicator(result.room, multiplayerPlayers);
-
-            // Set up multiplayer event listeners (only once)
-            if (!multiplayerListenersSetup) {
-                setupMultiplayerListeners();
-                multiplayerListenersSetup = true;
-            }
 
             // Show/hide room settings nav item based on host status
             updateRoomSettingsNavVisibility();
@@ -4968,6 +4975,7 @@
                 // Clear any in-progress flags
                 isRevealingCard = false;
                 isChangingRole = false;
+                pendingRoleChange = null; // Clear pending role change on error
                 document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
                 // Map technical error codes to user-friendly messages
