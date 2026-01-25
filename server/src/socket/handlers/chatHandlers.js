@@ -4,9 +4,9 @@
 
 const playerService = require('../../services/playerService');
 const { validateInput } = require('../../middleware/validation');
-const { chatMessageSchema } = require('../../validators/schemas');
+const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 
 /**
@@ -94,6 +94,63 @@ module.exports = function chatHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error sending chat message:', error);
+            socket.emit('chat:error', {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
+
+    /**
+     * Send a spectator-only chat message
+     * Only spectators (players without a team or with role='spectator') can send
+     * Messages are broadcast to all spectators in the room
+     */
+    socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRateLimitedHandler(socket, 'chat:spectator', async (data) => {
+        try {
+            if (!socket.roomCode) {
+                throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Not in a room' };
+            }
+
+            // Validate data is an object before passing to Zod
+            if (!data || typeof data !== 'object') {
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Invalid message format' };
+            }
+
+            const validated = validateInput(spectatorChatSchema, data);
+
+            const player = await playerService.getPlayer(socket.sessionId);
+            if (!player) {
+                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Player not found' };
+            }
+
+            // Only allow spectators to send spectator chat messages
+            // A spectator is defined as: role='spectator' OR no team assigned
+            const isSpectator = player.role === 'spectator' || !player.team;
+            if (!isSpectator) {
+                throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Only spectators can send spectator chat messages' };
+            }
+
+            const message = {
+                from: {
+                    sessionId: player.sessionId,
+                    nickname: sanitizeHtml(player.nickname),
+                    team: player.team,
+                    role: player.role
+                },
+                text: sanitizeHtml(validated.message),
+                timestamp: Date.now()
+            };
+
+            // Broadcast to all spectators in the room using the spectators socket room
+            try {
+                io.to(`spectators:${socket.roomCode}`).emit(SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, message);
+            } catch (emitError) {
+                logger.error(`Failed to emit ${SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE} to spectators in room ${socket.roomCode}:`, emitError);
+            }
+
+        } catch (error) {
+            logger.error('Error sending spectator chat message:', error);
             socket.emit('chat:error', {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message

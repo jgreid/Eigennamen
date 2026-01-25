@@ -8,6 +8,7 @@ const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
 const eventLogService = require('../../services/eventLogService');
+const gameHistoryService = require('../../services/gameHistoryService');
 const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -231,6 +232,18 @@ module.exports = function gameHandlers(io, socket) {
                     types: result.allTypes
                 });
 
+                // Save completed game to history
+                const completedGame = await gameService.getGame(socket.roomCode);
+                if (completedGame) {
+                    // Get room settings for team names
+                    const roomForHistory = await roomService.getRoom(socket.roomCode);
+                    const gameDataWithTeamNames = {
+                        ...completedGame,
+                        teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
+                    };
+                    await gameHistoryService.saveGameResult(socket.roomCode, gameDataWithTeamNames);
+                }
+
                 // Audit log game end
                 const clientIpEnd = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
                 auditGameEnded(socket.roomCode, socket.sessionId, clientIpEnd, result.winner, result.endReason, null);
@@ -398,6 +411,18 @@ module.exports = function gameHandlers(io, socket) {
                 types: result.allTypes
             });
 
+            // Save completed game to history
+            const completedGame = await gameService.getGame(socket.roomCode);
+            if (completedGame) {
+                // Get room settings for team names
+                const roomForHistory = await roomService.getRoom(socket.roomCode);
+                const gameDataWithTeamNames = {
+                    ...completedGame,
+                    teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
+                };
+                await gameHistoryService.saveGameResult(socket.roomCode, gameDataWithTeamNames);
+            }
+
             // Audit log game end (forfeit)
             const forfeitIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
             auditGameEnded(socket.roomCode, socket.sessionId, forfeitIp, result.winner, 'forfeit', null);
@@ -425,7 +450,7 @@ module.exports = function gameHandlers(io, socket) {
     }));
 
     /**
-     * Get game history
+     * Get game history (current game's move history)
      */
     socket.on(SOCKET_EVENTS.GAME_HISTORY, createRateLimitedHandler(socket, 'game:history', async () => {
         try {
@@ -438,6 +463,66 @@ module.exports = function gameHandlers(io, socket) {
 
         } catch (error) {
             logger.error('Error getting history:', error);
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
+
+    /**
+     * Get past games history for this room (for replay)
+     */
+    socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRateLimitedHandler(socket, 'game:getHistory', async (data = {}) => {
+        try {
+            if (!socket.roomCode) {
+                throw RoomError.notFound(socket.roomCode);
+            }
+
+            const limit = data.limit && Number.isInteger(data.limit) && data.limit > 0 && data.limit <= 50
+                ? data.limit
+                : 10;
+
+            const history = await gameHistoryService.getGameHistory(socket.roomCode, limit);
+            socket.emit(SOCKET_EVENTS.GAME_HISTORY_RESULT, { history });
+
+            logger.debug(`Game history retrieved for room ${socket.roomCode}`, { count: history.length });
+
+        } catch (error) {
+            logger.error('Error getting game history:', error);
+            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
+                code: error.code || ERROR_CODES.SERVER_ERROR,
+                message: error.message
+            });
+        }
+    }));
+
+    /**
+     * Get replay data for a specific game
+     */
+    socket.on(SOCKET_EVENTS.GAME_GET_REPLAY, createRateLimitedHandler(socket, 'game:getReplay', async (data = {}) => {
+        try {
+            if (!socket.roomCode) {
+                throw RoomError.notFound(socket.roomCode);
+            }
+
+            const { gameId } = data;
+            if (!gameId || typeof gameId !== 'string') {
+                throw new ValidationError('Game ID is required for replay');
+            }
+
+            const replayData = await gameHistoryService.getReplayEvents(socket.roomCode, gameId);
+
+            if (!replayData) {
+                throw new GameStateError('Game not found in history');
+            }
+
+            socket.emit(SOCKET_EVENTS.GAME_REPLAY_DATA, { replay: replayData });
+
+            logger.debug(`Replay data retrieved for game ${gameId} in room ${socket.roomCode}`);
+
+        } catch (error) {
+            logger.error('Error getting replay data:', error);
             socket.emit(SOCKET_EVENTS.GAME_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message

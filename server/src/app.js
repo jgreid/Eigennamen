@@ -12,6 +12,7 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
 const routes = require('./routes');
+const adminRoutes = require('./routes/adminRoutes');
 const logger = require('./utils/logger');
 const { setupSwagger } = require('./config/swagger');
 const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
@@ -119,6 +120,9 @@ app.use('/api', csrfProtection);
 
 // API routes
 app.use('/api', routes);
+
+// Admin dashboard routes (protected by basic auth)
+app.use('/admin', adminRoutes);
 
 // Serve static files (the game client) with caching headers
 app.use(express.static(path.join(__dirname, '../public'), {
@@ -295,7 +299,7 @@ app.get('/metrics', async (req, res) => {
 
 // Serve the game for any non-API route (SPA support)
 app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/health') || req.path.startsWith('/metrics') || req.path.startsWith('/api-docs')) {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/health') || req.path.startsWith('/metrics') || req.path.startsWith('/api-docs') || req.path.startsWith('/admin')) {
         return next();
     }
     res.sendFile(path.join(__dirname, '../public/index.html'));
