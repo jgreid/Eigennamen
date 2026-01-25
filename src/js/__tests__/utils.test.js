@@ -241,6 +241,74 @@ describe('debounce', () => {
     await new Promise(resolve => setTimeout(resolve, 100));
     expect(count).toBe(1);
   });
+
+  it('should pass arguments to debounced function', async () => {
+    let result = null;
+    const fn = debounce((a, b) => { result = a + b; }, 50);
+
+    fn(2, 3);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(result).toBe(5);
+  });
+
+  it('should cancel previous pending calls', async () => {
+    let lastValue = null;
+    const fn = debounce((val) => { lastValue = val; }, 50);
+
+    fn(1);
+    fn(2);
+    fn(3);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(lastValue).toBe(3);
+  });
+});
+
+describe('throttle', () => {
+  it('should execute function immediately on first call', () => {
+    let count = 0;
+    const fn = throttle(() => count++, 100);
+
+    fn();
+    expect(count).toBe(1);
+  });
+
+  it('should throttle subsequent calls', async () => {
+    let count = 0;
+    const fn = throttle(() => count++, 50);
+
+    fn(); // Executes
+    fn(); // Throttled
+    fn(); // Throttled
+
+    expect(count).toBe(1);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    fn(); // Executes (after throttle period)
+    expect(count).toBe(2);
+  });
+
+  it('should pass arguments to throttled function', () => {
+    let result = null;
+    const fn = throttle((a, b) => { result = a + b; }, 50);
+
+    fn(3, 4);
+    expect(result).toBe(7);
+  });
+
+  it('should allow execution after throttle period', async () => {
+    let count = 0;
+    const fn = throttle(() => count++, 30);
+
+    fn();
+    expect(count).toBe(1);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    fn();
+    expect(count).toBe(2);
+  });
 });
 
 describe('deepClone', () => {
