@@ -5177,18 +5177,30 @@
             }
         }
 
+        // Modal registry - maps modal IDs to their close handler functions
+        // Functions are referenced by name to work with hoisted function declarations
+        function getModalCloseHandler(modalId) {
+            const handlers = {
+                'settings-modal': closeSettings,
+                'confirm-modal': closeConfirm,
+                'game-over-modal': closeGameOver,
+                'error-modal': closeError,
+                'multiplayer-modal': closeMultiplayer,
+                'history-modal': () => closeModal('history-modal'),
+                'replay-modal': () => closeModal('replay-modal')
+            };
+            return handlers[modalId];
+        }
+
         // Focus trap handler
         function handleModalKeydown(e) {
             if (!activeModal) return;
 
-            // Escape key closes modal
+            // Escape key closes modal via registry lookup
             if (e.key === 'Escape') {
                 e.preventDefault();
-                if (activeModal.id === 'settings-modal') closeSettings();
-                else if (activeModal.id === 'confirm-modal') closeConfirm();
-                else if (activeModal.id === 'game-over-modal') closeGameOver();
-                else if (activeModal.id === 'error-modal') closeError();
-                else if (activeModal.id === 'multiplayer-modal') closeMultiplayer();
+                const closeHandler = getModalCloseHandler(activeModal.id);
+                if (closeHandler) closeHandler();
                 return;
             }
 
@@ -5210,14 +5222,11 @@
             }
         }
 
-        // Click outside modal to close (on overlay)
+        // Click outside modal to close (on overlay) via registry lookup
         function handleOverlayClick(e) {
             if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
-                if (e.target.id === 'settings-modal') closeSettings();
-                else if (e.target.id === 'confirm-modal') closeConfirm();
-                else if (e.target.id === 'game-over-modal') closeGameOver();
-                else if (e.target.id === 'error-modal') closeError();
-                else if (e.target.id === 'multiplayer-modal') closeMultiplayer();
+                const closeHandler = getModalCloseHandler(e.target.id);
+                if (closeHandler) closeHandler();
             }
         }
 
@@ -5976,31 +5985,39 @@
             });
         }
 
+        // Role banner configuration - maps role/team to CSS class and label
+        const ROLE_BANNER_CONFIG = {
+            spymaster: { red: 'spymaster-red', blue: 'spymaster-blue', label: 'Spymaster' },
+            clicker: { red: 'clicker-red', blue: 'clicker-blue', label: 'Clicker' },
+            spectator: { red: 'spectator-red', blue: 'spectator-blue', label: 'Team' }
+        };
+
         function updateRoleBanner() {
             const banner = cachedElements.roleBanner || document.getElementById('role-banner');
             if (!banner) return;
 
-            // Build simplified role text: Role + Host indicator (always visible when host)
             const hostBadge = isHost ? '<span class="host-badge">Host</span>' : '';
 
-            if (spymasterTeam === 'red') {
-                banner.className = 'role-banner spymaster-red';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.red)}</strong> Spymaster${hostBadge}`;
-            } else if (spymasterTeam === 'blue') {
-                banner.className = 'role-banner spymaster-blue';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Spymaster${hostBadge}`;
-            } else if (clickerTeam === 'red') {
-                banner.className = 'role-banner clicker-red';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.red)}</strong> Clicker${hostBadge}`;
-            } else if (clickerTeam === 'blue') {
-                banner.className = 'role-banner clicker-blue';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Clicker${hostBadge}`;
-            } else if (playerTeam === 'red') {
-                banner.className = 'role-banner spectator-red';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.red)}</strong> Team${hostBadge}`;
-            } else if (playerTeam === 'blue') {
-                banner.className = 'role-banner spectator-blue';
-                banner.innerHTML = `<strong>${escapeHTML(teamNames.blue)}</strong> Team${hostBadge}`;
+            // Determine role and team for config lookup
+            let role = null;
+            let team = null;
+
+            if (spymasterTeam) {
+                role = 'spymaster';
+                team = spymasterTeam;
+            } else if (clickerTeam) {
+                role = 'clicker';
+                team = clickerTeam;
+            } else if (playerTeam) {
+                role = 'spectator';
+                team = playerTeam;
+            }
+
+            // Use config if role/team are set, otherwise fallback to host/viewer
+            if (role && team && ROLE_BANNER_CONFIG[role]) {
+                const config = ROLE_BANNER_CONFIG[role];
+                banner.className = `role-banner ${config[team]}`;
+                banner.innerHTML = `<strong>${escapeHTML(teamNames[team])}</strong> ${config.label}${hostBadge}`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
                 banner.innerHTML = `<span class="host-badge">Host</span> Spectator`;
