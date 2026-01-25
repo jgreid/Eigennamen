@@ -267,7 +267,7 @@ function showJoinRoom() {
  */
 async function createRoom() {
   const nicknameInput = document.getElementById('create-nickname');
-  const passwordInput = document.getElementById('create-password');
+  const roomIdInput = document.getElementById('create-room-id');
 
   const nickname = nicknameInput?.value.trim();
   if (!nickname) {
@@ -276,10 +276,22 @@ async function createRoom() {
     return;
   }
 
-  const password = passwordInput?.value.trim() || null;
+  const roomId = roomIdInput?.value.trim();
+  if (!roomId || roomId.length < 3 || roomId.length > 20) {
+    showToast('Room ID must be 3-20 characters', 'warning');
+    roomIdInput?.focus();
+    return;
+  }
+
+  // Validate room ID format (alphanumeric, hyphens, underscores only)
+  if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
+    showToast('Room ID can only contain letters, numbers, hyphens, and underscores', 'warning');
+    roomIdInput?.focus();
+    return;
+  }
 
   try {
-    await multiplayer.createMultiplayerRoom(nickname, { password });
+    await multiplayer.createMultiplayerRoom(nickname, { roomId });
   } catch (error) {
     // Error already shown by multiplayer module
   }
@@ -289,17 +301,22 @@ async function createRoom() {
  * Join a multiplayer room
  */
 async function joinRoom() {
-  const codeInput = document.getElementById('join-code');
+  const roomIdInput = document.getElementById('join-room-id');
   const nicknameInput = document.getElementById('join-nickname');
-  const passwordInput = document.getElementById('join-password');
 
-  const code = codeInput?.value.trim().toUpperCase();
+  const roomId = roomIdInput?.value.trim();
   const nickname = nicknameInput?.value.trim();
-  const password = passwordInput?.value.trim() || null;
 
-  if (!code || code.length !== 6) {
-    showToast('Please enter a valid 6-character room code', 'warning');
-    codeInput?.focus();
+  if (!roomId || roomId.length < 3 || roomId.length > 20) {
+    showToast('Room ID must be 3-20 characters', 'warning');
+    roomIdInput?.focus();
+    return;
+  }
+
+  // Validate room ID format (alphanumeric, hyphens, underscores only)
+  if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
+    showToast('Room ID can only contain letters, numbers, hyphens, and underscores', 'warning');
+    roomIdInput?.focus();
     return;
   }
 
@@ -310,7 +327,7 @@ async function joinRoom() {
   }
 
   try {
-    await multiplayer.joinMultiplayerRoom(code, nickname, password);
+    await multiplayer.joinMultiplayerRoom(roomId, nickname);
   } catch (error) {
     // Error already shown by multiplayer module
   }

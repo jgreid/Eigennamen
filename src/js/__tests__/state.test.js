@@ -498,21 +498,14 @@ describe('Multiplayer State', () => {
 
   describe('setRoomInfo', () => {
     it('should set room code', () => {
-      setRoomInfo('ABCD');
-      expect(getMultiplayerState().roomCode).toBe('ABCD');
-    });
-
-    it('should set room code and password', () => {
-      setRoomInfo('EFGH', 'secret123');
-      const state = getMultiplayerState();
-      expect(state.roomCode).toBe('EFGH');
-      expect(state.roomPassword).toBe('secret123');
+      setRoomInfo('my-room');
+      expect(getMultiplayerState().roomCode).toBe('my-room');
     });
   });
 
   describe('clearRoomInfo', () => {
     it('should clear all room-related state', () => {
-      setRoomInfo('ABCD', 'pass');
+      setRoomInfo('my-room');
       setPlayers([{ sessionId: '1', nickname: 'Test' }]);
       setCurrentClue({ word: 'test', number: 2, team: 'red' });
 
@@ -520,7 +513,6 @@ describe('Multiplayer State', () => {
 
       const state = getMultiplayerState();
       expect(state.roomCode).toBeNull();
-      expect(state.roomPassword).toBeNull();
       expect(state.players).toEqual([]);
       expect(state.currentClue).toBeNull();
     });

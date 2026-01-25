@@ -154,7 +154,7 @@ function handleRoomCreated(data) {
   const { room, player } = data;
 
   setMultiplayerMode('multiplayer');
-  setRoomInfo(room.code, room.password);
+  setRoomInfo(room.code);
   setPlayers(room.players || [player]);
   setMultiplayerHost(player.isHost);
   setIsHost(player.isHost);
@@ -176,7 +176,7 @@ function handleRoomJoined(data) {
   const { room, you, game } = data;
 
   setMultiplayerMode('multiplayer');
-  setRoomInfo(room.code, room.password);
+  setRoomInfo(room.code);
   setPlayers(room.players || []);
   setMultiplayerHost(you.isHost);
   setIsHost(you.isHost);
@@ -543,13 +543,14 @@ export function disconnectFromServer() {
 
 /**
  * Create a new multiplayer room
+ * @param {string} nickname - Host nickname
+ * @param {Object} options - Room creation options
+ * @param {string} options.roomId - Room ID chosen by the host
+ * @param {Object} [options.settings] - Additional room settings
  */
-export async function createMultiplayerRoom(nickname, settings = {}) {
+export async function createMultiplayerRoom(nickname, { roomId, ...settings } = {}) {
   try {
-    // Set nickname first
-    socket.setNickname(nickname);
-
-    const data = await socket.createRoom(settings);
+    const data = await socket.createRoom({ roomId, nickname, ...settings });
     return data;
   } catch (error) {
     console.error('Failed to create room:', error);
@@ -561,10 +562,12 @@ export async function createMultiplayerRoom(nickname, settings = {}) {
 
 /**
  * Join an existing multiplayer room
+ * @param {string} roomId - Room ID to join
+ * @param {string} nickname - Player nickname
  */
-export async function joinMultiplayerRoom(code, nickname, password = null) {
+export async function joinMultiplayerRoom(roomId, nickname) {
   try {
-    const data = await socket.joinRoom(code, nickname, password);
+    const data = await socket.joinRoom(roomId, nickname);
     return data;
   } catch (error) {
     console.error('Failed to join room:', error);
