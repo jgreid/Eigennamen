@@ -128,24 +128,14 @@ describe('Multiplayer Module Unit Tests', () => {
   });
 
   describe('createMultiplayerRoom', () => {
-    it('should set nickname before creating room', async () => {
+    it('should pass roomId and nickname to createRoom', async () => {
       socket.createRoom.mockResolvedValue({
-        room: { code: 'NEW01' },
+        room: { code: 'my-room' },
         player: { isHost: true },
       });
 
-      await multiplayer.createMultiplayerRoom('MyNickname', {});
-      expect(socket.setNickname).toHaveBeenCalledWith('MyNickname');
-    });
-
-    it('should pass settings to createRoom', async () => {
-      socket.createRoom.mockResolvedValue({
-        room: { code: 'NEW01' },
-        player: { isHost: true },
-      });
-
-      await multiplayer.createMultiplayerRoom('Player', { maxPlayers: 10, password: 'secret' });
-      expect(socket.createRoom).toHaveBeenCalledWith({ maxPlayers: 10, password: 'secret' });
+      await multiplayer.createMultiplayerRoom('Player', { roomId: 'my-room', maxPlayers: 10 });
+      expect(socket.createRoom).toHaveBeenCalledWith({ roomId: 'my-room', nickname: 'Player', maxPlayers: 10 });
     });
 
     it('should throw and show toast on error', async () => {
@@ -166,22 +156,12 @@ describe('Multiplayer Module Unit Tests', () => {
   describe('joinMultiplayerRoom', () => {
     it('should call socket.joinRoom with correct parameters', async () => {
       socket.joinRoom.mockResolvedValue({
-        room: { code: 'JOIN01' },
+        room: { code: 'my-room' },
         you: { nickname: 'Player' },
       });
 
-      await multiplayer.joinMultiplayerRoom('JOIN01', 'Player', 'password123');
-      expect(socket.joinRoom).toHaveBeenCalledWith('JOIN01', 'Player', 'password123');
-    });
-
-    it('should call without password when not provided', async () => {
-      socket.joinRoom.mockResolvedValue({
-        room: { code: 'JOIN01' },
-        you: { nickname: 'Player' },
-      });
-
-      await multiplayer.joinMultiplayerRoom('JOIN01', 'Player');
-      expect(socket.joinRoom).toHaveBeenCalledWith('JOIN01', 'Player', null);
+      await multiplayer.joinMultiplayerRoom('my-room', 'Player');
+      expect(socket.joinRoom).toHaveBeenCalledWith('my-room', 'Player');
     });
 
     it('should throw and show toast on error', async () => {

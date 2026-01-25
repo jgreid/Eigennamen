@@ -148,7 +148,6 @@ function createInitialMultiplayerState() {
     mode: 'standalone',      // 'standalone' or 'multiplayer'
     connected: false,
     roomCode: null,
-    roomPassword: null,
     players: [],             // Array of player objects
     isHost: false,
     currentClue: null,       // { word, number, team, spymaster }
@@ -659,13 +658,11 @@ export function setConnected(connected) {
 
 /**
  * Set room info
- * @param {string} code - Room code
- * @param {string} [password] - Room password (optional)
+ * @param {string} code - Room code/ID
  */
-export function setRoomInfo(code, password = null) {
+export function setRoomInfo(code) {
   multiplayerState.roomCode = code;
-  multiplayerState.roomPassword = password;
-  notifyListeners('roomChange', { code, password });
+  notifyListeners('roomChange', { code });
 }
 
 /**
@@ -673,7 +670,6 @@ export function setRoomInfo(code, password = null) {
  */
 export function clearRoomInfo() {
   multiplayerState.roomCode = null;
-  multiplayerState.roomPassword = null;
   multiplayerState.players = [];
   multiplayerState.currentClue = null;
   multiplayerState.guessesAllowed = 0;

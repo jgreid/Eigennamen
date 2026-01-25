@@ -238,39 +238,21 @@ describe('Socket Integration Tests', () => {
       const roomJoinedHandler = vi.fn();
       socketModule.on('roomJoined', roomJoinedHandler);
 
-      const joinPromise = socketModule.joinRoom('XYZ789', 'TestPlayer');
+      const joinPromise = socketModule.joinRoom('my-room', 'TestPlayer');
 
       expect(mockSocket.emit).toHaveBeenCalledWith('room:join', {
-        code: 'XYZ789',
+        roomId: 'my-room',
         nickname: 'TestPlayer',
       });
 
       emitServerEvent('room:joined', {
-        room: { code: 'XYZ789', players: [] },
+        room: { code: 'my-room', players: [] },
         you: { sessionId: 'session-2', nickname: 'TestPlayer' },
       });
 
       const result = await joinPromise;
-      expect(result.room.code).toBe('XYZ789');
+      expect(result.room.code).toBe('my-room');
       expect(result.you.nickname).toBe('TestPlayer');
-    });
-
-    it('should join password-protected room', async () => {
-      const joinPromise = socketModule.joinRoom('SECURE1', 'Player', 'secret123');
-
-      expect(mockSocket.emit).toHaveBeenCalledWith('room:join', {
-        code: 'SECURE1',
-        nickname: 'Player',
-        password: 'secret123',
-      });
-
-      emitServerEvent('room:joined', {
-        room: { code: 'SECURE1', hasPassword: true },
-        you: { nickname: 'Player' },
-      });
-
-      const result = await joinPromise;
-      expect(result.room.hasPassword).toBe(true);
     });
 
     it('should handle room creation timeout', async () => {

@@ -462,8 +462,12 @@ export function once(event, callback) {
 
 /**
  * Create a new room
+ * @param {Object} options - Room creation options
+ * @param {string} options.roomId - Room ID (3-20 chars, alphanumeric/hyphens/underscores)
+ * @param {string} options.nickname - Host nickname
+ * @param {Object} [options.settings] - Additional room settings
  */
-export function createRoom(settings = {}) {
+export function createRoom({ roomId, nickname, ...settings } = {}) {
   return new Promise((resolve, reject) => {
     let timeoutId = null;
     let settled = false;
@@ -493,7 +497,11 @@ export function createRoom(settings = {}) {
     on('roomCreated', onCreated);
     on('error', onError);
 
-    socket.emit('room:create', { settings });
+    // Structure the payload as expected by the server
+    socket.emit('room:create', {
+      roomId,
+      settings: { nickname, ...settings }
+    });
 
     timeoutId = setTimeout(() => {
       if (settled) return;
@@ -507,7 +515,7 @@ export function createRoom(settings = {}) {
 /**
  * Join an existing room
  */
-export function joinRoom(code, nickname, password = null) {
+export function joinRoom(roomId, nickname) {
   return new Promise((resolve, reject) => {
     let timeoutId = null;
     let settled = false;
@@ -537,9 +545,7 @@ export function joinRoom(code, nickname, password = null) {
     on('roomJoined', onJoined);
     on('error', onError);
 
-    const payload = { code: code.toUpperCase(), nickname };
-    if (password) payload.password = password;
-    socket.emit('room:join', payload);
+    socket.emit('room:join', { roomId, nickname });
 
     timeoutId = setTimeout(() => {
       if (settled) return;

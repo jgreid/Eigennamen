@@ -229,15 +229,14 @@ describe('Multiplayer Integration Tests', () => {
 
     it('should create multiplayer room', async () => {
       socket.createRoom.mockResolvedValue({
-        room: { code: 'NEW01' },
+        room: { code: 'my-room' },
         player: { isHost: true },
       });
 
-      const result = await multiplayer.createMultiplayerRoom('HostPlayer', { maxPlayers: 10 });
+      const result = await multiplayer.createMultiplayerRoom('HostPlayer', { roomId: 'my-room', maxPlayers: 10 });
 
-      expect(socket.setNickname).toHaveBeenCalledWith('HostPlayer');
-      expect(socket.createRoom).toHaveBeenCalledWith({ maxPlayers: 10 });
-      expect(result.room.code).toBe('NEW01');
+      expect(socket.createRoom).toHaveBeenCalledWith({ roomId: 'my-room', nickname: 'HostPlayer', maxPlayers: 10 });
+      expect(result.room.code).toBe('my-room');
     });
 
     it('should handle room creation failure', async () => {
@@ -252,14 +251,14 @@ describe('Multiplayer Integration Tests', () => {
 
     it('should join multiplayer room', async () => {
       socket.joinRoom.mockResolvedValue({
-        room: { code: 'JOIN01' },
+        room: { code: 'my-room' },
         you: { nickname: 'Joiner' },
       });
 
-      const result = await multiplayer.joinMultiplayerRoom('JOIN01', 'Joiner', 'password');
+      const result = await multiplayer.joinMultiplayerRoom('my-room', 'Joiner');
 
-      expect(socket.joinRoom).toHaveBeenCalledWith('JOIN01', 'Joiner', 'password');
-      expect(result.room.code).toBe('JOIN01');
+      expect(socket.joinRoom).toHaveBeenCalledWith('my-room', 'Joiner');
+      expect(result.room.code).toBe('my-room');
     });
 
     it('should leave multiplayer room', () => {
