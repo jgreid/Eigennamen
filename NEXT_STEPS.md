@@ -1,23 +1,24 @@
-# Next Steps Proposal - Codenames Online
+# Next Steps - Codenames Online
 
 **Created:** January 25, 2026
 **Last Updated:** January 25, 2026
-**Based on:** Comprehensive codebase review and implementation
+**Based on:** Sprint 19 completion and codebase review
 
 ---
 
 ## Executive Summary
 
-The Codenames Online project is in **excellent health** with production-ready code quality (A-grade), 90%+ backend test coverage, and comprehensive documentation. This document tracks progress and outlines remaining work.
+The Codenames Online project is in **excellent health** with production-ready code quality (A-grade), 91%+ backend test coverage, and comprehensive documentation. Sprint 19 has been completed with security hardening, documentation improvements, and performance monitoring.
 
-### Current Status at a Glance
+### Current Status
 
 | Metric | Value |
 |--------|-------|
-| Backend Test Coverage | 90%+ (statements/lines/functions) |
+| Backend Test Coverage | 91%+ (statements/lines/functions) |
 | Backend Tests | 2,345 passing |
 | Frontend Test Coverage | 93%+ (modular codebase) |
 | Frontend Tests | 106 passing |
+| E2E Tests | 53 passing |
 | Critical Issues | 0 remaining |
 | Code Quality | Production-ready |
 
@@ -25,149 +26,180 @@ The Codenames Online project is in **excellent health** with production-ready co
 
 ## Completed Work
 
-### ✅ Sprint 15 Reliability/Security Items (Completed)
+### Sprint 19: Security & Documentation (Completed)
 
 | Task | Status | Notes |
 |------|--------|-------|
-| JWT validation improvements | ✅ Done | Added JWT_ERROR_CODES, verifyTokenWithClaims() |
-| Socket error handling hardening | ✅ Done | Added classifySocketError(), structured logging |
-| Timer lock Redis verification | ✅ Done | Explicit result verification, enhanced logging |
-| Updated tests | ✅ Done | All 2,345 backend tests passing |
+| Security: Inactivity timeout | Done | 30-minute idle disconnect |
+| Security: Session rotation | Done | New token on reconnect |
+| Security: CSP refinement | Done | Enhanced headers |
+| Documentation: ARCHITECTURE.md | Done | System architecture overview |
+| Documentation: CONTRIBUTING.md | Done | Contributor guidelines |
+| Documentation: TESTING_GUIDE.md | Done | Testing documentation |
+| Performance: Request timing | Done | HTTP request timing logs |
+| Performance: Memory monitoring | Done | 1-minute memory checks |
+| Cleanup: Archived old docs | Done | 15+ docs archived |
 
-### ✅ Frontend Consolidation Decision (Completed)
+### Previous Sprints (13-18)
 
-**Decision:** Consolidate to modular frontend (`src/js/`)
-
-See [ADR-0005](/docs/adr/0005-frontend-consolidation.md) for full rationale.
-
-| Component | Status |
-|-----------|--------|
-| State management (`state.js`) | ✅ Already implemented with observable pattern |
-| Unit test infrastructure (Vitest) | ✅ Already configured |
-| Build system (Vite) | ✅ Already configured |
-| Test coverage (93%+) | ✅ Exceeds 70% threshold |
-
-### ✅ State Management Container (Already Exists)
-
-The `src/js/state.js` module provides:
-- Observable pattern with `subscribe()`
-- Separate state containers (game, player, wordList, teamNames)
-- Immutable-like getters
-- 90% test coverage
-
-### ✅ Frontend Unit Testing (Already Set Up)
-
-```bash
-npm run test:unit           # Run tests
-npm run test:unit:coverage  # With coverage
-npm run test:unit:watch     # Watch mode
-```
-
-**Current Coverage:**
-- constants.js: 100%
-- state.js: 90%
-- utils.js: 95%
-- qrcode.js: 96%
-
----
-
-## Future Features Backlog (Post-Phase 6)
-
-Prioritized by value and feasibility:
-
-### Tier 1: High Value, Feasible
-| Feature | Effort | Notes |
-|---------|--------|-------|
-| Color blind mode | 8h | Alternative color schemes for cards |
-| Game replay improvements | 12h | Shareable replay links |
-| Multi-language support | 20h | Start with German, Spanish |
-
-### Tier 2: Medium Value, Medium Effort
-| Feature | Effort | Notes |
-|---------|--------|-------|
-| Custom game modes | 24h | Duet mode, blitz mode |
-| Player profiles | 30h | Optional persistent identity |
-| Room invites | 16h | Direct player invitations |
-
-### Tier 3: Ambitious Projects
-| Feature | Effort | Notes |
-|---------|--------|-------|
-| Tournament mode | 40h+ | Bracket management, auto-progression |
-| AI Spymaster | 50h+ | Word embedding model integration |
-| Mobile native app | 80h+ | React Native implementation |
-| Voice chat | 50h+ | WebRTC integration |
+| Sprint | Focus | Status |
+|--------|-------|--------|
+| Sprint 18 | Quick wins, test coverage | Completed |
+| Sprint 17 | E2E tests, architecture | Completed |
+| Sprint 16 | Improvements | Completed |
+| Sprint 15 | Reliability, security | Completed |
+| Sprint 14 | Performance, consolidation | Completed |
+| Sprint 13 | Room passwords, mobile UI | Completed |
 
 ---
 
 ## Remaining Work
 
-### Phase 1: Frontend Feature Parity (Next Priority)
+### Phase 1: Frontend Modernization (Sprint 20 Partial)
 
-Complete migration of remaining `index.html` functionality to modular frontend.
+The modular frontend (`src/js/`) is feature-rich but missing multiplayer UI HTML elements.
+
+| Task | Effort | Priority | Status |
+|------|--------|----------|--------|
+| Add multiplayer panel HTML to index-modular.html | 12h | High | Pending |
+| Wire up all multiplayer socket events | 8h | High | Pending |
+| Remove legacy index.html once verified | 4h | Medium | Pending |
+| Remove server/public/js/ IIFE modules | 2h | Low | Pending |
+
+### Phase 2: Internationalization (Sprint 20)
 
 | Task | Effort | Priority |
 |------|--------|----------|
-| Add Socket.io/multiplayer support to modules | 8h | High |
-| Wire up main.js entry point | 4h | High |
-| Complete ui.js DOM bindings | 6h | Medium |
-| Update index.html to use bundled modules | 4h | Medium |
+| i18n framework setup | 4h | High |
+| English translations (source) | 2h | High |
+| German translations | 4h | High |
+| Spanish translations | 4h | High |
+| French translations | 4h | Medium |
+| Localized word lists (400 words each) | 12h | High |
 
-### Phase 2: Documentation Updates
+### Phase 3: Accessibility (Sprint 20)
 
-| Document | Purpose | Effort |
-|----------|---------|--------|
-| `ARCHITECTURE.md` | High-level system design diagram | 4h |
-| `CONTRIBUTING.md` | Contributor guidelines | 2h |
-| `TESTING_GUIDE.md` | How to write and run tests | 2h |
+| Task | Effort | Priority |
+|------|--------|----------|
+| Color contrast audit | 3h | High |
+| Color blind mode | 3h | High |
+| Keyboard shortcuts | 3h | Medium |
+| Screen reader optimization | 4h | Medium |
 
-### Phase 3: Security Hardening
+### Phase 4: Game Modes (Sprint 21)
 
-| Item | Effort | Description |
-|------|--------|-------------|
-| Session rotation on reconnect | 3h | Issue new token after successful reconnect |
-| Inactivity timeout | 4h | Disconnect idle sessions after 30 minutes |
-| CSP refinement | 3h | Tighten Content-Security-Policy headers |
-
----
-
-## Success Criteria (Updated)
-
-### Completed ✅
-- [x] All Sprint 15 items completed
-- [x] Frontend unit test framework operational
-- [x] 93%+ frontend test coverage (exceeds 70% target)
-- [x] State management container implemented (src/js/state.js)
-- [x] Frontend consolidation decision documented (ADR-0005)
-
-### Next Milestone
-- [ ] Socket.io support in modular frontend
-- [ ] Single canonical frontend implementation
-- [ ] Core documentation complete
-- [ ] Session security improvements deployed
+| Task | Effort | Priority |
+|------|--------|----------|
+| Blitz mode (30s turns) | 8h | High |
+| Duet mode (cooperative) | 10h | High |
+| Three-team mode | 6h | Medium |
+| Player profiles (optional accounts) | 20h | Medium |
 
 ---
 
-## Risk Assessment
+## Current Architecture
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Frontend refactoring breaks features | Medium | High | Comprehensive E2E tests already exist |
-| State migration introduces bugs | Medium | Medium | Incremental migration with feature flags |
-| Scope creep on "quick" items | High | Medium | Strict time-boxing, defer enhancements |
+### Documentation Structure
+
+```
+Risley-Codenames/
+├── README.md                  # Project overview
+├── QUICKSTART.md             # Getting started
+├── CLAUDE.md                 # AI assistant guide
+├── CONTRIBUTING.md           # Contributor guidelines
+├── NEXT_STEPS.md             # This file
+├── DEVELOPMENT_ROADMAP.md    # Long-term roadmap
+└── docs/
+    ├── ARCHITECTURE.md       # System architecture
+    ├── SERVER_SPEC.md        # API specification
+    ├── TESTING_GUIDE.md      # Testing documentation
+    ├── DEPLOYMENT.md         # Deployment guide
+    ├── WINDOWS_SETUP.md      # Platform guide
+    ├── SPRINT_PLAN_19_20_21.md  # Current sprints
+    ├── adr/                  # Architecture decisions
+    └── archive/              # Historical docs
+```
+
+### Security Features (Sprint 19)
+
+- **Inactivity timeout**: 30-minute idle disconnect
+- **Session rotation**: New token on successful reconnect
+- **Enhanced CSP**: baseUri, formAction, frameAncestors
+- **Additional headers**: referrerPolicy, dnsPrefetchControl
+
+### Performance Monitoring (Sprint 19)
+
+- **Request timing**: All HTTP requests logged with duration
+- **Memory monitoring**: 1-minute interval, warns at 400MB
+- **Slow request logging**: Warns when requests exceed 1 second
 
 ---
 
-## Conclusion
+## Future Features Backlog
 
-The project is mature and well-engineered. The recommended focus is:
+### Tier 1: High Value, Feasible
 
-1. **Immediate:** Complete Sprint 15 reliability items
-2. **Short-term:** Consolidate frontend and add unit tests
-3. **Medium-term:** Documentation and security hardening
-4. **Long-term:** Feature expansion (i18n, custom modes, tournament)
+| Feature | Effort | Notes |
+|---------|--------|-------|
+| Color blind mode | 8h | Alternative color schemes |
+| Game replay sharing | 12h | Shareable replay links |
+| Multi-language support | 20h | German, Spanish, French |
 
-The codebase is ready for production deployment now. These improvements will enhance maintainability and enable faster feature development in the future.
+### Tier 2: Medium Value, Medium Effort
+
+| Feature | Effort | Notes |
+|---------|--------|-------|
+| Custom game modes | 24h | Duet, blitz, three-team |
+| Player profiles | 30h | Optional persistent identity |
+| Room invites | 16h | Direct player invitations |
+
+### Tier 3: Ambitious Projects
+
+| Feature | Effort | Notes |
+|---------|--------|-------|
+| Tournament mode | 40h+ | Bracket management |
+| AI Spymaster | 50h+ | Word embedding model |
+| Mobile native app | 80h+ | React Native |
+| Voice chat | 50h+ | WebRTC integration |
 
 ---
 
-*This proposal should be reviewed and prioritized based on team capacity and business needs.*
+## Success Criteria
+
+### Completed
+
+- [x] Sprint 15-18 items completed
+- [x] Sprint 19 security hardening completed
+- [x] 91%+ backend test coverage
+- [x] 93%+ frontend test coverage
+- [x] Core documentation complete
+- [x] Performance monitoring operational
+
+### Next Milestone (Sprint 20)
+
+- [ ] Complete frontend modular migration
+- [ ] 4 languages fully supported
+- [ ] Lighthouse accessibility score 95+
+- [ ] Color blind mode available
+
+---
+
+## Commands Reference
+
+```bash
+# Development
+cd server && npm run dev           # Start server
+npm test                           # Run tests
+npm run test:coverage              # Coverage report
+
+# E2E Testing
+npx playwright test                # Run E2E tests
+npx playwright test --debug        # Debug mode
+
+# Docker
+docker compose up -d --build       # Full stack
+```
+
+---
+
+*This document is updated with each sprint completion.*

@@ -11,6 +11,7 @@ const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
 const { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } = require('./config/database');
 const { validateEnv, getEnvInt } = require('./config/env');
 const timerService = require('./services/timerService');
+const { startMemoryMonitoring, stopMemoryMonitoring } = require('./middleware/timing');
 const logger = require('./utils/logger');
 
 const PORT = getEnvInt('PORT', 3000);
@@ -50,11 +51,17 @@ async function startServer() {
         server.listen(PORT, '0.0.0.0', () => {
             logger.info(`Server running on http://0.0.0.0:${PORT}`);
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+            // Sprint 19: Start memory monitoring
+            startMemoryMonitoring();
         });
 
         // Graceful shutdown
         const shutdown = async (signal) => {
             logger.info(`${signal} received, shutting down gracefully`);
+
+            // Sprint 19: Stop memory monitoring
+            stopMemoryMonitoring();
 
             // Clean up all active timers first (prevents pending callbacks)
             await timerService.cleanupAllTimers();
