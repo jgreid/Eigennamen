@@ -310,7 +310,7 @@ function startInactivityCheck(ioInstance) {
     }, CHECK_INTERVAL);
 
     logger.info(`Inactivity check started (timeout: ${INACTIVITY_TIMEOUT / 1000}s, check interval: ${CHECK_INTERVAL / 1000}s)`);
-}
+    }
 
     // Initialize timer service for distributed operation
     timerService.initializeTimerService(createTimerExpireCallback());
@@ -365,11 +365,9 @@ function createTimerExpireCallback() {
             }
 
             const result = await gameService.endTurn(roomCode, 'Timer');
-            // Note: nextTeam is included for frontend compatibility (legacy field name)
             emitToRoom(roomCode, 'game:turnEnded', {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn,
-                nextTeam: result.currentTurn,
                 reason: 'timerExpired'
             });
             emitToRoom(roomCode, 'timer:expired', { roomCode });

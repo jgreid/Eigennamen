@@ -2603,7 +2603,7 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        .multiplayer-indicator .mp-password-display {
+        .multiplayer-indicator .mp-room-id-display {
             display: flex;
             align-items: center;
             gap: 6px;
@@ -2614,13 +2614,13 @@
             font-size: 0.75rem;
         }
 
-        .multiplayer-indicator .mp-password-display strong {
+        .multiplayer-indicator .mp-room-id-display strong {
             color: var(--color-success);
             font-family: monospace;
             letter-spacing: 0.5px;
         }
 
-        .multiplayer-indicator .btn-copy-password {
+        .multiplayer-indicator .btn-copy-room-id {
             background: none;
             border: none;
             cursor: pointer;
@@ -2630,7 +2630,7 @@
             transition: opacity 0.2s;
         }
 
-        .multiplayer-indicator .btn-copy-password:hover {
+        .multiplayer-indicator .btn-copy-room-id:hover {
             opacity: 1;
         }
 
@@ -3209,9 +3209,9 @@
                     <span id="mp-player-count">0 players</span>
                     <span class="expand-icon">▾</span>
                 </button>
-                <div class="mp-password-display" id="mp-password-display" style="display: none;">
-                    <span>Room ID: <strong id="mp-password-text"></strong></span>
-                    <button type="button" class="btn-copy-password" id="btn-copy-password" title="Copy Room ID">📋</button>
+                <div class="mp-room-id-display" id="mp-room-id-display" style="display: none;">
+                    <span>Room ID: <strong id="mp-room-id-text"></strong></span>
+                    <button type="button" class="btn-copy-room-id" id="btn-copy-room-id" title="Copy Room ID">📋</button>
                 </div>
                 <!-- Player list (expandable) -->
                 <div class="mp-player-list" id="mp-player-list" style="display: none;">
@@ -4402,8 +4402,8 @@
             const indicator = document.getElementById('mp-indicator');
             const codeEl = document.getElementById('mp-room-code');
             const countEl = document.getElementById('mp-player-count');
-            const passwordDisplay = document.getElementById('mp-password-display');
-            const passwordText = document.getElementById('mp-password-text');
+            const roomIdDisplay = document.getElementById('mp-room-id-display');
+            const roomIdText = document.getElementById('mp-room-id-text');
             const playerListEl = document.getElementById('mp-player-list');
             const playersUl = document.getElementById('mp-players-ul');
             const historyBtnRow = document.getElementById('history-btn-row');
@@ -4420,10 +4420,10 @@
 
                 // Show Room ID if we're the host
                 if (currentRoomId && CodenamesClient.player?.isHost) {
-                    passwordText.textContent = currentRoomId;
-                    passwordDisplay.style.display = 'flex';
+                    roomIdText.textContent = currentRoomId;
+                    roomIdDisplay.style.display = 'flex';
                 } else {
-                    passwordDisplay.style.display = 'none';
+                    roomIdDisplay.style.display = 'none';
                 }
 
                 // Update player list
@@ -4432,7 +4432,7 @@
                 }
             } else {
                 indicator.classList.remove('active');
-                passwordDisplay.style.display = 'none';
+                roomIdDisplay.style.display = 'none';
                 if (playerListEl) playerListEl.style.display = 'none';
                 // Hide game history button when not in multiplayer mode
                 if (historyBtnRow) {
@@ -4536,19 +4536,19 @@
             });
 
             CodenamesClient.on('turnEnded', (data) => {
-                if (data.nextTeam) {
+                if (data.currentTurn) {
                     const previousTurn = gameState.currentTurn;
                     // Update turn locally
-                    gameState.currentTurn = data.nextTeam;
+                    gameState.currentTurn = data.currentTurn;
                     updateTurnIndicator();
                     updateRoleBanner();
                     updateControls();
 
                     // Check and send notifications if it's now our turn
-                    checkAndNotifyTurn(data.nextTeam, previousTurn);
+                    checkAndNotifyTurn(data.currentTurn, previousTurn);
 
                     // Announce turn change
-                    const newTeamName = data.nextTeam === 'red' ? teamNames.red : teamNames.blue;
+                    const newTeamName = data.currentTurn === 'red' ? teamNames.red : teamNames.blue;
                     announceToScreenReader(`Turn ended. Now ${newTeamName}'s turn.`);
                 }
             });
@@ -5005,7 +5005,7 @@
             });
 
             // Copy Room ID button
-            const copyBtn = document.getElementById('btn-copy-password');
+            const copyBtn = document.getElementById('btn-copy-room-id');
             if (copyBtn) {
                 copyBtn.addEventListener('click', copyRoomId);
             }
@@ -7087,11 +7087,6 @@
             if (codeEl) codeEl.textContent = currentRoomId || CodenamesClient?.getRoomCode() || '----';
             if (playersEl) playersEl.textContent = multiplayerPlayers?.length || 0;
             if (statusEl) statusEl.textContent = gameState.status === 'ended' ? 'Game Over' : (gameState.status === 'playing' ? 'In Progress' : 'Waiting');
-        }
-
-        // Legacy function for compatibility - now just updates room info
-        function updateRoomPasswordStatus(hasRoomId) {
-            updateRoomInfoDisplay();
         }
 
         // ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid

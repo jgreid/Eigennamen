@@ -271,7 +271,7 @@ async function leaveRoom(code, sessionId) {
  * Update room settings (host only)
  * @param {string} code - Room code
  * @param {string} sessionId - Session ID of the requester
- * @param {object} newSettings - New settings (may include password)
+ * @param {object} newSettings - New settings
  */
 async function updateSettings(code, sessionId, newSettings) {
     const redis = getRedis();
@@ -285,62 +285,6 @@ async function updateSettings(code, sessionId, newSettings) {
         throw PlayerError.notHost();
     }
 
-    // Handle password update separately
-    if ('password' in newSettings) {
-        const currentPasswordVersion = room.passwordVersion || 0;
-        const oldLookupKey = room.passwordLookupKey;
-
-        if (newSettings.password === null || newSettings.password === '') {
-            // Remove password - delete old lookup key
-            if (oldLookupKey) {
-                await redis.del(`password-lookup:${oldLookupKey}`);
-                logger.debug(`Deleted password lookup key for room ${code}`);
-            }
-            room.passwordHash = null;
-            room.hasPassword = false;
-            room.passwordVersion = 0;
-            room.passwordChangedAt = null;
-            room.passwordLookupKey = null;
-            logger.info(`Password removed from room ${code}`, {
-                roomCode: code,
-                changedBy: sessionId,
-                previousVersion: currentPasswordVersion
-            });
-        } else if (newSettings.password && newSettings.password.trim()) {
-            // Set new password (ISSUE #39 FIX: wrap bcrypt in try-catch)
-            try {
-                // Delete old lookup key if exists
-                if (oldLookupKey) {
-                    await redis.del(`password-lookup:${oldLookupKey}`);
-                    logger.debug(`Deleted old password lookup key for room ${code}`);
-                }
-
-                room.passwordHash = await bcrypt.hash(newSettings.password.trim(), BCRYPT_SALT_ROUNDS);
-                room.hasPassword = true;
-                room.passwordVersion = currentPasswordVersion + 1;
-                room.passwordChangedAt = Date.now();
-
-                // Create new lookup key
-                const newLookupKey = generatePasswordLookupKey(newSettings.password);
-                room.passwordLookupKey = newLookupKey;
-                await redis.set(`password-lookup:${newLookupKey}`, code, { EX: REDIS_TTL.ROOM });
-                logger.debug(`Created new password lookup key for room ${code}`);
-
-                logger.info(`Password updated for room ${code}`, {
-                    roomCode: code,
-                    changedBy: sessionId,
-                    passwordVersion: room.passwordVersion
-                });
-            } catch (hashError) {
-                logger.error('Failed to hash room password', { error: hashError.message });
-                throw new ServerError('Failed to set room password');
-            }
-        }
-        // Remove password from settings to avoid storing it
-        const { password: _pass, ...cleanSettings } = newSettings;
-        newSettings = cleanSettings;
-    }
-
     room.settings = {
         ...room.settings,
         ...newSettings
@@ -348,11 +292,8 @@ async function updateSettings(code, sessionId, newSettings) {
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 
-    // Return settings without passwordHash (include password version for client awareness)
     return {
-        ...room.settings,
-        hasPassword: room.hasPassword,
-        passwordVersion: room.passwordVersion || 0
+        ...room.settings
     };
 }
 
@@ -473,39 +414,6 @@ async function deleteRoom(code) {
     await cleanupRoom(code);
 }
 
-/**
- * Find a room by password
- * Uses a SHA-256 lookup key for fast discovery
- * @param {string} password - The room password
- * @returns {Promise<{code: string, hasPassword: boolean}|null>} Room info or null if not found
- */
-async function findRoomByPassword(password) {
-    if (!password || !password.trim()) {
-        return null;
-    }
-
-    const redis = getRedis();
-    const lookupKey = generatePasswordLookupKey(password);
-    const roomCode = await redis.get(`password-lookup:${lookupKey}`);
-
-    if (!roomCode) {
-        return null;
-    }
-
-    // Verify room still exists
-    const room = await getRoom(roomCode);
-    if (!room) {
-        // Room expired, clean up stale lookup key
-        await redis.del(`password-lookup:${lookupKey}`);
-        return null;
-    }
-
-    return {
-        code: roomCode,
-        hasPassword: room.hasPassword
-    };
-}
-
 module.exports = {
     createRoom,
     getRoom,
@@ -515,6 +423,5 @@ module.exports = {
     roomExists,
     refreshRoomTTL,
     cleanupRoom,
-    deleteRoom,
-    findRoomByPassword
+    deleteRoom
 };
