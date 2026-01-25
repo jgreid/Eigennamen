@@ -320,7 +320,7 @@ async function handleDisconnect(io, socket, reason) {
             const updatedPlayers = await playerService.getPlayersInRoom(roomCode);
 
             // US-16.3: Calculate reconnection deadline for frontend display
-            const { SESSION_SECURITY } = require('./config/constants');
+            const { SESSION_SECURITY } = require('../config/constants');
             const reconnectionDeadline = Date.now() + (SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000);
 
             io.to(`room:${roomCode}`).emit('player:disconnected', {

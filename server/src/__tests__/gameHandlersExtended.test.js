@@ -13,6 +13,12 @@ jest.mock('../services/gameService');
 jest.mock('../services/playerService');
 jest.mock('../services/roomService');
 jest.mock('../services/eventLogService');
+jest.mock('../services/gameHistoryService', () => ({
+    saveGameResult: jest.fn().mockResolvedValue({ gameId: 'test-game-id' }),
+    getGameHistory: jest.fn().mockResolvedValue([]),
+    getGameById: jest.fn().mockResolvedValue(null),
+    getReplayEvents: jest.fn().mockResolvedValue({ events: [] })
+}));
 jest.mock('../utils/audit', () => ({
     auditGameStarted: jest.fn(),
     auditGameEnded: jest.fn()

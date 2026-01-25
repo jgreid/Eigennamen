@@ -39,7 +39,9 @@ describe('Extended Player Handlers Tests', () => {
             sessionId: 'session-456',
             roomCode: 'TEST12',
             emit: jest.fn(),
-            on: jest.fn()
+            on: jest.fn(),
+            join: jest.fn(),
+            leave: jest.fn()
         };
 
         mockIo = {

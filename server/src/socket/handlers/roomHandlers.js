@@ -135,6 +135,12 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = room.code;
 
+            // Join spectators room if player is a spectator (no team or role='spectator')
+            const isSpectator = player.role === 'spectator' || !player.team;
+            if (isSpectator) {
+                socket.join(`spectators:${room.code}`);
+            }
+
             // ISSUE #17 FIX: Invalidate any existing reconnection token on successful join
             await playerService.invalidateReconnectionToken(socket.sessionId);
 
@@ -208,8 +214,9 @@ module.exports = function roomHandlers(io, socket) {
 
             const result = await roomService.leaveRoom(socket.roomCode, socket.sessionId);
 
-            // Leave the socket room
+            // Leave all socket rooms for this room
             socket.leave(`room:${socket.roomCode}`);
+            socket.leave(`spectators:${socket.roomCode}`);
 
             // Notify others
             io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
@@ -457,6 +464,12 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`room:${code}`);
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = code;
+
+            // Join spectators room if player is a spectator (no team or role='spectator')
+            const isSpectator = player.role === 'spectator' || !player.team;
+            if (isSpectator) {
+                socket.join(`spectators:${code}`);
+            }
 
             // US-16.1: Get room stats including spectator count
             const roomStats = await playerService.getRoomStats(code);

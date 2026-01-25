@@ -129,6 +129,15 @@ const chatMessageSchema = z.object({
     spectatorOnly: z.boolean().default(false) // US-16.1: Spectator-only chat
 });
 
+// Spectator chat schema (for dedicated spectator chat event)
+const spectatorChatSchema = z.object({
+    message: z.string()
+        .min(1, 'Message is required')
+        .max(VALIDATION.CHAT_MESSAGE_MAX_LENGTH, 'Message too long')
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => val.length >= 1, 'Message is required')
+});
+
 module.exports = {
     roomCreateSchema,
     roomJoinSchema,
@@ -140,6 +149,7 @@ module.exports = {
     gameRevealSchema,
     gameClueSchema,
     chatMessageSchema,
+    spectatorChatSchema,
     // Export for reuse in custom validation
     createNicknameSchema
 };

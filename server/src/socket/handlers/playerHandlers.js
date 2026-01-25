@@ -54,6 +54,18 @@ module.exports = function playerHandlers(io, socket) {
             const shouldCheckEmpty = game && !game.gameOver && currentPlayer && currentPlayer.team && currentPlayer.team !== validated.team;
             const player = await playerService.safeSetTeam(socket.sessionId, validated.team, shouldCheckEmpty);
 
+            // Manage spectator socket room membership based on team change
+            const wasSpectator = !currentPlayer.team || currentPlayer.role === 'spectator';
+            const isNowSpectator = !validated.team || player.role === 'spectator';
+
+            if (wasSpectator && !isNowSpectator) {
+                // Player is joining a team, remove from spectators room
+                socket.leave(`spectators:${socket.roomCode}`);
+            } else if (!wasSpectator && isNowSpectator) {
+                // Player is leaving team to become spectator, add to spectators room
+                socket.join(`spectators:${socket.roomCode}`);
+            }
+
             // Broadcast to room
             io.to(`room:${socket.roomCode}`).emit('player:updated', {
                 sessionId: socket.sessionId,
@@ -100,11 +112,28 @@ module.exports = function playerHandlers(io, socket) {
 
             const validated = validateInput(playerRoleSchema, data);
 
+            // Get current player state before role change to manage spectator room
+            const currentPlayer = await playerService.getPlayer(socket.sessionId);
+
             const player = await playerService.setRole(socket.sessionId, validated.role);
 
             // ISSUE #10 FIX: Verify player is still in the room before broadcasting
             if (!player || player.roomCode !== socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
+            }
+
+            // Manage spectator socket room membership based on role change
+            if (currentPlayer) {
+                const wasSpectator = currentPlayer.role === 'spectator' || !currentPlayer.team;
+                const isNowSpectator = validated.role === 'spectator' || !player.team;
+
+                if (wasSpectator && !isNowSpectator) {
+                    // Player is no longer a spectator, remove from spectators room
+                    socket.leave(`spectators:${socket.roomCode}`);
+                } else if (!wasSpectator && isNowSpectator) {
+                    // Player is becoming a spectator, add to spectators room
+                    socket.join(`spectators:${socket.roomCode}`);
+                }
             }
 
             // Broadcast to room

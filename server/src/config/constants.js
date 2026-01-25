@@ -86,6 +86,8 @@ module.exports = {
         'game:endTurn': { window: 2000, max: 3 },     // 3 per 2 seconds
         'game:forfeit': { window: 10000, max: 2 },    // 2 per 10 seconds
         'game:history': { window: 5000, max: 5 },     // 5 per 5 seconds
+        'game:getHistory': { window: 5000, max: 5 },  // 5 per 5 seconds
+        'game:getReplay': { window: 5000, max: 5 },   // 5 per 5 seconds
         // Player events (ISSUE #27 FIX: keys now match event names for consistency)
         'player:setTeam': { window: 2000, max: 5 },      // 5 per 2 seconds
         'player:setRole': { window: 2000, max: 5 },      // 5 per 2 seconds
@@ -93,6 +95,7 @@ module.exports = {
         'player:kick': { window: 5000, max: 3 },         // 3 per 5 seconds (host only)
         // Chat events
         'chat:message': { window: 5000, max: 10 },    // 10 per 5 seconds
+        'chat:spectator': { window: 5000, max: 10 },  // 10 per 5 seconds (spectator-only chat)
         // Timer events
         'timer:status': { window: 1000, max: 10 }     // 10 per second
     },
@@ -179,6 +182,10 @@ module.exports = {
         GAME_OVER: 'game:over',
         GAME_HISTORY: 'game:history',
         GAME_HISTORY_DATA: 'game:historyData',
+        GAME_GET_HISTORY: 'game:getHistory',
+        GAME_GET_REPLAY: 'game:getReplay',
+        GAME_HISTORY_RESULT: 'game:historyResult',
+        GAME_REPLAY_DATA: 'game:replayData',
         GAME_SPYMASTER_VIEW: 'game:spymasterView',
         GAME_ERROR: 'game:error',
 
@@ -201,7 +208,9 @@ module.exports = {
         // Chat events
         CHAT_MESSAGE: 'chat:message',
         CHAT_SEND: 'chat:send',
-        CHAT_ERROR: 'chat:error'
+        CHAT_ERROR: 'chat:error',
+        CHAT_SPECTATOR: 'chat:spectator',
+        CHAT_SPECTATOR_MESSAGE: 'chat:spectatorMessage'
     },
 
     // TTL constants (in seconds) - centralized for consistency
