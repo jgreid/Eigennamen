@@ -467,13 +467,33 @@ async function pauseTimer(roomCode) {
 async function resumeTimer(roomCode, onExpire) {
     const redis = getRedis();
     const lockKey = `lock:timer:resume:${roomCode}`;
+    const lockValue = `${process.pid}:${Date.now()}`;
 
     // ISSUE #33 FIX: Acquire distributed lock to prevent duplicate resume
-    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 5 });
-    if (!lockAcquired) {
-        logger.debug(`Another instance is resuming timer for room ${roomCode}`);
+    // SPRINT-15 FIX: Explicit verification of lock acquisition result
+    let lockAcquired;
+    try {
+        const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: 5 });
+        // Redis SET with NX returns 'OK' on success, null if key exists
+        lockAcquired = lockResult === 'OK' || lockResult === true;
+    } catch (lockError) {
+        logger.error(`Failed to acquire timer resume lock for room ${roomCode}:`, {
+            error: lockError.message,
+            lockKey
+        });
         return null;
     }
+
+    if (!lockAcquired) {
+        logger.debug(`Another instance is resuming timer for room ${roomCode}`, { lockKey });
+        return null;
+    }
+
+    logger.debug(`Timer resume lock acquired for room ${roomCode}`, {
+        lockKey,
+        lockValue,
+        ttlSeconds: 5
+    });
 
     try {
         const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);

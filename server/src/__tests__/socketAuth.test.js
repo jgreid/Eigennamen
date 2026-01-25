@@ -30,7 +30,15 @@ jest.mock('../services/playerService', () => ({
 
 jest.mock('../config/jwt', () => ({
     verifyToken: jest.fn(),
-    isJwtEnabled: jest.fn()
+    verifyTokenWithClaims: jest.fn(),
+    isJwtEnabled: jest.fn(),
+    JWT_ERROR_CODES: {
+        TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+        TOKEN_INVALID: 'TOKEN_INVALID',
+        TOKEN_MALFORMED: 'TOKEN_MALFORMED',
+        CLAIMS_MISMATCH: 'CLAIMS_MISMATCH',
+        JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED'
+    }
 }));
 
 jest.mock('../config/redis', () => ({
@@ -58,7 +66,7 @@ jest.mock('../config/constants', () => ({
 
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
-const { verifyToken, isJwtEnabled } = require('../config/jwt');
+const { verifyToken, verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../config/jwt');
 const { getRedis } = require('../config/redis');
 
 describe('Socket Authentication Middleware', () => {
@@ -557,13 +565,14 @@ describe('Socket Authentication Middleware', () => {
 
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(true);
-            verifyToken.mockReturnValue({ userId: 'user-123', email: 'test@test.com' });
+            verifyTokenWithClaims.mockReturnValue({ valid: true, decoded: { userId: 'user-123', email: 'test@test.com' } });
 
             await authenticateSocket(socket, next);
 
-            expect(verifyToken).toHaveBeenCalledWith('valid-jwt-token');
+            expect(verifyTokenWithClaims).toHaveBeenCalledWith('valid-jwt-token', expect.any(Object));
             expect(socket.userId).toBe('user-123');
             expect(socket.user).toEqual({ userId: 'user-123', email: 'test@test.com' });
+            expect(socket.jwtVerified).toBe(true);
             expect(logger.debug).toHaveBeenCalledWith('JWT token verified for socket', expect.any(Object));
         });
 
@@ -573,12 +582,12 @@ describe('Socket Authentication Middleware', () => {
 
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(true);
-            verifyToken.mockReturnValue(null);
+            verifyTokenWithClaims.mockReturnValue({ valid: false, error: JWT_ERROR_CODES.TOKEN_INVALID, message: 'Invalid token' });
 
             await authenticateSocket(socket, next);
 
             expect(socket.userId).toBeUndefined();
-            expect(logger.debug).toHaveBeenCalledWith('Invalid JWT token for socket', expect.any(Object));
+            expect(logger.debug).toHaveBeenCalledWith('JWT token validation failed for socket', expect.any(Object));
             expect(next).toHaveBeenCalledWith();
         });
 

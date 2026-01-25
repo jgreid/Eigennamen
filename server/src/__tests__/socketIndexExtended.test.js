@@ -433,7 +433,8 @@ describe('Socket Index Extended - Timer Restart Logic', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(mockLogger.debug).toHaveBeenCalledWith(
-            'Timer restart skipped for room LOCKED: another instance handling it'
+            'Timer restart skipped for room LOCKED: another instance handling it',
+            expect.objectContaining({ lockKey: expect.any(String) })
         );
 
         socketMod.cleanupSocketModule();

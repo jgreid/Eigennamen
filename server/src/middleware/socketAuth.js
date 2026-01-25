@@ -11,7 +11,7 @@
 const { v4: uuidv4, validate: isValidUuid } = require('uuid');
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
-const { verifyToken, isJwtEnabled } = require('../config/jwt');
+const { verifyToken, verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../config/jwt');
 const { getRedis } = require('../config/redis');
 const {
     SESSION_SECURITY,
@@ -287,20 +287,45 @@ async function authenticateSocket(socket, next) {
         // Store client IP on socket for rate limiting
         socket.clientIP = currentIP;
 
-        // Handle JWT token verification
+        // Handle JWT token verification with claims validation
         if (token && isJwtEnabled()) {
-            const decoded = verifyToken(token);
-            if (decoded) {
-                socket.userId = decoded.userId;
-                socket.user = decoded;
+            // Build expected claims for validation
+            const expectedClaims = {};
+            // If we have a validated session, the token should match it
+            if (validatedSessionId && sessionValidationResult?.player?.userId) {
+                expectedClaims.userId = sessionValidationResult.player.userId;
+            }
+
+            const tokenResult = verifyTokenWithClaims(token, expectedClaims);
+
+            if (tokenResult.valid) {
+                socket.userId = tokenResult.decoded.userId;
+                socket.user = tokenResult.decoded;
+                socket.jwtVerified = true;
                 logger.debug('JWT token verified for socket', {
                     socketId: socket.id,
-                    userId: decoded.userId
+                    userId: tokenResult.decoded.userId,
+                    sessionId: tokenResult.decoded.sessionId
                 });
             } else {
-                logger.debug('Invalid JWT token for socket', {
-                    socketId: socket.id
+                // Log detailed error information for debugging
+                logger.debug('JWT token validation failed for socket', {
+                    socketId: socket.id,
+                    errorCode: tokenResult.error,
+                    errorMessage: tokenResult.message
                 });
+
+                // Handle specific error cases
+                if (tokenResult.error === JWT_ERROR_CODES.TOKEN_EXPIRED) {
+                    socket.jwtExpired = true;
+                } else if (tokenResult.error === JWT_ERROR_CODES.CLAIMS_MISMATCH) {
+                    // Potential session/token mismatch - log for security monitoring
+                    logger.warn('JWT claims mismatch detected', {
+                        socketId: socket.id,
+                        clientIP: currentIP,
+                        sessionId: socket.sessionId
+                    });
+                }
             }
         }
 

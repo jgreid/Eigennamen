@@ -565,7 +565,8 @@ describe('Socket Index Direct Tests', () => {
             await new Promise(r => setTimeout(r, 50));
 
             expect(mockLogger.debug).toHaveBeenCalledWith(
-                expect.stringContaining('another instance')
+                expect.stringContaining('another instance'),
+                expect.objectContaining({ lockKey: expect.any(String) })
             );
         });
 
