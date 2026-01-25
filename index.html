@@ -5121,6 +5121,16 @@
 
             // Server sends arrays: words, types, revealed (not a board object)
             if (serverGame.words && Array.isArray(serverGame.words)) {
+                // Check if words have changed - if so, force full board re-render
+                const wordsChanged = !gameState.words ||
+                    gameState.words.length !== serverGame.words.length ||
+                    gameState.words.some((w, i) => w !== serverGame.words[i]);
+
+                if (wordsChanged) {
+                    // Force full board re-render when words change (new game started)
+                    boardInitialized = false;
+                }
+
                 gameState.words = serverGame.words;
                 gameState.types = serverGame.types || [];
                 gameState.revealed = serverGame.revealed || [];
@@ -6601,10 +6611,20 @@
                 const card = cards[index];
                 const isRevealed = gameState.revealed[index];
                 const type = gameState.types[index];
+                const word = gameState.words[index];
+
+                // Update card text if it changed (safety measure for sync issues)
+                if (card.textContent !== word) {
+                    card.textContent = word;
+                    // Update font class based on word length
+                    card.classList.remove('small-text', 'tiny-text');
+                    const fontClass = getCardFontClass(word);
+                    if (fontClass) card.classList.add(fontClass);
+                }
 
                 // Update ARIA
                 card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-                card.setAttribute('aria-label', `${gameState.words[index]}${isRevealed ? ', revealed as ' + type : ''}`);
+                card.setAttribute('aria-label', `${word}${isRevealed ? ', revealed as ' + type : ''}`);
 
                 // Handle spymaster mode (show all card types when game is over)
                 if (spymasterTeam || gameState.gameOver) {
