@@ -679,6 +679,224 @@ export function updateWordCount(count) {
   }
 }
 
+// ============ Multiplayer UI ============
+
+/**
+ * Update multiplayer mode panel
+ * @param {string} mode - 'standalone', 'create', 'join', 'room'
+ */
+export function updateMultiplayerPanel(mode) {
+  const panels = ['mp-standalone', 'mp-create', 'mp-join', 'mp-room'];
+
+  panels.forEach(panelId => {
+    const panel = document.getElementById(panelId);
+    if (panel) {
+      panel.style.display = panelId === `mp-${mode}` ? 'block' : 'none';
+    }
+  });
+}
+
+/**
+ * Update room info display
+ * @param {string} roomCode - Room code
+ * @param {number} playerCount - Number of players
+ */
+export function updateRoomInfo(roomCode, playerCount = 0) {
+  const codeEl = document.getElementById('room-code-display');
+  const countEl = document.getElementById('player-count');
+
+  if (codeEl) {
+    codeEl.textContent = roomCode || '----';
+  }
+  if (countEl) {
+    countEl.textContent = `${playerCount} player${playerCount !== 1 ? 's' : ''}`;
+  }
+}
+
+/**
+ * Render player list
+ * @param {Array} players - Array of player objects
+ * @param {string} currentSessionId - Current player's session ID
+ * @param {boolean} isHost - Whether current player is host
+ */
+export function renderPlayerList(players, currentSessionId, isHost) {
+  const listEl = document.getElementById('player-list');
+  if (!listEl) return;
+
+  if (!players || players.length === 0) {
+    listEl.innerHTML = '<li class="player-item empty">No players</li>';
+    return;
+  }
+
+  listEl.innerHTML = players.map(player => {
+    const isMe = player.sessionId === currentSessionId;
+    const classes = ['player-item'];
+
+    if (isMe) classes.push('me');
+    if (player.isHost) classes.push('host');
+    if (player.team) classes.push(`team-${player.team}`);
+    if (!player.connected) classes.push('disconnected');
+
+    let roleIcon = '';
+    if (player.role === 'spymaster') roleIcon = '<span class="role-icon spymaster" title="Spymaster">S</span>';
+    else if (player.role === 'clicker') roleIcon = '<span class="role-icon clicker" title="Clicker">C</span>';
+
+    const hostBadge = player.isHost ? '<span class="host-badge">Host</span>' : '';
+    const kickBtn = isHost && !isMe ? `<button class="btn-kick" data-session="${player.sessionId}" title="Kick player">&times;</button>` : '';
+    const disconnectedIcon = !player.connected ? '<span class="disconnected-icon" title="Disconnected">!</span>' : '';
+
+    return `
+      <li class="${classes.join(' ')}" data-session="${player.sessionId}">
+        <span class="player-name">${escapeHTML(player.nickname)}${isMe ? ' (you)' : ''}</span>
+        ${roleIcon}
+        ${hostBadge}
+        ${disconnectedIcon}
+        ${kickBtn}
+      </li>
+    `;
+  }).join('');
+}
+
+/**
+ * Update clue display
+ * @param {Object|null} clue - Current clue { word, number, team, spymaster }
+ * @param {Object} teamNames - Team names
+ */
+export function updateClueDisplay(clue, teamNames) {
+  const clueSection = document.getElementById('clue-display');
+  const wordEl = document.getElementById('clue-word');
+  const numberEl = document.getElementById('clue-number');
+  const giverEl = document.getElementById('clue-giver');
+
+  if (!clueSection) return;
+
+  if (!clue) {
+    clueSection.style.display = 'none';
+    return;
+  }
+
+  clueSection.style.display = 'block';
+  clueSection.className = `clue-display ${clue.team}`;
+
+  if (wordEl) wordEl.textContent = clue.word;
+  if (numberEl) numberEl.textContent = clue.number === 0 ? '∞' : clue.number;
+  if (giverEl) {
+    const teamName = clue.team === 'red' ? teamNames.red : teamNames.blue;
+    giverEl.textContent = `${teamName}: ${clue.spymaster}`;
+  }
+}
+
+/**
+ * Update guesses display
+ * @param {number} used - Guesses used
+ * @param {number} allowed - Guesses allowed (Infinity for unlimited)
+ */
+export function updateGuessesDisplay(used, allowed) {
+  const guessesEl = document.getElementById('guesses-display');
+  if (!guessesEl) return;
+
+  if (allowed === 0 || allowed === Infinity) {
+    guessesEl.textContent = `Guesses: ${used} / ∞`;
+  } else {
+    guessesEl.textContent = `Guesses: ${used} / ${allowed}`;
+  }
+}
+
+/**
+ * Update timer display
+ * @param {Object|null} timer - Timer state { remaining, total, running }
+ */
+export function updateTimerDisplay(timer) {
+  const timerSection = document.getElementById('timer-display');
+  const timeEl = document.getElementById('timer-time');
+  const barEl = document.getElementById('timer-bar');
+
+  if (!timerSection) return;
+
+  if (!timer || !timer.running) {
+    timerSection.style.display = 'none';
+    return;
+  }
+
+  timerSection.style.display = 'flex';
+
+  const minutes = Math.floor(timer.remaining / 60);
+  const seconds = timer.remaining % 60;
+  const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+  if (timeEl) timeEl.textContent = timeStr;
+
+  if (barEl) {
+    const percent = (timer.remaining / timer.total) * 100;
+    barEl.style.width = `${percent}%`;
+
+    // Color based on time remaining
+    barEl.classList.remove('warning', 'danger');
+    if (timer.remaining <= 10) {
+      barEl.classList.add('danger');
+    } else if (timer.remaining <= 30) {
+      barEl.classList.add('warning');
+    }
+  }
+}
+
+/**
+ * Show connection status
+ * @param {boolean} connected - Connection status
+ */
+export function showConnectionStatus(connected) {
+  const statusEl = document.getElementById('connection-status');
+  if (statusEl) {
+    statusEl.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+    statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+  }
+}
+
+/**
+ * Update multiplayer controls visibility
+ * @param {Object} state - { isHost, isSpymaster, isClicker, isMyTurn, gameInProgress, gameOver }
+ */
+export function updateMultiplayerControls(state) {
+  const { isHost, isSpymaster, isClicker, isMyTurn, gameInProgress, gameOver } = state;
+
+  // Start game button (host only, before game starts)
+  const startBtn = document.getElementById('btn-start-game');
+  if (startBtn) {
+    startBtn.style.display = isHost && !gameInProgress ? 'inline-block' : 'none';
+  }
+
+  // Give clue section (spymaster only, on their turn)
+  const clueSection = document.getElementById('give-clue-section');
+  if (clueSection) {
+    clueSection.style.display = isSpymaster && isMyTurn && gameInProgress && !gameOver ? 'block' : 'none';
+  }
+
+  // End turn button (clicker only, on their turn)
+  const endTurnBtn = document.getElementById('btn-end-turn');
+  if (endTurnBtn) {
+    const canEndTurn = isClicker && isMyTurn && gameInProgress && !gameOver;
+    endTurnBtn.disabled = !canEndTurn;
+    endTurnBtn.classList.toggle('can-act', canEndTurn);
+  }
+
+  // Forfeit button (during game)
+  const forfeitBtn = document.getElementById('btn-forfeit');
+  if (forfeitBtn) {
+    forfeitBtn.style.display = gameInProgress && !gameOver ? 'inline-block' : 'none';
+  }
+}
+
+/**
+ * Show/hide multiplayer section
+ * @param {boolean} show - Whether to show multiplayer section
+ */
+export function showMultiplayerSection(show) {
+  const section = document.getElementById('multiplayer-section');
+  if (section) {
+    section.style.display = show ? 'block' : 'none';
+  }
+}
+
 // Default export
 export default {
   initCachedElements,
@@ -702,4 +920,14 @@ export default {
   updateShareLink,
   copyShareLink,
   updateWordCount,
+  // Multiplayer UI
+  updateMultiplayerPanel,
+  updateRoomInfo,
+  renderPlayerList,
+  updateClueDisplay,
+  updateGuessesDisplay,
+  updateTimerDisplay,
+  showConnectionStatus,
+  updateMultiplayerControls,
+  showMultiplayerSection,
 };
