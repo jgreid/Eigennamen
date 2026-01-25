@@ -16,6 +16,8 @@ const logger = require('../utils/logger');
 let sharedData = null;
 let sharedExpiries = null;
 let sharedSets = null;
+let sharedLists = null;
+let sharedSortedSets = null;
 let sharedPubsubChannels = null;
 
 function initializeSharedStorage() {
@@ -23,6 +25,8 @@ function initializeSharedStorage() {
         sharedData = new Map();
         sharedExpiries = new Map();
         sharedSets = new Map();
+        sharedLists = new Map();
+        sharedSortedSets = new Map();
         sharedPubsubChannels = new Map();
     }
 }
@@ -35,6 +39,8 @@ class MemoryStorage {
         this.data = sharedData;
         this.expiries = sharedExpiries;
         this.sets = sharedSets;
+        this.lists = sharedLists;
+        this.sortedSets = sharedSortedSets;
         this.pubsubChannels = sharedPubsubChannels;
         this.isOpen = true;
         this._isClone = isClone;
@@ -60,6 +66,8 @@ class MemoryStorage {
             if (expiry <= now) {
                 this.data.delete(key);
                 this.sets.delete(key);
+                this.lists.delete(key);
+                this.sortedSets.delete(key);
                 this.expiries.delete(key);
                 cleanedCount++;
             }
@@ -80,6 +88,8 @@ class MemoryStorage {
         if (expiry && expiry <= Date.now()) {
             this.data.delete(key);
             this.sets.delete(key);
+            this.lists.delete(key);
+            this.sortedSets.delete(key);
             this.expiries.delete(key);
             return true;
         }
@@ -123,22 +133,27 @@ class MemoryStorage {
     async del(key) {
         // Check expiry first - expired keys are treated as non-existent
         if (this._isExpired(key)) return 0;
-        const existed = this.data.has(key) || this.sets.has(key);
+        const existed = this.data.has(key) || this.sets.has(key) ||
+            this.lists.has(key) || this.sortedSets.has(key);
         this.data.delete(key);
         this.sets.delete(key);
+        this.lists.delete(key);
+        this.sortedSets.delete(key);
         this.expiries.delete(key);
         return existed ? 1 : 0;
     }
 
     async exists(key) {
         if (this._isExpired(key)) return 0;
-        return (this.data.has(key) || this.sets.has(key)) ? 1 : 0;
+        return (this.data.has(key) || this.sets.has(key) ||
+            this.lists.has(key) || this.sortedSets.has(key)) ? 1 : 0;
     }
 
     async expire(key, seconds) {
         // Check expiry first - can't set expiry on non-existent/expired key
         if (this._isExpired(key)) return 0;
-        if (!this.data.has(key) && !this.sets.has(key)) return 0;
+        if (!this.data.has(key) && !this.sets.has(key) &&
+            !this.lists.has(key) && !this.sortedSets.has(key)) return 0;
         this.expiries.set(key, Date.now() + (seconds * 1000));
         return 1;
     }
@@ -146,7 +161,8 @@ class MemoryStorage {
     async ttl(key) {
         if (this._isExpired(key)) return -2;
         // Check if key exists - return -2 for non-existent keys
-        if (!this.data.has(key) && !this.sets.has(key)) return -2;
+        if (!this.data.has(key) && !this.sets.has(key) &&
+            !this.lists.has(key) && !this.sortedSets.has(key)) return -2;
         const expiry = this.expiries.get(key);
         if (!expiry) return -1;  // Key exists but no expiry
         return Math.ceil((expiry - Date.now()) / 1000);
@@ -224,6 +240,217 @@ class MemoryStorage {
         return set ? set.size : 0;
     }
 
+    // Batch operations
+    async mGet(keys) {
+        const results = [];
+        for (const key of keys) {
+            if (this._isExpired(key)) {
+                results.push(null);
+            } else {
+                const value = this.data.get(key);
+                results.push(value !== undefined ? value : null);
+            }
+        }
+        return results;
+    }
+
+    // List operations
+    async lPush(key, ...values) {
+        if (this._isExpired(key)) {
+            this.lists.set(key, []);
+        }
+        // Remove from other data structures (type change)
+        this.data.delete(key);
+        this.sets.delete(key);
+        this.sortedSets.delete(key);
+
+        if (!this.lists.has(key)) {
+            this.lists.set(key, []);
+        }
+        const list = this.lists.get(key);
+        // lPush adds to the head (beginning) of the list
+        // Redis LPUSH pushes elements one by one in order given,
+        // so 'LPUSH key a b c' results in [c, b, a] (c at head)
+        for (const value of values) {
+            list.unshift(value);
+        }
+        return list.length;
+    }
+
+    async lRange(key, start, stop) {
+        if (this._isExpired(key)) return [];
+        const list = this.lists.get(key);
+        if (!list || list.length === 0) return [];
+
+        const len = list.length;
+        // Handle negative indices
+        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+
+        if (startIdx > stopIdx) return [];
+        return list.slice(startIdx, stopIdx + 1);
+    }
+
+    async lIndex(key, index) {
+        if (this._isExpired(key)) return null;
+        const list = this.lists.get(key);
+        if (!list) return null;
+
+        const len = list.length;
+        // Handle negative index
+        const idx = index < 0 ? len + index : index;
+        if (idx < 0 || idx >= len) return null;
+        return list[idx];
+    }
+
+    async lLen(key) {
+        if (this._isExpired(key)) return 0;
+        const list = this.lists.get(key);
+        return list ? list.length : 0;
+    }
+
+    async lTrim(key, start, stop) {
+        if (this._isExpired(key)) return 'OK';
+        const list = this.lists.get(key);
+        if (!list) return 'OK';
+
+        const len = list.length;
+        // Handle negative indices
+        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+
+        if (startIdx > stopIdx) {
+            this.lists.set(key, []);
+        } else {
+            this.lists.set(key, list.slice(startIdx, stopIdx + 1));
+        }
+        return 'OK';
+    }
+
+    // Sorted set operations
+    async zAdd(key, ...items) {
+        if (this._isExpired(key)) {
+            this.sortedSets.set(key, new Map());
+        }
+        // Remove from other data structures (type change)
+        this.data.delete(key);
+        this.sets.delete(key);
+        this.lists.delete(key);
+
+        if (!this.sortedSets.has(key)) {
+            this.sortedSets.set(key, new Map());
+        }
+        const zset = this.sortedSets.get(key);
+        let added = 0;
+
+        for (const item of items) {
+            const { score, value } = item;
+            if (!zset.has(value)) {
+                added++;
+            }
+            zset.set(value, score);
+        }
+        return added;
+    }
+
+    async zRange(key, start, stop, options = {}) {
+        if (this._isExpired(key)) return [];
+        const zset = this.sortedSets.get(key);
+        if (!zset || zset.size === 0) return [];
+
+        // Convert to array and sort by score
+        let entries = Array.from(zset.entries()).map(([value, score]) => ({ value, score }));
+        entries.sort((a, b) => a.score - b.score);
+
+        // Handle REV option (reverse order)
+        if (options.REV) {
+            entries.reverse();
+        }
+
+        const len = entries.length;
+        // Handle negative indices
+        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+
+        if (startIdx > stopIdx) return [];
+        const slice = entries.slice(startIdx, stopIdx + 1);
+
+        // Handle WITHSCORES option
+        if (options.WITHSCORES) {
+            const result = [];
+            for (const entry of slice) {
+                result.push({ value: entry.value, score: entry.score });
+            }
+            return result;
+        }
+
+        return slice.map(e => e.value);
+    }
+
+    async zRangeByScore(key, min, max, options = {}) {
+        if (this._isExpired(key)) return [];
+        const zset = this.sortedSets.get(key);
+        if (!zset || zset.size === 0) return [];
+
+        // Convert to array and sort by score
+        let entries = Array.from(zset.entries())
+            .map(([value, score]) => ({ value, score }))
+            .filter(e => e.score >= min && e.score <= max)
+            .sort((a, b) => a.score - b.score);
+
+        // Handle LIMIT option
+        if (options.LIMIT) {
+            const { offset, count } = options.LIMIT;
+            entries = entries.slice(offset, offset + count);
+        }
+
+        return entries.map(e => e.value);
+    }
+
+    async zRem(key, ...members) {
+        if (this._isExpired(key)) return 0;
+        const zset = this.sortedSets.get(key);
+        if (!zset) return 0;
+
+        let removed = 0;
+        for (const member of members) {
+            if (zset.delete(member)) {
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    async zCard(key) {
+        if (this._isExpired(key)) return 0;
+        const zset = this.sortedSets.get(key);
+        return zset ? zset.size : 0;
+    }
+
+    async zRemRangeByRank(key, start, stop) {
+        if (this._isExpired(key)) return 0;
+        const zset = this.sortedSets.get(key);
+        if (!zset || zset.size === 0) return 0;
+
+        // Convert to array and sort by score
+        let entries = Array.from(zset.entries())
+            .map(([value, score]) => ({ value, score }))
+            .sort((a, b) => a.score - b.score);
+
+        const len = entries.length;
+        // Handle negative indices
+        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+
+        if (startIdx > stopIdx) return 0;
+
+        const toRemove = entries.slice(startIdx, stopIdx + 1);
+        for (const entry of toRemove) {
+            zset.delete(entry.value);
+        }
+        return toRemove.length;
+    }
+
     // Key pattern operations
     async keys(pattern) {
         // Convert glob pattern to regex with proper escaping
@@ -237,6 +464,16 @@ class MemoryStorage {
             }
         }
         for (const key of this.sets.keys()) {
+            if (!this._isExpired(key) && regex.test(key)) {
+                resultSet.add(key);
+            }
+        }
+        for (const key of this.lists.keys()) {
+            if (!this._isExpired(key) && regex.test(key)) {
+                resultSet.add(key);
+            }
+        }
+        for (const key of this.sortedSets.keys()) {
             if (!this._isExpired(key) && regex.test(key)) {
                 resultSet.add(key);
             }
@@ -381,6 +618,22 @@ class MemoryStorage {
                 commands.push({ cmd: 'expire', key, seconds });
                 return txn;
             },
+            lPush: function(key, ...values) {
+                commands.push({ cmd: 'lPush', key, values });
+                return txn;
+            },
+            lTrim: function(key, start, stop) {
+                commands.push({ cmd: 'lTrim', key, start, stop });
+                return txn;
+            },
+            zAdd: function(key, ...items) {
+                commands.push({ cmd: 'zAdd', key, items });
+                return txn;
+            },
+            zRemRangeByRank: function(key, start, stop) {
+                commands.push({ cmd: 'zRemRangeByRank', key, start, stop });
+                return txn;
+            },
             exec: async function() {
                 // Check if watched keys changed (optimistic locking)
                 for (const [key, originalValue] of storage._watchedKeys.entries()) {
@@ -431,10 +684,14 @@ class MemoryStorage {
                                 }
                                 const existedData = storage.data.has(cmd.key);
                                 const existedSet = storage.sets.has(cmd.key);
+                                const existedList = storage.lists.has(cmd.key);
+                                const existedZset = storage.sortedSets.has(cmd.key);
                                 storage.data.delete(cmd.key);
                                 storage.sets.delete(cmd.key);
+                                storage.lists.delete(cmd.key);
+                                storage.sortedSets.delete(cmd.key);
                                 storage.expiries.delete(cmd.key);
-                                results.push((existedData || existedSet) ? 1 : 0);
+                                results.push((existedData || existedSet || existedList || existedZset) ? 1 : 0);
                                 break;
                             case 'sAdd':
                                 // Check for expired key and clear it (matches regular sAdd behavior)
@@ -476,12 +733,103 @@ class MemoryStorage {
                                     results.push(0);
                                     break;
                                 }
-                                if (storage.data.has(cmd.key) || storage.sets.has(cmd.key)) {
+                                if (storage.data.has(cmd.key) || storage.sets.has(cmd.key) ||
+                                    storage.lists.has(cmd.key) || storage.sortedSets.has(cmd.key)) {
                                     storage.expiries.set(cmd.key, Date.now() + (cmd.seconds * 1000));
                                     results.push(1);
                                 } else {
                                     results.push(0);
                                 }
+                                break;
+                            case 'lPush':
+                                // Check for expired key and clear it
+                                if (storage._isExpired(cmd.key)) {
+                                    storage.lists.set(cmd.key, []);
+                                }
+                                // Remove from other data structures (type change)
+                                storage.data.delete(cmd.key);
+                                storage.sets.delete(cmd.key);
+                                storage.sortedSets.delete(cmd.key);
+                                if (!storage.lists.has(cmd.key)) {
+                                    storage.lists.set(cmd.key, []);
+                                }
+                                const list = storage.lists.get(cmd.key);
+                                // lPush adds to the head (beginning) of the list
+                                // Redis LPUSH pushes elements one by one in order given
+                                for (const val of cmd.values) {
+                                    list.unshift(val);
+                                }
+                                results.push(list.length);
+                                break;
+                            case 'lTrim':
+                                if (storage._isExpired(cmd.key)) {
+                                    results.push('OK');
+                                    break;
+                                }
+                                const trimList = storage.lists.get(cmd.key);
+                                if (!trimList) {
+                                    results.push('OK');
+                                    break;
+                                }
+                                const trimLen = trimList.length;
+                                let trimStart = cmd.start < 0 ? Math.max(trimLen + cmd.start, 0) : Math.min(cmd.start, trimLen);
+                                let trimStop = cmd.stop < 0 ? trimLen + cmd.stop : Math.min(cmd.stop, trimLen - 1);
+                                if (trimStart > trimStop) {
+                                    storage.lists.set(cmd.key, []);
+                                } else {
+                                    storage.lists.set(cmd.key, trimList.slice(trimStart, trimStop + 1));
+                                }
+                                results.push('OK');
+                                break;
+                            case 'zAdd':
+                                // Check for expired key and clear it
+                                if (storage._isExpired(cmd.key)) {
+                                    storage.sortedSets.set(cmd.key, new Map());
+                                }
+                                // Remove from other data structures (type change)
+                                storage.data.delete(cmd.key);
+                                storage.sets.delete(cmd.key);
+                                storage.lists.delete(cmd.key);
+                                if (!storage.sortedSets.has(cmd.key)) {
+                                    storage.sortedSets.set(cmd.key, new Map());
+                                }
+                                const zset = storage.sortedSets.get(cmd.key);
+                                let zAdded = 0;
+                                for (const item of cmd.items) {
+                                    const { score, value } = item;
+                                    if (!zset.has(value)) {
+                                        zAdded++;
+                                    }
+                                    zset.set(value, score);
+                                }
+                                results.push(zAdded);
+                                break;
+                            case 'zRemRangeByRank':
+                                if (storage._isExpired(cmd.key)) {
+                                    results.push(0);
+                                    break;
+                                }
+                                const zsetForRemove = storage.sortedSets.get(cmd.key);
+                                if (!zsetForRemove || zsetForRemove.size === 0) {
+                                    results.push(0);
+                                    break;
+                                }
+                                // Convert to array and sort by score
+                                let zEntries = Array.from(zsetForRemove.entries())
+                                    .map(([value, score]) => ({ value, score }))
+                                    .sort((a, b) => a.score - b.score);
+                                const zLen = zEntries.length;
+                                let zStart = cmd.start < 0 ? Math.max(zLen + cmd.start, 0) : Math.min(cmd.start, zLen);
+                                let zStop = cmd.stop < 0 ? zLen + cmd.stop : Math.min(cmd.stop, zLen - 1);
+                                if (zStart > zStop) {
+                                    results.push(0);
+                                    break;
+                                }
+                                const toRemove = zEntries.slice(zStart, zStop + 1);
+                                for (const entry of toRemove) {
+                                    zsetForRemove.delete(entry.value);
+                                }
+                                results.push(toRemove.length);
                                 break;
                             default:
                                 // Unknown command - log and push null for Redis compatibility
@@ -507,17 +855,35 @@ class MemoryStorage {
     async *scanIterator(options = {}) {
         const pattern = options.MATCH || '*';
         const regex = this._globToRegex(pattern);
+        const yielded = new Set();
 
         // Yield keys from data map
         for (const key of this.data.keys()) {
             if (!this._isExpired(key) && regex.test(key)) {
+                yielded.add(key);
                 yield key;
             }
         }
 
         // Yield keys from sets map
         for (const key of this.sets.keys()) {
-            if (!this._isExpired(key) && regex.test(key) && !this.data.has(key)) {
+            if (!this._isExpired(key) && regex.test(key) && !yielded.has(key)) {
+                yielded.add(key);
+                yield key;
+            }
+        }
+
+        // Yield keys from lists map
+        for (const key of this.lists.keys()) {
+            if (!this._isExpired(key) && regex.test(key) && !yielded.has(key)) {
+                yielded.add(key);
+                yield key;
+            }
+        }
+
+        // Yield keys from sorted sets map
+        for (const key of this.sortedSets.keys()) {
+            if (!this._isExpired(key) && regex.test(key) && !yielded.has(key)) {
                 yield key;
             }
         }
