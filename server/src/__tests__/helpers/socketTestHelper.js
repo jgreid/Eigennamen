@@ -36,6 +36,8 @@ class SocketTestServer {
     async start() {
         return new Promise((resolve, reject) => {
             this.httpServer = http.createServer();
+            // Increase max listeners to prevent EventEmitter warning during tests
+            this.httpServer.setMaxListeners(30);
 
             this.io = new Server(this.httpServer, {
                 cors: { origin: '*' },

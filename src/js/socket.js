@@ -27,6 +27,9 @@ const listeners = {};
 // Track socket listeners for cleanup
 const socketListeners = [];
 
+// Track listener errors for debugging
+const listenerErrors = [];
+
 // ============ Storage Helpers ============
 
 /**
@@ -91,6 +94,7 @@ function cleanupSocketListeners() {
 
 /**
  * Emit event to local listeners
+ * Errors are caught, logged, and tracked for debugging
  */
 function emit(event, data) {
   const callbacks = listeners[event] || [];
@@ -98,9 +102,36 @@ function emit(event, data) {
     try {
       cb(data);
     } catch (err) {
+      // Log error with context
       console.error(`Error in ${event} listener:`, err);
+
+      // Track error for debugging
+      listenerErrors.push({
+        event,
+        error: err.message,
+        stack: err.stack,
+        timestamp: Date.now(),
+      });
+
+      // Keep only last 10 errors to prevent memory growth
+      if (listenerErrors.length > 10) {
+        listenerErrors.shift();
+      }
+
+      // Surface critical errors to user
+      if (event === 'gameStarted' || event === 'cardRevealed' || event === 'roomJoined') {
+        showToast('An error occurred. Try refreshing the page.', 'error');
+      }
     }
   });
+}
+
+/**
+ * Get recent listener errors (for debugging)
+ * @returns {Array} Recent errors
+ */
+export function getListenerErrors() {
+  return [...listenerErrors];
 }
 
 /**
@@ -715,4 +746,5 @@ export default {
   getPlayer,
   getStoredRoomCode,
   getStoredNickname,
+  getListenerErrors,
 };
