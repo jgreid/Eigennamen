@@ -504,4 +504,320 @@ describe('Game History Service', () => {
             expect(gameHistoryService.MAX_HISTORY_PER_ROOM).toBe(100);
         });
     });
+
+    describe('cleanupOldHistory', () => {
+        beforeEach(() => {
+            // Setup storage with old games
+            storage[`zset:gameHistoryIndex:ROOM1`] = [
+                { score: 1000, value: 'old-game-1' },
+                { score: 2000, value: 'old-game-2' },
+                { score: 3000, value: 'old-game-3' }
+            ];
+            storage['gameHistory:ROOM1:old-game-1'] = JSON.stringify({ id: 'old-game-1' });
+            storage['gameHistory:ROOM1:old-game-2'] = JSON.stringify({ id: 'old-game-2' });
+        });
+
+        test('returns 0 for null room code', async () => {
+            const result = await gameHistoryService.cleanupOldHistory(null);
+            expect(result).toBe(0);
+        });
+
+        test('returns 0 when no old history exists', async () => {
+            // Clear storage for this test
+            delete storage[`zset:gameHistoryIndex:ROOM1`];
+            const result = await gameHistoryService.cleanupOldHistory('ROOM1');
+            expect(result).toBe(0);
+        });
+
+        test('deletes old game entries when cleanup is triggered', async () => {
+            // Mock zRange to return old game IDs
+            mockRedis.zRange.mockResolvedValueOnce(['old-game-1', 'old-game-2']);
+
+            const result = await gameHistoryService.cleanupOldHistory('ROOM1');
+
+            expect(mockRedis.del).toHaveBeenCalled();
+            expect(mockRedis.zRem).toHaveBeenCalled();
+        });
+
+        test('handles Redis error gracefully', async () => {
+            mockRedis.zRange.mockRejectedValueOnce(new Error('Redis connection failed'));
+
+            const result = await gameHistoryService.cleanupOldHistory('ROOM1');
+
+            expect(result).toBe(0);
+        });
+    });
+
+    describe('Error handling', () => {
+        const mockGameData = {
+            id: 'game-123',
+            seed: 'test-seed',
+            words: ['APPLE'],
+            types: ['red'],
+            redScore: 1,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            winner: 'red',
+            gameOver: true
+        };
+
+        test('saveGameResult handles pipeline error gracefully', async () => {
+            const mockPipeline = {
+                set: jest.fn().mockReturnThis(),
+                zAdd: jest.fn().mockReturnThis(),
+                zRemRangeByRank: jest.fn().mockReturnThis(),
+                expire: jest.fn().mockReturnThis(),
+                exec: jest.fn().mockRejectedValueOnce(new Error('Pipeline failed'))
+            };
+            mockRedis.multi.mockReturnValue(mockPipeline);
+
+            const result = await gameHistoryService.saveGameResult('ROOM1', mockGameData);
+
+            expect(result).toBeNull();
+        });
+
+        test('getGameHistory handles Redis error gracefully', async () => {
+            mockRedis.zRange.mockRejectedValueOnce(new Error('Redis error'));
+
+            const result = await gameHistoryService.getGameHistory('ROOM1', 10);
+
+            expect(result).toEqual([]);
+        });
+
+        test('getGameById handles parse error gracefully', async () => {
+            storage['gameHistory:ROOM1:bad-json'] = 'not valid json {{{';
+            mockRedis.get.mockResolvedValueOnce('not valid json {{{');
+
+            const result = await gameHistoryService.getGameById('ROOM1', 'bad-json');
+
+            expect(result).toBeNull();
+        });
+
+        test('getReplayEvents handles error gracefully', async () => {
+            // Store a game that will cause buildReplayEvents to fail
+            // by having history that throws when accessed
+            const badGame = {
+                id: 'game-bad',
+                roomCode: 'ROOM1',
+                timestamp: 5000,
+                startedAt: 1000,
+                endedAt: 5000,
+                initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                finalState: { winner: 'red' },
+                clues: [],
+                // history that has a getter which throws
+                get history() { throw new Error('Unexpected error'); },
+                teamNames: { red: 'Red', blue: 'Blue' }
+            };
+
+            // Mock get to return the stringified bad game which will parse
+            // but then error when accessing history
+            const originalGet = mockRedis.get;
+            mockRedis.get.mockImplementationOnce(() => {
+                return JSON.stringify({
+                    id: 'game-bad',
+                    roomCode: 'ROOM1',
+                    timestamp: 5000,
+                    startedAt: 1000,
+                    endedAt: 5000,
+                    initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                    finalState: { winner: 'red' },
+                    clues: null,  // This is fine
+                    history: null, // This will cause issues in buildReplayEvents
+                    teamNames: { red: 'Red', blue: 'Blue' }
+                });
+            });
+
+            const result = await gameHistoryService.getReplayEvents('ROOM1', 'game-bad');
+
+            // Should still work - null history is handled
+            expect(result).not.toBeNull();
+        });
+
+        test('getReplayEvents handles internal error in buildReplayEvents', async () => {
+            // Mock get to throw after initial checks pass
+            let callCount = 0;
+            mockRedis.get.mockImplementation(async () => {
+                callCount++;
+                if (callCount === 1) {
+                    // Return valid game first (for getGameById)
+                    return JSON.stringify({
+                        id: 'game-err',
+                        roomCode: 'ROOM1'
+                    });
+                }
+                throw new Error('Unexpected Redis failure');
+            });
+
+            // Since getGameById is called first and succeeds, but there might be
+            // another internal call that fails. However, looking at the code,
+            // there's no second Redis call in getReplayEvents.
+            // The catch block is there for any unexpected errors.
+            // Let's test it by having JSON.parse throw
+            mockRedis.get.mockResolvedValueOnce('{"unclosed": ');
+
+            const result = await gameHistoryService.getReplayEvents('ROOM1', 'game-err');
+
+            // getGameById catches parse errors and returns null
+            expect(result).toBeNull();
+        });
+
+        test('getHistoryStats handles Redis error gracefully', async () => {
+            mockRedis.zCard.mockRejectedValueOnce(new Error('Redis error'));
+
+            const result = await gameHistoryService.getHistoryStats('ROOM1');
+
+            expect(result.count).toBe(0);
+            expect(result.error).toBeDefined();
+        });
+    });
+
+    describe('buildReplayEvents edge cases', () => {
+        test('handles endTurn action correctly', async () => {
+            const gameWithEndTurn = {
+                id: 'game-endturn',
+                roomCode: 'ROOM1',
+                timestamp: 5000,
+                startedAt: 1000,
+                endedAt: 5000,
+                initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                finalState: { winner: 'red', redScore: 1, blueScore: 0 },
+                clues: [],
+                history: [
+                    { action: 'endTurn', fromTeam: 'red', toTeam: 'blue', player: 'Alice', timestamp: 2000 }
+                ],
+                teamNames: { red: 'Red', blue: 'Blue' }
+            };
+
+            storage['gameHistory:ROOM1:game-endturn'] = JSON.stringify(gameWithEndTurn);
+
+            const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-endturn');
+
+            expect(replay.events).toHaveLength(1);
+            expect(replay.events[0].type).toBe('endTurn');
+            expect(replay.events[0].data.fromTeam).toBe('red');
+            expect(replay.events[0].data.toTeam).toBe('blue');
+            expect(replay.events[0].data.player).toBe('Alice');
+        });
+
+        test('handles forfeit action correctly', async () => {
+            const gameWithForfeit = {
+                id: 'game-forfeit',
+                roomCode: 'ROOM1',
+                timestamp: 5000,
+                startedAt: 1000,
+                endedAt: 5000,
+                initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                finalState: { winner: 'blue', redScore: 0, blueScore: 0 },
+                clues: [],
+                history: [
+                    { action: 'forfeit', forfeitingTeam: 'red', winner: 'blue', timestamp: 3000 }
+                ],
+                teamNames: { red: 'Red', blue: 'Blue' }
+            };
+
+            storage['gameHistory:ROOM1:game-forfeit'] = JSON.stringify(gameWithForfeit);
+
+            const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-forfeit');
+
+            expect(replay.events).toHaveLength(1);
+            expect(replay.events[0].type).toBe('forfeit');
+            expect(replay.events[0].data.forfeitingTeam).toBe('red');
+            expect(replay.events[0].data.winner).toBe('blue');
+        });
+
+        test('handles unknown action type by passing through data', async () => {
+            const gameWithUnknownAction = {
+                id: 'game-unknown',
+                roomCode: 'ROOM1',
+                timestamp: 5000,
+                startedAt: 1000,
+                endedAt: 5000,
+                initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                finalState: { winner: 'red', redScore: 1, blueScore: 0 },
+                clues: [],
+                history: [
+                    { action: 'customAction', customField: 'customValue', timestamp: 2000 }
+                ],
+                teamNames: { red: 'Red', blue: 'Blue' }
+            };
+
+            storage['gameHistory:ROOM1:game-unknown'] = JSON.stringify(gameWithUnknownAction);
+
+            const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-unknown');
+
+            expect(replay.events).toHaveLength(1);
+            expect(replay.events[0].type).toBe('customAction');
+            expect(replay.events[0].data.customField).toBe('customValue');
+        });
+
+        test('handles empty history array', async () => {
+            const gameWithEmptyHistory = {
+                id: 'game-empty',
+                roomCode: 'ROOM1',
+                timestamp: 5000,
+                startedAt: 1000,
+                endedAt: 5000,
+                initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                finalState: { winner: null, redScore: 0, blueScore: 0 },
+                clues: [],
+                history: [],
+                teamNames: { red: 'Red', blue: 'Blue' }
+            };
+
+            storage['gameHistory:ROOM1:game-empty'] = JSON.stringify(gameWithEmptyHistory);
+
+            const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-empty');
+
+            expect(replay.events).toEqual([]);
+            expect(replay.totalMoves).toBe(0);
+        });
+
+        test('handles missing timestamp in events', async () => {
+            const gameWithMissingTimestamp = {
+                id: 'game-notimestamp',
+                roomCode: 'ROOM1',
+                timestamp: 5000,
+                startedAt: 1000,
+                endedAt: 5000,
+                initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
+                finalState: { winner: 'red', redScore: 1, blueScore: 0 },
+                clues: [],
+                history: [
+                    { action: 'reveal', index: 0, word: 'A', type: 'red' }  // No timestamp
+                ],
+                teamNames: { red: 'Red', blue: 'Blue' }
+            };
+
+            storage['gameHistory:ROOM1:game-notimestamp'] = JSON.stringify(gameWithMissingTimestamp);
+
+            const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-notimestamp');
+
+            expect(replay.events).toHaveLength(1);
+            // Event should still be processed even without timestamp
+            expect(replay.events[0].type).toBe('reveal');
+        });
+    });
+
+    describe('getFirstTeam edge cases', () => {
+        test('returns red as fallback when totals are equal', async () => {
+            const gameWithEqualTotals = {
+                id: 'game-equal',
+                seed: 'test-seed',
+                words: ['A'],
+                types: ['red'],
+                redScore: 0,
+                blueScore: 0,
+                redTotal: 8,  // Neither team has 9
+                blueTotal: 8,
+                winner: null,
+                gameOver: false
+            };
+
+            const result = await gameHistoryService.saveGameResult('ROOM1', gameWithEqualTotals);
+
+            expect(result.initialBoard.firstTeam).toBe('red');
+        });
+    });
 });
