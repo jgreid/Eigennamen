@@ -6194,6 +6194,14 @@
         }
 
         function setTeam(team) {
+            // In multiplayer mode, send to server and let server response update state
+            if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                CodenamesClient.setTeam(team);
+                // Server will broadcast player:updated which triggers syncLocalPlayerState()
+                return;
+            }
+
+            // Standalone mode: update local state directly
             // When changing teams, clear any team-specific roles
             const hadRole = spymasterTeam || clickerTeam;
             const oldRole = spymasterTeam ? 'Spymaster' : (clickerTeam ? 'Clicker' : null);
@@ -6215,6 +6223,23 @@
         }
 
         function setSpymaster(team) {
+            // In multiplayer mode, send to server and let server response update state
+            if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                if (spymasterTeam === team) {
+                    // Toggle off - become spectator (team member without role)
+                    CodenamesClient.setRole('spectator');
+                } else {
+                    // First ensure we're on the right team, then set role
+                    if (playerTeam !== team) {
+                        CodenamesClient.setTeam(team);
+                    }
+                    CodenamesClient.setRole('spymaster');
+                }
+                // Server will broadcast player:updated which triggers syncLocalPlayerState()
+                return;
+            }
+
+            // Standalone mode: update local state directly
             if (spymasterTeam === team) {
                 // Toggle off - become team member
                 spymasterTeam = null;
@@ -6229,6 +6254,23 @@
         }
 
         function setClicker(team) {
+            // In multiplayer mode, send to server and let server response update state
+            if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                if (clickerTeam === team) {
+                    // Toggle off - become spectator (team member without role)
+                    CodenamesClient.setRole('spectator');
+                } else {
+                    // First ensure we're on the right team, then set role
+                    if (playerTeam !== team) {
+                        CodenamesClient.setTeam(team);
+                    }
+                    CodenamesClient.setRole('clicker');
+                }
+                // Server will broadcast player:updated which triggers syncLocalPlayerState()
+                return;
+            }
+
+            // Standalone mode: update local state directly
             if (clickerTeam === team) {
                 // Toggle off - become team member
                 clickerTeam = null;
