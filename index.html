@@ -19,7 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <!-- Socket.io client for multiplayer mode -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="/js/socket-client.js"></script>
+    <script src="/js/socket-client.js?v=3"></script>
     <style>
         /* ========== CSS CUSTOM PROPERTIES (Design Tokens) ========== */
         :root {
@@ -3587,11 +3587,12 @@
             <div class="join-form active" id="join-form">
                 <div class="form-group">
                     <label for="join-nickname">Your Nickname</label>
-                    <input type="text" id="join-nickname" placeholder="Enter your name" maxlength="20" autocomplete="off">
+                    <input type="text" id="join-nickname" placeholder="Enter your name" minlength="1" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+" title="Letters, numbers, spaces, hyphens and underscores only">
+                    <span class="error-text" id="join-nickname-error"></span>
                 </div>
                 <div class="form-group">
                     <label for="join-room-id">Room ID</label>
-                    <input type="text" id="join-room-id" placeholder="e.g. my-game or game-night" maxlength="20" autocomplete="off">
+                    <input type="text" id="join-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
                     <span class="input-hint">Enter the Room ID shared by the host</span>
                     <span class="error-text" id="join-error"></span>
                 </div>
@@ -3601,12 +3602,14 @@
             <div class="create-form" id="create-form">
                 <div class="form-group">
                     <label for="create-nickname">Your Nickname</label>
-                    <input type="text" id="create-nickname" placeholder="Enter your name" maxlength="20" autocomplete="off">
+                    <input type="text" id="create-nickname" placeholder="Enter your name" minlength="1" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+" title="Letters, numbers, spaces, hyphens and underscores only">
+                    <span class="error-text" id="create-nickname-error"></span>
                 </div>
                 <div class="form-group">
                     <label for="create-room-id">Room ID</label>
-                    <input type="text" id="create-room-id" placeholder="e.g. my-game or game-night" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
+                    <input type="text" id="create-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
                     <span class="input-hint">Share this Room ID with friends to let them join</span>
+                    <span class="error-text" id="create-error"></span>
                 </div>
             </div>
 
@@ -3842,7 +3845,7 @@
             document.getElementById('join-room-id').value = '';
             document.getElementById('create-room-id').value = '';
             setMpStatus('', '');
-            setMpError('');
+            clearFormErrors();
 
             // Reset to join mode
             setMpMode('join');
@@ -3851,6 +3854,7 @@
         }
 
         function closeMultiplayer() {
+            clearFormErrors();
             closeModal('multiplayer-modal');
         }
 
@@ -4190,6 +4194,7 @@
 
         function setMpStatus(message, type) {
             const statusEl = document.getElementById('mp-status');
+            if (!statusEl) return;
             statusEl.textContent = message;
             statusEl.className = 'connection-status';
             if (type) {
@@ -4197,15 +4202,37 @@
             }
         }
 
-        function setMpError(message) {
-            const errorEl = document.getElementById('join-error');
+        /**
+         * Set error message for a specific field or general form error
+         * @param {string} message - Error message (empty to clear)
+         * @param {string} fieldId - Field ID to show error on (e.g., 'join-error', 'create-error', 'join-nickname-error')
+         */
+        function setFieldError(message, fieldId) {
+            const errorEl = document.getElementById(fieldId);
+            if (!errorEl) return;
             const formGroup = errorEl.closest('.form-group');
             errorEl.textContent = message;
-            if (message) {
-                formGroup.classList.add('error');
-            } else {
-                formGroup.classList.remove('error');
+            if (formGroup) {
+                if (message) {
+                    formGroup.classList.add('error');
+                } else {
+                    formGroup.classList.remove('error');
+                }
             }
+        }
+
+        /**
+         * Clear all form errors
+         */
+        function clearFormErrors() {
+            ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach(id => {
+                setFieldError('', id);
+            });
+        }
+
+        // Legacy function for backward compatibility
+        function setMpError(message) {
+            setFieldError(message, currentMpMode === 'join' ? 'join-error' : 'create-error');
         }
 
         async function handleMpAction() {
@@ -4227,36 +4254,48 @@
         }
 
         async function handleJoinGame() {
+            clearFormErrors();
+
             const nickname = document.getElementById('join-nickname').value.trim();
             const roomIdInput = document.getElementById('join-room-id').value.trim();
             const urlRoomCode = getRoomCodeFromURL();
 
-            // Validation
+            // Nickname validation
             if (!nickname) {
-                setMpError('Please enter your nickname');
+                setFieldError('Please enter your nickname', 'join-nickname-error');
+                return;
+            }
+            if (nickname.length > 20) {
+                setFieldError('Nickname must be 20 characters or less', 'join-nickname-error');
+                return;
+            }
+            if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
+                setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'join-nickname-error');
                 return;
             }
 
-            // Use URL room code or input room ID
-            const roomId = urlRoomCode || roomIdInput;
+            // Use user input if provided, otherwise fall back to URL room code
+            const roomId = roomIdInput || urlRoomCode;
 
             if (!roomId) {
-                setMpError('Please enter a Room ID');
+                setFieldError('Please enter a Room ID', 'join-error');
                 return;
             }
 
             // Validate room ID format (3-20 chars, alphanumeric + hyphens + underscores)
             if (roomId.length < 3) {
-                setMpError('Room ID must be at least 3 characters');
+                setFieldError('Room ID must be at least 3 characters', 'join-error');
                 return;
             }
-
+            if (roomId.length > 20) {
+                setFieldError('Room ID must be 20 characters or less', 'join-error');
+                return;
+            }
             if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
-                setMpError('Room ID can only contain letters, numbers, hyphens, and underscores');
+                setFieldError('Room ID can only contain letters, numbers, hyphens, and underscores', 'join-error');
                 return;
             }
 
-            setMpError('');
             setMpStatus('Connecting...', 'connecting');
 
             // Connect to server
@@ -4275,8 +4314,8 @@
                 // Join the room with roomId (no password needed)
                 const result = await CodenamesClient.joinRoom(roomId, nickname);
 
-                // Store roomId for display
-                currentRoomId = roomId;
+                // Store the actual room code from server (normalized to lowercase)
+                currentRoomId = result.room?.code || roomId;
 
                 onMultiplayerJoined(result, false); // false = not host
 
@@ -4295,28 +4334,40 @@
         }
 
         async function handleCreateGame() {
+            clearFormErrors();
+
             const nickname = document.getElementById('create-nickname').value.trim();
             const roomId = document.getElementById('create-room-id').value.trim();
 
-            // Validation
+            // Nickname validation
             if (!nickname) {
-                setMpStatus('Please enter your nickname', 'error');
+                setFieldError('Please enter your nickname', 'create-nickname-error');
                 return;
             }
+            if (nickname.length > 20) {
+                setFieldError('Nickname must be 20 characters or less', 'create-nickname-error');
+                return;
+            }
+            if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
+                setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'create-nickname-error');
+                return;
+            }
+
+            // Room ID validation
             if (!roomId) {
-                setMpStatus('Please enter a Room ID', 'error');
+                setFieldError('Please enter a Room ID', 'create-error');
                 return;
             }
             if (roomId.length < 3) {
-                setMpStatus('Room ID must be at least 3 characters', 'error');
+                setFieldError('Room ID must be at least 3 characters', 'create-error');
                 return;
             }
             if (roomId.length > 20) {
-                setMpStatus('Room ID must be at most 20 characters', 'error');
+                setFieldError('Room ID must be 20 characters or less', 'create-error');
                 return;
             }
             if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
-                setMpStatus('Room ID can only contain letters, numbers, hyphens, and underscores', 'error');
+                setFieldError('Room ID can only contain letters, numbers, hyphens, and underscores', 'create-error');
                 return;
             }
 
@@ -4340,8 +4391,8 @@
                     nickname: nickname
                 });
 
-                // Store roomId for display
-                currentRoomId = roomId;
+                // Store the actual room code from server (normalized to lowercase)
+                currentRoomId = result.room?.code || roomId.toLowerCase();
 
                 onMultiplayerJoined(result, true); // true = isHost
 
@@ -4971,10 +5022,14 @@
          */
         function checkURLForRoomJoin() {
             const roomCode = getRoomCodeFromURL();
-            if (roomCode && roomCode.length === 6) {
+            // Room IDs are 3-20 characters, alphanumeric with hyphens and underscores
+            if (roomCode && roomCode.length >= 3 && roomCode.length <= 20 && /^[a-zA-Z0-9\-_]+$/.test(roomCode)) {
                 // Pre-fill nickname from storage
                 const storedNickname = localStorage.getItem('codenames-nickname') || '';
                 document.getElementById('join-nickname').value = storedNickname;
+
+                // Pre-fill room ID from URL
+                document.getElementById('join-room-id').value = roomCode;
 
                 // Show multiplayer modal in join mode
                 setMpMode('join');

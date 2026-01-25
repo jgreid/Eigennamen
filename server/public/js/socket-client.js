@@ -21,6 +21,7 @@
         storedNickname: null,       // Remember nickname for reconnection
         listeners: {},
         joinInProgress: false,      // Prevent double-join race condition
+        createInProgress: false,    // Prevent double-create race condition
         _socketListeners: [],       // Track socket.io listeners for cleanup
 
         /**
@@ -454,10 +455,17 @@
          * @returns {Promise}
          */
         createRoom(options = {}) {
+            // Prevent double-create race condition
+            if (this.createInProgress) {
+                return Promise.reject(new Error('Room creation already in progress'));
+            }
+            this.createInProgress = true;
+
             return new Promise((resolve, reject) => {
                 const { roomId, nickname, ...settings } = options;
 
                 if (!roomId) {
+                    this.createInProgress = false;
                     reject(new Error('Room ID is required'));
                     return;
                 }
@@ -466,6 +474,7 @@
                 let settled = false;
 
                 const cleanup = () => {
+                    this.createInProgress = false;
                     if (timeoutId) {
                         clearTimeout(timeoutId);
                         timeoutId = null;
@@ -501,12 +510,13 @@
                 });
 
                 // ISSUE #20 FIX: Store timeout ID for cancellation
+                // Timeout matches server SOCKET_HANDLER timeout (30s)
                 timeoutId = setTimeout(() => {
                     if (settled) return;
                     settled = true;
                     cleanup();
                     reject(new Error('Create room timeout'));
-                }, 10000);
+                }, 30000);
             });
         },
 
@@ -562,12 +572,13 @@
                 this.socket.emit('room:join', { roomId, nickname });
 
                 // ISSUE #20 FIX: Store timeout ID for cancellation
+                // Timeout matches server JOIN_ROOM timeout (15s)
                 timeoutId = setTimeout(() => {
                     if (settled) return;
                     settled = true;
                     cleanup();
                     reject(new Error('Join room timeout'));
-                }, 10000);
+                }, 15000);
             });
         },
 
@@ -785,6 +796,7 @@
             this.roomCode = null;
             this.player = null;
             this.joinInProgress = false;
+            this.createInProgress = false;
         },
 
         /**
@@ -867,6 +879,7 @@
             this.sessionId = null;
             this.storedNickname = null;
             this.joinInProgress = false;
+            this.createInProgress = false;
         },
 
         /**

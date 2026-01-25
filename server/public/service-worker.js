@@ -8,15 +8,15 @@
  * - Background sync for multiplayer actions
  */
 
-const CACHE_NAME = 'codenames-v1';
-const STATIC_CACHE = 'codenames-static-v1';
-const DYNAMIC_CACHE = 'codenames-dynamic-v1';
+const CACHE_NAME = 'codenames-v4';
+const STATIC_CACHE = 'codenames-static-v4';
+const DYNAMIC_CACHE = 'codenames-dynamic-v4';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/js/socket-client.js',
+    '/js/socket-client.js?v=3',
     '/manifest.json'
 ];
 
