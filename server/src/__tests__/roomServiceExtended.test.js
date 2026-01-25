@@ -1,8 +1,8 @@
 /**
  * Extended Room Service Tests
  *
- * Tests for password handling, settings management, and room lifecycle
- * to improve coverage from 45% to 65%+
+ * Tests for settings management, and room lifecycle
+ * Updated for simplified room ID API (no passwords)
  */
 
 // Mock storage
@@ -67,12 +67,6 @@ jest.mock('../services/timerService', () => ({
     stopTimer: jest.fn().mockResolvedValue()
 }));
 
-// Mock bcrypt
-jest.mock('bcryptjs', () => ({
-    hash: jest.fn((password) => Promise.resolve(`hashed_${password}`)),
-    compare: jest.fn((password, hash) => Promise.resolve(hash === `hashed_${password}`))
-}));
-
 // Mock playerService
 jest.mock('../services/playerService', () => ({
     createPlayer: jest.fn(async (sessionId, roomCode, nickname, isHost, _addToSet = true) => {
@@ -112,8 +106,6 @@ jest.mock('../services/gameService', () => ({
 }));
 
 const { ERROR_CODES } = require('../config/constants');
-// bcrypt imported for mocking initialization
-const _bcrypt = require('bcryptjs');
 
 describe('Room Service', () => {
     let roomService;
@@ -122,31 +114,31 @@ describe('Room Service', () => {
         jest.clearAllMocks();
         mockRedisStorage = {};
         mockPlayerStorage = {};
+        // Reset eval to return 1 (success) by default
+        mockRedis.eval.mockResolvedValue(1);
         jest.resetModules();
         roomService = require('../services/roomService');
     });
 
     describe('createRoom', () => {
-        test('creates room successfully', async () => {
-            const result = await roomService.createRoom('host-session-1', {});
+        test('creates room successfully with room ID', async () => {
+            const result = await roomService.createRoom('my-game', 'host-session-1', {});
 
             expect(result.room).toBeDefined();
-            expect(result.room.code).toBeDefined();
+            expect(result.room.code).toBe('my-game');
+            expect(result.room.roomId).toBe('my-game');
             expect(result.player).toBeDefined();
-            expect(result.room.hasPassword).toBe(false);
         });
 
-        test('creates password-protected room', async () => {
-            const result = await roomService.createRoom('host-session-2', {
-                password: 'secret123'
-            });
+        test('normalizes room ID to lowercase for storage', async () => {
+            const result = await roomService.createRoom('MyGame', 'host-session-2', {});
 
-            expect(result.room.hasPassword).toBe(true);
-            expect(result.room.passwordHash).toBeUndefined(); // Should not expose hash
+            expect(result.room.code).toBe('mygame');
+            expect(result.room.roomId).toBe('MyGame');
         });
 
         test('creates room with custom settings', async () => {
-            const result = await roomService.createRoom('host-session-3', {
+            const result = await roomService.createRoom('test-room', 'host-session-3', {
                 turnTimer: 90,
                 allowSpectators: false,
                 teamNames: { red: 'Team A', blue: 'Team B' }
@@ -157,69 +149,77 @@ describe('Room Service', () => {
             expect(result.room.settings.teamNames).toEqual({ red: 'Team A', blue: 'Team B' });
         });
 
-        test('creates room with password hash hidden from response', async () => {
-            const result = await roomService.createRoom('host-session-4', {
-                password: 'secret'
-            });
+        test('throws error when room already exists', async () => {
+            mockRedis.eval.mockResolvedValue(0); // Room exists
 
-            // The password hash should not be exposed in the returned room object
-            expect(result.room.passwordHash).toBeUndefined();
-            expect(result.room.hasPassword).toBe(true);
+            await expect(roomService.createRoom('existing', 'host-session-4', {}))
+                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_ALREADY_EXISTS });
         });
 
-        test('room code collision retry works', async () => {
-            // First attempt fails (room exists), second succeeds
-            mockRedis.eval
-                .mockResolvedValueOnce(0)  // First collision
-                .mockResolvedValueOnce(1); // Second success
+        test('creates room with custom nickname', async () => {
+            const result = await roomService.createRoom('my-room', 'host-session-5', {
+                nickname: 'GameMaster'
+            });
 
-            const result = await roomService.createRoom('host-session-5', {});
-            expect(result.room).toBeDefined();
+            expect(result.player.nickname).toBe('GameMaster');
         });
     });
 
     describe('getRoom', () => {
         test('returns room when exists', async () => {
             const roomData = {
-                code: 'ABC123',
+                code: 'test-room',
+                roomId: 'test-room',
                 hostSessionId: 'host-1',
-                settings: {},
-                hasPassword: false
+                settings: {}
             };
-            mockRedisStorage['room:ABC123'] = JSON.stringify(roomData);
+            mockRedisStorage['room:test-room'] = JSON.stringify(roomData);
 
-            const room = await roomService.getRoom('ABC123');
+            const room = await roomService.getRoom('test-room');
             expect(room).toMatchObject(roomData);
         });
 
         test('returns null when room does not exist', async () => {
-            const room = await roomService.getRoom('NOTEXIST');
+            const room = await roomService.getRoom('notexist');
             expect(room).toBeNull();
         });
 
         test('handles corrupted room data', async () => {
-            mockRedisStorage['room:CORRUPT'] = 'not valid json';
+            mockRedisStorage['room:corrupt'] = 'not valid json';
 
-            const room = await roomService.getRoom('CORRUPT');
+            const room = await roomService.getRoom('corrupt');
             expect(room).toBeNull();
+        });
+
+        test('normalizes room ID for lookup', async () => {
+            const roomData = {
+                code: 'test-room',
+                roomId: 'Test-Room',
+                hostSessionId: 'host-1',
+                settings: {}
+            };
+            mockRedisStorage['room:test-room'] = JSON.stringify(roomData);
+
+            const room = await roomService.getRoom('TEST-ROOM');
+            expect(room).toBeDefined();
+            expect(room.roomId).toBe('Test-Room');
         });
     });
 
     describe('joinRoom', () => {
         beforeEach(() => {
             const roomData = {
-                code: 'JOIN12',
+                code: 'game-room',
+                roomId: 'game-room',
                 hostSessionId: 'host-1',
-                settings: {},
-                hasPassword: false,
-                passwordHash: null
+                settings: {}
             };
-            mockRedisStorage['room:JOIN12'] = JSON.stringify(roomData);
+            mockRedisStorage['room:game-room'] = JSON.stringify(roomData);
             mockRedis.eval.mockResolvedValue(1);
         });
 
         test('joins room successfully', async () => {
-            const result = await roomService.joinRoom('JOIN12', 'player-1', 'Player1');
+            const result = await roomService.joinRoom('game-room', 'player-1', 'Player1');
 
             expect(result.room).toBeDefined();
             expect(result.player).toBeDefined();
@@ -227,14 +227,14 @@ describe('Room Service', () => {
         });
 
         test('throws when room not found', async () => {
-            await expect(roomService.joinRoom('NOTEXIST', 'player-1', 'Player1'))
+            await expect(roomService.joinRoom('notexist', 'player-1', 'Player1'))
                 .rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
         });
 
         test('throws when room is full', async () => {
             mockRedis.eval.mockResolvedValue(0);
 
-            await expect(roomService.joinRoom('JOIN12', 'player-1', 'Player1'))
+            await expect(roomService.joinRoom('game-room', 'player-1', 'Player1'))
                 .rejects.toMatchObject({ code: ERROR_CODES.ROOM_FULL });
         });
 
@@ -242,83 +242,49 @@ describe('Room Service', () => {
             // Player already in room
             mockPlayerStorage['player-1'] = {
                 sessionId: 'player-1',
-                roomCode: 'JOIN12',
+                roomCode: 'game-room',
                 nickname: 'Player1',
                 connected: false
             };
 
-            const result = await roomService.joinRoom('JOIN12', 'player-1', 'Player1');
+            const result = await roomService.joinRoom('game-room', 'player-1', 'Player1');
 
             expect(result.isReconnecting).toBe(true);
         });
-    });
 
-    describe('joinRoom with password', () => {
-        beforeEach(() => {
-            const roomData = {
-                code: 'PASS12',
-                hostSessionId: 'host-1',
-                settings: {},
-                hasPassword: true,
-                passwordHash: 'hashed_secret123',
-                passwordVersion: 1
-            };
-            mockRedisStorage['room:PASS12'] = JSON.stringify(roomData);
-            mockRedis.eval.mockResolvedValue(1);
-        });
-
-        test('joins with correct password', async () => {
-            const result = await roomService.joinRoom('PASS12', 'player-1', 'Player1', 'secret123');
+        test('normalizes room ID for lookup', async () => {
+            const result = await roomService.joinRoom('GAME-ROOM', 'player-1', 'Player1');
 
             expect(result.room).toBeDefined();
-            expect(result.player).toBeDefined();
-        });
-
-        test('throws when password required but not provided', async () => {
-            await expect(roomService.joinRoom('PASS12', 'player-1', 'Player1'))
-                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_PASSWORD_REQUIRED });
-        });
-
-        test('throws when password is incorrect', async () => {
-            await expect(roomService.joinRoom('PASS12', 'player-1', 'Player1', 'wrongpassword'))
-                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_PASSWORD_INVALID });
-        });
-
-        test('successful join stores password version', async () => {
-            mockRedis.eval.mockResolvedValue(1);
-
-            const result = await roomService.joinRoom('PASS12', 'player-1', 'Player1', 'secret123');
-
-            expect(result.room).toBeDefined();
-            expect(result.player).toBeDefined();
         });
     });
 
     describe('leaveRoom', () => {
         beforeEach(() => {
             const roomData = {
-                code: 'LEAVE1',
+                code: 'leave-room',
+                roomId: 'leave-room',
                 hostSessionId: 'host-1',
                 settings: {}
             };
-            mockRedisStorage['room:LEAVE1'] = JSON.stringify(roomData);
+            mockRedisStorage['room:leave-room'] = JSON.stringify(roomData);
 
             mockPlayerStorage['host-1'] = {
                 sessionId: 'host-1',
-                roomCode: 'LEAVE1',
+                roomCode: 'leave-room',
                 nickname: 'Host',
                 isHost: true
             };
             mockPlayerStorage['player-1'] = {
                 sessionId: 'player-1',
-                roomCode: 'LEAVE1',
+                roomCode: 'leave-room',
                 nickname: 'Player1',
                 isHost: false
             };
         });
 
         test('non-host leaves successfully', async () => {
-            const result = await roomService.leaveRoom('LEAVE1', 'player-1');
+            const result = await roomService.leaveRoom('leave-room', 'player-1');
 
             expect(result.newHostId).toBeNull();
             expect(result.roomDeleted).toBe(false);
@@ -331,7 +297,7 @@ describe('Room Service', () => {
                 { sessionId: 'player-1', nickname: 'Player1', isHost: false }
             ]);
 
-            const result = await roomService.leaveRoom('LEAVE1', 'host-1');
+            const result = await roomService.leaveRoom('leave-room', 'host-1');
 
             expect(result.newHostId).toBe('player-1');
             expect(playerService.updatePlayer).toHaveBeenCalledWith('player-1', { isHost: true });
@@ -341,13 +307,13 @@ describe('Room Service', () => {
             const playerService = require('../services/playerService');
             playerService.getPlayersInRoom.mockResolvedValueOnce([]);
 
-            const result = await roomService.leaveRoom('LEAVE1', 'host-1');
+            const result = await roomService.leaveRoom('leave-room', 'host-1');
 
             expect(result.roomDeleted).toBe(true);
         });
 
         test('handles leaving non-existent room', async () => {
-            const result = await roomService.leaveRoom('NOTEXIST', 'player-1');
+            const result = await roomService.leaveRoom('notexist', 'player-1');
 
             expect(result.newHostId).toBeNull();
             expect(result.roomDeleted).toBe(false);
@@ -357,22 +323,20 @@ describe('Room Service', () => {
     describe('updateSettings', () => {
         beforeEach(() => {
             const roomData = {
-                code: 'SETT12',
+                code: 'settings-room',
+                roomId: 'settings-room',
                 hostSessionId: 'host-1',
                 settings: {
                     turnTimer: 60,
                     allowSpectators: true,
                     teamNames: { red: 'Red', blue: 'Blue' }
-                },
-                hasPassword: false,
-                passwordHash: null,
-                passwordVersion: 0
+                }
             };
-            mockRedisStorage['room:SETT12'] = JSON.stringify(roomData);
+            mockRedisStorage['room:settings-room'] = JSON.stringify(roomData);
         });
 
         test('updates settings successfully', async () => {
-            const result = await roomService.updateSettings('SETT12', 'host-1', {
+            const result = await roomService.updateSettings('settings-room', 'host-1', {
                 turnTimer: 120,
                 allowSpectators: false
             });
@@ -382,7 +346,7 @@ describe('Room Service', () => {
         });
 
         test('updates team names', async () => {
-            const result = await roomService.updateSettings('SETT12', 'host-1', {
+            const result = await roomService.updateSettings('settings-room', 'host-1', {
                 teamNames: { red: 'Dragons', blue: 'Knights' }
             });
 
@@ -390,87 +354,15 @@ describe('Room Service', () => {
         });
 
         test('throws when not host', async () => {
-            await expect(roomService.updateSettings('SETT12', 'not-host', {
+            await expect(roomService.updateSettings('settings-room', 'not-host', {
                 turnTimer: 90
             })).rejects.toMatchObject({ code: ERROR_CODES.NOT_HOST });
         });
 
         test('throws when room not found', async () => {
-            await expect(roomService.updateSettings('NOTEXIST', 'host-1', {
+            await expect(roomService.updateSettings('notexist', 'host-1', {
                 turnTimer: 90
             })).rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
-        });
-
-        test('sets password', async () => {
-            const result = await roomService.updateSettings('SETT12', 'host-1', {
-                password: 'newpassword'
-            });
-
-            expect(result.hasPassword).toBe(true);
-            expect(result.passwordVersion).toBe(1);
-        });
-
-        test('removes password', async () => {
-            // First set a password
-            const roomData = {
-                code: 'SETT12',
-                hostSessionId: 'host-1',
-                settings: {},
-                hasPassword: true,
-                passwordHash: 'hashed_oldpassword',
-                passwordVersion: 1
-            };
-            mockRedisStorage['room:SETT12'] = JSON.stringify(roomData);
-
-            const result = await roomService.updateSettings('SETT12', 'host-1', {
-                password: null
-            });
-
-            expect(result.hasPassword).toBe(false);
-            expect(result.passwordVersion).toBe(0);
-        });
-
-        test('removes password with empty string', async () => {
-            const roomData = {
-                code: 'SETT12',
-                hostSessionId: 'host-1',
-                settings: {},
-                hasPassword: true,
-                passwordHash: 'hashed_oldpassword',
-                passwordVersion: 1
-            };
-            mockRedisStorage['room:SETT12'] = JSON.stringify(roomData);
-
-            const result = await roomService.updateSettings('SETT12', 'host-1', {
-                password: ''
-            });
-
-            expect(result.hasPassword).toBe(false);
-        });
-
-        test('increments password version on each update', async () => {
-            // First password set
-            let result = await roomService.updateSettings('SETT12', 'host-1', {
-                password: 'pass1'
-            });
-            expect(result.passwordVersion).toBe(1);
-
-            // Re-setup room with new password version
-            const roomData = {
-                code: 'SETT12',
-                hostSessionId: 'host-1',
-                settings: { turnTimer: 60 },
-                hasPassword: true,
-                passwordHash: 'hashed_pass1',
-                passwordVersion: 1
-            };
-            mockRedisStorage['room:SETT12'] = JSON.stringify(roomData);
-
-            // Second password update
-            result = await roomService.updateSettings('SETT12', 'host-1', {
-                password: 'pass2'
-            });
-            expect(result.passwordVersion).toBe(2);
         });
     });
 
@@ -478,48 +370,53 @@ describe('Room Service', () => {
         test('returns true when room exists', async () => {
             mockRedis.exists.mockResolvedValue(1);
 
-            const exists = await roomService.roomExists('EXISTS1');
+            const exists = await roomService.roomExists('test-room');
             expect(exists).toBe(true);
         });
 
         test('returns false when room does not exist', async () => {
             mockRedis.exists.mockResolvedValue(0);
 
-            const exists = await roomService.roomExists('NOTEXIST');
+            const exists = await roomService.roomExists('notexist');
             expect(exists).toBe(false);
+        });
+
+        test('normalizes room ID for lookup', async () => {
+            mockRedis.exists.mockResolvedValue(1);
+
+            await roomService.roomExists('TEST-ROOM');
+            expect(mockRedis.exists).toHaveBeenCalledWith('room:test-room');
         });
     });
 
     describe('refreshRoomTTL', () => {
         test('refreshes all room-related keys atomically using Lua script', async () => {
-            // ISSUE #8 FIX: Now uses Lua script for atomic TTL refresh
             mockRedis.eval.mockResolvedValue(1);
 
-            await roomService.refreshRoomTTL('TEST12');
+            await roomService.refreshRoomTTL('test-room');
 
             expect(mockRedis.eval).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({
                     keys: expect.arrayContaining([
-                        'room:TEST12',
-                        'room:TEST12:players',
-                        'room:TEST12:game',
-                        'room:TEST12:team:red',
-                        'room:TEST12:team:blue'
+                        'room:test-room',
+                        'room:test-room:players',
+                        'room:test-room:game',
+                        'room:test-room:team:red',
+                        'room:test-room:team:blue'
                     ])
                 })
             );
         });
 
         test('includes team sets in TTL refresh', async () => {
-            // ISSUE #8 FIX: TTL refresh now includes team sets
             mockRedis.eval.mockResolvedValue(1);
 
-            await roomService.refreshRoomTTL('TEST12');
+            await roomService.refreshRoomTTL('test-room');
 
             const evalCall = mockRedis.eval.mock.calls[0];
-            expect(evalCall[1].keys).toContain('room:TEST12:team:red');
-            expect(evalCall[1].keys).toContain('room:TEST12:team:blue');
+            expect(evalCall[1].keys).toContain('room:test-room:team:red');
+            expect(evalCall[1].keys).toContain('room:test-room:team:blue');
         });
     });
 
@@ -527,11 +424,11 @@ describe('Room Service', () => {
         test('removes all room data', async () => {
             mockRedis.sMembers.mockResolvedValue(['player-1', 'player-2']);
 
-            await roomService.cleanupRoom('CLEAN1');
+            await roomService.cleanupRoom('test-room');
 
             expect(mockRedis.del).toHaveBeenCalled();
             const timerService = require('../services/timerService');
-            expect(timerService.stopTimer).toHaveBeenCalledWith('CLEAN1');
+            expect(timerService.stopTimer).toHaveBeenCalledWith('test-room');
         });
     });
 
@@ -539,71 +436,9 @@ describe('Room Service', () => {
         test('calls cleanupRoom', async () => {
             mockRedis.sMembers.mockResolvedValue([]);
 
-            await roomService.deleteRoom('DELETE1');
+            await roomService.deleteRoom('test-room');
 
             expect(mockRedis.del).toHaveBeenCalled();
         });
-    });
-});
-
-describe('Password Change Reconnection', () => {
-    let roomService;
-
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockRedisStorage = {};
-        mockPlayerStorage = {};
-        jest.resetModules();
-        roomService = require('../services/roomService');
-    });
-
-    test('requires re-authentication when password version changed', async () => {
-        // Room with password version 2
-        const roomData = {
-            code: 'REAUTH',
-            hostSessionId: 'host-1',
-            settings: {},
-            hasPassword: true,
-            passwordHash: 'hashed_newsecret',
-            passwordVersion: 2
-        };
-        mockRedisStorage['room:REAUTH'] = JSON.stringify(roomData);
-
-        // Player has old password version
-        mockPlayerStorage['player-1'] = {
-            sessionId: 'player-1',
-            roomCode: 'REAUTH',
-            nickname: 'Player1',
-            passwordVersion: 1
-        };
-
-        // Should require re-auth
-        await expect(roomService.joinRoom('REAUTH', 'player-1', 'Player1'))
-            .rejects.toMatchObject({ code: ERROR_CODES.ROOM_PASSWORD_CHANGED });
-    });
-
-    test('allows reconnection with correct new password after change', async () => {
-        const roomData = {
-            code: 'REAUTH',
-            hostSessionId: 'host-1',
-            settings: {},
-            hasPassword: true,
-            passwordHash: 'hashed_newsecret',
-            passwordVersion: 2
-        };
-        mockRedisStorage['room:REAUTH'] = JSON.stringify(roomData);
-
-        mockPlayerStorage['player-1'] = {
-            sessionId: 'player-1',
-            roomCode: 'REAUTH',
-            nickname: 'Player1',
-            passwordVersion: 1
-        };
-        mockRedis.eval.mockResolvedValue(-1);
-
-        const result = await roomService.joinRoom('REAUTH', 'player-1', 'Player1', 'newsecret');
-
-        expect(result.isReconnecting).toBe(true);
-        expect(result.player.passwordVersion).toBe(2);
     });
 });

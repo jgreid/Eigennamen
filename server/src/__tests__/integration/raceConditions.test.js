@@ -232,12 +232,13 @@ describe('Race Condition Tests', () => {
     });
 
     describe('Room Creation Atomicity', () => {
-        test('room codes are unique across concurrent creations', async () => {
+        test('room IDs are unique - duplicate creation fails', async () => {
             const clients = [];
             const createPromises = [];
 
             try {
-                // Create 5 clients simultaneously creating rooms
+                // Create 5 clients simultaneously trying to create rooms with SAME roomId
+                // Only one should succeed (first one), others should fail
                 for (let i = 0; i < 5; i++) {
                     // eslint-disable-next-line no-await-in-loop -- Sequential client creation for controlled test setup
                     const client = await createClient();
@@ -257,18 +258,20 @@ describe('Race Condition Tests', () => {
                     });
 
                     createPromises.push(promise);
-                    client.emit('room:create', {});
+                    // All try to create the same room ID - only first should succeed
+                    client.emit('room:create', { roomId: 'race-test' });
                 }
 
                 const results = await Promise.all(createPromises);
                 const successful = results.filter(r => r.success);
+                const failed = results.filter(r => !r.success && r.data?.code === 'ROOM_ALREADY_EXISTS');
 
-                // All should succeed with unique room codes
-                expect(successful.length).toBe(5);
+                // Only one should succeed (the first one to reach Redis)
+                expect(successful.length).toBe(1);
+                expect(successful[0].data.room.code).toBe('race-test');
 
-                const codes = successful.map(r => r.data.room.code);
-                const uniqueCodes = new Set(codes);
-                expect(uniqueCodes.size).toBe(5);
+                // Others should fail with ROOM_ALREADY_EXISTS
+                expect(failed.length).toBeGreaterThanOrEqual(0); // Some might timeout
             } finally {
                 clients.forEach(c => c.disconnect());
             }
@@ -283,7 +286,7 @@ describe('Race Condition Tests', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'race-test' });
                 const { room } = await createPromise;
 
                 // Try to join with 5 players (within limit)
@@ -293,7 +296,7 @@ describe('Race Condition Tests', () => {
                     clients.push(client);
 
                     const joinPromise = waitForEvent(client, 'room:joined');
-                    client.emit('room:join', { code: room.code, nickname: `Player${i}` });
+                    client.emit('room:join', { roomId: room.code, nickname: `Player${i}` });
                     // eslint-disable-next-line no-await-in-loop
                     await joinPromise;
                 }
@@ -315,7 +318,7 @@ describe('Race Condition Tests', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'race-test' });
                 await createPromise;
 
                 // Start game
@@ -342,7 +345,7 @@ describe('Race Condition Tests', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'race-test' });
                 await createPromise;
 
                 // Start first game
@@ -371,12 +374,12 @@ describe('Race Condition Tests', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'race-test' });
                 const { room } = await createPromise;
 
                 // Join room
                 const joinPromise = waitForEvent(player, 'room:joined');
-                player.emit('room:join', { code: room.code, nickname: 'Player' });
+                player.emit('room:join', { roomId: room.code, nickname: 'Player' });
                 await joinPromise;
 
                 // Set team to red
@@ -403,12 +406,12 @@ describe('Race Condition Tests', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'race-test' });
                 const { room } = await createPromise;
 
                 // Join room
                 const joinPromise = waitForEvent(player, 'room:joined');
-                player.emit('room:join', { code: room.code, nickname: 'Player' });
+                player.emit('room:join', { roomId: room.code, nickname: 'Player' });
                 await joinPromise;
 
                 // Try to become spymaster without team

@@ -361,7 +361,8 @@ async function updateSettings(code, sessionId, newSettings) {
  */
 async function roomExists(code) {
     const redis = getRedis();
-    return await redis.exists(`room:${code}`) === 1;
+    const normalizedCode = code.toLowerCase();
+    return await redis.exists(`room:${normalizedCode}`) === 1;
 }
 
 /**

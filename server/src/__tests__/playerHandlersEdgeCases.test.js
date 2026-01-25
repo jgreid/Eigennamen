@@ -281,7 +281,7 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'edge-test' });
                 await createPromise;
 
                 // Join red team
@@ -323,7 +323,7 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'edge-test' });
                 await createPromise;
 
                 // Join red team
@@ -366,7 +366,7 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room and start game
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'edge-test' });
                 await createPromise;
 
                 // Join red team
@@ -435,12 +435,12 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', {});
+                host.emit('room:create', { roomId: 'edge-test' });
                 const { room } = await createPromise;
 
                 // Player joins
                 const joinPromise = waitForEvent(player, 'room:joined');
-                player.emit('room:join', { code: room.code, nickname: 'Player1' });
+                player.emit('room:join', { roomId: room.code, nickname: 'Player1' });
                 await joinPromise;
 
                 // Host starts game first (doesn't need team for this test)
@@ -488,7 +488,7 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(client, 'room:created');
-                client.emit('room:create', {});
+                client.emit('room:create', { roomId: 'edge-test' });
                 await createPromise;
 
                 // Try to set invalid role (validation error)
@@ -510,7 +510,7 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(client, 'room:created');
-                client.emit('room:create', {});
+                client.emit('room:create', { roomId: 'edge-test' });
                 await createPromise;
 
                 // Try to set empty nickname
@@ -530,7 +530,7 @@ describe('Player Handlers Edge Cases', () => {
             try {
                 // Create room
                 const createPromise = waitForEvent(client, 'room:created');
-                client.emit('room:create', {});
+                client.emit('room:create', { roomId: 'edge-test' });
                 await createPromise;
 
                 // Try to set overly long nickname

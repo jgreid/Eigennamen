@@ -190,18 +190,20 @@ describe('Room Routes', () => {
 
     describe('GET /api/rooms/:code/exists', () => {
         it('should return exists: true for existing room', async () => {
-            // Create a room
-            const roomCode = 'ABC123';
+            // Store with lowercase since roomExists normalizes to lowercase
+            const roomCode = 'abc123';
             const roomData = {
                 code: roomCode,
+                roomId: 'ABC123',
                 status: 'waiting',
                 hostSessionId: 'host-123',
                 settings: { teamNames: { red: 'Red', blue: 'Blue' } }
             };
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
 
+            // Request can use any case - will be normalized
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}/exists`)
+                .get('/api/rooms/ABC123/exists')
                 .expect(200);
 
             expect(response.body.exists).toBe(true);
@@ -215,15 +217,18 @@ describe('Room Routes', () => {
             expect(response.body.exists).toBe(false);
         });
 
-        it('should handle lowercase room codes by converting to uppercase', async () => {
-            const roomCode = 'ABC123';
+        it('should handle case-insensitive room code lookup', async () => {
+            // Store with lowercase since roomExists normalizes to lowercase
+            const roomCode = 'abc123';
             const roomData = {
                 code: roomCode,
+                roomId: 'ABC123',
                 status: 'waiting',
                 settings: { teamNames: { red: 'Red', blue: 'Blue' } }
             };
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
 
+            // Request with lowercase should find the room
             const response = await request(app)
                 .get('/api/rooms/abc123/exists')
                 .expect(200);
@@ -250,9 +255,11 @@ describe('Room Routes', () => {
 
     describe('GET /api/rooms/:code', () => {
         it('should return room info for existing room', async () => {
-            const roomCode = 'XYZ789';
+            // Use lowercase for storage since getRoom normalizes to lowercase
+            const roomCode = 'xyz789';
             const roomData = {
                 code: roomCode,
+                roomId: 'XYZ789',
                 status: 'playing',
                 hostSessionId: 'host-456',
                 settings: {
@@ -264,8 +271,9 @@ describe('Room Routes', () => {
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
             mockRedisSets.set(`room:${roomCode}:players`, new Set(['player1', 'player2']));
 
+            // Request can use any case - will be normalized
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}`)
+                .get('/api/rooms/XYZ789')
                 .expect(200);
 
             expect(response.body.room).toBeDefined();
@@ -286,12 +294,13 @@ describe('Room Routes', () => {
         });
 
         it('should not expose sensitive room data', async () => {
-            const roomCode = 'SECRET';
+            // Use lowercase for storage since getRoom normalizes to lowercase
+            const roomCode = 'secret';
             const roomData = {
                 code: roomCode,
+                roomId: 'SECRET',
                 status: 'waiting',
                 hostSessionId: 'secret-host',
-                password: 'hashed-password-should-not-be-exposed',
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
                     allowSpectators: false,
@@ -301,11 +310,10 @@ describe('Room Routes', () => {
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
 
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}`)
+                .get('/api/rooms/SECRET')
                 .expect(200);
 
-            // Should not include password or hostSessionId
-            expect(response.body.room.password).toBeUndefined();
+            // Should not include hostSessionId
             expect(response.body.room.hostSessionId).toBeUndefined();
         });
     });

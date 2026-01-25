@@ -60,7 +60,8 @@ const roomJoinSchema = z.object({
     roomId: z.string()
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
-        .transform(val => removeControlChars(val).trim()),
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => roomIdRegex.test(val), 'Room ID can only contain letters, numbers, hyphens, and underscores'),
     nickname: createNicknameSchema()
 });
 
