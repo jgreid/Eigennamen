@@ -11,13 +11,17 @@
 const { getRedis, getPubSubClients } = require('../config/redis');
 const logger = require('../utils/logger');
 const pubSubHealth = require('../utils/pubSubHealth');
-const { TIMER, REDIS_TTL } = require('../config/constants');
+const { TIMER, REDIS_TTL, LOCKS } = require('../config/constants');
 
 // Local timers for this instance
 const localTimers = new Map();
 
 // Track pending addTime operations to prevent race conditions
+// Each entry is { promise: Promise, createdAt: number }
 const pendingAddTimeOps = new Map();
+
+// Maximum age for pending operations before cleanup (30 seconds)
+const PENDING_OP_MAX_AGE_MS = 30000;
 
 // Use centralized constants
 const ORPHAN_CHECK_INTERVAL = TIMER.ORPHAN_CHECK_INTERVAL_MS;
@@ -159,6 +163,27 @@ async function initializeTimerService(onExpireCallback, maxRetries = 3) {
             await subClient.subscribe(TIMER_CHANNEL, (message) => {
                 try {
                     const event = JSON.parse(message);
+
+                    // SECURITY FIX: Validate event structure before processing
+                    if (!event || typeof event !== 'object') {
+                        logger.warn('Invalid timer event: not an object');
+                        return;
+                    }
+                    if (!event.type || typeof event.type !== 'string') {
+                        logger.warn('Invalid timer event: missing or invalid type');
+                        return;
+                    }
+                    if (!event.roomCode || typeof event.roomCode !== 'string') {
+                        logger.warn('Invalid timer event: missing or invalid roomCode');
+                        return;
+                    }
+                    // Validate type is one of the expected values
+                    const validTypes = ['started', 'stopped', 'paused', 'addTime', 'expired'];
+                    if (!validTypes.includes(event.type)) {
+                        logger.warn(`Invalid timer event type: ${event.type}`);
+                        return;
+                    }
+
                     pubSubHealth.recordSuccess('subscribe');
                     handleTimerEvent(event, onExpireCallback);
                 } catch (e) {
@@ -265,17 +290,20 @@ function handleTimerEvent(event, onExpireCallback) {
                 };
 
                 // Chain operations to prevent race conditions
-                const existingOp = pendingAddTimeOps.get(event.roomCode) || Promise.resolve();
+                // MEMORY FIX: Track creation time for cleanup of stale entries
+                const existingEntry = pendingAddTimeOps.get(event.roomCode);
+                const existingOp = existingEntry?.promise || Promise.resolve();
                 const newOp = existingOp
                     .then(processAddTime)
                     .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err))
                     .finally(() => {
                         // Clean up if this is the last operation
-                        if (pendingAddTimeOps.get(event.roomCode) === newOp) {
+                        const currentEntry = pendingAddTimeOps.get(event.roomCode);
+                        if (currentEntry?.promise === newOp) {
                             pendingAddTimeOps.delete(event.roomCode);
                         }
                     });
-                pendingAddTimeOps.set(event.roomCode, newOp);
+                pendingAddTimeOps.set(event.roomCode, { promise: newOp, createdAt: Date.now() });
             }
             break;
         case 'expired':
@@ -806,11 +834,46 @@ async function checkOrphanedTimers(onExpireCallback) {
                     // If claimed is null, another instance already handled it
                 } else if (remainingMs > 0) {
                     // Timer is still active but no local instance is handling it
-                    // Take ownership regardless of remaining time to handle long-running timers
-                    // (up to MAX_TURN_SECONDS = 300s) from crashed instances
-                    logger.info(`Taking ownership of orphaned timer for room ${roomCode} (${Math.ceil(remainingMs / 1000)}s remaining)`);
-                    const remainingSeconds = Math.ceil(remainingMs / 1000);
-                    await startTimer(roomCode, remainingSeconds, onExpireCallback);
+                    // RACE CONDITION FIX: Use distributed lock to prevent multiple instances
+                    // from simultaneously claiming the same orphaned timer
+                    // Uses centralized LOCKS.TIMER_ORPHAN constant
+                    const orphanLockKey = `lock:timer:orphan:${roomCode}`;
+                    const orphanLockValue = `${process.pid}:${Date.now()}`;
+
+                    // Try to acquire lock using centralized constant
+                    const lockResult = await redis.set(orphanLockKey, orphanLockValue, { NX: true, EX: LOCKS.TIMER_ORPHAN });
+                    const lockAcquired = lockResult === 'OK' || lockResult === true;
+
+                    if (!lockAcquired) {
+                        // Another instance is taking ownership
+                        logger.debug(`Skipping orphan takeover for room ${roomCode} - another instance handling it`);
+                        continue;
+                    }
+
+                    try {
+                        // Re-verify timer still needs takeover (could have been claimed in the meantime)
+                        const recheck = await redis.get(key);
+                        if (!recheck) {
+                            logger.debug(`Timer ${roomCode} no longer exists after lock acquisition`);
+                            continue;
+                        }
+
+                        // Verify no local timer was created while we waited for lock
+                        if (localTimers.has(roomCode)) {
+                            logger.debug(`Local timer for ${roomCode} appeared during lock acquisition`);
+                            continue;
+                        }
+
+                        // Take ownership
+                        logger.info(`Taking ownership of orphaned timer for room ${roomCode} (${Math.ceil(remainingMs / 1000)}s remaining)`);
+                        const remainingSeconds = Math.ceil(remainingMs / 1000);
+                        await startTimer(roomCode, remainingSeconds, onExpireCallback);
+                    } finally {
+                        // Release lock
+                        await redis.del(orphanLockKey).catch(err => {
+                            logger.warn(`Failed to release orphan lock for ${roomCode}:`, err.message);
+                        });
+                    }
                 }
             } catch (e) {
                 logger.error(`Error processing orphaned timer ${key}:`, e);
@@ -820,6 +883,19 @@ async function checkOrphanedTimers(onExpireCallback) {
         const duration = Date.now() - startTime;
         if (duration > 1000) {
             logger.debug(`Orphan timer check completed in ${duration}ms, processed ${keys.length} keys`);
+        }
+
+        // MEMORY FIX: Clean up stale pending operations that may have hung
+        const now = Date.now();
+        let staleCount = 0;
+        for (const [roomCode, entry] of pendingAddTimeOps.entries()) {
+            if (now - entry.createdAt > PENDING_OP_MAX_AGE_MS) {
+                pendingAddTimeOps.delete(roomCode);
+                staleCount++;
+            }
+        }
+        if (staleCount > 0) {
+            logger.warn(`Cleaned up ${staleCount} stale pending addTime operations`);
         }
     } catch (error) {
         logger.error('Error checking orphaned timers:', error);

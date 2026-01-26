@@ -75,9 +75,10 @@ describe('Rate Limit Handler', () => {
             expect(handler).toHaveBeenCalledWith({ test: 'data' });
         });
 
-        test('emits error event when handler throws', async () => {
-            const error = new Error('Test error');
-            error.code = 'TEST_ERROR';
+        test('emits error event when handler throws with safe error code', async () => {
+            // Use a safe error code that allows message passthrough
+            const error = new Error('Invalid input provided');
+            error.code = 'INVALID_INPUT';
             const handler = jest.fn().mockRejectedValue(error);
             const wrapped = createRateLimitedHandler(mockSocket, 'game:reveal', handler);
 
@@ -87,13 +88,15 @@ describe('Rate Limit Handler', () => {
             await new Promise(resolve => setTimeout(resolve, 10));
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', {
-                code: 'TEST_ERROR',
-                message: 'Test error'
+                code: 'INVALID_INPUT',
+                message: 'Invalid input provided'
             });
         });
 
-        test('emits SERVER_ERROR when handler throws without code', async () => {
-            const error = new Error('Unknown error');
+        test('emits sanitized message for unknown error codes', async () => {
+            // Non-safe error codes should have message sanitized
+            const error = new Error('Internal server details');
+            error.code = 'UNKNOWN_CODE';
             const handler = jest.fn().mockRejectedValue(error);
             const wrapped = createRateLimitedHandler(mockSocket, 'room:join', handler);
 
@@ -102,8 +105,24 @@ describe('Rate Limit Handler', () => {
             await new Promise(resolve => setTimeout(resolve, 10));
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
+                code: 'UNKNOWN_CODE',
+                message: 'An unexpected error occurred'
+            });
+        });
+
+        test('emits SERVER_ERROR with sanitized message when handler throws without code', async () => {
+            const error = new Error('Unknown error');
+            const handler = jest.fn().mockRejectedValue(error);
+            const wrapped = createRateLimitedHandler(mockSocket, 'room:join', handler);
+
+            await wrapped({});
+
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            // Message should be sanitized for SERVER_ERROR
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: 'SERVER_ERROR',
-                message: 'Unknown error'
+                message: 'An unexpected error occurred'
             });
         });
 

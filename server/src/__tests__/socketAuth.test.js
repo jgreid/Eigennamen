@@ -474,9 +474,11 @@ describe('Socket Authentication Middleware', () => {
 
         test('validates reconnection with token for disconnected player', async () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            // Token must be 64 hex characters (32 bytes * 2)
+            const validHexToken = 'a'.repeat(64);
             const socket = createMockSocket({
                 sessionId: validUuid,
-                reconnectToken: 'valid-token'
+                reconnectToken: validHexToken
             });
             const next = jest.fn();
 
@@ -497,15 +499,17 @@ describe('Socket Authentication Middleware', () => {
             await authenticateSocket(socket, next);
 
             expect(socket.sessionId).toBe(validUuid);
-            expect(playerService.validateReconnectToken).toHaveBeenCalledWith(validUuid, 'valid-token');
+            expect(playerService.validateReconnectToken).toHaveBeenCalledWith(validUuid, validHexToken);
             expect(next).toHaveBeenCalledWith();
         });
 
         test('generates new session when reconnection token is invalid', async () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            // Token must be 64 hex characters but will fail validation
+            const invalidButWellFormedToken = 'b'.repeat(64);
             const socket = createMockSocket({
                 sessionId: validUuid,
-                reconnectToken: 'invalid-token'
+                reconnectToken: invalidButWellFormedToken
             });
             const next = jest.fn();
 
@@ -532,9 +536,11 @@ describe('Socket Authentication Middleware', () => {
 
         test('flags IP mismatch on socket when detected', async () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            // Token must be 64 hex characters (32 bytes * 2)
+            const validHexToken = 'c'.repeat(64);
             const socket = createMockSocket({
                 sessionId: validUuid,
-                reconnectToken: 'valid-token'
+                reconnectToken: validHexToken
             }, '10.0.0.1');
             const next = jest.fn();
 

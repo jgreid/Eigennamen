@@ -134,7 +134,10 @@ module.exports = {
     LOCKS: {
         SPYMASTER_ROLE: 5,        // Lock for spymaster role assignment
         HOST_TRANSFER: 3,         // Lock for host transfer (reduced from 10s - DB ops are fast)
-        TIMER_RESTART: 5          // Lock for timer restart
+        TIMER_RESTART: 5,         // Lock for timer restart
+        CARD_REVEAL: 15,          // Lock for card reveal operation (longer due to retry logic)
+        GAME_CREATE: 10,          // Lock for game creation
+        TIMER_ORPHAN: 5           // Lock for orphan timer takeover
     },
 
     // Retry configuration

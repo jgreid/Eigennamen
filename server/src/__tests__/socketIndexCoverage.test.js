@@ -84,7 +84,9 @@ jest.mock('../services/playerService', () => ({
     getPlayersInRoom: jest.fn().mockResolvedValue([]),
     handleDisconnect: jest.fn().mockResolvedValue(),
     updatePlayer: jest.fn().mockResolvedValue(),
-    generateReconnectionToken: jest.fn().mockResolvedValue('test-token-123')
+    generateReconnectionToken: jest.fn().mockResolvedValue('test-token-123'),
+    // Added for atomic host transfer
+    atomicHostTransfer: jest.fn().mockResolvedValue({ success: true, oldHost: {}, newHost: {} })
 }));
 
 jest.mock('../services/eventLogService', () => ({
@@ -197,15 +199,19 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             expect(playerService.generateReconnectionToken).toHaveBeenCalledWith('session-123');
             expect(playerService.handleDisconnect).toHaveBeenCalledWith('session-123');
             expect(mockIo.to).toHaveBeenCalledWith('room:ROOM01');
+            // SECURITY FIX: reconnectionToken is no longer broadcast to prevent session hijacking
             expect(mockEmit).toHaveBeenCalledWith('player:disconnected', expect.objectContaining({
                 sessionId: 'session-123',
                 nickname: 'TestPlayer',
                 team: 'red',
                 reason: 'transport close',
-                reconnectionToken: 'reconnect-token-xyz',
+                // Token is NOT included in broadcast for security
                 reconnecting: true,
                 reconnectionDeadline: expect.any(Number)
             }));
+            // Verify token is NOT in the broadcast
+            const disconnectCall = mockEmit.mock.calls.find(c => c[0] === 'player:disconnected');
+            expect(disconnectCall[1].reconnectionToken).toBeUndefined();
         });
 
         test('handles token generation failure gracefully', async () => {
@@ -237,11 +243,14 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
                 expect.stringContaining('Failed to generate reconnection token'),
                 'Token generation failed'
             );
+            // SECURITY FIX: reconnectionToken is no longer broadcast
             expect(mockEmit).toHaveBeenCalledWith('player:disconnected', expect.objectContaining({
-                reconnectionToken: null,
                 reconnecting: false,
                 reconnectionDeadline: null
             }));
+            // Verify token is NOT in broadcast
+            const disconnectCall = mockEmit.mock.calls.find(c => c[0] === 'player:disconnected');
+            expect(disconnectCall[1].reconnectionToken).toBeUndefined();
         });
 
         test('sets null reconnection values when token generation fails', async () => {
@@ -272,7 +281,8 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const call = mockEmit.mock.calls.find(c => c[0] === 'player:disconnected');
             expect(call).toBeDefined();
             const data = call[1];
-            expect(data.reconnectionToken).toBeNull();
+            // SECURITY FIX: reconnectionToken is no longer broadcast
+            expect(data.reconnectionToken).toBeUndefined();
             expect(data.reconnecting).toBe(false);
             expect(data.reconnectionDeadline).toBeNull();
         });
@@ -420,8 +430,12 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
 
             await socketMod._handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            expect(playerService.updatePlayer).toHaveBeenCalledWith('host-session', { isHost: false });
-            expect(playerService.updatePlayer).toHaveBeenCalledWith('player-2', { isHost: true });
+            // SECURITY FIX: Now uses atomic host transfer instead of separate updatePlayer calls
+            expect(playerService.atomicHostTransfer).toHaveBeenCalledWith(
+                'host-session',
+                'player-2',
+                'ROOM01'
+            );
 
             expect(mockEmit).toHaveBeenCalledWith('room:hostChanged', expect.objectContaining({
                 newHostSessionId: 'player-2',
@@ -436,10 +450,6 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
                     previousHostSessionId: 'host-session',
                     newHostSessionId: 'player-2'
                 })
-            );
-
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Host transferred to Player2')
             );
         });
 
@@ -561,11 +571,11 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
 
             await socketMod._handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            // Verify room was updated in Redis
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'room:ROOM01',
-                expect.any(String),
-                expect.objectContaining({ EX: expect.any(Number) })
+            // Verify atomic host transfer was called (room update happens inside the Lua script)
+            expect(playerService.atomicHostTransfer).toHaveBeenCalledWith(
+                'host-session',
+                'player-2',
+                'ROOM01'
             );
         });
 
@@ -592,14 +602,10 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
                 hostSessionId: 'host-session'
             });
 
-            // Make updatePlayer throw on the second call (setting new host)
-            let updateCallCount = 0;
-            playerService.updatePlayer.mockImplementation(async (sessionId, updates) => {
-                updateCallCount++;
-                if (updateCallCount === 2) {
-                    throw new Error('Failed to update new host');
-                }
-                return { sessionId, ...updates };
+            // SECURITY FIX: Now tests atomicHostTransfer failure
+            playerService.atomicHostTransfer.mockResolvedValue({
+                success: false,
+                reason: 'SCRIPT_ERROR'
             });
 
             const socketMod = require('../socket/index');
@@ -614,9 +620,10 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
 
             await socketMod._handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            // Logger receives a single formatted string
+            // atomicHostTransfer returns failure, which is logged as error
             expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Host transfer failed')
+                expect.stringContaining('Atomic host transfer failed: SCRIPT_ERROR'),
+                expect.any(Object)
             );
         });
 
@@ -877,6 +884,13 @@ describe('Host Change Event Logging (Lines 389-399)', () => {
             { sessionId: 'player-2', nickname: 'NewHostName', connected: true }
         ]);
 
+        // SECURITY FIX: Need to mock atomicHostTransfer to return success
+        playerService.atomicHostTransfer.mockResolvedValue({
+            success: true,
+            oldHost: { sessionId: 'host-session', isHost: false },
+            newHost: { sessionId: 'player-2', isHost: true }
+        });
+
         roomService.getRoom.mockResolvedValue({
             code: 'ROOM01',
             hostSessionId: 'host-session'
@@ -953,6 +967,7 @@ describe('Player Disconnected Notification Details (Lines 326-340)', () => {
         expect(disconnectCall).toBeDefined();
 
         const eventData = disconnectCall[1];
+        // SECURITY FIX: reconnectionToken is no longer broadcast to prevent session hijacking
         expect(eventData).toMatchObject({
             sessionId: 'session-test',
             nickname: 'TestNick',
@@ -960,9 +975,11 @@ describe('Player Disconnected Notification Details (Lines 326-340)', () => {
             reason: 'server shutdown',
             timestamp: expect.any(Number),
             players: mockPlayers,
-            reconnectionToken: 'token-abc-123',
+            // Token is NOT included in broadcast for security reasons
             reconnecting: true,
             reconnectionDeadline: expect.any(Number)
         });
+        // Verify token is NOT in the broadcast
+        expect(eventData.reconnectionToken).toBeUndefined();
     });
 });
