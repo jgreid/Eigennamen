@@ -117,8 +117,13 @@ module.exports = function playerHandlers(io, socket) {
 
             const player = await playerService.setRole(socket.sessionId, validated.role);
 
+            // FIX: Add early null check before accessing properties
+            if (!player) {
+                throw PlayerError.notFound(socket.sessionId);
+            }
+
             // ISSUE #10 FIX: Verify player is still in the room before broadcasting
-            if (!player || player.roomCode !== socket.roomCode) {
+            if (player.roomCode !== socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
             }
 
@@ -192,8 +197,13 @@ module.exports = function playerHandlers(io, socket) {
 
             const player = await playerService.setNickname(socket.sessionId, validated.nickname);
 
+            // FIX: Add early null check before accessing properties
+            if (!player) {
+                throw PlayerError.notFound(socket.sessionId);
+            }
+
             // ISSUE #10 FIX: Verify player is still in the room before broadcasting
-            if (!player || player.roomCode !== socket.roomCode) {
+            if (player.roomCode !== socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
             }
 
@@ -304,7 +314,8 @@ module.exports = function playerHandlers(io, socket) {
             const remainingPlayers = await playerService.getPlayersInRoom(socket.roomCode);
             io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
                 sessionId: data.targetSessionId,
-                players: remainingPlayers
+                // FIX: Provide empty array fallback if players fetch fails
+                players: remainingPlayers || []
             });
 
             logger.info(`Host ${sanitizeHtml(requester.nickname)} kicked player ${sanitizeHtml(targetPlayer.nickname)} from room ${socket.roomCode}`);

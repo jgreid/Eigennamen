@@ -317,6 +317,10 @@ module.exports = function roomHandlers(io, socket) {
 
                 // Get all players in room
                 const players = await playerService.getPlayersInRoom(socket.roomCode);
+                // FIX: Add null check for players array to prevent server crash
+                if (!players || !Array.isArray(players)) {
+                    throw RoomError.notFound(socket.roomCode);
+                }
 
                 // Get game state if exists
                 const game = await gameService.getGame(socket.roomCode);
@@ -445,7 +449,15 @@ module.exports = function roomHandlers(io, socket) {
 
                 // Get full state for the reconnected player
                 const player = await playerService.getPlayer(socket.sessionId);
+                // FIX: Add null check for player to prevent server crash
+                if (!player) {
+                    throw { code: ERROR_CODES.PLAYER_NOT_FOUND, message: 'Player not found after reconnect' };
+                }
                 const players = await playerService.getPlayersInRoom(code);
+                // FIX: Add null check for players array
+                if (!players || !Array.isArray(players)) {
+                    throw RoomError.notFound(code);
+                }
                 const game = await gameService.getGame(code);
 
                 let gameState = null;

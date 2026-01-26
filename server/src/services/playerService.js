@@ -247,6 +247,11 @@ return cjson.encode({player = player, oldTeam = oldTeam})
 async function setTeam(sessionId, team) {
     const redis = getRedis();
 
+    // FIX: Defense-in-depth validation for team value
+    if (team !== null && team !== undefined && team !== 'red' && team !== 'blue') {
+        throw new ValidationError(`Invalid team: must be 'red', 'blue', or null`);
+    }
+
     // Get player first to get room code
     const existingPlayer = await getPlayer(sessionId);
     if (!existingPlayer) {
@@ -663,6 +668,13 @@ async function validateReconnectToken(sessionId, token) {
     if (!storedToken) {
         // No stored token - either expired or never set
         logger.debug('No reconnection token found', { sessionId });
+        return false;
+    }
+
+    // FIX: Validate lengths match before constant-time comparison
+    // timingSafeEqual throws if buffer lengths differ, which would crash the server
+    if (storedToken.length !== token.length) {
+        logger.warn('Reconnection token length mismatch', { sessionId });
         return false;
     }
 

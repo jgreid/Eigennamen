@@ -323,8 +323,9 @@ describe('Extended Player Handlers Tests', () => {
             const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
             await setRoleHandler[1]({ role: 'clicker' });
 
+            // FIX: Updated to expect PLAYER_NOT_FOUND - more accurate error code
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'ROOM_NOT_FOUND'
+                code: 'PLAYER_NOT_FOUND'
             }));
         });
 

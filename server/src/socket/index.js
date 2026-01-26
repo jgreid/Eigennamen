@@ -564,6 +564,11 @@ async function handleDisconnect(io, socket, reason) {
 
                     if (hostTransferLockAcquired) {
                         const players = await playerService.getPlayersInRoom(roomCode);
+                        // FIX: Add null check for players to prevent server crash
+                        if (!players || !Array.isArray(players)) {
+                            logger.warn(`Unable to fetch players for host transfer in room ${roomCode}`);
+                            return;
+                        }
                         const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
 
                         if (connectedPlayers.length > 0) {
