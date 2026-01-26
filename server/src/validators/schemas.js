@@ -18,6 +18,23 @@ const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
 // Room ID validation regex - alphanumeric, hyphens, underscores (no spaces for easier sharing)
 const roomIdRegex = /^[a-zA-Z0-9\-_]+$/;
 
+// Nickname validation regex - alphanumeric, spaces, hyphens, underscores only (defense against XSS)
+const nicknameRegex = /^[a-zA-Z0-9\s\-_]+$/;
+
+/**
+ * Create a validated nickname schema with reserved name checking
+ * Used for all nickname inputs throughout the application
+ * IMPORTANT: Defined early so it can be used in roomCreateSchema
+ */
+const createNicknameSchema = () => z.string()
+    .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+    .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
+    .transform(val => removeControlChars(val).trim())
+    .refine(val => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+    .refine(val => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
+    .refine(val => nicknameRegex.test(val), 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores')
+    .refine(val => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
+
 // Room schemas
 const roomCreateSchema = z.object({
     // Room ID provided by host - serves as both room name and access key
@@ -38,22 +55,6 @@ const roomCreateSchema = z.object({
         nickname: createNicknameSchema().optional()
     }).optional().default({})
 });
-
-// Nickname validation regex - alphanumeric, spaces, hyphens, underscores only (defense against XSS)
-const nicknameRegex = /^[a-zA-Z0-9\s\-_]+$/;
-
-/**
- * Create a validated nickname schema with reserved name checking
- * Used for all nickname inputs throughout the application
- */
-const createNicknameSchema = () => z.string()
-    .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-    .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
-    .transform(val => removeControlChars(val).trim())
-    .refine(val => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-    .refine(val => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
-    .refine(val => nicknameRegex.test(val), 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores')
-    .refine(val => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
 
 const roomJoinSchema = z.object({
     // Room ID - the same ID the host used when creating the room
