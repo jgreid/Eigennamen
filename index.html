@@ -3242,7 +3242,7 @@
                 </button>
                 <div class="mp-room-id-display" id="mp-room-id-display" style="display: none;">
                     <span>Room ID: <strong id="mp-room-id-text"></strong></span>
-                    <button type="button" class="btn-copy-room-id" id="btn-copy-room-id" title="Copy Room ID">📋</button>
+                    <button type="button" class="btn-copy-room-id" id="btn-copy-room-id" title="Copy Room ID" aria-label="Copy Room ID">📋</button>
                 </div>
                 <!-- Player list (expandable) -->
                 <div class="mp-player-list" id="mp-player-list" style="display: none;">
@@ -3468,7 +3468,7 @@
                             <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
 
                             <div class="link-input-group">
-                                <input type="text" id="share-link-input" readonly class="share-link-input">
+                                <input type="text" id="share-link-input" readonly class="share-link-input" aria-label="Shareable game link">
                                 <button type="button" class="btn-copy-link" data-action="copy-link" title="Copy link to clipboard">
                                     <span class="copy-icon">📋</span>
                                     <span class="copy-text">Copy</span>
@@ -3774,6 +3774,38 @@
             }
         }
 
+        // ========== SAFE LOCALSTORAGE WRAPPER ==========
+        // localStorage can throw in private browsing mode or when quota is exceeded
+        function safeGetItem(key, defaultValue = null) {
+            try {
+                const value = localStorage.getItem(key);
+                return value !== null ? value : defaultValue;
+            } catch (e) {
+                console.warn('localStorage.getItem failed:', e.message);
+                return defaultValue;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                console.warn('localStorage.setItem failed:', e.message);
+                return false;
+            }
+        }
+
+        function safeRemoveItem(key) {
+            try {
+                localStorage.removeItem(key);
+                return true;
+            } catch (e) {
+                console.warn('localStorage.removeItem failed:', e.message);
+                return false;
+            }
+        }
+
         // ========== TOAST NOTIFICATION SYSTEM ==========
         function showToast(message, type = 'error', duration = 4000) {
             const container = document.getElementById('toast-container');
@@ -3791,7 +3823,7 @@
             toast.innerHTML = `
                 <span class="toast-icon">${icons[type] || icons.error}</span>
                 <span class="toast-message">${escapeHTML(message)}</span>
-                <button type="button" class="toast-close" data-action="dismiss-toast">&times;</button>
+                <button type="button" class="toast-close" data-action="dismiss-toast" aria-label="Dismiss notification">&times;</button>
             `;
 
             container.appendChild(toast);
@@ -3871,7 +3903,7 @@
 
         function openMultiplayer() {
             // Pre-fill nickname from storage
-            const storedNickname = localStorage.getItem('codenames-nickname') || '';
+            const storedNickname = safeGetItem('codenames-nickname', '');
             document.getElementById('join-nickname').value = storedNickname;
             document.getElementById('create-nickname').value = storedNickname;
 
@@ -3956,13 +3988,27 @@
                 `;
             }).join('');
 
-            // Add click handlers for game items
-            listEl.querySelectorAll('.history-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const gameId = item.dataset.gameId;
-                    openReplay(gameId);
+            // Event delegation is set up once via setupHistoryEventDelegation()
+            // No need to add listeners per item - prevents memory leaks
+        }
+
+        // Use event delegation for history items to prevent memory leaks
+        // Only set up once during initialization
+        let historyDelegationSetup = false;
+        function setupHistoryEventDelegation() {
+            if (historyDelegationSetup) return;
+            historyDelegationSetup = true;
+
+            const listEl = document.getElementById('history-list');
+            if (listEl) {
+                listEl.addEventListener('click', (event) => {
+                    // Find the closest history-item ancestor
+                    const historyItem = event.target.closest('.history-item');
+                    if (historyItem && historyItem.dataset.gameId) {
+                        openReplay(historyItem.dataset.gameId);
+                    }
                 });
-            });
+            }
         }
 
         function openReplay(gameId) {
@@ -4449,7 +4495,7 @@
 
         function onMultiplayerJoined(result, isHost = false) {
             isMultiplayerMode = true;
-            localStorage.setItem('codenames-nickname', CodenamesClient.player?.nickname || '');
+            safeSetItem('codenames-nickname', CodenamesClient.player?.nickname || '');
 
             // CRITICAL: Set up multiplayer event listeners FIRST to avoid race condition
             // where game:started arrives before listeners are ready
@@ -5326,7 +5372,7 @@
             // Room IDs are 3-20 characters, alphanumeric with hyphens and underscores
             if (roomCode && roomCode.length >= 3 && roomCode.length <= 20 && /^[a-zA-Z0-9\-_]+$/.test(roomCode)) {
                 // Pre-fill nickname from storage
-                const storedNickname = localStorage.getItem('codenames-nickname') || '';
+                const storedNickname = safeGetItem('codenames-nickname', '');
                 document.getElementById('join-nickname').value = storedNickname;
 
                 // Pre-fill room ID from URL
@@ -5686,8 +5732,8 @@
 
         // Load notification preferences from localStorage
         function loadNotificationPrefs() {
-            notificationPrefs.soundEnabled = localStorage.getItem('codenames-pref-sound') === 'true';
-            notificationPrefs.tabNotificationEnabled = localStorage.getItem('codenames-pref-tab-notification') === 'true';
+            notificationPrefs.soundEnabled = safeGetItem('codenames-pref-sound') === 'true';
+            notificationPrefs.tabNotificationEnabled = safeGetItem('codenames-pref-tab-notification') === 'true';
 
             // Update checkboxes if they exist
             const soundCheckbox = document.getElementById('pref-sound-notifications');
@@ -5698,8 +5744,8 @@
 
         // Save notification preferences to localStorage
         function saveNotificationPrefs() {
-            localStorage.setItem('codenames-pref-sound', notificationPrefs.soundEnabled.toString());
-            localStorage.setItem('codenames-pref-tab-notification', notificationPrefs.tabNotificationEnabled.toString());
+            safeSetItem('codenames-pref-sound', notificationPrefs.soundEnabled.toString());
+            safeSetItem('codenames-pref-tab-notification', notificationPrefs.tabNotificationEnabled.toString());
         }
 
         // Initialize Audio Context (must be triggered by user gesture)
@@ -6256,10 +6302,12 @@
             }
 
             // Use config if role/team are set, otherwise fallback to host/viewer
-            if (role && team && ROLE_BANNER_CONFIG[role]) {
+            // Validate team is 'red' or 'blue' before accessing teamNames
+            if (role && team && (team === 'red' || team === 'blue') && ROLE_BANNER_CONFIG[role]) {
                 const config = ROLE_BANNER_CONFIG[role];
                 banner.className = `role-banner ${config[team]}`;
-                banner.innerHTML = `<strong>${escapeHTML(teamNames[team])}</strong> ${config.label}${hostBadge}`;
+                // Use nullish coalescing in case teamNames doesn't have the team key
+                banner.innerHTML = `<strong>${escapeHTML(teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${config.label}${hostBadge}`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
                 banner.innerHTML = `<span class="host-badge">Host</span> Spectator`;
@@ -6401,7 +6449,8 @@
 
             // Announce role change to screen reader if role was cleared
             if (hadRole && oldRole) {
-                const teamName = team ? teamNames[team] : 'Spectator';
+                // Use nullish coalescing for safe team name access
+                const teamName = (team && teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : 'Spectator');
                 announceToScreenReader(`${oldRole} role cleared. Now on ${teamName} team.`);
             }
         }
@@ -7026,7 +7075,7 @@
             updateCharCounter('blue-name-input', 'blue-char-counter', 32);
 
             // Load word list mode
-            const savedMode = localStorage.getItem('codenames-wordlist-mode') || 'combined';
+            const savedMode = safeGetItem('codenames-wordlist-mode', 'combined');
             const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`);
             if (modeRadio) {
                 modeRadio.checked = true;
@@ -7037,7 +7086,7 @@
                 });
             }
 
-            const customWords = localStorage.getItem('codenames-custom-words');
+            const customWords = safeGetItem('codenames-custom-words');
             if (customWordsTextarea) {
                 customWordsTextarea.value = customWords || '';
             }
@@ -7154,7 +7203,7 @@
             // Get word list mode
             const modeRadio = document.querySelector('input[name="wordlist-mode"]:checked');
             const selectedMode = modeRadio ? modeRadio.value : 'combined';
-            localStorage.setItem('codenames-wordlist-mode', selectedMode);
+            safeSetItem('codenames-wordlist-mode', selectedMode);
             wordListMode = selectedMode;
 
             const textarea = document.getElementById('custom-words');
@@ -7177,9 +7226,9 @@
 
             // Save custom words if any
             if (customWordsText) {
-                localStorage.setItem('codenames-custom-words', customWordsText);
+                safeSetItem('codenames-custom-words', customWordsText);
             } else {
-                localStorage.removeItem('codenames-custom-words');
+                safeRemoveItem('codenames-custom-words');
             }
 
             // Build active word list based on mode
@@ -7226,10 +7275,10 @@
 
         function loadLocalSettings() {
             // Load word list mode
-            wordListMode = localStorage.getItem('codenames-wordlist-mode') || 'combined';
+            wordListMode = safeGetItem('codenames-wordlist-mode', 'combined');
 
             // Load custom words
-            const customWordsText = localStorage.getItem('codenames-custom-words');
+            const customWordsText = safeGetItem('codenames-custom-words');
             const customWords = customWordsText ? parseWords(customWordsText) : [];
 
             // Apply word list based on mode
@@ -7257,7 +7306,7 @@
 
         async function tryLoadWordlistFile() {
             // Skip if custom words exist or mode is 'default' only
-            if (localStorage.getItem('codenames-custom-words') || wordListMode === 'default') {
+            if (safeGetItem('codenames-custom-words') || wordListMode === 'default') {
                 return;
             }
 
@@ -7463,6 +7512,8 @@
                 initNotificationPrefsUI();
                 // Initialize room settings UI (for multiplayer hosts)
                 initRoomSettingsUI();
+                // Set up event delegation for game history (prevents memory leaks)
+                setupHistoryEventDelegation();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 loadGameFromURL();

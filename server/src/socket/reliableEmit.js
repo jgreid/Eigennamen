@@ -52,6 +52,9 @@ async function emitWithRetry(socket, event, data, options = {}) {
 /**
  * Emit with timeout wrapper
  *
+ * FIX: Ensures timeout is always cleaned up even if socket.emit throws or
+ * the callback crashes, preventing resource leaks.
+ *
  * @param {Socket} socket - Socket.io socket instance
  * @param {string} event - Event name
  * @param {Object} data - Data to emit
@@ -66,15 +69,35 @@ function emitWithTimeout(socket, event, data, timeoutMs) {
             return;
         }
 
-        const timeoutId = setTimeout(() => {
-            resolve(false);
+        let timeoutId = null;
+        let resolved = false;
+
+        // Ensure cleanup and single resolution
+        const safeResolve = (value) => {
+            if (!resolved) {
+                resolved = true;
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                resolve(value);
+            }
+        };
+
+        timeoutId = setTimeout(() => {
+            safeResolve(false);
         }, timeoutMs);
 
-        // Emit with acknowledgment callback
-        socket.emit(event, data, (ack) => {
-            clearTimeout(timeoutId);
-            resolve(ack !== false && ack !== undefined);
-        });
+        // Emit with acknowledgment callback - wrapped in try-catch
+        // to ensure timeout is always cleaned up even if emit throws
+        try {
+            socket.emit(event, data, (ack) => {
+                safeResolve(ack !== false && ack !== undefined);
+            });
+        } catch (error) {
+            logger.warn(`Emit ${event} threw error: ${error.message}`);
+            safeResolve(false);
+        }
     });
 }
 

@@ -32,6 +32,10 @@ jest.mock('../config/constants', () => ({
     SESSION_SECURITY: {
         RECONNECTION_TOKEN_LENGTH: 32,
         RECONNECTION_TOKEN_TTL_SECONDS: 300
+    },
+    VALIDATION: {
+        NICKNAME_MIN_LENGTH: 1,
+        NICKNAME_MAX_LENGTH: 30
     }
 }));
 

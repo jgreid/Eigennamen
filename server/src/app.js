@@ -9,7 +9,7 @@ const compression = require('compression');
 const path = require('path');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
+const { apiLimiter, strictLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
 const { requestTiming, startMemoryMonitoring } = require('./middleware/timing');
 const routes = require('./routes');
@@ -21,6 +21,13 @@ const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
 const { SOCKET } = require('./config/constants');
 
 const app = express();
+
+// Trust proxy when behind reverse proxy (Fly.io, nginx, etc.)
+// Required for accurate IP detection in rate limiting and logging
+if (process.env.NODE_ENV === 'production' || process.env.TRUST_PROXY === 'true') {
+    app.set('trust proxy', 1);
+    logger.info('Trust proxy enabled for production deployment');
+}
 
 // Cached socket count for fast health checks
 let cachedSocketCount = 0;
@@ -244,7 +251,8 @@ app.get('/health/live', (req, res) => {
 setupSwagger(app);
 
 // Metrics endpoint with rate limit visibility and application metrics
-app.get('/metrics', async (req, res) => {
+// Rate limited to prevent abuse (metrics can be expensive to compute)
+app.get('/metrics', strictLimiter, async (req, res) => {
     const metricsData = {
         timestamp: new Date().toISOString(),
         process: {

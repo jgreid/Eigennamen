@@ -5,7 +5,7 @@
 const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
-const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY } = require('../config/constants');
+const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
 
 /**
@@ -414,9 +414,21 @@ async function setRole(sessionId, role) {
 
 /**
  * Set player's nickname
+ * SECURITY FIX: Defense-in-depth validation for nickname
  */
 async function setNickname(sessionId, nickname) {
-    return updatePlayer(sessionId, { nickname });
+    // Defense-in-depth: validate nickname even if already validated at handler level
+    if (!nickname || typeof nickname !== 'string') {
+        throw new ValidationError('Nickname is required');
+    }
+    const trimmed = nickname.trim();
+    if (trimmed.length < VALIDATION.NICKNAME_MIN_LENGTH) {
+        throw new ValidationError('Nickname is required');
+    }
+    if (trimmed.length > VALIDATION.NICKNAME_MAX_LENGTH) {
+        throw new ValidationError(`Nickname must be at most ${VALIDATION.NICKNAME_MAX_LENGTH} characters`);
+    }
+    return updatePlayer(sessionId, { nickname: trimmed });
 }
 
 /**
@@ -555,10 +567,13 @@ async function getPlayersInRoom(roomCode) {
     }
 
     // Sort by join time, with sessionId as secondary key for stability
+    // Use nullish coalescing to handle missing connectedAt values
     return players.sort((a, b) => {
-        const timeDiff = a.connectedAt - b.connectedAt;
+        const aTime = a.connectedAt ?? 0;
+        const bTime = b.connectedAt ?? 0;
+        const timeDiff = aTime - bTime;
         if (timeDiff !== 0) return timeDiff;
-        return a.sessionId.localeCompare(b.sessionId);
+        return (a.sessionId || '').localeCompare(b.sessionId || '');
     });
 }
 
