@@ -135,7 +135,7 @@ const gameClueSchema = z.object({
 const chatMessageSchema = z.object({
     text: z.string()
         .min(1, 'Message is required')
-        .max(500, 'Message too long')
+        .max(VALIDATION.CHAT_MESSAGE_MAX_LENGTH, 'Message too long')
         .transform(val => removeControlChars(val).trim())
         .refine(val => val.length >= 1, 'Message is required'),
     teamOnly: z.boolean().default(false),

@@ -591,6 +591,10 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
     if (typeof secondsToAdd !== 'number' || !Number.isFinite(secondsToAdd) || secondsToAdd <= 0) {
         throw new Error('Invalid secondsToAdd: must be a positive number');
     }
+    // SECURITY FIX: Add upper bound to prevent excessive time additions
+    if (secondsToAdd > TIMER.MAX_TURN_SECONDS) {
+        throw new Error(`Invalid secondsToAdd: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
+    }
 
     // ISSUE #34 FIX: Check if we own this timer locally
     if (localTimers.has(roomCode)) {
