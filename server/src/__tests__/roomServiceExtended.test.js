@@ -96,7 +96,9 @@ jest.mock('../services/playerService', () => ({
     removePlayer: jest.fn(async (sessionId) => {
         delete mockPlayerStorage[sessionId];
     }),
-    handleDisconnect: jest.fn().mockResolvedValue()
+    handleDisconnect: jest.fn().mockResolvedValue(),
+    // FIX: Add atomicHostTransfer for H4 fix
+    atomicHostTransfer: jest.fn().mockResolvedValue({ success: true })
 }));
 
 // Mock gameService
@@ -300,7 +302,8 @@ describe('Room Service', () => {
             const result = await roomService.leaveRoom('leave-room', 'host-1');
 
             expect(result.newHostId).toBe('player-1');
-            expect(playerService.updatePlayer).toHaveBeenCalledWith('player-1', { isHost: true });
+            // FIX: atomicHostTransfer is called instead of updatePlayer
+            expect(playerService.atomicHostTransfer).toHaveBeenCalledWith('host-1', 'player-1', 'leave-room');
         });
 
         test('last player leaving deletes room', async () => {

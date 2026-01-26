@@ -250,12 +250,18 @@ async function leaveRoom(code, sessionId) {
     let newHostId = null;
     let roomDeleted = false;
 
-    // If leaving player was host, transfer host
+    // FIX H4: Use atomic host transfer instead of two separate operations
+    // Previously had a race condition window between room update and player update
     if (room.hostSessionId === sessionId && players.length > 0) {
         newHostId = players[0].sessionId;
-        room.hostSessionId = newHostId;
-        await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
-        await playerService.updatePlayer(newHostId, { isHost: true });
+        const transferResult = await playerService.atomicHostTransfer(sessionId, newHostId, code);
+        if (!transferResult.success) {
+            logger.warn(`Non-atomic host transfer fallback for room ${code}: ${transferResult.reason}`);
+            // Fallback to non-atomic if Lua script fails (e.g., memory mode)
+            room.hostSessionId = newHostId;
+            await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+            await playerService.updatePlayer(newHostId, { isHost: true });
+        }
     }
 
     // If no players left, clean up room completely

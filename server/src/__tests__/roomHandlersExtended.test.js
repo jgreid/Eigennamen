@@ -385,7 +385,7 @@ describe('Extended Room Handlers Tests', () => {
 
             const handlers = mockSocket.on.mock.calls;
             const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'valid-token' });
+            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
 
             expect(mockSocket.join).toHaveBeenCalledWith('room:test-room');
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnected', expect.anything());
@@ -399,7 +399,7 @@ describe('Extended Room Handlers Tests', () => {
 
             const handlers = mockSocket.on.mock.calls;
             const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'invalid-token' });
+            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
                 code: 'NOT_AUTHORIZED',
@@ -415,7 +415,7 @@ describe('Extended Room Handlers Tests', () => {
 
             const handlers = mockSocket.on.mock.calls;
             const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'valid-token' });
+            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
                 message: 'Token does not match room'
@@ -459,7 +459,7 @@ describe('Extended Room Handlers Tests', () => {
 
             const handlers = mockSocket.on.mock.calls;
             const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'valid-token' });
+            await reconnectHandler[1]({ code: 'test-room', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', expect.anything());
         });

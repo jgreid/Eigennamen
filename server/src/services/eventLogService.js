@@ -125,6 +125,8 @@ async function getEventsSince(roomCode, sinceVersion) {
                 try {
                     return JSON.parse(raw);
                 } catch (e) {
+                    // FIX M13: Log JSON parse errors instead of silently returning null
+                    logger.warn('Failed to parse event log entry', { roomCode, error: e.message });
                     return null;
                 }
             })
@@ -176,6 +178,8 @@ async function getRecentEvents(roomCode, limit = MAX_EVENTS_PER_ROOM) {
                 try {
                     return JSON.parse(raw);
                 } catch (e) {
+                    // FIX M13: Log JSON parse errors instead of silently returning null
+                    logger.warn('Failed to parse recent event entry', { roomCode, error: e.message });
                     return null;
                 }
             })

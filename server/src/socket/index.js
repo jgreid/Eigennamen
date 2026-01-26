@@ -139,18 +139,32 @@ function initializeSocket(server, expressApp = null) {
                 logger.error('Error cleaning up rate limiter:', error);
             }
 
-            // ISSUE #9 FIX: Add timeout to prevent disconnect handler from hanging indefinitely
-            const DISCONNECT_TIMEOUT_MS = 10000; // 10 seconds
+            // FIX C2: Increased timeout to 30s and added background cleanup on timeout
+            // Previously: 10s timeout would abandon critical cleanup operations
+            const DISCONNECT_TIMEOUT_MS = 30000; // 30 seconds - more realistic for slow Redis
+            let timedOut = false;
+
             try {
                 await Promise.race([
                     handleDisconnect(io, socket, reason),
-                    new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Disconnect handler timeout')), DISCONNECT_TIMEOUT_MS)
-                    )
+                    new Promise((_, reject) => {
+                        setTimeout(() => {
+                            timedOut = true;
+                            reject(new Error('Disconnect handler timeout'));
+                        }, DISCONNECT_TIMEOUT_MS);
+                    })
                 ]);
             } catch (error) {
                 if (error.message === 'Disconnect handler timeout') {
                     logger.error(`Disconnect handler timed out after ${DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
+
+                    // FIX C2: Continue cleanup in background even after timeout
+                    // This ensures critical operations like host transfer eventually complete
+                    setImmediate(() => {
+                        handleDisconnect(io, socket, reason).catch(bgErr => {
+                            logger.error(`Background disconnect cleanup failed for ${socket.id}:`, bgErr.message);
+                        });
+                    });
                 } else {
                     logger.error('Error in disconnect handler:', error);
                 }

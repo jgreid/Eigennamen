@@ -74,6 +74,20 @@ const roomSettingsSchema = z.object({
     allowSpectators: z.boolean().optional()
 });
 
+// FIX H10: Add schema for room:reconnect validation
+// Reconnection token is 64 hex characters (32 bytes in hex)
+const reconnectionTokenRegex = /^[0-9a-f]{64}$/i;
+
+const roomReconnectSchema = z.object({
+    code: z.string()
+        .min(3, 'Room code must be at least 3 characters')
+        .max(20, 'Room code must be at most 20 characters')
+        .transform(val => removeControlChars(val).trim().toLowerCase()),
+    reconnectionToken: z.string()
+        .length(64, 'Invalid reconnection token format')
+        .refine(val => reconnectionTokenRegex.test(val), 'Invalid reconnection token format')
+});
+
 // Player schemas
 const playerTeamSchema = z.object({
     team: z.enum(['red', 'blue']).nullable()
@@ -155,6 +169,7 @@ module.exports = {
     roomCreateSchema,
     roomJoinSchema,
     roomSettingsSchema,
+    roomReconnectSchema,
     playerTeamSchema,
     playerRoleSchema,
     playerNicknameSchema,

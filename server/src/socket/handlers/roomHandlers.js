@@ -7,7 +7,7 @@ const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
-const { roomCreateSchema, roomJoinSchema, roomSettingsSchema } = require('../../validators/schemas');
+const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
@@ -410,11 +410,9 @@ module.exports = function roomHandlers(io, socket) {
      */
     socket.on('room:reconnect', createRateLimitedHandler(socket, 'room:reconnect', async (data) => {
         try {
-            const { code, reconnectionToken } = data || {};
-
-            if (!code || !reconnectionToken) {
-                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Room code and reconnection token required' };
-            }
+            // FIX H10: Use Zod schema validation instead of manual checks
+            const validated = validateInput(roomReconnectSchema, data);
+            const { code, reconnectionToken } = validated;
 
             // Wrap reconnection logic in timeout
             const reconnectPromise = (async () => {
