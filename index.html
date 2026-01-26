@@ -4493,7 +4493,7 @@
             }
         }
 
-        function onMultiplayerJoined(result, isHost = false) {
+        function onMultiplayerJoined(result, isHostParam = false) {
             isMultiplayerMode = true;
             safeSetItem('codenames-nickname', CodenamesClient.player?.nickname || '');
 
@@ -4513,6 +4513,11 @@
             if (currentPlayer) {
                 syncLocalPlayerState(currentPlayer);
             }
+
+            // ISSUE FIX: Update global isHost from player data or parameter
+            // The parameter isHostParam indicates if this was a room creation
+            // Also check CodenamesClient.player.isHost for reconnection cases
+            isHost = isHostParam || CodenamesClient.player?.isHost || false;
 
             // Sync game state from server if available
             if (result.game) {
@@ -4888,6 +4893,32 @@
                     renderBoard();
                 }
                 showToast(`${data.nickname || 'A player'} reconnected`, 'success');
+            });
+
+            // Handle host change (when previous host disconnects)
+            CodenamesClient.on('hostChanged', (data) => {
+                // Update global isHost based on whether we became the new host
+                const wasHost = isHost;
+                isHost = data.newHostSessionId === CodenamesClient.player?.sessionId;
+
+                // Update host status in players list
+                if (data.newHostSessionId) {
+                    multiplayerPlayers = multiplayerPlayers.map(p => ({
+                        ...p,
+                        isHost: p.sessionId === data.newHostSessionId
+                    }));
+                    updateMpIndicator({ code: CodenamesClient.getRoomCode() }, multiplayerPlayers);
+                }
+
+                // Update UI elements that depend on host status
+                updateRoomSettingsNavVisibility();
+                updateRoleBanner();
+
+                if (isHost && !wasHost) {
+                    showToast('You are now the host!', 'info');
+                } else if (data.newHostNickname) {
+                    showToast(`${data.newHostNickname} is now the host`, 'info');
+                }
             });
 
             // Timer events (for turn timers when enabled)
@@ -6430,6 +6461,15 @@
                 CodenamesClient.setTeam(team);
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
                 // isChangingRole is cleared in playerUpdated handler
+
+                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // This prevents permanent blocking if playerUpdated event is lost
+                setTimeout(() => {
+                    if (isChangingRole && !pendingRoleChange) {
+                        console.warn('setTeam: Safety timeout - clearing isChangingRole flag');
+                        isChangingRole = false;
+                    }
+                }, 5000);
                 return;
             }
 
@@ -6480,6 +6520,17 @@
                     }
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
+
+                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // Note: Don't clear pendingRoleChange here - if team change arrives late,
+                // we still want to send the queued role change
+                setTimeout(() => {
+                    if (isChangingRole) {
+                        console.warn('setSpymaster: Safety timeout - clearing isChangingRole flag');
+                        isChangingRole = false;
+                        // Don't clear pendingRoleChange - playerUpdated handler will process it
+                    }
+                }, 5000);
                 return;
             }
 
@@ -6522,6 +6573,17 @@
                     }
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
+
+                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // Note: Don't clear pendingRoleChange here - if team change arrives late,
+                // we still want to send the queued role change
+                setTimeout(() => {
+                    if (isChangingRole) {
+                        console.warn('setClicker: Safety timeout - clearing isChangingRole flag');
+                        isChangingRole = false;
+                        // Don't clear pendingRoleChange - playerUpdated handler will process it
+                    }
+                }, 5000);
                 return;
             }
 
