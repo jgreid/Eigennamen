@@ -235,27 +235,47 @@ async function authenticateSocket(socket, next) {
                         if (sessionValidationResult.valid) {
                             // ISSUE #17 FIX: Validate reconnection token
                             const reconnectToken = socket.handshake.auth.reconnectToken;
-                            const tokenValid = await playerService.validateReconnectToken(sessionId, reconnectToken);
 
-                            if (tokenValid) {
-                                validatedSessionId = sessionId;
-                                logger.debug('Session validated for reconnection with token', {
-                                    sessionId,
-                                    ipMismatch: sessionValidationResult.ipMismatch
-                                });
+                            // SECURITY FIX: Validate token format before processing
+                            // Reconnection tokens are hex-encoded, so length should be 64 chars (32 bytes * 2)
+                            const expectedTokenLength = (SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32) * 2;
+                            const isValidFormat = !reconnectToken ||
+                                (typeof reconnectToken === 'string' &&
+                                 reconnectToken.length === expectedTokenLength &&
+                                 /^[0-9a-f]+$/i.test(reconnectToken));
 
-                                // Flag IP mismatch on socket for monitoring
-                                if (sessionValidationResult.ipMismatch) {
-                                    socket.ipMismatch = true;
-                                }
-                            } else {
-                                logger.warn('Reconnection token validation failed', {
+                            if (reconnectToken && !isValidFormat) {
+                                logger.warn('Invalid reconnection token format', {
                                     sessionId,
-                                    hasToken: !!reconnectToken,
+                                    tokenLength: reconnectToken?.length,
+                                    expectedLength: expectedTokenLength,
                                     clientIP: currentIP
                                 });
-                                // Token invalid - generate new session
+                                // Treat as no token provided - will generate new session
                                 validatedSessionId = null;
+                            } else {
+                                const tokenValid = await playerService.validateReconnectToken(sessionId, reconnectToken);
+
+                                if (tokenValid) {
+                                    validatedSessionId = sessionId;
+                                    logger.debug('Session validated for reconnection with token', {
+                                        sessionId,
+                                        ipMismatch: sessionValidationResult.ipMismatch
+                                    });
+
+                                    // Flag IP mismatch on socket for monitoring
+                                    if (sessionValidationResult.ipMismatch) {
+                                        socket.ipMismatch = true;
+                                    }
+                                } else {
+                                    logger.warn('Reconnection token validation failed', {
+                                        sessionId,
+                                        hasToken: !!reconnectToken,
+                                        clientIP: currentIP
+                                    });
+                                    // Token invalid - generate new session
+                                    validatedSessionId = null;
+                                }
                             }
                         } else {
                             logger.warn('Session validation failed', {

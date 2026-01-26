@@ -15,7 +15,8 @@ const {
     DEFAULT_WORDS,
     REDIS_TTL,
     ERROR_CODES,
-    GAME_HISTORY
+    GAME_HISTORY,
+    LOCKS
 } = require('../config/constants');
 const {
     GameStateError,
@@ -486,8 +487,9 @@ async function createGame(roomCode, options = {}) {
     const redis = getRedis();
 
     // RACE CONDITION FIX: Use creation lock to prevent simultaneous game creation
+    // Uses centralized LOCKS.GAME_CREATE constant
     const lockKey = `room:${roomCode}:game:creating`;
-    const lockAcquired = await redis.set(lockKey, '1', { NX: true, EX: 10 }); // 10 second lock
+    const lockAcquired = await redis.set(lockKey, '1', { NX: true, EX: LOCKS.GAME_CREATE });
 
     if (!lockAcquired) {
         // Another creation in progress - wait briefly and check if game exists
@@ -940,8 +942,8 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     validateCardIndex(index);
 
     // ISSUE #17 & #32 FIX: Acquire distributed lock with longer TTL to prevent race conditions
-    // Increased from 5s to 15s to accommodate retry loops and slow Redis operations
-    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: 15 });
+    // Uses centralized LOCKS.CARD_REVEAL constant to accommodate retry loops and slow Redis operations
+    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: LOCKS.CARD_REVEAL });
     if (!lockAcquired) {
         throw new ServerError('Another card reveal is in progress, please try again');
     }

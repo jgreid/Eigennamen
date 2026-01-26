@@ -57,11 +57,20 @@ function createRateLimitedHandler(socket, eventName, handler) {
                 await handler(data);
             } catch (error) {
                 logger.error(`Error in ${eventName} handler:`, error);
-                // Report error to client so they know the operation failed
+                // SECURITY FIX: Sanitize error messages to prevent information disclosure
+                // Only expose error messages for known error types with safe codes
                 const errorEvent = `${eventName.split(':')[0]}:error`;
+                const safeErrorCodes = [
+                    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST',
+                    'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED',
+                    'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
+                    'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR'
+                ];
+                const isSafeError = error.code && safeErrorCodes.includes(error.code);
                 socket.emit(errorEvent, {
                     code: error.code || 'SERVER_ERROR',
-                    message: error.message || 'An unexpected error occurred'
+                    // Only expose the actual message for known safe error types
+                    message: isSafeError ? error.message : 'An unexpected error occurred'
                 });
             }
         });

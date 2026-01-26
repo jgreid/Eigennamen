@@ -124,9 +124,10 @@ describe('Rate Limit Handler Extended Tests', () => {
             expect(handler).toHaveBeenCalled();
         });
 
-        test('emits error with custom error code', async () => {
-            const customError = new Error('Custom error');
-            customError.code = 'CUSTOM_ERROR_CODE';
+        test('emits error with safe error code and passes message through', async () => {
+            // Use a safe error code that allows message passthrough
+            const customError = new Error('Room not found');
+            customError.code = 'ROOM_NOT_FOUND';
             const handler = jest.fn().mockRejectedValue(customError);
             const wrapped = createRateLimitedHandler(mockSocket, 'room:join', handler);
 
@@ -134,8 +135,8 @@ describe('Rate Limit Handler Extended Tests', () => {
             await new Promise(resolve => setTimeout(resolve, 10));
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
-                code: 'CUSTOM_ERROR_CODE',
-                message: 'Custom error'
+                code: 'ROOM_NOT_FOUND',
+                message: 'Room not found'
             });
         });
 

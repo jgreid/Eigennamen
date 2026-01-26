@@ -505,6 +505,11 @@ async function handleDisconnect(io, socket, reason) {
             const { SESSION_SECURITY } = require('../config/constants');
             const reconnectionDeadline = Date.now() + (SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000);
 
+            // SECURITY FIX: Do NOT broadcast reconnection token to the room!
+            // The token was previously broadcast to all players, allowing potential session hijacking.
+            // Now the token is stored server-side only and validated during reconnection handshake.
+            // The disconnecting player should proactively request their reconnection token via
+            // 'room:getReconnectionToken' event BEFORE they disconnect (e.g., on 'beforeunload').
             io.to(`room:${roomCode}`).emit('player:disconnected', {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
@@ -513,10 +518,8 @@ async function handleDisconnect(io, socket, reason) {
                 timestamp: Date.now(),
                 // ISSUE #15 FIX: Include updated player list for state consistency
                 players: updatedPlayers,
-                // ISSUE #17 FIX: Include reconnection token in disconnect notification
-                // This allows clients to store it for secure reconnection
-                reconnectionToken: reconnectionToken,
                 // US-16.3: Indicate player may reconnect and when the window closes
+                // Token is NOT broadcast - stored server-side only for security
                 reconnecting: !!reconnectionToken,
                 reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
             });
@@ -546,7 +549,6 @@ async function handleDisconnect(io, socket, reason) {
                     hostTransferLockAcquired = lockResult === 'OK' || lockResult === true;
 
                     if (hostTransferLockAcquired) {
-                        const room = await roomService.getRoom(roomCode);
                         const players = await playerService.getPlayersInRoom(roomCode);
                         const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
 
@@ -554,35 +556,35 @@ async function handleDisconnect(io, socket, reason) {
                             // Transfer host to first connected player
                             const newHost = connectedPlayers[0];
 
-                            // Clear old host's isHost flag first
-                            await playerService.updatePlayer(socket.sessionId, { isHost: false });
-                            await playerService.updatePlayer(newHost.sessionId, { isHost: true });
+                            // SECURITY FIX: Use atomic host transfer to prevent race conditions
+                            // This atomically updates old host, new host, and room in a single Lua script
+                            const transferResult = await playerService.atomicHostTransfer(
+                                socket.sessionId,
+                                newHost.sessionId,
+                                roomCode
+                            );
 
-                            // Update room
-                            if (room) {
-                                room.hostSessionId = newHost.sessionId;
-                                await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
-                            }
-
-                            io.to(`room:${roomCode}`).emit('room:hostChanged', {
-                                newHostSessionId: newHost.sessionId,
-                                newHostNickname: newHost.nickname,
-                                reason: 'previousHostDisconnected'
-                            });
-
-                            // Log host change event
-                            await eventLogService.logEvent(
-                                roomCode,
-                                eventLogService.EVENT_TYPES.HOST_CHANGED,
-                                {
-                                    previousHostSessionId: socket.sessionId,
+                            if (transferResult.success) {
+                                io.to(`room:${roomCode}`).emit('room:hostChanged', {
                                     newHostSessionId: newHost.sessionId,
                                     newHostNickname: newHost.nickname,
                                     reason: 'previousHostDisconnected'
-                                }
-                            );
+                                });
 
-                            logger.info(`Host transferred to ${newHost.nickname} in room ${roomCode}`);
+                                // Log host change event
+                                await eventLogService.logEvent(
+                                    roomCode,
+                                    eventLogService.EVENT_TYPES.HOST_CHANGED,
+                                    {
+                                        previousHostSessionId: socket.sessionId,
+                                        newHostSessionId: newHost.sessionId,
+                                        newHostNickname: newHost.nickname,
+                                        reason: 'previousHostDisconnected'
+                                    }
+                                );
+                            } else {
+                                logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
+                            }
                         }
                     } else {
                         logger.debug(`Host transfer lock not acquired for room ${roomCode}, another instance handling it`);
