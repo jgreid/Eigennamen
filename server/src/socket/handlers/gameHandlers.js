@@ -10,7 +10,7 @@ const roomService = require('../../services/roomService');
 const eventLogService = require('../../services/eventLogService');
 const gameHistoryService = require('../../services/gameHistoryService');
 const { validateInput } = require('../../middleware/validation');
-const { gameRevealSchema, gameClueSchema, gameStartSchema } = require('../../validators/schemas');
+const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
@@ -480,6 +480,7 @@ module.exports = function gameHandlers(io, socket) {
 
     /**
      * Get past games history for this room (for replay)
+     * FIX: Use Zod schema for limit validation instead of manual checks
      */
     socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRateLimitedHandler(socket, 'game:getHistory', async (data = {}) => {
         try {
@@ -487,11 +488,9 @@ module.exports = function gameHandlers(io, socket) {
                 throw RoomError.notFound(socket.roomCode);
             }
 
-            const limit = data.limit && Number.isInteger(data.limit) && data.limit > 0 && data.limit <= 50
-                ? data.limit
-                : 10;
+            const validated = validateInput(gameHistoryLimitSchema, data);
 
-            const history = await gameHistoryService.getGameHistory(socket.roomCode, limit);
+            const history = await gameHistoryService.getGameHistory(socket.roomCode, validated.limit);
             socket.emit(SOCKET_EVENTS.GAME_HISTORY_RESULT, { history });
 
             logger.debug(`Game history retrieved for room ${socket.roomCode}`, { count: history.length });
@@ -507,6 +506,7 @@ module.exports = function gameHandlers(io, socket) {
 
     /**
      * Get replay data for a specific game
+     * FIX: Use Zod schema for gameId validation instead of manual checks
      */
     socket.on(SOCKET_EVENTS.GAME_GET_REPLAY, createRateLimitedHandler(socket, 'game:getReplay', async (data = {}) => {
         try {
@@ -514,12 +514,9 @@ module.exports = function gameHandlers(io, socket) {
                 throw RoomError.notFound(socket.roomCode);
             }
 
-            const { gameId } = data;
-            if (!gameId || typeof gameId !== 'string') {
-                throw new ValidationError('Game ID is required for replay');
-            }
+            const validated = validateInput(gameReplaySchema, data);
 
-            const replayData = await gameHistoryService.getReplayEvents(socket.roomCode, gameId);
+            const replayData = await gameHistoryService.getReplayEvents(socket.roomCode, validated.gameId);
 
             if (!replayData) {
                 throw new GameStateError('Game not found in history');
@@ -527,7 +524,7 @@ module.exports = function gameHandlers(io, socket) {
 
             socket.emit(SOCKET_EVENTS.GAME_REPLAY_DATA, { replay: replayData });
 
-            logger.debug(`Replay data retrieved for game ${gameId} in room ${socket.roomCode}`);
+            logger.debug(`Replay data retrieved for game ${validated.gameId} in room ${socket.roomCode}`);
 
         } catch (error) {
             logger.error('Error getting replay data:', error);
