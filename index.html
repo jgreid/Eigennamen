@@ -598,6 +598,31 @@
             transform: none;
         }
 
+        /* Loading state for buttons */
+        button.loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        button.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            width: 12px;
+            height: 12px;
+            margin-top: -6px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: btn-spinner 0.6s linear infinite;
+        }
+
+        @keyframes btn-spinner {
+            to { transform: rotate(360deg); }
+        }
+
         button:focus-visible,
         .card:focus-visible {
             outline: 2px solid #ffc107;
@@ -4837,16 +4862,19 @@
 
                         if (updatedPlayer) {
                             syncLocalPlayerState(updatedPlayer);
+                            console.log('playerUpdated: synced local state, changes:', data.changes, 'pendingRoleChange:', pendingRoleChange, 'isChangingRole:', isChangingRole);
 
                             // Check for pending role change after team change completed
                             if (pendingRoleChange && data.changes.team) {
                                 // Team change completed, now send the queued role change
                                 const roleToSet = pendingRoleChange;
                                 pendingRoleChange = null;
+                                console.log('playerUpdated: sending pending role change:', roleToSet);
                                 // Don't clear isChangingRole yet - let it clear after role is set
                                 CodenamesClient.setRole(roleToSet);
-                            } else if (data.changes.role || !pendingRoleChange) {
+                            } else {
                                 // Role change completed or no pending change - clear the flag
+                                console.log('playerUpdated: clearing isChangingRole flag');
                                 isChangingRole = false;
                             }
 
@@ -4857,9 +4885,8 @@
                             // Even if player not found, clear the flag to prevent blocking
                             // This should not normally happen, but handles edge cases
                             console.warn('playerUpdated: current player not found in list, clearing isChangingRole');
-                            if (!pendingRoleChange) {
-                                isChangingRole = false;
-                            }
+                            isChangingRole = false;
+                            pendingRoleChange = null;
                         }
                     }
                 }
@@ -6382,14 +6409,17 @@
 
             if (redTeamBtn) {
                 redTeamBtn.classList.toggle('selected', isRedTeam);
+                redTeamBtn.classList.toggle('loading', isChangingRole);
                 redTeamBtn.setAttribute('aria-pressed', isRedTeam.toString());
             }
             if (blueTeamBtn) {
                 blueTeamBtn.classList.toggle('selected', isBlueTeam);
+                blueTeamBtn.classList.toggle('loading', isChangingRole);
                 blueTeamBtn.setAttribute('aria-pressed', isBlueTeam.toString());
             }
             if (spectateBtn) {
                 spectateBtn.classList.toggle('active', isUnaffiliated);
+                spectateBtn.classList.toggle('loading', isChangingRole);
                 spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
             }
 
@@ -6398,9 +6428,10 @@
             const isClicker = !!clickerTeam;
 
             if (spymasterBtn) {
-                // Enable only if on a team
-                spymasterBtn.disabled = !playerTeam;
+                // Enable only if on a team and not currently changing role
+                spymasterBtn.disabled = !playerTeam || isChangingRole;
                 spymasterBtn.classList.toggle('active', isSpy);
+                spymasterBtn.classList.toggle('loading', isChangingRole);
                 spymasterBtn.classList.remove('red-team', 'blue-team');
                 if (playerTeam) {
                     spymasterBtn.classList.add(playerTeam + '-team');
@@ -6408,9 +6439,10 @@
                 spymasterBtn.setAttribute('aria-pressed', isSpy.toString());
             }
             if (clickerBtn) {
-                // Enable only if on a team
-                clickerBtn.disabled = !playerTeam;
+                // Enable only if on a team and not currently changing role
+                clickerBtn.disabled = !playerTeam || isChangingRole;
                 clickerBtn.classList.toggle('active', isClicker);
+                clickerBtn.classList.toggle('loading', isChangingRole);
                 clickerBtn.classList.remove('red-team', 'blue-team');
                 if (playerTeam) {
                     clickerBtn.classList.add(playerTeam + '-team');
@@ -6454,22 +6486,26 @@
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
                 // Prevent double-click while request in progress
                 if (isChangingRole) {
+                    console.log('setTeam: blocked - isChangingRole is true, pendingRoleChange:', pendingRoleChange);
                     return;
                 }
+                console.log('setTeam: setting team to', team);
                 isChangingRole = true;
+                updateControls(); // Show loading state immediately
 
                 CodenamesClient.setTeam(team);
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
                 // isChangingRole is cleared in playerUpdated handler
 
-                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // Safety timeout: clear isChangingRole if no response within 3 seconds
                 // This prevents permanent blocking if playerUpdated event is lost
                 setTimeout(() => {
                     if (isChangingRole && !pendingRoleChange) {
                         console.warn('setTeam: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
+                        updateControls(); // Re-enable buttons
                     }
-                }, 5000);
+                }, 3000);
                 return;
             }
 
@@ -6500,9 +6536,12 @@
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
                 // Prevent double-click while request in progress
                 if (isChangingRole) {
+                    console.log('setSpymaster: blocked - isChangingRole is true, pendingRoleChange:', pendingRoleChange);
                     return;
                 }
+                console.log('setSpymaster: setting spymaster for team', team, 'current playerTeam:', playerTeam);
                 isChangingRole = true;
+                updateControls(); // Show loading state immediately
 
                 if (spymasterTeam === team) {
                     // Toggle off - become spectator (team member without role)
@@ -6521,16 +6560,16 @@
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
 
-                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // Safety timeout: clear isChangingRole if no response within 3 seconds
                 // Note: Don't clear pendingRoleChange here - if team change arrives late,
                 // we still want to send the queued role change
                 setTimeout(() => {
                     if (isChangingRole) {
                         console.warn('setSpymaster: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
-                        // Don't clear pendingRoleChange - playerUpdated handler will process it
+                        updateControls(); // Re-enable buttons
                     }
-                }, 5000);
+                }, 3000);
                 return;
             }
 
@@ -6553,9 +6592,12 @@
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
                 // Prevent double-click while request in progress
                 if (isChangingRole) {
+                    console.log('setClicker: blocked - isChangingRole is true, pendingRoleChange:', pendingRoleChange);
                     return;
                 }
+                console.log('setClicker: setting clicker for team', team, 'current playerTeam:', playerTeam);
                 isChangingRole = true;
+                updateControls(); // Show loading state immediately
 
                 if (clickerTeam === team) {
                     // Toggle off - become spectator (team member without role)
@@ -6574,16 +6616,16 @@
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
 
-                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // Safety timeout: clear isChangingRole if no response within 3 seconds
                 // Note: Don't clear pendingRoleChange here - if team change arrives late,
                 // we still want to send the queued role change
                 setTimeout(() => {
                     if (isChangingRole) {
                         console.warn('setClicker: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
-                        // Don't clear pendingRoleChange - playerUpdated handler will process it
+                        updateControls(); // Re-enable buttons
                     }
-                }, 5000);
+                }, 3000);
                 return;
             }
 
@@ -7458,12 +7500,18 @@
                         break;
                     case 'spectate':
                         // Spectate clears team affiliation and roles
-                        spymasterTeam = null;
-                        clickerTeam = null;
-                        playerTeam = null;
-                        updateRoleBanner();
-                        updateControls();
-                        renderBoard();
+                        if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                            // In multiplayer, sync to server by setting team to null
+                            setTeam(null);
+                        } else {
+                            // Standalone mode: update local state directly
+                            spymasterTeam = null;
+                            clickerTeam = null;
+                            playerTeam = null;
+                            updateRoleBanner();
+                            updateControls();
+                            renderBoard();
+                        }
                         break;
                     case 'open-settings':
                         openSettings();
