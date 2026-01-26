@@ -28,6 +28,7 @@ jest.mock('../socket/rateLimitHandler', () => ({
 
 jest.mock('../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
+    strictLimiter: (req, res, next) => next(),
     getHttpRateLimitMetrics: jest.fn(() => ({ blockedRequests: 0 }))
 }));
 
