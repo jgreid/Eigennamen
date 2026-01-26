@@ -224,6 +224,11 @@ function setupEventListeners() {
     emit('roomResynced', data);
   });
 
+  // FIX: Add room:statsUpdated listener for real-time team count updates
+  registerSocketListener('room:statsUpdated', (data) => {
+    emit('roomStatsUpdated', data);
+  });
+
   // Player events
   registerSocketListener('player:updated', (data) => {
     if (data.sessionId === player?.sessionId) {
@@ -236,10 +241,7 @@ function setupEventListeners() {
     emit('playerDisconnected', data);
   });
 
-  registerSocketListener('player:reconnected', (data) => {
-    emit('playerReconnected', data);
-  });
-
+  // FIX: Removed dead 'player:reconnected' listener - backend only emits 'room:playerReconnected'
   registerSocketListener('room:playerReconnected', (data) => {
     emit('playerReconnected', data);
   });
@@ -296,6 +298,23 @@ function setupEventListeners() {
 
   registerSocketListener('timer:status', (data) => {
     emit('timerStatus', data);
+  });
+
+  // FIX: Add missing timer control event listeners
+  registerSocketListener('timer:paused', (data) => {
+    emit('timerPaused', data);
+  });
+
+  registerSocketListener('timer:resumed', (data) => {
+    emit('timerResumed', data);
+  });
+
+  registerSocketListener('timer:timeAdded', (data) => {
+    emit('timerTimeAdded', data);
+  });
+
+  registerSocketListener('timer:error', (error) => {
+    emit('error', { type: 'timer', ...error });
   });
 
   // Chat events
