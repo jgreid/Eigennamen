@@ -22,7 +22,8 @@ const {
     GameStateError,
     ValidationError,
     PlayerError,
-    ServerError
+    ServerError,
+    RoomError
 } = require('../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 
@@ -508,6 +509,13 @@ async function createGame(roomCode, options = {}) {
         const existingGame = await getGame(roomCode);
         if (existingGame && !existingGame.gameOver) {
             throw GameStateError.gameInProgress(roomCode);
+        }
+
+        // FIX: Verify room still exists before creating game (prevents orphaned games)
+        // Using get instead of exists since we need the room data anyway
+        const preCheckRoomData = await redis.get(`room:${roomCode}`);
+        if (!preCheckRoomData) {
+            throw RoomError.notFound(roomCode);
         }
 
         const seed = generateSeed();

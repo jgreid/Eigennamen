@@ -52,6 +52,10 @@ module.exports = function chatHandlers(io, socket) {
             if (validated.spectatorOnly && player.role === 'spectator') {
                 // Send only to other spectators
                 const allPlayers = await playerService.getPlayersInRoom(socket.roomCode);
+                // FIX: Add null check for allPlayers to prevent server crash
+                if (!allPlayers || !Array.isArray(allPlayers)) {
+                    throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Room not found' };
+                }
                 const spectators = allPlayers.filter(p => p.role === 'spectator' && p.connected);
 
                 for (const spectator of spectators) {
@@ -64,6 +68,13 @@ module.exports = function chatHandlers(io, socket) {
             } else if (validated.teamOnly && player.team) {
                 // Send only to teammates - O(1) lookup using team sets
                 const teammates = await playerService.getTeamMembers(socket.roomCode, player.team);
+                // FIX: Add null check for teammates to prevent server crash
+                if (!teammates || !Array.isArray(teammates)) {
+                    logger.warn(`No teammates found for ${player.team} team in room ${socket.roomCode}`);
+                    // Still emit to sender as fallback
+                    socket.emit('chat:message', message);
+                    return;
+                }
 
                 for (const teammate of teammates) {
                     try {

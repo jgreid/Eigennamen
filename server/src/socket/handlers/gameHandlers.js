@@ -154,6 +154,10 @@ module.exports = function gameHandlers(io, socket) {
 
             // PHASE 1 FIX: Allow reveal if player is clicker OR if clicker is disconnected
             const teamMembers = await playerService.getTeamMembers(socket.roomCode, game.currentTurn);
+            // FIX: Add null check for teamMembers to prevent server crash
+            if (!teamMembers || !Array.isArray(teamMembers)) {
+                throw new GameStateError('Unable to retrieve team members');
+            }
             const teamClicker = teamMembers.find(p => p.role === 'clicker');
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
 
@@ -175,6 +179,7 @@ module.exports = function gameHandlers(io, socket) {
             );
 
             // Broadcast the reveal to all players
+            // FIX: Include player info for UI to show who revealed the card
             io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, {
                 index: result.index,
                 type: result.type,
@@ -186,7 +191,12 @@ module.exports = function gameHandlers(io, socket) {
                 guessesAllowed: result.guessesAllowed,
                 turnEnded: result.turnEnded,
                 gameOver: result.gameOver,
-                winner: result.winner
+                winner: result.winner,
+                player: {
+                    sessionId: player.sessionId,
+                    nickname: player.nickname,
+                    team: player.team
+                }
             });
 
             // Log event for reconnection recovery

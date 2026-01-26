@@ -44,7 +44,7 @@ module.exports = {
     // Password security configuration
     PASSWORD_SECURITY: {
         BCRYPT_SALT_ROUNDS: 10,              // Increased from 8 for better security
-        MIN_PASSWORD_LENGTH: 1,              // Minimum password length
+        MIN_PASSWORD_LENGTH: 4,              // FIX: Increased from 1 - single-char passwords are trivially brute-forceable
         MAX_PASSWORD_LENGTH: 50,             // Maximum password length
         REQUIRE_REAUTH_ON_CHANGE: true       // Require re-auth when room password changes (security fix)
     },

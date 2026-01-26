@@ -131,6 +131,9 @@ if remainingMs <= 0 then
     return nil
 end
 
+-- FIX: Get TTL buffer from arguments instead of hardcoding
+local ttlBuffer = tonumber(ARGV[4]) or 60
+
 -- Calculate new end time
 local newEndTime = timer.endTime + (secondsToAdd * 1000)
 local newDuration = math.ceil((newEndTime - now) / 1000)
@@ -140,8 +143,8 @@ timer.endTime = newEndTime
 timer.duration = newDuration
 timer.instanceId = instanceId
 
--- Calculate new TTL (duration + 60 seconds buffer)
-local newTtl = newDuration + 60
+-- Calculate new TTL (duration + buffer from constant)
+local newTtl = newDuration + ttlBuffer
 
 redis.call('SET', timerKey, cjson.encode(timer), 'EX', newTtl)
 return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeconds = newDuration})
@@ -672,7 +675,8 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
         ATOMIC_ADD_TIME_SCRIPT,
         {
             keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-            arguments: [secondsToAdd.toString(), process.pid.toString(), Date.now().toString()]
+            // FIX: Pass TIMER_TTL_BUFFER as 4th argument instead of hardcoding in Lua
+            arguments: [secondsToAdd.toString(), process.pid.toString(), Date.now().toString(), TIMER_TTL_BUFFER.toString()]
         }
     );
 

@@ -25,6 +25,7 @@ const roomHandlers = require('./handlers/roomHandlers');
 const gameHandlers = require('./handlers/gameHandlers');
 const playerHandlers = require('./handlers/playerHandlers');
 const chatHandlers = require('./handlers/chatHandlers');
+const timerHandlers = require('./handlers/timerHandlers');
 
 let io = null;
 let app = null; // Reference to Express app for socket count updates
@@ -117,6 +118,7 @@ function initializeSocket(server, expressApp = null) {
         gameHandlers(io, socket);
         playerHandlers(io, socket);
         chatHandlers(io, socket);
+        timerHandlers(io, socket);
 
         // Handle disconnection
         // ISSUE #9 FIX: Wrap disconnect handler in timeout to prevent hangs
@@ -564,6 +566,11 @@ async function handleDisconnect(io, socket, reason) {
 
                     if (hostTransferLockAcquired) {
                         const players = await playerService.getPlayersInRoom(roomCode);
+                        // FIX: Add null check for players to prevent server crash
+                        if (!players || !Array.isArray(players)) {
+                            logger.warn(`Unable to fetch players for host transfer in room ${roomCode}`);
+                            return;
+                        }
                         const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
 
                         if (connectedPlayers.length > 0) {

@@ -116,8 +116,10 @@ class MemoryStorage {
     }
 
     async set(key, value, options = {}) {
-        // Remove from sets map if exists (type change: set -> string)
+        // FIX: Remove from all type-specific maps on type change (set -> string)
         this.sets.delete(key);
+        this.lists.delete(key);
+        this.sortedSets.delete(key);
         this.data.set(key, value);
         if (options.EX) {
             this.expiries.set(key, Date.now() + (options.EX * 1000));
@@ -173,7 +175,15 @@ class MemoryStorage {
             this.data.set(key, '1');
             return 1;
         }
+        // FIX: Check for type conflicts - Redis INCR fails on Sets/Lists/Sorted Sets
+        if (this.sets.has(key) || this.lists.has(key) || this.sortedSets.has(key)) {
+            throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
+        }
         const current = parseInt(this.data.get(key) || '0', 10);
+        // FIX: Validate parsed value is a number to prevent NaN corruption
+        if (isNaN(current)) {
+            throw new Error('ERR value is not an integer or out of range');
+        }
         const newValue = current + 1;
         this.data.set(key, String(newValue));
         return newValue;
@@ -184,7 +194,15 @@ class MemoryStorage {
             this.data.set(key, '-1');
             return -1;
         }
+        // FIX: Check for type conflicts - Redis DECR fails on Sets/Lists/Sorted Sets
+        if (this.sets.has(key) || this.lists.has(key) || this.sortedSets.has(key)) {
+            throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
+        }
         const current = parseInt(this.data.get(key) || '0', 10);
+        // FIX: Validate parsed value is a number to prevent NaN corruption
+        if (isNaN(current)) {
+            throw new Error('ERR value is not an integer or out of range');
+        }
         const newValue = current - 1;
         this.data.set(key, String(newValue));
         return newValue;
@@ -195,8 +213,10 @@ class MemoryStorage {
         if (this._isExpired(key)) {
             this.sets.set(key, new Set());
         }
-        // Remove from data map if exists (type change: string -> set)
+        // FIX: Remove from all incompatible data structures (type change: string/list/zset -> set)
         this.data.delete(key);
+        this.lists.delete(key);
+        this.sortedSets.delete(key);
         if (!this.sets.has(key)) {
             this.sets.set(key, new Set());
         }
@@ -692,9 +712,20 @@ class MemoryStorage {
             this._watchedKeys.set(key, null);
             return 'OK';
         }
-        const value = this.data.get(key);
-        // Use explicit undefined check to handle empty string values correctly
-        this._watchedKeys.set(key, value !== undefined ? JSON.stringify(value) : null);
+        // FIX: Check all data structures, not just data map
+        // This allows watching Sets, Lists, and Sorted Sets correctly
+        let watchValue = null;
+        if (this.data.has(key)) {
+            watchValue = JSON.stringify(this.data.get(key));
+        } else if (this.sets.has(key)) {
+            watchValue = JSON.stringify([...this.sets.get(key)].sort());
+        } else if (this.lists.has(key)) {
+            watchValue = JSON.stringify(this.lists.get(key));
+        } else if (this.sortedSets.has(key)) {
+            const zset = this.sortedSets.get(key);
+            watchValue = JSON.stringify([...zset.entries()].sort());
+        }
+        this._watchedKeys.set(key, watchValue);
         return 'OK';
     }
 
@@ -757,9 +788,18 @@ class MemoryStorage {
                         }
                         continue; // Both null, key still non-existent
                     }
-                    const currentValue = storage.data.get(key);
-                    // Use explicit undefined check to handle empty string values correctly
-                    const currentJson = currentValue !== undefined ? JSON.stringify(currentValue) : null;
+                    // FIX: Check all data structures when validating watched keys
+                    let currentJson = null;
+                    if (storage.data.has(key)) {
+                        currentJson = JSON.stringify(storage.data.get(key));
+                    } else if (storage.sets.has(key)) {
+                        currentJson = JSON.stringify([...storage.sets.get(key)].sort());
+                    } else if (storage.lists.has(key)) {
+                        currentJson = JSON.stringify(storage.lists.get(key));
+                    } else if (storage.sortedSets.has(key)) {
+                        const zset = storage.sortedSets.get(key);
+                        currentJson = JSON.stringify([...zset.entries()].sort());
+                    }
                     if (currentJson !== originalValue) {
                         // Key was modified - transaction failed
                         storage._watchedKeys.clear();
@@ -773,8 +813,10 @@ class MemoryStorage {
                     try {
                         switch (cmd.cmd) {
                             case 'set':
-                                // Remove from sets map if exists (type change)
+                                // FIX: Remove from all type-specific maps (type change)
                                 storage.sets.delete(cmd.key);
+                                storage.lists.delete(cmd.key);
+                                storage.sortedSets.delete(cmd.key);
                                 storage.data.set(cmd.key, cmd.value);
                                 // Handle TTL options (EX = seconds, PX = milliseconds)
                                 if (cmd.options && cmd.options.EX) {
@@ -809,8 +851,10 @@ class MemoryStorage {
                                 if (storage._isExpired(cmd.key)) {
                                     storage.sets.set(cmd.key, new Set());
                                 }
-                                // Remove from data map if exists (type change)
+                                // FIX: Remove from all incompatible data structures (type change)
                                 storage.data.delete(cmd.key);
+                                storage.lists.delete(cmd.key);
+                                storage.sortedSets.delete(cmd.key);
                                 if (!storage.sets.has(cmd.key)) {
                                     storage.sets.set(cmd.key, new Set());
                                 }
@@ -1025,10 +1069,11 @@ class MemoryStorage {
             clearInterval(this.cleanupInterval);
             this.cleanupInterval = null;
         }
-        // SPRINT-15 FIX: Clean up event handlers and pub/sub channels to prevent memory leaks
-        // in long-running single-instance deployments
+        // SPRINT-15 FIX: Clean up event handlers to prevent memory leaks
         this._eventHandlers.clear();
-        this.pubsubChannels.clear();
+        // FIX: Do NOT clear shared pubsubChannels here - it would break pub/sub
+        // for other instances (e.g., main client when pubClient calls quit())
+        // pubsubChannels is intentionally shared across all MemoryStorage instances
         return 'OK';
     }
 

@@ -559,7 +559,14 @@ describe('createGame', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedis.set.mockResolvedValue('OK');
-        mockRedis.get.mockResolvedValue(null);
+        // FIX: createGame now verifies room exists before creating game
+        // First call: game existence check (null = no game), second call: room check (room data)
+        const defaultRoomData = JSON.stringify({ code: 'TEST', status: 'waiting' });
+        mockRedis.get.mockImplementation((key) => {
+            if (key.includes(':game')) return Promise.resolve(null); // No existing game
+            if (key.startsWith('room:')) return Promise.resolve(defaultRoomData); // Room exists
+            return Promise.resolve(null);
+        });
         mockRedis.expire.mockResolvedValue(1);
         mockWordListService.getWordsForGame.mockResolvedValue(null);
     });
@@ -660,10 +667,13 @@ describe('createGame', () => {
 
     test('updates room status when room data exists', async () => {
         const roomData = JSON.stringify({ code: 'TEST09', status: 'waiting', players: [] });
-        // First get is for game existence check (returns null), second is for room data update
-        mockRedis.get
-            .mockResolvedValueOnce(null) // getGame() check - no existing game
-            .mockResolvedValueOnce(roomData); // room data for status update
+        // FIX: Updated for new room check at game creation
+        // Order: getGame (null), preCheckRoomData (room exists), final room update
+        mockRedis.get.mockImplementation((key) => {
+            if (key.includes(':game')) return Promise.resolve(null); // No existing game
+            if (key.startsWith('room:')) return Promise.resolve(roomData); // Room exists
+            return Promise.resolve(null);
+        });
 
         await createGame('TEST09');
 
@@ -672,10 +682,21 @@ describe('createGame', () => {
     });
 
     test('handles corrupted room data gracefully', async () => {
-        // First get is for game existence check (returns null), second is for room data (corrupted)
-        mockRedis.get
-            .mockResolvedValueOnce(null) // getGame() check - no existing game
-            .mockResolvedValueOnce('invalid-json'); // corrupted room data
+        // FIX: When room data is corrupted at the verification stage, it should fail
+        // This is actually the correct behavior - we shouldn't create games for non-existent/corrupted rooms
+        const roomData = JSON.stringify({ code: 'TEST10', status: 'waiting' });
+        const corruptedRoomData = 'invalid-json';
+        let callCount = 0;
+        mockRedis.get.mockImplementation((key) => {
+            if (key.includes(':game')) return Promise.resolve(null); // No existing game
+            if (key.startsWith('room:')) {
+                callCount++;
+                // First room check succeeds (precheck), second one returns corrupted (final update)
+                if (callCount <= 1) return Promise.resolve(roomData);
+                return Promise.resolve(corruptedRoomData);
+            }
+            return Promise.resolve(null);
+        });
 
         const game = await createGame('TEST10');
 
@@ -690,6 +711,8 @@ describe('createGame', () => {
 describe('getGame', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // FIX: Reset the mock implementation to avoid leaking from createGame tests
+        mockRedis.get.mockReset();
     });
 
     test('returns null when no game exists', async () => {
