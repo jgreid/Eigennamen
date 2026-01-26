@@ -224,13 +224,6 @@ function setupEventListeners() {
     emit('roomResynced', data);
   });
 
-  registerSocketListener('room:reconnected', (data) => {
-    roomCode = data.room.code;
-    player = data.you;
-    saveSession();
-    emit('roomReconnected', data);
-  });
-
   // Player events
   registerSocketListener('player:updated', (data) => {
     if (data.sessionId === player?.sessionId) {
@@ -308,6 +301,40 @@ function setupEventListeners() {
   // Chat events
   registerSocketListener('chat:message', (data) => {
     emit('chatMessage', data);
+  });
+
+  // FIX C4: Add missing event listeners
+  registerSocketListener('chat:error', (error) => {
+    emit('error', { type: 'chat', ...error });
+  });
+
+  registerSocketListener('socket:error', (error) => {
+    emit('error', { type: 'socket', ...error });
+  });
+
+  registerSocketListener('session:inactivityTimeout', (data) => {
+    emit('inactivityTimeout', data);
+    showToast('Session timed out due to inactivity', 'warning');
+  });
+
+  // FIX H11/H12: Store reconnection token for secure reconnection
+  registerSocketListener('room:reconnectionToken', (data) => {
+    if (data.token) {
+      safeSetStorage(sessionStorage, 'codenames-reconnect-token', data.token);
+    }
+    emit('reconnectionToken', data);
+  });
+
+  // Store rotated token from reconnection response
+  registerSocketListener('room:reconnected', (data) => {
+    roomCode = data.room.code;
+    player = data.you;
+    // FIX H12: Extract and store rotated reconnection token
+    if (data.reconnectionToken) {
+      safeSetStorage(sessionStorage, 'codenames-reconnect-token', data.reconnectionToken);
+    }
+    saveSession();
+    emit('roomReconnected', data);
   });
 }
 
@@ -387,28 +414,93 @@ export function connect(serverUrl = null, options = {}) {
 
 /**
  * Attempt to rejoin the previous room
+ * FIX H6/H11: Uses secure reconnection token if available
  */
 async function attemptRejoin() {
   const storedRoom = getStoredRoomCode();
+  const storedToken = safeGetStorage(sessionStorage, 'codenames-reconnect-token');
   const nickname = storedNickname || player?.nickname;
 
-  if (!storedRoom || !nickname) {
-    console.log('Cannot auto-rejoin: missing room code or nickname');
+  if (!storedRoom) {
+    console.log('Cannot auto-rejoin: missing room code');
     return;
   }
 
-  console.log(`Attempting to rejoin room ${storedRoom} as ${nickname}`);
+  console.log(`Attempting to rejoin room ${storedRoom}`);
   emit('rejoining', { roomCode: storedRoom, nickname });
 
   try {
+    // Try secure reconnection first if we have a token
+    if (storedToken) {
+      console.log('Attempting secure reconnection with token');
+      const result = await reconnectToRoom(storedRoom, storedToken);
+      console.log('Successfully reconnected to room:', storedRoom);
+      emit('rejoined', result);
+      return;
+    }
+
+    // Fall back to regular join if no token (requires nickname)
+    if (!nickname) {
+      console.log('Cannot auto-rejoin: missing nickname and no reconnection token');
+      safeRemoveStorage(sessionStorage, 'codenames-room-code');
+      return;
+    }
+
     const result = await joinRoom(storedRoom, nickname);
     console.log('Successfully rejoined room:', storedRoom);
     emit('rejoined', result);
   } catch (error) {
     console.error('Failed to rejoin room:', error);
     safeRemoveStorage(sessionStorage, 'codenames-room-code');
+    safeRemoveStorage(sessionStorage, 'codenames-reconnect-token');
     emit('rejoinFailed', { roomCode: storedRoom, error });
   }
+}
+
+/**
+ * Reconnect to a room using a reconnection token
+ * @param {string} code - Room code
+ * @param {string} reconnectionToken - Secure reconnection token
+ */
+function reconnectToRoom(code, reconnectionToken) {
+  return new Promise((resolve, reject) => {
+    let timeoutId = null;
+    let settled = false;
+
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      off('roomReconnected', onReconnected);
+      off('error', onError);
+    };
+
+    const onReconnected = (data) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(data);
+    };
+
+    const onError = (error) => {
+      if (settled) return;
+      if (error.type === 'room' || error.type === 'connection') {
+        settled = true;
+        cleanup();
+        reject(error);
+      }
+    };
+
+    on('roomReconnected', onReconnected);
+    on('error', onError);
+
+    socket.emit('room:reconnect', { code, reconnectionToken });
+
+    timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Reconnect timeout'));
+    }, 10000);
+  });
 }
 
 /**
@@ -580,7 +672,8 @@ export function updateSettings(settings) {
  */
 export function requestResync() {
   if (!socket || !roomCode) return;
-  socket.emit('room:requestResync');
+  // FIX C4: Corrected event name to match server handler
+  socket.emit('room:resync');
 }
 
 // ============ Player Actions ============
@@ -614,9 +707,10 @@ export function setNickname(nickname) {
 /**
  * Kick a player (host only)
  */
-export function kickPlayer(sessionId) {
+export function kickPlayer(targetSessionId) {
   if (!socket) return;
-  socket.emit('player:kick', { sessionId });
+  // FIX C4: Corrected payload field name to match server expectation
+  socket.emit('player:kick', { targetSessionId });
 }
 
 // ============ Game Actions ============
@@ -691,10 +785,19 @@ export function addTime(seconds) {
 
 /**
  * Send a chat message
+ * @param {string} message - The message text
+ * @param {Object} [options] - Message options
+ * @param {boolean} [options.teamOnly] - Send only to team members
+ * @param {boolean} [options.spectatorOnly] - Send only to spectators
  */
-export function sendMessage(message) {
+export function sendMessage(message, options = {}) {
   if (!socket) return;
-  socket.emit('chat:send', { message });
+  // FIX C4: Corrected event name and payload structure to match server
+  socket.emit('chat:message', {
+    text: message,
+    teamOnly: options.teamOnly || false,
+    spectatorOnly: options.spectatorOnly || false
+  });
 }
 
 // ============ State Getters ============

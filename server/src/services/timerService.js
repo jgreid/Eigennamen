@@ -432,6 +432,20 @@ async function getTimerStatus(roomCode) {
     try {
         const timer = JSON.parse(timerData);
         const now = Date.now();
+
+        // FIX M9: Account for paused state in timer status
+        // When paused, return the stored remaining time instead of calculating from endTime
+        if (timer.paused && timer.remainingWhenPaused !== undefined) {
+            return {
+                startTime: timer.startTime,
+                endTime: timer.endTime,
+                duration: timer.duration,
+                remainingSeconds: timer.remainingWhenPaused,
+                expired: false,
+                isPaused: true
+            };
+        }
+
         const remainingMs = timer.endTime - now;
         const expired = remainingMs <= 0;
         // If expired, remainingSeconds should be 0, not 1 from Math.ceil
@@ -442,9 +456,11 @@ async function getTimerStatus(roomCode) {
             endTime: timer.endTime,
             duration: timer.duration,
             remainingSeconds,
-            expired
+            expired,
+            isPaused: false
         };
     } catch (e) {
+        logger.warn(`Failed to parse timer data for ${roomCode}:`, e.message);
         return null;
     }
 }

@@ -23,8 +23,9 @@ module.exports = function chatHandlers(io, socket) {
             }
 
             // ISSUE #29 FIX: Validate data is an object before passing to Zod
+            // FIX H13: Use INVALID_INPUT instead of undefined VALIDATION_ERROR
             if (!data || typeof data !== 'object') {
-                throw { code: ERROR_CODES.VALIDATION_ERROR, message: 'Invalid message format' };
+                throw { code: ERROR_CODES.INVALID_INPUT, message: 'Invalid message format' };
             }
 
             const validated = validateInput(chatMessageSchema, data);

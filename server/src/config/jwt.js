@@ -61,7 +61,9 @@ function getJwtSecret() {
 function isJwtEnabled() {
     try {
         return getJwtSecret() !== null;
-    } catch {
+    } catch (e) {
+        // FIX M14: Log error instead of silently returning false
+        logger.debug('JWT not enabled:', e.message);
         return false;
     }
 }
@@ -207,7 +209,9 @@ function verifyTokenWithClaims(token, expectedClaims = {}) {
 function decodeToken(token) {
     try {
         return jwt.decode(token);
-    } catch {
+    } catch (e) {
+        // FIX M14: Log error instead of silently returning null
+        logger.debug('Failed to decode token:', e.message);
         return null;
     }
 }

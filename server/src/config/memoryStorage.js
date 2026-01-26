@@ -592,8 +592,85 @@ class MemoryStorage {
             return 1; // Successfully added
         }
 
+        // FIX C3: Timer CLAIM script: 1 key (timerKey), 2 args (instanceId, newOwnerTTL)
+        // Detects pattern: KEYS[1]=timer:*, ARGV[1]=instanceId, ARGV[2]=TTL
+        if (numKeys === 1 && numArgs === 2 && options.keys[0].startsWith('timer:')) {
+            const timerKey = options.keys[0];
+            const instanceId = options.arguments[0];
+            const ownerTTL = parseInt(options.arguments[1], 10);
+
+            // Check if timer exists
+            if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
+                return null; // Timer doesn't exist
+            }
+
+            try {
+                const timerData = JSON.parse(this.data.get(timerKey));
+
+                // Check if timer is orphaned (no owner or different owner)
+                if (!timerData.ownerId || timerData.ownerId !== instanceId) {
+                    // Claim the timer
+                    timerData.ownerId = instanceId;
+                    this.data.set(timerKey, JSON.stringify(timerData));
+                    // Refresh TTL
+                    if (ownerTTL > 0) {
+                        this.expiries.set(timerKey, Date.now() + (ownerTTL * 1000));
+                    }
+                    return JSON.stringify(timerData);
+                }
+
+                return null; // Already owned by this instance
+            } catch (e) {
+                logger.error('Timer claim script parse error:', e.message);
+                return null;
+            }
+        }
+
+        // FIX C3: Timer ADD TIME script: 1 key (timerKey), 1 arg (secondsToAdd)
+        if (numKeys === 1 && numArgs === 1 && options.keys[0].startsWith('timer:')) {
+            const timerKey = options.keys[0];
+            const secondsToAdd = parseInt(options.arguments[0], 10);
+
+            // Check if timer exists
+            if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
+                return null; // Timer doesn't exist
+            }
+
+            try {
+                const timerData = JSON.parse(this.data.get(timerKey));
+
+                // Add time to the timer
+                const now = Date.now();
+                const currentRemaining = Math.max(0, timerData.endTime - now);
+                const newEndTime = now + currentRemaining + (secondsToAdd * 1000);
+
+                timerData.endTime = newEndTime;
+                timerData.duration = timerData.duration + secondsToAdd;
+                timerData.remainingSeconds = Math.ceil((newEndTime - now) / 1000);
+
+                this.data.set(timerKey, JSON.stringify(timerData));
+
+                return JSON.stringify(timerData);
+            } catch (e) {
+                logger.error('Timer add time script parse error:', e.message);
+                return null;
+            }
+        }
+
+        // FIX C3: Generic timer GET with update: 1 key (timerKey), 0 args
+        // Used for timer status checks
+        if (numKeys === 1 && numArgs === 0 && options.keys[0].startsWith('timer:')) {
+            const timerKey = options.keys[0];
+
+            if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
+                return null;
+            }
+
+            return this.data.get(timerKey);
+        }
+
         logger.debug('Memory storage eval called with unsupported script pattern', {
-            numKeys, numArgs
+            numKeys, numArgs, firstKey: options.keys[0]
         });
         return null;
     }
