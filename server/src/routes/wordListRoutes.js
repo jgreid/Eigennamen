@@ -7,23 +7,27 @@
  */
 
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const wordListService = require('../services/wordListService');
 const { validateBody, validateParams, validateQuery } = require('../middleware/validation');
 const { z } = require('zod');
 const { BOARD_SIZE } = require('../config/constants');
 const logger = require('../utils/logger');
+const { getJwtSecret } = require('../config/jwt');
 
 const router = express.Router();
 
 /**
  * Authentication middleware placeholder
  * Extracts user from JWT token if present
+ * Uses centralized JWT secret management but simple verification
+ * (no issuer/audience claims required for backwards compatibility)
  */
 function extractUser(req, res, next) {
     // Check for Authorization header
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        const secret = process.env.JWT_SECRET;
+        const secret = getJwtSecret();
         // Only attempt JWT verification if secret is configured
         if (!secret) {
             logger.debug('JWT_SECRET not configured, skipping token verification');
@@ -32,8 +36,7 @@ function extractUser(req, res, next) {
 
         try {
             const token = authHeader.substring(7);
-            const jwt = require('jsonwebtoken');
-            // Specify allowed algorithms to prevent algorithm confusion attacks
+            // Use simple verification with just algorithm check (original behavior)
             const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
             // Validate token structure
             if (decoded && typeof decoded.id === 'string') {

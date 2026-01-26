@@ -153,6 +153,11 @@ async function createWordList({ name, description, words, isPublic = false, owne
     }
     const prisma = getDatabase();
 
+    // Validate name
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new ValidationError('Word list name is required');
+    }
+
     // Validate minimum words
     if (!words || words.length < BOARD_SIZE) {
         throw new ValidationError(`Word list must contain at least ${BOARD_SIZE} words`);

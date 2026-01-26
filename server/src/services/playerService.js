@@ -360,6 +360,13 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
  */
 async function setRole(sessionId, role) {
     const redis = getRedis();
+
+    // Validate role is a valid value
+    const validRoles = ['spectator', 'spymaster', 'clicker'];
+    if (!role || !validRoles.includes(role)) {
+        throw new ValidationError(`Invalid role: must be one of ${validRoles.join(', ')}`);
+    }
+
     const player = await getPlayer(sessionId);
 
     if (!player) {

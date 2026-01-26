@@ -16,6 +16,9 @@ const { TIMER, REDIS_TTL } = require('../config/constants');
 // Local timers for this instance
 const localTimers = new Map();
 
+// Track pending addTime operations to prevent race conditions
+const pendingAddTimeOps = new Map();
+
 // Use centralized constants
 const ORPHAN_CHECK_INTERVAL = TIMER.ORPHAN_CHECK_INTERVAL_MS;
 const ORPHAN_CHECK_TIMEOUT = TIMER.ORPHAN_CHECK_TIMEOUT_MS;
@@ -222,41 +225,57 @@ function handleTimerEvent(event, onExpireCallback) {
             // ISSUE #34 FIX: Handle addTime from another instance
             // Only the instance that owns the timer should process this
             if (localTimers.has(event.roomCode)) {
-                const localTimer = localTimers.get(event.roomCode);
+                // Serialize addTime operations per room to prevent race conditions
+                const processAddTime = async () => {
+                    const localTimer = localTimers.get(event.roomCode);
+                    if (!localTimer) return; // Timer may have been removed
 
-                // If event contains newEndTime, it's a notification of completed addTime
-                // If event contains secondsToAdd, it's a request to add time
-                if (event.newEndTime) {
-                    // Update local timer with new end time from completed operation
-                    clearTimeout(localTimer.timeoutId);
-                    localTimer.endTime = event.newEndTime;
-                    localTimer.duration = event.newDuration;
+                    // If event contains newEndTime, it's a notification of completed addTime
+                    // If event contains secondsToAdd, it's a request to add time
+                    if (event.newEndTime) {
+                        // Update local timer with new end time from completed operation
+                        clearTimeout(localTimer.timeoutId);
+                        localTimer.endTime = event.newEndTime;
+                        localTimer.duration = event.newDuration;
 
-                    const remainingMs = event.newEndTime - Date.now();
-                    if (remainingMs > 0) {
-                        localTimer.timeoutId = setTimeout(async () => {
-                            try {
-                                logger.info(`Timer expired for room ${event.roomCode}`);
-                                localTimers.delete(event.roomCode);
-                                const redis = getRedis();
-                                await redis.del(`${TIMER_KEY_PREFIX}${event.roomCode}`);
+                        const remainingMs = event.newEndTime - Date.now();
+                        if (remainingMs > 0) {
+                            localTimer.timeoutId = setTimeout(async () => {
+                                try {
+                                    logger.info(`Timer expired for room ${event.roomCode}`);
+                                    localTimers.delete(event.roomCode);
+                                    const redis = getRedis();
+                                    await redis.del(`${TIMER_KEY_PREFIX}${event.roomCode}`);
 
-                                if (onExpireCallback) {
-                                    await onExpireCallback(event.roomCode);
+                                    if (onExpireCallback) {
+                                        await onExpireCallback(event.roomCode);
+                                    }
+                                } catch (error) {
+                                    logger.error(`Error handling timer expiration for room ${event.roomCode}:`, error);
                                 }
-                            } catch (error) {
-                                logger.error(`Error handling timer expiration for room ${event.roomCode}:`, error);
-                            }
-                        }, remainingMs);
+                            }, remainingMs);
 
-                        logger.debug(`Updated local timer for room ${event.roomCode} via pub/sub addTime`);
+                            logger.debug(`Updated local timer for room ${event.roomCode} via pub/sub addTime`);
+                        }
+                    } else if (event.secondsToAdd) {
+                        // Process addTime request locally since we own the timer
+                        logger.debug(`Processing addTime event for room ${event.roomCode} (we own this timer)`);
+                        await addTimeLocal(event.roomCode, event.secondsToAdd, onExpireCallback);
                     }
-                } else if (event.secondsToAdd) {
-                    // Process addTime request locally since we own the timer
-                    logger.debug(`Processing addTime event for room ${event.roomCode} (we own this timer)`);
-                    addTimeLocal(event.roomCode, event.secondsToAdd, onExpireCallback)
-                        .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err));
-                }
+                };
+
+                // Chain operations to prevent race conditions
+                const existingOp = pendingAddTimeOps.get(event.roomCode) || Promise.resolve();
+                const newOp = existingOp
+                    .then(processAddTime)
+                    .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err))
+                    .finally(() => {
+                        // Clean up if this is the last operation
+                        if (pendingAddTimeOps.get(event.roomCode) === newOp) {
+                            pendingAddTimeOps.delete(event.roomCode);
+                        }
+                    });
+                pendingAddTimeOps.set(event.roomCode, newOp);
             }
             break;
         case 'expired':
@@ -537,6 +556,14 @@ async function resumeTimer(roomCode, onExpire) {
  * @returns {Object|null} Updated timer info or null
  */
 async function addTime(roomCode, secondsToAdd, onExpire) {
+    // Validate parameters
+    if (!roomCode || typeof roomCode !== 'string') {
+        throw new Error('Invalid roomCode: must be a non-empty string');
+    }
+    if (typeof secondsToAdd !== 'number' || !Number.isFinite(secondsToAdd) || secondsToAdd <= 0) {
+        throw new Error('Invalid secondsToAdd: must be a positive number');
+    }
+
     // ISSUE #34 FIX: Check if we own this timer locally
     if (localTimers.has(roomCode)) {
         // We own the timer - process locally

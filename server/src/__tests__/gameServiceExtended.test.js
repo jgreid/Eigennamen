@@ -660,16 +660,22 @@ describe('createGame', () => {
 
     test('updates room status when room data exists', async () => {
         const roomData = JSON.stringify({ code: 'TEST09', status: 'waiting', players: [] });
-        mockRedis.get.mockResolvedValueOnce(roomData);
+        // First get is for game existence check (returns null), second is for room data update
+        mockRedis.get
+            .mockResolvedValueOnce(null) // getGame() check - no existing game
+            .mockResolvedValueOnce(roomData); // room data for status update
 
         await createGame('TEST09');
 
-        // Should have called set twice (game + room update)
-        expect(mockRedis.set).toHaveBeenCalledTimes(2);
+        // Should have called set 3 times (lock + game + room update), plus del for lock cleanup
+        expect(mockRedis.set).toHaveBeenCalledTimes(3);
     });
 
     test('handles corrupted room data gracefully', async () => {
-        mockRedis.get.mockResolvedValueOnce('invalid-json');
+        // First get is for game existence check (returns null), second is for room data (corrupted)
+        mockRedis.get
+            .mockResolvedValueOnce(null) // getGame() check - no existing game
+            .mockResolvedValueOnce('invalid-json'); // corrupted room data
 
         const game = await createGame('TEST10');
 

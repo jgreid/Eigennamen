@@ -3758,6 +3758,9 @@
         // Track timeout to prevent race conditions
         let srAnnouncementTimeout = null;
 
+        // Track if board has been initialized (for incremental updates)
+        let boardInitialized = false;
+
         // Screen reader announcement helper
         function announceToScreenReader(message) {
             const announcer = cachedElements.srAnnouncements;
@@ -3935,12 +3938,12 @@
             listEl.innerHTML = games.map(game => {
                 const date = new Date(game.timestamp);
                 const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const winnerName = game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue');
+                const winnerName = escapeHTML(game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue'));
 
                 return `
-                    <div class="history-item" data-game-id="${game.id}">
+                    <div class="history-item" data-game-id="${escapeHTML(game.id)}">
                         <div class="history-item-info">
-                            <div class="history-item-winner ${game.winner}">${winnerName} Team Wins!</div>
+                            <div class="history-item-winner ${escapeHTML(game.winner)}">${winnerName} Team Wins!</div>
                             <div class="history-item-date">${dateStr}</div>
                         </div>
                         <div class="history-item-stats">
@@ -4000,10 +4003,11 @@
             }
 
             // Render replay info
-            const winnerName = data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown';
+            const winnerName = escapeHTML(data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown');
+            const winnerClass = escapeHTML(data.finalState?.winner || '');
             const durationStr = formatDuration(data.duration || 0);
             document.getElementById('replay-info').innerHTML = `
-                <span class="winner-badge ${data.finalState?.winner}">${winnerName} Team Wins!</span>
+                <span class="winner-badge ${winnerClass}">${winnerName} Team Wins!</span>
                 <span>Duration: ${durationStr} | ${data.totalMoves || 0} moves</span>
             `;
 
@@ -4033,7 +4037,7 @@
             const types = currentReplayData?.initialBoard?.types || [];
 
             board.innerHTML = words.map((word, index) => {
-                return `<div class="replay-card" data-index="${index}">${word}</div>`;
+                return `<div class="replay-card" data-index="${index}">${escapeHTML(word)}</div>`;
             }).join('');
 
             // Apply revealed state up to current index
@@ -4081,16 +4085,16 @@
             logEl.innerHTML = events.map((event, index) => {
                 let actionText = '';
                 let detailText = '';
-                const team = event.data?.team || '';
+                const team = escapeHTML(event.data?.team || '');
 
                 switch (event.type) {
                     case 'clue':
                         actionText = 'gave clue';
-                        detailText = `"${event.data?.word}" for ${event.data?.number}`;
+                        detailText = `"${escapeHTML(event.data?.word || '')}" for ${escapeHTML(String(event.data?.number ?? ''))}`;
                         break;
                     case 'reveal':
                         actionText = 'revealed';
-                        detailText = `${event.data?.word} (${event.data?.type})`;
+                        detailText = `${escapeHTML(event.data?.word || '')} (${escapeHTML(event.data?.type || '')})`;
                         break;
                     case 'endTurn':
                         actionText = 'ended turn';
@@ -4098,10 +4102,10 @@
                         break;
                     case 'forfeit':
                         actionText = 'forfeited';
-                        detailText = `${event.data?.winner} wins`;
+                        detailText = `${escapeHTML(event.data?.winner || '')} wins`;
                         break;
                     default:
-                        actionText = event.type;
+                        actionText = escapeHTML(event.type || '');
                         detailText = '';
                 }
 
@@ -4290,6 +4294,7 @@
             const nickname = document.getElementById('join-nickname').value.trim();
             const roomIdInput = document.getElementById('join-room-id').value.trim();
             const urlRoomCode = getRoomCodeFromURL();
+            const joinBtn = document.getElementById('join-game-btn');
 
             // Nickname validation
             if (!nickname) {
@@ -4327,20 +4332,17 @@
                 return;
             }
 
-            setMpStatus('Connecting...', 'connecting');
+            // Disable button to prevent double-click race condition
+            if (joinBtn) joinBtn.disabled = true;
 
-            // Connect to server
             try {
+                setMpStatus('Connecting...', 'connecting');
+
+                // Connect to server
                 if (!CodenamesClient.isConnected()) {
                     await CodenamesClient.connect();
                 }
-            } catch (connectError) {
-                console.error('Connection failed:', connectError);
-                setMpStatus('Could not connect to server', 'error');
-                return;
-            }
 
-            try {
                 setMpStatus('Joining game...', 'connecting');
                 // Join the room with roomId (no password needed)
                 const result = await CodenamesClient.joinRoom(roomId, nickname);
@@ -4358,9 +4360,14 @@
                     setMpStatus('Room is full', 'error');
                 } else if (error.code === 'INVALID_INPUT') {
                     setMpStatus('Invalid Room ID format', 'error');
+                } else if (error.message?.includes('connect')) {
+                    setMpStatus('Could not connect to server', 'error');
                 } else {
                     setMpStatus(error.message || 'Failed to join game', 'error');
                 }
+            } finally {
+                // Re-enable button
+                if (joinBtn) joinBtn.disabled = false;
             }
         }
 
@@ -4369,6 +4376,7 @@
 
             const nickname = document.getElementById('create-nickname').value.trim();
             const roomId = document.getElementById('create-room-id').value.trim();
+            const createBtn = document.getElementById('create-game-btn');
 
             // Nickname validation
             if (!nickname) {
@@ -4402,20 +4410,17 @@
                 return;
             }
 
-            setMpStatus('Creating game...', 'connecting');
+            // Disable button to prevent double-click race condition
+            if (createBtn) createBtn.disabled = true;
 
-            // Connect to server
             try {
+                setMpStatus('Creating game...', 'connecting');
+
+                // Connect to server
                 if (!CodenamesClient.isConnected()) {
                     await CodenamesClient.connect();
                 }
-            } catch (connectError) {
-                console.error('Connection failed:', connectError);
-                setMpStatus('Could not connect to server', 'error');
-                return;
-            }
 
-            try {
                 // Create room with roomId
                 const result = await CodenamesClient.createRoom({
                     roomId: roomId,
@@ -4431,15 +4436,27 @@
                 console.error('Create failed:', error);
                 if (error.code === 'ROOM_ALREADY_EXISTS') {
                     setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
+                } else if (error.message?.includes('connect')) {
+                    setMpStatus('Could not connect to server', 'error');
                 } else {
                     setMpStatus(error.message || 'Failed to create game', 'error');
                 }
+            } finally {
+                // Re-enable button
+                if (createBtn) createBtn.disabled = false;
             }
         }
 
         function onMultiplayerJoined(result, isHost = false) {
             isMultiplayerMode = true;
             localStorage.setItem('codenames-nickname', CodenamesClient.player?.nickname || '');
+
+            // CRITICAL: Set up multiplayer event listeners FIRST to avoid race condition
+            // where game:started arrives before listeners are ready
+            if (!multiplayerListenersSetup) {
+                setupMultiplayerListeners();
+                multiplayerListenersSetup = true;
+            }
 
             // Store players list
             multiplayerPlayers = result.players || [result.player];
@@ -4464,12 +4481,6 @@
             // Update UI
             setMpStatus('Connected!', 'success');
             updateMpIndicator(result.room, multiplayerPlayers);
-
-            // Set up multiplayer event listeners (only once)
-            if (!multiplayerListenersSetup) {
-                setupMultiplayerListeners();
-                multiplayerListenersSetup = true;
-            }
 
             // Show/hide room settings nav item based on host status
             updateRoomSettingsNavVisibility();
@@ -4662,6 +4673,12 @@
                     const previousTurn = gameState.currentTurn;
                     // Update turn locally
                     gameState.currentTurn = data.currentTurn;
+
+                    // Reset clue and guess state for new turn
+                    gameState.currentClue = null;
+                    gameState.guessesUsed = 0;
+                    gameState.guessesAllowed = 0;
+
                     updateTurnIndicator();
                     updateRoleBanner();
                     updateControls();
@@ -4962,6 +4979,7 @@
                 // Clear any in-progress flags
                 isRevealingCard = false;
                 isChangingRole = false;
+                pendingRoleChange = null; // Clear pending role change on error
                 document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
                 // Map technical error codes to user-friendly messages
@@ -5052,7 +5070,8 @@
             'playerUpdated', 'clueGiven', 'spymasterView',
             'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
             'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
-            'kicked', 'playerKicked', 'settingsUpdated'
+            'kicked', 'playerKicked', 'settingsUpdated',
+            'historyResult', 'replayData'
         ];
 
         function cleanupMultiplayerListeners() {
@@ -5121,6 +5140,16 @@
 
             // Server sends arrays: words, types, revealed (not a board object)
             if (serverGame.words && Array.isArray(serverGame.words)) {
+                // Check if words have changed - if so, force full board re-render
+                const wordsChanged = !gameState.words ||
+                    gameState.words.length !== serverGame.words.length ||
+                    gameState.words.some((w, i) => w !== serverGame.words[i]);
+
+                if (wordsChanged) {
+                    // Force full board re-render when words change (new game started)
+                    boardInitialized = false;
+                }
+
                 gameState.words = serverGame.words;
                 gameState.types = serverGame.types || [];
                 gameState.revealed = serverGame.revealed || [];
@@ -5159,9 +5188,17 @@
                 gameState.seed = serverGame.seed;
             }
 
-            // Sync clue state if available
-            if (serverGame.currentClue) {
+            // Sync clue state (explicitly handle null to clear old clue)
+            if (serverGame.currentClue !== undefined) {
                 gameState.currentClue = serverGame.currentClue;
+            }
+
+            // Sync guess tracking state
+            if (typeof serverGame.guessesUsed === 'number') {
+                gameState.guessesUsed = serverGame.guessesUsed;
+            }
+            if (typeof serverGame.guessesAllowed === 'number') {
+                gameState.guessesAllowed = serverGame.guessesAllowed;
             }
 
             // Update all UI components
@@ -5223,6 +5260,14 @@
             } else if (!gameState.gameOver && type !== gameState.currentTurn) {
                 // Fallback: end turn if wrong guess (and game not over)
                 gameState.currentTurn = gameState.currentTurn === 'red' ? 'blue' : 'red';
+            }
+
+            // Sync guess tracking from server
+            if (typeof serverData.guessesUsed === 'number') {
+                gameState.guessesUsed = serverData.guessesUsed;
+            }
+            if (typeof serverData.guessesAllowed === 'number') {
+                gameState.guessesAllowed = serverData.guessesAllowed;
             }
 
             // Batch DOM updates using requestAnimationFrame for better performance
@@ -5499,7 +5544,6 @@
         let activeWords = [...DEFAULT_WORDS];
         let wordSource = 'default';
         let wordListMode = 'combined'; // 'default', 'combined', or 'custom'
-        let customWordsList = []; // Stores custom words separately
 
         // Team names (stored in URL for consistency across players)
         let teamNames = {
@@ -6486,9 +6530,6 @@
             return false;
         }
 
-        // Track if board has been initialized (for incremental updates)
-        let boardInitialized = false;
-
         // Initialize board event delegation (called once)
         function initBoardEventDelegation() {
             const board = cachedElements.board || document.getElementById('board');
@@ -6601,10 +6642,20 @@
                 const card = cards[index];
                 const isRevealed = gameState.revealed[index];
                 const type = gameState.types[index];
+                const word = gameState.words[index];
+
+                // Update card text if it changed (safety measure for sync issues)
+                if (card.textContent !== word) {
+                    card.textContent = word;
+                    // Update font class based on word length
+                    card.classList.remove('small-text', 'tiny-text');
+                    const fontClass = getCardFontClass(word);
+                    if (fontClass) card.classList.add(fontClass);
+                }
 
                 // Update ARIA
                 card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-                card.setAttribute('aria-label', `${gameState.words[index]}${isRevealed ? ', revealed as ' + type : ''}`);
+                card.setAttribute('aria-label', `${word}${isRevealed ? ', revealed as ' + type : ''}`);
 
                 // Handle spymaster mode (show all card types when game is over)
                 if (spymasterTeam || gameState.gameOver) {
@@ -7127,10 +7178,8 @@
             // Save custom words if any
             if (customWordsText) {
                 localStorage.setItem('codenames-custom-words', customWordsText);
-                customWordsList = customWords;
             } else {
                 localStorage.removeItem('codenames-custom-words');
-                customWordsList = [];
             }
 
             // Build active word list based on mode
@@ -7182,7 +7231,6 @@
             // Load custom words
             const customWordsText = localStorage.getItem('codenames-custom-words');
             const customWords = customWordsText ? parseWords(customWordsText) : [];
-            customWordsList = customWords;
 
             // Apply word list based on mode
             if (wordListMode === 'default') {

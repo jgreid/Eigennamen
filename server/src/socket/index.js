@@ -541,7 +541,9 @@ async function handleDisconnect(io, socket, reason) {
 
                 try {
                     // ISSUE #7 FIX: Increase lock TTL to 10s for slow Redis operations
-                    hostTransferLockAcquired = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 10 });
+                    // Explicit verification of lock result (Redis returns 'OK' or null)
+                    const lockResult = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 10 });
+                    hostTransferLockAcquired = lockResult === 'OK' || lockResult === true;
 
                     if (hostTransferLockAcquired) {
                         const room = await roomService.getRoom(roomCode);

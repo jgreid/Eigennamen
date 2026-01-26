@@ -484,120 +484,147 @@ function generateSeed() {
  */
 async function createGame(roomCode, options = {}) {
     const redis = getRedis();
-    const seed = generateSeed();
-    const numericSeed = hashString(seed);
 
-    const { wordListId, wordList } = options;
+    // RACE CONDITION FIX: Use creation lock to prevent simultaneous game creation
+    const lockKey = `room:${roomCode}:game:creating`;
+    const lockAcquired = await redis.set(lockKey, '1', { NX: true, EX: 10 }); // 10 second lock
 
-    // Get words - priority: direct wordList > wordListId > default
-    let words = DEFAULT_WORDS;
-    let usedWordListId = null;
-
-    // Option 1: Direct word list passed from client (no database needed)
-    if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
-        // Clean and deduplicate words
-        const cleanedWords = [...new Set(
-            wordList
-                .map(w => String(w).trim().toUpperCase())
-                .filter(w => w.length > 0)
-        )];
-
-        if (cleanedWords.length >= BOARD_SIZE) {
-            words = cleanedWords;
-            logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
-        } else {
-            logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
+    if (!lockAcquired) {
+        // Another creation in progress - wait briefly and check if game exists
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const existingGame = await getGame(roomCode);
+        if (existingGame && !existingGame.gameOver) {
+            throw GameStateError.gameInProgress(roomCode);
         }
+        // Lock expired but no game - try again
+        throw new Error('Game creation in progress by another player, please try again');
     }
-    // Option 2: Word list ID from database
-    else if (wordListId) {
-        try {
-            const customWords = await wordListService.getWordsForGame(wordListId);
-            if (customWords && customWords.length >= BOARD_SIZE) {
-                words = customWords;
-                usedWordListId = wordListId;
-                logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
+
+    try {
+        // Double-check no game exists (within lock)
+        const existingGame = await getGame(roomCode);
+        if (existingGame && !existingGame.gameOver) {
+            throw GameStateError.gameInProgress(roomCode);
+        }
+
+        const seed = generateSeed();
+        const numericSeed = hashString(seed);
+
+        const { wordListId, wordList } = options;
+
+        // Get words - priority: direct wordList > wordListId > default
+        let words = DEFAULT_WORDS;
+        let usedWordListId = null;
+
+        // Option 1: Direct word list passed from client (no database needed)
+        if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
+            // Clean and deduplicate words
+            const cleanedWords = [...new Set(
+                wordList
+                    .map(w => String(w).trim().toUpperCase())
+                    .filter(w => w.length > 0)
+            )];
+
+            if (cleanedWords.length >= BOARD_SIZE) {
+                words = cleanedWords;
+                logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
             } else {
-                logger.warn(`Database word list ${wordListId} not found or too small, using default`);
+                logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
             }
-        } catch (error) {
-            logger.error(`Error fetching database word list ${wordListId}:`, error);
-            // Fall back to default words
         }
-    }
-
-    // Select 25 random words
-    const shuffledWords = shuffleWithSeed(words, numericSeed);
-    const boardWords = shuffledWords.slice(0, BOARD_SIZE);
-
-    // Determine who goes first
-    const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
-
-    // Create card types
-    let types = [];
-    let redTotal, blueTotal;
-
-    if (firstTeam === 'red') {
-        types = [
-            ...Array(FIRST_TEAM_CARDS).fill('red'),
-            ...Array(SECOND_TEAM_CARDS).fill('blue')
-        ];
-        redTotal = FIRST_TEAM_CARDS;
-        blueTotal = SECOND_TEAM_CARDS;
-    } else {
-        types = [
-            ...Array(SECOND_TEAM_CARDS).fill('red'),
-            ...Array(FIRST_TEAM_CARDS).fill('blue')
-        ];
-        redTotal = SECOND_TEAM_CARDS;
-        blueTotal = FIRST_TEAM_CARDS;
-    }
-    types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral'), 'assassin'];
-    types = shuffleWithSeed(types, numericSeed + 500);
-
-    const game = {
-        id: uuidv4(),
-        seed,
-        wordListId: usedWordListId,
-        words: boardWords,
-        types,
-        revealed: Array(BOARD_SIZE).fill(false),
-        currentTurn: firstTeam,
-        redScore: 0,
-        blueScore: 0,
-        redTotal,
-        blueTotal,
-        gameOver: false,
-        winner: null,
-        currentClue: null,
-        guessesUsed: 0,        // Track guesses used this turn
-        guessesAllowed: 0,     // Max guesses allowed (clue number + 1)
-        clues: [],
-        history: [],
-        stateVersion: 1,       // State versioning for conflict detection
-        createdAt: Date.now()
-    };
-
-    // Store in Redis with TTL (same as room)
-    await redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM });
-
-    // Update room status and refresh TTL
-    const roomData = await redis.get(`room:${roomCode}`);
-    if (roomData) {
-        try {
-            const room = JSON.parse(roomData);
-            room.status = 'playing';
-            await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
-        } catch (e) {
-            logger.error(`Failed to parse room data for ${roomCode}:`, e.message);
+        // Option 2: Word list ID from database
+        else if (wordListId) {
+            try {
+                const customWords = await wordListService.getWordsForGame(wordListId);
+                if (customWords && customWords.length >= BOARD_SIZE) {
+                    words = customWords;
+                    usedWordListId = wordListId;
+                    logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
+                } else {
+                    logger.warn(`Database word list ${wordListId} not found or too small, using default`);
+                }
+            } catch (error) {
+                logger.error(`Error fetching database word list ${wordListId}:`, error);
+                // Fall back to default words
+            }
         }
+
+        // Select 25 random words
+        const shuffledWords = shuffleWithSeed(words, numericSeed);
+        const boardWords = shuffledWords.slice(0, BOARD_SIZE);
+
+        // Determine who goes first
+        const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
+
+        // Create card types
+        let types = [];
+        let redTotal, blueTotal;
+
+        if (firstTeam === 'red') {
+            types = [
+                ...Array(FIRST_TEAM_CARDS).fill('red'),
+                ...Array(SECOND_TEAM_CARDS).fill('blue')
+            ];
+            redTotal = FIRST_TEAM_CARDS;
+            blueTotal = SECOND_TEAM_CARDS;
+        } else {
+            types = [
+                ...Array(SECOND_TEAM_CARDS).fill('red'),
+                ...Array(FIRST_TEAM_CARDS).fill('blue')
+            ];
+            redTotal = SECOND_TEAM_CARDS;
+            blueTotal = FIRST_TEAM_CARDS;
+        }
+        types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral'), 'assassin'];
+        types = shuffleWithSeed(types, numericSeed + 500);
+
+        const game = {
+            id: uuidv4(),
+            seed,
+            wordListId: usedWordListId,
+            words: boardWords,
+            types,
+            revealed: Array(BOARD_SIZE).fill(false),
+            currentTurn: firstTeam,
+            redScore: 0,
+            blueScore: 0,
+            redTotal,
+            blueTotal,
+            gameOver: false,
+            winner: null,
+            currentClue: null,
+            guessesUsed: 0,        // Track guesses used this turn
+            guessesAllowed: 0,     // Max guesses allowed (clue number + 1)
+            clues: [],
+            history: [],
+            stateVersion: 1,       // State versioning for conflict detection
+            createdAt: Date.now()
+        };
+
+        // Store in Redis with TTL (same as room)
+        await redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM });
+
+        // Update room status and refresh TTL
+        const roomData = await redis.get(`room:${roomCode}`);
+        if (roomData) {
+            try {
+                const room = JSON.parse(roomData);
+                room.status = 'playing';
+                await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+            } catch (e) {
+                logger.error(`Failed to parse room data for ${roomCode}:`, e.message);
+            }
+        }
+
+        // Refresh related keys TTL
+        await redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM);
+
+        logger.info(`Game created for room ${roomCode} with seed ${seed}`);
+        return game;
+    } finally {
+        // Always release the creation lock
+        await redis.del(lockKey);
     }
-
-    // Refresh related keys TTL
-    await redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM);
-
-    logger.info(`Game created for room ${roomCode} with seed ${seed}`);
-    return game;
 }
 
 /**
@@ -1171,12 +1198,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
                 throw ValidationError.clueAlreadyGiven();
             }
 
-            // BUG-3 FIX: Validate clue number is within valid range (0-25)
-            // 0 = unlimited guesses, max is 25 (board size)
-            if (typeof number !== 'number' || !Number.isInteger(number) || number < 0 || number > BOARD_SIZE) {
-                await redis.unwatch();
-                throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
-            }
+            // Note: Number validation already done at function entry (line 1147-1150)
 
             // Validate clue word is not on the board
             const validation = validateClueWord(word, game.words);

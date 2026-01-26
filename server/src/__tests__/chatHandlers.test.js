@@ -196,7 +196,8 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: '<script>alert("xss")</script>', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            expect(emittedMessage.text).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+            // Note: utils/sanitize.js uses OWASP-recommended encoding (&#x2F; for /)
+            expect(emittedMessage.text).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
             expect(emittedMessage.text).not.toContain('<script>');
         });
 
@@ -244,7 +245,8 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: "He said \"Hello\" and 'Goodbye'", teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            expect(emittedMessage.text).toBe('He said &quot;Hello&quot; and &#039;Goodbye&#039;');
+            // Note: utils/sanitize.js uses OWASP-recommended encoding (&#x27; for ')
+            expect(emittedMessage.text).toBe('He said &quot;Hello&quot; and &#x27;Goodbye&#x27;');
         });
     });
 
