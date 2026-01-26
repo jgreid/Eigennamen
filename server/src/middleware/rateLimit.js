@@ -137,6 +137,8 @@ function filterTimestampsInPlace(timestamps, windowStart) {
 function createSocketRateLimiter(limits) {
     const socketRequests = new Map();  // Per-socket rate limiting
     const ipRequests = new Map();      // Per-IP rate limiting (aggregate)
+    // Reverse index for O(1) socket cleanup: socketId -> Set of keys
+    const socketKeyIndex = new Map();
 
     // Metrics tracking
     const metrics = {
@@ -184,6 +186,11 @@ function createSocketRateLimiter(limits) {
             if (!socketTimestamps) {
                 socketTimestamps = [];
                 socketRequests.set(socketKey, socketTimestamps);
+                // Maintain reverse index for O(1) cleanup on disconnect
+                if (!socketKeyIndex.has(socket.id)) {
+                    socketKeyIndex.set(socket.id, new Set());
+                }
+                socketKeyIndex.get(socket.id).add(socketKey);
             }
             const socketCount = filterTimestampsInPlace(socketTimestamps, windowStart);
 
@@ -222,19 +229,17 @@ function createSocketRateLimiter(limits) {
     /**
      * Clean up all rate limit entries for a specific socket
      * Call this when a socket disconnects to prevent memory leaks
+     * Uses reverse index for O(1) lookup instead of O(n) iteration
      */
     const cleanupSocket = (socketId) => {
-        const keysToDelete = [];
-        for (const key of socketRequests.keys()) {
-            if (key.startsWith(`${socketId}:`)) {
-                keysToDelete.push(key);
+        // Use reverse index for O(1) cleanup instead of O(n) iteration
+        const keys = socketKeyIndex.get(socketId);
+        if (keys && keys.size > 0) {
+            for (const key of keys) {
+                socketRequests.delete(key);
             }
-        }
-        for (const key of keysToDelete) {
-            socketRequests.delete(key);
-        }
-        if (keysToDelete.length > 0) {
-            logger.debug(`Cleaned up ${keysToDelete.length} rate limit entries for socket ${socketId}`);
+            logger.debug(`Cleaned up ${keys.size} rate limit entries for socket ${socketId}`);
+            socketKeyIndex.delete(socketId);
         }
         // Note: IP-based entries are not cleaned up per-socket as they aggregate across sockets
     };
@@ -309,6 +314,15 @@ function createSocketRateLimiter(limits) {
                 const newLength = filterTimestampsInPlace(timestamps, windowStart);
                 if (newLength === 0) {
                     socketRequests.delete(key);
+                    // Also clean up reverse index entry
+                    const socketId = key.split(':')[0];
+                    const indexSet = socketKeyIndex.get(socketId);
+                    if (indexSet) {
+                        indexSet.delete(key);
+                        if (indexSet.size === 0) {
+                            socketKeyIndex.delete(socketId);
+                        }
+                    }
                     cleanedSocket++;
                 }
             }

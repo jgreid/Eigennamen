@@ -455,6 +455,22 @@
         // Auto-refresh interval (10 seconds)
         const REFRESH_INTERVAL = 10000;
 
+        // HTML escape function to prevent XSS when rendering room data
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Validate room code format (alphanumeric only)
+        function isValidRoomCode(code) {
+            return typeof code === 'string' && /^[A-Z0-9]{4,8}$/i.test(code);
+        }
+
         // Show toast notification
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -534,6 +550,9 @@
                     return;
                 }
 
+                // Filter to only valid rooms and escape all user-controllable data
+                const validRooms = data.rooms.filter(room => isValidRoomCode(room.code));
+
                 container.innerHTML = `
                     <table>
                         <thead>
@@ -548,19 +567,28 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.rooms.map(room => `
-                                <tr data-code="${room.code}">
-                                    <td><strong>${room.code}</strong></td>
-                                    <td><span class="room-status ${room.status}">${room.status}</span></td>
-                                    <td>${room.playerCount}</td>
-                                    <td>${room.settings.turnTimer ? room.settings.turnTimer + 's' : 'Off'}</td>
+                            ${validRooms.map(room => {
+                                // Sanitize all values before rendering
+                                const safeCode = escapeHTML(room.code);
+                                const safeStatus = ['waiting', 'playing'].includes(room.status) ? room.status : 'waiting';
+                                const safePlayerCount = Number.isInteger(room.playerCount) ? room.playerCount : 0;
+                                const turnTimer = room.settings?.turnTimer;
+                                const safeTurnTimer = Number.isInteger(turnTimer) && turnTimer > 0 ? turnTimer + 's' : 'Off';
+                                const safeCreatedAt = room.createdAt ? new Date(room.createdAt).toLocaleTimeString() : '-';
+
+                                return `
+                                <tr data-code="${safeCode}">
+                                    <td><strong>${safeCode}</strong></td>
+                                    <td><span class="room-status ${safeStatus}">${escapeHTML(safeStatus)}</span></td>
+                                    <td>${safePlayerCount}</td>
+                                    <td>${safeTurnTimer}</td>
                                     <td>${room.hasPassword ? 'Yes' : 'No'}</td>
-                                    <td>${room.createdAt ? new Date(room.createdAt).toLocaleTimeString() : '-'}</td>
+                                    <td>${safeCreatedAt}</td>
                                     <td>
-                                        <button class="btn btn-danger btn-sm" onclick="closeRoom('${room.code}')">Close</button>
+                                        <button class="btn btn-danger btn-sm" onclick="closeRoom('${safeCode}')">Close</button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `}).join('')}
                         </tbody>
                     </table>
                 `;
@@ -573,12 +601,18 @@
 
         // Close a room
         async function closeRoom(code) {
-            if (!confirm(`Are you sure you want to close room ${code}? All players will be disconnected.`)) {
+            // Validate room code format to prevent injection
+            if (!isValidRoomCode(code)) {
+                showToast('Invalid room code', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to close room ${escapeHTML(code)}? All players will be disconnected.`)) {
                 return;
             }
 
             try {
-                const response = await fetch(`/admin/api/rooms/${code}`, {
+                const response = await fetch(`/admin/api/rooms/${encodeURIComponent(code)}`, {
                     method: 'DELETE'
                 });
 
@@ -587,7 +621,7 @@
                     throw new Error(data.error?.message || 'Failed to close room');
                 }
 
-                showToast(`Room ${code} closed successfully`);
+                showToast(`Room ${escapeHTML(code)} closed successfully`);
                 fetchRooms();
                 fetchStats();
 

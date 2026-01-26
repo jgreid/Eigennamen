@@ -3956,13 +3956,27 @@
                 `;
             }).join('');
 
-            // Add click handlers for game items
-            listEl.querySelectorAll('.history-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const gameId = item.dataset.gameId;
-                    openReplay(gameId);
+            // Event delegation is set up once via setupHistoryEventDelegation()
+            // No need to add listeners per item - prevents memory leaks
+        }
+
+        // Use event delegation for history items to prevent memory leaks
+        // Only set up once during initialization
+        let historyDelegationSetup = false;
+        function setupHistoryEventDelegation() {
+            if (historyDelegationSetup) return;
+            historyDelegationSetup = true;
+
+            const listEl = document.getElementById('history-list');
+            if (listEl) {
+                listEl.addEventListener('click', (event) => {
+                    // Find the closest history-item ancestor
+                    const historyItem = event.target.closest('.history-item');
+                    if (historyItem && historyItem.dataset.gameId) {
+                        openReplay(historyItem.dataset.gameId);
+                    }
                 });
-            });
+            }
         }
 
         function openReplay(gameId) {
@@ -6256,10 +6270,12 @@
             }
 
             // Use config if role/team are set, otherwise fallback to host/viewer
-            if (role && team && ROLE_BANNER_CONFIG[role]) {
+            // Validate team is 'red' or 'blue' before accessing teamNames
+            if (role && team && (team === 'red' || team === 'blue') && ROLE_BANNER_CONFIG[role]) {
                 const config = ROLE_BANNER_CONFIG[role];
                 banner.className = `role-banner ${config[team]}`;
-                banner.innerHTML = `<strong>${escapeHTML(teamNames[team])}</strong> ${config.label}${hostBadge}`;
+                // Use nullish coalescing in case teamNames doesn't have the team key
+                banner.innerHTML = `<strong>${escapeHTML(teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${config.label}${hostBadge}`;
             } else if (isHost) {
                 banner.className = 'role-banner host';
                 banner.innerHTML = `<span class="host-badge">Host</span> Spectator`;
@@ -6401,7 +6417,8 @@
 
             // Announce role change to screen reader if role was cleared
             if (hadRole && oldRole) {
-                const teamName = team ? teamNames[team] : 'Spectator';
+                // Use nullish coalescing for safe team name access
+                const teamName = (team && teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : 'Spectator');
                 announceToScreenReader(`${oldRole} role cleared. Now on ${teamName} team.`);
             }
         }
@@ -7463,6 +7480,8 @@
                 initNotificationPrefsUI();
                 // Initialize room settings UI (for multiplayer hosts)
                 initRoomSettingsUI();
+                // Set up event delegation for game history (prevents memory leaks)
+                setupHistoryEventDelegation();
                 loadLocalSettings();
                 await tryLoadWordlistFile();
                 loadGameFromURL();

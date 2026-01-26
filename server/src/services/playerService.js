@@ -555,10 +555,13 @@ async function getPlayersInRoom(roomCode) {
     }
 
     // Sort by join time, with sessionId as secondary key for stability
+    // Use nullish coalescing to handle missing connectedAt values
     return players.sort((a, b) => {
-        const timeDiff = a.connectedAt - b.connectedAt;
+        const aTime = a.connectedAt ?? 0;
+        const bTime = b.connectedAt ?? 0;
+        const timeDiff = aTime - bTime;
         if (timeDiff !== 0) return timeDiff;
-        return a.sessionId.localeCompare(b.sessionId);
+        return (a.sessionId || '').localeCompare(b.sessionId || '');
     });
 }
 

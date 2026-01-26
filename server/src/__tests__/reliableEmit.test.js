@@ -212,8 +212,9 @@ describe('Reliable Emit Utility', () => {
 
             expect(result).toBe(true);
             expect(mockSocket.emit).toHaveBeenCalledTimes(2);
+            // emitWithTimeout now logs when emit throws, plus emitWithRetry logs the attempt
             expect(mockLogger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('attempt 1/3 failed')
+                expect.stringContaining('threw error')
             );
         });
 

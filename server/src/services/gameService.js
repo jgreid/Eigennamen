@@ -24,6 +24,7 @@ const {
     PlayerError,
     ServerError
 } = require('../errors/GameError');
+const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 
 // Use centralized constant
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
@@ -853,17 +854,22 @@ function switchTurn(game) {
  * @returns {Object} - Result to return to caller
  */
 function buildRevealResult(game, index, type, outcome) {
+    // Bounds check for index to prevent undefined access
+    const word = (game.words && index >= 0 && index < game.words.length)
+        ? game.words[index]
+        : 'UNKNOWN';
+
     return {
         index,
         type,
-        word: game.words[index],
-        redScore: game.redScore,
-        blueScore: game.blueScore,
+        word,
+        redScore: game.redScore ?? 0,
+        blueScore: game.blueScore ?? 0,
         currentTurn: game.currentTurn,
-        guessesUsed: game.guessesUsed,
-        guessesAllowed: game.guessesAllowed,
+        guessesUsed: game.guessesUsed ?? 0,
+        guessesAllowed: game.guessesAllowed ?? 0,
         turnEnded: outcome.turnEnded,
-        gameOver: game.gameOver,
+        gameOver: game.gameOver ?? false,
         winner: game.winner,
         endReason: outcome.endReason,
         allTypes: game.gameOver ? game.types : null
@@ -883,17 +889,22 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
     validateCardIndex(index);
 
     try {
-        const resultStr = await redis.eval(
-            OPTIMIZED_REVEAL_SCRIPT,
-            {
-                keys: [gameKey],
-                arguments: [
-                    index.toString(),
-                    Date.now().toString(),
-                    playerNickname,
-                    MAX_HISTORY_ENTRIES.toString()
-                ]
-            }
+        // Wrap Redis Lua eval with timeout to prevent hanging operations
+        const resultStr = await withTimeout(
+            redis.eval(
+                OPTIMIZED_REVEAL_SCRIPT,
+                {
+                    keys: [gameKey],
+                    arguments: [
+                        index.toString(),
+                        Date.now().toString(),
+                        playerNickname,
+                        MAX_HISTORY_ENTRIES.toString()
+                    ]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `revealCard-lua-${roomCode}`
         );
 
         const result = JSON.parse(resultStr);
@@ -1090,20 +1101,25 @@ async function giveClueOptimized(roomCode, team, word, number, spymasterNickname
     const gameKey = `room:${roomCode}:game`;
 
     try {
-        const resultStr = await redis.eval(
-            OPTIMIZED_GIVE_CLUE_SCRIPT,
-            {
-                keys: [gameKey],
-                arguments: [
-                    team,
-                    word,
-                    number.toString(),
-                    spymasterNickname || 'Unknown',
-                    Date.now().toString(),
-                    MAX_HISTORY_ENTRIES.toString(),
-                    BOARD_SIZE.toString()
-                ]
-            }
+        // Wrap Redis Lua eval with timeout to prevent hanging operations
+        const resultStr = await withTimeout(
+            redis.eval(
+                OPTIMIZED_GIVE_CLUE_SCRIPT,
+                {
+                    keys: [gameKey],
+                    arguments: [
+                        team,
+                        word,
+                        number.toString(),
+                        spymasterNickname || 'Unknown',
+                        Date.now().toString(),
+                        MAX_HISTORY_ENTRIES.toString(),
+                        BOARD_SIZE.toString()
+                    ]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `giveClue-lua-${roomCode}`
         );
 
         const result = JSON.parse(resultStr);
