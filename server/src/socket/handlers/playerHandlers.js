@@ -6,7 +6,7 @@ const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
 const gameService = require('../../services/gameService');
 const { validateInput } = require('../../middleware/validation');
-const { playerTeamSchema, playerRoleSchema, playerNicknameSchema } = require('../../validators/schemas');
+const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
@@ -241,6 +241,7 @@ module.exports = function playerHandlers(io, socket) {
      * Kick a player from the room (host only)
      * PHASE 1 FIX: Allow host to remove disruptive players
      * ISSUE #10 & #18 FIX: Validate socket.roomCode before operations
+     * FIX: Use Zod schema for targetSessionId validation
      */
     socket.on('player:kick', createRateLimitedHandler(socket, 'player:kick', async (data) => {
         try {
@@ -249,9 +250,7 @@ module.exports = function playerHandlers(io, socket) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
             }
 
-            if (!data || !data.targetSessionId) {
-                throw new ValidationError('Target player session ID required');
-            }
+            const validated = validateInput(playerKickSchema, data);
 
             // Verify requester is the host
             const requester = await playerService.getPlayer(socket.sessionId);
@@ -260,23 +259,23 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             // Cannot kick yourself
-            if (data.targetSessionId === socket.sessionId) {
+            if (validated.targetSessionId === socket.sessionId) {
                 throw new ValidationError('Cannot kick yourself');
             }
 
             // Get target player
-            const targetPlayer = await playerService.getPlayer(data.targetSessionId);
+            const targetPlayer = await playerService.getPlayer(validated.targetSessionId);
             if (!targetPlayer || targetPlayer.roomCode !== socket.roomCode) {
-                throw PlayerError.notFound(data.targetSessionId);
+                throw PlayerError.notFound(validated.targetSessionId);
             }
 
             // Get target player's socket ID
-            const targetSocketId = await playerService.getSocketId(data.targetSessionId);
+            const targetSocketId = await playerService.getSocketId(validated.targetSessionId);
 
             // ISSUE #24 FIX: Sanitize nicknames before broadcasting (defense-in-depth)
             // Broadcast kick event before removing player
             io.to(`room:${socket.roomCode}`).emit('player:kicked', {
-                sessionId: data.targetSessionId,
+                sessionId: validated.targetSessionId,
                 nickname: sanitizeHtml(targetPlayer.nickname),
                 kickedBy: sanitizeHtml(requester.nickname)
             });
@@ -286,7 +285,7 @@ module.exports = function playerHandlers(io, socket) {
                 socket.roomCode,
                 eventLogService.EVENT_TYPES.PLAYER_LEFT,
                 {
-                    sessionId: data.targetSessionId,
+                    sessionId: validated.targetSessionId,
                     nickname: sanitizeHtml(targetPlayer.nickname),
                     reason: 'kicked',
                     kickedBy: sanitizeHtml(requester.nickname)
@@ -294,7 +293,7 @@ module.exports = function playerHandlers(io, socket) {
             );
 
             // Remove player from room data
-            await playerService.removePlayer(data.targetSessionId);
+            await playerService.removePlayer(validated.targetSessionId);
 
             // Disconnect the target player's socket
             if (targetSocketId) {
@@ -313,7 +312,7 @@ module.exports = function playerHandlers(io, socket) {
             // Update player list for remaining players
             const remainingPlayers = await playerService.getPlayersInRoom(socket.roomCode);
             io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
-                sessionId: data.targetSessionId,
+                sessionId: validated.targetSessionId,
                 // FIX: Provide empty array fallback if players fetch fails
                 players: remainingPlayers || []
             });

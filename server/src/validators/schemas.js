@@ -34,8 +34,8 @@ const roomCreateSchema = z.object({
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
-        // Host nickname for room creation
-        nickname: z.string().max(20).optional()
+        // FIX: Host nickname uses full validation (control chars, regex, reserved names)
+        nickname: createNicknameSchema().optional()
     }).optional().default({})
 });
 
@@ -165,6 +165,39 @@ const spectatorChatSchema = z.object({
         .refine(val => val.length >= 1, 'Message is required')
 });
 
+// FIX: Add missing schemas for events that previously used manual validation
+
+// Game history limit schema (for game:getHistory)
+const gameHistoryLimitSchema = z.object({
+    limit: z.number()
+        .int()
+        .min(1, 'Limit must be at least 1')
+        .max(50, 'Limit cannot exceed 50')
+        .optional()
+        .default(10)
+});
+
+// Game replay schema (for game:getReplay) - gameId should be a valid identifier
+const gameReplaySchema = z.object({
+    gameId: z.string()
+        .min(1, 'Game ID is required')
+        .max(100, 'Game ID too long')
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => val.length >= 1, 'Game ID is required')
+});
+
+// Session ID regex - UUIDs or similar identifiers
+const sessionIdRegex = /^[a-zA-Z0-9\-_]+$/;
+
+// Player kick schema (for player:kick)
+const playerKickSchema = z.object({
+    targetSessionId: z.string()
+        .min(1, 'Target session ID is required')
+        .max(100, 'Session ID too long')
+        .transform(val => removeControlChars(val).trim())
+        .refine(val => sessionIdRegex.test(val), 'Invalid session ID format')
+});
+
 module.exports = {
     roomCreateSchema,
     roomJoinSchema,
@@ -178,6 +211,10 @@ module.exports = {
     gameClueSchema,
     chatMessageSchema,
     spectatorChatSchema,
+    // FIX: Export new schemas for previously unvalidated events
+    gameHistoryLimitSchema,
+    gameReplaySchema,
+    playerKickSchema,
     // Export for reuse in custom validation
     createNicknameSchema
 };
