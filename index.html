@@ -4493,7 +4493,7 @@
             }
         }
 
-        function onMultiplayerJoined(result, isHost = false) {
+        function onMultiplayerJoined(result, isHostParam = false) {
             isMultiplayerMode = true;
             safeSetItem('codenames-nickname', CodenamesClient.player?.nickname || '');
 
@@ -4513,6 +4513,11 @@
             if (currentPlayer) {
                 syncLocalPlayerState(currentPlayer);
             }
+
+            // ISSUE FIX: Update global isHost from player data or parameter
+            // The parameter isHostParam indicates if this was a room creation
+            // Also check CodenamesClient.player.isHost for reconnection cases
+            isHost = isHostParam || CodenamesClient.player?.isHost || false;
 
             // Sync game state from server if available
             if (result.game) {
@@ -6430,6 +6435,15 @@
                 CodenamesClient.setTeam(team);
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
                 // isChangingRole is cleared in playerUpdated handler
+
+                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                // This prevents permanent blocking if playerUpdated event is lost
+                setTimeout(() => {
+                    if (isChangingRole && !pendingRoleChange) {
+                        console.warn('setTeam: Safety timeout - clearing isChangingRole flag');
+                        isChangingRole = false;
+                    }
+                }, 5000);
                 return;
             }
 
@@ -6480,6 +6494,15 @@
                     }
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
+
+                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                setTimeout(() => {
+                    if (isChangingRole) {
+                        console.warn('setSpymaster: Safety timeout - clearing isChangingRole flag');
+                        isChangingRole = false;
+                        pendingRoleChange = null;
+                    }
+                }, 5000);
                 return;
             }
 
@@ -6522,6 +6545,15 @@
                     }
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
+
+                // Safety timeout: clear isChangingRole if no response within 5 seconds
+                setTimeout(() => {
+                    if (isChangingRole) {
+                        console.warn('setClicker: Safety timeout - clearing isChangingRole flag');
+                        isChangingRole = false;
+                        pendingRoleChange = null;
+                    }
+                }, 5000);
                 return;
             }
 

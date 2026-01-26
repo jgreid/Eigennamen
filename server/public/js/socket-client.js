@@ -145,6 +145,11 @@
             this._registerSocketListener('room:created', (data) => {
                 this.roomCode = data.room.code;
                 this.player = data.player;
+                // ISSUE FIX: Sync sessionId from server if not already set
+                // This ensures client knows its server-assigned session ID
+                if (data.player?.sessionId && !this.sessionId) {
+                    this.sessionId = data.player.sessionId;
+                }
                 this._saveSession();
                 this._emit('roomCreated', data);
             });
@@ -152,6 +157,10 @@
             this._registerSocketListener('room:joined', (data) => {
                 this.roomCode = data.room.code;
                 this.player = data.you;
+                // ISSUE FIX: Sync sessionId from server if not already set
+                if (data.you?.sessionId && !this.sessionId) {
+                    this.sessionId = data.you.sessionId;
+                }
                 this._saveSession();
                 this._emit('roomJoined', data);
             });
