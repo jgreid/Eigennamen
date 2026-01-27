@@ -5,7 +5,7 @@
 const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
-const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION } = require('../config/constants');
+const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION, PLAYER_CLEANUP } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
 
 /**
@@ -801,11 +801,11 @@ function startCleanupTask() {
 
     cleanupInterval = setInterval(async () => {
         try {
-            await processScheduledCleanups(50);
+            await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
         } catch (error) {
             logger.error('Error in cleanup task:', error.message);
         }
-    }, 60000); // Run every 60 seconds
+    }, PLAYER_CLEANUP.INTERVAL_MS);
 
     logger.info('Player cleanup task started');
 }

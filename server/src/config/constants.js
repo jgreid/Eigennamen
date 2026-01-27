@@ -38,7 +38,8 @@ module.exports = {
         RECONNECTION_TOKEN_LENGTH: 32,               // Bytes for secure token
         INACTIVITY_TIMEOUT_MS: 30 * 60 * 1000,       // 30 minutes idle timeout (Sprint 19)
         INACTIVITY_CHECK_INTERVAL_MS: 60 * 1000,     // Check every minute for idle connections
-        ROTATE_SESSION_ON_RECONNECT: true            // Issue new session token after successful reconnection
+        ROTATE_SESSION_ON_RECONNECT: true,           // Issue new session token after successful reconnection
+        RATE_LIMIT_FAIL_CLOSED: false                // If true, deny requests when Redis fails (more secure but less available)
     },
 
     // Password security configuration
@@ -59,7 +60,8 @@ module.exports = {
         ORPHAN_CHECK_INTERVAL_MS: 30000,  // How often to check for orphaned timers
         ORPHAN_CHECK_TIMEOUT_MS: 5000,    // Max time for orphan check
         MAX_ORPHAN_KEYS: 100,             // Max keys to process per orphan check
-        TIMER_TTL_BUFFER_SECONDS: 60      // Extra TTL buffer for timer keys
+        TIMER_TTL_BUFFER_SECONDS: 60,     // Extra TTL buffer for timer keys
+        PENDING_OP_MAX_AGE_MS: 30000      // Max age for pending addTime operations before cleanup
     },
 
     // Socket.io configuration
@@ -69,7 +71,9 @@ module.exports = {
         MAX_DISCONNECTION_DURATION_MS: 2 * 60 * 1000,  // 2 minutes for connection recovery
         SOCKET_COUNT_CACHE_MS: 5000,      // Cache socket count for 5 seconds
         SOCKET_COUNT_TIMEOUT_MS: 2000,    // Timeout for fetching socket count
-        REDIS_KEEPALIVE_MS: 10000         // Redis keepalive interval
+        REDIS_KEEPALIVE_MS: 10000,        // Redis keepalive interval
+        MAX_CONNECTIONS_PER_IP: 10,       // Max concurrent socket connections per IP
+        MAX_HTTP_BUFFER_SIZE: 100 * 1024  // 100KB max message size
     },
 
     // Rate limits for socket events
@@ -242,7 +246,21 @@ module.exports = {
         REDIS_OPERATION: { maxRetries: 3, baseDelayMs: 50 },
         DISTRIBUTED_LOCK: { maxRetries: 50, baseDelayMs: 100 },
         PUB_SUB_CONNECT: { maxRetries: 3, baseDelayMs: 1000 },
-        NETWORK_REQUEST: { maxRetries: 4, baseDelayMs: 2000 }
+        NETWORK_REQUEST: { maxRetries: 4, baseDelayMs: 2000 },
+        RACE_CONDITION: { delayMs: 100 }  // Delay between race condition retries
+    },
+
+    // Game service internal constants
+    GAME_INTERNALS: {
+        FIRST_TEAM_SEED_OFFSET: 1000,      // Seed offset for first team shuffle
+        TYPES_SHUFFLE_SEED_OFFSET: 500,    // Seed offset for card types shuffle
+        LAZY_HISTORY_MULTIPLIER: 1.5       // Multiplier for lazy history threshold
+    },
+
+    // Player service internal constants
+    PLAYER_CLEANUP: {
+        INTERVAL_MS: 60000,         // Run cleanup every 60 seconds
+        BATCH_SIZE: 50              // Process up to 50 cleanups per run
     },
 
     // Error codes

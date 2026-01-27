@@ -31,6 +31,9 @@ let io = null;
 let app = null; // Reference to Express app for socket count updates
 let inactivityCheckInterval = null; // Sprint 19: Interval for checking idle sockets
 
+// Track connections per IP for DoS protection
+const connectionsPerIP = new Map();
+
 function initializeSocket(server, expressApp = null) {
     app = expressApp;
     const isProduction = process.env.NODE_ENV === 'production';
@@ -58,8 +61,8 @@ function initializeSocket(server, expressApp = null) {
         // Increase timeouts for better stability on Fly.io (from centralized constants)
         pingTimeout: SOCKET.PING_TIMEOUT_MS,
         pingInterval: SOCKET.PING_INTERVAL_MS,
-        // SECURITY FIX: Limit max message size to prevent memory exhaustion (100KB)
-        maxHttpBufferSize: 100 * 1024,
+        // SECURITY FIX: Limit max message size to prevent memory exhaustion
+        maxHttpBufferSize: SOCKET.MAX_HTTP_BUFFER_SIZE,
         // Connection state recovery for reconnections
         connectionStateRecovery: {
             // Maximum duration a connection can be offline
@@ -95,6 +98,25 @@ function initializeSocket(server, expressApp = null) {
             logger.warn('Redis adapter not available, using in-memory adapter (single instance only):', error.message);
         }
     }
+
+    // Connection limits middleware - check before authentication
+    io.use((socket, next) => {
+        const clientIP = socket.handshake.headers['x-forwarded-for']?.split(',')[0]?.trim()
+            || socket.handshake.address
+            || 'unknown';
+
+        const currentCount = connectionsPerIP.get(clientIP) || 0;
+
+        if (currentCount >= SOCKET.MAX_CONNECTIONS_PER_IP) {
+            logger.warn('Connection limit exceeded', { ip: clientIP, count: currentCount });
+            return next(new Error('Too many connections from this IP'));
+        }
+
+        // Store IP on socket for tracking
+        socket.clientIP = clientIP;
+        connectionsPerIP.set(clientIP, currentCount + 1);
+        next();
+    });
 
     // Authentication middleware
     io.use(authenticateSocket);
@@ -135,6 +157,16 @@ function initializeSocket(server, expressApp = null) {
         // ISSUE #9 FIX: Wrap disconnect handler in timeout to prevent hangs
         socket.on('disconnect', async (reason) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
+
+            // Decrement connection count for this IP
+            if (socket.clientIP) {
+                const currentCount = connectionsPerIP.get(socket.clientIP) || 1;
+                if (currentCount <= 1) {
+                    connectionsPerIP.delete(socket.clientIP);
+                } else {
+                    connectionsPerIP.set(socket.clientIP, currentCount - 1);
+                }
+            }
 
             // Update cached socket count for fast health checks
             try {

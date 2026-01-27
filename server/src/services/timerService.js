@@ -20,14 +20,12 @@ const localTimers = new Map();
 // Each entry is { promise: Promise, createdAt: number }
 const pendingAddTimeOps = new Map();
 
-// Maximum age for pending operations before cleanup (30 seconds)
-const PENDING_OP_MAX_AGE_MS = 30000;
-
 // Use centralized constants
 const ORPHAN_CHECK_INTERVAL = TIMER.ORPHAN_CHECK_INTERVAL_MS;
 const ORPHAN_CHECK_TIMEOUT = TIMER.ORPHAN_CHECK_TIMEOUT_MS;
 const MAX_ORPHAN_KEYS = TIMER.MAX_ORPHAN_KEYS;
 const TIMER_TTL_BUFFER = TIMER.TIMER_TTL_BUFFER_SECONDS;
+const PENDING_OP_MAX_AGE_MS = TIMER.PENDING_OP_MAX_AGE_MS;
 
 let orphanCheckInterval = null;
 

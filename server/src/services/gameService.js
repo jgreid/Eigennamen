@@ -16,7 +16,9 @@ const {
     REDIS_TTL,
     ERROR_CODES,
     GAME_HISTORY,
-    LOCKS
+    LOCKS,
+    RETRY_CONFIG,
+    GAME_INTERNALS
 } = require('../config/constants');
 const {
     GameStateError,
@@ -495,7 +497,7 @@ async function createGame(roomCode, options = {}) {
 
     if (!lockAcquired) {
         // Another creation in progress - wait briefly and check if game exists
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
         const existingGame = await getGame(roomCode);
         if (existingGame && !existingGame.gameOver) {
             throw GameStateError.gameInProgress(roomCode);
@@ -565,7 +567,7 @@ async function createGame(roomCode, options = {}) {
         const boardWords = shuffledWords.slice(0, BOARD_SIZE);
 
         // Determine who goes first
-        const firstTeam = seededRandom(numericSeed + 1000) > 0.5 ? 'red' : 'blue';
+        const firstTeam = seededRandom(numericSeed + GAME_INTERNALS.FIRST_TEAM_SEED_OFFSET) > 0.5 ? 'red' : 'blue';
 
         // Create card types
         let types = [];
@@ -587,7 +589,7 @@ async function createGame(roomCode, options = {}) {
             blueTotal = FIRST_TEAM_CARDS;
         }
         types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral'), 'assassin'];
-        types = shuffleWithSeed(types, numericSeed + 500);
+        types = shuffleWithSeed(types, numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);
 
         const game = {
             id: uuidv4(),
@@ -711,9 +713,9 @@ function addToHistory(game, entry) {
     if (!game.history) game.history = [];
     game.history.push(entry);
 
-    // Lazy history slicing: Only slice when exceeding 1.5x threshold
+    // Lazy history slicing: Only slice when exceeding threshold multiplier
     // This reduces O(n) allocations on every entry to occasional cleanup
-    const lazyThreshold = Math.floor(MAX_HISTORY_ENTRIES * 1.5);
+    const lazyThreshold = Math.floor(MAX_HISTORY_ENTRIES * GAME_INTERNALS.LAZY_HISTORY_MULTIPLIER);
     if (game.history.length > lazyThreshold) {
         // Keep most recent entries
         game.history = game.history.slice(-MAX_HISTORY_ENTRIES);
