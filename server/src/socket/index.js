@@ -58,6 +58,8 @@ function initializeSocket(server, expressApp = null) {
         // Increase timeouts for better stability on Fly.io (from centralized constants)
         pingTimeout: SOCKET.PING_TIMEOUT_MS,
         pingInterval: SOCKET.PING_INTERVAL_MS,
+        // SECURITY FIX: Limit max message size to prevent memory exhaustion (100KB)
+        maxHttpBufferSize: 100 * 1024,
         // Connection state recovery for reconnections
         connectionStateRecovery: {
             // Maximum duration a connection can be offline

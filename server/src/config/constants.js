@@ -101,13 +101,18 @@ module.exports = {
         'chat:message': { window: 5000, max: 10 },    // 10 per 5 seconds
         'chat:spectator': { window: 5000, max: 10 },  // 10 per 5 seconds (spectator-only chat)
         // Timer events
-        'timer:status': { window: 1000, max: 10 }     // 10 per second
+        'timer:status': { window: 1000, max: 10 },    // 10 per second
+        'timer:pause': { window: 2000, max: 3 },      // 3 per 2 seconds (host only)
+        'timer:resume': { window: 2000, max: 3 },     // 3 per 2 seconds (host only)
+        'timer:addTime': { window: 2000, max: 5 },    // 5 per 2 seconds (host only)
+        'timer:stop': { window: 5000, max: 2 }        // 2 per 5 seconds (host only)
     },
 
     // HTTP API rate limits
     API_RATE_LIMITS: {
         GENERAL: { window: 60000, max: 100 },        // 100 per minute
-        WORD_LIST_CREATE: { window: 60000, max: 10 } // 10 per minute
+        WORD_LIST_CREATE: { window: 60000, max: 10 }, // 10 per minute
+        ADMIN: { window: 60000, max: 30 }            // 30 per minute for admin endpoints
     },
 
     // Game history configuration

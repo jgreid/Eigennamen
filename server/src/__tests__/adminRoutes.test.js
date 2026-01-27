@@ -575,7 +575,7 @@ describe('Admin Routes', () => {
                 this.status(200).send('Admin HTML');
             };
 
-            const response = await request(app)
+            await request(app)
                 .get('/admin')
                 .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
                 .expect(200);

@@ -14,6 +14,7 @@ const { z } = require('zod');
 const { BOARD_SIZE } = require('../config/constants');
 const logger = require('../utils/logger');
 const { getJwtSecret } = require('../config/jwt');
+const { removeControlChars } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -82,17 +83,31 @@ const wordListQuerySchema = z.object({
 });
 
 const createWordListSchema = z.object({
-    name: z.string().min(1).max(100).trim(),
-    description: z.string().max(500).optional(),
-    words: z.array(z.string().min(1).max(50))
+    name: z.string().min(1).max(100).transform(val => removeControlChars(val).trim()),
+    description: z.string().max(500).transform(val => removeControlChars(val).trim()).optional(),
+    // FIX: Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
+    words: z.array(
+        z.string()
+            .min(1)
+            .max(50)
+            .transform(val => removeControlChars(val).trim())
+            .refine(val => val.length >= 1, 'Word cannot be empty after sanitization')
+        )
         .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`),
     isPublic: z.boolean().optional().default(false)
 });
 
 const updateWordListSchema = z.object({
-    name: z.string().min(1).max(100).trim().optional(),
-    description: z.string().max(500).optional(),
-    words: z.array(z.string().min(1).max(50))
+    name: z.string().min(1).max(100).transform(val => removeControlChars(val).trim()).optional(),
+    description: z.string().max(500).transform(val => removeControlChars(val).trim()).optional(),
+    // FIX: Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
+    words: z.array(
+        z.string()
+            .min(1)
+            .max(50)
+            .transform(val => removeControlChars(val).trim())
+            .refine(val => val.length >= 1, 'Word cannot be empty after sanitization')
+        )
         .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
         .optional(),
     isPublic: z.boolean().optional()
