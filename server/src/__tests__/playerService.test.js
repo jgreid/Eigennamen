@@ -632,7 +632,12 @@ describe('Player Service', () => {
     describe('generateReconnectionToken', () => {
         test('generates token for existing player', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
-            mockRedis.get.mockResolvedValue(JSON.stringify(player));
+            // Mock different returns for different keys
+            mockRedis.get.mockImplementation((key) => {
+                if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
+                if (key === 'reconnect:session:s1') return Promise.resolve(null); // No existing token
+                return Promise.resolve(null);
+            });
             mockRedis.set.mockResolvedValue('OK');
 
             const token = await playerService.generateReconnectionToken('s1');
@@ -648,6 +653,23 @@ describe('Player Service', () => {
                 token,
                 { EX: 300 }
             );
+        });
+
+        test('returns existing token if one exists', async () => {
+            const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
+            const existingToken = 'a'.repeat(64); // Existing token
+            // Mock different returns for different keys
+            mockRedis.get.mockImplementation((key) => {
+                if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
+                if (key === 'reconnect:session:s1') return Promise.resolve(existingToken);
+                return Promise.resolve(null);
+            });
+
+            const token = await playerService.generateReconnectionToken('s1');
+
+            expect(token).toBe(existingToken);
+            // Should NOT call set since we returned existing token
+            expect(mockRedis.set).not.toHaveBeenCalled();
         });
 
         test('returns null for non-existent player', async () => {
