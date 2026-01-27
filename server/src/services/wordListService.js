@@ -9,6 +9,7 @@ const { getDatabase, isDatabaseEnabled } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE, ERROR_CODES } = require('../config/constants');
 const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
+const { toEnglishUpperCase } = require('../utils/sanitize');
 
 /**
  * Get a word list by ID
@@ -166,7 +167,7 @@ async function createWordList({ name, description, words, isPublic = false, owne
     // Clean and deduplicate words
     const cleanedWords = [...new Set(
         words
-            .map(w => w.trim().toUpperCase())
+            .map(w => toEnglishUpperCase(w.trim()))
             .filter(w => w.length > 0)
     )];
 
@@ -244,7 +245,7 @@ async function updateWordList(id, { name, description, words, isPublic }, reques
     if (words !== undefined) {
         const cleanedWords = [...new Set(
             words
-                .map(w => w.trim().toUpperCase())
+                .map(w => toEnglishUpperCase(w.trim()))
                 .filter(w => w.length > 0)
         )];
 

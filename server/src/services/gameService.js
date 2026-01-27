@@ -28,6 +28,7 @@ const {
     RoomError
 } = require('../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
+const { toEnglishUpperCase, localeIncludes } = require('../utils/sanitize');
 
 // Use centralized constant
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
@@ -442,12 +443,16 @@ function seededRandom(seed) {
 
 /**
  * Hash string to number
+ * Uses codePointAt to properly handle Unicode characters including emoji
+ * (which are represented as surrogate pairs and have codepoints > 0xFFFF)
  */
 function hashString(str) {
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
+    // Use spread operator to properly iterate over Unicode code points
+    // This handles surrogate pairs (emoji, etc.) correctly
+    for (const char of str) {
+        const codePoint = char.codePointAt(0);
+        hash = ((hash << 5) - hash) + codePoint;
         hash = hash & hash;
     }
     return Math.abs(hash);
@@ -534,7 +539,7 @@ async function createGame(roomCode, options = {}) {
             // Clean and deduplicate words
             const cleanedWords = [...new Set(
                 wordList
-                    .map(w => String(w).trim().toUpperCase())
+                    .map(w => toEnglishUpperCase(String(w).trim()))
                     .filter(w => w.length > 0)
             )];
 
@@ -1092,9 +1097,14 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
  * - Exact matches are never allowed
  * - Partial matches (clue contains board word or vice versa) are blocked
  *   unless the contained word is 1 character (common articles like "A", "I")
+ *
+ * Uses locale-safe functions to avoid Turkish/Azerbaijani locale issues
+ * and Unicode normalization for consistent comparison across different
+ * Unicode representations (e.g., 'é' vs 'e' + combining accent)
  */
 function validateClueWord(clueWord, boardWords) {
-    const normalizedClue = clueWord.toUpperCase().trim();
+    // Normalize and convert to uppercase using English locale
+    const normalizedClue = toEnglishUpperCase(String(clueWord).normalize('NFC').trim());
 
     // Minimum clue length check
     if (normalizedClue.length === 0) {
@@ -1102,7 +1112,8 @@ function validateClueWord(clueWord, boardWords) {
     }
 
     for (const boardWord of boardWords) {
-        const normalizedBoardWord = boardWord.toUpperCase().trim();
+        // Normalize and convert to uppercase using English locale
+        const normalizedBoardWord = toEnglishUpperCase(String(boardWord).normalize('NFC').trim());
 
         // Check exact match - always invalid
         if (normalizedClue === normalizedBoardWord) {
@@ -1110,7 +1121,8 @@ function validateClueWord(clueWord, boardWords) {
         }
 
         // Check if clue contains board word (e.g., clue "SNOWMAN" contains board word "SNOW")
-        if (normalizedClue.includes(normalizedBoardWord)) {
+        // Uses locale-safe includes check
+        if (localeIncludes(normalizedClue, normalizedBoardWord, false)) {
             // Only allow if the board word is a single character (rare edge case)
             if (normalizedBoardWord.length > 1) {
                 return { valid: false, reason: `"${clueWord}" contains board word "${boardWord}"` };
@@ -1118,7 +1130,8 @@ function validateClueWord(clueWord, boardWords) {
         }
 
         // Check if board word contains clue (e.g., board word "SNOWMAN" contains clue "SNOW")
-        if (normalizedBoardWord.includes(normalizedClue)) {
+        // Uses locale-safe includes check
+        if (localeIncludes(normalizedBoardWord, normalizedClue, false)) {
             // Only allow if the clue is a single character (rare edge case)
             if (normalizedClue.length > 1) {
                 return { valid: false, reason: `Board word "${boardWord}" contains "${clueWord}"` };
@@ -1279,7 +1292,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
 
             const clue = {
                 team,
-                word: word.toUpperCase(),
+                word: toEnglishUpperCase(word),
                 number,
                 spymaster: spymasterNickname,
                 timestamp: Date.now()

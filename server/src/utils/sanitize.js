@@ -118,8 +118,103 @@ function sanitizeInput(input, options = {}) {
  */
 function isReservedName(nickname, reservedNames) {
     if (typeof nickname !== 'string') return false;
-    const normalized = nickname.toLowerCase().trim();
+    const normalized = toEnglishLowerCase(nickname).trim();
     return reservedNames.some(reserved => normalized === reserved);
+}
+
+/**
+ * Convert string to lowercase using English locale
+ * Avoids Turkish/Azerbaijani locale issues where 'I' becomes 'ı' (dotless i)
+ * @param {string} input - The string to convert
+ * @returns {string} - Lowercase string
+ */
+function toEnglishLowerCase(input) {
+    if (typeof input !== 'string') return '';
+    return input.toLocaleLowerCase('en-US');
+}
+
+/**
+ * Convert string to uppercase using English locale
+ * Avoids Turkish/Azerbaijani locale issues where 'i' becomes 'İ' (dotted I)
+ * @param {string} input - The string to convert
+ * @returns {string} - Uppercase string
+ */
+function toEnglishUpperCase(input) {
+    if (typeof input !== 'string') return '';
+    return input.toLocaleUpperCase('en-US');
+}
+
+/**
+ * Normalize Unicode string to NFC form and apply English case conversion
+ * This ensures consistent comparison across different Unicode representations
+ * (e.g., 'é' vs 'e' + combining accent)
+ * @param {string} input - The string to normalize
+ * @param {string} caseType - 'lower', 'upper', or 'none'
+ * @returns {string} - Normalized string
+ */
+function normalizeUnicode(input, caseType = 'none') {
+    if (typeof input !== 'string') return '';
+
+    // Normalize to NFC (Canonical Decomposition, followed by Canonical Composition)
+    let normalized = input.normalize('NFC');
+
+    if (caseType === 'lower') {
+        normalized = toEnglishLowerCase(normalized);
+    } else if (caseType === 'upper') {
+        normalized = toEnglishUpperCase(normalized);
+    }
+
+    return normalized;
+}
+
+/**
+ * Compare two strings in a locale-safe manner
+ * Uses English collation to ensure consistent comparison across locales
+ * @param {string} a - First string
+ * @param {string} b - Second string
+ * @param {object} options - Comparison options
+ * @param {boolean} options.caseInsensitive - Whether to ignore case (default: true)
+ * @returns {number} - -1, 0, or 1 for sorting; 0 means equal
+ */
+function localeCompare(a, b, options = {}) {
+    const { caseInsensitive = true } = options;
+
+    if (typeof a !== 'string') a = '';
+    if (typeof b !== 'string') b = '';
+
+    // Normalize both strings first
+    const normalizedA = a.normalize('NFC');
+    const normalizedB = b.normalize('NFC');
+
+    // Use English collator for consistent comparison across locales
+    const collator = new Intl.Collator('en-US', {
+        sensitivity: caseInsensitive ? 'base' : 'variant',
+        usage: 'sort'
+    });
+
+    return collator.compare(normalizedA, normalizedB);
+}
+
+/**
+ * Check if string A contains string B (locale-safe)
+ * @param {string} haystack - String to search in
+ * @param {string} needle - String to search for
+ * @param {boolean} caseInsensitive - Whether to ignore case (default: true)
+ * @returns {boolean} - True if haystack contains needle
+ */
+function localeIncludes(haystack, needle, caseInsensitive = true) {
+    if (typeof haystack !== 'string' || typeof needle !== 'string') return false;
+
+    // Normalize both strings
+    let normalizedHaystack = haystack.normalize('NFC');
+    let normalizedNeedle = needle.normalize('NFC');
+
+    if (caseInsensitive) {
+        normalizedHaystack = toEnglishLowerCase(normalizedHaystack);
+        normalizedNeedle = toEnglishLowerCase(normalizedNeedle);
+    }
+
+    return normalizedHaystack.includes(normalizedNeedle);
 }
 
 module.exports = {
@@ -129,5 +224,10 @@ module.exports = {
     removeControlChars,
     normalizeWhitespace,
     sanitizeInput,
-    isReservedName
+    isReservedName,
+    toEnglishLowerCase,
+    toEnglishUpperCase,
+    normalizeUnicode,
+    localeCompare,
+    localeIncludes
 };
