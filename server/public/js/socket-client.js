@@ -177,6 +177,11 @@
                 this._emit('settingsUpdated', data);
             });
 
+            // ISSUE FIX: Add missing room:statsUpdated listener
+            this._registerSocketListener('room:statsUpdated', (data) => {
+                this._emit('statsUpdated', data);
+            });
+
             this._registerSocketListener('room:hostChanged', (data) => {
                 // Update local player if we became host
                 if (this.player && data.newHostSessionId === this.player.sessionId) {
@@ -305,9 +310,27 @@
                 this._emit('timerStatus', data);
             });
 
+            // ISSUE FIX: Add missing timer control event listeners
+            this._registerSocketListener('timer:paused', (data) => {
+                this._emit('timerPaused', data);
+            });
+
+            this._registerSocketListener('timer:resumed', (data) => {
+                this._emit('timerResumed', data);
+            });
+
+            this._registerSocketListener('timer:timeAdded', (data) => {
+                this._emit('timerTimeAdded', data);
+            });
+
             // Chat events
             this._registerSocketListener('chat:message', (data) => {
                 this._emit('chatMessage', data);
+            });
+
+            // ISSUE FIX: Add missing spectator chat listener
+            this._registerSocketListener('chat:spectatorMessage', (data) => {
+                this._emit('spectatorChatMessage', data);
             });
         },
 

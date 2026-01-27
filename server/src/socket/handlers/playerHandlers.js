@@ -310,10 +310,12 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             // Update player list for remaining players
+            // ISSUE FIX: Use consistent format with roomHandlers.js room:playerLeft event
+            // Include newHost (null for kicks since host can't be kicked) and players for state sync
             const remainingPlayers = await playerService.getPlayersInRoom(socket.roomCode);
             io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
                 sessionId: validated.targetSessionId,
-                // FIX: Provide empty array fallback if players fetch fails
+                newHost: null, // Kicked player can never be host (host does the kicking)
                 players: remainingPlayers || []
             });
 

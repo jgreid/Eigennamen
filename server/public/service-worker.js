@@ -8,9 +8,9 @@
  * - Background sync for multiplayer actions
  */
 
-const CACHE_NAME = 'codenames-v6';
-const STATIC_CACHE = 'codenames-static-v6';
-const DYNAMIC_CACHE = 'codenames-dynamic-v6';
+const CACHE_NAME = 'codenames-v7';
+const STATIC_CACHE = 'codenames-static-v7';
+const DYNAMIC_CACHE = 'codenames-dynamic-v7';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -18,7 +18,7 @@ const STATIC_ASSETS = [
     '/index.html',
     '/js/qrcode.min.js',
     '/js/socket.io.min.js',
-    '/js/socket-client.js?v=4',
+    '/js/socket-client.js?v=5',
     '/manifest.json'
 ];
 
