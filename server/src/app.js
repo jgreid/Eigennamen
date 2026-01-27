@@ -113,7 +113,13 @@ app.use(helmet({
     // Sprint 19: Additional security headers
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     dnsPrefetchControl: { allow: false },
-    permittedCrossDomainPolicies: { permittedPolicies: 'none' }
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+    // HSTS: Enforce HTTPS in production (1 year, include subdomains)
+    strictTransportSecurity: isProduction ? {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+    } : false
 }));
 
 app.use(cors({
@@ -129,9 +135,9 @@ app.use(compression());
 // Sprint 19: Request timing middleware
 app.use(requestTiming);
 
-// Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parsing with size limits to prevent memory exhaustion attacks
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Rate limiting for API routes
 app.use('/api', apiLimiter);

@@ -88,8 +88,13 @@ async function checkValidationRateLimit(clientIP) {
 
         return { allowed: true, attempts };
     } catch (error) {
-        // If Redis fails, allow the request (fail-open for availability)
+        // Configurable fail behavior: fail-open (availability) vs fail-closed (security)
         logger.error('Rate limit check failed:', error.message);
+        if (SESSION_SECURITY.RATE_LIMIT_FAIL_CLOSED) {
+            logger.warn('Rate limit Redis failure - denying request (fail-closed mode)');
+            return { allowed: false, attempts: 0 };
+        }
+        // Default: fail-open for availability
         return { allowed: true, attempts: 0 };
     }
 }

@@ -7,11 +7,13 @@
 
 const express = require('express');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
 const { isDatabaseEnabled } = require('../config/database');
 const { getAllMetrics } = require('../utils/metrics');
 const { getHttpRateLimitMetrics } = require('../middleware/rateLimit');
+const { API_RATE_LIMITS } = require('../config/constants');
 
 const router = express.Router();
 
@@ -69,7 +71,27 @@ function basicAuth(req, res, next) {
     });
 }
 
-// Apply basic auth to all admin routes
+// Rate limiter for admin routes to prevent brute force and abuse
+const adminLimiter = rateLimit({
+    windowMs: API_RATE_LIMITS.ADMIN.window,
+    max: API_RATE_LIMITS.ADMIN.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Skip rate limiting in test environment
+    skip: () => process.env.NODE_ENV === 'test',
+    handler: (req, res) => {
+        logger.warn('Admin rate limit exceeded', { ip: req.ip });
+        res.status(429).json({
+            error: {
+                code: 'RATE_LIMITED',
+                message: 'Too many requests, please try again later'
+            }
+        });
+    }
+});
+
+// Apply rate limiting first, then basic auth to all admin routes
+router.use(adminLimiter);
 router.use(basicAuth);
 
 /**

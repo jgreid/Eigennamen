@@ -36,6 +36,10 @@ jest.mock('../config/constants', () => ({
     VALIDATION: {
         NICKNAME_MIN_LENGTH: 1,
         NICKNAME_MAX_LENGTH: 30
+    },
+    PLAYER_CLEANUP: {
+        INTERVAL_MS: 60000,
+        BATCH_SIZE: 50
     }
 }));
 

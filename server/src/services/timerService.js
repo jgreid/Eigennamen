@@ -11,6 +11,7 @@
 const { getRedis, getPubSubClients } = require('../config/redis');
 const logger = require('../utils/logger');
 const pubSubHealth = require('../utils/pubSubHealth');
+const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { TIMER, REDIS_TTL, LOCKS } = require('../config/constants');
 
 // Local timers for this instance
@@ -20,14 +21,12 @@ const localTimers = new Map();
 // Each entry is { promise: Promise, createdAt: number }
 const pendingAddTimeOps = new Map();
 
-// Maximum age for pending operations before cleanup (30 seconds)
-const PENDING_OP_MAX_AGE_MS = 30000;
-
 // Use centralized constants
 const ORPHAN_CHECK_INTERVAL = TIMER.ORPHAN_CHECK_INTERVAL_MS;
 const ORPHAN_CHECK_TIMEOUT = TIMER.ORPHAN_CHECK_TIMEOUT_MS;
 const MAX_ORPHAN_KEYS = TIMER.MAX_ORPHAN_KEYS;
 const TIMER_TTL_BUFFER = TIMER.TIMER_TTL_BUFFER_SECONDS;
+const PENDING_OP_MAX_AGE_MS = TIMER.PENDING_OP_MAX_AGE_MS;
 
 let orphanCheckInterval = null;
 
@@ -520,7 +519,8 @@ async function pauseTimer(roomCode) {
     }
 
     logger.info(`Timer paused for room ${roomCode}: ${remainingSeconds}s remaining`);
-    return remainingSeconds;
+    // BUG FIX: Return object with remainingSeconds property for consistency with handler expectations
+    return { remainingSeconds };
 }
 
 /**
@@ -671,13 +671,18 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
     const redis = getRedis();
 
     // Atomically add time to prevent race conditions
-    const result = await redis.eval(
-        ATOMIC_ADD_TIME_SCRIPT,
-        {
-            keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-            // FIX: Pass TIMER_TTL_BUFFER as 4th argument instead of hardcoding in Lua
-            arguments: [secondsToAdd.toString(), process.pid.toString(), Date.now().toString(), TIMER_TTL_BUFFER.toString()]
-        }
+    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    const result = await withTimeout(
+        redis.eval(
+            ATOMIC_ADD_TIME_SCRIPT,
+            {
+                keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
+                // FIX: Pass TIMER_TTL_BUFFER as 4th argument instead of hardcoding in Lua
+                arguments: [secondsToAdd.toString(), process.pid.toString(), Date.now().toString(), TIMER_TTL_BUFFER.toString()]
+            }
+        ),
+        TIMEOUTS.TIMER_OPERATION,
+        `addTimeLocal-lua-${roomCode}`
     );
 
     if (!result) {
@@ -836,12 +841,17 @@ async function checkOrphanedTimers(onExpireCallback) {
 
                 if (remainingMs <= 0) {
                     // Timer should have expired - atomically claim it to prevent duplicate handling
-                    const claimed = await redis.eval(
-                        ATOMIC_TIMER_CLAIM_SCRIPT,
-                        {
-                            keys: [key],
-                            arguments: [process.pid.toString()]
-                        }
+                    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+                    const claimed = await withTimeout(
+                        redis.eval(
+                            ATOMIC_TIMER_CLAIM_SCRIPT,
+                            {
+                                keys: [key],
+                                arguments: [process.pid.toString()]
+                            }
+                        ),
+                        TIMEOUTS.TIMER_OPERATION,
+                        `claimOrphanTimer-lua-${roomCode}`
                     );
 
                     if (claimed) {

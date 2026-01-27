@@ -45,8 +45,9 @@ const roomCreateSchema = z.object({
         .refine(val => roomIdRegex.test(val), 'Room ID can only contain letters, numbers, hyphens, and underscores'),
     settings: z.object({
         teamNames: z.object({
-            red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens').default('Red'),
-            blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens').default('Blue')
+            // FIX: Add removeControlChars transform with refine for regex validation
+            red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens').default('Red'),
+            blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens').default('Blue')
         }).optional(),
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
@@ -68,8 +69,9 @@ const roomJoinSchema = z.object({
 
 const roomSettingsSchema = z.object({
     teamNames: z.object({
-        red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens'),
-        blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).regex(teamNameRegex, 'Team name can only contain letters, numbers, spaces, and hyphens')
+        // FIX: Add removeControlChars transform with refine for regex validation
+        red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens'),
+        blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens')
     }).optional(),
     turnTimer: z.number().int().min(30).max(300).nullable().optional(),
     allowSpectators: z.boolean().optional()

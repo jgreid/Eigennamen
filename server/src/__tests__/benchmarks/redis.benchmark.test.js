@@ -301,11 +301,12 @@ describe('Redis Performance Benchmarks', () => {
         await timerService.startTimer('PAUSE1', 120, () => {});
 
         const start = performance.now();
-        const remaining = await timerService.pauseTimer('PAUSE1');
+        const result = await timerService.pauseTimer('PAUSE1');
         const duration = performance.now() - start;
 
         expect(duration).toBeLessThan(25);
-        expect(remaining).toBeGreaterThan(0);
+        // BUG FIX: pauseTimer now returns object with remainingSeconds
+        expect(result.remainingSeconds).toBeGreaterThan(0);
       });
 
       it('should resume within 50ms', async () => {
