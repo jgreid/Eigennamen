@@ -642,8 +642,17 @@ async function createGame(roomCode, options = {}) {
 
 /**
  * Get game state for a specific player (hides card types for non-spymasters)
+ * @param {Object} game - Game state object
+ * @param {Object} player - Player object (can be null for spectator-like view)
+ * @returns {Object} Game state tailored for the player's role
  */
 function getGameStateForPlayer(game, player) {
+    // BUG FIX: Validate game parameter to prevent null pointer errors
+    if (!game) {
+        logger.warn('getGameStateForPlayer called with null/undefined game');
+        return null;
+    }
+
     const state = {
         id: game.id,
         words: game.words,
@@ -663,10 +672,12 @@ function getGameStateForPlayer(game, player) {
     };
 
     // SECURITY: Only spymasters see unrevealed card types
-    if (player.role === 'spymaster' || game.gameOver) {
+    // BUG FIX: Handle null/undefined player parameter gracefully
+    const isSpymaster = player && player.role === 'spymaster';
+    if (isSpymaster || game.gameOver) {
         state.types = game.types;
     } else {
-        // Non-spymasters only see types of revealed cards
+        // Non-spymasters (or null player) only see types of revealed cards
         state.types = game.types.map((type, i) =>
             game.revealed[i] ? type : null
         );
@@ -917,7 +928,23 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
             `revealCard-lua-${roomCode}`
         );
 
-        const result = JSON.parse(resultStr);
+        // BUG FIX: Validate Lua script result before accessing properties
+        if (!resultStr || typeof resultStr !== 'string') {
+            throw new ServerError('Invalid Lua script result: empty or non-string');
+        }
+
+        let result;
+        try {
+            result = JSON.parse(resultStr);
+        } catch (parseError) {
+            logger.error('Failed to parse Lua reveal script result', { roomCode, error: parseError.message });
+            throw new ServerError('Failed to parse game operation result');
+        }
+
+        // Validate result structure
+        if (!result || typeof result !== 'object') {
+            throw new ServerError('Invalid Lua script result: not an object');
+        }
 
         // Handle errors returned by the Lua script
         if (result.error) {
@@ -1132,7 +1159,22 @@ async function giveClueOptimized(roomCode, team, word, number, spymasterNickname
             `giveClue-lua-${roomCode}`
         );
 
-        const result = JSON.parse(resultStr);
+        // BUG FIX: Validate Lua script result before accessing properties
+        if (!resultStr || typeof resultStr !== 'string') {
+            throw new ServerError('Invalid Lua script result: empty or non-string');
+        }
+
+        let result;
+        try {
+            result = JSON.parse(resultStr);
+        } catch (parseError) {
+            logger.error('Failed to parse Lua giveClue script result', { roomCode, error: parseError.message });
+            throw new ServerError('Failed to parse game operation result');
+        }
+
+        if (!result || typeof result !== 'object') {
+            throw new ServerError('Invalid Lua script result: not an object');
+        }
 
         if (result.error) {
             const errorMap = {
@@ -1299,19 +1341,40 @@ async function endTurnOptimized(roomCode, playerNickname = 'Unknown') {
     const gameKey = `room:${roomCode}:game`;
 
     try {
-        const resultStr = await redis.eval(
-            OPTIMIZED_END_TURN_SCRIPT,
-            {
-                keys: [gameKey],
-                arguments: [
-                    playerNickname,
-                    Date.now().toString(),
-                    MAX_HISTORY_ENTRIES.toString()
-                ]
-            }
+        // BUG FIX: Wrap Redis Lua eval with timeout to prevent hanging operations
+        // Consistent with revealCardOptimized and giveClueOptimized
+        const resultStr = await withTimeout(
+            redis.eval(
+                OPTIMIZED_END_TURN_SCRIPT,
+                {
+                    keys: [gameKey],
+                    arguments: [
+                        playerNickname,
+                        Date.now().toString(),
+                        MAX_HISTORY_ENTRIES.toString()
+                    ]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `endTurn-lua-${roomCode}`
         );
 
-        const result = JSON.parse(resultStr);
+        // BUG FIX: Validate Lua script result before accessing properties
+        if (!resultStr || typeof resultStr !== 'string') {
+            throw new ServerError('Invalid Lua script result: empty or non-string');
+        }
+
+        let result;
+        try {
+            result = JSON.parse(resultStr);
+        } catch (parseError) {
+            logger.error('Failed to parse Lua endTurn script result', { roomCode, error: parseError.message });
+            throw new ServerError('Failed to parse game operation result');
+        }
+
+        if (!result || typeof result !== 'object') {
+            throw new ServerError('Invalid Lua script result: not an object');
+        }
 
         if (result.error) {
             const errorMap = {

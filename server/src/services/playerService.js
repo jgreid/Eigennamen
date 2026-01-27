@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
+const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION, PLAYER_CLEANUP } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
 
@@ -264,12 +265,17 @@ async function setTeam(sessionId, team) {
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
 
     // ISSUE #1 FIX: All operations now happen atomically in Lua script
-    const result = await redis.eval(
-        ATOMIC_SET_TEAM_SCRIPT,
-        {
-            keys: [`player:${sessionId}`, roomCode],
-            arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString(), sessionId]
-        }
+    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    const result = await withTimeout(
+        redis.eval(
+            ATOMIC_SET_TEAM_SCRIPT,
+            {
+                keys: [`player:${sessionId}`, roomCode],
+                arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString(), sessionId]
+            }
+        ),
+        TIMEOUTS.REDIS_OPERATION,
+        `setTeam-lua-${sessionId}`
     );
 
     if (!result) {
@@ -317,18 +323,23 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
     const teamSetKey = oldTeam ? `room:${roomCode}:team:${oldTeam}` : 'nonexistent:key';
 
     // ISSUE #1 FIX: All operations now happen atomically in Lua script
-    const result = await redis.eval(
-        ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
-        {
-            keys: [`player:${sessionId}`, teamSetKey, roomCode],
-            arguments: [
-                teamValue,
-                sessionId,
-                REDIS_TTL.PLAYER.toString(),
-                Date.now().toString(),
-                checkEmpty.toString()
-            ]
-        }
+    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    const result = await withTimeout(
+        redis.eval(
+            ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
+            {
+                keys: [`player:${sessionId}`, teamSetKey, roomCode],
+                arguments: [
+                    teamValue,
+                    sessionId,
+                    REDIS_TTL.PLAYER.toString(),
+                    Date.now().toString(),
+                    checkEmpty.toString()
+                ]
+            }
+        ),
+        TIMEOUTS.REDIS_OPERATION,
+        `safeSetTeam-lua-${sessionId}`
     );
 
     if (!result) {
@@ -572,14 +583,16 @@ async function getPlayersInRoom(roomCode) {
     }
 
     // Sort by join time, with sessionId as secondary key for stability
-    // Use nullish coalescing to handle missing connectedAt values
-    return players.sort((a, b) => {
-        const aTime = a.connectedAt ?? 0;
-        const bTime = b.connectedAt ?? 0;
-        const timeDiff = aTime - bTime;
-        if (timeDiff !== 0) return timeDiff;
-        return (a.sessionId || '').localeCompare(b.sessionId || '');
-    });
+    // BUG FIX: Handle null/undefined array elements defensively
+    return players
+        .filter(p => p != null)  // Remove any null/undefined entries
+        .sort((a, b) => {
+            const aTime = a.connectedAt ?? 0;
+            const bTime = b.connectedAt ?? 0;
+            const timeDiff = aTime - bTime;
+            if (timeDiff !== 0) return timeDiff;
+            return (a.sessionId || '').localeCompare(b.sessionId || '');
+        });
 }
 
 /**
@@ -1023,20 +1036,25 @@ async function atomicHostTransfer(oldHostSessionId, newHostSessionId, roomCode) 
     const redis = getRedis();
 
     try {
-        const result = await redis.eval(
-            ATOMIC_HOST_TRANSFER_SCRIPT,
-            {
-                keys: [
-                    `player:${oldHostSessionId}`,
-                    `player:${newHostSessionId}`,
-                    `room:${roomCode}`
-                ],
-                arguments: [
-                    newHostSessionId,
-                    REDIS_TTL.PLAYER.toString(),
-                    Date.now().toString()
-                ]
-            }
+        // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+        const result = await withTimeout(
+            redis.eval(
+                ATOMIC_HOST_TRANSFER_SCRIPT,
+                {
+                    keys: [
+                        `player:${oldHostSessionId}`,
+                        `player:${newHostSessionId}`,
+                        `room:${roomCode}`
+                    ],
+                    arguments: [
+                        newHostSessionId,
+                        REDIS_TTL.PLAYER.toString(),
+                        Date.now().toString()
+                    ]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `atomicHostTransfer-lua-${roomCode}`
         );
 
         if (!result) {

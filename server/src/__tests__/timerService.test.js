@@ -231,8 +231,9 @@ describe('Timer Service', () => {
             // Fast-forward 20 seconds
             jest.advanceTimersByTime(20000);
 
-            const remaining = await timerService.pauseTimer('ROOM1');
-            expect(remaining).toBe(40);
+            const result = await timerService.pauseTimer('ROOM1');
+            // BUG FIX: pauseTimer now returns object with remainingSeconds
+            expect(result).toEqual({ remainingSeconds: 40 });
 
             // Fast-forward more - should not expire
             jest.advanceTimersByTime(60000);

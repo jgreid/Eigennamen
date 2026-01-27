@@ -13,6 +13,7 @@ const logger = require('../utils/logger');
 const playerService = require('./playerService');
 const gameService = require('./gameService');
 const timerService = require('./timerService');
+const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
@@ -80,12 +81,17 @@ async function createRoom(roomId, hostSessionId, settings = {}) {
     };
 
     // Atomically try to create the room
-    const created = await redis.eval(
-        ATOMIC_CREATE_ROOM_SCRIPT,
-        {
-            keys: [`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`],
-            arguments: [JSON.stringify(room), REDIS_TTL.ROOM.toString()]
-        }
+    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    const created = await withTimeout(
+        redis.eval(
+            ATOMIC_CREATE_ROOM_SCRIPT,
+            {
+                keys: [`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`],
+                arguments: [JSON.stringify(room), REDIS_TTL.ROOM.toString()]
+            }
+        ),
+        TIMEOUTS.REDIS_OPERATION,
+        `createRoom-lua-${normalizedRoomId}`
     );
 
     if (created === 0) {
@@ -179,12 +185,17 @@ async function joinRoom(roomId, sessionId, nickname) {
         logger.info(`Player ${sessionId} reconnected to room "${roomId}"`);
     } else {
         // New join - use Lua script for atomic capacity check and add
-        const result = await redis.eval(
-            ATOMIC_JOIN_SCRIPT,
-            {
-                keys: [`room:${normalizedRoomId}:players`],
-                arguments: [ROOM_MAX_PLAYERS.toString(), sessionId]
-            }
+        // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+        const result = await withTimeout(
+            redis.eval(
+                ATOMIC_JOIN_SCRIPT,
+                {
+                    keys: [`room:${normalizedRoomId}:players`],
+                    arguments: [ROOM_MAX_PLAYERS.toString(), sessionId]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `joinRoom-lua-${normalizedRoomId}`
         );
 
         if (result === 0) {
@@ -357,18 +368,23 @@ return 1
 async function refreshRoomTTL(code) {
     const redis = getRedis();
 
-    await redis.eval(
-        ATOMIC_REFRESH_TTL_SCRIPT,
-        {
-            keys: [
-                `room:${code}`,
-                `room:${code}:players`,
-                `room:${code}:game`,
-                `room:${code}:team:red`,
-                `room:${code}:team:blue`
-            ],
-            arguments: [REDIS_TTL.ROOM.toString()]
-        }
+    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    await withTimeout(
+        redis.eval(
+            ATOMIC_REFRESH_TTL_SCRIPT,
+            {
+                keys: [
+                    `room:${code}`,
+                    `room:${code}:players`,
+                    `room:${code}:game`,
+                    `room:${code}:team:red`,
+                    `room:${code}:team:blue`
+                ],
+                arguments: [REDIS_TTL.ROOM.toString()]
+            }
+        ),
+        TIMEOUTS.REDIS_OPERATION,
+        `refreshRoomTTL-lua-${code}`
     );
 }
 
