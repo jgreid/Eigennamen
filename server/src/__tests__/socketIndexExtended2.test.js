@@ -182,6 +182,8 @@ describe('Socket Index Extended Tests', () => {
         test('uses WebSocket only transport in production', () => {
             jest.resetModules();
             process.env.NODE_ENV = 'production';
+            // SECURITY FIX: Must set CORS_ORIGIN in production mode
+            process.env.CORS_ORIGIN = 'https://test.example.com';
 
             const socketMod = require('../socket/index');
             const io = socketMod.initializeSocket(server);
@@ -189,6 +191,8 @@ describe('Socket Index Extended Tests', () => {
             // In production, should have websocket-only transport
             expect(io).toBeDefined();
             socketMod.cleanupSocketModule();
+            // Cleanup production-specific env vars
+            delete process.env.CORS_ORIGIN;
         });
 
         test('allows polling in development', () => {

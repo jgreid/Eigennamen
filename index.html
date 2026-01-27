@@ -19,7 +19,7 @@
     <script src="/js/qrcode.min.js"></script>
     <!-- Socket.io client - served locally for reliability -->
     <script src="/js/socket.io.min.js"></script>
-    <script src="/js/socket-client.js?v=3"></script>
+    <script src="/js/socket-client.js?v=5"></script>
     <style>
         /* ========== CSS CUSTOM PROPERTIES (Design Tokens) ========== */
         :root {
@@ -5078,7 +5078,8 @@
 
             // Error handling for game actions
             CodenamesClient.on('error', (error) => {
-                console.error('Multiplayer error:', error);
+                // Log full error details for debugging
+                console.error('Multiplayer error:', JSON.stringify(error, null, 2));
 
                 // Clear any in-progress flags
                 isRevealingCard = false;
@@ -6484,6 +6485,12 @@
         function setTeam(team) {
             // In multiplayer mode, send to server and let server response update state
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                // ISSUE FIX: Must be in a room before setting team
+                if (!CodenamesClient.isInRoom()) {
+                    console.warn('setTeam: Not in a room yet, ignoring');
+                    showToast('Please wait - joining room...', 'info');
+                    return;
+                }
                 // Prevent double-click while request in progress
                 if (isChangingRole) {
                     console.log('setTeam: blocked - isChangingRole is true, pendingRoleChange:', pendingRoleChange);
@@ -6534,6 +6541,12 @@
         function setSpymaster(team) {
             // In multiplayer mode, send to server and let server response update state
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                // ISSUE FIX: Must be in a room before setting role
+                if (!CodenamesClient.isInRoom()) {
+                    console.warn('setSpymaster: Not in a room yet, ignoring');
+                    showToast('Please wait - joining room...', 'info');
+                    return;
+                }
                 // Prevent double-click while request in progress
                 if (isChangingRole) {
                     console.log('setSpymaster: blocked - isChangingRole is true, pendingRoleChange:', pendingRoleChange);
@@ -6590,6 +6603,12 @@
         function setClicker(team) {
             // In multiplayer mode, send to server and let server response update state
             if (isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                // ISSUE FIX: Must be in a room before setting role
+                if (!CodenamesClient.isInRoom()) {
+                    console.warn('setClicker: Not in a room yet, ignoring');
+                    showToast('Please wait - joining room...', 'info');
+                    return;
+                }
                 // Prevent double-click while request in progress
                 if (isChangingRole) {
                     console.log('setClicker: blocked - isChangingRole is true, pendingRoleChange:', pendingRoleChange);

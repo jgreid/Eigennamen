@@ -34,10 +34,19 @@ let inactivityCheckInterval = null; // Sprint 19: Interval for checking idle soc
 function initializeSocket(server, expressApp = null) {
     app = expressApp;
     const isProduction = process.env.NODE_ENV === 'production';
+    const corsOrigin = process.env.CORS_ORIGIN || '*';
+
+    // SECURITY FIX: Block wildcard CORS in production for Socket.io
+    // This matches the validation in app.js for Express CORS
+    if (isProduction && corsOrigin === '*') {
+        logger.error('FATAL: CORS_ORIGIN cannot be wildcard (*) in production for Socket.io');
+        logger.error('Set CORS_ORIGIN to your domain(s), e.g., CORS_ORIGIN=https://yourdomain.com');
+        process.exit(1);
+    }
 
     io = new Server(server, {
         cors: {
-            origin: process.env.CORS_ORIGIN || '*',
+            origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()),
             methods: ['GET', 'POST'],
             credentials: true
         },

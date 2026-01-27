@@ -685,10 +685,11 @@ async function validateReconnectToken(sessionId, token) {
     );
 
     if (isValid) {
-        // Token used successfully - delete both mappings (one-time use)
-        await redis.del(`reconnect:session:${sessionId}`);
-        await redis.del(`reconnect:token:${token}`);
-        logger.info('Reconnection token validated', { sessionId });
+        // CRITICAL FIX: Don't consume token here - let room:reconnect consume it
+        // This fixes the race condition where socket auth validation consumed the
+        // token before room:reconnect could use it for full state recovery.
+        // Token will be consumed when room:reconnect successfully completes.
+        logger.info('Reconnection token verified (not consumed)', { sessionId });
     } else {
         logger.warn('Invalid reconnection token', { sessionId });
     }
@@ -832,6 +833,14 @@ async function generateReconnectionToken(sessionId) {
 
     if (!player) {
         return null;
+    }
+
+    // RACE CONDITION FIX: Check for existing token first to make this idempotent
+    // This prevents multiple concurrent calls from generating different tokens
+    const existingToken = await redis.get(`reconnect:session:${sessionId}`);
+    if (existingToken) {
+        logger.debug(`Returning existing reconnection token for session ${sessionId}`);
+        return existingToken;
     }
 
     // Generate a cryptographically secure random token

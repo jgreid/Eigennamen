@@ -4,6 +4,7 @@
  */
 
 const playerService = require('../../services/playerService');
+const roomService = require('../../services/roomService');
 const timerService = require('../../services/timerService');
 const { validateInput } = require('../../middleware/validation');
 const logger = require('../../utils/logger');
@@ -27,7 +28,8 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Pause the current turn timer (host only)
      */
-    socket.on('timer:pause', createRateLimitedHandler(socket, 'timer:status', async () => {
+    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
+    socket.on('timer:pause', createRateLimitedHandler(socket, 'timer:pause', async () => {
         try {
             if (!socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
@@ -67,7 +69,8 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Resume a paused timer (host only)
      */
-    socket.on('timer:resume', createRateLimitedHandler(socket, 'timer:status', async () => {
+    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
+    socket.on('timer:resume', createRateLimitedHandler(socket, 'timer:resume', async () => {
         try {
             if (!socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
@@ -85,6 +88,13 @@ module.exports = function timerHandlers(io, socket) {
             // resumeTimer needs an onExpire callback - use the standard one
             const result = await timerService.resumeTimer(socket.roomCode, async (roomCode) => {
                 // This callback is invoked when the timer expires
+                // ISSUE FIX: Verify room still exists before emitting (race condition prevention)
+                const room = await roomService.getRoom(roomCode);
+                if (!room) {
+                    logger.warn(`Timer expired but room ${roomCode} no longer exists`);
+                    return;
+                }
+
                 const gameService = require('../../services/gameService');
                 const game = await gameService.getGame(roomCode);
                 if (game && !game.gameOver) {
@@ -124,7 +134,8 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Add time to the current timer (host only)
      */
-    socket.on('timer:addTime', createRateLimitedHandler(socket, 'timer:status', async (data) => {
+    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
+    socket.on('timer:addTime', createRateLimitedHandler(socket, 'timer:addTime', async (data) => {
         try {
             if (!socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
@@ -140,6 +151,13 @@ module.exports = function timerHandlers(io, socket) {
 
             const result = await timerService.addTime(socket.roomCode, validated.seconds, async (roomCode) => {
                 // Timer expire callback
+                // ISSUE FIX: Verify room still exists before emitting (race condition prevention)
+                const room = await roomService.getRoom(roomCode);
+                if (!room) {
+                    logger.warn(`Timer expired but room ${roomCode} no longer exists`);
+                    return;
+                }
+
                 const gameService = require('../../services/gameService');
                 const game = await gameService.getGame(roomCode);
                 if (game && !game.gameOver) {
@@ -180,7 +198,8 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Stop the current timer (host only)
      */
-    socket.on('timer:stop', createRateLimitedHandler(socket, 'timer:status', async () => {
+    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
+    socket.on('timer:stop', createRateLimitedHandler(socket, 'timer:stop', async () => {
         try {
             if (!socket.roomCode) {
                 throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
