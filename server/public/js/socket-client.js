@@ -3,7 +3,7 @@
  *
  * This module connects the client to the real-time multiplayer server.
  * Include Socket.io client library before this script:
- * <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+ * <script src="/js/socket.io.min.js"></script>
  */
 
 (function(global) {
