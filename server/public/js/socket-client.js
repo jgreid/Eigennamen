@@ -32,6 +32,12 @@
          */
         connect(serverUrl = null, options = {}) {
             return new Promise((resolve, reject) => {
+                // Check if Socket.io library is loaded
+                if (typeof io === 'undefined') {
+                    reject(new Error('Socket.io client library not loaded. Please check your network connection and refresh the page.'));
+                    return;
+                }
+
                 // ISSUE #5 & #48 FIX: Use safe storage methods with error handling
                 this.sessionId = this._safeGetStorage(sessionStorage, 'codenames-session-id');
                 this.storedNickname = this._safeGetStorage(localStorage, 'codenames-nickname');
@@ -829,6 +835,14 @@
             this.player = null;
             this.joinInProgress = false;
             this.createInProgress = false;
+        },
+
+        /**
+         * Check if Socket.io library is available
+         * @returns {boolean}
+         */
+        isSocketIOAvailable() {
+            return typeof io !== 'undefined';
         },
 
         /**
