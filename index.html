@@ -1323,6 +1323,74 @@
             color: rgba(255, 255, 255, 0.4);
         }
 
+        /* Room Code Share (Multiplayer Mode) */
+        .room-code-share {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .room-code-share .panel-description {
+            margin-bottom: 16px;
+        }
+
+        .room-code-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .room-code-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .room-code-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: monospace;
+            letter-spacing: 4px;
+            color: #667eea;
+            text-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-copy-room-code {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-copy-room-code:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .room-code-hint {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .room-code-hint strong {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
         .qr-container canvas {
             border-radius: 6px;
             background: white;
@@ -3489,7 +3557,26 @@
                     <!-- Link Panel -->
                     <div class="settings-panel" id="panel-link">
                         <h2>Share Game</h2>
-                        <div class="link-share-content compact">
+
+                        <!-- Multiplayer Mode: Simple Room Code -->
+                        <div class="room-code-share" id="mp-room-code-share" style="display: none;">
+                            <p class="panel-description">Share this room code with friends to let them join your game.</p>
+
+                            <div class="room-code-display">
+                                <span class="room-code-label">Room Code</span>
+                                <span class="room-code-value" id="share-room-code">----</span>
+                                <button type="button" class="btn-copy-room-code" data-action="copy-room-code" title="Copy room code">
+                                    <span class="copy-icon">📋</span>
+                                    <span class="copy-text">Copy</span>
+                                </button>
+                            </div>
+                            <div id="room-code-copy-feedback" class="copy-feedback"></div>
+
+                            <p class="room-code-hint">Players can join at <strong id="share-server-url"></strong> using this code</p>
+                        </div>
+
+                        <!-- Standalone Mode: Link + QR Code -->
+                        <div class="link-share-content compact" id="standalone-share">
                             <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
 
                             <div class="link-input-group">
@@ -4633,6 +4720,9 @@
                 if (playersUl && players) {
                     updatePlayerList(playersUl, players);
                 }
+
+                // Update share panel for multiplayer mode
+                updateSharePanelMode(true, room.code);
             } else {
                 indicator.classList.remove('active');
                 roomIdDisplay.style.display = 'none';
@@ -4641,7 +4731,64 @@
                 if (historyBtnRow) {
                     historyBtnRow.style.display = 'none';
                 }
+
+                // Update share panel for standalone mode
+                updateSharePanelMode(false);
             }
+        }
+
+        // Toggle share panel between multiplayer (room code) and standalone (URL/QR) modes
+        function updateSharePanelMode(isMultiplayer, roomCode = null) {
+            const mpShare = document.getElementById('mp-room-code-share');
+            const standaloneShare = document.getElementById('standalone-share');
+            const shareRoomCode = document.getElementById('share-room-code');
+            const shareServerUrl = document.getElementById('share-server-url');
+            const qrSection = document.getElementById('qr-section');
+
+            if (isMultiplayer && roomCode) {
+                // Multiplayer mode: show room code, hide URL/QR
+                if (mpShare) mpShare.style.display = 'block';
+                if (standaloneShare) standaloneShare.style.display = 'none';
+                if (shareRoomCode) shareRoomCode.textContent = roomCode.toUpperCase();
+                if (shareServerUrl) shareServerUrl.textContent = window.location.host;
+                // Hide sidebar QR section in multiplayer mode
+                if (qrSection) qrSection.style.display = 'none';
+            } else {
+                // Standalone mode: show URL/QR, hide room code
+                if (mpShare) mpShare.style.display = 'none';
+                if (standaloneShare) standaloneShare.style.display = 'block';
+                // Show sidebar QR section in standalone mode (if library loaded)
+                if (qrSection && typeof qrcode === 'function') qrSection.style.display = '';
+            }
+        }
+
+        // Copy room code to clipboard
+        function copyRoomCode() {
+            const roomCode = document.getElementById('share-room-code')?.textContent;
+            const feedback = document.getElementById('room-code-copy-feedback');
+
+            if (!roomCode || roomCode === '----') return;
+
+            navigator.clipboard.writeText(roomCode).then(() => {
+                if (feedback) {
+                    feedback.textContent = 'Room code copied!';
+                    setTimeout(() => { feedback.textContent = ''; }, 2000);
+                }
+                showToast('Room code copied to clipboard');
+            }).catch(() => {
+                // Fallback for older browsers
+                const tempInput = document.createElement('input');
+                tempInput.value = roomCode;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                if (feedback) {
+                    feedback.textContent = 'Room code copied!';
+                    setTimeout(() => { feedback.textContent = ''; }, 2000);
+                }
+                showToast('Room code copied to clipboard');
+            });
         }
 
         function updatePlayerList(ul, players) {
@@ -7543,6 +7690,9 @@
                         break;
                     case 'copy-link':
                         copyLink();
+                        break;
+                    case 'copy-room-code':
+                        copyRoomCode();
                         break;
 
                     // Settings modal
