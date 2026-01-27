@@ -455,7 +455,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('required')
+                message: expect.stringMatching(/required/i)  // Case-insensitive match for Zod validation
             });
         });
 
