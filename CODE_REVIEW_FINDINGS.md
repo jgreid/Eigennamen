@@ -265,3 +265,75 @@ The Codenames Online codebase is **production-ready** with excellent security pr
 ---
 
 *This document supersedes all previous code review findings. The codebase has been comprehensively audited and hardened.*
+
+---
+
+## Addendum: January 28, 2026 - Bug Hardening Review
+
+### New Issues Identified and Fixed
+
+#### Timezone & Locale Issues (All Fixed ✅)
+
+| Issue | Severity | Status |
+|-------|----------|--------|
+| Timer clock skew between client/server | Critical | ✅ Fixed - Uses `performance.now()` monotonic clock |
+| Turkish locale case conversion (`I` → `ı`) | Critical | ✅ Fixed - Uses `toEnglishLowerCase/toEnglishUpperCase` |
+| Unicode combining characters in clue validation | High | ✅ Fixed - NFC normalization before comparison |
+| ASCII-only input validation blocking international names | High | ✅ Fixed - Unicode property escapes `\p{L}\p{N}` |
+| Game history timestamps without timezone context | Medium | ✅ Fixed - Relative time + timezone abbreviation |
+| Hash function failing on emoji/surrogate pairs | Medium | ✅ Fixed - Uses `codePointAt` via `for...of` |
+
+#### Edge Case Issues (Identified for Future Hardening)
+
+| Issue | Severity | File | Description |
+|-------|----------|------|-------------|
+| Dual tab reconnection race | High | `playerService.js:901-942` | Token get/del not atomic - two tabs can both validate |
+| Timer vs reveal race condition | High | `gameHandlers.js:175-229` | Simultaneous turn endings possible |
+| Kicked player reconnection | Medium | `playerHandlers.js:246-331` | Player data deleted before socket disconnect |
+| Game start without player validation | Medium | `gameHandlers.js:32-77` | No min player count check |
+| Settings changed mid-game | Medium | `roomHandlers.js:256-292` | Timer settings can change during active game |
+| Room expires during reconnect | Low | `roomHandlers.js:445-449` | Player marked connected before room check |
+| New host might be disconnected | Low | `roomService.js:267-276` | Host transfer doesn't check connection status |
+
+### Files Modified (January 28, 2026)
+
+1. **`index.html`**
+   - Fixed timer to use server-authoritative countdown with `performance.now()`
+   - Added `formatGameTimestamp()` with relative time and timezone display
+   - Simplified multiplayer sharing to show room code prominently
+
+2. **`server/src/utils/sanitize.js`**
+   - Added `toEnglishLowerCase()` and `toEnglishUpperCase()`
+   - Added `normalizeUnicode()` for NFC normalization
+   - Added `localeCompare()` and `localeIncludes()` for safe comparisons
+
+3. **`server/src/services/gameService.js`**
+   - Updated `validateClueWord()` to use locale-safe functions
+   - Fixed `hashString()` to use `codePointAt` for emoji support
+   - Updated word normalization to use English locale
+
+4. **`server/src/services/roomService.js`**
+   - Updated room code normalization to use `toEnglishLowerCase()`
+
+5. **`server/src/services/wordListService.js`**
+   - Updated word normalization to use `toEnglishUpperCase()`
+
+6. **`server/src/validators/schemas.js`**
+   - Updated regex patterns to use Unicode property escapes (`\p{L}`, `\p{N}`)
+   - Nicknames, room IDs, team names, and clues now support international characters
+
+7. **`server/public/js/socket-client.js`**
+   - Added `io` availability check before connect
+   - Added `isSocketIOAvailable()` utility method
+
+### Commits
+
+```
+d1f60c8 Fix Socket.io library load failure handling
+75456f3 Simplify multiplayer sharing to use room code only
+8786799 Fix timezone and locale issues in multiplayer code
+```
+
+---
+
+*Last updated: January 28, 2026*
