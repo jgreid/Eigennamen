@@ -10,6 +10,26 @@ const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION, PLAYER_CLEANUP } =
 const { ServerError, ValidationError } = require('../errors/GameError');
 
 /**
+ * Validate Redis eval keys to prevent null/undefined values from causing toString errors
+ * @param {Array} keys - Array of Redis keys
+ * @param {string} operation - Name of the operation for error messages
+ * @throws {ServerError} If any key is null or undefined
+ */
+function validateRedisKeys(keys, operation) {
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (key === null || key === undefined) {
+            logger.error(`Null/undefined key at index ${i} in ${operation}`, { keys });
+            throw new ServerError(`Invalid key at index ${i} - possible data corruption or race condition`);
+        }
+        if (typeof key !== 'string') {
+            logger.error(`Non-string key at index ${i} in ${operation}`, { keys, type: typeof key });
+            throw new ServerError(`Invalid key type at index ${i} - expected string`);
+        }
+    }
+}
+
+/**
  * Create a new player
  * @param {string} sessionId - Player's session ID
  * @param {string} roomCode - Room code
@@ -270,13 +290,17 @@ async function setTeam(sessionId, team) {
     // Use sentinel value for null to properly handle in Lua script
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
 
+    // Build keys array and validate before passing to Redis
+    const evalKeys = [`player:${sessionId}`, roomCode];
+    validateRedisKeys(evalKeys, 'setTeam');
+
     // ISSUE #1 FIX: All operations now happen atomically in Lua script
     // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
     const result = await withTimeout(
         redis.eval(
             ATOMIC_SET_TEAM_SCRIPT,
             {
-                keys: [`player:${sessionId}`, roomCode],
+                keys: evalKeys,
                 arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString(), sessionId]
             }
         ),
@@ -334,13 +358,17 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
     // Build team set key for the OLD team (the one we're checking for emptiness)
     const teamSetKey = oldTeam ? `room:${roomCode}:team:${oldTeam}` : 'nonexistent:key';
 
+    // Build keys array and validate before passing to Redis
+    const evalKeys = [`player:${sessionId}`, teamSetKey, roomCode];
+    validateRedisKeys(evalKeys, 'safeSetTeam');
+
     // ISSUE #1 FIX: All operations now happen atomically in Lua script
     // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
     const result = await withTimeout(
         redis.eval(
             ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
             {
-                keys: [`player:${sessionId}`, teamSetKey, roomCode],
+                keys: evalKeys,
                 arguments: [
                     teamValue,
                     sessionId,
@@ -479,13 +507,17 @@ async function setRole(sessionId, role) {
         throw new ValidationError('Must join a team before becoming ' + role);
     }
 
+    // Build keys array and validate before passing to Redis
+    const evalKeys = [`player:${sessionId}`, `room:${player.roomCode}:players`];
+    validateRedisKeys(evalKeys, 'setRole');
+
     // FIX: Use atomic Lua script for spymaster/clicker role assignment
     // This prevents the TOCTOU race condition in the previous lock-based approach
     const result = await withTimeout(
         redis.eval(
             ATOMIC_SET_ROLE_SCRIPT,
             {
-                keys: [`player:${sessionId}`, `room:${player.roomCode}:players`],
+                keys: evalKeys,
                 arguments: [
                     role,
                     sessionId,
@@ -1133,17 +1165,27 @@ return cjson.encode({
 async function atomicHostTransfer(oldHostSessionId, newHostSessionId, roomCode) {
     const redis = getRedis();
 
+    // Validate all inputs before proceeding
+    if (!oldHostSessionId || !newHostSessionId || !roomCode) {
+        logger.error('Invalid parameters for host transfer', { oldHostSessionId, newHostSessionId, roomCode });
+        return { success: false, reason: 'INVALID_PARAMS' };
+    }
+
+    // Build keys array and validate before passing to Redis
+    const evalKeys = [
+        `player:${oldHostSessionId}`,
+        `player:${newHostSessionId}`,
+        `room:${roomCode}`
+    ];
+    validateRedisKeys(evalKeys, 'atomicHostTransfer');
+
     try {
         // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
         const result = await withTimeout(
             redis.eval(
                 ATOMIC_HOST_TRANSFER_SCRIPT,
                 {
-                    keys: [
-                        `player:${oldHostSessionId}`,
-                        `player:${newHostSessionId}`,
-                        `room:${roomCode}`
-                    ],
+                    keys: evalKeys,
                     arguments: [
                         newHostSessionId,
                         REDIS_TTL.PLAYER.toString(),
