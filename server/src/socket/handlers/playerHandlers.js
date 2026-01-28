@@ -137,7 +137,9 @@ module.exports = function playerHandlers(io, socket) {
             // Manage spectator socket room membership based on role change
             if (currentPlayer) {
                 const wasSpectator = currentPlayer.role === 'spectator' || !currentPlayer.team;
-                const isNowSpectator = validated.role === 'spectator' || !player.team;
+                // FIX: Use actual player.role from result, not validated.role from request
+                // Matches pattern established in setTeam handler for consistency
+                const isNowSpectator = player.role === 'spectator' || !player.team;
 
                 if (wasSpectator && !isNowSpectator) {
                     // Player is no longer a spectator, remove from spectators room
