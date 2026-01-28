@@ -261,6 +261,12 @@ async function setTeam(sessionId, team) {
 
     const roomCode = existingPlayer.roomCode;
 
+    // FIX: Validate roomCode to prevent null being passed to Redis eval
+    // This can happen if player data is corrupted or a race condition occurred
+    if (!roomCode) {
+        throw new ServerError('Player is not associated with a room');
+    }
+
     // Use sentinel value for null to properly handle in Lua script
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
 
@@ -315,6 +321,12 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
 
     const oldTeam = existingPlayer.team;
     const roomCode = existingPlayer.roomCode;
+
+    // FIX: Validate roomCode to prevent null being passed to Redis eval
+    // This can happen if player data is corrupted or a race condition occurred
+    if (!roomCode) {
+        throw new ServerError('Player is not associated with a room');
+    }
 
     // Use sentinel value for null
     const teamValue = team === null || team === undefined ? '__NULL__' : team;

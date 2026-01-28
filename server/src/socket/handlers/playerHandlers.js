@@ -54,6 +54,11 @@ module.exports = function playerHandlers(io, socket) {
             const shouldCheckEmpty = game && !game.gameOver && currentPlayer && currentPlayer.team && currentPlayer.team !== validated.team;
             const player = await playerService.safeSetTeam(socket.sessionId, validated.team, shouldCheckEmpty);
 
+            // FIX: Add early null check before accessing properties
+            if (!player) {
+                throw PlayerError.notFound(socket.sessionId);
+            }
+
             // Manage spectator socket room membership based on team change
             const wasSpectator = !currentPlayer.team || currentPlayer.role === 'spectator';
             const isNowSpectator = !validated.team || player.role === 'spectator';
