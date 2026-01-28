@@ -193,6 +193,8 @@ module.exports = function roomHandlers(io, socket) {
             if (joinedRoomCode) {
                 socket.leave(`room:${joinedRoomCode}`);
                 socket.leave(`player:${socket.sessionId}`);
+                // FIX: Also leave spectators room to prevent ghost entries
+                socket.leave(`spectators:${joinedRoomCode}`);
                 socket.roomCode = null;
             }
 
@@ -222,10 +224,15 @@ module.exports = function roomHandlers(io, socket) {
             socket.leave(`room:${socket.roomCode}`);
             socket.leave(`spectators:${socket.roomCode}`);
 
+            // FIX: Get remaining players for consistent event format with player:kick
+            const remainingPlayers = await playerService.getPlayersInRoom(socket.roomCode);
+
             // Notify others (result may be null if room was already deleted)
+            // FIX: Include players array for client state consistency
             io.to(`room:${socket.roomCode}`).emit('room:playerLeft', {
                 sessionId: socket.sessionId,
-                newHost: result?.newHostId || null
+                newHost: result?.newHostId || null,
+                players: remainingPlayers || []
             });
 
             // Log event for room history
@@ -479,10 +486,14 @@ module.exports = function roomHandlers(io, socket) {
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = code;
 
-            // Join spectators room if player is a spectator (no team or role='spectator')
+            // FIX: Explicitly manage spectators room membership
+            // Join or leave based on current player state for clean state management
             const isSpectator = player.role === 'spectator' || !player.team;
             if (isSpectator) {
                 socket.join(`spectators:${code}`);
+            } else {
+                // Ensure not in spectators room if player has a team and role
+                socket.leave(`spectators:${code}`);
             }
 
             // US-16.1: Get room stats including spectator count

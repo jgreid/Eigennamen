@@ -609,45 +609,47 @@ async function handleDisconnect(io, socket, reason) {
 
                     if (hostTransferLockAcquired) {
                         const players = await playerService.getPlayersInRoom(roomCode);
-                        // FIX: Add null check for players to prevent server crash
+                        // FIX: Don't early return - just skip transfer if we can't get players
+                        // Early return was causing the rest of disconnect handling to be skipped
                         if (!players || !Array.isArray(players)) {
-                            logger.warn(`Unable to fetch players for host transfer in room ${roomCode}`);
-                            return;
-                        }
-                        const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
+                            logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
+                            // Continue to finally block to release lock, but skip transfer
+                        } else {
+                            const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
 
-                        if (connectedPlayers.length > 0) {
-                            // Transfer host to first connected player
-                            const newHost = connectedPlayers[0];
+                            if (connectedPlayers.length > 0) {
+                                // Transfer host to first connected player
+                                const newHost = connectedPlayers[0];
 
-                            // SECURITY FIX: Use atomic host transfer to prevent race conditions
-                            // This atomically updates old host, new host, and room in a single Lua script
-                            const transferResult = await playerService.atomicHostTransfer(
-                                socket.sessionId,
-                                newHost.sessionId,
-                                roomCode
-                            );
+                                // SECURITY FIX: Use atomic host transfer to prevent race conditions
+                                // This atomically updates old host, new host, and room in a single Lua script
+                                const transferResult = await playerService.atomicHostTransfer(
+                                    socket.sessionId,
+                                    newHost.sessionId,
+                                    roomCode
+                                );
 
-                            if (transferResult.success) {
-                                io.to(`room:${roomCode}`).emit('room:hostChanged', {
-                                    newHostSessionId: newHost.sessionId,
-                                    newHostNickname: newHost.nickname,
-                                    reason: 'previousHostDisconnected'
-                                });
-
-                                // Log host change event
-                                await eventLogService.logEvent(
-                                    roomCode,
-                                    eventLogService.EVENT_TYPES.HOST_CHANGED,
-                                    {
-                                        previousHostSessionId: socket.sessionId,
+                                if (transferResult.success) {
+                                    io.to(`room:${roomCode}`).emit('room:hostChanged', {
                                         newHostSessionId: newHost.sessionId,
                                         newHostNickname: newHost.nickname,
                                         reason: 'previousHostDisconnected'
-                                    }
-                                );
-                            } else {
-                                logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
+                                    });
+
+                                    // Log host change event
+                                    await eventLogService.logEvent(
+                                        roomCode,
+                                        eventLogService.EVENT_TYPES.HOST_CHANGED,
+                                        {
+                                            previousHostSessionId: socket.sessionId,
+                                            newHostSessionId: newHost.sessionId,
+                                            newHostNickname: newHost.nickname,
+                                            reason: 'previousHostDisconnected'
+                                        }
+                                    );
+                                } else {
+                                    logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
+                                }
                             }
                         }
                     } else {

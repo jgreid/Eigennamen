@@ -54,9 +54,16 @@ module.exports = function playerHandlers(io, socket) {
             const shouldCheckEmpty = game && !game.gameOver && currentPlayer && currentPlayer.team && currentPlayer.team !== validated.team;
             const player = await playerService.safeSetTeam(socket.sessionId, validated.team, shouldCheckEmpty);
 
+            // FIX: Add early null check before accessing properties
+            if (!player) {
+                throw PlayerError.notFound(socket.sessionId);
+            }
+
             // Manage spectator socket room membership based on team change
             const wasSpectator = !currentPlayer.team || currentPlayer.role === 'spectator';
-            const isNowSpectator = !validated.team || player.role === 'spectator';
+            // FIX: Use actual player.team from result, not validated.team from request
+            // The Lua script might return a different team than requested in edge cases
+            const isNowSpectator = !player.team || player.role === 'spectator';
 
             if (wasSpectator && !isNowSpectator) {
                 // Player is joining a team, remove from spectators room
@@ -115,6 +122,25 @@ module.exports = function playerHandlers(io, socket) {
             // Get current player state before role change to manage spectator room
             const currentPlayer = await playerService.getPlayer(socket.sessionId);
 
+            // FIX: Verify player exists before proceeding (matches setTeam pattern)
+            if (!currentPlayer || currentPlayer.roomCode !== socket.roomCode) {
+                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: socket.roomCode });
+            }
+
+            // FIX: Check game state to prevent role changes during active gameplay
+            // This prevents spymasters/clickers from abandoning their roles mid-game
+            const game = await gameService.getGame(socket.roomCode);
+
+            if (currentPlayer && (currentPlayer.role === 'spymaster' || currentPlayer.role === 'clicker')) {
+                // If game is active and it's this player's team's turn, prevent role change
+                if (game && !game.gameOver && game.currentTurn === currentPlayer.team) {
+                    throw {
+                        code: ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN,
+                        message: `Cannot change role while you are the active ${currentPlayer.role} during your team's turn`
+                    };
+                }
+            }
+
             const player = await playerService.setRole(socket.sessionId, validated.role);
 
             // FIX: Add early null check before accessing properties
@@ -130,7 +156,9 @@ module.exports = function playerHandlers(io, socket) {
             // Manage spectator socket room membership based on role change
             if (currentPlayer) {
                 const wasSpectator = currentPlayer.role === 'spectator' || !currentPlayer.team;
-                const isNowSpectator = validated.role === 'spectator' || !player.team;
+                // FIX: Use actual player.role from result, not validated.role from request
+                // Matches pattern established in setTeam handler for consistency
+                const isNowSpectator = player.role === 'spectator' || !player.team;
 
                 if (wasSpectator && !isNowSpectator) {
                     // Player is no longer a spectator, remove from spectators room
@@ -152,11 +180,9 @@ module.exports = function playerHandlers(io, socket) {
             io.to(`room:${socket.roomCode}`).emit('room:statsUpdated', { stats: roomStats });
 
             // If becoming spymaster, send them the card types
-            if (player.role === 'spymaster') {
-                    const game = await gameService.getGame(socket.roomCode);
-                if (game && !game.gameOver) {
-                    socket.emit('game:spymasterView', { types: game.types });
-                }
+            // Reuse game object fetched earlier for permission check
+            if (player.role === 'spymaster' && game && !game.gameOver) {
+                socket.emit('game:spymasterView', { types: game.types });
             }
 
             // Log event for reconnection recovery
