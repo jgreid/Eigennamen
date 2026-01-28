@@ -14,6 +14,7 @@ const playerService = require('./playerService');
 const gameService = require('./gameService');
 const timerService = require('./timerService');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
+const { toEnglishLowerCase } = require('../utils/sanitize');
 const {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
@@ -59,7 +60,7 @@ async function createRoom(roomId, hostSessionId, settings = {}) {
     const redis = getRedis();
 
     // Normalize room ID (case-insensitive)
-    const normalizedRoomId = roomId.toLowerCase();
+    const normalizedRoomId = toEnglishLowerCase(roomId);
 
     // Extract nickname from settings
     const { nickname: hostNickname, ...cleanSettings } = settings;
@@ -116,7 +117,7 @@ async function createRoom(roomId, hostSessionId, settings = {}) {
 async function getRoom(roomId) {
     const redis = getRedis();
     // Normalize room ID for case-insensitive lookup
-    const normalizedId = roomId.toLowerCase();
+    const normalizedId = toEnglishLowerCase(roomId);
     const roomData = await redis.get(`room:${normalizedId}`);
 
     if (!roomData) {
@@ -166,7 +167,7 @@ async function joinRoom(roomId, sessionId, nickname) {
     const redis = getRedis();
 
     // Normalize room ID (case-insensitive)
-    const normalizedRoomId = roomId.toLowerCase();
+    const normalizedRoomId = toEnglishLowerCase(roomId);
 
     // Get room
     const room = await getRoom(normalizedRoomId);
@@ -319,7 +320,7 @@ async function updateSettings(code, sessionId, newSettings) {
  */
 async function roomExists(code) {
     const redis = getRedis();
-    const normalizedCode = code.toLowerCase();
+    const normalizedCode = toEnglishLowerCase(code);
     return await redis.exists(`room:${normalizedCode}`) === 1;
 }
 

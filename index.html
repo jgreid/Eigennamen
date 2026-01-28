@@ -1323,6 +1323,74 @@
             color: rgba(255, 255, 255, 0.4);
         }
 
+        /* Room Code Share (Multiplayer Mode) */
+        .room-code-share {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .room-code-share .panel-description {
+            margin-bottom: 16px;
+        }
+
+        .room-code-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .room-code-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .room-code-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: monospace;
+            letter-spacing: 4px;
+            color: #667eea;
+            text-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-copy-room-code {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-copy-room-code:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .room-code-hint {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .room-code-hint strong {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
         .qr-container canvas {
             border-radius: 6px;
             background: white;
@@ -3489,7 +3557,26 @@
                     <!-- Link Panel -->
                     <div class="settings-panel" id="panel-link">
                         <h2>Share Game</h2>
-                        <div class="link-share-content compact">
+
+                        <!-- Multiplayer Mode: Simple Room Code -->
+                        <div class="room-code-share" id="mp-room-code-share" style="display: none;">
+                            <p class="panel-description">Share this room code with friends to let them join your game.</p>
+
+                            <div class="room-code-display">
+                                <span class="room-code-label">Room Code</span>
+                                <span class="room-code-value" id="share-room-code">----</span>
+                                <button type="button" class="btn-copy-room-code" data-action="copy-room-code" title="Copy room code">
+                                    <span class="copy-icon">📋</span>
+                                    <span class="copy-text">Copy</span>
+                                </button>
+                            </div>
+                            <div id="room-code-copy-feedback" class="copy-feedback"></div>
+
+                            <p class="room-code-hint">Players can join at <strong id="share-server-url"></strong> using this code</p>
+                        </div>
+
+                        <!-- Standalone Mode: Link + QR Code -->
+                        <div class="link-share-content compact" id="standalone-share">
                             <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
 
                             <div class="link-input-group">
@@ -3993,8 +4080,7 @@
             listEl.style.display = 'flex';
 
             listEl.innerHTML = games.map(game => {
-                const date = new Date(game.timestamp);
-                const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateStr = formatGameTimestamp(game.timestamp);
                 const winnerName = escapeHTML(game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue'));
 
                 return `
@@ -4633,6 +4719,9 @@
                 if (playersUl && players) {
                     updatePlayerList(playersUl, players);
                 }
+
+                // Update share panel for multiplayer mode
+                updateSharePanelMode(true, room.code);
             } else {
                 indicator.classList.remove('active');
                 roomIdDisplay.style.display = 'none';
@@ -4641,7 +4730,64 @@
                 if (historyBtnRow) {
                     historyBtnRow.style.display = 'none';
                 }
+
+                // Update share panel for standalone mode
+                updateSharePanelMode(false);
             }
+        }
+
+        // Toggle share panel between multiplayer (room code) and standalone (URL/QR) modes
+        function updateSharePanelMode(isMultiplayer, roomCode = null) {
+            const mpShare = document.getElementById('mp-room-code-share');
+            const standaloneShare = document.getElementById('standalone-share');
+            const shareRoomCode = document.getElementById('share-room-code');
+            const shareServerUrl = document.getElementById('share-server-url');
+            const qrSection = document.getElementById('qr-section');
+
+            if (isMultiplayer && roomCode) {
+                // Multiplayer mode: show room code, hide URL/QR
+                if (mpShare) mpShare.style.display = 'block';
+                if (standaloneShare) standaloneShare.style.display = 'none';
+                if (shareRoomCode) shareRoomCode.textContent = roomCode.toUpperCase();
+                if (shareServerUrl) shareServerUrl.textContent = window.location.host;
+                // Hide sidebar QR section in multiplayer mode
+                if (qrSection) qrSection.style.display = 'none';
+            } else {
+                // Standalone mode: show URL/QR, hide room code
+                if (mpShare) mpShare.style.display = 'none';
+                if (standaloneShare) standaloneShare.style.display = 'block';
+                // Show sidebar QR section in standalone mode (if library loaded)
+                if (qrSection && typeof qrcode === 'function') qrSection.style.display = '';
+            }
+        }
+
+        // Copy room code to clipboard
+        function copyRoomCode() {
+            const roomCode = document.getElementById('share-room-code')?.textContent;
+            const feedback = document.getElementById('room-code-copy-feedback');
+
+            if (!roomCode || roomCode === '----') return;
+
+            navigator.clipboard.writeText(roomCode).then(() => {
+                if (feedback) {
+                    feedback.textContent = 'Room code copied!';
+                    setTimeout(() => { feedback.textContent = ''; }, 2000);
+                }
+                showToast('Room code copied to clipboard');
+            }).catch(() => {
+                // Fallback for older browsers
+                const tempInput = document.createElement('input');
+                tempInput.value = roomCode;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                if (feedback) {
+                    feedback.textContent = 'Room code copied!';
+                    setTimeout(() => { feedback.textContent = ''; }, 2000);
+                }
+                showToast('Room code copied to clipboard');
+            });
         }
 
         function updatePlayerList(ul, players) {
@@ -5687,8 +5833,41 @@
             endTime: null,
             duration: null,
             remainingSeconds: null,
-            intervalId: null
+            intervalId: null,
+            // Server-authoritative timing: store server's remaining seconds
+            // and local start time to calculate elapsed time without clock skew
+            serverRemainingSeconds: null,
+            countdownStartTime: null  // Uses performance.now() for monotonic timing
         };
+
+        // Format game timestamp with timezone indication
+        // Uses relative time for recent games, absolute time with timezone for older games
+        function formatGameTimestamp(timestamp) {
+            if (!timestamp) return 'Unknown';
+
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            // Use relative time for recent games (more intuitive)
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+
+            // For older games, show date with timezone abbreviation
+            // This makes it clear what timezone the time is displayed in
+            const dateOptions = { month: 'short', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+
+            const dateStr = date.toLocaleDateString(undefined, dateOptions);
+            const timeStr = date.toLocaleTimeString(undefined, timeOptions);
+
+            return `${dateStr}, ${timeStr}`;
+        }
 
         // Format seconds as MM:SS
         function formatTimerValue(seconds) {
@@ -5723,14 +5902,22 @@
         }
 
         // Start local countdown interval
+        // Uses server-authoritative timing to avoid clock skew issues
         function startTimerCountdown() {
             stopTimerCountdown(); // Clear any existing interval
 
-            if (!timerState.active || !timerState.endTime) return;
+            if (!timerState.active || timerState.serverRemainingSeconds === null) return;
+
+            // Record when we started the local countdown using monotonic clock
+            timerState.countdownStartTime = performance.now();
 
             timerState.intervalId = setInterval(() => {
-                const now = Date.now();
-                const remaining = Math.max(0, Math.ceil((timerState.endTime - now) / 1000));
+                // Calculate elapsed time since countdown started (monotonic, no clock skew)
+                const elapsedMs = performance.now() - timerState.countdownStartTime;
+                const elapsedSeconds = elapsedMs / 1000;
+
+                // Remaining = server's remaining - elapsed since we received it
+                const remaining = Math.max(0, Math.ceil(timerState.serverRemainingSeconds - elapsedSeconds));
                 timerState.remainingSeconds = remaining;
                 updateTimerDisplay();
 
@@ -5753,7 +5940,9 @@
             timerState.active = true;
             timerState.endTime = data.endTime;
             timerState.duration = data.duration || data.durationSeconds;
-            timerState.remainingSeconds = data.remainingSeconds || timerState.duration;
+            // Use server's remaining seconds as authoritative source
+            timerState.serverRemainingSeconds = data.remainingSeconds || timerState.duration;
+            timerState.remainingSeconds = timerState.serverRemainingSeconds;
             updateTimerDisplay();
             startTimerCountdown();
         }
@@ -5763,17 +5952,22 @@
             timerState.active = false;
             timerState.endTime = null;
             timerState.remainingSeconds = null;
+            timerState.serverRemainingSeconds = null;
+            timerState.countdownStartTime = null;
             stopTimerCountdown();
             updateTimerDisplay();
         }
 
         // Handle timer status on join/reconnect
+        // Uses server's remaining seconds to avoid clock skew issues
         function handleTimerStatus(data) {
             if (data && (data.active || data.remainingSeconds > 0)) {
                 timerState.active = true;
-                timerState.endTime = data.endTime || (Date.now() + (data.remainingSeconds || data.remaining) * 1000);
+                timerState.endTime = data.endTime;
                 timerState.duration = data.duration;
-                timerState.remainingSeconds = data.remainingSeconds || data.remaining;
+                // Use server's remaining seconds as authoritative source
+                timerState.serverRemainingSeconds = data.remainingSeconds || data.remaining;
+                timerState.remainingSeconds = timerState.serverRemainingSeconds;
                 updateTimerDisplay();
                 startTimerCountdown();
             } else {
@@ -7543,6 +7737,9 @@
                         break;
                     case 'copy-link':
                         copyLink();
+                        break;
+                    case 'copy-room-code':
+                        copyRoomCode();
                         break;
 
                     // Settings modal

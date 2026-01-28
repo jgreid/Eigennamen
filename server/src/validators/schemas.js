@@ -12,14 +12,16 @@ const { z } = require('zod');
 const { BOARD_SIZE, VALIDATION, RESERVED_NAMES } = require('../config/constants');
 const { removeControlChars, isReservedName } = require('../utils/sanitize');
 
-// Team name validation regex - alphanumeric, spaces, hyphens only (defense-in-depth against XSS)
-const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
+// Team name validation regex - Unicode letters/numbers, spaces, hyphens
+// Uses Unicode property escapes (\p{L} for letters, \p{N} for numbers) to support international characters
+// XSS defense maintained via removeControlChars and HTML escaping on output
+const teamNameRegex = /^[\p{L}\p{N}\s\-]+$/u;
 
-// Room ID validation regex - alphanumeric, hyphens, underscores (no spaces for easier sharing)
-const roomIdRegex = /^[a-zA-Z0-9\-_]+$/;
+// Room ID validation regex - Unicode letters/numbers, hyphens, underscores (no spaces for easier sharing)
+const roomIdRegex = /^[\p{L}\p{N}\-_]+$/u;
 
-// Nickname validation regex - alphanumeric, spaces, hyphens, underscores only (defense against XSS)
-const nicknameRegex = /^[a-zA-Z0-9\s\-_]+$/;
+// Nickname validation regex - Unicode letters/numbers, spaces, hyphens, underscores
+const nicknameRegex = /^[\p{L}\p{N}\s\-_]+$/u;
 
 /**
  * Create a validated nickname schema with reserved name checking
@@ -32,7 +34,7 @@ const createNicknameSchema = () => z.string()
     .transform(val => removeControlChars(val).trim())
     .refine(val => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
     .refine(val => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
-    .refine(val => nicknameRegex.test(val), 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores')
+    .refine(val => nicknameRegex.test(val), 'Nickname contains invalid characters')
     .refine(val => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
 
 // Room schemas
@@ -42,12 +44,12 @@ const roomCreateSchema = z.object({
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
         .transform(val => removeControlChars(val).trim())
-        .refine(val => roomIdRegex.test(val), 'Room ID can only contain letters, numbers, hyphens, and underscores'),
+        .refine(val => roomIdRegex.test(val), 'Room ID contains invalid characters'),
     settings: z.object({
         teamNames: z.object({
             // FIX: Add removeControlChars transform with refine for regex validation
-            red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens').default('Red'),
-            blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens').default('Blue')
+            red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters').default('Red'),
+            blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters').default('Blue')
         }).optional(),
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
@@ -63,15 +65,15 @@ const roomJoinSchema = z.object({
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
         .transform(val => removeControlChars(val).trim())
-        .refine(val => roomIdRegex.test(val), 'Room ID can only contain letters, numbers, hyphens, and underscores'),
+        .refine(val => roomIdRegex.test(val), 'Room ID contains invalid characters'),
     nickname: createNicknameSchema()
 });
 
 const roomSettingsSchema = z.object({
     teamNames: z.object({
         // FIX: Add removeControlChars transform with refine for regex validation
-        red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens'),
-        blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name can only contain letters, numbers, spaces, and hyphens')
+        red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters'),
+        blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters')
     }).optional(),
     turnTimer: z.number().int().min(30).max(300).nullable().optional(),
     allowSpectators: z.boolean().optional()
@@ -130,9 +132,10 @@ const gameRevealSchema = z.object({
 });
 
 // ISSUE #2 FIX: Clue word regex with quantified repetition to prevent ReDoS
-// Allows letters with optional single spaces/hyphens/apostrophes between words
+// Allows Unicode letters with optional single spaces/hyphens/apostrophes between words
 // Maximum of 10 word parts to prevent excessive backtracking
-const clueWordRegex = /^[A-Za-z]+(?:[\s\-'][A-Za-z]+){0,9}$/;
+// Uses Unicode property escapes to support international characters (é, ñ, ü, etc.)
+const clueWordRegex = /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u;
 
 const gameClueSchema = z.object({
     word: z.string()
@@ -141,7 +144,7 @@ const gameClueSchema = z.object({
         .transform(val => removeControlChars(val).trim())
         .transform(val => val.replace(/\s+/g, ' ')) // Normalize multiple spaces to single space
         .refine(val => val.length >= 1, 'Clue word is required')
-        .refine(val => clueWordRegex.test(val), 'Clue must be letters optionally separated by single spaces, hyphens, or apostrophes'),
+        .refine(val => clueWordRegex.test(val), 'Clue must be words optionally separated by single spaces, hyphens, or apostrophes'),
     number: z.number()
         .int()
         .min(VALIDATION.CLUE_NUMBER_MIN, 'Number must be 0 or greater')
