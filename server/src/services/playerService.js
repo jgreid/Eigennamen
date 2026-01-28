@@ -383,7 +383,69 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
 }
 
 /**
+ * Lua script for atomic role assignment
+ * FIX: Prevents race condition where two players could both become spymaster/clicker
+ * Atomically checks if role is available and assigns it in a single operation
+ * Returns: {success: true, player: {...}} on success
+ *          {success: false, reason: 'ROLE_TAKEN', existingNickname: '...'} if role already assigned
+ *          {success: false, reason: 'NO_TEAM'} if player has no team
+ *          nil if player not found
+ */
+const ATOMIC_SET_ROLE_SCRIPT = `
+local playerKey = KEYS[1]
+local roomPlayersKey = KEYS[2]
+local newRole = ARGV[1]
+local sessionId = ARGV[2]
+local ttl = tonumber(ARGV[3])
+local now = tonumber(ARGV[4])
+
+-- Get current player data
+local playerData = redis.call('GET', playerKey)
+if not playerData then
+    return nil
+end
+
+local player = cjson.decode(playerData)
+
+-- For spymaster/clicker roles, require team and check for existing role holder
+if newRole == 'spymaster' or newRole == 'clicker' then
+    if not player.team or player.team == cjson.null then
+        return cjson.encode({success = false, reason = 'NO_TEAM'})
+    end
+
+    -- Get all players in room and check if role is taken
+    local memberIds = redis.call('SMEMBERS', roomPlayersKey)
+    for _, memberId in ipairs(memberIds) do
+        if memberId ~= sessionId then
+            local memberData = redis.call('GET', 'player:' .. memberId)
+            if memberData then
+                local member = cjson.decode(memberData)
+                -- Check if same team and same role
+                if member.team == player.team and member.role == newRole then
+                    return cjson.encode({
+                        success = false,
+                        reason = 'ROLE_TAKEN',
+                        existingNickname = member.nickname
+                    })
+                end
+            end
+        end
+    end
+end
+
+-- Update the role
+local oldRole = player.role
+player.role = newRole
+player.lastSeen = now
+
+redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
+
+return cjson.encode({success = true, player = player, oldRole = oldRole})
+`;
+
+/**
  * Set player's role with atomic check to prevent race conditions
+ * FIX: Uses Lua script for truly atomic role assignment
  * Enforces one spymaster and one clicker per team
  */
 async function setRole(sessionId, role) {
@@ -401,43 +463,67 @@ async function setRole(sessionId, role) {
         throw new ServerError('Player not found');
     }
 
+    // FIX: Validate roomCode to prevent null being passed to Redis eval
+    if (!player.roomCode) {
+        throw new ServerError('Player is not associated with a room');
+    }
+
+    // For spectator role, no need for atomic check - just update
+    if (role === 'spectator') {
+        return updatePlayer(sessionId, { role });
+    }
+
     // ISSUE #31 FIX: Require team assignment before becoming spymaster or clicker
+    // This is also checked in Lua script but we can fail fast here
     if ((role === 'spymaster' || role === 'clicker') && !player.team) {
         throw new ValidationError('Must join a team before becoming ' + role);
     }
 
-    // If becoming spymaster or clicker, use a lock to prevent race conditions
-    if ((role === 'spymaster' || role === 'clicker') && player.team) {
-        const lockKey = `lock:${role}:${player.roomCode}:${player.team}`;
-
-        // Try to acquire lock (expires after 5 seconds)
-        const lockAcquired = await redis.set(lockKey, sessionId, { NX: true, EX: 5 });
-
-        if (!lockAcquired) {
-            throw new ValidationError(`Another player is becoming ${role}, please try again`);
-        }
-
-        try {
-            // Check if team already has this role
-            const roomPlayers = await getPlayersInRoom(player.roomCode);
-            const existingPlayer = roomPlayers.find(
-                p => p.team === player.team && p.role === role && p.sessionId !== sessionId
-            );
-
-            if (existingPlayer) {
-                throw new ValidationError(`${player.team} team already has a ${role}`);
+    // FIX: Use atomic Lua script for spymaster/clicker role assignment
+    // This prevents the TOCTOU race condition in the previous lock-based approach
+    const result = await withTimeout(
+        redis.eval(
+            ATOMIC_SET_ROLE_SCRIPT,
+            {
+                keys: [`player:${sessionId}`, `room:${player.roomCode}:players`],
+                arguments: [
+                    role,
+                    sessionId,
+                    REDIS_TTL.PLAYER.toString(),
+                    Date.now().toString()
+                ]
             }
+        ),
+        TIMEOUTS.REDIS_OPERATION,
+        `setRole-lua-${sessionId}`
+    );
 
-            // Update the role while holding the lock
-            const updatedPlayer = await updatePlayer(sessionId, { role });
-            return updatedPlayer;
-        } finally {
-            // Always release the lock
-            await redis.del(lockKey);
-        }
+    if (!result) {
+        throw new ServerError('Player not found');
     }
 
-    return updatePlayer(sessionId, { role });
+    try {
+        const parsed = JSON.parse(result);
+
+        if (parsed.success === false) {
+            if (parsed.reason === 'ROLE_TAKEN') {
+                throw new ValidationError(`${player.team} team already has a ${role} (${parsed.existingNickname})`);
+            }
+            if (parsed.reason === 'NO_TEAM') {
+                throw new ValidationError('Must join a team before becoming ' + role);
+            }
+            throw new ServerError('Failed to update player role');
+        }
+
+        logger.debug(`Player ${sessionId} role set to ${role}`);
+        return parsed.player;
+    } catch (e) {
+        if (e instanceof ValidationError) {
+            throw e;
+        }
+        logger.error('Failed to parse player data after role change', { sessionId, error: e.message });
+        throw new ServerError('Failed to update player role');
+    }
 }
 
 /**

@@ -297,20 +297,27 @@ describe('Player Service', () => {
     });
 
     describe('setRole', () => {
-        test('sets role for player with team', async () => {
+        test('sets role for player with team via atomic Lua script', async () => {
+            // FIX: Updated to use Lua script instead of lock-based approach
             const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
+            const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.set.mockResolvedValue('OK');
-            mockRedis.sMembers.mockResolvedValue(['session-123']);
-            mockRedis.mGet.mockResolvedValue([JSON.stringify(player)]);
-            mockRedis.del.mockResolvedValue(1);
+            // Lua script returns success with updated player
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: true,
+                player: updatedPlayer,
+                oldRole: 'spectator'
+            }));
 
-            const _result = await playerService.setRole('session-123', 'spymaster');
+            const result = await playerService.setRole('session-123', 'spymaster');
 
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                expect.stringContaining('lock:spymaster'),
-                'session-123',
-                { NX: true, EX: 5 }
+            expect(result.role).toBe('spymaster');
+            // Verify Lua script was called with correct keys
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.any(String), // The Lua script
+                expect.objectContaining({
+                    keys: ['player:session-123', 'room:ABC123:players']
+                })
             );
         });
 
@@ -341,10 +348,16 @@ describe('Player Service', () => {
                 });
         });
 
-        test('throws error when lock acquisition fails', async () => {
-            const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
+        test('throws error when role is already taken (via Lua script)', async () => {
+            // FIX: Updated to use Lua script response format
+            const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.set.mockResolvedValue(null); // Lock acquisition failed
+            // Lua script returns ROLE_TAKEN response
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: false,
+                reason: 'ROLE_TAKEN',
+                existingNickname: 'ExistingPlayer'
+            }));
 
             await expect(playerService.setRole('session-123', 'spymaster'))
                 .rejects.toMatchObject({
@@ -352,15 +365,17 @@ describe('Player Service', () => {
                 });
         });
 
-        test('throws error when team already has role', async () => {
+        test('throws error when team already has role (via Lua script)', async () => {
+            // FIX: Updated to use Lua script response format
             const player1 = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
-            const player2 = { sessionId: 'session-456', team: 'red', roomCode: 'ABC123', role: 'spymaster' };
 
             mockRedis.get.mockResolvedValue(JSON.stringify(player1));
-            mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-            mockRedis.sMembers.mockResolvedValue(['session-123', 'session-456']);
-            mockRedis.mGet.mockResolvedValue([JSON.stringify(player1), JSON.stringify(player2)]);
-            mockRedis.del.mockResolvedValue(1);
+            // Lua script returns ROLE_TAKEN response
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: false,
+                reason: 'ROLE_TAKEN',
+                existingNickname: 'OtherPlayer'
+            }));
 
             await expect(playerService.setRole('session-123', 'spymaster'))
                 .rejects.toMatchObject({
@@ -384,17 +399,22 @@ describe('Player Service', () => {
             );
         });
 
-        test('releases lock after successful role assignment', async () => {
+        test('successfully assigns role via atomic Lua script', async () => {
+            // FIX: Updated to use Lua script response format
             const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
+            const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.set.mockResolvedValue('OK');
-            mockRedis.sMembers.mockResolvedValue(['session-123']);
-            mockRedis.mGet.mockResolvedValue([JSON.stringify(player)]);
-            mockRedis.del.mockResolvedValue(1);
+            // Lua script returns success with updated player
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: true,
+                player: updatedPlayer,
+                oldRole: 'spectator'
+            }));
 
-            await playerService.setRole('session-123', 'spymaster');
+            const result = await playerService.setRole('session-123', 'spymaster');
 
-            expect(mockRedis.del).toHaveBeenCalledWith('lock:spymaster:ABC123:red');
+            expect(result.role).toBe('spymaster');
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
     });
 

@@ -61,7 +61,9 @@ module.exports = function playerHandlers(io, socket) {
 
             // Manage spectator socket room membership based on team change
             const wasSpectator = !currentPlayer.team || currentPlayer.role === 'spectator';
-            const isNowSpectator = !validated.team || player.role === 'spectator';
+            // FIX: Use actual player.team from result, not validated.team from request
+            // The Lua script might return a different team than requested in edge cases
+            const isNowSpectator = !player.team || player.role === 'spectator';
 
             if (wasSpectator && !isNowSpectator) {
                 // Player is joining a team, remove from spectators room
