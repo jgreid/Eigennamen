@@ -105,11 +105,11 @@ describe('Player Handlers', () => {
         test('successfully sets team for player', async () => {
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
-            // When no game exists, shouldCheckEmpty is null (falsy)
+            // When no game exists, shouldCheckEmpty is false
             expect(playerService.safeSetTeam).toHaveBeenCalledWith(
                 'session-1',
                 'blue',
-                null
+                false
             );
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
             expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
