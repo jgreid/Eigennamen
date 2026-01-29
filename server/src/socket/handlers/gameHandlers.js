@@ -1,7 +1,8 @@
 /**
  * Game Socket Event Handlers
  *
- * ISSUE #44 FIX: Use SOCKET_EVENTS constants instead of hardcoded strings
+ * Migrated to use context handler architecture for consistent
+ * validation, error handling, and socket room management.
  */
 
 const gameService = require('../../services/gameService');
@@ -9,16 +10,15 @@ const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
 const eventLogService = require('../../services/eventLogService');
 const gameHistoryService = require('../../services/gameHistoryService');
-const { validateInput } = require('../../middleware/validation');
 const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
-const { createRateLimitedHandler } = require('../rateLimitHandler');
+const { createHostHandler, createRoomHandler, createGameHandler } = require('../contextHandler');
 const {
-    RoomError,
     PlayerError,
     GameStateError,
-    ValidationError
+    ValidationError,
+    RoomError
 } = require('../../errors/GameError');
 const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
@@ -29,42 +29,24 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Start a new game (host only)
      */
-    socket.on(SOCKET_EVENTS.GAME_START, createRateLimitedHandler(socket, 'game:start', async (data = {}) => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const validated = validateInput(gameStartSchema, data);
-
-            // Verify player is host
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw PlayerError.notHost();
-            }
-
+    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, 'game:start', gameStartSchema,
+        async (ctx, validated) => {
             // Stop any existing timer
-            await getSocketFunctions().stopTurnTimer(socket.roomCode);
+            await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
-            // Wrap game creation in timeout to prevent hanging
             const gameSetupPromise = (async () => {
-                // ISSUE #28 FIX: Check if game already exists and is in progress
-                const existingGame = await gameService.getGame(socket.roomCode);
-                if (existingGame && !existingGame.gameOver) {
-                    throw RoomError.gameInProgress(socket.roomCode);
+                // Check if game already exists and is in progress
+                if (ctx.game && !ctx.game.gameOver) {
+                    throw RoomError.gameInProgress(ctx.roomCode);
                 }
 
-                // Pass options to createGame (supports wordListId or wordList array)
-                const game = await gameService.createGame(socket.roomCode, {
+                const game = await gameService.createGame(ctx.roomCode, {
                     wordListId: validated.wordListId,
                     wordList: validated.wordList
                 });
 
-                // Get room for timer settings
-                const room = await roomService.getRoom(socket.roomCode);
-
-                // Get all players in room to send appropriate game state
-                const players = await playerService.getPlayersInRoom(socket.roomCode);
+                const room = await roomService.getRoom(ctx.roomCode);
+                const players = await playerService.getPlayersInRoom(ctx.roomCode);
 
                 return { game, room, players };
             })();
@@ -76,7 +58,6 @@ module.exports = function gameHandlers(io, socket) {
             );
 
             // Send game state to each player (spymasters see card types)
-            // Wrap each emit in try-catch to ensure all players get notified even if one fails
             for (const p of players) {
                 try {
                     const gameState = gameService.getGameStateForPlayer(game, p);
@@ -88,12 +69,12 @@ module.exports = function gameHandlers(io, socket) {
 
             // Start turn timer if configured
             if (room && room.settings && room.settings.turnTimer) {
-                await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
             }
 
             // Log event for reconnection recovery
             await eventLogService.logEvent(
-                socket.roomCode,
+                ctx.roomCode,
                 eventLogService.EVENT_TYPES.GAME_STARTED,
                 {
                     gameId: game.id,
@@ -105,82 +86,50 @@ module.exports = function gameHandlers(io, socket) {
 
             // Audit log game start
             const clientIp = socket.clientIP || socket.handshake.address;
-            auditGameStarted(socket.roomCode, socket.sessionId, players.length, clientIp);
+            auditGameStarted(ctx.roomCode, ctx.sessionId, players.length, clientIp);
 
-            logger.info(`Game started in room ${socket.roomCode}`);
-
-        } catch (error) {
-            logger.error('Error starting game:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.info(`Game started in room ${ctx.roomCode}`);
         }
-    }));
+    ));
 
     /**
      * Reveal a card (current team's clicker, or any team member if clicker disconnected)
-     * PHASE 1 FIX: Allow any team member to reveal if clicker is disconnected
      */
-    socket.on(SOCKET_EVENTS.GAME_REVEAL, createRateLimitedHandler(socket, 'game:reveal', async (data) => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const validated = validateInput(gameRevealSchema, data);
-
-            // Get player data
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player) {
-                throw PlayerError.notFound(socket.sessionId);
-            }
-
-            // Verify player has a team assigned
-            if (!player.team) {
+    socket.on(SOCKET_EVENTS.GAME_REVEAL, createGameHandler(socket, 'game:reveal', gameRevealSchema,
+        async (ctx, validated) => {
+            if (!ctx.player.team) {
                 throw new ValidationError('You must join a team before revealing cards');
             }
 
-            // Get current game to check turn
-            const game = await gameService.getGame(socket.roomCode);
-            if (!game) {
-                throw GameStateError.noActiveGame();
+            if (ctx.player.team !== ctx.game.currentTurn) {
+                throw PlayerError.notYourTurn(ctx.player.team);
             }
 
-            // Verify it's the player's team's turn
-            if (player.team !== game.currentTurn) {
-                throw PlayerError.notYourTurn(player.team);
-            }
-
-            // PHASE 1 FIX: Allow reveal if player is clicker OR if clicker is disconnected
-            const teamMembers = await playerService.getTeamMembers(socket.roomCode, game.currentTurn);
-            // FIX: Add null check for teamMembers to prevent server crash
+            // Allow reveal if player is clicker OR if clicker is disconnected
+            const teamMembers = await playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn);
             if (!teamMembers || !Array.isArray(teamMembers)) {
-                throw new GameStateError('Unable to retrieve team members');
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'Unable to retrieve team members');
             }
             const teamClicker = teamMembers.find(p => p.role === 'clicker');
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
 
-            // Player can reveal if they are the clicker, or if the clicker is disconnected
-            if (player.role !== 'clicker' && !clickerDisconnected) {
+            if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
                 throw PlayerError.notClicker();
             }
 
-            // Validate that the current team has connected players
             const connectedTeamMembers = teamMembers.filter(p => p.connected);
             if (connectedTeamMembers.length === 0) {
-                throw new GameStateError(`No connected players on ${game.currentTurn} team`);
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, `No connected players on ${ctx.game.currentTurn} team`);
             }
 
             const result = await withTimeout(
-                gameService.revealCard(socket.roomCode, validated.index, player.nickname),
+                gameService.revealCard(ctx.roomCode, validated.index, ctx.player.nickname),
                 TIMEOUTS.GAME_ACTION,
                 'game:reveal'
             );
 
             // Broadcast the reveal to all players
-            // FIX: Include player info for UI to show who revealed the card
-            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, {
                 index: result.index,
                 type: result.type,
                 word: result.word,
@@ -193,22 +142,22 @@ module.exports = function gameHandlers(io, socket) {
                 gameOver: result.gameOver,
                 winner: result.winner,
                 player: {
-                    sessionId: player.sessionId,
-                    nickname: player.nickname,
-                    team: player.team
+                    sessionId: ctx.player.sessionId,
+                    nickname: ctx.player.nickname,
+                    team: ctx.player.team
                 }
             });
 
             // Log event for reconnection recovery
             await eventLogService.logEvent(
-                socket.roomCode,
+                ctx.roomCode,
                 eventLogService.EVENT_TYPES.CARD_REVEALED,
                 {
                     index: result.index,
                     type: result.type,
                     word: result.word,
-                    player: player.nickname,
-                    team: player.team,
+                    player: ctx.player.nickname,
+                    team: ctx.player.team,
                     redScore: result.redScore,
                     blueScore: result.blueScore,
                     turnEnded: result.turnEnded,
@@ -217,86 +166,62 @@ module.exports = function gameHandlers(io, socket) {
                 }
             );
 
-            // Handle turn ending (wrong guess, max guesses, or game over)
+            // Handle turn ending
             if (result.turnEnded && !result.gameOver) {
-                // Get room for timer settings
-                const room = await roomService.getRoom(socket.roomCode);
-
-                // Restart timer for new turn if configured
+                const room = await roomService.getRoom(ctx.roomCode);
                 if (room && room.settings && room.settings.turnTimer) {
-                    await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                    await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
                 }
             }
 
-            // If game is over, stop timer FIRST (prevent race condition), then reveal all card types
-            // BUG-5 FIX: Timer must be stopped BEFORE emitting game:over to prevent
-            // timer firing between game state check and stop
+            // If game is over, stop timer FIRST then reveal all card types
             if (result.gameOver) {
-                // Stop timer immediately to prevent race condition
-                await getSocketFunctions().stopTurnTimer(socket.roomCode);
+                await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
-                // Now safe to emit game:over
-                io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
+                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
                     winner: result.winner,
                     reason: result.endReason,
                     types: result.allTypes
                 });
 
                 // Save completed game to history
-                const completedGame = await gameService.getGame(socket.roomCode);
+                const completedGame = await gameService.getGame(ctx.roomCode);
                 if (completedGame) {
-                    // Get room settings for team names
-                    const roomForHistory = await roomService.getRoom(socket.roomCode);
+                    const roomForHistory = await roomService.getRoom(ctx.roomCode);
                     const gameDataWithTeamNames = {
                         ...completedGame,
                         teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
                     };
-                    await gameHistoryService.saveGameResult(socket.roomCode, gameDataWithTeamNames);
+                    await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
                 }
 
                 // Audit log game end
                 const clientIpEnd = socket.clientIP || socket.handshake.address;
-                auditGameEnded(socket.roomCode, socket.sessionId, clientIpEnd, result.winner, result.endReason, null);
+                auditGameEnded(ctx.roomCode, ctx.sessionId, clientIpEnd, result.winner, result.endReason, null);
             }
 
-            logger.info(`Card ${validated.index} revealed in room ${socket.roomCode}`);
-
-        } catch (error) {
-            logger.error('Error revealing card:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
         }
-    }));
+    ));
 
     /**
      * Give a clue (spymaster only)
      */
-    socket.on(SOCKET_EVENTS.GAME_CLUE, createRateLimitedHandler(socket, 'game:clue', async (data) => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const validated = validateInput(gameClueSchema, data);
-
-            // Verify player is spymaster
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || player.role !== 'spymaster') {
+    socket.on(SOCKET_EVENTS.GAME_CLUE, createGameHandler(socket, 'game:clue', gameClueSchema,
+        async (ctx, validated) => {
+            if (!ctx.player || ctx.player.role !== 'spymaster') {
                 throw PlayerError.notSpymaster();
             }
 
             const clue = await gameService.giveClue(
-                socket.roomCode,
-                player.team,
+                ctx.roomCode,
+                ctx.player.team,
                 validated.word,
                 validated.number,
-                player.nickname
+                ctx.player.nickname
             );
 
-            // Broadcast to all players (include guessesAllowed)
-            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_CLUE_GIVEN, {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_CLUE_GIVEN, {
                 team: clue.team,
                 word: clue.word,
                 number: clue.number,
@@ -305,9 +230,8 @@ module.exports = function gameHandlers(io, socket) {
                 timestamp: clue.timestamp
             });
 
-            // Log event for reconnection recovery
             await eventLogService.logEvent(
-                socket.roomCode,
+                ctx.roomCode,
                 eventLogService.EVENT_TYPES.CLUE_GIVEN,
                 {
                     team: clue.team,
@@ -318,101 +242,66 @@ module.exports = function gameHandlers(io, socket) {
                 }
             );
 
-            logger.info(`Clue given in room ${socket.roomCode}: ${clue.word} ${clue.number}`);
-
-        } catch (error) {
-            logger.error('Error giving clue:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.info(`Clue given in room ${ctx.roomCode}: ${clue.word} ${clue.number}`);
         }
-    }));
+    ));
 
     /**
      * End the current turn (current team's clicker only)
      */
-    socket.on(SOCKET_EVENTS.GAME_END_TURN, createRateLimitedHandler(socket, 'game:endTurn', async () => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            // Verify player is the current team's clicker
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || player.role !== 'clicker') {
+    socket.on(SOCKET_EVENTS.GAME_END_TURN, createGameHandler(socket, 'game:endTurn', null,
+        async (ctx) => {
+            if (!ctx.player || ctx.player.role !== 'clicker') {
                 throw PlayerError.notClicker();
             }
 
-            // Get current game to check turn
-            const game = await gameService.getGame(socket.roomCode);
-            if (!game) {
-                throw GameStateError.noActiveGame();
+            if (ctx.player.team !== ctx.game.currentTurn) {
+                throw PlayerError.notYourTurn(ctx.player.team);
             }
 
-            // Verify it's the clicker's team's turn
-            if (player.team !== game.currentTurn) {
-                throw PlayerError.notYourTurn(player.team);
-            }
+            const result = await gameService.endTurn(ctx.roomCode, ctx.player.nickname);
 
-            const result = await gameService.endTurn(socket.roomCode, player.nickname);
-
-            // Broadcast turn change
-            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn
             });
 
-            // Log event for reconnection recovery
             await eventLogService.logEvent(
-                socket.roomCode,
+                ctx.roomCode,
                 eventLogService.EVENT_TYPES.TURN_ENDED,
                 {
                     currentTurn: result.currentTurn,
                     previousTurn: result.previousTurn,
-                    player: player.nickname,
+                    player: ctx.player.nickname,
                     reason: 'manual'
                 }
             );
 
             // Restart timer for new turn if configured
-            const room = await roomService.getRoom(socket.roomCode);
+            const room = await roomService.getRoom(ctx.roomCode);
             if (room && room.settings && room.settings.turnTimer) {
-                await getSocketFunctions().startTurnTimer(socket.roomCode, room.settings.turnTimer);
+                await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
             }
 
-            logger.info(`Turn ended in room ${socket.roomCode}, now ${result.currentTurn}'s turn`);
-
-        } catch (error) {
-            logger.error('Error ending turn:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.info(`Turn ended in room ${ctx.roomCode}, now ${result.currentTurn}'s turn`);
         }
-    }));
+    ));
 
     /**
-     * Forfeit the game (host only - forfeits current turn's team)
+     * Forfeit the game (host only)
      */
-    socket.on(SOCKET_EVENTS.GAME_FORFEIT, createRateLimitedHandler(socket, 'game:forfeit', async () => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw PlayerError.notHost();
+    socket.on(SOCKET_EVENTS.GAME_FORFEIT, createHostHandler(socket, 'game:forfeit', null,
+        async (ctx) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw GameStateError.noActiveGame();
             }
 
             // Stop timer
-            await getSocketFunctions().stopTurnTimer(socket.roomCode);
+            await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
-            // Forfeit is based on current turn's team, not player's team
-            const result = await gameService.forfeitGame(socket.roomCode);
+            const result = await gameService.forfeitGame(ctx.roomCode);
 
-            io.to(`room:${socket.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
                 winner: result.winner,
                 forfeitingTeam: result.forfeitingTeam,
                 reason: 'forfeit',
@@ -420,24 +309,22 @@ module.exports = function gameHandlers(io, socket) {
             });
 
             // Save completed game to history
-            const completedGame = await gameService.getGame(socket.roomCode);
+            const completedGame = await gameService.getGame(ctx.roomCode);
             if (completedGame) {
-                // Get room settings for team names
-                const roomForHistory = await roomService.getRoom(socket.roomCode);
+                const roomForHistory = await roomService.getRoom(ctx.roomCode);
                 const gameDataWithTeamNames = {
                     ...completedGame,
                     teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
                 };
-                await gameHistoryService.saveGameResult(socket.roomCode, gameDataWithTeamNames);
+                await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
             }
 
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
-            auditGameEnded(socket.roomCode, socket.sessionId, forfeitIp, result.winner, 'forfeit', null);
+            auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner, 'forfeit', null);
 
-            // Log event for reconnection recovery
             await eventLogService.logEvent(
-                socket.roomCode,
+                ctx.roomCode,
                 eventLogService.EVENT_TYPES.GAME_OVER,
                 {
                     winner: result.winner,
@@ -446,92 +333,44 @@ module.exports = function gameHandlers(io, socket) {
                 }
             );
 
-            logger.info(`Game forfeited in room ${socket.roomCode}, ${result.forfeitingTeam} forfeited`);
-
-        } catch (error) {
-            logger.error('Error forfeiting game:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
         }
-    }));
+    ));
 
     /**
      * Get game history (current game's move history)
      */
-    socket.on(SOCKET_EVENTS.GAME_HISTORY, createRateLimitedHandler(socket, 'game:history', async () => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const history = await gameService.getGameHistory(socket.roomCode);
+    socket.on(SOCKET_EVENTS.GAME_HISTORY, createRoomHandler(socket, 'game:history', null,
+        async (ctx) => {
+            const history = await gameService.getGameHistory(ctx.roomCode);
             socket.emit(SOCKET_EVENTS.GAME_HISTORY_DATA, { history });
-
-        } catch (error) {
-            logger.error('Error getting history:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
         }
-    }));
+    ));
 
     /**
      * Get past games history for this room (for replay)
-     * FIX: Use Zod schema for limit validation instead of manual checks
      */
-    socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRateLimitedHandler(socket, 'game:getHistory', async (data = {}) => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const validated = validateInput(gameHistoryLimitSchema, data);
-
-            const history = await gameHistoryService.getGameHistory(socket.roomCode, validated.limit);
+    socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRoomHandler(socket, 'game:getHistory', gameHistoryLimitSchema,
+        async (ctx, validated) => {
+            const history = await gameHistoryService.getGameHistory(ctx.roomCode, validated.limit);
             socket.emit(SOCKET_EVENTS.GAME_HISTORY_RESULT, { history });
-
-            logger.debug(`Game history retrieved for room ${socket.roomCode}`, { count: history.length });
-
-        } catch (error) {
-            logger.error('Error getting game history:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.debug(`Game history retrieved for room ${ctx.roomCode}`, { count: history.length });
         }
-    }));
+    ));
 
     /**
      * Get replay data for a specific game
-     * FIX: Use Zod schema for gameId validation instead of manual checks
      */
-    socket.on(SOCKET_EVENTS.GAME_GET_REPLAY, createRateLimitedHandler(socket, 'game:getReplay', async (data = {}) => {
-        try {
-            if (!socket.roomCode) {
-                throw RoomError.notFound(socket.roomCode);
-            }
-
-            const validated = validateInput(gameReplaySchema, data);
-
-            const replayData = await gameHistoryService.getReplayEvents(socket.roomCode, validated.gameId);
+    socket.on(SOCKET_EVENTS.GAME_GET_REPLAY, createRoomHandler(socket, 'game:getReplay', gameReplaySchema,
+        async (ctx, validated) => {
+            const replayData = await gameHistoryService.getReplayEvents(ctx.roomCode, validated.gameId);
 
             if (!replayData) {
-                throw new GameStateError('Game not found in history');
+                throw new GameStateError(ERROR_CODES.ROOM_NOT_FOUND, 'Game not found in history');
             }
 
             socket.emit(SOCKET_EVENTS.GAME_REPLAY_DATA, { replay: replayData });
-
-            logger.debug(`Replay data retrieved for game ${validated.gameId} in room ${socket.roomCode}`);
-
-        } catch (error) {
-            logger.error('Error getting replay data:', error);
-            socket.emit(SOCKET_EVENTS.GAME_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.debug(`Replay data retrieved for game ${validated.gameId} in room ${ctx.roomCode}`);
         }
-    }));
+    ));
 };

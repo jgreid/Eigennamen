@@ -118,7 +118,7 @@ const gameStartSchema = z.object({
             .max(50)
             .transform(val => removeControlChars(val).trim())
             .refine(val => val.length >= 1, 'Word cannot be empty after sanitization')
-        )
+    )
         .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
         .max(500, 'Too many words')
         .optional()

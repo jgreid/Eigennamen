@@ -6,7 +6,7 @@
  */
 
 // Mock dependencies before requiring module
-let mockRedisStorage = new Map();
+const mockRedisStorage = new Map();
 let mockLockAcquired = true;
 let mockRedisHealthy = true;
 let mockIsMemoryMode = true;

@@ -5,8 +5,6 @@
  * Thread-safe and supports periodic reporting.
  */
 
-const { getCorrelationId } = require('./correlationId');
-
 // Metrics storage
 const metrics = {
     counters: {},

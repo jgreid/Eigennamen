@@ -17,6 +17,7 @@ jest.mock('../socket/rateLimitHandler', () => ({
 
 // Mock dependencies
 jest.mock('../services/playerService');
+jest.mock('../services/gameService');
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -25,6 +26,7 @@ jest.mock('../utils/logger', () => ({
 }));
 
 const playerService = require('../services/playerService');
+const gameService = require('../services/gameService');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../config/constants');
 const { spectatorChatSchema } = require('../validators/schemas');
 
@@ -96,6 +98,16 @@ describe('Spectator Chat Feature', () => {
                 emit: jest.fn()
             };
 
+            // Default player mock with roomCode for context handler
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Spectator1',
+                team: null,
+                role: 'spectator'
+            });
+            gameService.getGame.mockResolvedValue(null);
+
             // Register handlers
             chatHandlers = require('../socket/handlers/chatHandlers');
             chatHandlers(mockIo, mockSocket);
@@ -113,6 +125,7 @@ describe('Spectator Chat Feature', () => {
             test('allows spectator with role=spectator to send message', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
                     role: 'spectator'
@@ -136,6 +149,7 @@ describe('Spectator Chat Feature', () => {
             test('allows player without team to send message', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'NoTeamPlayer',
                     team: null,
                     role: 'clicker'
@@ -152,6 +166,7 @@ describe('Spectator Chat Feature', () => {
             test('rejects message from player with team and non-spectator role', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'TeamPlayer',
                     team: 'red',
                     role: 'clicker'
@@ -163,7 +178,7 @@ describe('Spectator Chat Feature', () => {
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
                     code: ERROR_CODES.NOT_AUTHORIZED,
-                    message: 'Only spectators can send spectator chat messages'
+                    message: 'Not authorized to perform this action'
                 }));
                 expect(mockIo.emit).not.toHaveBeenCalled();
             });
@@ -171,6 +186,7 @@ describe('Spectator Chat Feature', () => {
             test('rejects message from spymaster', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spymaster',
                     team: 'blue',
                     role: 'spymaster'
@@ -190,6 +206,7 @@ describe('Spectator Chat Feature', () => {
             test('broadcasts message to spectators room', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
                     role: 'spectator'
@@ -206,6 +223,7 @@ describe('Spectator Chat Feature', () => {
             test('includes timestamp in message', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
                     role: 'spectator'
@@ -225,6 +243,7 @@ describe('Spectator Chat Feature', () => {
             test('includes sender info in message', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
                     role: 'spectator'
@@ -248,6 +267,7 @@ describe('Spectator Chat Feature', () => {
             test('sanitizes HTML in message text', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
                     role: 'spectator'
@@ -266,6 +286,7 @@ describe('Spectator Chat Feature', () => {
             test('sanitizes HTML in nickname', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: '<img src=x onerror=alert(1)>',
                     team: null,
                     role: 'spectator'
@@ -282,6 +303,7 @@ describe('Spectator Chat Feature', () => {
             test('sanitizes ampersands correctly', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Test&User',
                     team: null,
                     role: 'spectator'
@@ -300,6 +322,7 @@ describe('Spectator Chat Feature', () => {
         describe('Error Handling', () => {
             test('rejects message when not in a room', async () => {
                 mockSocket.roomCode = null;
+                playerService.getPlayer.mockResolvedValue(null);
 
                 const handlers = mockSocket.on.mock.calls;
                 const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
@@ -307,7 +330,7 @@ describe('Spectator Chat Feature', () => {
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
                     code: ERROR_CODES.ROOM_NOT_FOUND,
-                    message: 'Not in a room'
+                    message: 'You must be in a room to perform this action'
                 }));
             });
 
@@ -319,8 +342,8 @@ describe('Spectator Chat Feature', () => {
                 await spectatorHandler[1]({ message: 'Hello' });
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.SERVER_ERROR,
-                    message: 'Player not found'
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                    message: 'You must be in a room to perform this action'
                 }));
             });
 
@@ -330,8 +353,7 @@ describe('Spectator Chat Feature', () => {
                 await spectatorHandler[1](null);
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.INVALID_INPUT,
-                    message: 'Invalid message format'
+                    code: ERROR_CODES.INVALID_INPUT
                 }));
             });
 
@@ -353,13 +375,14 @@ describe('Spectator Chat Feature', () => {
                 await spectatorHandler[1]({ message: 'Hello' });
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    message: 'Database connection failed'
+                    message: 'An unexpected error occurred'
                 }));
             });
 
             test('handles IO emit error gracefully', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
+                    roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
                     role: 'spectator'

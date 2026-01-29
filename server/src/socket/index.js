@@ -255,120 +255,120 @@ function initializeSocket(server, expressApp = null) {
         });
     });
 
-/**
+    /**
  * Classify socket errors for appropriate handling
  * @param {Error} error - The error to classify
  * @returns {{type: string, code: string, userMessage: string, recoverable: boolean}}
  */
-function classifySocketError(error) {
-    const errorMessage = error.message?.toLowerCase() || '';
-    const errorName = error.name || 'Error';
+    function classifySocketError(error) {
+        const errorMessage = error.message?.toLowerCase() || '';
+        const errorName = error.name || 'Error';
 
-    // Transport/network errors
-    if (errorMessage.includes('transport') || errorMessage.includes('network') ||
+        // Transport/network errors
+        if (errorMessage.includes('transport') || errorMessage.includes('network') ||
         errorMessage.includes('connection') || errorMessage.includes('timeout')) {
-        return {
-            type: 'TRANSPORT_ERROR',
-            code: 'NETWORK_ERROR',
-            userMessage: 'Connection error occurred. Please try reconnecting.',
-            recoverable: true
-        };
-    }
+            return {
+                type: 'TRANSPORT_ERROR',
+                code: 'NETWORK_ERROR',
+                userMessage: 'Connection error occurred. Please try reconnecting.',
+                recoverable: true
+            };
+        }
 
-    // Authentication errors
-    if (errorMessage.includes('auth') || errorMessage.includes('unauthorized') ||
+        // Authentication errors
+        if (errorMessage.includes('auth') || errorMessage.includes('unauthorized') ||
         errorMessage.includes('token') || errorMessage.includes('permission')) {
-        return {
-            type: 'AUTH_ERROR',
-            code: 'AUTHENTICATION_ERROR',
-            userMessage: 'Authentication error. Please refresh the page.',
-            recoverable: false
-        };
-    }
+            return {
+                type: 'AUTH_ERROR',
+                code: 'AUTHENTICATION_ERROR',
+                userMessage: 'Authentication error. Please refresh the page.',
+                recoverable: false
+            };
+        }
 
-    // Validation errors
-    if (errorMessage.includes('validation') || errorMessage.includes('invalid') ||
+        // Validation errors
+        if (errorMessage.includes('validation') || errorMessage.includes('invalid') ||
         errorName === 'ValidationError' || errorName === 'ZodError') {
-        return {
-            type: 'VALIDATION_ERROR',
-            code: 'VALIDATION_ERROR',
-            userMessage: 'Invalid data received. Please try again.',
-            recoverable: true
-        };
-    }
+            return {
+                type: 'VALIDATION_ERROR',
+                code: 'VALIDATION_ERROR',
+                userMessage: 'Invalid data received. Please try again.',
+                recoverable: true
+            };
+        }
 
-    // Rate limiting
-    if (errorMessage.includes('rate') || errorMessage.includes('limit') ||
+        // Rate limiting
+        if (errorMessage.includes('rate') || errorMessage.includes('limit') ||
         errorMessage.includes('too many')) {
+            return {
+                type: 'RATE_LIMIT_ERROR',
+                code: 'RATE_LIMITED',
+                userMessage: 'Too many requests. Please slow down.',
+                recoverable: true
+            };
+        }
+
+        // Default: unknown/server error
         return {
-            type: 'RATE_LIMIT_ERROR',
-            code: 'RATE_LIMITED',
-            userMessage: 'Too many requests. Please slow down.',
+            type: 'SERVER_ERROR',
+            code: 'INTERNAL_ERROR',
+            userMessage: 'An unexpected error occurred. Please try again.',
             recoverable: true
         };
     }
 
-    // Default: unknown/server error
-    return {
-        type: 'SERVER_ERROR',
-        code: 'INTERNAL_ERROR',
-        userMessage: 'An unexpected error occurred. Please try again.',
-        recoverable: true
-    };
-}
-
-/**
+    /**
  * Sprint 19: Start periodic check for inactive sockets
  * Disconnects sockets that have been idle for too long
  */
-function startInactivityCheck(ioInstance) {
-    const { SESSION_SECURITY } = require('../config/constants');
-    // Default values if not defined (for testing compatibility)
-    const INACTIVITY_TIMEOUT = SESSION_SECURITY?.INACTIVITY_TIMEOUT_MS || 30 * 60 * 1000;
-    const CHECK_INTERVAL = SESSION_SECURITY?.INACTIVITY_CHECK_INTERVAL_MS || 60 * 1000;
+    function startInactivityCheck(ioInstance) {
+        const { SESSION_SECURITY } = require('../config/constants');
+        // Default values if not defined (for testing compatibility)
+        const INACTIVITY_TIMEOUT = SESSION_SECURITY?.INACTIVITY_TIMEOUT_MS || 30 * 60 * 1000;
+        const CHECK_INTERVAL = SESSION_SECURITY?.INACTIVITY_CHECK_INTERVAL_MS || 60 * 1000;
 
-    // Clear any existing interval
-    if (inactivityCheckInterval) {
-        clearInterval(inactivityCheckInterval);
-    }
-
-    inactivityCheckInterval = setInterval(async () => {
-        try {
-            const sockets = await ioInstance.fetchSockets();
-            const now = Date.now();
-            let disconnectedCount = 0;
-
-            for (const socket of sockets) {
-                const lastActivity = socket.lastActivity || socket.handshake?.time || now;
-                const idleTime = now - lastActivity;
-
-                if (idleTime > INACTIVITY_TIMEOUT) {
-                    logger.info(`Disconnecting idle socket ${socket.id} (idle for ${Math.round(idleTime / 1000)}s)`, {
-                        sessionId: socket.sessionId,
-                        idleTimeMs: idleTime,
-                        threshold: INACTIVITY_TIMEOUT
-                    });
-
-                    // Emit inactivity warning before disconnect
-                    socket.emit('session:inactivityTimeout', {
-                        reason: 'inactivity',
-                        idleTimeSeconds: Math.round(idleTime / 1000)
-                    });
-
-                    socket.disconnect(true);
-                    disconnectedCount++;
-                }
-            }
-
-            if (disconnectedCount > 0) {
-                logger.info(`Inactivity check: disconnected ${disconnectedCount} idle socket(s)`);
-            }
-        } catch (error) {
-            logger.error('Error in inactivity check:', error.message);
+        // Clear any existing interval
+        if (inactivityCheckInterval) {
+            clearInterval(inactivityCheckInterval);
         }
-    }, CHECK_INTERVAL);
 
-    logger.info(`Inactivity check started (timeout: ${INACTIVITY_TIMEOUT / 1000}s, check interval: ${CHECK_INTERVAL / 1000}s)`);
+        inactivityCheckInterval = setInterval(async () => {
+            try {
+                const sockets = await ioInstance.fetchSockets();
+                const now = Date.now();
+                let disconnectedCount = 0;
+
+                for (const socket of sockets) {
+                    const lastActivity = socket.lastActivity || socket.handshake?.time || now;
+                    const idleTime = now - lastActivity;
+
+                    if (idleTime > INACTIVITY_TIMEOUT) {
+                        logger.info(`Disconnecting idle socket ${socket.id} (idle for ${Math.round(idleTime / 1000)}s)`, {
+                            sessionId: socket.sessionId,
+                            idleTimeMs: idleTime,
+                            threshold: INACTIVITY_TIMEOUT
+                        });
+
+                        // Emit inactivity warning before disconnect
+                        socket.emit('session:inactivityTimeout', {
+                            reason: 'inactivity',
+                            idleTimeSeconds: Math.round(idleTime / 1000)
+                        });
+
+                        socket.disconnect(true);
+                        disconnectedCount++;
+                    }
+                }
+
+                if (disconnectedCount > 0) {
+                    logger.info(`Inactivity check: disconnected ${disconnectedCount} idle socket(s)`);
+                }
+            } catch (error) {
+                logger.error('Error in inactivity check:', error.message);
+            }
+        }, CHECK_INTERVAL);
+
+        logger.info(`Inactivity check started (timeout: ${INACTIVITY_TIMEOUT / 1000}s, check interval: ${CHECK_INTERVAL / 1000}s)`);
     }
 
     // Initialize timer service for distributed operation
@@ -387,7 +387,8 @@ function startInactivityCheck(ioInstance) {
         startTurnTimer,
         stopTurnTimer,
         getTimerStatus,
-        getIO
+        getIO,
+        createTimerExpireCallback
     });
 
     return io;

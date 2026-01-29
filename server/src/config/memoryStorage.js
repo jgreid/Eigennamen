@@ -304,8 +304,8 @@ class MemoryStorage {
 
         const len = list.length;
         // Handle negative indices
-        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
-        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+        const startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        const stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
 
         if (startIdx > stopIdx) return [];
         return list.slice(startIdx, stopIdx + 1);
@@ -336,8 +336,8 @@ class MemoryStorage {
 
         const len = list.length;
         // Handle negative indices
-        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
-        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+        const startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        const stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
 
         if (startIdx > stopIdx) {
             this.lists.set(key, []);
@@ -379,7 +379,7 @@ class MemoryStorage {
         if (!zset || zset.size === 0) return [];
 
         // Convert to array and sort by score
-        let entries = Array.from(zset.entries()).map(([value, score]) => ({ value, score }));
+        const entries = Array.from(zset.entries()).map(([value, score]) => ({ value, score }));
         entries.sort((a, b) => a.score - b.score);
 
         // Handle REV option (reverse order)
@@ -389,8 +389,8 @@ class MemoryStorage {
 
         const len = entries.length;
         // Handle negative indices
-        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
-        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+        const startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        const stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
 
         if (startIdx > stopIdx) return [];
         const slice = entries.slice(startIdx, stopIdx + 1);
@@ -453,14 +453,14 @@ class MemoryStorage {
         if (!zset || zset.size === 0) return 0;
 
         // Convert to array and sort by score
-        let entries = Array.from(zset.entries())
+        const entries = Array.from(zset.entries())
             .map(([value, score]) => ({ value, score }))
             .sort((a, b) => a.score - b.score);
 
         const len = entries.length;
         // Handle negative indices
-        let startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
-        let stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
+        const startIdx = start < 0 ? Math.max(len + start, 0) : Math.min(start, len);
+        const stopIdx = stop < 0 ? len + stop : Math.min(stop, len - 1);
 
         if (startIdx > stopIdx) return 0;
 
@@ -927,8 +927,8 @@ class MemoryStorage {
                                     break;
                                 }
                                 const trimLen = trimList.length;
-                                let trimStart = cmd.start < 0 ? Math.max(trimLen + cmd.start, 0) : Math.min(cmd.start, trimLen);
-                                let trimStop = cmd.stop < 0 ? trimLen + cmd.stop : Math.min(cmd.stop, trimLen - 1);
+                                const trimStart = cmd.start < 0 ? Math.max(trimLen + cmd.start, 0) : Math.min(cmd.start, trimLen);
+                                const trimStop = cmd.stop < 0 ? trimLen + cmd.stop : Math.min(cmd.stop, trimLen - 1);
                                 if (trimStart > trimStop) {
                                     storage.lists.set(cmd.key, []);
                                 } else {
@@ -970,12 +970,12 @@ class MemoryStorage {
                                     break;
                                 }
                                 // Convert to array and sort by score
-                                let zEntries = Array.from(zsetForRemove.entries())
+                                const zEntries = Array.from(zsetForRemove.entries())
                                     .map(([value, score]) => ({ value, score }))
                                     .sort((a, b) => a.score - b.score);
                                 const zLen = zEntries.length;
-                                let zStart = cmd.start < 0 ? Math.max(zLen + cmd.start, 0) : Math.min(cmd.start, zLen);
-                                let zStop = cmd.stop < 0 ? zLen + cmd.stop : Math.min(cmd.stop, zLen - 1);
+                                const zStart = cmd.start < 0 ? Math.max(zLen + cmd.start, 0) : Math.min(cmd.start, zLen);
+                                const zStop = cmd.stop < 0 ? zLen + cmd.stop : Math.min(cmd.stop, zLen - 1);
                                 if (zStart > zStop) {
                                     results.push(0);
                                     break;

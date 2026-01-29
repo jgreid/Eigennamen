@@ -16,6 +16,7 @@ jest.mock('../socket/rateLimitHandler', () => ({
 
 // Mock dependencies
 jest.mock('../services/playerService');
+jest.mock('../services/gameService');
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -24,6 +25,7 @@ jest.mock('../utils/logger', () => ({
 }));
 
 const playerService = require('../services/playerService');
+const gameService = require('../services/gameService');
 const { ERROR_CODES } = require('../config/constants');
 
 describe('Chat Handlers', () => {
@@ -40,7 +42,9 @@ describe('Chat Handlers', () => {
             sessionId: 'session-456',
             roomCode: 'TEST12',
             emit: jest.fn(),
-            on: jest.fn()
+            on: jest.fn(),
+            join: jest.fn(),
+            leave: jest.fn()
         };
 
         // Create mock io with chaining
@@ -48,6 +52,16 @@ describe('Chat Handlers', () => {
             to: jest.fn().mockReturnThis(),
             emit: jest.fn()
         };
+
+        // Default player mock with roomCode for context handler
+        playerService.getPlayer.mockResolvedValue({
+            sessionId: 'session-456',
+            roomCode: 'TEST12',
+            nickname: 'TestPlayer',
+            team: 'red',
+            role: 'clicker'
+        });
+        gameService.getGame.mockResolvedValue(null);
 
         // Register handlers
         chatHandlers = require('../socket/handlers/chatHandlers');
@@ -66,6 +80,7 @@ describe('Chat Handlers', () => {
         test('broadcasts public message to entire room', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -89,6 +104,7 @@ describe('Chat Handlers', () => {
         test('includes timestamp in message', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'blue'
             });
@@ -107,6 +123,7 @@ describe('Chat Handlers', () => {
         test('broadcasts message from player without team', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'Spectator',
                 team: null
             });
@@ -128,6 +145,7 @@ describe('Chat Handlers', () => {
         test('sends team-only message to teammates only', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'RedPlayer',
                 team: 'red'
             });
@@ -150,6 +168,7 @@ describe('Chat Handlers', () => {
         test('handles team-only message with no teammates', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'LonePlayer',
                 team: 'red'
             });
@@ -170,6 +189,7 @@ describe('Chat Handlers', () => {
         test('falls back to room broadcast when player has no team but requests teamOnly', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'Spectator',
                 team: null
             });
@@ -187,6 +207,7 @@ describe('Chat Handlers', () => {
         test('sanitizes HTML in message text', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -204,6 +225,7 @@ describe('Chat Handlers', () => {
         test('sanitizes HTML in nickname', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: '<img src=x onerror=alert(1)>',
                 team: 'red'
             });
@@ -220,6 +242,7 @@ describe('Chat Handlers', () => {
         test('sanitizes ampersands correctly', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'Test&User',
                 team: 'red'
             });
@@ -236,6 +259,7 @@ describe('Chat Handlers', () => {
         test('sanitizes single and double quotes', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'Player',
                 team: 'red'
             });
@@ -253,6 +277,7 @@ describe('Chat Handlers', () => {
     describe('Error Handling', () => {
         test('rejects message when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
             const messageHandler = handlers.find(h => h[0] === 'chat:message');
@@ -260,7 +285,7 @@ describe('Chat Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'Not in a room'
+                message: 'You must be in a room to perform this action'
             }));
             expect(mockIo.emit).not.toHaveBeenCalled();
         });
@@ -273,8 +298,8 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Hello', teamOnly: false });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: 'Player not found'
+                code: ERROR_CODES.ROOM_NOT_FOUND,
+                message: 'You must be in a room to perform this action'
             }));
         });
 
@@ -286,13 +311,14 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Hello', teamOnly: false });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                message: 'Database connection failed'
+                message: 'An unexpected error occurred'
             }));
         });
 
         test('handles team members fetch error gracefully', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -303,13 +329,14 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Team message', teamOnly: true });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                message: 'Failed to fetch team'
+                message: 'An unexpected error occurred'
             }));
         });
 
         test('handles IO emit error gracefully for room broadcast', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -329,6 +356,7 @@ describe('Chat Handlers', () => {
         test('continues emitting to other teammates if one emit fails', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -360,6 +388,7 @@ describe('Chat Handlers', () => {
         test('validates message text is required', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -376,6 +405,7 @@ describe('Chat Handlers', () => {
         test('handles missing teamOnly flag (defaults to false)', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });
@@ -393,6 +423,7 @@ describe('Chat Handlers', () => {
         test('message includes all required fields', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
+                roomCode: 'TEST12',
                 nickname: 'TestPlayer',
                 team: 'red'
             });

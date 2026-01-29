@@ -4,8 +4,9 @@
  */
 
 const { createSocketRateLimiter } = require('../middleware/rateLimit');
-const { RATE_LIMITS } = require('../config/constants');
+const { RATE_LIMITS, ERROR_CODES } = require('../config/constants');
 const logger = require('../utils/logger');
+const { sanitizeErrorForClient } = require('../errors/GameError');
 
 // Create socket rate limiter using centralized constants
 // This ensures consistency between constants.js and actual rate limiting
@@ -52,7 +53,7 @@ function createRateLimitedHandler(socket, eventName, handler) {
                     logger.warn(`Rate limit exceeded for ${eventName} from ${socket.id}`);
                     const errorEvent = `${eventName.split(':')[0]}:error`;
                     socket.emit(errorEvent, {
-                        code: 'RATE_LIMITED',
+                        code: ERROR_CODES.RATE_LIMITED,
                         message: 'Too many requests, please slow down'
                     });
                     resolve(); // Resolve even on rate limit to signal completion
@@ -62,21 +63,8 @@ function createRateLimitedHandler(socket, eventName, handler) {
                     await handler(data);
                 } catch (error) {
                     logger.error(`Error in ${eventName} handler:`, error);
-                    // SECURITY FIX: Sanitize error messages to prevent information disclosure
-                    // Only expose error messages for known error types with safe codes
                     const errorEvent = `${eventName.split(':')[0]}:error`;
-                    const safeErrorCodes = [
-                        'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST',
-                        'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED',
-                        'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
-                        'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR'
-                    ];
-                    const isSafeError = error.code && safeErrorCodes.includes(error.code);
-                    socket.emit(errorEvent, {
-                        code: error.code || 'SERVER_ERROR',
-                        // Only expose the actual message for known safe error types
-                        message: isSafeError ? error.message : 'An unexpected error occurred'
-                    });
+                    socket.emit(errorEvent, sanitizeErrorForClient(error));
                 } finally {
                     resolve(); // Always resolve to signal completion
                 }

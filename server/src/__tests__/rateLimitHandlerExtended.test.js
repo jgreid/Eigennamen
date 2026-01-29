@@ -16,6 +16,11 @@ jest.mock('../config/constants', () => ({
         PLAYER_SET_TEAM: { points: 10, duration: 60 },
         CHAT_MESSAGE: { points: 20, duration: 60 },
         DEFAULT: { points: 50, duration: 60 }
+    },
+    ERROR_CODES: {
+        RATE_LIMITED: 'RATE_LIMITED',
+        SERVER_ERROR: 'SERVER_ERROR',
+        ROOM_NOT_FOUND: 'ROOM_NOT_FOUND'
     }
 }));
 

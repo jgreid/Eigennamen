@@ -31,7 +31,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             expect(() => registerSocketFunctions(mockFunctions)).not.toThrow();
@@ -72,7 +73,7 @@ describe('Socket Function Provider', () => {
             const partialFunctions = {
                 emitToRoom: jest.fn(),
                 emitToPlayer: jest.fn()
-                // Missing: startTurnTimer, stopTurnTimer, getTimerStatus, getIO
+                // Missing: startTurnTimer, stopTurnTimer, getTimerStatus, getIO, createTimerExpireCallback
             };
 
             try {
@@ -93,7 +94,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             expect(() => registerSocketFunctions(invalidFunctions))
@@ -107,7 +109,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions);
@@ -130,6 +133,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn(),
                 extraFunction: jest.fn()
             };
 
@@ -149,7 +153,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions);
@@ -180,7 +185,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions);
@@ -204,7 +210,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions);
@@ -218,7 +225,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions);
@@ -237,7 +245,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions);
@@ -263,7 +272,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             const mockFunctions2 = {
@@ -272,7 +282,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: jest.fn(),
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             };
 
             registerSocketFunctions(mockFunctions1);
@@ -295,6 +306,7 @@ describe('Socket Function Provider', () => {
             expect(required).toContain('stopTurnTimer');
             expect(required).toContain('getTimerStatus');
             expect(required).toContain('getIO');
+            expect(required).toContain('createTimerExpireCallback');
         });
 
         test('returns a copy, not the original array', () => {
@@ -323,7 +335,8 @@ describe('Socket Function Provider', () => {
                 startTurnTimer: mockStartTurnTimer,
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
-                getIO: jest.fn()
+                getIO: jest.fn(),
+                createTimerExpireCallback: jest.fn()
             });
 
             // 2. Handler calls getSocketFunctions at runtime

@@ -86,6 +86,11 @@ describe('Extended Room Handlers Tests', () => {
             SETTINGS_UPDATED: 'SETTINGS_UPDATED'
         };
 
+        // Default: no player (since mockSocket.roomCode = null by default)
+        playerService.getPlayer.mockResolvedValue(null);
+        gameService.getGame.mockResolvedValue(null);
+        playerService.getRoomStats.mockResolvedValue({});
+
         roomHandlers = require('../socket/handlers/roomHandlers');
         roomHandlers(mockIo, mockSocket);
     });
@@ -171,6 +176,7 @@ describe('Extended Room Handlers Tests', () => {
     describe('room:leave edge cases', () => {
         test('handles leave when not in room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
             const leaveHandler = handlers.find(h => h[0] === 'room:leave');
@@ -181,6 +187,7 @@ describe('Extended Room Handlers Tests', () => {
 
         test('leaves room and notifies others', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             roomService.leaveRoom.mockResolvedValue({ newHostId: 'new-host-123' });
             playerService.invalidateReconnectionToken.mockResolvedValue();
 
@@ -198,6 +205,7 @@ describe('Extended Room Handlers Tests', () => {
 
         test('handles leave error', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             roomService.leaveRoom.mockRejectedValue(new Error('Leave failed'));
             playerService.invalidateReconnectionToken.mockResolvedValue();
 
@@ -206,7 +214,7 @@ describe('Extended Room Handlers Tests', () => {
             await leaveHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Leave failed'
+                message: 'An unexpected error occurred'
             }));
         });
     });
@@ -214,6 +222,7 @@ describe('Extended Room Handlers Tests', () => {
     describe('room:settings edge cases', () => {
         test('updates room settings', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room', isHost: true });
             roomService.updateSettings.mockResolvedValue({ turnTimer: 90 });
 
             const handlers = mockSocket.on.mock.calls;
@@ -237,6 +246,7 @@ describe('Extended Room Handlers Tests', () => {
 
         test('handles settings update error', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room', isHost: true });
             roomService.updateSettings.mockRejectedValue(new Error('Update failed'));
 
             const handlers = mockSocket.on.mock.calls;
@@ -244,7 +254,7 @@ describe('Extended Room Handlers Tests', () => {
             await settingsHandler[1]({ turnTimer: 90 });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Update failed'
+                message: 'An unexpected error occurred'
             }));
         });
     });
@@ -253,7 +263,7 @@ describe('Extended Room Handlers Tests', () => {
         test('resyncs full room state', async () => {
             mockSocket.roomCode = 'test-room';
             roomService.getRoom.mockResolvedValue({ code: 'test-room', roomId: 'test-room', settings: {} });
-            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', role: 'clicker' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room', role: 'clicker' });
             playerService.getPlayersInRoom.mockResolvedValue([]);
             gameService.getGame.mockResolvedValue(null);
 
@@ -272,7 +282,7 @@ describe('Extended Room Handlers Tests', () => {
             mockSocket.roomCode = 'test-room';
             const mockGame = { id: 'game-1', currentTurn: 'red' };
             roomService.getRoom.mockResolvedValue({ code: 'test-room', roomId: 'test-room', settings: {} });
-            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', role: 'clicker' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room', role: 'clicker' });
             playerService.getPlayersInRoom.mockResolvedValue([]);
             gameService.getGame.mockResolvedValue(mockGame);
             gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
@@ -288,7 +298,7 @@ describe('Extended Room Handlers Tests', () => {
             mockSocket.roomCode = 'test-room';
             const mockGame = { id: 'game-1', types: ['red', 'blue'], gameOver: false };
             roomService.getRoom.mockResolvedValue({ code: 'test-room', roomId: 'test-room', settings: {} });
-            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', role: 'spymaster' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room', role: 'spymaster' });
             playerService.getPlayersInRoom.mockResolvedValue([]);
             gameService.getGame.mockResolvedValue(mockGame);
             gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
@@ -316,6 +326,7 @@ describe('Extended Room Handlers Tests', () => {
     describe('room:getReconnectionToken edge cases', () => {
         test('returns existing token if available', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             playerService.getExistingReconnectionToken.mockResolvedValue('existing-token');
 
             const handlers = mockSocket.on.mock.calls;
@@ -330,6 +341,7 @@ describe('Extended Room Handlers Tests', () => {
 
         test('generates new token if none exists', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             playerService.getExistingReconnectionToken.mockResolvedValue(null);
             playerService.generateReconnectionToken.mockResolvedValue('new-token');
 
@@ -345,6 +357,7 @@ describe('Extended Room Handlers Tests', () => {
 
         test('handles token generation failure', async () => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             playerService.getExistingReconnectionToken.mockResolvedValue(null);
             playerService.generateReconnectionToken.mockResolvedValue(null);
 
@@ -353,7 +366,7 @@ describe('Extended Room Handlers Tests', () => {
             await tokenHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Failed to generate reconnection token'
+                message: 'An unexpected error occurred'
             }));
         });
 
