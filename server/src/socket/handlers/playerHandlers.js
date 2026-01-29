@@ -27,8 +27,8 @@ module.exports = function playerHandlers(io, socket) {
                 throw new GameStateError(ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN, canChange.reason);
             }
 
-            const shouldCheckEmpty = ctx.game && !ctx.game.gameOver &&
-                ctx.player.team && ctx.player.team !== validated.team;
+            const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
+                ctx.player.team && ctx.player.team !== validated.team);
             const player = await playerService.safeSetTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
             if (!player) {
