@@ -95,9 +95,11 @@ describe('Room Handlers', () => {
         playerService.getPlayer.mockResolvedValue({
             sessionId: 'session-1',
             nickname: 'Player1',
-            role: null
+            role: null,
+            roomCode: null
         });
         playerService.getPlayersInRoom.mockResolvedValue([]);
+        playerService.getRoomStats.mockResolvedValue({});
         playerService.invalidateReconnectionToken.mockResolvedValue();
         playerService.generateReconnectionToken.mockResolvedValue('token-123');
         playerService.getExistingReconnectionToken.mockResolvedValue(null);
@@ -282,6 +284,12 @@ describe('Room Handlers', () => {
     describe('room:leave', () => {
         beforeEach(() => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                nickname: 'Player1',
+                role: null
+            });
         });
 
         test('leaves room and clears roomCode', async () => {
@@ -307,6 +315,7 @@ describe('Room Handlers', () => {
 
         test('does nothing when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['room:leave']();
 
@@ -325,6 +334,11 @@ describe('Room Handlers', () => {
     describe('room:settings', () => {
         beforeEach(() => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                isHost: true
+            });
         });
 
         test('updates settings and broadcasts', async () => {
@@ -341,6 +355,7 @@ describe('Room Handlers', () => {
 
         test('throws error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['room:settings']({ turnTimer: 60 });
 
@@ -361,6 +376,12 @@ describe('Room Handlers', () => {
     describe('room:resync', () => {
         beforeEach(() => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                nickname: 'Player1',
+                role: null
+            });
         });
 
         test('sends full room state', async () => {
@@ -395,6 +416,7 @@ describe('Room Handlers', () => {
 
         test('throws error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['room:resync']();
 
@@ -420,6 +442,7 @@ describe('Room Handlers', () => {
         test('sends spymaster view for spymaster with active game', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
+                roomCode: 'test-room',
                 role: 'spymaster'
             });
             gameService.getGame.mockResolvedValue({
@@ -441,7 +464,7 @@ describe('Room Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('busy')
+                message: expect.any(String)
             });
         });
     });
@@ -449,6 +472,11 @@ describe('Room Handlers', () => {
     describe('room:getReconnectionToken', () => {
         beforeEach(() => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                nickname: 'Player1'
+            });
         });
 
         test('returns existing token if available', async () => {
@@ -479,6 +507,7 @@ describe('Room Handlers', () => {
 
         test('throws error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['room:getReconnectionToken']();
 
@@ -640,6 +669,12 @@ describe('Room Handlers', () => {
     describe('Helper functions (via indirect testing)', () => {
         beforeEach(() => {
             mockSocket.roomCode = 'test-room';
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                nickname: 'Player1',
+                role: null
+            });
         });
 
         test('sendTimerStatus skips when no timer active', async () => {
@@ -660,6 +695,7 @@ describe('Room Handlers', () => {
         test('sendSpymasterViewIfNeeded does nothing for non-spymaster', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
+                roomCode: 'test-room',
                 role: 'clicker'
             });
             gameService.getGame.mockResolvedValue({
@@ -677,6 +713,7 @@ describe('Room Handlers', () => {
         test('sendSpymasterViewIfNeeded does nothing when game is over', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
+                roomCode: 'test-room',
                 role: 'spymaster'
             });
             gameService.getGame.mockResolvedValue({

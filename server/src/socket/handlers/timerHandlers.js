@@ -1,21 +1,20 @@
 /**
  * Timer Socket Event Handlers
- * Host-only operations for manual timer control in multiplayer games
+ * Host-only operations for manual timer control in multiplayer games.
+ *
+ * Migrated to use context handler architecture for consistent
+ * validation, error handling, and socket room management.
  */
 
-const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
 const timerService = require('../../services/timerService');
-const { validateInput } = require('../../middleware/validation');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { createRateLimitedHandler } = require('../rateLimitHandler');
-const { RoomError, PlayerError } = require('../../errors/GameError');
+const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { z } = require('zod');
 
 // Define schema inline to avoid circular import issues with validators/schemas.js
-// Max 300 seconds (5 minutes) matches TIMER.MAX_TURN_SECONDS
 const timerAddTimeSchema = z.object({
     seconds: z.number()
         .int()
@@ -28,67 +27,32 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Pause the current turn timer (host only)
      */
-    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
-    socket.on('timer:pause', createRateLimitedHandler(socket, 'timer:pause', async () => {
-        try {
-            if (!socket.roomCode) {
-                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
-            }
-
-            // Verify requester is the host
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw PlayerError.notHost();
-            }
-
-            const result = await timerService.pauseTimer(socket.roomCode);
+    socket.on('timer:pause', createHostHandler(socket, 'timer:pause', null,
+        async (ctx) => {
+            const result = await timerService.pauseTimer(ctx.roomCode);
 
             if (result) {
-                io.to(`room:${socket.roomCode}`).emit('timer:paused', {
-                    roomCode: socket.roomCode,
+                io.to(`room:${ctx.roomCode}`).emit('timer:paused', {
+                    roomCode: ctx.roomCode,
                     remainingSeconds: result.remainingSeconds,
                     pausedAt: Date.now()
                 });
-                logger.info(`Timer paused in room ${socket.roomCode} by host ${player.nickname}`);
+                logger.info(`Timer paused in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
             } else {
                 socket.emit('timer:error', {
                     code: ERROR_CODES.SERVER_ERROR,
                     message: 'No active timer to pause'
                 });
             }
-
-        } catch (error) {
-            logger.error('Error pausing timer:', error);
-            socket.emit('timer:error', {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
         }
-    }));
+    ));
 
     /**
      * Resume a paused timer (host only)
      */
-    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
-    socket.on('timer:resume', createRateLimitedHandler(socket, 'timer:resume', async () => {
-        try {
-            if (!socket.roomCode) {
-                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
-            }
-
-            // Verify requester is the host
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw PlayerError.notHost();
-            }
-
-            // Get the timer expire callback from socket functions
-            const { startTurnTimer } = getSocketFunctions();
-
-            // resumeTimer needs an onExpire callback - use the standard one
-            const result = await timerService.resumeTimer(socket.roomCode, async (roomCode) => {
-                // This callback is invoked when the timer expires
-                // ISSUE FIX: Verify room still exists before emitting (race condition prevention)
+    socket.on('timer:resume', createHostHandler(socket, 'timer:resume', null,
+        async (ctx) => {
+            const result = await timerService.resumeTimer(ctx.roomCode, async (roomCode) => {
                 const room = await roomService.getRoom(roomCode);
                 if (!room) {
                     logger.warn(`Timer expired but room ${roomCode} no longer exists`);
@@ -109,49 +73,27 @@ module.exports = function timerHandlers(io, socket) {
             });
 
             if (result) {
-                io.to(`room:${socket.roomCode}`).emit('timer:resumed', {
-                    roomCode: socket.roomCode,
+                io.to(`room:${ctx.roomCode}`).emit('timer:resumed', {
+                    roomCode: ctx.roomCode,
                     remainingSeconds: result.remainingSeconds,
                     endTime: result.endTime
                 });
-                logger.info(`Timer resumed in room ${socket.roomCode} by host ${player.nickname}`);
+                logger.info(`Timer resumed in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
             } else {
                 socket.emit('timer:error', {
                     code: ERROR_CODES.SERVER_ERROR,
                     message: 'No paused timer to resume'
                 });
             }
-
-        } catch (error) {
-            logger.error('Error resuming timer:', error);
-            socket.emit('timer:error', {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
         }
-    }));
+    ));
 
     /**
      * Add time to the current timer (host only)
      */
-    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
-    socket.on('timer:addTime', createRateLimitedHandler(socket, 'timer:addTime', async (data) => {
-        try {
-            if (!socket.roomCode) {
-                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
-            }
-
-            // Verify requester is the host
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw PlayerError.notHost();
-            }
-
-            const validated = validateInput(timerAddTimeSchema, data);
-
-            const result = await timerService.addTime(socket.roomCode, validated.seconds, async (roomCode) => {
-                // Timer expire callback
-                // ISSUE FIX: Verify room still exists before emitting (race condition prevention)
+    socket.on('timer:addTime', createHostHandler(socket, 'timer:addTime', timerAddTimeSchema,
+        async (ctx, validated) => {
+            const result = await timerService.addTime(ctx.roomCode, validated.seconds, async (roomCode) => {
                 const room = await roomService.getRoom(roomCode);
                 if (!room) {
                     logger.warn(`Timer expired but room ${roomCode} no longer exists`);
@@ -172,60 +114,35 @@ module.exports = function timerHandlers(io, socket) {
             });
 
             if (result) {
-                io.to(`room:${socket.roomCode}`).emit('timer:timeAdded', {
-                    roomCode: socket.roomCode,
+                io.to(`room:${ctx.roomCode}`).emit('timer:timeAdded', {
+                    roomCode: ctx.roomCode,
                     secondsAdded: validated.seconds,
                     newEndTime: result.endTime,
                     remainingSeconds: result.remainingSeconds
                 });
-                logger.info(`Added ${validated.seconds}s to timer in room ${socket.roomCode} by host ${player.nickname}`);
+                logger.info(`Added ${validated.seconds}s to timer in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
             } else {
                 socket.emit('timer:error', {
                     code: ERROR_CODES.SERVER_ERROR,
                     message: 'No active timer to add time to'
                 });
             }
-
-        } catch (error) {
-            logger.error('Error adding time to timer:', error);
-            socket.emit('timer:error', {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
         }
-    }));
+    ));
 
     /**
      * Stop the current timer (host only)
      */
-    // ISSUE FIX: Rate limit key should match event name for proper per-operation limiting
-    socket.on('timer:stop', createRateLimitedHandler(socket, 'timer:stop', async () => {
-        try {
-            if (!socket.roomCode) {
-                throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Not in a room', { roomCode: 'none' });
-            }
+    socket.on('timer:stop', createHostHandler(socket, 'timer:stop', null,
+        async (ctx) => {
+            await timerService.stopTimer(ctx.roomCode);
 
-            // Verify requester is the host
-            const player = await playerService.getPlayer(socket.sessionId);
-            if (!player || !player.isHost) {
-                throw PlayerError.notHost();
-            }
-
-            await timerService.stopTimer(socket.roomCode);
-
-            io.to(`room:${socket.roomCode}`).emit('timer:stopped', {
-                roomCode: socket.roomCode,
+            io.to(`room:${ctx.roomCode}`).emit('timer:stopped', {
+                roomCode: ctx.roomCode,
                 stoppedAt: Date.now()
             });
 
-            logger.info(`Timer stopped in room ${socket.roomCode} by host ${player.nickname}`);
-
-        } catch (error) {
-            logger.error('Error stopping timer:', error);
-            socket.emit('timer:error', {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
+            logger.info(`Timer stopped in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
         }
-    }));
+    ));
 };

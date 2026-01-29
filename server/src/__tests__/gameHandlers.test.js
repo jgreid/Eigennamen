@@ -57,7 +57,9 @@ describe('Game Handlers', () => {
             sessionId: 'session-456',
             roomCode: 'TEST12',
             emit: jest.fn(),
-            on: jest.fn()
+            on: jest.fn(),
+            join: jest.fn(),
+            leave: jest.fn()
         };
 
         // Create mock io
@@ -65,6 +67,17 @@ describe('Game Handlers', () => {
             to: jest.fn().mockReturnThis(),
             emit: jest.fn()
         };
+
+        // Default player mock with roomCode for context handler
+        playerService.getPlayer.mockResolvedValue({
+            sessionId: 'session-456',
+            roomCode: 'TEST12',
+            nickname: 'Player1',
+            team: 'red',
+            role: 'clicker',
+            isHost: false
+        });
+        gameService.getGame.mockResolvedValue(null);
 
         // Reset eventLogService mock
         eventLogService.logEvent = jest.fn().mockResolvedValue();
@@ -89,7 +102,7 @@ describe('Game Handlers', () => {
         });
 
         test('validates host permission', async () => {
-            playerService.getPlayer.mockResolvedValue({ isHost: false });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: false });
 
             const handlers = mockSocket.on.mock.calls;
             const startHandler = handlers.find(h => h[0] === 'game:start');
@@ -101,7 +114,7 @@ describe('Game Handlers', () => {
         });
 
         test('starts game successfully when host', async () => {
-            playerService.getPlayer.mockResolvedValue({ isHost: true, team: 'red' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true, team: 'red' });
             gameService.getGame.mockResolvedValue(null);
             gameService.createGame.mockResolvedValue({
                 id: 'game-1',
@@ -123,7 +136,7 @@ describe('Game Handlers', () => {
         });
 
         test('prevents starting when game in progress', async () => {
-            playerService.getPlayer.mockResolvedValue({ isHost: true });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
             gameService.getGame.mockResolvedValue({ gameOver: false });
 
             const handlers = mockSocket.on.mock.calls;
@@ -144,7 +157,7 @@ describe('Game Handlers', () => {
         });
 
         test('validates player is clicker', async () => {
-            playerService.getPlayer.mockResolvedValue({ role: 'spectator', team: 'red' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'spectator', team: 'red' });
             // PHASE 1 FIX: Need game to check if clicker is disconnected
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             // Mock team with connected clicker so spectator can't reveal
@@ -162,7 +175,8 @@ describe('Game Handlers', () => {
         });
 
         test('validates player has team', async () => {
-            playerService.getPlayer.mockResolvedValue({ role: 'clicker', team: null });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'clicker', team: null });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
             const revealHandler = handlers.find(h => h[0] === 'game:reveal');
@@ -174,7 +188,7 @@ describe('Game Handlers', () => {
         });
 
         test('validates it is player turn', async () => {
-            playerService.getPlayer.mockResolvedValue({ role: 'clicker', team: 'red' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'clicker', team: 'red' });
             gameService.getGame.mockResolvedValue({ currentTurn: 'blue' });
 
             const handlers = mockSocket.on.mock.calls;
@@ -188,6 +202,8 @@ describe('Game Handlers', () => {
 
         test('reveals card successfully', async () => {
             playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
                 nickname: 'TestPlayer'
@@ -221,6 +237,8 @@ describe('Game Handlers', () => {
 
         test('handles game over', async () => {
             playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
                 nickname: 'TestPlayer'
@@ -262,7 +280,7 @@ describe('Game Handlers', () => {
         });
 
         test('validates player is spymaster', async () => {
-            playerService.getPlayer.mockResolvedValue({ role: 'clicker', team: 'red' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'clicker', team: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
             const clueHandler = handlers.find(h => h[0] === 'game:clue');
@@ -275,6 +293,8 @@ describe('Game Handlers', () => {
 
         test('gives clue successfully', async () => {
             playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
                 role: 'spymaster',
                 team: 'red',
                 nickname: 'Spymaster1'
@@ -305,7 +325,8 @@ describe('Game Handlers', () => {
         });
 
         test('validates player is clicker', async () => {
-            playerService.getPlayer.mockResolvedValue({ role: 'spectator', team: 'red' });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'spectator', team: 'red' });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
             const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
@@ -318,6 +339,8 @@ describe('Game Handlers', () => {
 
         test('ends turn successfully', async () => {
             playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
                 nickname: 'Clicker1'
@@ -349,7 +372,7 @@ describe('Game Handlers', () => {
         });
 
         test('validates player is host', async () => {
-            playerService.getPlayer.mockResolvedValue({ isHost: false });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: false });
 
             const handlers = mockSocket.on.mock.calls;
             const forfeitHandler = handlers.find(h => h[0] === 'game:forfeit');
@@ -361,7 +384,7 @@ describe('Game Handlers', () => {
         });
 
         test('forfeits game successfully', async () => {
-            playerService.getPlayer.mockResolvedValue({ isHost: true });
+            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
             gameService.forfeitGame.mockResolvedValue({
                 winner: 'blue',
                 forfeitingTeam: 'red',
@@ -409,6 +432,7 @@ describe('Game Handlers', () => {
     describe('Error handling', () => {
         test('handles room not found', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
             const startHandler = handlers.find(h => h[0] === 'game:start');

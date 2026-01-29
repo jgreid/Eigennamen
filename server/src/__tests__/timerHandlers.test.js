@@ -41,6 +41,8 @@ describe('Timer Handlers', () => {
                 if (!mockSocket._handlers) mockSocket._handlers = {};
                 mockSocket._handlers[event] = handler;
             }),
+            join: jest.fn(),
+            leave: jest.fn(),
             _handlers: {}
         };
 
@@ -55,6 +57,15 @@ describe('Timer Handlers', () => {
             startTurnTimer: jest.fn()
         });
 
+        // Default player mock with roomCode for context handler
+        playerService.getPlayer.mockResolvedValue({
+            sessionId: 'test-session-id',
+            roomCode: 'TEST01',
+            isHost: true,
+            nickname: 'HostPlayer'
+        });
+        gameService.getGame.mockResolvedValue(null);
+
         // Register handlers
         timerHandlers(mockIo, mockSocket);
     });
@@ -62,19 +73,21 @@ describe('Timer Handlers', () => {
     describe('timer:pause', () => {
         it('should reject when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handler = mockSocket._handlers['timer:pause'];
             await handler();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'Not in a room'
+                message: 'You must be in a room to perform this action'
             });
         });
 
         it('should reject when player is not host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: false,
                 nickname: 'TestPlayer'
             });
@@ -90,6 +103,7 @@ describe('Timer Handlers', () => {
         it('should pause timer successfully when host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -112,6 +126,7 @@ describe('Timer Handlers', () => {
         it('should emit error when no active timer', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -142,19 +157,21 @@ describe('Timer Handlers', () => {
     describe('timer:resume', () => {
         it('should reject when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handler = mockSocket._handlers['timer:resume'];
             await handler();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'Not in a room'
+                message: 'You must be in a room to perform this action'
             });
         });
 
         it('should reject when player is not host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: false,
                 nickname: 'TestPlayer'
             });
@@ -170,6 +187,7 @@ describe('Timer Handlers', () => {
         it('should resume timer successfully when host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -195,6 +213,7 @@ describe('Timer Handlers', () => {
         it('should emit error when no paused timer', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -213,6 +232,7 @@ describe('Timer Handlers', () => {
         it('should handle timer expiration callback correctly', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -246,6 +266,7 @@ describe('Timer Handlers', () => {
         it('should not emit events if room no longer exists on expiration', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -275,19 +296,21 @@ describe('Timer Handlers', () => {
     describe('timer:addTime', () => {
         it('should reject when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 30 });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'Not in a room'
+                message: 'You must be in a room to perform this action'
             });
         });
 
         it('should reject when player is not host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: false,
                 nickname: 'TestPlayer'
             });
@@ -303,6 +326,7 @@ describe('Timer Handlers', () => {
         it('should add time successfully when host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -329,6 +353,7 @@ describe('Timer Handlers', () => {
         it('should reject invalid seconds (too low)', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -344,6 +369,7 @@ describe('Timer Handlers', () => {
         it('should reject invalid seconds (too high)', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -359,6 +385,7 @@ describe('Timer Handlers', () => {
         it('should emit error when no active timer', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -378,19 +405,21 @@ describe('Timer Handlers', () => {
     describe('timer:stop', () => {
         it('should reject when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handler = mockSocket._handlers['timer:stop'];
             await handler();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'Not in a room'
+                message: 'You must be in a room to perform this action'
             });
         });
 
         it('should reject when player is not host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: false,
                 nickname: 'TestPlayer'
             });
@@ -406,6 +435,7 @@ describe('Timer Handlers', () => {
         it('should stop timer successfully when host', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -425,6 +455,7 @@ describe('Timer Handlers', () => {
         it('should handle service errors gracefully', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
+                roomCode: 'TEST01',
                 isHost: true,
                 nickname: 'HostPlayer'
             });
@@ -448,7 +479,7 @@ describe('Timer Handlers', () => {
             await handler();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
+                code: ERROR_CODES.ROOM_NOT_FOUND
             }));
         });
 
@@ -459,7 +490,7 @@ describe('Timer Handlers', () => {
             await handler();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
+                code: ERROR_CODES.ROOM_NOT_FOUND
             }));
         });
 
@@ -470,7 +501,7 @@ describe('Timer Handlers', () => {
             await handler({ seconds: 30 });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
+                code: ERROR_CODES.ROOM_NOT_FOUND
             }));
         });
 
@@ -481,7 +512,7 @@ describe('Timer Handlers', () => {
             await handler();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
+                code: ERROR_CODES.ROOM_NOT_FOUND
             }));
         });
     });

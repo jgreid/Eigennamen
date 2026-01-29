@@ -62,6 +62,18 @@ describe('Extended Player Handlers Tests', () => {
             PLAYER_LEFT: 'PLAYER_LEFT'
         };
 
+        // Default player mock with roomCode for context handler
+        playerService.getPlayer.mockResolvedValue({
+            sessionId: 'session-456',
+            roomCode: 'TEST12',
+            nickname: 'Player1',
+            team: null,
+            role: 'spectator',
+            isHost: false
+        });
+        gameService.getGame.mockResolvedValue(null);
+        playerService.getRoomStats.mockResolvedValue({});
+
         playerHandlers = require('../socket/handlers/playerHandlers');
         playerHandlers(mockIo, mockSocket);
     });
@@ -84,7 +96,7 @@ describe('Extended Player Handlers Tests', () => {
             await setTeamHandler[1]({ team: 'blue' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                message: expect.stringContaining('Cannot switch teams')
+                message: expect.stringContaining('Cannot change')
             }));
         });
 
@@ -105,7 +117,7 @@ describe('Extended Player Handlers Tests', () => {
             await setTeamHandler[1]({ team: 'red' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                message: expect.stringContaining('Cannot switch teams')
+                message: expect.stringContaining('Cannot change')
             }));
         });
 
@@ -158,11 +170,8 @@ describe('Extended Player Handlers Tests', () => {
         });
 
         test('handles player not in room', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-456',
-                roomCode: 'OTHER_ROOM',
-                team: 'red'
-            });
+            playerService.getPlayer.mockResolvedValue(null);
+            mockSocket.roomCode = null;
 
             const handlers = mockSocket.on.mock.calls;
             const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
@@ -517,6 +526,7 @@ describe('Extended Player Handlers Tests', () => {
                 if (sessionId === 'session-456') {
                     return {
                         sessionId: 'session-456',
+                        roomCode: 'TEST12',
                         isHost: true,
                         nickname: 'Host'
                     };
@@ -542,6 +552,7 @@ describe('Extended Player Handlers Tests', () => {
                 if (sessionId === 'session-456') {
                     return {
                         sessionId: 'session-456',
+                        roomCode: 'TEST12',
                         isHost: true,
                         nickname: 'Host'
                     };
@@ -563,6 +574,7 @@ describe('Extended Player Handlers Tests', () => {
                 if (sessionId === 'session-456') {
                     return {
                         sessionId: 'session-456',
+                        roomCode: 'TEST12',
                         isHost: true,
                         nickname: 'Host'
                     };
@@ -596,6 +608,7 @@ describe('Extended Player Handlers Tests', () => {
     describe('missing roomCode scenarios', () => {
         beforeEach(() => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
         });
 
         test('setTeam rejects without roomCode', async () => {

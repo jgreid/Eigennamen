@@ -88,6 +88,17 @@ describe('Room Resync and Recovery Handlers', () => {
             ROOM_CREATED: 'ROOM_CREATED'
         };
 
+        // Default player mock with roomCode for context handler
+        playerService.getPlayer.mockResolvedValue({
+            sessionId: 'session-456',
+            roomCode: 'test12',
+            nickname: 'Player1',
+            team: null,
+            role: 'clicker'
+        });
+        gameService.getGame.mockResolvedValue(null);
+        playerService.getRoomStats.mockResolvedValue({});
+
         // Register handlers
         roomHandlers = require('../socket/handlers/roomHandlers');
         roomHandlers(mockIo, mockSocket);
@@ -102,7 +113,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('returns full state for regular player', async () => {
             const mockRoom = { code: 'test12', settings: { turnTimer: 60 } };
-            const mockPlayer = { sessionId: 'session-456', nickname: 'Player1', role: 'clicker', team: 'red' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12', nickname: 'Player1', role: 'clicker', team: 'red' };
             const mockPlayers = [mockPlayer, { sessionId: 'session-789', nickname: 'Player2' }];
             const mockGame = { currentTurn: 'red', gameOver: false };
             const mockGameState = { currentTurn: 'red', types: null };
@@ -121,13 +132,14 @@ describe('Room Resync and Recovery Handlers', () => {
                 room: mockRoom,
                 players: mockPlayers,
                 game: mockGameState,
-                you: mockPlayer
+                you: mockPlayer,
+                stats: {}
             });
         });
 
         test('sends spymaster view when player is spymaster during active game', async () => {
             const mockRoom = { code: 'test12' };
-            const mockPlayer = { sessionId: 'session-456', role: 'spymaster', team: 'red' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12', role: 'spymaster', team: 'red' };
             const mockGame = { currentTurn: 'red', gameOver: false, types: ['red', 'blue', 'neutral', 'assassin'] };
 
             roomService.getRoom.mockResolvedValue(mockRoom);
@@ -147,7 +159,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('does not send spymaster view when game is over', async () => {
             const mockRoom = { code: 'test12' };
-            const mockPlayer = { sessionId: 'session-456', role: 'spymaster', team: 'red' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12', role: 'spymaster', team: 'red' };
             const mockGame = { currentTurn: 'red', gameOver: true, types: ['red', 'blue'] };
 
             roomService.getRoom.mockResolvedValue(mockRoom);
@@ -168,7 +180,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('sends timer status when timer is active', async () => {
             const mockRoom = { code: 'test12' };
-            const mockPlayer = { sessionId: 'session-456', role: 'clicker' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12', role: 'clicker' };
             const mockTimerStatus = {
                 remainingSeconds: 45,
                 endTime: Date.now() + 45000,
@@ -195,7 +207,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('handles no active timer gracefully', async () => {
             const mockRoom = { code: 'test12' };
-            const mockPlayer = { sessionId: 'session-456' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12' };
 
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.getPlayer.mockResolvedValue(mockPlayer);
@@ -215,7 +227,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('handles timer fetch error gracefully', async () => {
             const mockRoom = { code: 'test12' };
-            const mockPlayer = { sessionId: 'session-456' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12' };
 
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.getPlayer.mockResolvedValue(mockPlayer);
@@ -235,6 +247,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('returns error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
             const resyncHandler = handlers.find(h => h[0] === 'room:resync');
@@ -268,7 +281,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('handles no game state gracefully', async () => {
             const mockRoom = { code: 'test12' };
-            const mockPlayer = { sessionId: 'session-456' };
+            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12' };
 
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.getPlayer.mockResolvedValue(mockPlayer);
@@ -325,6 +338,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
         test('returns error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
             const tokenHandler = handlers.find(h => h[0] === 'room:getReconnectionToken');

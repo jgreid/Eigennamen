@@ -81,6 +81,7 @@ describe('Player Handlers', () => {
         playerService.getPlayersInRoom.mockResolvedValue([]);
         playerService.getSocketId.mockResolvedValue(null);
         playerService.removePlayer.mockResolvedValue();
+        playerService.getRoomStats.mockResolvedValue({});
 
         // Default game mock - no game
         gameService.getGame.mockResolvedValue(null);
@@ -119,12 +120,13 @@ describe('Player Handlers', () => {
 
         test('emits error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Not in a room')
+                message: expect.stringContaining('must be in a room')
             });
         });
 
@@ -139,17 +141,14 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('emits error when player in different room', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1',
-                roomCode: 'OTHER'
-            });
+        test('emits error when player not found', async () => {
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('not in room')
+                message: expect.stringContaining('must be in a room')
             });
         });
 
@@ -170,7 +169,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Cannot switch teams')
+                message: expect.stringContaining('Cannot change')
             });
         });
 
@@ -191,7 +190,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Cannot switch teams')
+                message: expect.stringContaining('Cannot change')
             });
         });
 
@@ -267,16 +266,17 @@ describe('Player Handlers', () => {
 
         test('emits error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['player:setRole']({ role: 'spymaster' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Not in a room')
+                message: expect.stringContaining('must be in a room')
             });
         });
 
-        test('emits error when player not in room', async () => {
+        test('emits error when setRole returns player in different room', async () => {
             playerService.setRole.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'OTHER'
@@ -361,12 +361,13 @@ describe('Player Handlers', () => {
 
         test('emits error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['player:setNickname']({ nickname: 'NewName' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Not in a room')
+                message: expect.stringContaining('must be in a room')
             });
         });
 
@@ -441,12 +442,14 @@ describe('Player Handlers', () => {
 
         test('emits error when not in a room', async () => {
             mockSocket.roomCode = null;
+            playerService.getPlayer.mockReset();
+            playerService.getPlayer.mockResolvedValue(null);
 
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Not in a room')
+                message: expect.stringContaining('must be in a room')
             });
         });
 
