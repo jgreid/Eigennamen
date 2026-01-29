@@ -17,7 +17,7 @@ const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
@@ -62,7 +62,7 @@ module.exports = function roomHandlers(io, socket) {
      * Create a new room
      * NOTE: Cannot use context handler - player is not in a room yet
      */
-    socket.on('room:create', createRateLimitedHandler(socket, 'room:create', async (data) => {
+    socket.on(SOCKET_EVENTS.ROOM_CREATE, createRateLimitedHandler(socket, SOCKET_EVENTS.ROOM_CREATE, async (data) => {
         let createdRoomCode = null;
         try {
             const validated = validateInput(roomCreateSchema, data);
@@ -118,7 +118,7 @@ module.exports = function roomHandlers(io, socket) {
      * Join an existing room
      * NOTE: Cannot use context handler - player is not in a room yet
      */
-    socket.on('room:join', createRateLimitedHandler(socket, 'room:join', async (data) => {
+    socket.on(SOCKET_EVENTS.ROOM_JOIN, createRateLimitedHandler(socket, SOCKET_EVENTS.ROOM_JOIN, async (data) => {
         let joinedRoomCode = null;
         try {
             const validated = validateInput(roomJoinSchema, data);
@@ -196,7 +196,7 @@ module.exports = function roomHandlers(io, socket) {
     /**
      * Leave the current room
      */
-    socket.on('room:leave', createRoomHandler(socket, 'room:leave', null,
+    socket.on(SOCKET_EVENTS.ROOM_LEAVE, createRoomHandler(socket, SOCKET_EVENTS.ROOM_LEAVE, null,
         async (ctx) => {
             // Invalidate reconnection token when explicitly leaving
             await playerService.invalidateReconnectionToken(ctx.sessionId);
@@ -233,7 +233,7 @@ module.exports = function roomHandlers(io, socket) {
     /**
      * Update room settings (host only)
      */
-    socket.on('room:settings', createHostHandler(socket, 'room:settings', roomSettingsSchema,
+    socket.on(SOCKET_EVENTS.ROOM_SETTINGS, createHostHandler(socket, SOCKET_EVENTS.ROOM_SETTINGS, roomSettingsSchema,
         async (ctx, validated) => {
             const settings = await roomService.updateSettings(
                 ctx.roomCode,
@@ -259,7 +259,7 @@ module.exports = function roomHandlers(io, socket) {
     /**
      * Request full state resync
      */
-    socket.on('room:resync', createRoomHandler(socket, 'room:resync', null,
+    socket.on(SOCKET_EVENTS.ROOM_RESYNC, createRoomHandler(socket, SOCKET_EVENTS.ROOM_RESYNC, null,
         async (ctx) => {
             const statePromise = (async () => {
                 const room = await roomService.getRoom(ctx.roomCode);
@@ -306,7 +306,7 @@ module.exports = function roomHandlers(io, socket) {
     /**
      * Request a reconnection token
      */
-    socket.on('room:getReconnectionToken', createRoomHandler(socket, 'room:getReconnectionToken', null,
+    socket.on(SOCKET_EVENTS.ROOM_GET_RECONNECTION_TOKEN, createRoomHandler(socket, SOCKET_EVENTS.ROOM_GET_RECONNECTION_TOKEN, null,
         async (ctx) => {
             let token = await playerService.getExistingReconnectionToken(ctx.sessionId);
 
@@ -332,7 +332,7 @@ module.exports = function roomHandlers(io, socket) {
      * Reconnect with a secure token
      * NOTE: Cannot use context handler - complex custom flow with token validation
      */
-    socket.on('room:reconnect', createRateLimitedHandler(socket, 'room:reconnect', async (data) => {
+    socket.on(SOCKET_EVENTS.ROOM_RECONNECT, createRateLimitedHandler(socket, SOCKET_EVENTS.ROOM_RECONNECT, async (data) => {
         try {
             const validated = validateInput(roomReconnectSchema, data);
             const { code, reconnectionToken } = validated;

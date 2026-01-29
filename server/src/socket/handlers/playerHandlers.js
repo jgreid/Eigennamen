@@ -9,10 +9,10 @@ const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { canChangeTeamOrRole } = require('../playerContext');
-const { PlayerError, ValidationError, GameStateError, RoomError } = require('../../errors/GameError');
+const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
 
 module.exports = function playerHandlers(io, socket) {
@@ -20,7 +20,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Set player's team
      */
-    socket.on('player:setTeam', createRoomHandler(socket, 'player:setTeam', playerTeamSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
@@ -65,7 +65,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Set player's role
      */
-    socket.on('player:setRole', createRoomHandler(socket, 'player:setRole', playerRoleSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_ROLE, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_ROLE, playerRoleSchema,
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
@@ -113,7 +113,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Update nickname
      */
-    socket.on('player:setNickname', createRoomHandler(socket, 'player:setNickname', playerNicknameSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_NICKNAME, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_NICKNAME, playerNicknameSchema,
         async (ctx, validated) => {
             const player = await playerService.setNickname(ctx.sessionId, validated.nickname);
 
@@ -148,7 +148,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Kick a player from the room (host only)
      */
-    socket.on('player:kick', createHostHandler(socket, 'player:kick', playerKickSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_KICK, createHostHandler(socket, SOCKET_EVENTS.PLAYER_KICK, playerKickSchema,
         async (ctx, validated) => {
             // Cannot kick yourself
             if (validated.targetSessionId === ctx.sessionId) {

@@ -8,7 +8,7 @@
 
 const timerService = require('../../services/timerService');
 const logger = require('../../utils/logger');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { z } = require('zod');
@@ -26,7 +26,7 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Pause the current turn timer (host only)
      */
-    socket.on('timer:pause', createHostHandler(socket, 'timer:pause', null,
+    socket.on(SOCKET_EVENTS.TIMER_PAUSE, createHostHandler(socket, SOCKET_EVENTS.TIMER_PAUSE, null,
         async (ctx) => {
             const result = await timerService.pauseTimer(ctx.roomCode);
 
@@ -49,7 +49,7 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Resume a paused timer (host only)
      */
-    socket.on('timer:resume', createHostHandler(socket, 'timer:resume', null,
+    socket.on(SOCKET_EVENTS.TIMER_RESUME, createHostHandler(socket, SOCKET_EVENTS.TIMER_RESUME, null,
         async (ctx) => {
             const { createTimerExpireCallback } = getSocketFunctions();
             const result = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
@@ -73,7 +73,7 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Add time to the current timer (host only)
      */
-    socket.on('timer:addTime', createHostHandler(socket, 'timer:addTime', timerAddTimeSchema,
+    socket.on(SOCKET_EVENTS.TIMER_ADD_TIME, createHostHandler(socket, SOCKET_EVENTS.TIMER_ADD_TIME, timerAddTimeSchema,
         async (ctx, validated) => {
             const { createTimerExpireCallback } = getSocketFunctions();
             const result = await timerService.addTime(ctx.roomCode, validated.seconds, createTimerExpireCallback());
@@ -98,7 +98,7 @@ module.exports = function timerHandlers(io, socket) {
     /**
      * Stop the current timer (host only)
      */
-    socket.on('timer:stop', createHostHandler(socket, 'timer:stop', null,
+    socket.on(SOCKET_EVENTS.TIMER_STOP, createHostHandler(socket, SOCKET_EVENTS.TIMER_STOP, null,
         async (ctx) => {
             await timerService.stopTimer(ctx.roomCode);
 

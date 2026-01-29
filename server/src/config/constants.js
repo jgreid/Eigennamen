@@ -182,6 +182,9 @@ module.exports = {
         ROOM_SETTINGS_UPDATED: 'room:settingsUpdated',
         ROOM_SYNC: 'room:sync',
         ROOM_RESYNCED: 'room:resynced',
+        ROOM_RESYNC: 'room:resync',
+        ROOM_GET_RECONNECTION_TOKEN: 'room:getReconnectionToken',
+        ROOM_RECONNECT: 'room:reconnect',
         ROOM_HOST_CHANGED: 'room:hostChanged',
         ROOM_ERROR: 'room:error',
 
@@ -209,6 +212,7 @@ module.exports = {
         PLAYER_SET_TEAM: 'player:setTeam',
         PLAYER_SET_ROLE: 'player:setRole',
         PLAYER_SET_NICKNAME: 'player:setNickname',
+        PLAYER_KICK: 'player:kick',
         PLAYER_UPDATED: 'player:updated',
         PLAYER_DISCONNECTED: 'player:disconnected',
         PLAYER_ERROR: 'player:error',
@@ -219,6 +223,8 @@ module.exports = {
         TIMER_EXPIRED: 'timer:expired',
         TIMER_PAUSE: 'timer:pause',
         TIMER_RESUME: 'timer:resume',
+        TIMER_STOP: 'timer:stop',
+        TIMER_ADD_TIME: 'timer:addTime',
         TIMER_STATUS: 'timer:status',
 
         // Chat events

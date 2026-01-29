@@ -18,7 +18,7 @@ module.exports = function chatHandlers(io, socket) {
     /**
      * Send a chat message
      */
-    socket.on('chat:message', createRoomHandler(socket, 'chat:message', chatMessageSchema,
+    socket.on(SOCKET_EVENTS.CHAT_MESSAGE, createRoomHandler(socket, SOCKET_EVENTS.CHAT_MESSAGE, chatMessageSchema,
         async (ctx, validated) => {
             const message = {
                 from: {
