@@ -270,7 +270,11 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 
 - [README.md](README.md) - Project overview and gameplay instructions
 - [QUICKSTART.md](QUICKSTART.md) - Getting started guide
-- [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) - Technical architecture
+- [ROADMAP.md](ROADMAP.md) - Development roadmap and remaining work
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contributor guidelines
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
+- [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) - Technical specification
+- [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - Testing documentation
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment guide
 - [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) - Windows setup guide
 - [server/README.md](server/README.md) - Server-specific documentation
-- [CODE_REVIEW_FINDINGS.md](CODE_REVIEW_FINDINGS.md) - Technical findings and fixes

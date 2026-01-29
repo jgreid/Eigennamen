@@ -331,9 +331,11 @@ See [Testing Guide](docs/TESTING_GUIDE.md) for detailed information.
 | `README.md` | Project overview, gameplay |
 | `CLAUDE.md` | AI assistant guide, quick reference |
 | `QUICKSTART.md` | Getting started guide |
+| `ROADMAP.md` | Development roadmap and remaining work |
 | `docs/ARCHITECTURE.md` | System architecture |
 | `docs/SERVER_SPEC.md` | API specification |
 | `docs/TESTING_GUIDE.md` | Testing documentation |
+| `docs/DEPLOYMENT.md` | Deployment guide |
 
 ### JSDoc Comments
 
