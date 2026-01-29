@@ -691,7 +691,8 @@ class MemoryStorage {
 
         // ATOMIC_SET_TEAM_SCRIPT: 2 keys (playerKey, roomCode), 4 args (team, ttl, now, sessionId)
         // Used by playerService.setTeam()
-        if (numKeys === 2 && numArgs === 4 && options.keys[0].startsWith('player:')) {
+        // Guard: keys[1] is a bare roomCode (e.g. "ABCDEF"), NOT "room:X:players"
+        if (numKeys === 2 && numArgs === 4 && options.keys[0].startsWith('player:') && !options.keys[1].includes(':players')) {
             const playerKey = options.keys[0];
             const roomCode = options.keys[1];
             const newTeam = options.arguments[0];
@@ -775,8 +776,8 @@ class MemoryStorage {
                 // Check if team would become empty
                 if (checkEmpty && oldTeam && oldTeam !== actualNewTeam) {
                     const oldSet = this.sets.get(teamSetKey);
+                    let otherConnected = 0;
                     if (oldSet) {
-                        let otherConnected = 0;
                         for (const memberId of oldSet) {
                             if (memberId !== sessionId) {
                                 const mKey = `player:${memberId}`;
@@ -788,9 +789,10 @@ class MemoryStorage {
                                 }
                             }
                         }
-                        if (otherConnected === 0) {
-                            return JSON.stringify({ success: false, reason: 'TEAM_WOULD_BE_EMPTY' });
-                        }
+                    }
+                    // No other connected members (or set doesn't exist) — reject
+                    if (otherConnected === 0) {
+                        return JSON.stringify({ success: false, reason: 'TEAM_WOULD_BE_EMPTY' });
                     }
                 }
 
