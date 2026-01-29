@@ -89,18 +89,22 @@ jest.mock('../middleware/socketAuth', () => ({
     })
 }));
 
-// Mock constants
-jest.mock('../config/constants', () => ({
-    SOCKET: {
-        PING_TIMEOUT_MS: 20000,
-        PING_INTERVAL_MS: 25000,
-        MAX_DISCONNECTION_DURATION_MS: 120000,
-        SOCKET_COUNT_CACHE_MS: 5000
-    },
-    REDIS_TTL: {
-        ROOM: 86400
-    }
-}));
+// Mock constants - use actual SOCKET_EVENTS to ensure event name consistency
+jest.mock('../config/constants', () => {
+    const actual = jest.requireActual('../config/constants');
+    return {
+        SOCKET: {
+            PING_TIMEOUT_MS: 20000,
+            PING_INTERVAL_MS: 25000,
+            MAX_DISCONNECTION_DURATION_MS: 120000,
+            SOCKET_COUNT_CACHE_MS: 5000
+        },
+        SOCKET_EVENTS: actual.SOCKET_EVENTS,
+        REDIS_TTL: {
+            ROOM: 86400
+        }
+    };
+});
 
 // Game service mock
 let mockGameData = null;

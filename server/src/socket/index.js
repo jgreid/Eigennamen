@@ -10,7 +10,7 @@ const logger = require('../utils/logger');
 const { authenticateSocket } = require('../middleware/socketAuth');
 const timerService = require('../services/timerService');
 const eventLogService = require('../services/eventLogService');
-const { SOCKET } = require('../config/constants');
+const { SOCKET, SOCKET_EVENTS } = require('../config/constants');
 const {
     socketRateLimiter,
     createRateLimitedHandler,
@@ -425,12 +425,12 @@ function createTimerExpireCallback() {
             }
 
             const result = await gameService.endTurn(roomCode, 'Timer');
-            emitToRoom(roomCode, 'game:turnEnded', {
+            emitToRoom(roomCode, SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn,
                 reason: 'timerExpired'
             });
-            emitToRoom(roomCode, 'timer:expired', { roomCode });
+            emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
 
             // Log timer expiration event for reconnection recovery
             await eventLogService.logEvent(
@@ -570,7 +570,7 @@ async function handleDisconnect(io, socket, reason) {
             // Now the token is stored server-side only and validated during reconnection handshake.
             // The disconnecting player should proactively request their reconnection token via
             // 'room:getReconnectionToken' event BEFORE they disconnect (e.g., on 'beforeunload').
-            io.to(`room:${roomCode}`).emit('player:disconnected', {
+            io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team,
@@ -631,7 +631,7 @@ async function handleDisconnect(io, socket, reason) {
                                 );
 
                                 if (transferResult.success) {
-                                    io.to(`room:${roomCode}`).emit('room:hostChanged', {
+                                    io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_HOST_CHANGED, {
                                         newHostSessionId: newHost.sessionId,
                                         newHostNickname: newHost.nickname,
                                         reason: 'previousHostDisconnected'
@@ -704,7 +704,7 @@ async function startTurnTimer(roomCode, durationSeconds) {
     const timerInfo = await timerService.startTimer(roomCode, durationSeconds, createTimerExpireCallback());
 
     // Broadcast timer start
-    emitToRoom(roomCode, 'timer:started', {
+    emitToRoom(roomCode, SOCKET_EVENTS.TIMER_STARTED, {
         ...timerInfo,
         roomCode
     });
@@ -717,7 +717,7 @@ async function startTurnTimer(roomCode, durationSeconds) {
  */
 async function stopTurnTimer(roomCode) {
     await timerService.stopTimer(roomCode);
-    emitToRoom(roomCode, 'timer:stopped', { roomCode });
+    emitToRoom(roomCode, SOCKET_EVENTS.TIMER_STOPPED, { roomCode });
 }
 
 /**

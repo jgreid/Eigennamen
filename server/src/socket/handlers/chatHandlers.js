@@ -43,7 +43,7 @@ module.exports = function chatHandlers(io, socket) {
 
                 for (const spectator of spectators) {
                     try {
-                        io.to(`player:${spectator.sessionId}`).emit('chat:message', message);
+                        io.to(`player:${spectator.sessionId}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
                     } catch (emitError) {
                         logger.error(`Failed to emit chat:message to spectator ${spectator.sessionId}:`, emitError);
                     }
@@ -52,20 +52,20 @@ module.exports = function chatHandlers(io, socket) {
                 const teammates = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
                 if (!teammates || !Array.isArray(teammates)) {
                     logger.warn(`No teammates found for ${ctx.player.team} team in room ${ctx.roomCode}`);
-                    socket.emit('chat:message', message);
+                    socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
                     return;
                 }
 
                 for (const teammate of teammates) {
                     try {
-                        io.to(`player:${teammate.sessionId}`).emit('chat:message', message);
+                        io.to(`player:${teammate.sessionId}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
                     } catch (emitError) {
                         logger.error(`Failed to emit chat:message to ${teammate.sessionId}:`, emitError);
                     }
                 }
             } else {
                 try {
-                    io.to(`room:${ctx.roomCode}`).emit('chat:message', message);
+                    io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
                 } catch (emitError) {
                     logger.error(`Failed to emit chat:message to room ${ctx.roomCode}:`, emitError);
                 }
@@ -76,7 +76,7 @@ module.exports = function chatHandlers(io, socket) {
     /**
      * Send a spectator-only chat message
      */
-    socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, 'chat:spectator', spectatorChatSchema,
+    socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
         async (ctx, validated) => {
             // Only allow spectators (no team or explicitly spectator role)
             if (ctx.player.team && ctx.player.role !== 'spectator') {

@@ -32,7 +32,7 @@ async function sendTimerStatus(socket, roomCode, context) {
         const { getTimerStatus } = getSocketFunctions();
         const timerStatus = await getTimerStatus(roomCode);
         if (timerStatus && timerStatus.endTime) {
-            socket.emit('timer:status', {
+            socket.emit(SOCKET_EVENTS.TIMER_STATUS, {
                 roomCode,
                 remainingSeconds: timerStatus.remainingSeconds,
                 endTime: timerStatus.endTime,
@@ -51,7 +51,7 @@ async function sendSpymasterViewIfNeeded(socket, player, game, roomCode) {
     if (player.role === 'spymaster' && game && !game.gameOver) {
         const fullGame = await gameService.getGame(roomCode);
         if (fullGame) {
-            socket.emit('game:spymasterView', { types: fullGame.types });
+            socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: fullGame.types });
         }
     }
 }
@@ -84,7 +84,7 @@ module.exports = function roomHandlers(io, socket) {
 
             const roomStats = await playerService.getRoomStats(room.code);
 
-            socket.emit('room:created', { room, player, stats: roomStats });
+            socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
 
             await eventLogService.logEvent(
                 room.code,
@@ -107,7 +107,7 @@ module.exports = function roomHandlers(io, socket) {
             }
 
             logger.error('Error creating room:', error);
-            socket.emit('room:error', {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -148,7 +148,7 @@ module.exports = function roomHandlers(io, socket) {
 
             const roomStats = await playerService.getRoomStats(room.code);
 
-            socket.emit('room:joined', { room, players, game, you: player, stats: roomStats });
+            socket.emit(SOCKET_EVENTS.ROOM_JOINED, { room, players, game, you: player, stats: roomStats });
 
             await sendSpymasterViewIfNeeded(socket, player, game, room.code);
             await sendTimerStatus(socket, room.code, 'join');
@@ -156,13 +156,13 @@ module.exports = function roomHandlers(io, socket) {
             const isReconnect = !!player.lastConnected;
 
             if (isReconnect) {
-                socket.to(`room:${room.code}`).emit('room:playerReconnected', {
+                socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_RECONNECTED, {
                     sessionId: socket.sessionId,
                     nickname: player.nickname,
                     team: player.team
                 });
             } else {
-                socket.to(`room:${room.code}`).emit('room:playerJoined', { player });
+                socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_JOINED, { player });
             }
 
             await eventLogService.logEvent(
@@ -186,7 +186,7 @@ module.exports = function roomHandlers(io, socket) {
             }
 
             logger.error('Error joining room:', error);
-            socket.emit('room:error', {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
                 code: error.code || ERROR_CODES.SERVER_ERROR,
                 message: error.message
             });
@@ -210,7 +210,7 @@ module.exports = function roomHandlers(io, socket) {
 
             const remainingPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
 
-            io.to(`room:${ctx.roomCode}`).emit('room:playerLeft', {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                 sessionId: ctx.sessionId,
                 newHost: result?.newHostId || null,
                 players: remainingPlayers || []
@@ -241,7 +241,7 @@ module.exports = function roomHandlers(io, socket) {
                 validated
             );
 
-            io.to(`room:${ctx.roomCode}`).emit('room:settingsUpdated', { settings });
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_SETTINGS_UPDATED, { settings });
 
             await eventLogService.logEvent(
                 ctx.roomCode,
@@ -288,7 +288,7 @@ module.exports = function roomHandlers(io, socket) {
 
             const roomStats = await playerService.getRoomStats(ctx.roomCode);
 
-            socket.emit('room:resynced', {
+            socket.emit(SOCKET_EVENTS.ROOM_RESYNCED, {
                 room,
                 players,
                 game: gameState,
@@ -318,7 +318,7 @@ module.exports = function roomHandlers(io, socket) {
                 throw new ServerError('Failed to generate reconnection token');
             }
 
-            socket.emit('room:reconnectionToken', {
+            socket.emit(SOCKET_EVENTS.ROOM_RECONNECTION_TOKEN, {
                 token,
                 sessionId: ctx.sessionId,
                 roomCode: ctx.roomCode
@@ -408,7 +408,7 @@ module.exports = function roomHandlers(io, socket) {
                 }
             }
 
-            socket.emit('room:reconnected', {
+            socket.emit(SOCKET_EVENTS.ROOM_RECONNECTED, {
                 room,
                 players,
                 game: gameState,
@@ -420,7 +420,7 @@ module.exports = function roomHandlers(io, socket) {
             await sendSpymasterViewIfNeeded(socket, player, game, code);
             await sendTimerStatus(socket, code, 'reconnect');
 
-            socket.to(`room:${code}`).emit('room:playerReconnected', {
+            socket.to(`room:${code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_RECONNECTED, {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team
@@ -442,7 +442,7 @@ module.exports = function roomHandlers(io, socket) {
         } catch (error) {
             const isTimeout = error.code === 'OPERATION_TIMEOUT';
             logger.error(`Error during secure reconnection${isTimeout ? ' (timeout)' : ''}:`, error);
-            socket.emit('room:error', {
+            socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
                 code: isTimeout ? ERROR_CODES.SERVER_ERROR : (error.code || ERROR_CODES.SERVER_ERROR),
                 message: isTimeout ? 'Server is busy, please try again' : error.message
             });
