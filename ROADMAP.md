@@ -56,14 +56,14 @@
 
 ### Phase 1: Frontend Modernization
 
-The modular frontend (`src/js/`) is feature-rich but missing multiplayer UI HTML elements.
+The modular frontend (`server/public/js/`) coexists with the monolithic `index.html` (see [ADR-005](docs/adr/0005-frontend-consolidation.md)). Both implementations work; the modular version is the target architecture.
 
 | Task | Priority |
 |------|----------|
-| Add multiplayer panel HTML to index-modular.html | High |
-| Wire up all multiplayer socket events | High |
-| Remove legacy index.html once verified | Medium |
-| Remove server/public/js/ IIFE modules | Low |
+| Add multiplayer panel HTML to modular frontend | High |
+| Wire up all multiplayer socket events in modules | High |
+| Verify feature parity between monolithic and modular | Medium |
+| Remove monolithic inline JS once modular is verified | Low |
 
 ### Phase 2: Internationalization
 

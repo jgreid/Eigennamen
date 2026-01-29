@@ -38,7 +38,7 @@ cd server && npm run db:studio     # Visual database editor
 
 ```
 Risley-Codenames/
-├── index.html              # Frontend SPA (2,200+ lines, vanilla JS)
+├── index.html              # Frontend SPA (~8,000 lines, vanilla JS)
 ├── wordlist.txt            # Default word list
 ├── docker-compose.yml      # Multi-service Docker setup
 ├── fly.toml                # Fly.io deployment config
@@ -153,7 +153,7 @@ npm run test:watch       # Watch mode
 npm run test:coverage    # With coverage report
 ```
 
-**Coverage requirements**: 70% minimum for branches, functions, lines, and statements
+**Coverage requirements**: 80% minimum for branches, functions, lines, and statements
 
 **Test files location**: `server/src/__tests__/`
 - `gameService.test.js` - PRNG, board generation

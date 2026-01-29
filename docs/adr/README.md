@@ -18,6 +18,7 @@ An Architecture Decision Record captures an important architectural decision alo
 | [002](002-session-storage-over-local-storage.md) | sessionStorage Over localStorage | Adopted | 2024 |
 | [003](003-distributed-locks-for-concurrency.md) | Distributed Locks for Concurrency Control | Adopted | 2024 |
 | [004](004-graceful-degradation.md) | Graceful Degradation Without Database | Adopted | 2024 |
+| [005](0005-frontend-consolidation.md) | Frontend Consolidation to Modular Architecture | Adopted | 2026 |
 
 ## ADR Template
 

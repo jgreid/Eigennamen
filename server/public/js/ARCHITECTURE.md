@@ -14,36 +14,36 @@ The frontend can operate in two modes:
 ```
 server/public/js/
 ├── app.js          # Main application entry point (644 lines)
-├── socket-client.js # Socket.io communication layer (601 lines)
-├── ui.js           # UI rendering and DOM manipulation (440 lines)
-├── game.js         # Game logic and state (259 lines)
-├── state.js        # State management utilities (274 lines)
+├── socket-client.js # Socket.io communication layer (943 lines)
+├── ui.js           # UI rendering and DOM manipulation (534 lines)
+├── game.js         # Game logic and state (331 lines)
+├── state.js        # State management utilities (364 lines)
 └── ARCHITECTURE.md # This file
 ```
 
 ## Module Responsibilities
 
-### `state.js` (274 lines)
+### `state.js` (364 lines)
 Core state management:
 - Game state storage and retrieval
 - URL state encoding/decoding for standalone mode
 - State change notifications
 
-### `game.js` (259 lines)
+### `game.js` (331 lines)
 Game logic:
 - Board generation with seeded PRNG
 - Card reveal logic
 - Turn management
 - Win condition checking
 
-### `ui.js` (440 lines)
+### `ui.js` (534 lines)
 User interface:
 - DOM element creation and updates
 - Event listener attachment
 - Modal management
 - Responsive layout handling
 
-### `socket-client.js` (601 lines)
+### `socket-client.js` (943 lines)
 Network communication:
 - Socket.io connection management
 - Event emission and handling
@@ -59,7 +59,7 @@ Application orchestration:
 
 ## Relationship to index.html
 
-The main `index.html` (3,809 lines) contains:
+The main `index.html` (~8,000 lines) contains:
 - Complete HTML structure
 - Embedded CSS (glassmorphism design)
 - **Self-contained JavaScript** that duplicates functionality from these modules

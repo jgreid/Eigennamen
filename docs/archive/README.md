@@ -32,13 +32,11 @@ For up-to-date documentation, see:
 - **[QUICKSTART.md](../../QUICKSTART.md)** - Getting started guide
 - **[CLAUDE.md](../../CLAUDE.md)** - AI assistant development guide
 - **[CONTRIBUTING.md](../../CONTRIBUTING.md)** - Contributor guidelines
-- **[NEXT_STEPS.md](../../NEXT_STEPS.md)** - Current development status
-- **[DEVELOPMENT_ROADMAP.md](../../DEVELOPMENT_ROADMAP.md)** - Future development plans
+- **[ROADMAP.md](../../ROADMAP.md)** - Development roadmap and remaining work
 - **[docs/ARCHITECTURE.md](../ARCHITECTURE.md)** - System architecture overview
 - **[docs/SERVER_SPEC.md](../SERVER_SPEC.md)** - Technical server specification
 - **[docs/TESTING_GUIDE.md](../TESTING_GUIDE.md)** - Testing documentation
 - **[docs/DEPLOYMENT.md](../DEPLOYMENT.md)** - Deployment guide
-- **[docs/SPRINT_PLAN_19_20_21.md](../SPRINT_PLAN_19_20_21.md)** - Current sprint planning
 - **[docs/adr/](../adr/)** - Architecture Decision Records
 
 ## Key Achievements from Archived Docs
@@ -59,10 +57,10 @@ From the archived documentation, the following improvements were implemented:
 - Cached DOM element queries
 
 ### Test Coverage (from PUNCH_LIST.md)
-- 87%+ code coverage (all thresholds passing)
-- 52 test files with 1,760+ test cases
+- 91%+ code coverage (all thresholds passing)
+- 76 test suites with 2,450+ test cases
 - E2E tests with Playwright
-- Comprehensive unit tests with Jest/Vitest
+- Comprehensive unit tests with Jest
 
 ---
 
