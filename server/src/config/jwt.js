@@ -80,21 +80,17 @@ function signToken(payload, options = {}) {
         return null;
     }
 
+    const expiresIn = options.expiresIn || JWT_CONFIG.expiresIn;
+
     const signOptions = {
         algorithm: JWT_CONFIG.algorithm,
-        expiresIn: options.expiresIn || JWT_CONFIG.expiresIn,
         issuer: JWT_CONFIG.issuer,
         audience: JWT_CONFIG.audience,
-        ...options
+        ...options,
+        expiresIn
     };
 
-    // Remove non-jwt.sign options
-    delete signOptions.expiresIn;
-
-    return jwt.sign(payload, secret, {
-        ...signOptions,
-        expiresIn: options.expiresIn || JWT_CONFIG.expiresIn
-    });
+    return jwt.sign(payload, secret, signOptions);
 }
 
 // JWT error codes for structured error handling

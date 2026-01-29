@@ -230,7 +230,7 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (700+)
+npm test              # Run all tests (2,400+)
 npm run test:coverage # Run tests with coverage report
 ```
 
