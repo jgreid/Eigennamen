@@ -210,7 +210,7 @@ function auditPlayerKicked(roomCode, kickedSessionId, kickedBy, reason, ip) {
 function auditWordListModified(wordListId, action, sessionId, ip) {
     const eventType = action === 'create' ? AUDIT_EVENTS.WORD_LIST_CREATED
         : action === 'delete' ? AUDIT_EVENTS.WORD_LIST_DELETED
-        : AUDIT_EVENTS.WORD_LIST_MODIFIED;
+            : AUDIT_EVENTS.WORD_LIST_MODIFIED;
     return audit(eventType, {
         sessionId,
         ip,

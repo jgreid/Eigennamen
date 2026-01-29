@@ -135,7 +135,7 @@ router.get('/api/stats', async (req, res) => {
         }
 
         // Get Socket.io stats if available
-        let socketStats = { connections: 0 };
+        const socketStats = { connections: 0 };
         try {
             const app = req.app;
             const io = app.get('io');
