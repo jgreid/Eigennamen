@@ -105,9 +105,9 @@ Risley-Codenames/
 - `game:forfeit` / `game:gameEnded`
 
 ### Player Events
-- `player:setTeam` / `player:teamChanged`
-- `player:setRole` / `player:roleChanged`
-- `player:setNickname` / `player:nicknameChanged`
+- `player:setTeam` / `player:updated`
+- `player:setRole` / `player:updated`
+- `player:setNickname` / `player:updated`
 
 ## API Endpoints
 
