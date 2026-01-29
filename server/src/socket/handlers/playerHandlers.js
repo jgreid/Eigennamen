@@ -9,10 +9,10 @@ const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { canChangeTeamOrRole } = require('../playerContext');
-const { PlayerError, ValidationError, GameStateError, RoomError } = require('../../errors/GameError');
+const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
 
 module.exports = function playerHandlers(io, socket) {
@@ -20,7 +20,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Set player's team
      */
-    socket.on('player:setTeam', createRoomHandler(socket, 'player:setTeam', playerTeamSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
@@ -36,14 +36,14 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             // Broadcast to room
-            io.to(`room:${ctx.roomCode}`).emit('player:updated', {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
                 changes: { team: player.team }
             });
 
             // Broadcast updated stats
             const roomStats = await playerService.getRoomStats(ctx.roomCode);
-            io.to(`room:${ctx.roomCode}`).emit('room:statsUpdated', { stats: roomStats });
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // Log event for reconnection recovery
             await eventLogService.logEvent(
@@ -65,7 +65,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Set player's role
      */
-    socket.on('player:setRole', createRoomHandler(socket, 'player:setRole', playerRoleSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_ROLE, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_ROLE, playerRoleSchema,
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
@@ -79,18 +79,18 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             // Broadcast to room
-            io.to(`room:${ctx.roomCode}`).emit('player:updated', {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
                 changes: { role: player.role }
             });
 
             // Broadcast updated stats
             const roomStats = await playerService.getRoomStats(ctx.roomCode);
-            io.to(`room:${ctx.roomCode}`).emit('room:statsUpdated', { stats: roomStats });
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // If becoming spymaster, send card types
             if (player.role === 'spymaster' && ctx.game && !ctx.game.gameOver) {
-                socket.emit('game:spymasterView', { types: ctx.game.types });
+                socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: ctx.game.types });
             }
 
             // Log event for reconnection recovery
@@ -113,7 +113,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Update nickname
      */
-    socket.on('player:setNickname', createRoomHandler(socket, 'player:setNickname', playerNicknameSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_NICKNAME, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_NICKNAME, playerNicknameSchema,
         async (ctx, validated) => {
             const player = await playerService.setNickname(ctx.sessionId, validated.nickname);
 
@@ -124,7 +124,7 @@ module.exports = function playerHandlers(io, socket) {
             const sanitizedNickname = sanitizeHtml(player.nickname);
 
             // Broadcast to room
-            io.to(`room:${ctx.roomCode}`).emit('player:updated', {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
                 changes: { nickname: sanitizedNickname }
             });
@@ -148,7 +148,7 @@ module.exports = function playerHandlers(io, socket) {
     /**
      * Kick a player from the room (host only)
      */
-    socket.on('player:kick', createHostHandler(socket, 'player:kick', playerKickSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_KICK, createHostHandler(socket, SOCKET_EVENTS.PLAYER_KICK, playerKickSchema,
         async (ctx, validated) => {
             // Cannot kick yourself
             if (validated.targetSessionId === ctx.sessionId) {
@@ -165,7 +165,7 @@ module.exports = function playerHandlers(io, socket) {
             const targetSocketId = await playerService.getSocketId(validated.targetSessionId);
 
             // Broadcast kick event before removing player
-            io.to(`room:${ctx.roomCode}`).emit('player:kicked', {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_KICKED, {
                 sessionId: validated.targetSessionId,
                 nickname: sanitizeHtml(targetPlayer.nickname),
                 kickedBy: sanitizeHtml(ctx.player.nickname)
@@ -190,7 +190,7 @@ module.exports = function playerHandlers(io, socket) {
             if (targetSocketId) {
                 const targetSocket = io.sockets.sockets.get(targetSocketId);
                 if (targetSocket) {
-                    targetSocket.emit('room:kicked', {
+                    targetSocket.emit(SOCKET_EVENTS.ROOM_KICKED, {
                         reason: 'You were removed from the room by the host'
                     });
                     targetSocket.leave(`room:${ctx.roomCode}`);
@@ -201,7 +201,7 @@ module.exports = function playerHandlers(io, socket) {
 
             // Update player list for remaining players
             const remainingPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
-            io.to(`room:${ctx.roomCode}`).emit('room:playerLeft', {
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                 sessionId: validated.targetSessionId,
                 newHost: null,
                 players: remainingPlayers || []

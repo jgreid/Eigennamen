@@ -29,7 +29,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Start a new game (host only)
      */
-    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, 'game:start', gameStartSchema,
+    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, SOCKET_EVENTS.GAME_START, gameStartSchema,
         async (ctx, validated) => {
             // Stop any existing timer
             await getSocketFunctions().stopTurnTimer(ctx.roomCode);
@@ -95,7 +95,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Reveal a card (current team's clicker, or any team member if clicker disconnected)
      */
-    socket.on(SOCKET_EVENTS.GAME_REVEAL, createGameHandler(socket, 'game:reveal', gameRevealSchema,
+    socket.on(SOCKET_EVENTS.GAME_REVEAL, createGameHandler(socket, SOCKET_EVENTS.GAME_REVEAL, gameRevealSchema,
         async (ctx, validated) => {
             if (!ctx.player.team) {
                 throw new ValidationError('You must join a team before revealing cards');
@@ -207,7 +207,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Give a clue (spymaster only)
      */
-    socket.on(SOCKET_EVENTS.GAME_CLUE, createGameHandler(socket, 'game:clue', gameClueSchema,
+    socket.on(SOCKET_EVENTS.GAME_CLUE, createGameHandler(socket, SOCKET_EVENTS.GAME_CLUE, gameClueSchema,
         async (ctx, validated) => {
             if (!ctx.player || ctx.player.role !== 'spymaster') {
                 throw PlayerError.notSpymaster();
@@ -249,7 +249,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * End the current turn (current team's clicker only)
      */
-    socket.on(SOCKET_EVENTS.GAME_END_TURN, createGameHandler(socket, 'game:endTurn', null,
+    socket.on(SOCKET_EVENTS.GAME_END_TURN, createGameHandler(socket, SOCKET_EVENTS.GAME_END_TURN, null,
         async (ctx) => {
             if (!ctx.player || ctx.player.role !== 'clicker') {
                 throw PlayerError.notClicker();
@@ -290,7 +290,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Forfeit the game (host only)
      */
-    socket.on(SOCKET_EVENTS.GAME_FORFEIT, createHostHandler(socket, 'game:forfeit', null,
+    socket.on(SOCKET_EVENTS.GAME_FORFEIT, createHostHandler(socket, SOCKET_EVENTS.GAME_FORFEIT, null,
         async (ctx) => {
             if (!ctx.game || ctx.game.gameOver) {
                 throw GameStateError.noActiveGame();
@@ -340,7 +340,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Get game history (current game's move history)
      */
-    socket.on(SOCKET_EVENTS.GAME_HISTORY, createRoomHandler(socket, 'game:history', null,
+    socket.on(SOCKET_EVENTS.GAME_HISTORY, createRoomHandler(socket, SOCKET_EVENTS.GAME_HISTORY, null,
         async (ctx) => {
             const history = await gameService.getGameHistory(ctx.roomCode);
             socket.emit(SOCKET_EVENTS.GAME_HISTORY_DATA, { history });
@@ -350,7 +350,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Get past games history for this room (for replay)
      */
-    socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRoomHandler(socket, 'game:getHistory', gameHistoryLimitSchema,
+    socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRoomHandler(socket, SOCKET_EVENTS.GAME_GET_HISTORY, gameHistoryLimitSchema,
         async (ctx, validated) => {
             const history = await gameHistoryService.getGameHistory(ctx.roomCode, validated.limit);
             socket.emit(SOCKET_EVENTS.GAME_HISTORY_RESULT, { history });
@@ -361,7 +361,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Get replay data for a specific game
      */
-    socket.on(SOCKET_EVENTS.GAME_GET_REPLAY, createRoomHandler(socket, 'game:getReplay', gameReplaySchema,
+    socket.on(SOCKET_EVENTS.GAME_GET_REPLAY, createRoomHandler(socket, SOCKET_EVENTS.GAME_GET_REPLAY, gameReplaySchema,
         async (ctx, validated) => {
             const replayData = await gameHistoryService.getReplayEvents(ctx.roomCode, validated.gameId);
 
