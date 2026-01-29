@@ -17,7 +17,7 @@ const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
+const { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
 const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
@@ -398,7 +398,6 @@ module.exports = function roomHandlers(io, socket) {
             const roomStats = await playerService.getRoomStats(code);
 
             let newReconnectionToken = null;
-            const { SESSION_SECURITY } = require('../../config/constants');
             if (SESSION_SECURITY.ROTATE_SESSION_ON_RECONNECT) {
                 try {
                     newReconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);

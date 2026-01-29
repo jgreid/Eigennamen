@@ -30,9 +30,9 @@ const {
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { toEnglishUpperCase, localeIncludes } = require('../utils/sanitize');
 
-// Use centralized constant
+// Use centralized constants
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
-const MAX_TRANSACTION_RETRIES = 3;
+const MAX_TRANSACTION_RETRIES = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 
 /**
  * Execute a Redis transaction with optimistic locking and retries

@@ -366,7 +366,7 @@ module.exports = function gameHandlers(io, socket) {
             const replayData = await gameHistoryService.getReplayEvents(ctx.roomCode, validated.gameId);
 
             if (!replayData) {
-                throw new GameStateError(ERROR_CODES.ROOM_NOT_FOUND, 'Game not found in history');
+                throw new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'Game not found in history');
             }
 
             socket.emit(SOCKET_EVENTS.GAME_REPLAY_DATA, { replay: replayData });

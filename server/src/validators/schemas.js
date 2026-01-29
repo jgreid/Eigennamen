@@ -48,8 +48,8 @@ const roomCreateSchema = z.object({
     settings: z.object({
         teamNames: z.object({
             // FIX: Add removeControlChars transform with refine for regex validation
-            red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters').default('Red'),
-            blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters').default('Blue')
+            red: z.string().min(1, 'Team name is required').max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters').default('Red'),
+            blue: z.string().min(1, 'Team name is required').max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters').default('Blue')
         }).optional(),
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
@@ -72,8 +72,8 @@ const roomJoinSchema = z.object({
 const roomSettingsSchema = z.object({
     teamNames: z.object({
         // FIX: Add removeControlChars transform with refine for regex validation
-        red: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters'),
-        blue: z.string().max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters')
+        red: z.string().min(1, 'Team name is required').max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters'),
+        blue: z.string().min(1, 'Team name is required').max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform(val => removeControlChars(val).trim()).refine(val => teamNameRegex.test(val), 'Team name contains invalid characters')
     }).optional(),
     turnTimer: z.number().int().min(30).max(300).nullable().optional(),
     allowSpectators: z.boolean().optional()
@@ -192,7 +192,7 @@ const gameReplaySchema = z.object({
         .refine(val => val.length >= 1, 'Game ID is required')
 });
 
-// Session ID regex - UUIDs or similar identifiers
+// Session ID regex - alphanumeric, hyphens, underscores (not strict UUID format)
 const sessionIdRegex = /^[a-zA-Z0-9\-_]+$/;
 
 // Player kick schema (for player:kick)
@@ -202,6 +202,14 @@ const playerKickSchema = z.object({
         .max(100, 'Session ID too long')
         .transform(val => removeControlChars(val).trim())
         .refine(val => sessionIdRegex.test(val), 'Invalid session ID format')
+});
+
+// Timer add-time schema (centralized from timerHandlers.js)
+const timerAddTimeSchema = z.object({
+    seconds: z.number()
+        .int()
+        .min(10, 'Must add at least 10 seconds')
+        .max(300, 'Cannot add more than 5 minutes')
 });
 
 module.exports = {
@@ -221,6 +229,7 @@ module.exports = {
     gameHistoryLimitSchema,
     gameReplaySchema,
     playerKickSchema,
+    timerAddTimeSchema,
     // Export for reuse in custom validation
     createNicknameSchema
 };

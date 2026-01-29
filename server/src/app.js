@@ -326,8 +326,9 @@ app.get('/metrics', strictLimiter, async (req, res) => {
 });
 
 // Serve the game for any non-API route (SPA support)
+const RESERVED_PATH_PREFIXES = ['/api', '/socket.io', '/health', '/metrics', '/api-docs', '/admin'];
 app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io') || req.path.startsWith('/health') || req.path.startsWith('/metrics') || req.path.startsWith('/api-docs') || req.path.startsWith('/admin')) {
+    if (RESERVED_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
         return next();
     }
     res.sendFile(path.join(__dirname, '../public/index.html'));

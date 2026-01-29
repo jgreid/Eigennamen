@@ -13,7 +13,7 @@ const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { z } = require('zod');
 
-// Define schema inline to avoid circular import issues with validators/schemas.js
+// Schema defined inline to avoid issues with test mocks that partially mock constants
 const timerAddTimeSchema = z.object({
     seconds: z.number()
         .int()

@@ -78,8 +78,8 @@ module.exports = function chatHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
         async (ctx, validated) => {
-            // Only allow spectators (no team or explicitly spectator role)
-            if (ctx.player.team && ctx.player.role !== 'spectator') {
+            // Only allow spectators to send spectator-only messages
+            if (ctx.player.role !== 'spectator') {
                 throw PlayerError.notAuthorized();
             }
 
