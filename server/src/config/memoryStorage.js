@@ -689,6 +689,256 @@ class MemoryStorage {
             return this.data.get(timerKey);
         }
 
+        // ATOMIC_SET_TEAM_SCRIPT: 2 keys (playerKey, roomCode), 4 args (team, ttl, now, sessionId)
+        // Used by playerService.setTeam()
+        // Guard: keys[1] is a bare roomCode (e.g. "ABCDEF"), NOT "room:X:players"
+        if (numKeys === 2 && numArgs === 4 && options.keys[0].startsWith('player:') && !options.keys[1].includes(':players')) {
+            const playerKey = options.keys[0];
+            const roomCode = options.keys[1];
+            const newTeam = options.arguments[0];
+            const ttl = parseInt(options.arguments[1], 10);
+            const now = parseInt(options.arguments[2], 10);
+            const sessionId = options.arguments[3];
+
+            if (this._isExpired(playerKey) || !this.data.has(playerKey)) {
+                return null;
+            }
+
+            try {
+                const player = JSON.parse(this.data.get(playerKey));
+                const oldTeam = player.team;
+                const oldRole = player.role;
+
+                const actualNewTeam = newTeam !== '__NULL__' ? newTeam : null;
+                player.team = actualNewTeam;
+                player.lastSeen = now;
+
+                // Clear team-specific roles when switching teams
+                if (oldTeam !== actualNewTeam && (oldRole === 'spymaster' || oldRole === 'clicker')) {
+                    player.role = 'spectator';
+                }
+
+                this.data.set(playerKey, JSON.stringify(player));
+                this.expiries.set(playerKey, Date.now() + (ttl * 1000));
+
+                // Remove from old team set
+                if (oldTeam) {
+                    const oldTeamKey = `room:${roomCode}:team:${oldTeam}`;
+                    const oldSet = this.sets.get(oldTeamKey);
+                    if (oldSet) {
+                        oldSet.delete(sessionId);
+                        if (oldSet.size === 0) {
+                            this.sets.delete(oldTeamKey);
+                            this.expiries.delete(oldTeamKey);
+                        }
+                    }
+                }
+
+                // Add to new team set
+                if (actualNewTeam) {
+                    const newTeamKey = `room:${roomCode}:team:${actualNewTeam}`;
+                    if (!this.sets.has(newTeamKey)) {
+                        this.sets.set(newTeamKey, new Set());
+                    }
+                    this.sets.get(newTeamKey).add(sessionId);
+                    this.expiries.set(newTeamKey, Date.now() + (ttl * 1000));
+                }
+
+                return JSON.stringify({ player, oldTeam });
+            } catch (e) {
+                logger.error('Set team script error:', e.message);
+                return null;
+            }
+        }
+
+        // ATOMIC_SAFE_TEAM_SWITCH_SCRIPT: 3 keys (playerKey, teamSetKey, roomCode), 5 args
+        // Used by playerService.safeSetTeam()
+        if (numKeys === 3 && numArgs === 5 && options.keys[0].startsWith('player:')) {
+            const playerKey = options.keys[0];
+            const teamSetKey = options.keys[1];
+            const roomCode = options.keys[2];
+            const newTeam = options.arguments[0];
+            const sessionId = options.arguments[1];
+            const ttl = parseInt(options.arguments[2], 10);
+            const now = parseInt(options.arguments[3], 10);
+            const checkEmpty = options.arguments[4] === 'true';
+
+            if (this._isExpired(playerKey) || !this.data.has(playerKey)) {
+                return null;
+            }
+
+            try {
+                const player = JSON.parse(this.data.get(playerKey));
+                const oldTeam = player.team;
+                const oldRole = player.role;
+                const actualNewTeam = newTeam !== '__NULL__' ? newTeam : null;
+
+                // Check if team would become empty
+                if (checkEmpty && oldTeam && oldTeam !== actualNewTeam) {
+                    const oldSet = this.sets.get(teamSetKey);
+                    let otherConnected = 0;
+                    if (oldSet) {
+                        for (const memberId of oldSet) {
+                            if (memberId !== sessionId) {
+                                const mKey = `player:${memberId}`;
+                                if (!this._isExpired(mKey) && this.data.has(mKey)) {
+                                    const member = JSON.parse(this.data.get(mKey));
+                                    if (member.connected) {
+                                        otherConnected++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // No other connected members (or set doesn't exist) — reject
+                    if (otherConnected === 0) {
+                        return JSON.stringify({ success: false, reason: 'TEAM_WOULD_BE_EMPTY' });
+                    }
+                }
+
+                // Proceed with team change
+                player.team = actualNewTeam;
+                player.lastSeen = now;
+
+                if (oldTeam !== actualNewTeam && (oldRole === 'spymaster' || oldRole === 'clicker')) {
+                    player.role = 'spectator';
+                }
+
+                this.data.set(playerKey, JSON.stringify(player));
+                this.expiries.set(playerKey, Date.now() + (ttl * 1000));
+
+                // Remove from old team set
+                if (oldTeam) {
+                    const oldTeamKey = `room:${roomCode}:team:${oldTeam}`;
+                    const oldSet = this.sets.get(oldTeamKey);
+                    if (oldSet) {
+                        oldSet.delete(sessionId);
+                        if (oldSet.size === 0) {
+                            this.sets.delete(oldTeamKey);
+                            this.expiries.delete(oldTeamKey);
+                        }
+                    }
+                }
+
+                // Add to new team set
+                if (actualNewTeam) {
+                    const newTeamKey = `room:${roomCode}:team:${actualNewTeam}`;
+                    if (!this.sets.has(newTeamKey)) {
+                        this.sets.set(newTeamKey, new Set());
+                    }
+                    this.sets.get(newTeamKey).add(sessionId);
+                    this.expiries.set(newTeamKey, Date.now() + (ttl * 1000));
+                }
+
+                return JSON.stringify({ success: true, player });
+            } catch (e) {
+                logger.error('Safe team switch script error:', e.message);
+                return null;
+            }
+        }
+
+        // ATOMIC_SET_ROLE_SCRIPT: 2 keys (playerKey, roomPlayersKey), 4 args (role, sessionId, ttl, now)
+        // Used by playerService.setRole()
+        if (numKeys === 2 && numArgs === 4 && options.keys[0].startsWith('player:') && options.keys[1].includes(':players')) {
+            const playerKey = options.keys[0];
+            const roomPlayersKey = options.keys[1];
+            const newRole = options.arguments[0];
+            const sessionId = options.arguments[1];
+            const ttl = parseInt(options.arguments[2], 10);
+            const now = parseInt(options.arguments[3], 10);
+
+            if (this._isExpired(playerKey) || !this.data.has(playerKey)) {
+                return null;
+            }
+
+            try {
+                const player = JSON.parse(this.data.get(playerKey));
+
+                // For spymaster/clicker, require team and check uniqueness
+                if (newRole === 'spymaster' || newRole === 'clicker') {
+                    if (!player.team) {
+                        return JSON.stringify({ success: false, reason: 'NO_TEAM' });
+                    }
+
+                    const memberIds = this.sets.get(roomPlayersKey);
+                    if (memberIds) {
+                        for (const memberId of memberIds) {
+                            if (memberId !== sessionId) {
+                                const mKey = `player:${memberId}`;
+                                if (!this._isExpired(mKey) && this.data.has(mKey)) {
+                                    const member = JSON.parse(this.data.get(mKey));
+                                    if (member.team === player.team && member.role === newRole) {
+                                        return JSON.stringify({
+                                            success: false,
+                                            reason: 'ROLE_TAKEN',
+                                            existingNickname: member.nickname
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const oldRole = player.role;
+                player.role = newRole;
+                player.lastSeen = now;
+
+                this.data.set(playerKey, JSON.stringify(player));
+                this.expiries.set(playerKey, Date.now() + (ttl * 1000));
+
+                return JSON.stringify({ success: true, player, oldRole });
+            } catch (e) {
+                logger.error('Set role script error:', e.message);
+                return null;
+            }
+        }
+
+        // ATOMIC_HOST_TRANSFER_SCRIPT: 3 keys (oldHostKey, newHostKey, roomKey), 3 args
+        // Used by playerService.atomicHostTransfer()
+        if (numKeys === 3 && numArgs === 3 && options.keys[0].startsWith('player:') && options.keys[2].startsWith('room:')) {
+            const oldHostKey = options.keys[0];
+            const newHostKey = options.keys[1];
+            const roomKey = options.keys[2];
+            const newHostSessionId = options.arguments[0];
+            const ttl = parseInt(options.arguments[1], 10);
+            const now = parseInt(options.arguments[2], 10);
+
+            try {
+                if (this._isExpired(oldHostKey) || !this.data.has(oldHostKey)) {
+                    return JSON.stringify({ success: false, reason: 'OLD_HOST_NOT_FOUND' });
+                }
+                if (this._isExpired(newHostKey) || !this.data.has(newHostKey)) {
+                    return JSON.stringify({ success: false, reason: 'NEW_HOST_NOT_FOUND' });
+                }
+                if (this._isExpired(roomKey) || !this.data.has(roomKey)) {
+                    return JSON.stringify({ success: false, reason: 'ROOM_NOT_FOUND' });
+                }
+
+                const oldHost = JSON.parse(this.data.get(oldHostKey));
+                const newHost = JSON.parse(this.data.get(newHostKey));
+                const room = JSON.parse(this.data.get(roomKey));
+
+                oldHost.isHost = false;
+                oldHost.lastSeen = now;
+                newHost.isHost = true;
+                newHost.lastSeen = now;
+                room.hostSessionId = newHostSessionId;
+
+                this.data.set(oldHostKey, JSON.stringify(oldHost));
+                this.expiries.set(oldHostKey, Date.now() + (ttl * 1000));
+                this.data.set(newHostKey, JSON.stringify(newHost));
+                this.expiries.set(newHostKey, Date.now() + (ttl * 1000));
+                this.data.set(roomKey, JSON.stringify(room));
+                this.expiries.set(roomKey, Date.now() + (ttl * 1000));
+
+                return JSON.stringify({ success: true, oldHost, newHost });
+            } catch (e) {
+                logger.error('Host transfer script error:', e.message);
+                return JSON.stringify({ success: false, reason: 'SCRIPT_ERROR' });
+            }
+        }
+
         logger.debug('Memory storage eval called with unsupported script pattern', {
             numKeys, numArgs, firstKey: options.keys[0]
         });
