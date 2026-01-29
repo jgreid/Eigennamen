@@ -6,7 +6,6 @@
  * validation, error handling, and socket room management.
  */
 
-const roomService = require('../../services/roomService');
 const timerService = require('../../services/timerService');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
@@ -52,25 +51,8 @@ module.exports = function timerHandlers(io, socket) {
      */
     socket.on('timer:resume', createHostHandler(socket, 'timer:resume', null,
         async (ctx) => {
-            const result = await timerService.resumeTimer(ctx.roomCode, async (roomCode) => {
-                const room = await roomService.getRoom(roomCode);
-                if (!room) {
-                    logger.warn(`Timer expired but room ${roomCode} no longer exists`);
-                    return;
-                }
-
-                const gameService = require('../../services/gameService');
-                const game = await gameService.getGame(roomCode);
-                if (game && !game.gameOver) {
-                    const endResult = await gameService.endTurn(roomCode, 'Timer');
-                    io.to(`room:${roomCode}`).emit('game:turnEnded', {
-                        currentTurn: endResult.currentTurn,
-                        previousTurn: endResult.previousTurn,
-                        reason: 'timerExpired'
-                    });
-                    io.to(`room:${roomCode}`).emit('timer:expired', { roomCode });
-                }
-            });
+            const { createTimerExpireCallback } = getSocketFunctions();
+            const result = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
 
             if (result) {
                 io.to(`room:${ctx.roomCode}`).emit('timer:resumed', {
@@ -93,25 +75,8 @@ module.exports = function timerHandlers(io, socket) {
      */
     socket.on('timer:addTime', createHostHandler(socket, 'timer:addTime', timerAddTimeSchema,
         async (ctx, validated) => {
-            const result = await timerService.addTime(ctx.roomCode, validated.seconds, async (roomCode) => {
-                const room = await roomService.getRoom(roomCode);
-                if (!room) {
-                    logger.warn(`Timer expired but room ${roomCode} no longer exists`);
-                    return;
-                }
-
-                const gameService = require('../../services/gameService');
-                const game = await gameService.getGame(roomCode);
-                if (game && !game.gameOver) {
-                    const endResult = await gameService.endTurn(roomCode, 'Timer');
-                    io.to(`room:${roomCode}`).emit('game:turnEnded', {
-                        currentTurn: endResult.currentTurn,
-                        previousTurn: endResult.previousTurn,
-                        reason: 'timerExpired'
-                    });
-                    io.to(`room:${roomCode}`).emit('timer:expired', { roomCode });
-                }
-            });
+            const { createTimerExpireCallback } = getSocketFunctions();
+            const result = await timerService.addTime(ctx.roomCode, validated.seconds, createTimerExpireCallback());
 
             if (result) {
                 io.to(`room:${ctx.roomCode}`).emit('timer:timeAdded', {

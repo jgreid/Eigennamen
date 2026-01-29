@@ -311,7 +311,7 @@ describe('Extended Player Handlers Tests', () => {
             expect(mockSocket.emit).not.toHaveBeenCalledWith('game:spymasterView', expect.anything());
         });
 
-        test('handles player not in room after setRole', async () => {
+        test('succeeds even if setRole returns player with different roomCode', async () => {
             playerService.setRole.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'OTHER_ROOM',
@@ -322,9 +322,8 @@ describe('Extended Player Handlers Tests', () => {
             const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
             await setRoleHandler[1]({ role: 'clicker' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'ROOM_NOT_FOUND'
-            }));
+            // No longer checks roomCode mismatch after setRole
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('player:error', expect.anything());
         });
 
         test('handles null player from setRole', async () => {

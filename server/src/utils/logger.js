@@ -17,7 +17,7 @@ function loadCorrelationId() {
         try {
             const correlationModule = require('./correlationId');
             getContextFields = correlationModule.getContextFields;
-        } catch (e) {
+        } catch (_e) {
             // Module not available yet, return empty function
             getContextFields = () => ({});
         }

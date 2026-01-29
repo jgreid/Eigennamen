@@ -281,6 +281,7 @@ describe('Game Handlers', () => {
 
         test('validates player is spymaster', async () => {
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'clicker', team: 'red' });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
             const clueHandler = handlers.find(h => h[0] === 'game:clue');
@@ -299,6 +300,7 @@ describe('Game Handlers', () => {
                 team: 'red',
                 nickname: 'Spymaster1'
             });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
             gameService.giveClue.mockResolvedValue({
                 team: 'red',
                 word: 'ANIMAL',
@@ -385,6 +387,7 @@ describe('Game Handlers', () => {
 
         test('forfeits game successfully', async () => {
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
             gameService.forfeitGame.mockResolvedValue({
                 winner: 'blue',
                 forfeitingTeam: 'red',
@@ -451,7 +454,7 @@ describe('Game Handlers', () => {
             await startHandler[1]({});
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: 'Database error'
+                message: 'An unexpected error occurred'
             }));
         });
     });

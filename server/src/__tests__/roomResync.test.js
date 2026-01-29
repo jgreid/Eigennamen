@@ -357,7 +357,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'Failed to generate reconnection token'
+                message: 'An unexpected error occurred'
             }));
         });
     });

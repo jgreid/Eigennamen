@@ -214,7 +214,7 @@ describe('Extended Room Handlers Tests', () => {
             await leaveHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Leave failed'
+                message: 'An unexpected error occurred'
             }));
         });
     });
@@ -254,7 +254,7 @@ describe('Extended Room Handlers Tests', () => {
             await settingsHandler[1]({ turnTimer: 90 });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Update failed'
+                message: 'An unexpected error occurred'
             }));
         });
     });
@@ -366,7 +366,7 @@ describe('Extended Room Handlers Tests', () => {
             await tokenHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Failed to generate reconnection token'
+                message: 'An unexpected error occurred'
             }));
         });
 

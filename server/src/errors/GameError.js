@@ -26,7 +26,7 @@ class GameError extends Error {
 
         // Capture stack trace (excluding constructor)
         if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, GameError);
+            Error.captureStackTrace(this, this.constructor);
         }
     }
 
@@ -325,6 +325,36 @@ class WordListError extends GameError {
     }
 }
 
+/**
+ * Error codes that are safe to expose to clients.
+ * Errors with codes NOT in this list will have their message replaced
+ * with a generic message to prevent information disclosure.
+ */
+const SAFE_ERROR_CODES = [
+    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST',
+    'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED',
+    'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
+    'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR',
+    'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN',
+    'GAME_NOT_STARTED'
+];
+
+/**
+ * Sanitize an error for client emission.
+ * Only exposes the actual message for known-safe error codes.
+ *
+ * @param {Error|Object} error - The error to sanitize
+ * @returns {{code: string, message: string}} Safe error payload
+ */
+function sanitizeErrorForClient(error) {
+    const code = error.code || ERROR_CODES.SERVER_ERROR;
+    const isSafe = SAFE_ERROR_CODES.includes(code);
+    return {
+        code,
+        message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+    };
+}
+
 module.exports = {
     GameError,
     RoomError,
@@ -333,5 +363,7 @@ module.exports = {
     ValidationError,
     RateLimitError,
     ServerError,
-    WordListError
+    WordListError,
+    SAFE_ERROR_CODES,
+    sanitizeErrorForClient
 };

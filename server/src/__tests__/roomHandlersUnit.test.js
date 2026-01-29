@@ -521,8 +521,8 @@ describe('Room Handlers', () => {
             await eventHandlers['room:getReconnectionToken']();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
-                code: expect.any(String),
-                message: expect.stringContaining('Failed to generate')
+                code: 'SERVER_ERROR',
+                message: 'An unexpected error occurred'
             });
         });
     });

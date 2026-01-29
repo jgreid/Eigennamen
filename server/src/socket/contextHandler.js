@@ -26,6 +26,7 @@ const { createRateLimitedHandler } = require('./rateLimitHandler');
 const { validateInput } = require('../middleware/validation');
 const logger = require('../utils/logger');
 const { ERROR_CODES } = require('../config/constants');
+const { sanitizeErrorForClient } = require('../errors/GameError');
 
 /**
  * Create a handler with automatic context validation and rate limiting.
@@ -61,10 +62,7 @@ function createContextHandler(socket, eventName, schema, contextOptions, handler
                 roomCode: socket.roomCode
             });
 
-            socket.emit(errorEvent, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message || 'An unexpected error occurred'
-            });
+            socket.emit(errorEvent, sanitizeErrorForClient(error));
         }
     });
 }

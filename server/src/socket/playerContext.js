@@ -59,6 +59,11 @@ async function getPlayerContext(socket, options = {}) {
         });
 
         if (redisRoomCode) {
+            // Leave old room if socket was in a different one
+            if (socketRoomCode) {
+                socket.leave(`room:${socketRoomCode}`);
+                socket.leave(`spectators:${socketRoomCode}`);
+            }
             socket.roomCode = redisRoomCode;
             socket.join(`room:${redisRoomCode}`);
             socket.join(`player:${sessionId}`);
@@ -109,7 +114,7 @@ async function getPlayerContext(socket, options = {}) {
 
     if (requireGame && !context.game) {
         throw new RoomError(
-            ERROR_CODES.ROOM_NOT_FOUND,
+            ERROR_CODES.GAME_NOT_STARTED,
             'No active game in this room',
             { roomCode }
         );

@@ -13,8 +13,8 @@ const http = require('http');
 // ============ Mock Setup ============
 
 // Control variables - MUST be prefixed with 'mock' for Jest
-let mockRedisStorage = new Map();
-let mockRedisSets = new Map();
+const mockRedisStorage = new Map();
+const mockRedisSets = new Map();
 let mockLockAcquired = true;
 let mockRedisHealthy = true;
 let mockIsMemoryMode = false;

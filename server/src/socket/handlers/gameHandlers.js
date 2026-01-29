@@ -108,7 +108,7 @@ module.exports = function gameHandlers(io, socket) {
             // Allow reveal if player is clicker OR if clicker is disconnected
             const teamMembers = await playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn);
             if (!teamMembers || !Array.isArray(teamMembers)) {
-                throw new GameStateError('Unable to retrieve team members');
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'Unable to retrieve team members');
             }
             const teamClicker = teamMembers.find(p => p.role === 'clicker');
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
@@ -119,7 +119,7 @@ module.exports = function gameHandlers(io, socket) {
 
             const connectedTeamMembers = teamMembers.filter(p => p.connected);
             if (connectedTeamMembers.length === 0) {
-                throw new GameStateError(`No connected players on ${ctx.game.currentTurn} team`);
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, `No connected players on ${ctx.game.currentTurn} team`);
             }
 
             const result = await withTimeout(
@@ -207,7 +207,7 @@ module.exports = function gameHandlers(io, socket) {
     /**
      * Give a clue (spymaster only)
      */
-    socket.on(SOCKET_EVENTS.GAME_CLUE, createRoomHandler(socket, 'game:clue', gameClueSchema,
+    socket.on(SOCKET_EVENTS.GAME_CLUE, createGameHandler(socket, 'game:clue', gameClueSchema,
         async (ctx, validated) => {
             if (!ctx.player || ctx.player.role !== 'spymaster') {
                 throw PlayerError.notSpymaster();
@@ -292,6 +292,10 @@ module.exports = function gameHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.GAME_FORFEIT, createHostHandler(socket, 'game:forfeit', null,
         async (ctx) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw GameStateError.noActiveGame();
+            }
+
             // Stop timer
             await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
@@ -362,7 +366,7 @@ module.exports = function gameHandlers(io, socket) {
             const replayData = await gameHistoryService.getReplayEvents(ctx.roomCode, validated.gameId);
 
             if (!replayData) {
-                throw new GameStateError('Game not found in history');
+                throw new GameStateError(ERROR_CODES.ROOM_NOT_FOUND, 'Game not found in history');
             }
 
             socket.emit(SOCKET_EVENTS.GAME_REPLAY_DATA, { replay: replayData });

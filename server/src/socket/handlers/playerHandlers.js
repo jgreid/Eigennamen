@@ -12,7 +12,7 @@ const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { canChangeTeamOrRole } = require('../playerContext');
-const { PlayerError, ValidationError } = require('../../errors/GameError');
+const { PlayerError, ValidationError, GameStateError, RoomError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
 
 module.exports = function playerHandlers(io, socket) {
@@ -24,10 +24,7 @@ module.exports = function playerHandlers(io, socket) {
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
-                throw {
-                    code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN,
-                    message: canChange.reason
-                };
+                throw new GameStateError(ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN, canChange.reason);
             }
 
             const shouldCheckEmpty = ctx.game && !ctx.game.gameOver &&
@@ -72,22 +69,13 @@ module.exports = function playerHandlers(io, socket) {
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
-                throw {
-                    code: ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN,
-                    message: canChange.reason
-                };
+                throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
             }
 
             const player = await playerService.setRole(ctx.sessionId, validated.role);
 
             if (!player) {
                 throw PlayerError.notFound(ctx.sessionId);
-            }
-
-            if (player.roomCode !== ctx.roomCode) {
-                throw new (require('../../errors/GameError').RoomError)(
-                    ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: ctx.roomCode }
-                );
             }
 
             // Broadcast to room
@@ -133,12 +121,6 @@ module.exports = function playerHandlers(io, socket) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            if (player.roomCode !== ctx.roomCode) {
-                throw new (require('../../errors/GameError').RoomError)(
-                    ERROR_CODES.ROOM_NOT_FOUND, 'Player not in room', { roomCode: ctx.roomCode }
-                );
-            }
-
             const sanitizedNickname = sanitizeHtml(player.nickname);
 
             // Broadcast to room
@@ -158,6 +140,8 @@ module.exports = function playerHandlers(io, socket) {
             );
 
             logger.info(`Player ${ctx.sessionId} changed nickname to ${sanitizedNickname}`);
+
+            return { player };
         }
     ));
 

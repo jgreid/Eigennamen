@@ -27,7 +27,8 @@ const REQUIRED_FUNCTIONS = [
     'startTurnTimer',
     'stopTurnTimer',
     'getTimerStatus',
-    'getIO'
+    'getIO',
+    'createTimerExpireCallback'
 ];
 
 /**

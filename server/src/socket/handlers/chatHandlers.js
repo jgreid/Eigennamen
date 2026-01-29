@@ -11,6 +11,7 @@ const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
+const { RoomError, PlayerError } = require('../../errors/GameError');
 
 module.exports = function chatHandlers(io, socket) {
 
@@ -36,7 +37,7 @@ module.exports = function chatHandlers(io, socket) {
             if (validated.spectatorOnly && ctx.player.role === 'spectator') {
                 const allPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
                 if (!allPlayers || !Array.isArray(allPlayers)) {
-                    throw { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'Room not found' };
+                    throw RoomError.notFound(ctx.roomCode);
                 }
                 const spectators = allPlayers.filter(p => p.role === 'spectator' && p.connected);
 
@@ -77,10 +78,9 @@ module.exports = function chatHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, 'chat:spectator', spectatorChatSchema,
         async (ctx, validated) => {
-            // Only allow spectators
-            const isSpectator = ctx.player.role === 'spectator' || !ctx.player.team;
-            if (!isSpectator) {
-                throw { code: ERROR_CODES.NOT_AUTHORIZED, message: 'Only spectators can send spectator chat messages' };
+            // Only allow spectators (no team or explicitly spectator role)
+            if (ctx.player.team && ctx.player.role !== 'spectator') {
+                throw PlayerError.notAuthorized();
             }
 
             const message = {

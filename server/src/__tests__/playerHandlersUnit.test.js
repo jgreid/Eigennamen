@@ -249,8 +249,8 @@ describe('Player Handlers', () => {
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
-                code: expect.any(String),
-                message: 'Database error'
+                code: 'SERVER_ERROR',
+                message: 'An unexpected error occurred'
             });
             expect(logger.error).toHaveBeenCalled();
         });
@@ -276,18 +276,17 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('emits error when setRole returns player in different room', async () => {
+        test('succeeds even when setRole returns player in different room', async () => {
             playerService.setRole.mockResolvedValue({
                 sessionId: 'session-1',
-                roomCode: 'OTHER'
+                roomCode: 'OTHER',
+                role: 'spymaster'
             });
 
             await eventHandlers['player:setRole']({ role: 'spymaster' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
-                code: expect.any(String),
-                message: expect.any(String)
-            });
+            // No longer checks roomCode mismatch after setRole
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('player:error', expect.anything());
         });
 
         test('sends spymaster view when becoming spymaster', async () => {
@@ -345,8 +344,8 @@ describe('Player Handlers', () => {
             await eventHandlers['player:setRole']({ role: 'spymaster' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
-                code: expect.any(String),
-                message: 'Role error'
+                code: 'SERVER_ERROR',
+                message: 'An unexpected error occurred'
             });
         });
     });
@@ -371,7 +370,7 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('emits error when player not in room', async () => {
+        test('succeeds even when setNickname returns player in different room', async () => {
             playerService.setNickname.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'OTHER',
@@ -380,10 +379,8 @@ describe('Player Handlers', () => {
 
             await eventHandlers['player:setNickname']({ nickname: 'NewName' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
-                code: expect.any(String),
-                message: expect.any(String)
-            });
+            // No longer checks roomCode mismatch after setNickname
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('player:error', expect.anything());
         });
 
         test('sanitizes nickname before broadcasting', async () => {

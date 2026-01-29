@@ -178,7 +178,7 @@ describe('Spectator Chat Feature', () => {
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
                     code: ERROR_CODES.NOT_AUTHORIZED,
-                    message: 'Only spectators can send spectator chat messages'
+                    message: 'Not authorized to perform this action'
                 }));
                 expect(mockIo.emit).not.toHaveBeenCalled();
             });
@@ -375,7 +375,7 @@ describe('Spectator Chat Feature', () => {
                 await spectatorHandler[1]({ message: 'Hello' });
 
                 expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    message: 'Database connection failed'
+                    message: 'An unexpected error occurred'
                 }));
             });
 

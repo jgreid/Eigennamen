@@ -260,6 +260,10 @@ describe('Extended Game Handlers Tests', () => {
                 team: 'red',
                 nickname: 'Spymaster1'
             });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                currentTurn: 'red'
+            });
             gameService.giveClue.mockResolvedValue({
                 team: 'red',
                 word: 'ANIMAL',
@@ -404,6 +408,7 @@ describe('Extended Game Handlers Tests', () => {
 
         test('logs event for forfeit', async () => {
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true });
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
             gameService.forfeitGame.mockResolvedValue({
                 winner: 'blue',
                 forfeitingTeam: 'red',
@@ -435,7 +440,7 @@ describe('Extended Game Handlers Tests', () => {
             await historyHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: 'History error'
+                message: 'An unexpected error occurred'
             }));
         });
 

@@ -311,7 +311,7 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Hello', teamOnly: false });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                message: 'Database connection failed'
+                message: 'An unexpected error occurred'
             }));
         });
 
@@ -329,7 +329,7 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Team message', teamOnly: true });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                message: 'Failed to fetch team'
+                message: 'An unexpected error occurred'
             }));
         });
 

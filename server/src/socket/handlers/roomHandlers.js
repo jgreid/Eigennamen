@@ -19,8 +19,8 @@ const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchem
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
 const { createRateLimitedHandler } = require('../rateLimitHandler');
-const { createRoomHandler, createSimpleContextHandler } = require('../contextHandler');
-const { RoomError } = require('../../errors/GameError');
+const { createRoomHandler, createHostHandler } = require('../contextHandler');
+const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 
@@ -206,6 +206,7 @@ module.exports = function roomHandlers(io, socket) {
             // Leave all socket rooms for this room
             socket.leave(`room:${ctx.roomCode}`);
             socket.leave(`spectators:${ctx.roomCode}`);
+            socket.leave(`player:${ctx.sessionId}`);
 
             const remainingPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
 
@@ -232,7 +233,7 @@ module.exports = function roomHandlers(io, socket) {
     /**
      * Update room settings (host only)
      */
-    socket.on('room:settings', createRoomHandler(socket, 'room:settings', roomSettingsSchema,
+    socket.on('room:settings', createHostHandler(socket, 'room:settings', roomSettingsSchema,
         async (ctx, validated) => {
             const settings = await roomService.updateSettings(
                 ctx.roomCode,
@@ -314,7 +315,7 @@ module.exports = function roomHandlers(io, socket) {
             }
 
             if (!token) {
-                throw { code: ERROR_CODES.SERVER_ERROR, message: 'Failed to generate reconnection token' };
+                throw new ServerError('Failed to generate reconnection token');
             }
 
             socket.emit('room:reconnectionToken', {
@@ -340,13 +341,13 @@ module.exports = function roomHandlers(io, socket) {
                 const validation = await playerService.validateReconnectionToken(reconnectionToken, socket.sessionId);
 
                 if (!validation.valid) {
-                    throw { code: ERROR_CODES.NOT_AUTHORIZED, message: `Invalid reconnection token: ${validation.reason}` };
+                    throw new PlayerError(ERROR_CODES.NOT_AUTHORIZED, `Invalid reconnection token: ${validation.reason}`);
                 }
 
                 const { tokenData } = validation;
 
                 if (tokenData.roomCode !== code) {
-                    throw { code: ERROR_CODES.INVALID_INPUT, message: 'Token does not match room' };
+                    throw new PlayerError(ERROR_CODES.INVALID_INPUT, 'Token does not match room');
                 }
 
                 const room = await roomService.getRoom(code);
@@ -361,7 +362,7 @@ module.exports = function roomHandlers(io, socket) {
 
                 const player = await playerService.getPlayer(socket.sessionId);
                 if (!player) {
-                    throw { code: ERROR_CODES.PLAYER_NOT_FOUND, message: 'Player not found after reconnect' };
+                    throw PlayerError.notFound(socket.sessionId);
                 }
                 const players = await playerService.getPlayersInRoom(code);
                 if (!players || !Array.isArray(players)) {

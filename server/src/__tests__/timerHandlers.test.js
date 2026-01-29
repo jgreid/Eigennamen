@@ -54,7 +54,8 @@ describe('Timer Handlers', () => {
 
         // Setup default mocks
         getSocketFunctions.mockReturnValue({
-            startTurnTimer: jest.fn()
+            startTurnTimer: jest.fn(),
+            createTimerExpireCallback: jest.fn(() => jest.fn())
         });
 
         // Default player mock with roomCode for context handler
@@ -229,7 +230,7 @@ describe('Timer Handlers', () => {
             });
         });
 
-        it('should handle timer expiration callback correctly', async () => {
+        it('should pass createTimerExpireCallback result to resumeTimer', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
@@ -237,59 +238,23 @@ describe('Timer Handlers', () => {
                 nickname: 'HostPlayer'
             });
 
-            let expireCallback;
-            timerService.resumeTimer.mockImplementation(async (roomCode, callback) => {
-                expireCallback = callback;
-                return { remainingSeconds: 45, endTime: Date.now() + 45000 };
+            const mockExpireCallback = jest.fn();
+            getSocketFunctions.mockReturnValue({
+                startTurnTimer: jest.fn(),
+                createTimerExpireCallback: jest.fn(() => mockExpireCallback)
             });
 
-            roomService.getRoom.mockResolvedValue({ code: 'TEST01' });
-            gameService.getGame.mockResolvedValue({ gameOver: false });
-            gameService.endTurn.mockResolvedValue({
-                currentTurn: 'blue',
-                previousTurn: 'red'
+            timerService.resumeTimer.mockResolvedValue({
+                remainingSeconds: 45,
+                endTime: Date.now() + 45000
             });
 
             const handler = mockSocket._handlers['timer:resume'];
             await handler();
 
-            // Simulate timer expiration
-            await expireCallback('TEST01');
-
-            expect(gameService.endTurn).toHaveBeenCalledWith('TEST01', 'Timer');
-            expect(mockIo.emit).toHaveBeenCalledWith('game:turnEnded', expect.objectContaining({
-                reason: 'timerExpired'
-            }));
-            expect(mockIo.emit).toHaveBeenCalledWith('timer:expired', { roomCode: 'TEST01' });
-        });
-
-        it('should not emit events if room no longer exists on expiration', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'test-session-id',
-                roomCode: 'TEST01',
-                isHost: true,
-                nickname: 'HostPlayer'
-            });
-
-            let expireCallback;
-            timerService.resumeTimer.mockImplementation(async (roomCode, callback) => {
-                expireCallback = callback;
-                return { remainingSeconds: 45, endTime: Date.now() + 45000 };
-            });
-
-            roomService.getRoom.mockResolvedValue(null);
-
-            const handler = mockSocket._handlers['timer:resume'];
-            await handler();
-
-            // Clear previous emit calls
-            mockIo.emit.mockClear();
-
-            // Simulate timer expiration
-            await expireCallback('TEST01');
-
-            // Should not call game:turnEnded or timer:expired
-            expect(gameService.endTurn).not.toHaveBeenCalled();
+            // Verify createTimerExpireCallback was called and its result passed to resumeTimer
+            expect(getSocketFunctions().createTimerExpireCallback).toHaveBeenCalled;
+            expect(timerService.resumeTimer).toHaveBeenCalledWith('TEST01', mockExpireCallback);
         });
     });
 
