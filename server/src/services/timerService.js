@@ -1,108 +1,24 @@
 /**
- * Timer Service - Turn timer management with Redis backing for horizontal scaling
+ * Timer Service - Turn timer management with Redis backing
  *
- * Architecture:
- * - Timer state is stored in Redis for persistence across instances
- * - Local timeouts handle expiration on the instance that started the timer
- * - Redis pub/sub coordinates timer events across instances
- * - Polling checks for orphaned timers when instances crash
+ * Single-instance architecture:
+ * - Timer state is stored in Redis for persistence
+ * - Local timeouts handle expiration
  */
 
-const { getRedis, getPubSubClients } = require('../config/redis');
+const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
-const pubSubHealth = require('../utils/pubSubHealth');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { TIMER, REDIS_TTL, LOCKS } = require('../config/constants');
+const { TIMER, REDIS_TTL } = require('../config/constants');
 
 // Local timers for this instance
 const localTimers = new Map();
 
-// Track pending addTime operations to prevent race conditions
-// Each entry is { promise: Promise, createdAt: number }
-const pendingAddTimeOps = new Map();
-
 // Use centralized constants
-const ORPHAN_CHECK_INTERVAL = TIMER.ORPHAN_CHECK_INTERVAL_MS;
-const ORPHAN_CHECK_TIMEOUT = TIMER.ORPHAN_CHECK_TIMEOUT_MS;
-const MAX_ORPHAN_KEYS = TIMER.MAX_ORPHAN_KEYS;
 const TIMER_TTL_BUFFER = TIMER.TIMER_TTL_BUFFER_SECONDS;
-const PENDING_OP_MAX_AGE_MS = TIMER.PENDING_OP_MAX_AGE_MS;
-
-let orphanCheckInterval = null;
 
 // Redis key prefixes
 const TIMER_KEY_PREFIX = 'timer:';
-const TIMER_CHANNEL = 'timer:events';
-
-/**
- * Creates a timer expiration callback function
- * Extracted to avoid duplication between startTimer and addTimeLocal
- * @param {string} roomCode - Room code
- * @param {Function} onExpire - User-provided callback
- * @returns {Function} Async callback for setTimeout
- */
-function createTimerExpirationCallback(roomCode, onExpire) {
-    return async () => {
-        try {
-            const redis = getRedis();
-            logger.info(`Timer expired for room ${roomCode}`);
-            localTimers.delete(roomCode);
-
-            // Remove from Redis
-            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-            // Publish expiration event with health tracking
-            try {
-                const { pubClient } = getPubSubClients();
-                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                    type: 'expired',
-                    roomCode,
-                    timestamp: Date.now()
-                }));
-                pubSubHealth.recordSuccess('publish');
-            } catch (e) {
-                pubSubHealth.recordFailure('publish', e);
-                logger.warn(`Failed to publish timer expiration event for room ${roomCode}:`, e.message);
-            }
-
-            // Call user callback if provided
-            if (onExpire) {
-                try {
-                    await onExpire(roomCode);
-                } catch (callbackError) {
-                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                }
-            }
-        } catch (error) {
-            logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
-        }
-    };
-}
-
-/**
- * Lua script for atomic timer claim (prevents duplicate expiration handling)
- * Returns: timer data if claimed, nil if already claimed/expired by another instance
- */
-const ATOMIC_TIMER_CLAIM_SCRIPT = `
-local timerKey = KEYS[1]
-local instanceId = ARGV[1]
-
--- Get the timer data
-local timerData = redis.call('GET', timerKey)
-if not timerData then
-    return nil
-end
-
--- Parse and check if already being handled
-local timer = cjson.decode(timerData)
-if timer.claimed then
-    return nil
-end
-
--- Mark as claimed by this instance and delete (atomic)
-redis.call('DEL', timerKey)
-return timerData
-`;
 
 /**
  * Lua script for atomic addTime operation
@@ -150,168 +66,33 @@ return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeco
 `;
 
 /**
- * Initialize timer service with Redis pub/sub
- * Includes retry logic for pub/sub subscription
- * Call this on server startup
+ * Creates a timer expiration callback function
+ * @param {string} roomCode - Room code
+ * @param {Function} onExpire - User-provided callback
+ * @returns {Function} Async callback for setTimeout
  */
-async function initializeTimerService(onExpireCallback, maxRetries = 3) {
-    let retries = 0;
-
-    const attemptSubscription = async () => {
+function createTimerExpirationCallback(roomCode, onExpire) {
+    return async () => {
         try {
-            const { subClient } = getPubSubClients();
+            const redis = getRedis();
+            logger.info(`Timer expired for room ${roomCode}`);
+            localTimers.delete(roomCode);
 
-            // Subscribe to timer events for coordination across instances
-            await subClient.subscribe(TIMER_CHANNEL, (message) => {
+            // Remove from Redis
+            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+            // Call user callback if provided
+            if (onExpire) {
                 try {
-                    const event = JSON.parse(message);
-
-                    // SECURITY FIX: Validate event structure before processing
-                    if (!event || typeof event !== 'object') {
-                        logger.warn('Invalid timer event: not an object');
-                        return;
-                    }
-                    if (!event.type || typeof event.type !== 'string') {
-                        logger.warn('Invalid timer event: missing or invalid type');
-                        return;
-                    }
-                    if (!event.roomCode || typeof event.roomCode !== 'string') {
-                        logger.warn('Invalid timer event: missing or invalid roomCode');
-                        return;
-                    }
-                    // Validate type is one of the expected values
-                    const validTypes = ['started', 'stopped', 'paused', 'addTime', 'expired'];
-                    if (!validTypes.includes(event.type)) {
-                        logger.warn(`Invalid timer event type: ${event.type}`);
-                        return;
-                    }
-
-                    pubSubHealth.recordSuccess('subscribe');
-                    handleTimerEvent(event, onExpireCallback);
-                } catch (e) {
-                    logger.error('Error handling timer event:', e);
+                    await onExpire(roomCode);
+                } catch (callbackError) {
+                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
                 }
-            });
-
-            // Start orphan timer check
-            startOrphanCheck(onExpireCallback);
-
-            pubSubHealth.recordSuccess('subscribe');
-            logger.info('Timer service initialized with Redis backing');
-            return true;
-        } catch (error) {
-            retries++;
-            pubSubHealth.recordFailure('subscribe', error);
-            if (retries < maxRetries) {
-                logger.warn(`Timer service pub/sub subscription failed (attempt ${retries}/${maxRetries}), retrying in 2s...`);
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                return attemptSubscription();
             }
-            logger.warn('Timer service running in single-instance mode (Redis pub/sub unavailable after retries)');
-            // Still start orphan check even without pub/sub - it works locally
-            startOrphanCheck(onExpireCallback);
-            return false;
+        } catch (error) {
+            logger.error(`Error handling timer expiration for room ${roomCode}:`, error);
         }
     };
-
-    return attemptSubscription();
-}
-
-/**
- * Handle timer events from pub/sub
- * ISSUE #34 FIX: Added 'addTime' event handling for multi-instance routing
- */
-function handleTimerEvent(event, onExpireCallback) {
-    switch (event.type) {
-        case 'started':
-            // Another instance started a timer - clear any local timer for this room
-            if (localTimers.has(event.roomCode)) {
-                clearTimeout(localTimers.get(event.roomCode).timeoutId);
-                localTimers.delete(event.roomCode);
-            }
-            break;
-        case 'stopped':
-            // Another instance stopped a timer
-            if (localTimers.has(event.roomCode)) {
-                clearTimeout(localTimers.get(event.roomCode).timeoutId);
-                localTimers.delete(event.roomCode);
-            }
-            break;
-        case 'paused':
-            // ISSUE #30 FIX: Handle pause event from another instance
-            // Clear local timer but keep the data marked as paused
-            if (localTimers.has(event.roomCode)) {
-                const timer = localTimers.get(event.roomCode);
-                clearTimeout(timer.timeoutId);
-                timer.paused = true;
-                timer.remainingWhenPaused = event.remainingSeconds;
-                // Don't delete - keep the paused state locally
-            }
-            break;
-        case 'addTime':
-            // ISSUE #34 FIX: Handle addTime from another instance
-            // Only the instance that owns the timer should process this
-            if (localTimers.has(event.roomCode)) {
-                // Serialize addTime operations per room to prevent race conditions
-                const processAddTime = async () => {
-                    const localTimer = localTimers.get(event.roomCode);
-                    if (!localTimer) return; // Timer may have been removed
-
-                    // If event contains newEndTime, it's a notification of completed addTime
-                    // If event contains secondsToAdd, it's a request to add time
-                    if (event.newEndTime) {
-                        // Update local timer with new end time from completed operation
-                        clearTimeout(localTimer.timeoutId);
-                        localTimer.endTime = event.newEndTime;
-                        localTimer.duration = event.newDuration;
-
-                        const remainingMs = event.newEndTime - Date.now();
-                        if (remainingMs > 0) {
-                            localTimer.timeoutId = setTimeout(async () => {
-                                try {
-                                    logger.info(`Timer expired for room ${event.roomCode}`);
-                                    localTimers.delete(event.roomCode);
-                                    const redis = getRedis();
-                                    await redis.del(`${TIMER_KEY_PREFIX}${event.roomCode}`);
-
-                                    if (onExpireCallback) {
-                                        await onExpireCallback(event.roomCode);
-                                    }
-                                } catch (error) {
-                                    logger.error(`Error handling timer expiration for room ${event.roomCode}:`, error);
-                                }
-                            }, remainingMs);
-
-                            logger.debug(`Updated local timer for room ${event.roomCode} via pub/sub addTime`);
-                        }
-                    } else if (event.secondsToAdd) {
-                        // Process addTime request locally since we own the timer
-                        logger.debug(`Processing addTime event for room ${event.roomCode} (we own this timer)`);
-                        await addTimeLocal(event.roomCode, event.secondsToAdd, onExpireCallback);
-                    }
-                };
-
-                // Chain operations to prevent race conditions
-                // MEMORY FIX: Track creation time for cleanup of stale entries
-                const existingEntry = pendingAddTimeOps.get(event.roomCode);
-                const existingOp = existingEntry?.promise || Promise.resolve();
-                const newOp = existingOp
-                    .then(processAddTime)
-                    .catch(err => logger.error(`Error processing addTime event for room ${event.roomCode}:`, err))
-                    .finally(() => {
-                        // Clean up if this is the last operation
-                        const currentEntry = pendingAddTimeOps.get(event.roomCode);
-                        if (currentEntry?.promise === newOp) {
-                            pendingAddTimeOps.delete(event.roomCode);
-                        }
-                    });
-                pendingAddTimeOps.set(event.roomCode, { promise: newOp, createdAt: Date.now() });
-            }
-            break;
-        case 'expired':
-            // Timer expired on another instance - no action needed
-            break;
-    }
 }
 
 /**
@@ -357,22 +138,6 @@ async function startTimer(roomCode, durationSeconds, onExpire) {
         onExpire
     });
 
-    // Publish start event with health tracking
-    try {
-        const { pubClient } = getPubSubClients();
-        await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-            type: 'started',
-            roomCode,
-            endTime,
-            duration: durationSeconds,
-            timestamp: Date.now()
-        }));
-        pubSubHealth.recordSuccess('publish');
-    } catch (e) {
-        pubSubHealth.recordFailure('publish', e);
-        logger.warn(`Failed to publish timer start event for room ${roomCode}:`, e.message);
-    }
-
     logger.info(`Timer started for room ${roomCode}: ${durationSeconds}s`);
 
     return {
@@ -399,20 +164,6 @@ async function stopTimer(roomCode) {
 
     // Remove from Redis
     await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-    // Publish stop event with health tracking
-    try {
-        const { pubClient } = getPubSubClients();
-        await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-            type: 'stopped',
-            roomCode,
-            timestamp: Date.now()
-        }));
-        pubSubHealth.recordSuccess('publish');
-    } catch (e) {
-        pubSubHealth.recordFailure('publish', e);
-        logger.warn(`Failed to publish timer stop event for room ${roomCode}:`, e.message);
-    }
 
     logger.info(`Timer stopped for room ${roomCode}`);
 }
@@ -470,7 +221,7 @@ async function getTimerStatus(roomCode) {
 /**
  * Pause timer for a room (stores remaining time)
  * @param {string} roomCode - Room code
- * @returns {number|null} Remaining seconds or null
+ * @returns {Object|null} Object with remainingSeconds or null
  */
 async function pauseTimer(roomCode) {
     const status = await getTimerStatus(roomCode);
@@ -503,87 +254,35 @@ async function pauseTimer(roomCode) {
         localTimer.remainingWhenPaused = remainingSeconds;
     }
 
-    // Publish pause event to all instances with health tracking
-    try {
-        const { pubClient } = getPubSubClients();
-        await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-            type: 'paused',
-            roomCode,
-            remainingSeconds,
-            timestamp: Date.now()
-        }));
-        pubSubHealth.recordSuccess('publish');
-    } catch (e) {
-        pubSubHealth.recordFailure('publish', e);
-        logger.warn(`Failed to publish pause event for room ${roomCode}:`, e.message);
-    }
-
     logger.info(`Timer paused for room ${roomCode}: ${remainingSeconds}s remaining`);
-    // BUG FIX: Return object with remainingSeconds property for consistency with handler expectations
     return { remainingSeconds };
 }
 
 /**
- * Resume a paused timer with distributed lock
- * ISSUE #33 FIX: Acquire lock to prevent duplicate timers across instances
+ * Resume a paused timer
  * @param {string} roomCode - Room code
  * @param {Function} onExpire - Callback when timer expires
  * @returns {Object|null} Timer info or null
  */
 async function resumeTimer(roomCode, onExpire) {
     const redis = getRedis();
-    const lockKey = `lock:timer:resume:${roomCode}`;
-    const lockValue = `${process.pid}:${Date.now()}`;
 
-    // ISSUE #33 FIX: Acquire distributed lock to prevent duplicate resume
-    // SPRINT-15 FIX: Explicit verification of lock acquisition result
-    let lockAcquired;
-    try {
-        const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: 5 });
-        // Redis SET with NX returns 'OK' on success, null if key exists
-        lockAcquired = lockResult === 'OK' || lockResult === true;
-    } catch (lockError) {
-        logger.error(`Failed to acquire timer resume lock for room ${roomCode}:`, {
-            error: lockError.message,
-            lockKey
-        });
+    const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
+
+    if (!timerData) {
         return null;
     }
 
-    if (!lockAcquired) {
-        logger.debug(`Another instance is resuming timer for room ${roomCode}`, { lockKey });
-        return null;
-    }
-
-    logger.debug(`Timer resume lock acquired for room ${roomCode}`, {
-        lockKey,
-        lockValue,
-        ttlSeconds: 5
-    });
-
     try {
-        const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
-
-        if (!timerData) {
+        const timer = JSON.parse(timerData);
+        if (!timer.paused) {
             return null;
         }
 
-        try {
-            const timer = JSON.parse(timerData);
-            if (!timer.paused) {
-                return null;
-            }
-
-            const remainingSeconds = timer.remainingWhenPaused;
-            return await startTimer(roomCode, remainingSeconds, onExpire);
-        } catch (e) {
-            return null;
-        }
-    } finally {
-        // Always release the lock
-        await redis.del(lockKey).catch(err => {
-            logger.error(`Failed to release resume lock for room ${roomCode}:`, err.message);
-        });
+        const remainingSeconds = timer.remainingWhenPaused;
+        return await startTimer(roomCode, remainingSeconds, onExpire);
+    } catch (e) {
+        return null;
     }
 }
 
@@ -592,14 +291,6 @@ async function resumeTimer(roomCode, onExpire) {
  * @param {string} roomCode - Room code
  * @param {number} secondsToAdd - Seconds to add
  * @param {Function} onExpire - Callback when timer expires
- * @returns {Object|null} Updated timer info or null
- */
-/**
- * Add time to a timer (routes to owning instance via pub/sub if needed)
- * ISSUE #34 FIX: Route addTime to the instance that owns the timer
- * @param {string} roomCode - Room code
- * @param {number} secondsToAdd - Seconds to add
- * @param {Function} onExpire - Callback when timer expires (only used if we own the timer)
  * @returns {Object|null} Updated timer info or null
  */
 async function addTime(roomCode, secondsToAdd, onExpire) {
@@ -615,69 +306,21 @@ async function addTime(roomCode, secondsToAdd, onExpire) {
         throw new Error(`Invalid secondsToAdd: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
     }
 
-    // ISSUE #34 FIX: Check if we own this timer locally
-    if (localTimers.has(roomCode)) {
-        // We own the timer - process locally
-        return addTimeLocal(roomCode, secondsToAdd, onExpire);
-    }
-
-    // Check if timer exists in Redis before trying pub/sub
-    const redis = getRedis();
-    const timerExists = await redis.exists(`${TIMER_KEY_PREFIX}${roomCode}`);
-    if (!timerExists) {
-        return null;
-    }
-
-    // We don't own the timer - try to route via pub/sub to the owning instance
-    try {
-        const { pubClient } = getPubSubClients();
-
-        // Publish addTime request for the owning instance to handle
-        await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-            type: 'addTime',
-            roomCode,
-            secondsToAdd,
-            timestamp: Date.now()
-        }));
-        pubSubHealth.recordSuccess('publish');
-
-        logger.debug(`Routed addTime request for room ${roomCode} via pub/sub`);
-
-        // ISSUE #16 FIX: Return current status with a flag indicating async routing
-        // The owning instance will update Redis asynchronously via pub/sub
-        // Callers should use the 'pending' flag to know the returned values may be stale
-        const currentStatus = await getTimerStatus(roomCode);
-        if (currentStatus) {
-            return {
-                ...currentStatus,
-                pending: true,  // Indicates the addTime is being processed asynchronously
-                secondsAdded: secondsToAdd
-            };
-        }
-        return null;
-    } catch (pubSubError) {
-        pubSubHealth.recordFailure('publish', pubSubError);
-        logger.warn(`Failed to route addTime via pub/sub for room ${roomCode}, falling back to local:`, pubSubError.message);
-        // Fallback to local processing if pub/sub fails
-        return addTimeLocal(roomCode, secondsToAdd, onExpire);
-    }
+    return addTimeLocal(roomCode, secondsToAdd, onExpire);
 }
 
 /**
  * Add time to a timer locally (internal implementation)
- * Only called when we own the timer or as fallback
  */
 async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
     const redis = getRedis();
 
     // Atomically add time to prevent race conditions
-    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
     const result = await withTimeout(
         redis.eval(
             ATOMIC_ADD_TIME_SCRIPT,
             {
                 keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-                // FIX: Pass TIMER_TTL_BUFFER as 4th argument instead of hardcoding in Lua
                 arguments: [secondsToAdd.toString(), process.pid.toString(), Date.now().toString(), TIMER_TTL_BUFFER.toString()]
             }
         ),
@@ -692,7 +335,7 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
     try {
         const newTimer = JSON.parse(result);
 
-        // Update or create local timer
+        // Update local timer if we own it
         const localTimer = localTimers.get(roomCode);
         if (localTimer) {
             // Clear existing timeout and create new one using shared expiration callback
@@ -710,27 +353,6 @@ async function addTimeLocal(roomCode, secondsToAdd, onExpire) {
                 timeoutId,
                 onExpire
             });
-        } else {
-            // No local timer exists - publish addTime event via pub/sub
-            // The owning instance will handle updating its local timer
-            logger.info(`Publishing addTime event for room ${roomCode} (not timer owner)`);
-
-            try {
-                const { pubClient } = getPubSubClients();
-                await pubClient.publish(TIMER_CHANNEL, JSON.stringify({
-                    type: 'addTime',
-                    roomCode,
-                    secondsAdded: secondsToAdd,
-                    newEndTime: newTimer.endTime,
-                    newDuration: newTimer.duration,
-                    remainingSeconds: newTimer.remainingSeconds,
-                    timestamp: Date.now()
-                }));
-                pubSubHealth.recordSuccess('publish');
-            } catch (e) {
-                pubSubHealth.recordFailure('publish', e);
-                logger.warn(`Failed to publish addTime event for room ${roomCode}:`, e.message);
-            }
         }
 
         logger.info(`Added ${secondsToAdd}s to timer for room ${roomCode}, new remaining: ${newTimer.remainingSeconds}s`);
@@ -757,186 +379,6 @@ async function hasActiveTimer(roomCode) {
 }
 
 /**
- * Start periodic check for orphaned timers (timers whose instance crashed)
- */
-function startOrphanCheck(onExpireCallback) {
-    if (orphanCheckInterval) {
-        clearInterval(orphanCheckInterval);
-    }
-
-    orphanCheckInterval = setInterval(async () => {
-        await checkOrphanedTimers(onExpireCallback);
-    }, ORPHAN_CHECK_INTERVAL);
-}
-
-/**
- * Check for and recover orphaned timers with timeout protection
- * Uses SCAN instead of KEYS to avoid blocking Redis in production
- */
-async function checkOrphanedTimers(onExpireCallback) {
-    const startTime = Date.now();
-
-    try {
-        const redis = getRedis();
-        const keys = [];
-
-        // Use SCAN for non-blocking iteration with timeout protection
-        const scanPromise = (async () => {
-            for await (const key of redis.scanIterator({
-                MATCH: `${TIMER_KEY_PREFIX}*`,
-                COUNT: 100
-            })) {
-                // Check if we've exceeded time or key limit
-                if (Date.now() - startTime > ORPHAN_CHECK_TIMEOUT) {
-                    logger.warn('Orphan timer check timed out, will continue next interval');
-                    break;
-                }
-                if (keys.length >= MAX_ORPHAN_KEYS) {
-                    logger.debug('Orphan timer check reached key limit, will continue next interval');
-                    break;
-                }
-                keys.push(key);
-            }
-        })();
-
-        // Add overall timeout protection
-        await Promise.race([
-            scanPromise,
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Scan timeout')), ORPHAN_CHECK_TIMEOUT)
-            )
-        ]).catch(err => {
-            if (err.message === 'Scan timeout') {
-                logger.warn('Orphan timer scan timed out');
-            } else {
-                throw err;
-            }
-        });
-
-        // Process found keys
-        for (const key of keys) {
-            // Check timeout for each key processing
-            if (Date.now() - startTime > ORPHAN_CHECK_TIMEOUT) {
-                break;
-            }
-
-            const roomCode = key.replace(TIMER_KEY_PREFIX, '');
-
-            // Skip if we already have a local timer for this room
-            if (localTimers.has(roomCode)) {
-                continue;
-            }
-
-            const timerData = await redis.get(key);
-            if (!timerData) continue;
-
-            try {
-                const timer = JSON.parse(timerData);
-
-                // Skip paused timers
-                if (timer.paused) continue;
-
-                const now = Date.now();
-                const remainingMs = timer.endTime - now;
-
-                if (remainingMs <= 0) {
-                    // Timer should have expired - atomically claim it to prevent duplicate handling
-                    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
-                    const claimed = await withTimeout(
-                        redis.eval(
-                            ATOMIC_TIMER_CLAIM_SCRIPT,
-                            {
-                                keys: [key],
-                                arguments: [process.pid.toString()]
-                            }
-                        ),
-                        TIMEOUTS.TIMER_OPERATION,
-                        `claimOrphanTimer-lua-${roomCode}`
-                    );
-
-                    if (claimed) {
-                        // We successfully claimed the expired timer
-                        logger.info(`Recovering expired orphaned timer for room ${roomCode}`);
-                        if (onExpireCallback) {
-                            try {
-                                await onExpireCallback(roomCode);
-                            } catch (callbackError) {
-                                logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                            }
-                        }
-                    }
-                    // If claimed is null, another instance already handled it
-                } else if (remainingMs > 0) {
-                    // Timer is still active but no local instance is handling it
-                    // RACE CONDITION FIX: Use distributed lock to prevent multiple instances
-                    // from simultaneously claiming the same orphaned timer
-                    // Uses centralized LOCKS.TIMER_ORPHAN constant
-                    const orphanLockKey = `lock:timer:orphan:${roomCode}`;
-                    const orphanLockValue = `${process.pid}:${Date.now()}`;
-
-                    // Try to acquire lock using centralized constant
-                    const lockResult = await redis.set(orphanLockKey, orphanLockValue, { NX: true, EX: LOCKS.TIMER_ORPHAN });
-                    const lockAcquired = lockResult === 'OK' || lockResult === true;
-
-                    if (!lockAcquired) {
-                        // Another instance is taking ownership
-                        logger.debug(`Skipping orphan takeover for room ${roomCode} - another instance handling it`);
-                        continue;
-                    }
-
-                    try {
-                        // Re-verify timer still needs takeover (could have been claimed in the meantime)
-                        const recheck = await redis.get(key);
-                        if (!recheck) {
-                            logger.debug(`Timer ${roomCode} no longer exists after lock acquisition`);
-                            continue;
-                        }
-
-                        // Verify no local timer was created while we waited for lock
-                        if (localTimers.has(roomCode)) {
-                            logger.debug(`Local timer for ${roomCode} appeared during lock acquisition`);
-                            continue;
-                        }
-
-                        // Take ownership
-                        logger.info(`Taking ownership of orphaned timer for room ${roomCode} (${Math.ceil(remainingMs / 1000)}s remaining)`);
-                        const remainingSeconds = Math.ceil(remainingMs / 1000);
-                        await startTimer(roomCode, remainingSeconds, onExpireCallback);
-                    } finally {
-                        // Release lock
-                        await redis.del(orphanLockKey).catch(err => {
-                            logger.warn(`Failed to release orphan lock for ${roomCode}:`, err.message);
-                        });
-                    }
-                }
-            } catch (e) {
-                logger.error(`Error processing orphaned timer ${key}:`, e);
-            }
-        }
-
-        const duration = Date.now() - startTime;
-        if (duration > 1000) {
-            logger.debug(`Orphan timer check completed in ${duration}ms, processed ${keys.length} keys`);
-        }
-
-        // MEMORY FIX: Clean up stale pending operations that may have hung
-        const now = Date.now();
-        let staleCount = 0;
-        for (const [roomCode, entry] of pendingAddTimeOps.entries()) {
-            if (now - entry.createdAt > PENDING_OP_MAX_AGE_MS) {
-                pendingAddTimeOps.delete(roomCode);
-                staleCount++;
-            }
-        }
-        if (staleCount > 0) {
-            logger.warn(`Cleaned up ${staleCount} stale pending addTime operations`);
-        }
-    } catch (error) {
-        logger.error('Error checking orphaned timers:', error);
-    }
-}
-
-/**
  * Clean up all timers (for shutdown)
  */
 async function cleanupAllTimers() {
@@ -946,34 +388,10 @@ async function cleanupAllTimers() {
     }
     localTimers.clear();
 
-    // Stop orphan check
-    if (orphanCheckInterval) {
-        clearInterval(orphanCheckInterval);
-        orphanCheckInterval = null;
-    }
-
     logger.info('All local timers cleaned up');
 }
 
-/**
- * Shutdown timer service gracefully
- */
-async function shutdownTimerService() {
-    await cleanupAllTimers();
-
-    // ISSUE #68 FIX: Log pub/sub failures during shutdown
-    try {
-        const { subClient } = getPubSubClients();
-        await subClient.unsubscribe(TIMER_CHANNEL);
-    } catch (e) {
-        logger.debug(`Timer service unsubscribe failed during shutdown: ${e.message}`);
-    }
-
-    logger.info('Timer service shut down');
-}
-
 module.exports = {
-    initializeTimerService,
     startTimer,
     stopTimer,
     getTimerStatus,
@@ -981,6 +399,5 @@ module.exports = {
     resumeTimer,
     addTime,
     hasActiveTimer,
-    cleanupAllTimers,
-    shutdownTimerService
+    cleanupAllTimers
 };

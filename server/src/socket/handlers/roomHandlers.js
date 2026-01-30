@@ -13,7 +13,6 @@
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
-const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -86,16 +85,6 @@ module.exports = function roomHandlers(io, socket) {
 
             socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
 
-            await eventLogService.logEvent(
-                room.code,
-                eventLogService.EVENT_TYPES.ROOM_CREATED,
-                {
-                    hostSessionId: socket.sessionId,
-                    hostNickname: player.nickname,
-                    settings: room.settings
-                }
-            );
-
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
 
         } catch (error) {
@@ -165,16 +154,6 @@ module.exports = function roomHandlers(io, socket) {
                 socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_JOINED, { player });
             }
 
-            await eventLogService.logEvent(
-                room.code,
-                eventLogService.EVENT_TYPES.PLAYER_JOINED,
-                {
-                    sessionId: socket.sessionId,
-                    nickname: validated.nickname,
-                    isReconnect
-                }
-            );
-
             logger.info(`Player ${validated.nickname} joined room ${room.code}`);
 
         } catch (error) {
@@ -216,15 +195,6 @@ module.exports = function roomHandlers(io, socket) {
                 players: remainingPlayers || []
             });
 
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.PLAYER_LEFT,
-                {
-                    sessionId: ctx.sessionId,
-                    newHostId: result?.newHostId || null
-                }
-            );
-
             logger.info(`Player ${ctx.sessionId} left room ${ctx.roomCode}`);
             socket.roomCode = null;
         }
@@ -242,15 +212,6 @@ module.exports = function roomHandlers(io, socket) {
             );
 
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_SETTINGS_UPDATED, { settings });
-
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.SETTINGS_UPDATED,
-                {
-                    sessionId: ctx.sessionId,
-                    settings
-                }
-            );
 
             logger.info(`Room ${ctx.roomCode} settings updated`);
         }
@@ -424,17 +385,6 @@ module.exports = function roomHandlers(io, socket) {
                 nickname: player.nickname,
                 team: player.team
             });
-
-            await eventLogService.logEvent(
-                code,
-                eventLogService.EVENT_TYPES.PLAYER_JOINED,
-                {
-                    sessionId: socket.sessionId,
-                    nickname: player.nickname,
-                    isReconnect: true,
-                    usedToken: true
-                }
-            );
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
 

@@ -59,10 +59,8 @@ async function getPlayerContext(socket, options = {}) {
         });
 
         if (redisRoomCode) {
-            // Leave old room if socket was in a different one
             if (socketRoomCode) {
                 socket.leave(`room:${socketRoomCode}`);
-                socket.leave(`spectators:${socketRoomCode}`);
             }
             socket.roomCode = redisRoomCode;
             socket.join(`room:${redisRoomCode}`);
@@ -74,7 +72,6 @@ async function getPlayerContext(socket, options = {}) {
         } else {
             if (socketRoomCode) {
                 socket.leave(`room:${socketRoomCode}`);
-                socket.leave(`spectators:${socketRoomCode}`);
             }
             socket.roomCode = null;
             logger.info('Cleared stale socket room membership', {
@@ -168,34 +165,7 @@ function canChangeTeamOrRole(ctx) {
     return { allowed: true };
 }
 
-/**
- * Sync socket room membership to match player state.
- * Call after any operation that might change player's room/team/role.
- *
- * @param {Object} socket - Socket.io socket
- * @param {Object} player - Updated player object from Redis
- * @param {Object} previousPlayer - Player object before the change
- */
-function syncSocketRooms(socket, player, previousPlayer = null) {
-    if (!player || !player.roomCode) {
-        return;
-    }
-
-    const roomCode = player.roomCode;
-    const wasSpectator = previousPlayer
-        ? (!previousPlayer.team || previousPlayer.role === 'spectator')
-        : true;
-    const isNowSpectator = !player.team || player.role === 'spectator';
-
-    if (wasSpectator && !isNowSpectator) {
-        socket.leave(`spectators:${roomCode}`);
-    } else if (!wasSpectator && isNowSpectator) {
-        socket.join(`spectators:${roomCode}`);
-    }
-}
-
 module.exports = {
     getPlayerContext,
-    canChangeTeamOrRole,
-    syncSocketRooms
+    canChangeTeamOrRole
 };

@@ -12,7 +12,6 @@ const logger = require('../utils/logger');
 const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
 const { isDatabaseEnabled } = require('../config/database');
 const { getAllMetrics } = require('../utils/metrics');
-const { getHttpRateLimitMetrics } = require('../middleware/rateLimit');
 const { API_RATE_LIMITS } = require('../config/constants');
 
 const router = express.Router();
@@ -119,7 +118,6 @@ router.get('/api/stats', async (req, res) => {
     try {
         const memUsage = process.memoryUsage();
         const appMetrics = getAllMetrics();
-        const httpRateLimitStats = getHttpRateLimitMetrics();
 
         // Get Redis health
         let redisStatus = { healthy: false, mode: 'unknown' };
@@ -180,9 +178,6 @@ router.get('/api/stats', async (req, res) => {
                 database: {
                     enabled: isDatabaseEnabled()
                 }
-            },
-            rateLimits: {
-                http: httpRateLimitStats
             },
             metrics: {
                 counters: appMetrics.counters,

@@ -6,57 +6,11 @@ const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 
 /**
- * HTTP API Rate Limit Metrics
- */
-const httpRateLimitMetrics = {
-    totalRequests: 0,
-    blockedRequests: 0,
-    uniqueIPs: new Set(),
-    blockedIPs: new Set(),
-    lastReset: Date.now(),
-
-    recordRequest(ip) {
-        this.totalRequests++;
-        this.uniqueIPs.add(ip);
-    },
-
-    recordBlocked(ip) {
-        this.blockedRequests++;
-        this.blockedIPs.add(ip);
-    },
-
-    getStats() {
-        const uptimeMinutes = (Date.now() - this.lastReset) / 60000;
-        return {
-            totalRequests: this.totalRequests,
-            blockedRequests: this.blockedRequests,
-            blockRate: this.totalRequests > 0
-                ? ((this.blockedRequests / this.totalRequests) * 100).toFixed(2) + '%'
-                : '0%',
-            uniqueIPs: this.uniqueIPs.size,
-            blockedIPs: this.blockedIPs.size,
-            requestsPerMinute: uptimeMinutes > 0
-                ? (this.totalRequests / uptimeMinutes).toFixed(2)
-                : 0,
-            uptimeMinutes: Math.floor(uptimeMinutes)
-        };
-    },
-
-    reset() {
-        this.totalRequests = 0;
-        this.blockedRequests = 0;
-        this.uniqueIPs.clear();
-        this.blockedIPs.clear();
-        this.lastReset = Date.now();
-    }
-};
-
-/**
- * API rate limiter with metrics
+ * API rate limiter
  */
 const apiLimiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60 * 1000, // 1 minute
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per window
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
     message: {
         error: {
             code: 'RATE_LIMITED',
@@ -66,14 +20,8 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
-        httpRateLimitMetrics.recordBlocked(req.ip);
         logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
-    },
-    // Track all requests for metrics
-    skip: (req) => {
-        httpRateLimitMetrics.recordRequest(req.ip);
-        return false; // Don't skip any requests
     }
 });
 
@@ -81,8 +29,8 @@ const apiLimiter = rateLimit({
  * Stricter rate limiter for sensitive endpoints
  */
 const strictLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 10, // 10 requests per minute
+    windowMs: 60 * 1000,
+    max: 10,
     message: {
         error: {
             code: 'RATE_LIMITED',
@@ -92,7 +40,6 @@ const strictLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
-        httpRateLimitMetrics.recordBlocked(req.ip);
         logger.warn(`Strict rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
     }
@@ -140,23 +87,10 @@ function createSocketRateLimiter(limits) {
     // Reverse index for O(1) socket cleanup: socketId -> Set of keys
     const socketKeyIndex = new Map();
 
-    // Metrics tracking
-    const metrics = {
-        totalRequests: 0,
-        blockedRequests: 0,
-        blockedByIP: 0,
-        requestsByEvent: {},
-        blockedByEvent: {},
-        uniqueSockets: new Set(),
-        uniqueIPs: new Set(),
-        lastReset: Date.now()
-    };
-
     /**
      * Get client IP from socket (set by socketAuth middleware)
      */
     const getSocketIP = (socket) => {
-        // IP is stored on handshake by socketAuth middleware
         return socket.clientIP || socket.handshake?.address || 'unknown';
     };
 
@@ -174,19 +108,11 @@ function createSocketRateLimiter(limits) {
             const now = Date.now();
             const windowStart = now - limit.window;
 
-            // Track metrics
-            metrics.totalRequests++;
-            metrics.requestsByEvent[eventName] = (metrics.requestsByEvent[eventName] || 0) + 1;
-            metrics.uniqueSockets.add(socket.id);
-            metrics.uniqueIPs.add(clientIP);
-
             // === Per-socket rate limiting ===
-            // Use in-place filtering to avoid memory allocation per request
             let socketTimestamps = socketRequests.get(socketKey);
             if (!socketTimestamps) {
                 socketTimestamps = [];
                 socketRequests.set(socketKey, socketTimestamps);
-                // Maintain reverse index for O(1) cleanup on disconnect
                 if (!socketKeyIndex.has(socket.id)) {
                     socketKeyIndex.set(socket.id, new Set());
                 }
@@ -195,8 +121,6 @@ function createSocketRateLimiter(limits) {
             const socketCount = filterTimestampsInPlace(socketTimestamps, windowStart);
 
             if (socketCount >= limit.max) {
-                metrics.blockedRequests++;
-                metrics.blockedByEvent[eventName] = (metrics.blockedByEvent[eventName] || 0) + 1;
                 logger.warn(`Socket rate limit exceeded: ${socket.id} for event ${eventName}`);
                 return next(new Error('Rate limit exceeded'));
             }
@@ -211,14 +135,10 @@ function createSocketRateLimiter(limits) {
             const ipCount = filterTimestampsInPlace(ipTimestamps, windowStart);
 
             if (ipCount >= ipLimit) {
-                metrics.blockedRequests++;
-                metrics.blockedByIP++;
-                metrics.blockedByEvent[eventName] = (metrics.blockedByEvent[eventName] || 0) + 1;
                 logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipCount} requests)`);
                 return next(new Error('IP rate limit exceeded'));
             }
 
-            // Add current timestamp (arrays are already stored in maps)
             socketTimestamps.push(now);
             ipTimestamps.push(now);
 
@@ -347,92 +267,16 @@ function createSocketRateLimiter(limits) {
         }
     };
 
-    /**
-     * Get current size of rate limit maps (for monitoring)
-     */
-    const getSize = () => socketRequests.size + ipRequests.size;
-
-    /**
-     * Get detailed metrics for monitoring
-     */
-    const getMetrics = () => {
-        const uptimeMinutes = (Date.now() - metrics.lastReset) / 60000;
-
-        // Find top blocked events
-        const topBlockedEvents = Object.entries(metrics.blockedByEvent)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([event, count]) => ({ event, count }));
-
-        // Find top requested events
-        const topRequestedEvents = Object.entries(metrics.requestsByEvent)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([event, count]) => ({ event, count }));
-
-        return {
-            totalRequests: metrics.totalRequests,
-            blockedRequests: metrics.blockedRequests,
-            blockedByIP: metrics.blockedByIP,
-            blockRate: metrics.totalRequests > 0
-                ? ((metrics.blockedRequests / metrics.totalRequests) * 100).toFixed(2) + '%'
-                : '0%',
-            uniqueSockets: metrics.uniqueSockets.size,
-            uniqueIPs: metrics.uniqueIPs.size,
-            activeSocketEntries: socketRequests.size,
-            activeIPEntries: ipRequests.size,
-            requestsPerMinute: uptimeMinutes > 0
-                ? (metrics.totalRequests / uptimeMinutes).toFixed(2)
-                : 0,
-            topRequestedEvents,
-            topBlockedEvents,
-            uptimeMinutes: Math.floor(uptimeMinutes)
-        };
-    };
-
-    /**
-     * Reset metrics (useful for periodic reset)
-     */
-    const resetMetrics = () => {
-        metrics.totalRequests = 0;
-        metrics.blockedRequests = 0;
-        metrics.blockedByIP = 0;
-        metrics.requestsByEvent = {};
-        metrics.blockedByEvent = {};
-        metrics.uniqueSockets.clear();
-        metrics.uniqueIPs.clear();
-        metrics.lastReset = Date.now();
-    };
-
     return {
         getLimiter,
         cleanupSocket,
         cleanupStale,
-        performLRUEviction,
-        getSize,
-        getMetrics,
-        resetMetrics
+        performLRUEviction
     };
-}
-
-/**
- * Get HTTP API rate limit metrics
- */
-function getHttpRateLimitMetrics() {
-    return httpRateLimitMetrics.getStats();
-}
-
-/**
- * Reset HTTP API rate limit metrics
- */
-function resetHttpRateLimitMetrics() {
-    httpRateLimitMetrics.reset();
 }
 
 module.exports = {
     apiLimiter,
     strictLimiter,
-    createSocketRateLimiter,
-    getHttpRateLimitMetrics,
-    resetHttpRateLimitMetrics
+    createSocketRateLimiter
 };

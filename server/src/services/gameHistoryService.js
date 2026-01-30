@@ -7,7 +7,6 @@
 
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
-const eventLogService = require('./eventLogService');
 const { v4: uuidv4 } = require('uuid');
 
 // Configuration

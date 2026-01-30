@@ -80,26 +80,10 @@ function getSocketRateLimiter() {
     return socketRateLimiter;
 }
 
-/**
- * Get socket rate limit metrics for monitoring
- */
-function getSocketRateLimitMetrics() {
-    return socketRateLimiter.getMetrics();
-}
-
-/**
- * Reset socket rate limit metrics
- */
-function resetSocketRateLimitMetrics() {
-    socketRateLimiter.resetMetrics();
-}
-
 module.exports = {
     socketRateLimiter,
     createRateLimitedHandler,
     getSocketRateLimiter,
-    getSocketRateLimitMetrics,
-    resetSocketRateLimitMetrics,
     startRateLimitCleanup,
     stopRateLimitCleanup
 };

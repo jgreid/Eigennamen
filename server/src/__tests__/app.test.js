@@ -22,14 +22,11 @@ jest.mock('../utils/correlationId', () => ({
     correlationMiddleware: (req, res, next) => next()
 }));
 
-jest.mock('../socket/rateLimitHandler', () => ({
-    getSocketRateLimitMetrics: jest.fn(() => ({ blockedRequests: 0 }))
-}));
+jest.mock('../socket/rateLimitHandler', () => ({}));
 
 jest.mock('../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next(),
-    getHttpRateLimitMetrics: jest.fn(() => ({ blockedRequests: 0 }))
+    strictLimiter: (req, res, next) => next()
 }));
 
 jest.mock('../middleware/csrf', () => ({

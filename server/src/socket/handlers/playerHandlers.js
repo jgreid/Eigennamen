@@ -6,7 +6,6 @@
  */
 
 const playerService = require('../../services/playerService');
-const eventLogService = require('../../services/eventLogService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
@@ -35,8 +34,12 @@ module.exports = function playerHandlers(io, socket) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            // Sync socket rooms before broadcasting so spectator rooms are correct
-            ctx.syncRooms(player);
+            // Update spectator room membership
+            if (player.team) {
+                socket.leave(`spectators:${ctx.roomCode}`);
+            } else {
+                socket.join(`spectators:${ctx.roomCode}`);
+            }
 
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
@@ -48,20 +51,7 @@ module.exports = function playerHandlers(io, socket) {
             const roomStats = await playerService.getRoomStats(ctx.roomCode);
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
-            // Log event for reconnection recovery
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.TEAM_CHANGED,
-                {
-                    sessionId: ctx.sessionId,
-                    nickname: player.nickname,
-                    team: player.team
-                }
-            );
-
             logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
-
-            return { player };
         }
     ));
 
@@ -81,8 +71,12 @@ module.exports = function playerHandlers(io, socket) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            // Sync socket rooms before broadcasting so spectator rooms are correct
-            ctx.syncRooms(player);
+            // Update spectator room membership
+            if (player.team && player.role !== 'spectator') {
+                socket.leave(`spectators:${ctx.roomCode}`);
+            } else {
+                socket.join(`spectators:${ctx.roomCode}`);
+            }
 
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
@@ -98,17 +92,6 @@ module.exports = function playerHandlers(io, socket) {
             if (player.role === 'spymaster' && ctx.game && !ctx.game.gameOver) {
                 socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: ctx.game.types });
             }
-
-            // Log event for reconnection recovery
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.ROLE_CHANGED,
-                {
-                    sessionId: ctx.sessionId,
-                    nickname: player.nickname,
-                    role: player.role
-                }
-            );
 
             logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);
 
@@ -134,16 +117,6 @@ module.exports = function playerHandlers(io, socket) {
                 sessionId: ctx.sessionId,
                 changes: { nickname: sanitizedNickname }
             });
-
-            // Log event for reconnection recovery
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.NICKNAME_CHANGED,
-                {
-                    sessionId: ctx.sessionId,
-                    nickname: sanitizedNickname
-                }
-            );
 
             logger.info(`Player ${ctx.sessionId} changed nickname to ${sanitizedNickname}`);
 
@@ -176,18 +149,6 @@ module.exports = function playerHandlers(io, socket) {
                 nickname: sanitizeHtml(targetPlayer.nickname),
                 kickedBy: sanitizeHtml(ctx.player.nickname)
             });
-
-            // Log the kick event
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.PLAYER_LEFT,
-                {
-                    sessionId: validated.targetSessionId,
-                    nickname: sanitizeHtml(targetPlayer.nickname),
-                    reason: 'kicked',
-                    kickedBy: sanitizeHtml(ctx.player.nickname)
-                }
-            );
 
             // Remove player from room data
             await playerService.removePlayer(validated.targetSessionId);

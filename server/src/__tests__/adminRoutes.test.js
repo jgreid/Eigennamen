@@ -86,17 +86,10 @@ jest.mock('../utils/metrics', () => ({
     setSocketConnections: jest.fn()
 }));
 
-// Mock rate limit metrics
+// Mock rate limit
 jest.mock('../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next(),
-    getHttpRateLimitMetrics: jest.fn(() => ({
-        totalRequests: 100,
-        blockedRequests: 5,
-        blockRate: '5%',
-        uniqueIPs: 10
-    })),
-    resetHttpRateLimitMetrics: jest.fn()
+    strictLimiter: (req, res, next) => next()
 }));
 
 // Mock roomService for delete operations
@@ -274,11 +267,7 @@ describe('Admin Routes', () => {
                 .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
                 .expect(200);
 
-            expect(response.body.rateLimits).toBeDefined();
-            expect(response.body.rateLimits.http).toMatchObject({
-                totalRequests: expect.any(Number),
-                blockedRequests: expect.any(Number)
-            });
+            expect(response.body.metrics).toBeDefined();
         });
 
         it('should include instance information', async () => {

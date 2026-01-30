@@ -9,7 +9,6 @@ const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
 const logger = require('../utils/logger');
 const { authenticateSocket } = require('../middleware/socketAuth');
 const timerService = require('../services/timerService');
-const eventLogService = require('../services/eventLogService');
 const { SOCKET, SOCKET_EVENTS } = require('../config/constants');
 const {
     socketRateLimiter,
@@ -29,7 +28,6 @@ const timerHandlers = require('./handlers/timerHandlers');
 
 let io = null;
 let app = null; // Reference to Express app for socket count updates
-let inactivityCheckInterval = null; // Sprint 19: Interval for checking idle sockets
 
 // Track connections per IP for DoS protection
 const connectionsPerIP = new Map();
@@ -216,169 +214,22 @@ function initializeSocket(server, expressApp = null) {
             }
         });
 
-        // Handle errors with classification and structured logging
+        // Handle socket errors
         socket.on('error', (error) => {
-            // Classify error type for metrics and handling
-            const errorInfo = classifySocketError(error);
-
             logger.error(`Socket error for ${socket.id}:`, {
-                errorType: errorInfo.type,
-                errorCode: errorInfo.code,
-                message: error.message,
-                sessionId: socket.sessionId,
-                clientIP: socket.clientIP,
-                stack: error.stack
-            });
-
-            // Emit error event to client with sanitized info (no internal details)
-            socket.emit('socket:error', {
-                code: errorInfo.code,
-                message: errorInfo.userMessage,
-                recoverable: errorInfo.recoverable
-            });
-
-            // Handle specific error types
-            if (!errorInfo.recoverable) {
-                logger.warn(`Non-recoverable socket error, disconnecting ${socket.id}`, {
-                    errorType: errorInfo.type
-                });
-                socket.disconnect(true);
-            }
-        });
-
-        // Handle connect error (client-side errors reported to server)
-        socket.on('connect_error', (error) => {
-            logger.warn(`Connection error for ${socket.id}:`, {
                 message: error.message,
                 sessionId: socket.sessionId
+            });
+
+            socket.emit('socket:error', {
+                code: 'INTERNAL_ERROR',
+                message: 'An unexpected error occurred. Please try again.'
             });
         });
     });
 
-    /**
- * Classify socket errors for appropriate handling
- * @param {Error} error - The error to classify
- * @returns {{type: string, code: string, userMessage: string, recoverable: boolean}}
- */
-    function classifySocketError(error) {
-        const errorMessage = error.message?.toLowerCase() || '';
-        const errorName = error.name || 'Error';
-
-        // Transport/network errors
-        if (errorMessage.includes('transport') || errorMessage.includes('network') ||
-        errorMessage.includes('connection') || errorMessage.includes('timeout')) {
-            return {
-                type: 'TRANSPORT_ERROR',
-                code: 'NETWORK_ERROR',
-                userMessage: 'Connection error occurred. Please try reconnecting.',
-                recoverable: true
-            };
-        }
-
-        // Authentication errors
-        if (errorMessage.includes('auth') || errorMessage.includes('unauthorized') ||
-        errorMessage.includes('token') || errorMessage.includes('permission')) {
-            return {
-                type: 'AUTH_ERROR',
-                code: 'AUTHENTICATION_ERROR',
-                userMessage: 'Authentication error. Please refresh the page.',
-                recoverable: false
-            };
-        }
-
-        // Validation errors
-        if (errorMessage.includes('validation') || errorMessage.includes('invalid') ||
-        errorName === 'ValidationError' || errorName === 'ZodError') {
-            return {
-                type: 'VALIDATION_ERROR',
-                code: 'VALIDATION_ERROR',
-                userMessage: 'Invalid data received. Please try again.',
-                recoverable: true
-            };
-        }
-
-        // Rate limiting
-        if (errorMessage.includes('rate') || errorMessage.includes('limit') ||
-        errorMessage.includes('too many')) {
-            return {
-                type: 'RATE_LIMIT_ERROR',
-                code: 'RATE_LIMITED',
-                userMessage: 'Too many requests. Please slow down.',
-                recoverable: true
-            };
-        }
-
-        // Default: unknown/server error
-        return {
-            type: 'SERVER_ERROR',
-            code: 'INTERNAL_ERROR',
-            userMessage: 'An unexpected error occurred. Please try again.',
-            recoverable: true
-        };
-    }
-
-    /**
- * Sprint 19: Start periodic check for inactive sockets
- * Disconnects sockets that have been idle for too long
- */
-    function startInactivityCheck(ioInstance) {
-        const { SESSION_SECURITY } = require('../config/constants');
-        // Default values if not defined (for testing compatibility)
-        const INACTIVITY_TIMEOUT = SESSION_SECURITY?.INACTIVITY_TIMEOUT_MS || 30 * 60 * 1000;
-        const CHECK_INTERVAL = SESSION_SECURITY?.INACTIVITY_CHECK_INTERVAL_MS || 60 * 1000;
-
-        // Clear any existing interval
-        if (inactivityCheckInterval) {
-            clearInterval(inactivityCheckInterval);
-        }
-
-        inactivityCheckInterval = setInterval(async () => {
-            try {
-                const sockets = await ioInstance.fetchSockets();
-                const now = Date.now();
-                let disconnectedCount = 0;
-
-                for (const socket of sockets) {
-                    const lastActivity = socket.lastActivity || socket.handshake?.time || now;
-                    const idleTime = now - lastActivity;
-
-                    if (idleTime > INACTIVITY_TIMEOUT) {
-                        logger.info(`Disconnecting idle socket ${socket.id} (idle for ${Math.round(idleTime / 1000)}s)`, {
-                            sessionId: socket.sessionId,
-                            idleTimeMs: idleTime,
-                            threshold: INACTIVITY_TIMEOUT
-                        });
-
-                        // Emit inactivity warning before disconnect
-                        socket.emit('session:inactivityTimeout', {
-                            reason: 'inactivity',
-                            idleTimeSeconds: Math.round(idleTime / 1000)
-                        });
-
-                        socket.disconnect(true);
-                        disconnectedCount++;
-                    }
-                }
-
-                if (disconnectedCount > 0) {
-                    logger.info(`Inactivity check: disconnected ${disconnectedCount} idle socket(s)`);
-                }
-            } catch (error) {
-                logger.error('Error in inactivity check:', error.message);
-            }
-        }, CHECK_INTERVAL);
-
-        logger.info(`Inactivity check started (timeout: ${INACTIVITY_TIMEOUT / 1000}s, check interval: ${CHECK_INTERVAL / 1000}s)`);
-    }
-
-    // Initialize timer service for distributed operation
-    timerService.initializeTimerService(createTimerExpireCallback());
-
     // Start periodic cleanup of stale rate limit entries
     startRateLimitCleanup();
-
-    // Sprint 19: Start inactivity check interval
-    startInactivityCheck(io);
 
     // Register socket functions for handlers (breaks circular dependency)
     registerSocketFunctions({
@@ -392,17 +243,6 @@ function initializeSocket(server, expressApp = null) {
     });
 
     return io;
-}
-
-/**
- * Stop the inactivity check interval
- */
-function stopInactivityCheck() {
-    if (inactivityCheckInterval) {
-        clearInterval(inactivityCheckInterval);
-        inactivityCheckInterval = null;
-        logger.info('Inactivity check stopped');
-    }
 }
 
 /**
@@ -431,16 +271,6 @@ function createTimerExpireCallback() {
                 reason: 'timerExpired'
             });
             emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
-
-            // Log timer expiration event for reconnection recovery
-            await eventLogService.logEvent(
-                roomCode,
-                eventLogService.EVENT_TYPES.TIMER_EXPIRED,
-                {
-                    currentTurn: result.currentTurn,
-                    previousTurn: result.previousTurn
-                }
-            );
 
             // Restart timer for the new turn (if timer is configured and game not over)
             // BUG-6 & ISSUE #3 FIX: Use distributed lock with improved error handling
@@ -584,18 +414,6 @@ async function handleDisconnect(io, socket, reason) {
                 reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
             });
 
-            // Log disconnect event for reconnection recovery
-            await eventLogService.logEvent(
-                roomCode,
-                eventLogService.EVENT_TYPES.PLAYER_DISCONNECTED,
-                {
-                    sessionId: socket.sessionId,
-                    nickname: player.nickname,
-                    team: player.team,
-                    reason
-                }
-            );
-
             // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL
             if (player.isHost) {
                 const redis = getRedis();
@@ -637,17 +455,6 @@ async function handleDisconnect(io, socket, reason) {
                                         reason: 'previousHostDisconnected'
                                     });
 
-                                    // Log host change event
-                                    await eventLogService.logEvent(
-                                        roomCode,
-                                        eventLogService.EVENT_TYPES.HOST_CHANGED,
-                                        {
-                                            previousHostSessionId: socket.sessionId,
-                                            newHostSessionId: newHost.sessionId,
-                                            newHostNickname: newHost.nickname,
-                                            reason: 'previousHostDisconnected'
-                                        }
-                                    );
                                 } else {
                                     logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
                                 }
@@ -734,9 +541,6 @@ async function getTimerStatus(roomCode) {
 function cleanupSocketModule() {
     // Stop rate limiter cleanup interval
     stopRateLimitCleanup();
-
-    // Sprint 19: Stop inactivity check interval
-    stopInactivityCheck();
 
     // Close socket.io server if initialized
     if (io) {
