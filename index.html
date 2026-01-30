@@ -7137,6 +7137,12 @@
                 return;
             }
 
+            // Check if spymaster has given a clue before allowing guesses
+            if (isMultiplayerMode && !gameState.currentClue) {
+                showToast('Wait for the spymaster to give a clue first', 'warning');
+                return;
+            }
+
             // In multiplayer mode, send reveal to server and let it broadcast
             if (isMultiplayerMode && CodenamesClient.isConnected()) {
                 // Prevent double-click while waiting for server response

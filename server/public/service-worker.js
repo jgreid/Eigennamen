@@ -8,17 +8,15 @@
  * - Background sync for multiplayer actions
  */
 
-const CACHE_NAME = 'codenames-v7';
-const STATIC_CACHE = 'codenames-static-v7';
-const DYNAMIC_CACHE = 'codenames-dynamic-v7';
+const CACHE_NAME = 'codenames-v8';
+const STATIC_CACHE = 'codenames-static-v8';
+const DYNAMIC_CACHE = 'codenames-dynamic-v8';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/js/qrcode.min.js',
-    '/js/socket.io.min.js',
-    '/js/socket-client.js?v=5',
     '/manifest.json'
 ];
 
@@ -75,11 +73,13 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Skip socket.io and API requests - always use network
+    // Skip socket.io, API requests, and socket client JS - always use network
     if (url.pathname.startsWith('/socket.io') ||
         url.pathname.startsWith('/api') ||
         url.pathname.startsWith('/health') ||
-        url.pathname.startsWith('/metrics')) {
+        url.pathname.startsWith('/metrics') ||
+        url.pathname === '/js/socket-client.js' ||
+        url.pathname === '/js/socket.io.min.js') {
         return;
     }
 
