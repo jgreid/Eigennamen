@@ -36,20 +36,11 @@ const mockLimiter = jest.fn((socket, data, callback) => callback(null));
 const mockGetLimiter = jest.fn().mockReturnValue(mockLimiter);
 const mockCleanupSocket = jest.fn();
 const mockCleanupStale = jest.fn();
-const mockGetMetrics = jest.fn().mockReturnValue({
-    allowed: 100,
-    blocked: 5,
-    total: 105
-});
-const mockResetMetrics = jest.fn();
-
 jest.mock('../middleware/rateLimit', () => ({
     createSocketRateLimiter: jest.fn().mockReturnValue({
         getLimiter: mockGetLimiter,
         cleanupSocket: mockCleanupSocket,
-        cleanupStale: mockCleanupStale,
-        getMetrics: mockGetMetrics,
-        resetMetrics: mockResetMetrics
+        cleanupStale: mockCleanupStale
     })
 }));
 
@@ -57,8 +48,6 @@ const {
     socketRateLimiter,
     createRateLimitedHandler,
     getSocketRateLimiter,
-    getSocketRateLimitMetrics,
-    resetSocketRateLimitMetrics,
     startRateLimitCleanup,
     stopRateLimitCleanup
 } = require('../socket/rateLimitHandler');
@@ -288,27 +277,6 @@ describe('Rate Limit Handler Extended Tests', () => {
         test('cleanupStale can be called directly', () => {
             socketRateLimiter.cleanupStale();
             expect(mockCleanupStale).toHaveBeenCalled();
-        });
-    });
-
-    describe('Metrics Functions', () => {
-
-        test('getSocketRateLimitMetrics returns metrics object', () => {
-            const metrics = getSocketRateLimitMetrics();
-            expect(metrics).toBeDefined();
-            expect(mockGetMetrics).toHaveBeenCalled();
-        });
-
-        test('resetSocketRateLimitMetrics calls reset', () => {
-            resetSocketRateLimitMetrics();
-            expect(mockResetMetrics).toHaveBeenCalled();
-        });
-
-        test('metrics contain expected fields', () => {
-            const metrics = getSocketRateLimitMetrics();
-            expect(metrics).toHaveProperty('allowed');
-            expect(metrics).toHaveProperty('blocked');
-            expect(metrics).toHaveProperty('total');
         });
     });
 

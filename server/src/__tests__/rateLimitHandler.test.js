@@ -6,8 +6,6 @@ const {
     socketRateLimiter,
     createRateLimitedHandler,
     getSocketRateLimiter,
-    getSocketRateLimitMetrics,
-    resetSocketRateLimitMetrics,
     startRateLimitCleanup,
     stopRateLimitCleanup
 } = require('../socket/rateLimitHandler');
@@ -23,8 +21,6 @@ describe('Rate Limit Handler', () => {
                 address: '127.0.0.1'
             }
         };
-        // Reset metrics between tests
-        resetSocketRateLimitMetrics();
     });
 
     afterEach(() => {
@@ -143,20 +139,6 @@ describe('Rate Limit Handler', () => {
         test('returns the socket rate limiter', () => {
             const limiter = getSocketRateLimiter();
             expect(limiter).toBe(socketRateLimiter);
-        });
-    });
-
-    describe('getSocketRateLimitMetrics', () => {
-        test('returns metrics object', () => {
-            const metrics = getSocketRateLimitMetrics();
-            expect(metrics).toBeDefined();
-            expect(typeof metrics).toBe('object');
-        });
-    });
-
-    describe('resetSocketRateLimitMetrics', () => {
-        test('resets metrics without throwing', () => {
-            expect(() => resetSocketRateLimitMetrics()).not.toThrow();
         });
     });
 

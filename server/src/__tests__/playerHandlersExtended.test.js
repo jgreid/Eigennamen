@@ -132,7 +132,7 @@ describe('Extended Player Handlers Tests', () => {
                 currentTurn: 'red',
                 gameOver: true
             });
-            playerService.safeSetTeam.mockResolvedValue({
+            playerService.setTeam.mockResolvedValue({
                 sessionId: 'session-456',
                 team: 'blue',
                 nickname: 'Player1'
@@ -142,7 +142,7 @@ describe('Extended Player Handlers Tests', () => {
             const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
             await setTeamHandler[1]({ team: 'blue' });
 
-            expect(playerService.safeSetTeam).toHaveBeenCalled();
+            expect(playerService.setTeam).toHaveBeenCalled();
         });
 
         test('allows team switch when not your turn', async () => {
@@ -156,7 +156,7 @@ describe('Extended Player Handlers Tests', () => {
                 currentTurn: 'blue', // Other team's turn
                 gameOver: false
             });
-            playerService.safeSetTeam.mockResolvedValue({
+            playerService.setTeam.mockResolvedValue({
                 sessionId: 'session-456',
                 team: 'blue',
                 nickname: 'Player1'
@@ -166,7 +166,7 @@ describe('Extended Player Handlers Tests', () => {
             const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
             await setTeamHandler[1]({ team: 'blue' });
 
-            expect(playerService.safeSetTeam).toHaveBeenCalled();
+            expect(playerService.setTeam).toHaveBeenCalled();
         });
 
         test('handles player not in room', async () => {
@@ -205,7 +205,7 @@ describe('Extended Player Handlers Tests', () => {
                 currentTurn: 'red',
                 gameOver: false
             });
-            playerService.safeSetTeam.mockResolvedValue({
+            playerService.setTeam.mockResolvedValue({
                 sessionId: 'session-456',
                 team: 'blue',
                 nickname: 'Player1'
@@ -215,7 +215,7 @@ describe('Extended Player Handlers Tests', () => {
             const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
             await setTeamHandler[1]({ team: 'blue' });
 
-            expect(playerService.safeSetTeam).toHaveBeenCalledWith(
+            expect(playerService.setTeam).toHaveBeenCalledWith(
                 'session-456',
                 'blue',
                 true // checkEmpty flag
@@ -230,7 +230,7 @@ describe('Extended Player Handlers Tests', () => {
                 role: 'spectator'
             });
             gameService.getGame.mockResolvedValue(null);
-            playerService.safeSetTeam.mockResolvedValue({
+            playerService.setTeam.mockResolvedValue({
                 sessionId: 'session-456',
                 team: 'red',
                 nickname: 'Player1'

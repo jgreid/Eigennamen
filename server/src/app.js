@@ -9,14 +9,13 @@ const compression = require('compression');
 const path = require('path');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, strictLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
+const { apiLimiter, strictLimiter } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
 const { requestTiming, startMemoryMonitoring } = require('./middleware/timing');
 const routes = require('./routes');
 const adminRoutes = require('./routes/adminRoutes');
 const logger = require('./utils/logger');
 const { setupSwagger } = require('./config/swagger');
-const { getSocketRateLimitMetrics } = require('./socket/rateLimitHandler');
 const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
 const { SOCKET } = require('./config/constants');
 
@@ -291,20 +290,6 @@ app.get('/metrics', strictLimiter, async (req, res) => {
     } catch (error) {
         logger.warn('Failed to fetch socket stats for metrics:', error.message);
         metricsData.socketio = {
-            status: 'error',
-            error: error.message
-        };
-    }
-
-    // Add rate limit metrics for production visibility
-    try {
-        metricsData.rateLimits = {
-            http: getHttpRateLimitMetrics(),
-            socket: getSocketRateLimitMetrics()
-        };
-    } catch (error) {
-        logger.warn('Failed to fetch rate limit metrics:', error.message);
-        metricsData.rateLimits = {
             status: 'error',
             error: error.message
         };

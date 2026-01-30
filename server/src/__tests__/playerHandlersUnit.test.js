@@ -62,7 +62,7 @@ describe('Player Handlers', () => {
             role: null,
             isHost: false
         });
-        playerService.safeSetTeam.mockResolvedValue({
+        playerService.setTeam.mockResolvedValue({
             sessionId: 'session-1',
             nickname: 'TestPlayer',
             team: 'blue'
@@ -106,7 +106,7 @@ describe('Player Handlers', () => {
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
             // When no game exists, shouldCheckEmpty is false
-            expect(playerService.safeSetTeam).toHaveBeenCalledWith(
+            expect(playerService.setTeam).toHaveBeenCalledWith(
                 'session-1',
                 'blue',
                 false
@@ -209,7 +209,7 @@ describe('Player Handlers', () => {
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
-            expect(playerService.safeSetTeam).toHaveBeenCalled();
+            expect(playerService.setTeam).toHaveBeenCalled();
         });
 
         test('allows team switch when not current turn', async () => {
@@ -227,7 +227,7 @@ describe('Player Handlers', () => {
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
-            expect(playerService.safeSetTeam).toHaveBeenCalled();
+            expect(playerService.setTeam).toHaveBeenCalled();
         });
 
         test('logs event on successful team change', async () => {
@@ -244,7 +244,7 @@ describe('Player Handlers', () => {
         });
 
         test('handles service error gracefully', async () => {
-            playerService.safeSetTeam.mockRejectedValue(new Error('Database error'));
+            playerService.setTeam.mockRejectedValue(new Error('Database error'));
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
 

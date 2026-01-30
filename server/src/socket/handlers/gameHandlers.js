@@ -8,7 +8,6 @@
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
-const eventLogService = require('../../services/eventLogService');
 const gameHistoryService = require('../../services/gameHistoryService');
 const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -71,18 +70,6 @@ module.exports = function gameHandlers(io, socket) {
             if (room && room.settings && room.settings.turnTimer) {
                 await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
             }
-
-            // Log event for reconnection recovery
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.GAME_STARTED,
-                {
-                    gameId: game.id,
-                    firstTeam: game.currentTurn,
-                    redTotal: game.redTotal,
-                    blueTotal: game.blueTotal
-                }
-            );
 
             // Audit log game start
             const clientIp = socket.clientIP || socket.handshake.address;
@@ -148,24 +135,6 @@ module.exports = function gameHandlers(io, socket) {
                 }
             });
 
-            // Log event for reconnection recovery
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.CARD_REVEALED,
-                {
-                    index: result.index,
-                    type: result.type,
-                    word: result.word,
-                    player: ctx.player.nickname,
-                    team: ctx.player.team,
-                    redScore: result.redScore,
-                    blueScore: result.blueScore,
-                    turnEnded: result.turnEnded,
-                    gameOver: result.gameOver,
-                    winner: result.winner
-                }
-            );
-
             // Handle turn ending
             if (result.turnEnded && !result.gameOver) {
                 const room = await roomService.getRoom(ctx.roomCode);
@@ -230,18 +199,6 @@ module.exports = function gameHandlers(io, socket) {
                 timestamp: clue.timestamp
             });
 
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.CLUE_GIVEN,
-                {
-                    team: clue.team,
-                    word: clue.word,
-                    number: clue.number,
-                    spymaster: clue.spymaster,
-                    guessesAllowed: clue.guessesAllowed
-                }
-            );
-
             logger.info(`Clue given in room ${ctx.roomCode}: ${clue.word} ${clue.number}`);
         }
     ));
@@ -265,17 +222,6 @@ module.exports = function gameHandlers(io, socket) {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn
             });
-
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.TURN_ENDED,
-                {
-                    currentTurn: result.currentTurn,
-                    previousTurn: result.previousTurn,
-                    player: ctx.player.nickname,
-                    reason: 'manual'
-                }
-            );
 
             // Restart timer for new turn if configured
             const room = await roomService.getRoom(ctx.roomCode);
@@ -322,16 +268,6 @@ module.exports = function gameHandlers(io, socket) {
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
             auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner, 'forfeit', null);
-
-            await eventLogService.logEvent(
-                ctx.roomCode,
-                eventLogService.EVENT_TYPES.GAME_OVER,
-                {
-                    winner: result.winner,
-                    forfeitingTeam: result.forfeitingTeam,
-                    reason: 'forfeit'
-                }
-            );
 
             logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
         }

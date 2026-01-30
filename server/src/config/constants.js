@@ -36,8 +36,6 @@ module.exports = {
         SESSION_ID_MIN_LENGTH: 36,                   // UUID length
         RECONNECTION_TOKEN_TTL_SECONDS: 900,         // 15 minutes TTL for reconnection tokens (US-16.3)
         RECONNECTION_TOKEN_LENGTH: 32,               // Bytes for secure token
-        INACTIVITY_TIMEOUT_MS: 30 * 60 * 1000,       // 30 minutes idle timeout (Sprint 19)
-        INACTIVITY_CHECK_INTERVAL_MS: 60 * 1000,     // Check every minute for idle connections
         ROTATE_SESSION_ON_RECONNECT: true,           // Issue new session token after successful reconnection
         RATE_LIMIT_FAIL_CLOSED: false                // If true, deny requests when Redis fails (more secure but less available)
     },
@@ -56,12 +54,7 @@ module.exports = {
         MIN_TURN_SECONDS: 30,
         MAX_TURN_SECONDS: 300,
         WARNING_SECONDS: 30,        // Warn when this many seconds remain
-        // Timer service internals
-        ORPHAN_CHECK_INTERVAL_MS: 30000,  // How often to check for orphaned timers
-        ORPHAN_CHECK_TIMEOUT_MS: 5000,    // Max time for orphan check
-        MAX_ORPHAN_KEYS: 100,             // Max keys to process per orphan check
-        TIMER_TTL_BUFFER_SECONDS: 60,     // Extra TTL buffer for timer keys
-        PENDING_OP_MAX_AGE_MS: 30000      // Max age for pending addTime operations before cleanup
+        TIMER_TTL_BUFFER_SECONDS: 60     // Extra TTL buffer for timer keys
     },
 
     // Socket.io configuration
@@ -146,13 +139,11 @@ module.exports = {
         TIMER_RESTART: 5,         // Lock for timer restart
         CARD_REVEAL: 15,          // Lock for card reveal operation (longer due to retry logic)
         GAME_CREATE: 10,          // Lock for game creation
-        TIMER_ORPHAN: 5           // Lock for orphan timer takeover
     },
 
     // Retry configuration
     RETRIES: {
         OPTIMISTIC_LOCK: 3,       // Retries for optimistic locking operations
-        PUB_SUB_CONNECT: 3,       // Retries for pub/sub connection
         PUSH_RETRY_DELAYS: [2000, 4000, 8000, 16000]  // Exponential backoff
     },
 
@@ -264,7 +255,6 @@ module.exports = {
         OPTIMISTIC_LOCK: { maxRetries: 3, baseDelayMs: 100 },
         REDIS_OPERATION: { maxRetries: 3, baseDelayMs: 50 },
         DISTRIBUTED_LOCK: { maxRetries: 50, baseDelayMs: 100 },
-        PUB_SUB_CONNECT: { maxRetries: 3, baseDelayMs: 1000 },
         NETWORK_REQUEST: { maxRetries: 4, baseDelayMs: 2000 },
         RACE_CONDITION: { delayMs: 100 }  // Delay between race condition retries
     },
