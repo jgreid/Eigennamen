@@ -208,19 +208,27 @@ class DistributedLock {
             throw new Error(`Failed to acquire lock: ${lockKey}`);
         }
 
-        // Set up auto-extension
+        // Set up auto-extension with tracking to avoid race conditions
         const extendInterval = config.lockTimeout * config.extendThreshold;
-        const extensionTimer = setInterval(async () => {
-            const extended = await lockResult.extend(config.lockTimeout);
-            if (!extended) {
-                logger.warn('Auto-extension failed, lock may have been lost', { lockKey });
-            }
+        let pendingExtension = null;
+        const extensionTimer = setInterval(() => {
+            pendingExtension = lockResult.extend(config.lockTimeout).then(extended => {
+                if (!extended) {
+                    logger.warn('Auto-extension failed, lock may have been lost', { lockKey });
+                }
+            }).catch(err => {
+                logger.error('Auto-extension error', { lockKey, error: err.message });
+            });
         }, extendInterval);
 
         try {
             return await fn();
         } finally {
             clearInterval(extensionTimer);
+            // Wait for any in-flight extension to complete before releasing
+            if (pendingExtension) {
+                await pendingExtension.catch(() => {});
+            }
             await lockResult.release();
         }
     }

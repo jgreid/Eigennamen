@@ -194,7 +194,7 @@ async function validateSession(sessionId, clientIP) {
     if (!ipValidation.valid) {
         return {
             valid: false,
-            reason: 'IP_MISMATCH_NOT_ALLOWED'
+            reason: ERROR_CODES.NOT_AUTHORIZED
         };
     }
 

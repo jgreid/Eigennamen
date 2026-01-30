@@ -146,7 +146,7 @@ describe('Spectator Chat Feature', () => {
                 }));
             });
 
-            test('allows player without team to send message', async () => {
+            test('rejects message from player without team but non-spectator role', async () => {
                 playerService.getPlayer.mockResolvedValue({
                     sessionId: 'session-456',
                     roomCode: 'TEST12',
@@ -159,8 +159,10 @@ describe('Spectator Chat Feature', () => {
                 const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Watching the game!' });
 
-                expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
-                expect(mockIo.emit).toHaveBeenCalled();
+                // Non-spectator players should not be able to send spectator-only messages
+                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
+                    code: expect.any(String)
+                }));
             });
 
             test('rejects message from player with team and non-spectator role', async () => {

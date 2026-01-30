@@ -105,9 +105,13 @@ function recordHistogram(name, value, labels = {}) {
     histogram.max = Math.max(histogram.max, value);
     histogram.lastUpdated = Date.now();
 
-    // Limit histogram size
+    // Limit histogram size - recalculate stats from retained values for consistency
     if (histogram.values.length > config.maxHistogramSize) {
         histogram.values = histogram.values.slice(-config.maxHistogramSize);
+        histogram.count = histogram.values.length;
+        histogram.sum = histogram.values.reduce((a, b) => a + b, 0);
+        histogram.min = Math.min(...histogram.values);
+        histogram.max = Math.max(...histogram.values);
     }
 }
 
@@ -232,12 +236,26 @@ function getAllMetrics() {
         };
     }
 
-    // Export histogram stats
+    // Export histogram stats directly from stored histograms
     for (const [key, histogram] of Object.entries(metrics.histograms)) {
-        const stats = getHistogramStats(key.split(':')[0], histogram.labels);
-        if (stats) {
-            result.histograms[key] = stats;
-        }
+        if (!histogram || histogram.count === 0) continue;
+        const sorted = [...histogram.values].sort((a, b) => a - b);
+        const percentile = (p) => {
+            const idx = Math.ceil(sorted.length * p) - 1;
+            return sorted[Math.max(0, idx)];
+        };
+        result.histograms[key] = {
+            count: histogram.count,
+            sum: histogram.sum,
+            avg: histogram.sum / histogram.count,
+            min: histogram.min,
+            max: histogram.max,
+            p50: percentile(0.5),
+            p90: percentile(0.9),
+            p95: percentile(0.95),
+            p99: percentile(0.99),
+            labels: histogram.labels
+        };
     }
 
     return result;

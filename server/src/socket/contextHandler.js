@@ -41,7 +41,7 @@ const { sanitizeErrorForClient } = require('../errors/GameError');
 function createContextHandler(socket, eventName, schema, contextOptions, handler) {
     return createRateLimitedHandler(socket, eventName, async (data) => {
         try {
-            const validated = schema ? validateInput(schema, data) : data;
+            const validated = schema ? validateInput(schema, data) : (data || {});
             const ctx = await getPlayerContext(socket, contextOptions);
             const previousPlayer = ctx.player ? { ...ctx.player } : null;
 
