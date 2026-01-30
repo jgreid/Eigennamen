@@ -7137,6 +7137,12 @@
                 return;
             }
 
+            // Check if spymaster has given a clue before allowing guesses
+            if (isMultiplayerMode && !gameState.currentClue) {
+                showToast('Wait for the spymaster to give a clue first', 'warning');
+                return;
+            }
+
             // In multiplayer mode, send reveal to server and let it broadcast
             if (isMultiplayerMode && CodenamesClient.isConnected()) {
                 // Prevent double-click while waiting for server response
@@ -7924,28 +7930,11 @@
         }
     </script>
 
-    <!-- Service Worker Registration for PWA support -->
+    <!-- Service Worker Registration for offline standalone mode -->
     <script>
-        // Register service worker for offline support and PWA features
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
-                    .then((registration) => {
-                        console.log('ServiceWorker registered:', registration.scope);
-
-                        // Check for updates periodically
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            if (newWorker) {
-                                newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        // New content available, show update notification
-                                        console.log('New version available! Refresh to update.');
-                                    }
-                                });
-                            }
-                        });
-                    })
                     .catch((error) => {
                         console.log('ServiceWorker registration failed:', error);
                     });
