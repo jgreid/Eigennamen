@@ -150,8 +150,8 @@ app.use('/api', routes);
 // Admin dashboard routes (protected by basic auth)
 app.use('/admin', adminRoutes);
 
-// Serve service-worker.js and socket JS with no-cache to ensure updates propagate
-app.get(['/service-worker.js', '/js/socket-client.js', '/js/socket.io.min.js'], (req, res, next) => {
+// Service worker must never be HTTP-cached so browser always checks for updates
+app.get('/service-worker.js', (req, res, next) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     next();
 });
