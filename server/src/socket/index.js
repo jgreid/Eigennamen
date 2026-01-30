@@ -133,16 +133,8 @@ function initializeSocket(server, expressApp = null) {
             socket.flyInstanceId = process.env.FLY_ALLOC_ID;
         }
 
-        // Sprint 19: Track activity for inactivity timeout
-        socket.lastActivity = Date.now();
-
         // Attach rate limiter to socket for use in handlers
         socket.rateLimiter = socketRateLimiter;
-
-        // Sprint 19: Update activity timestamp on any incoming event
-        socket.onAny(() => {
-            socket.lastActivity = Date.now();
-        });
 
         // Register all event handlers
         roomHandlers(io, socket);
