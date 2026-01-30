@@ -29,11 +29,14 @@ module.exports = function playerHandlers(io, socket) {
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
                 ctx.player.team && ctx.player.team !== validated.team);
-            const player = await playerService.safeSetTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
+            const player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
             if (!player) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
+
+            // Sync socket rooms before broadcasting so spectator rooms are correct
+            ctx.syncRooms(player);
 
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
@@ -77,6 +80,9 @@ module.exports = function playerHandlers(io, socket) {
             if (!player) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
+
+            // Sync socket rooms before broadcasting so spectator rooms are correct
+            ctx.syncRooms(player);
 
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {

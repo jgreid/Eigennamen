@@ -752,7 +752,7 @@ class MemoryStorage {
         }
 
         // ATOMIC_SAFE_TEAM_SWITCH_SCRIPT: 3 keys (playerKey, teamSetKey, roomCode), 5 args
-        // Used by playerService.safeSetTeam()
+        // Used by playerService.setTeam()
         if (numKeys === 3 && numArgs === 5 && options.keys[0].startsWith('player:')) {
             const playerKey = options.keys[0];
             const teamSetKey = options.keys[1];

@@ -179,141 +179,21 @@ return cjson.encode({success = true, player = player})
 `;
 
 /**
- * Lua script for atomic team change with role clearing AND team set maintenance
- * ISSUE #1 FIX: Team set operations are now inside the Lua script for atomicity
- * Prevents race condition where role changes between read and write
- * Uses special '__NULL__' sentinel to properly handle null team values
- */
-const ATOMIC_SET_TEAM_SCRIPT = `
-local playerKey = KEYS[1]
-local roomCode = KEYS[2]
-local newTeam = ARGV[1]
-local ttl = tonumber(ARGV[2])
-local now = tonumber(ARGV[3])
-local sessionId = ARGV[4]
-
-local playerData = redis.call('GET', playerKey)
-if not playerData then
-    return nil
-end
-
-local player = cjson.decode(playerData)
-local oldTeam = player.team
-local oldRole = player.role
-
--- Handle null team: convert sentinel value to actual nil for proper JSON encoding
-local actualNewTeam = nil
-if newTeam ~= '__NULL__' then
-    actualNewTeam = newTeam
-    player.team = newTeam
-else
-    player.team = cjson.null
-end
-player.lastSeen = now
-
--- Clear team-specific roles when switching teams
-if oldTeam ~= actualNewTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
-    player.role = 'spectator'
-end
-
-redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
-
--- ISSUE #1 FIX: Atomic team set maintenance
--- Remove from old team set if was on a team
-if oldTeam and oldTeam ~= cjson.null then
-    local oldTeamKey = 'room:' .. roomCode .. ':team:' .. oldTeam
-    redis.call('SREM', oldTeamKey, sessionId)
-    -- ISSUE #13 FIX: Clean up empty team sets
-    if redis.call('SCARD', oldTeamKey) == 0 then
-        redis.call('DEL', oldTeamKey)
-    end
-end
-
--- Add to new team set if joining a team
-if actualNewTeam then
-    local newTeamKey = 'room:' .. roomCode .. ':team:' .. actualNewTeam
-    redis.call('SADD', newTeamKey, sessionId)
-    redis.call('EXPIRE', newTeamKey, ttl)
-end
-
-return cjson.encode({player = player, oldTeam = oldTeam})
-`;
-
-/**
- * Set player's team (atomic operation)
- * ISSUE #1 FIX: Team set operations now happen atomically inside Lua script
- * Clears spymaster/clicker role when switching teams (those roles are team-specific)
- * Also maintains team sets for O(1) team member lookups
- */
-async function setTeam(sessionId, team) {
-    const redis = getRedis();
-
-    // FIX: Defense-in-depth validation for team value
-    if (team !== null && team !== undefined && team !== 'red' && team !== 'blue') {
-        throw new ValidationError(`Invalid team: must be 'red', 'blue', or null`);
-    }
-
-    // Get player first to get room code
-    const existingPlayer = await getPlayer(sessionId);
-    if (!existingPlayer) {
-        throw new ServerError('Player not found');
-    }
-
-    const roomCode = existingPlayer.roomCode;
-
-    // FIX: Validate roomCode to prevent null being passed to Redis eval
-    // This can happen if player data is corrupted or a race condition occurred
-    if (!roomCode) {
-        throw new ServerError('Player is not associated with a room');
-    }
-
-    // Use sentinel value for null to properly handle in Lua script
-    const teamValue = team === null || team === undefined ? '__NULL__' : team;
-
-    // ISSUE #1 FIX: All operations now happen atomically in Lua script
-    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
-    const result = await withTimeout(
-        redis.eval(
-            ATOMIC_SET_TEAM_SCRIPT,
-            {
-                keys: [`player:${sessionId}`, roomCode],
-                arguments: [teamValue, REDIS_TTL.PLAYER.toString(), Date.now().toString(), sessionId]
-            }
-        ),
-        TIMEOUTS.REDIS_OPERATION,
-        `setTeam-lua-${sessionId}`
-    );
-
-    if (!result) {
-        throw new ServerError('Player not found');
-    }
-
-    try {
-        const parsed = JSON.parse(result);
-        const player = parsed.player;
-
-        logger.debug(`Player ${sessionId} team set to ${team}`);
-        return player;
-    } catch (e) {
-        logger.error('Failed to parse player data after team change', { sessionId, error: e.message });
-        throw new ServerError('Failed to update player team');
-    }
-}
-
-/**
- * Safely set player's team with atomic empty-team check
- * ISSUE #1 & #59 FIX: Team set operations now happen atomically inside Lua script
- * Prevents team from becoming empty during active game
+ * Set player's team (atomic operation with optional empty-team check)
+ *
+ * Uses a single Lua script that handles both simple team changes and
+ * safe team switches (preventing a team from becoming empty during active games).
+ *
  * @param {string} sessionId - Player's session ID
- * @param {string} team - New team (or null to leave team)
- * @param {boolean} checkEmpty - Whether to check if team would become empty
+ * @param {string} team - New team ('red', 'blue', or null to leave team)
+ * @param {boolean} checkEmpty - Whether to check if old team would become empty
  * @returns {Object} Updated player object
- * @throws {ValidationError} If team would become empty
+ * @throws {ValidationError} If team would become empty during active game
  */
-async function safeSetTeam(sessionId, team, checkEmpty = false) {
+async function setTeam(sessionId, team, checkEmpty = false) {
     const redis = getRedis();
 
-    // Get player first to get room code and old team
+    // Get player to determine room code and old team for the Lua script
     const existingPlayer = await getPlayer(sessionId);
     if (!existingPlayer) {
         throw new ServerError('Player not found');
@@ -322,20 +202,13 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
     const oldTeam = existingPlayer.team;
     const roomCode = existingPlayer.roomCode;
 
-    // FIX: Validate roomCode to prevent null being passed to Redis eval
-    // This can happen if player data is corrupted or a race condition occurred
     if (!roomCode) {
         throw new ServerError('Player is not associated with a room');
     }
 
-    // Use sentinel value for null
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
-
-    // Build team set key for the OLD team (the one we're checking for emptiness)
     const teamSetKey = oldTeam ? `room:${roomCode}:team:${oldTeam}` : 'nonexistent:key';
 
-    // ISSUE #1 FIX: All operations now happen atomically in Lua script
-    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
     const result = await withTimeout(
         redis.eval(
             ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
@@ -351,7 +224,7 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
             }
         ),
         TIMEOUTS.REDIS_OPERATION,
-        `safeSetTeam-lua-${sessionId}`
+        `setTeam-lua-${sessionId}`
     );
 
     if (!result) {
@@ -361,7 +234,6 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
     try {
         const parsed = JSON.parse(result);
 
-        // Check if the operation was rejected due to empty team
         if (parsed.success === false) {
             if (parsed.reason === 'TEAM_WOULD_BE_EMPTY') {
                 throw new ValidationError(`Cannot leave team ${oldTeam} - your team cannot be empty during an active game`);
@@ -369,15 +241,13 @@ async function safeSetTeam(sessionId, team, checkEmpty = false) {
             throw new ServerError('Failed to update player team');
         }
 
-        const player = parsed.player;
-
-        logger.debug(`Player ${sessionId} safely set team to ${team}`);
-        return player;
+        logger.debug(`Player ${sessionId} team set to ${team}`);
+        return parsed.player;
     } catch (e) {
         if (e instanceof ValidationError) {
             throw e;
         }
-        logger.error('Failed to parse player data after safe team change', { sessionId, error: e.message });
+        logger.error('Failed to parse player data after team change', { sessionId, error: e.message });
         throw new ServerError('Failed to update player team');
     }
 }
@@ -451,19 +321,11 @@ return cjson.encode({success = true, player = player, oldRole = oldRole})
 async function setRole(sessionId, role) {
     const redis = getRedis();
 
-    // Validate role is a valid value
-    const validRoles = ['spectator', 'spymaster', 'clicker'];
-    if (!role || !validRoles.includes(role)) {
-        throw new ValidationError(`Invalid role: must be one of ${validRoles.join(', ')}`);
-    }
-
     const player = await getPlayer(sessionId);
-
     if (!player) {
         throw new ServerError('Player not found');
     }
 
-    // FIX: Validate roomCode to prevent null being passed to Redis eval
     if (!player.roomCode) {
         throw new ServerError('Player is not associated with a room');
     }
@@ -473,14 +335,7 @@ async function setRole(sessionId, role) {
         return updatePlayer(sessionId, { role });
     }
 
-    // ISSUE #31 FIX: Require team assignment before becoming spymaster or clicker
-    // This is also checked in Lua script but we can fail fast here
-    if ((role === 'spymaster' || role === 'clicker') && !player.team) {
-        throw new ValidationError('Must join a team before becoming ' + role);
-    }
-
-    // FIX: Use atomic Lua script for spymaster/clicker role assignment
-    // This prevents the TOCTOU race condition in the previous lock-based approach
+    // Atomic Lua script handles team requirement and role-taken checks
     const result = await withTimeout(
         redis.eval(
             ATOMIC_SET_ROLE_SCRIPT,
@@ -531,17 +386,8 @@ async function setRole(sessionId, role) {
  * SECURITY FIX: Defense-in-depth validation for nickname
  */
 async function setNickname(sessionId, nickname) {
-    // Defense-in-depth: validate nickname even if already validated at handler level
-    if (!nickname || typeof nickname !== 'string') {
-        throw new ValidationError('Nickname is required');
-    }
-    const trimmed = nickname.trim();
-    if (trimmed.length < VALIDATION.NICKNAME_MIN_LENGTH) {
-        throw new ValidationError('Nickname is required');
-    }
-    if (trimmed.length > VALIDATION.NICKNAME_MAX_LENGTH) {
-        throw new ValidationError(`Nickname must be at most ${VALIDATION.NICKNAME_MAX_LENGTH} characters`);
-    }
+    // Zod schema already validates and trims the nickname at the handler level
+    const trimmed = (nickname || '').trim();
     return updatePlayer(sessionId, { nickname: trimmed });
 }
 
@@ -1245,7 +1091,6 @@ module.exports = {
     getPlayer,
     updatePlayer,
     setTeam,
-    safeSetTeam,
     setRole,
     setNickname,
     getTeamMembers,

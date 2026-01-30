@@ -45,8 +45,15 @@ function createContextHandler(socket, eventName, schema, contextOptions, handler
             const ctx = await getPlayerContext(socket, contextOptions);
             const previousPlayer = ctx.player ? { ...ctx.player } : null;
 
+            // Provide syncRooms on context so handlers can sync socket rooms
+            // BEFORE broadcasting, ensuring correct room membership
+            ctx.syncRooms = (updatedPlayer) => {
+                syncSocketRooms(socket, updatedPlayer, previousPlayer);
+            };
+
             const result = await handler(ctx, validated);
 
+            // Also sync after handler as fallback for handlers that don't call ctx.syncRooms
             if (result?.player) {
                 syncSocketRooms(socket, result.player, previousPlayer);
             }

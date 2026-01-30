@@ -230,13 +230,11 @@ describe('Player Service', () => {
             const existingPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
             const updatedPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            // ISSUE #1 FIX: Lua script now returns {player: {...}, oldTeam: ...}
-            mockRedis.eval.mockResolvedValue(JSON.stringify({ player: updatedPlayer, oldTeam: null }));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ success: true, player: updatedPlayer }));
 
             const result = await playerService.setTeam('session-123', 'red');
 
             expect(result.team).toBe('red');
-            // Team set operations now happen inside Lua script, so we check eval was called
             expect(mockRedis.eval).toHaveBeenCalled();
         });
 
@@ -244,12 +242,10 @@ describe('Player Service', () => {
             const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
             const updatedPlayer = { sessionId: 'session-123', team: 'blue', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            // ISSUE #1 FIX: Lua script now returns {player: {...}, oldTeam: ...}
-            mockRedis.eval.mockResolvedValue(JSON.stringify({ player: updatedPlayer, oldTeam: 'red' }));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ success: true, player: updatedPlayer }));
 
             await playerService.setTeam('session-123', 'blue');
 
-            // Team set operations now happen inside Lua script atomically
             expect(mockRedis.eval).toHaveBeenCalled();
         });
 
@@ -282,8 +278,7 @@ describe('Player Service', () => {
             const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
             const updatedPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            // ISSUE #1 FIX: Lua script now returns {player: {...}, oldTeam: ...}
-            mockRedis.eval.mockResolvedValue(JSON.stringify({ player: updatedPlayer, oldTeam: 'red' }));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ success: true, player: updatedPlayer }));
 
             await playerService.setTeam('session-123', null);
 
@@ -293,6 +288,18 @@ describe('Player Service', () => {
                     arguments: expect.arrayContaining(['__NULL__'])
                 })
             );
+        });
+
+        test('rejects team change when team would become empty', async () => {
+            const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
+            mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: false,
+                reason: 'TEAM_WOULD_BE_EMPTY'
+            }));
+
+            await expect(playerService.setTeam('session-123', 'blue', true))
+                .rejects.toMatchObject({ code: 'INVALID_INPUT' });
         });
     });
 
@@ -331,6 +338,10 @@ describe('Player Service', () => {
         test('throws error when setting spymaster without team', async () => {
             const player = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: false,
+                reason: 'NO_TEAM'
+            }));
 
             await expect(playerService.setRole('session-123', 'spymaster'))
                 .rejects.toMatchObject({
@@ -341,6 +352,10 @@ describe('Player Service', () => {
         test('throws error when setting clicker without team', async () => {
             const player = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: false,
+                reason: 'NO_TEAM'
+            }));
 
             await expect(playerService.setRole('session-123', 'clicker'))
                 .rejects.toMatchObject({
