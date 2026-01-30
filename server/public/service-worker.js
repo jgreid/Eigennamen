@@ -8,7 +8,6 @@
  * - Background sync for multiplayer actions
  */
 
-const CACHE_NAME = 'codenames-v8';
 const STATIC_CACHE = 'codenames-static-v8';
 const DYNAMIC_CACHE = 'codenames-dynamic-v8';
 
