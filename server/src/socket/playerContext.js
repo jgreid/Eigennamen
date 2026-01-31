@@ -146,11 +146,20 @@ async function getPlayerContext(socket, options = {}) {
  * @param {Object} ctx - The player context
  * @returns {{allowed: boolean, reason?: string}}
  */
-function canChangeTeamOrRole(ctx) {
+function canChangeTeamOrRole(ctx, { isTeamChange = false } = {}) {
     const { player, game } = ctx;
 
     if (!game || game.gameOver) {
         return { allowed: true };
+    }
+
+    // Spymasters have seen card types — block team changes entirely during active game
+    if (isTeamChange && player.role === 'spymaster') {
+        return {
+            allowed: false,
+            reason: 'Spymasters cannot change teams during an active game (card information would leak)',
+            code: 'SPYMASTER_CANNOT_CHANGE_TEAM'
+        };
     }
 
     if (player.role === 'spymaster' || player.role === 'clicker') {

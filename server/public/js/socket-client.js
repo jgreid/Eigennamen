@@ -716,16 +716,16 @@
          * Join a team
          * @param {string|null} team - 'red', 'blue', or null to leave team
          */
-        setTeam(team) {
-            this.socket.emit('player:setTeam', { team });
+        setTeam(team, callback) {
+            this.socket.emit('player:setTeam', { team }, callback);
         },
 
         /**
          * Set player role
          * @param {string} role - 'spymaster', 'guesser', or 'spectator'
          */
-        setRole(role) {
-            this.socket.emit('player:setRole', { role });
+        setRole(role, callback) {
+            this.socket.emit('player:setRole', { role }, callback);
         },
 
         /**

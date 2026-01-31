@@ -21,9 +21,10 @@ module.exports = function playerHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx, validated) => {
-            const canChange = canChangeTeamOrRole(ctx);
+            const canChange = canChangeTeamOrRole(ctx, { isTeamChange: true });
             if (!canChange.allowed) {
-                throw new GameStateError(ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN, canChange.reason);
+                const errorCode = canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN;
+                throw new GameStateError(errorCode, canChange.reason);
             }
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&

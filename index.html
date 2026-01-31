@@ -5022,6 +5022,7 @@
                                 // Role change completed or no pending change - clear the flag
                                 console.log('playerUpdated: clearing isChangingRole flag');
                                 isChangingRole = false;
+                                changingTarget = null;
                             }
 
                             updateControls();
@@ -5032,6 +5033,7 @@
                             // This should not normally happen, but handles edge cases
                             console.warn('playerUpdated: current player not found in list, clearing isChangingRole');
                             isChangingRole = false;
+                            changingTarget = null;
                             pendingRoleChange = null;
                         }
                     }
@@ -5230,6 +5232,7 @@
                 // Clear any in-progress flags
                 isRevealingCard = false;
                 isChangingRole = false;
+                changingTarget = null;
                 pendingRoleChange = null; // Clear pending role change on error
                 document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
@@ -5267,6 +5270,8 @@
                     'TEAM_WOULD_BE_EMPTY': 'Cannot leave - your team needs at least one player',
                     'CANNOT_SWITCH_TEAM_DURING_TURN': 'Cannot switch teams during your active turn',
                     'CANNOT_CHANGE_ROLE_DURING_TURN': 'Cannot change roles during your active turn',
+                    'SPYMASTER_CANNOT_CHANGE_TEAM': 'Spymasters cannot change teams during an active game',
+                    'CLUE_NOT_GIVEN': 'Wait for the spymaster to give a clue first',
                     'MUST_JOIN_TEAM': 'Join a team first before selecting a role',
                     'ROLE_TAKEN': 'That role is already taken by another player',
                     'ROOM_NOT_FOUND': 'Room not found - it may have been closed',
@@ -5809,6 +5814,7 @@
         let clickerTeam = null; // null, 'red', or 'blue'
         let playerTeam = null; // null, 'red', or 'blue' - team affiliation for spectators
         let isChangingRole = false; // Flag to prevent double-click during role/team changes
+        let changingTarget = null; // Which button triggered the change: 'red', 'blue', 'spectate', 'spymaster', 'clicker'
         let pendingRoleChange = null; // Queued role change after team change completes
 
         let gameState = {
@@ -6580,8 +6586,9 @@
             const spectateBtn = document.getElementById('btn-spectate');
             const roleHint = document.getElementById('role-hint');
 
-            // Clicker can end turn when it's their team's turn
-            const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver;
+            // Clicker can end turn when it's their team's turn and a clue has been given
+            const clueGiven = !!gameState.currentClue;
+            const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver && clueGiven;
             if (endTurnBtn) {
                 endTurnBtn.disabled = !clickerCanAct;
                 endTurnBtn.classList.toggle('can-act', clickerCanAct);
@@ -6605,17 +6612,17 @@
 
             if (redTeamBtn) {
                 redTeamBtn.classList.toggle('selected', isRedTeam);
-                redTeamBtn.classList.toggle('loading', isChangingRole);
+                redTeamBtn.classList.toggle('loading', isChangingRole && changingTarget === 'red');
                 redTeamBtn.setAttribute('aria-pressed', isRedTeam.toString());
             }
             if (blueTeamBtn) {
                 blueTeamBtn.classList.toggle('selected', isBlueTeam);
-                blueTeamBtn.classList.toggle('loading', isChangingRole);
+                blueTeamBtn.classList.toggle('loading', isChangingRole && changingTarget === 'blue');
                 blueTeamBtn.setAttribute('aria-pressed', isBlueTeam.toString());
             }
             if (spectateBtn) {
                 spectateBtn.classList.toggle('active', isUnaffiliated);
-                spectateBtn.classList.toggle('loading', isChangingRole);
+                spectateBtn.classList.toggle('loading', isChangingRole && changingTarget === 'spectate');
                 spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
             }
 
@@ -6627,7 +6634,7 @@
                 // Enable only if on a team and not currently changing role
                 spymasterBtn.disabled = !playerTeam || isChangingRole;
                 spymasterBtn.classList.toggle('active', isSpy);
-                spymasterBtn.classList.toggle('loading', isChangingRole);
+                spymasterBtn.classList.toggle('loading', isChangingRole && (changingTarget === 'spymaster' || pendingRoleChange === 'spymaster'));
                 spymasterBtn.classList.remove('red-team', 'blue-team');
                 if (playerTeam) {
                     spymasterBtn.classList.add(playerTeam + '-team');
@@ -6638,7 +6645,7 @@
                 // Enable only if on a team and not currently changing role
                 clickerBtn.disabled = !playerTeam || isChangingRole;
                 clickerBtn.classList.toggle('active', isClicker);
-                clickerBtn.classList.toggle('loading', isChangingRole);
+                clickerBtn.classList.toggle('loading', isChangingRole && (changingTarget === 'clicker' || pendingRoleChange === 'clicker'));
                 clickerBtn.classList.remove('red-team', 'blue-team');
                 if (playerTeam) {
                     clickerBtn.classList.add(playerTeam + '-team');
@@ -6693,21 +6700,47 @@
                 }
                 console.log('setTeam: setting team to', team);
                 isChangingRole = true;
-                updateControls(); // Show loading state immediately
+                changingTarget = team || 'spectate';
 
-                CodenamesClient.setTeam(team);
+                // Optimistic UI update — apply team change immediately
+                const prevTeam = playerTeam;
+                const prevSpymaster = spymasterTeam;
+                const prevClicker = clickerTeam;
+                if (playerTeam !== team) {
+                    spymasterTeam = null;
+                    clickerTeam = null;
+                }
+                playerTeam = team;
+                updateRoleBanner();
+                updateControls();
+                renderBoard();
+
+                CodenamesClient.setTeam(team, (ack) => {
+                    if (ack && ack.error) {
+                        console.warn('setTeam: server ack error, reverting optimistic update');
+                        playerTeam = prevTeam;
+                        spymasterTeam = prevSpymaster;
+                        clickerTeam = prevClicker;
+                        isChangingRole = false;
+                        changingTarget = null;
+                        pendingRoleChange = null;
+                        updateRoleBanner();
+                        updateControls();
+                        renderBoard();
+                    }
+                });
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
                 // isChangingRole is cleared in playerUpdated handler
 
-                // Safety timeout: clear isChangingRole if no response within 3 seconds
-                // This prevents permanent blocking if playerUpdated event is lost
+                // Safety timeout in case ack is lost (network issue)
                 setTimeout(() => {
                     if (isChangingRole && !pendingRoleChange) {
                         console.warn('setTeam: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
-                        updateControls(); // Re-enable buttons
+                        changingTarget = null;
+                        updateControls();
                     }
-                }, 3000);
+                }, 5000);
                 return;
             }
 
@@ -6749,34 +6782,69 @@
                 }
                 console.log('setSpymaster: setting spymaster for team', team, 'current playerTeam:', playerTeam);
                 isChangingRole = true;
-                updateControls(); // Show loading state immediately
+                changingTarget = 'spymaster';
+
+                // Optimistic UI update
+                const prevTeam = playerTeam;
+                const prevSpymaster = spymasterTeam;
+                const prevClicker = clickerTeam;
+                const revertOptimistic = () => {
+                    playerTeam = prevTeam;
+                    spymasterTeam = prevSpymaster;
+                    clickerTeam = prevClicker;
+                    updateRoleBanner();
+                    updateControls();
+                    renderBoard();
+                };
 
                 if (spymasterTeam === team) {
+                    spymasterTeam = null;
+                } else {
+                    playerTeam = team;
+                    spymasterTeam = team;
+                    clickerTeam = null;
+                }
+                updateRoleBanner();
+                updateControls();
+                renderBoard();
+
+                const ackHandler = (ack) => {
+                    if (ack && ack.error) {
+                        console.warn('setSpymaster: server ack error, reverting optimistic update');
+                        isChangingRole = false;
+                        changingTarget = null;
+                        pendingRoleChange = null;
+                        revertOptimistic();
+                    }
+                };
+
+                if (prevSpymaster === team) {
                     // Toggle off - become spectator (team member without role)
-                    CodenamesClient.setRole('spectator');
+                    CodenamesClient.setRole('spectator', ackHandler);
                 } else {
                     // First ensure we're on the right team, then set role
                     if (playerTeam !== team) {
                         // Queue the role change to execute after team change completes
                         pendingRoleChange = 'spymaster';
-                        CodenamesClient.setTeam(team);
+                        CodenamesClient.setTeam(team, ackHandler);
                         // Role will be sent when playerUpdated confirms team change
                     } else {
                         // Already on correct team, just change role
-                        CodenamesClient.setRole('spymaster');
+                        CodenamesClient.setRole('spymaster', ackHandler);
                     }
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
 
-                // Safety timeout: clear flags if no response within 3 seconds
+                // Safety timeout in case ack is lost (network issue)
                 setTimeout(() => {
                     if (isChangingRole) {
                         console.warn('setSpymaster: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
+                        changingTarget = null;
                         pendingRoleChange = null;
-                        updateControls(); // Re-enable buttons
+                        updateControls();
                     }
-                }, 3000);
+                }, 5000);
                 return;
             }
 
@@ -6810,34 +6878,69 @@
                 }
                 console.log('setClicker: setting clicker for team', team, 'current playerTeam:', playerTeam);
                 isChangingRole = true;
-                updateControls(); // Show loading state immediately
+                changingTarget = 'clicker';
+
+                // Optimistic UI update
+                const prevTeam = playerTeam;
+                const prevSpymaster = spymasterTeam;
+                const prevClicker = clickerTeam;
+                const revertOptimistic = () => {
+                    playerTeam = prevTeam;
+                    spymasterTeam = prevSpymaster;
+                    clickerTeam = prevClicker;
+                    updateRoleBanner();
+                    updateControls();
+                    renderBoard();
+                };
 
                 if (clickerTeam === team) {
+                    clickerTeam = null;
+                } else {
+                    playerTeam = team;
+                    clickerTeam = team;
+                    spymasterTeam = null;
+                }
+                updateRoleBanner();
+                updateControls();
+                renderBoard();
+
+                const ackHandler = (ack) => {
+                    if (ack && ack.error) {
+                        console.warn('setClicker: server ack error, reverting optimistic update');
+                        isChangingRole = false;
+                        changingTarget = null;
+                        pendingRoleChange = null;
+                        revertOptimistic();
+                    }
+                };
+
+                if (prevClicker === team) {
                     // Toggle off - become spectator (team member without role)
-                    CodenamesClient.setRole('spectator');
+                    CodenamesClient.setRole('spectator', ackHandler);
                 } else {
                     // First ensure we're on the right team, then set role
                     if (playerTeam !== team) {
                         // Queue the role change to execute after team change completes
                         pendingRoleChange = 'clicker';
-                        CodenamesClient.setTeam(team);
+                        CodenamesClient.setTeam(team, ackHandler);
                         // Role will be sent when playerUpdated confirms team change
                     } else {
                         // Already on correct team, just change role
-                        CodenamesClient.setRole('clicker');
+                        CodenamesClient.setRole('clicker', ackHandler);
                     }
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
 
-                // Safety timeout: clear flags if no response within 3 seconds
+                // Safety timeout in case ack is lost (network issue)
                 setTimeout(() => {
                     if (isChangingRole) {
                         console.warn('setClicker: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
+                        changingTarget = null;
                         pendingRoleChange = null;
-                        updateControls(); // Re-enable buttons
+                        updateControls();
                     }
-                }, 3000);
+                }, 5000);
                 return;
             }
 
@@ -6875,6 +6978,9 @@
 
         function canClickCards() {
             if (gameState.gameOver) return false;
+
+            // Must wait for spymaster to give a clue before revealing cards
+            if (isMultiplayerMode && !gameState.currentClue) return false;
 
             // Clicker for the current team can always click
             if (clickerTeam && clickerTeam === gameState.currentTurn) {

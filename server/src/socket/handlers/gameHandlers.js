@@ -208,12 +208,28 @@ module.exports = function gameHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.GAME_END_TURN, createGameHandler(socket, SOCKET_EVENTS.GAME_END_TURN, null,
         async (ctx) => {
-            if (!ctx.player || ctx.player.role !== 'clicker') {
-                throw PlayerError.notClicker();
+            if (!ctx.player.team) {
+                throw new ValidationError('You must join a team before ending the turn');
             }
 
             if (ctx.player.team !== ctx.game.currentTurn) {
                 throw PlayerError.notYourTurn(ctx.player.team);
+            }
+
+            // Allow end turn if player is clicker OR if clicker is disconnected
+            const teamMembers = await playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn);
+            const teamClicker = teamMembers && Array.isArray(teamMembers)
+                ? teamMembers.find(p => p.role === 'clicker')
+                : null;
+            const clickerDisconnected = !teamClicker || !teamClicker.connected;
+
+            if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
+                throw PlayerError.notClicker();
+            }
+
+            // Cannot end turn before spymaster gives a clue
+            if (!ctx.game.currentClue) {
+                throw new GameStateError(ERROR_CODES.CLUE_NOT_GIVEN, 'Cannot end turn before a clue has been given');
             }
 
             const result = await gameService.endTurn(ctx.roomCode, ctx.player.nickname);
