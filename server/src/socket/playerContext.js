@@ -61,6 +61,7 @@ async function getPlayerContext(socket, options = {}) {
         if (redisRoomCode) {
             if (socketRoomCode) {
                 socket.leave(`room:${socketRoomCode}`);
+                socket.leave(`spectators:${socketRoomCode}`);
             }
             socket.roomCode = redisRoomCode;
             socket.join(`room:${redisRoomCode}`);
@@ -72,6 +73,7 @@ async function getPlayerContext(socket, options = {}) {
         } else {
             if (socketRoomCode) {
                 socket.leave(`room:${socketRoomCode}`);
+                socket.leave(`spectators:${socketRoomCode}`);
             }
             socket.roomCode = null;
             logger.info('Cleared stale socket room membership', {
@@ -157,7 +159,7 @@ function canChangeTeamOrRole(ctx, { isTeamChange = false } = {}) {
     if (isTeamChange && player.role === 'spymaster') {
         return {
             allowed: false,
-            reason: 'Spymasters cannot change teams during an active game (card information would leak)',
+            reason: 'Cannot change teams as spymaster during an active game (card information would leak)',
             code: 'SPYMASTER_CANNOT_CHANGE_TEAM'
         };
     }
@@ -174,7 +176,41 @@ function canChangeTeamOrRole(ctx, { isTeamChange = false } = {}) {
     return { allowed: true };
 }
 
+/**
+ * Sync socket room memberships based on player state changes.
+ * Manages spectator room membership when players transition between
+ * team roles and spectator status.
+ *
+ * @param {Object} socket - Socket.io socket instance
+ * @param {Object|null} currentPlayer - Current player state
+ * @param {Object|null} previousPlayer - Previous player state (null on first call)
+ */
+function syncSocketRooms(socket, currentPlayer, previousPlayer) {
+    if (!currentPlayer || !currentPlayer.roomCode) {
+        return;
+    }
+
+    const roomCode = currentPlayer.roomCode;
+
+    // A player is a spectator if they have no team OR their role is 'spectator'
+    const isSpectator = !currentPlayer.team || currentPlayer.role === 'spectator';
+
+    // Default previous state to spectator (first call)
+    const wasSpectator = previousPlayer
+        ? (!previousPlayer.team || previousPlayer.role === 'spectator')
+        : true;
+
+    if (wasSpectator && !isSpectator) {
+        // Transitioning from spectator to team player
+        socket.leave(`spectators:${roomCode}`);
+    } else if (!wasSpectator && isSpectator) {
+        // Transitioning from team player to spectator
+        socket.join(`spectators:${roomCode}`);
+    }
+}
+
 module.exports = {
     getPlayerContext,
-    canChangeTeamOrRole
+    canChangeTeamOrRole,
+    syncSocketRooms
 };

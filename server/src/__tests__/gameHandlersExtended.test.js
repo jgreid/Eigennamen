@@ -348,7 +348,10 @@ describe('Extended Game Handlers Tests', () => {
                 team: 'red',
                 nickname: 'Clicker1'
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', role: 'clicker', connected: true }
+            ]);
             gameService.endTurn.mockResolvedValue({
                 currentTurn: 'blue',
                 previousTurn: 'red'
@@ -370,7 +373,10 @@ describe('Extended Game Handlers Tests', () => {
                 team: 'red',
                 nickname: 'Clicker1'
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', role: 'clicker', connected: true }
+            ]);
             gameService.endTurn.mockResolvedValue({
                 currentTurn: 'blue',
                 previousTurn: 'red'

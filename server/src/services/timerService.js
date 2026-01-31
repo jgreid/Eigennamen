@@ -14,6 +14,9 @@ const { TIMER, REDIS_TTL } = require('../config/constants');
 // Local timers for this instance
 const localTimers = new Map();
 
+// Global timer expire callback (set via initializeTimerService)
+let globalExpireCallback = null;
+
 // Use centralized constants
 const TIMER_TTL_BUFFER = TIMER.TIMER_TTL_BUFFER_SECONDS;
 
@@ -391,6 +394,23 @@ async function cleanupAllTimers() {
     logger.info('All local timers cleaned up');
 }
 
+/**
+ * Initialize the timer service with a global expire callback.
+ * @param {Function} callback - Called with (roomCode) when any timer expires
+ */
+function initializeTimerService(callback) {
+    globalExpireCallback = callback;
+    logger.info('Timer service initialized with expire callback');
+    return true;
+}
+
+/**
+ * Get the registered global expire callback.
+ */
+function getExpireCallback() {
+    return globalExpireCallback;
+}
+
 module.exports = {
     startTimer,
     stopTimer,
@@ -399,5 +419,7 @@ module.exports = {
     resumeTimer,
     addTime,
     hasActiveTimer,
-    cleanupAllTimers
+    cleanupAllTimers,
+    initializeTimerService,
+    getExpireCallback
 };

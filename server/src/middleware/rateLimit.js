@@ -87,6 +87,16 @@ function createSocketRateLimiter(limits) {
     // Reverse index for O(1) socket cleanup: socketId -> Set of keys
     const socketKeyIndex = new Map();
 
+    // Metrics tracking
+    let totalRequests = 0;
+    let blockedRequests = 0;
+    let blockedByIP = 0;
+    const uniqueSockets = new Set();
+    const uniqueIPs = new Set();
+    const eventRequests = new Map();   // event -> count
+    const eventBlocked = new Map();    // event -> blocked count
+    const startTime = Date.now();
+
     /**
      * Get client IP from socket (set by socketAuth middleware)
      */
@@ -108,6 +118,12 @@ function createSocketRateLimiter(limits) {
             const now = Date.now();
             const windowStart = now - limit.window;
 
+            // Track metrics
+            totalRequests++;
+            uniqueSockets.add(socket.id);
+            uniqueIPs.add(clientIP);
+            eventRequests.set(eventName, (eventRequests.get(eventName) || 0) + 1);
+
             // === Per-socket rate limiting ===
             let socketTimestamps = socketRequests.get(socketKey);
             if (!socketTimestamps) {
@@ -121,6 +137,8 @@ function createSocketRateLimiter(limits) {
             const socketCount = filterTimestampsInPlace(socketTimestamps, windowStart);
 
             if (socketCount >= limit.max) {
+                blockedRequests++;
+                eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
                 logger.warn(`Socket rate limit exceeded: ${socket.id} for event ${eventName}`);
                 return next(new Error('Rate limit exceeded'));
             }
@@ -135,6 +153,9 @@ function createSocketRateLimiter(limits) {
             const ipCount = filterTimestampsInPlace(ipTimestamps, windowStart);
 
             if (ipCount >= ipLimit) {
+                blockedRequests++;
+                blockedByIP++;
+                eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
                 logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipCount} requests)`);
                 return next(new Error('IP rate limit exceeded'));
             }
@@ -267,16 +288,102 @@ function createSocketRateLimiter(limits) {
         }
     };
 
+    /**
+     * Get total number of tracked entries across all maps
+     */
+    const getSize = () => socketRequests.size + ipRequests.size;
+
+    /**
+     * Get detailed metrics for monitoring
+     */
+    const getMetrics = () => {
+        const uptimeMs = Date.now() - startTime;
+        const uptimeMinutes = uptimeMs / 60000;
+
+        // Top requested events (sorted desc)
+        const topRequestedEvents = [...eventRequests.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([event, count]) => ({ event, count }));
+
+        // Top blocked events (sorted desc)
+        const topBlockedEvents = [...eventBlocked.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([event, count]) => ({ event, count }));
+
+        return {
+            totalRequests,
+            blockedRequests,
+            blockedByIP,
+            blockRate: totalRequests > 0 ? `${((blockedRequests / totalRequests) * 100).toFixed(1)}%` : '0%',
+            uniqueSockets: uniqueSockets.size,
+            uniqueIPs: uniqueIPs.size,
+            activeSocketEntries: socketRequests.size,
+            activeIPEntries: ipRequests.size,
+            requestsPerMinute: uptimeMinutes > 0 ? Math.round(totalRequests / uptimeMinutes) : 0,
+            topRequestedEvents,
+            topBlockedEvents,
+            uptimeMinutes: Math.round(uptimeMinutes * 10) / 10
+        };
+    };
+
+    /**
+     * Reset all metrics counters
+     */
+    const resetMetrics = () => {
+        totalRequests = 0;
+        blockedRequests = 0;
+        blockedByIP = 0;
+        uniqueSockets.clear();
+        uniqueIPs.clear();
+        eventRequests.clear();
+        eventBlocked.clear();
+    };
+
     return {
         getLimiter,
         cleanupSocket,
         cleanupStale,
-        performLRUEviction
+        performLRUEviction,
+        getSize,
+        getMetrics,
+        resetMetrics
     };
+}
+
+// HTTP rate limit metrics tracking
+let httpTotalRequests = 0;
+let httpBlockedRequests = 0;
+const httpUniqueIPs = new Set();
+const httpBlockedIPs = new Set();
+const httpStartTime = Date.now();
+
+function getHttpRateLimitMetrics() {
+    const uptimeMs = Date.now() - httpStartTime;
+    const uptimeMinutes = uptimeMs / 60000;
+    return {
+        totalRequests: httpTotalRequests,
+        blockedRequests: httpBlockedRequests,
+        blockRate: httpTotalRequests > 0 ? `${((httpBlockedRequests / httpTotalRequests) * 100).toFixed(1)}%` : '0%',
+        uniqueIPs: httpUniqueIPs.size,
+        blockedIPs: httpBlockedIPs.size,
+        requestsPerMinute: uptimeMinutes > 0 ? Math.round(httpTotalRequests / uptimeMinutes) : 0,
+        uptimeMinutes: Math.round(uptimeMinutes * 10) / 10
+    };
+}
+
+function resetHttpRateLimitMetrics() {
+    httpTotalRequests = 0;
+    httpBlockedRequests = 0;
+    httpUniqueIPs.clear();
+    httpBlockedIPs.clear();
 }
 
 module.exports = {
     apiLimiter,
     strictLimiter,
-    createSocketRateLimiter
+    createSocketRateLimiter,
+    getHttpRateLimitMetrics,
+    resetHttpRateLimitMetrics
 };
