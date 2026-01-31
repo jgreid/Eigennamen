@@ -217,7 +217,11 @@ module.exports = function gameHandlers(io, socket) {
             }
 
             // Allow end turn if player is clicker OR if clicker is disconnected
-            const teamMembers = await playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn);
+            const teamMembers = await withTimeout(
+                playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn),
+                TIMEOUTS.GAME_ACTION,
+                'game:endTurn:getTeamMembers'
+            );
             const teamClicker = teamMembers && Array.isArray(teamMembers)
                 ? teamMembers.find(p => p.role === 'clicker')
                 : null;
@@ -232,7 +236,11 @@ module.exports = function gameHandlers(io, socket) {
                 throw new GameStateError(ERROR_CODES.CLUE_NOT_GIVEN, 'Cannot end turn before a clue has been given');
             }
 
-            const result = await gameService.endTurn(ctx.roomCode, ctx.player.nickname);
+            const result = await withTimeout(
+                gameService.endTurn(ctx.roomCode, ctx.player.nickname),
+                TIMEOUTS.GAME_ACTION,
+                'game:endTurn'
+            );
 
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,

@@ -6716,7 +6716,8 @@
                 renderBoard();
 
                 CodenamesClient.setTeam(team, (ack) => {
-                    if (ack && ack.error) {
+                    if (ack && ack.error && isChangingRole) {
+                        // Only revert if playerUpdated hasn't already handled it
                         console.warn('setTeam: server ack error, reverting optimistic update');
                         playerTeam = prevTeam;
                         spymasterTeam = prevSpymaster;
@@ -6809,7 +6810,7 @@
                 renderBoard();
 
                 const ackHandler = (ack) => {
-                    if (ack && ack.error) {
+                    if (ack && ack.error && isChangingRole) {
                         console.warn('setSpymaster: server ack error, reverting optimistic update');
                         isChangingRole = false;
                         changingTarget = null;
@@ -6905,7 +6906,7 @@
                 renderBoard();
 
                 const ackHandler = (ack) => {
-                    if (ack && ack.error) {
+                    if (ack && ack.error && isChangingRole) {
                         console.warn('setClicker: server ack error, reverting optimistic update');
                         isChangingRole = false;
                         changingTarget = null;

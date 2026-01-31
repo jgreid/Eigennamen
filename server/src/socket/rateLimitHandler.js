@@ -42,7 +42,10 @@ function stopRateLimitCleanup() {
  * @returns {Function} Wrapped handler with rate limiting
  */
 function createRateLimitedHandler(socket, eventName, handler) {
-    return async (data, ackCallback) => {
+    // IMPORTANT: Socket.io 4.7+ auto-acks from async handler return values.
+    // We resolve the Promise with the ack payload instead of calling ackCallback
+    // explicitly to avoid double-ack errors on the client.
+    return async (data) => {
         const limiter = socketRateLimiter.getLimiter(eventName);
 
         // FIX C1: Wrap callback-based limiter in Promise so we properly await completion
@@ -56,20 +59,17 @@ function createRateLimitedHandler(socket, eventName, handler) {
                         code: ERROR_CODES.RATE_LIMITED,
                         message: 'Too many requests, please slow down'
                     });
-                    if (typeof ackCallback === 'function') ackCallback({ error: true });
-                    resolve(); // Resolve even on rate limit to signal completion
+                    resolve({ error: true });
                     return;
                 }
                 try {
-                    await handler(data, ackCallback);
-                    if (typeof ackCallback === 'function') ackCallback({ ok: true });
+                    await handler(data);
+                    resolve({ ok: true });
                 } catch (error) {
                     logger.error(`Error in ${eventName} handler:`, error);
                     const errorEvent = `${eventName.split(':')[0]}:error`;
                     socket.emit(errorEvent, sanitizeErrorForClient(error));
-                    if (typeof ackCallback === 'function') ackCallback({ error: true });
-                } finally {
-                    resolve(); // Always resolve to signal completion
+                    resolve({ error: true });
                 }
             });
         });

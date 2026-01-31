@@ -84,7 +84,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped({ test: 'data' });
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith({ test: 'data' }, undefined);
+            expect(handler).toHaveBeenCalledWith({ test: 'data' });
         });
 
         test('handles handler that returns undefined', async () => {
@@ -202,7 +202,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped(complexData);
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith(complexData, undefined);
+            expect(handler).toHaveBeenCalledWith(complexData);
         });
     });
 
@@ -331,7 +331,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped(undefined);
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith(undefined, undefined);
+            expect(handler).toHaveBeenCalledWith(undefined);
         });
 
         test('handles null data', async () => {
@@ -341,7 +341,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped(null);
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith(null, undefined);
+            expect(handler).toHaveBeenCalledWith(null);
         });
 
         test('handles empty object', async () => {
@@ -351,7 +351,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped({});
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith({}, undefined);
+            expect(handler).toHaveBeenCalledWith({});
         });
 
         test('handles array data', async () => {
@@ -361,7 +361,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped([1, 2, 3]);
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith([1, 2, 3], undefined);
+            expect(handler).toHaveBeenCalledWith([1, 2, 3]);
         });
 
         test('handles string data', async () => {
@@ -371,7 +371,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped('Hello, world!');
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith('Hello, world!', undefined);
+            expect(handler).toHaveBeenCalledWith('Hello, world!');
         });
 
         test('handles number data', async () => {
@@ -381,7 +381,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped(42);
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith(42, undefined);
+            expect(handler).toHaveBeenCalledWith(42);
         });
     });
 

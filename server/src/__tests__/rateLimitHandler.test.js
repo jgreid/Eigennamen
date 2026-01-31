@@ -68,7 +68,7 @@ describe('Rate Limit Handler', () => {
             // Give time for async callback
             await new Promise(resolve => setTimeout(resolve, 10));
 
-            expect(handler).toHaveBeenCalledWith({ test: 'data' }, undefined);
+            expect(handler).toHaveBeenCalledWith({ test: 'data' });
         });
 
         test('emits error event when handler throws with safe error code', async () => {
