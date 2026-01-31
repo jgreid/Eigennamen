@@ -6588,20 +6588,32 @@
 
             // Clicker can end turn when it's their team's turn and a clue has been given
             const clueGiven = !!gameState.currentClue;
-            const clickerCanAct = clickerTeam && clickerTeam === gameState.currentTurn && !gameState.gameOver && clueGiven;
+            const isActiveClicker = clickerTeam && clickerTeam === gameState.currentTurn;
+            // Also allow non-clicker team members to end turn if clicker is disconnected
+            const clickerFallback = isMultiplayerMode && !isActiveClicker
+                && playerTeam === gameState.currentTurn
+                && (() => {
+                    const teamClicker = multiplayerPlayers.find(
+                        p => p.team === gameState.currentTurn && p.role === 'clicker'
+                    );
+                    return !teamClicker || !teamClicker.connected;
+                })();
+            const clickerCanAct = (isActiveClicker || clickerFallback) && !gameState.gameOver && clueGiven;
             if (endTurnBtn) {
                 endTurnBtn.disabled = !clickerCanAct;
                 endTurnBtn.classList.toggle('can-act', clickerCanAct);
 
                 // Update tooltip/title based on state
-                if (!clickerTeam) {
-                    endTurnBtn.title = 'Become a Clicker to end turns';
-                } else if (clickerTeam !== gameState.currentTurn) {
-                    endTurnBtn.title = 'Wait for your team\'s turn';
-                } else if (gameState.gameOver) {
+                if (gameState.gameOver) {
                     endTurnBtn.title = 'Game is over';
-                } else {
+                } else if (!clueGiven) {
+                    endTurnBtn.title = 'Waiting for spymaster to give a clue';
+                } else if (isActiveClicker || clickerFallback) {
                     endTurnBtn.title = 'End your team\'s turn';
+                } else if (playerTeam === gameState.currentTurn) {
+                    endTurnBtn.title = 'Only the Clicker can end the turn';
+                } else {
+                    endTurnBtn.title = 'Wait for your team\'s turn';
                 }
             }
 
@@ -6824,7 +6836,7 @@
                     CodenamesClient.setRole('spectator', ackHandler);
                 } else {
                     // First ensure we're on the right team, then set role
-                    if (playerTeam !== team) {
+                    if (prevTeam !== team) {
                         // Queue the role change to execute after team change completes
                         pendingRoleChange = 'spymaster';
                         CodenamesClient.setTeam(team, ackHandler);
@@ -6920,7 +6932,7 @@
                     CodenamesClient.setRole('spectator', ackHandler);
                 } else {
                     // First ensure we're on the right team, then set role
-                    if (playerTeam !== team) {
+                    if (prevTeam !== team) {
                         // Queue the role change to execute after team change completes
                         pendingRoleChange = 'clicker';
                         CodenamesClient.setTeam(team, ackHandler);
