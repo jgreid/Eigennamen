@@ -5266,6 +5266,7 @@
                     'CARD_ALREADY_REVEALED': 'That card has already been revealed',
                     'TEAM_WOULD_BE_EMPTY': 'Cannot leave - your team needs at least one player',
                     'CANNOT_SWITCH_TEAM_DURING_TURN': 'Cannot switch teams during your active turn',
+                    'CANNOT_CHANGE_ROLE_DURING_TURN': 'Cannot change roles during your active turn',
                     'MUST_JOIN_TEAM': 'Join a team first before selecting a role',
                     'ROLE_TAKEN': 'That role is already taken by another player',
                     'ROOM_NOT_FOUND': 'Room not found - it may have been closed',
@@ -5377,8 +5378,8 @@
             }
 
             // Sync turn
-            if (game.currentTeam) {
-                gameState.currentTurn = game.currentTeam;
+            if (game.currentTurn || game.currentTeam) {
+                gameState.currentTurn = game.currentTurn || game.currentTeam;
                 updateTurnIndicator();
             }
         }
@@ -6767,13 +6768,12 @@
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
 
-                // Safety timeout: clear isChangingRole if no response within 3 seconds
-                // Note: Don't clear pendingRoleChange here - if team change arrives late,
-                // we still want to send the queued role change
+                // Safety timeout: clear flags if no response within 3 seconds
                 setTimeout(() => {
                     if (isChangingRole) {
                         console.warn('setSpymaster: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
+                        pendingRoleChange = null;
                         updateControls(); // Re-enable buttons
                     }
                 }, 3000);
@@ -6829,13 +6829,12 @@
                 }
                 // Server will broadcast player:updated which triggers syncLocalPlayerState()
 
-                // Safety timeout: clear isChangingRole if no response within 3 seconds
-                // Note: Don't clear pendingRoleChange here - if team change arrives late,
-                // we still want to send the queued role change
+                // Safety timeout: clear flags if no response within 3 seconds
                 setTimeout(() => {
                     if (isChangingRole) {
                         console.warn('setClicker: Safety timeout - clearing isChangingRole flag');
                         isChangingRole = false;
+                        pendingRoleChange = null;
                         updateControls(); // Re-enable buttons
                     }
                 }, 3000);
