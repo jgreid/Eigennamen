@@ -212,12 +212,12 @@ describe('Player Handlers', () => {
             expect(playerService.setTeam).toHaveBeenCalled();
         });
 
-        test('allows team switch when not current turn', async () => {
+        test('allows team switch when not current turn for non-spymaster', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'TEST12',
                 team: 'red',
-                role: 'spymaster',
+                role: 'clicker',
                 nickname: 'TestPlayer'
             });
             gameService.getGame.mockResolvedValue({

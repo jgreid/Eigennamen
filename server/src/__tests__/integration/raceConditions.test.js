@@ -105,6 +105,44 @@ jest.mock('../../config/redis', () => {
                 return 1;
             }
 
+            // Role-set script (has 'newRole' and 'SMEMBERS')
+            if (script.includes('newRole') && script.includes('SMEMBERS')) {
+                const playerKey = options.keys[0];
+                const roomPlayersKey = options.keys[1];
+                const newRole = options.arguments[0];
+                const sessionId = options.arguments[1];
+
+                const playerData = mockRedisStorage.get(playerKey);
+                if (!playerData) return null;
+
+                const player = JSON.parse(playerData);
+
+                // For spymaster/clicker, require team
+                if ((newRole === 'spymaster' || newRole === 'clicker') && !player.team) {
+                    return JSON.stringify({ success: false, reason: 'NO_TEAM' });
+                }
+
+                // Check if role is taken
+                const memberSet = mockRedisSets.get(roomPlayersKey) || new Set();
+                for (const memberId of memberSet) {
+                    if (memberId !== sessionId) {
+                        const memberData = mockRedisStorage.get(`player:${memberId}`);
+                        if (memberData) {
+                            const member = JSON.parse(memberData);
+                            if (member.team === player.team && member.role === newRole) {
+                                return JSON.stringify({ success: false, reason: 'ROLE_TAKEN', existingNickname: member.nickname });
+                            }
+                        }
+                    }
+                }
+
+                player.role = newRole;
+                player.lastSeen = Date.now();
+                mockRedisStorage.set(playerKey, JSON.stringify(player));
+                return JSON.stringify({ success: true, player });
+            }
+
+            // Team-set script (has 'cjson.decode' and 'team')
             if (script.includes('cjson.decode') && script.includes('team')) {
                 const playerKey = options.keys[0];
                 const newTeam = options.arguments[0];

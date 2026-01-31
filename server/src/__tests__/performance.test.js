@@ -209,7 +209,7 @@ describe('Atomic Operations - Code Patterns', () => {
         );
 
         // Verify Lua script pattern for atomic operations
-        expect(playerServiceCode).toContain('ATOMIC_SET_TEAM_SCRIPT');
+        expect(playerServiceCode).toContain('ATOMIC_SAFE_TEAM_SWITCH_SCRIPT');
         expect(playerServiceCode).toMatch(/redis\.eval/);
     });
 

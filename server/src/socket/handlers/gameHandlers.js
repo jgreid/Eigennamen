@@ -9,6 +9,7 @@ const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
 const gameHistoryService = require('../../services/gameHistoryService');
+const eventLogService = require('../../services/eventLogService');
 const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
@@ -199,6 +200,13 @@ module.exports = function gameHandlers(io, socket) {
                 timestamp: clue.timestamp
             });
 
+            await eventLogService.logEvent(ctx.roomCode, 'CLUE_GIVEN', {
+                team: clue.team,
+                word: clue.word,
+                number: clue.number,
+                spymaster: clue.spymaster
+            });
+
             logger.info(`Clue given in room ${ctx.roomCode}: ${clue.word} ${clue.number}`);
         }
     ));
@@ -208,15 +216,39 @@ module.exports = function gameHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.GAME_END_TURN, createGameHandler(socket, SOCKET_EVENTS.GAME_END_TURN, null,
         async (ctx) => {
-            if (!ctx.player || ctx.player.role !== 'clicker') {
-                throw PlayerError.notClicker();
+            if (!ctx.player.team) {
+                throw new ValidationError('You must join a team before ending the turn');
             }
 
             if (ctx.player.team !== ctx.game.currentTurn) {
                 throw PlayerError.notYourTurn(ctx.player.team);
             }
 
-            const result = await gameService.endTurn(ctx.roomCode, ctx.player.nickname);
+            // Allow end turn if player is clicker OR if clicker is disconnected
+            const teamMembers = await withTimeout(
+                playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn),
+                TIMEOUTS.GAME_ACTION,
+                'game:endTurn:getTeamMembers'
+            );
+            const teamClicker = teamMembers && Array.isArray(teamMembers)
+                ? teamMembers.find(p => p.role === 'clicker')
+                : null;
+            const clickerDisconnected = !teamClicker || !teamClicker.connected;
+
+            if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
+                throw PlayerError.notClicker();
+            }
+
+            // Cannot end turn before spymaster gives a clue
+            if (!ctx.game.currentClue) {
+                throw new GameStateError(ERROR_CODES.CLUE_NOT_GIVEN, 'Cannot end turn before a clue has been given');
+            }
+
+            const result = await withTimeout(
+                gameService.endTurn(ctx.roomCode, ctx.player.nickname),
+                TIMEOUTS.GAME_ACTION,
+                'game:endTurn'
+            );
 
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
@@ -228,6 +260,12 @@ module.exports = function gameHandlers(io, socket) {
             if (room && room.settings && room.settings.turnTimer) {
                 await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
             }
+
+            await eventLogService.logEvent(ctx.roomCode, 'TURN_ENDED', {
+                currentTurn: result.currentTurn,
+                previousTurn: result.previousTurn,
+                reason: 'manual'
+            });
 
             logger.info(`Turn ended in room ${ctx.roomCode}, now ${result.currentTurn}'s turn`);
         }
@@ -268,6 +306,12 @@ module.exports = function gameHandlers(io, socket) {
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
             auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner, 'forfeit', null);
+
+            await eventLogService.logEvent(ctx.roomCode, 'GAME_OVER', {
+                winner: result.winner,
+                forfeitingTeam: result.forfeitingTeam,
+                reason: 'forfeit'
+            });
 
             logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
         }

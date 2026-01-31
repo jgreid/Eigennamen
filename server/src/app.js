@@ -9,7 +9,7 @@ const compression = require('compression');
 const path = require('path');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, strictLimiter } = require('./middleware/rateLimit');
+const { apiLimiter, strictLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
 const { requestTiming, startMemoryMonitoring } = require('./middleware/timing');
 const routes = require('./routes');
@@ -310,6 +310,22 @@ app.get('/metrics', strictLimiter, async (req, res) => {
         metricsData.application = {
             status: 'error',
             error: error.message
+        };
+    }
+
+    // Add rate limit metrics
+    try {
+        const httpMetrics = getHttpRateLimitMetrics();
+        const socketRateLimiter = app.get('socketRateLimiter');
+        metricsData.rateLimits = {
+            http: httpMetrics,
+            socket: socketRateLimiter ? socketRateLimiter.getMetrics() : { status: 'not initialized' }
+        };
+    } catch (error) {
+        logger.warn('Failed to fetch rate limit metrics:', error.message);
+        metricsData.rateLimits = {
+            http: {},
+            socket: {}
         };
     }
 

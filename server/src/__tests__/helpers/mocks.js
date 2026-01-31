@@ -487,12 +487,6 @@ function createMockServices() {
             pauseTimer: jest.fn(async () => 60),
             resumeTimer: jest.fn(async () => ({ endTime: Date.now() + 60000 })),
             hasActiveTimer: jest.fn(async () => false)
-        },
-        eventLogService: {
-            logEvent: jest.fn(async () => ({ id: uuidv4() })),
-            getEventsSince: jest.fn(async () => []),
-            getRecentEvents: jest.fn(async () => []),
-            clearEventLog: jest.fn(async () => {})
         }
     };
 }

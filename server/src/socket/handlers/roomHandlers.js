@@ -13,6 +13,7 @@
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
+const eventLogService = require('../../services/eventLogService');
 const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -84,6 +85,11 @@ module.exports = function roomHandlers(io, socket) {
             const roomStats = await playerService.getRoomStats(room.code);
 
             socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
+
+            await eventLogService.logEvent(room.code, 'ROOM_CREATED', {
+                roomCode: room.code,
+                hostSessionId: socket.sessionId
+            });
 
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
 
@@ -212,6 +218,11 @@ module.exports = function roomHandlers(io, socket) {
             );
 
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_SETTINGS_UPDATED, { settings });
+
+            await eventLogService.logEvent(ctx.roomCode, 'SETTINGS_UPDATED', {
+                sessionId: ctx.sessionId,
+                settings
+            });
 
             logger.info(`Room ${ctx.roomCode} settings updated`);
         }
@@ -384,6 +395,13 @@ module.exports = function roomHandlers(io, socket) {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team
+            });
+
+            await eventLogService.logEvent(code, 'PLAYER_JOINED', {
+                sessionId: socket.sessionId,
+                nickname: player.nickname,
+                isReconnect: true,
+                usedToken: true
             });
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);

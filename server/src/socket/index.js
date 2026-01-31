@@ -7,7 +7,7 @@ const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
 const logger = require('../utils/logger');
-const { authenticateSocket } = require('../middleware/socketAuth');
+const { authenticateSocket, getClientIP } = require('../middleware/socketAuth');
 const timerService = require('../services/timerService');
 const { SOCKET, SOCKET_EVENTS } = require('../config/constants');
 const {
@@ -99,9 +99,8 @@ function initializeSocket(server, expressApp = null) {
 
     // Connection limits middleware - check before authentication
     io.use((socket, next) => {
-        const clientIP = socket.handshake.headers['x-forwarded-for']?.split(',')[0]?.trim()
-            || socket.handshake.address
-            || 'unknown';
+        // SECURITY FIX: Use getClientIP which only trusts X-Forwarded-For behind configured proxies
+        const clientIP = getClientIP(socket) || 'unknown';
 
         const currentCount = connectionsPerIP.get(clientIP) || 0;
 
@@ -223,6 +222,9 @@ function initializeSocket(server, expressApp = null) {
     // Start periodic cleanup of stale rate limit entries
     startRateLimitCleanup();
 
+    // Initialize timer service with expire callback
+    timerService.initializeTimerService(createTimerExpireCallback());
+
     // Register socket functions for handlers (breaks circular dependency)
     registerSocketFunctions({
         emitToRoom,
@@ -244,6 +246,7 @@ function createTimerExpireCallback() {
     return async (roomCode) => {
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
+        const eventLogService = require('../services/eventLogService');
         try {
             // Check if game is still active before ending turn (prevents race condition)
             const game = await gameService.getGame(roomCode);
@@ -263,6 +266,15 @@ function createTimerExpireCallback() {
                 reason: 'timerExpired'
             });
             emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
+
+            try {
+                await eventLogService.logEvent(roomCode, 'TIMER_EXPIRED', {
+                    currentTurn: result.currentTurn,
+                    previousTurn: result.previousTurn
+                });
+            } catch (logErr) {
+                logger.warn(`Failed to log timer expire event: ${logErr.message}`);
+            }
 
             // Restart timer for the new turn (if timer is configured and game not over)
             // BUG-6 & ISSUE #3 FIX: Use distributed lock with improved error handling
@@ -355,6 +367,7 @@ function createTimerExpireCallback() {
 async function handleDisconnect(io, socket, reason) {
     const playerService = require('../services/playerService');
     const roomService = require('../services/roomService');
+    const eventLogService = require('../services/eventLogService');
     const { getRedis } = require('../config/redis');
     const { REDIS_TTL } = require('../config/constants');
 
@@ -406,6 +419,18 @@ async function handleDisconnect(io, socket, reason) {
                 reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
             });
 
+            // Log disconnection event
+            try {
+                await eventLogService.logEvent(roomCode, 'PLAYER_DISCONNECTED', {
+                    sessionId: socket.sessionId,
+                    nickname: player.nickname,
+                    team: player.team,
+                    reason: reason
+                });
+            } catch (logErr) {
+                logger.warn(`Failed to log disconnect event: ${logErr.message}`);
+            }
+
             // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL
             if (player.isHost) {
                 const redis = getRedis();
@@ -446,6 +471,17 @@ async function handleDisconnect(io, socket, reason) {
                                         newHostNickname: newHost.nickname,
                                         reason: 'previousHostDisconnected'
                                     });
+
+                                    try {
+                                        await eventLogService.logEvent(roomCode, 'HOST_CHANGED', {
+                                            previousHostSessionId: socket.sessionId,
+                                            newHostSessionId: newHost.sessionId,
+                                            newHostNickname: newHost.nickname,
+                                            reason: 'previousHostDisconnected'
+                                        });
+                                    } catch (logErr) {
+                                        logger.warn(`Failed to log host change event: ${logErr.message}`);
+                                    }
 
                                 } else {
                                     logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });

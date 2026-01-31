@@ -145,12 +145,12 @@ describe('Extended Player Handlers Tests', () => {
             expect(playerService.setTeam).toHaveBeenCalled();
         });
 
-        test('allows team switch when not your turn', async () => {
+        test('allows team switch when not your turn for non-spymaster', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 team: 'red',
-                role: 'spymaster'
+                role: 'clicker'
             });
             gameService.getGame.mockResolvedValue({
                 currentTurn: 'blue', // Other team's turn

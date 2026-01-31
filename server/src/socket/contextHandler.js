@@ -21,7 +21,7 @@
  *   )
  */
 
-const { getPlayerContext } = require('./playerContext');
+const { getPlayerContext, syncSocketRooms } = require('./playerContext');
 const { createRateLimitedHandler } = require('./rateLimitHandler');
 const { validateInput } = require('../middleware/validation');
 const logger = require('../utils/logger');
@@ -44,7 +44,17 @@ function createContextHandler(socket, eventName, schema, contextOptions, handler
             const validated = schema ? validateInput(schema, data) : (data || {});
             const ctx = await getPlayerContext(socket, contextOptions);
 
-            return await handler(ctx, validated);
+            // Snapshot previous player state before handler modifies it
+            const previousPlayer = ctx.player ? { ...ctx.player } : null;
+
+            const result = await handler(ctx, validated);
+
+            // Sync socket rooms if handler returned updated player
+            if (result && result.player) {
+                syncSocketRooms(socket, result.player, previousPlayer);
+            }
+
+            return result;
         } catch (error) {
             const errorEvent = `${eventName.split(':')[0]}:error`;
 

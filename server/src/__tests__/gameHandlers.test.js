@@ -328,7 +328,11 @@ describe('Game Handlers', () => {
 
         test('validates player is clicker', async () => {
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'spectator', team: 'red' });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', role: 'spectator', connected: true },
+                { sessionId: 'session-789', role: 'clicker', connected: true }
+            ]);
 
             const handlers = mockSocket.on.mock.calls;
             const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
@@ -347,7 +351,10 @@ describe('Game Handlers', () => {
                 team: 'red',
                 nickname: 'Clicker1'
             });
-            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', role: 'clicker', connected: true }
+            ]);
             gameService.endTurn.mockResolvedValue({
                 currentTurn: 'blue',
                 previousTurn: 'red'
