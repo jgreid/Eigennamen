@@ -183,6 +183,9 @@ module.exports = function roomHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.ROOM_LEAVE, createRoomHandler(socket, SOCKET_EVENTS.ROOM_LEAVE, null,
         async (ctx) => {
+            // Mark socket so the disconnect handler skips redundant cleanup
+            socket.leftRoom = true;
+
             // Invalidate reconnection token when explicitly leaving
             await playerService.invalidateReconnectionToken(ctx.sessionId);
 

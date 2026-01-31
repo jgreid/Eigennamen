@@ -355,6 +355,15 @@ function createTimerExpireCallback() {
             });
         } catch (error) {
             logger.error(`Timer expiry error for room ${roomCode}:`, error);
+            // Notify players so the game doesn't appear frozen
+            try {
+                emitToRoom(roomCode, SOCKET_EVENTS.GAME_ERROR, {
+                    code: 'TIMER_EXPIRY_FAILED',
+                    message: 'Turn timer expired but turn could not be ended automatically. Please end the turn manually.'
+                });
+            } catch (broadcastErr) {
+                logger.error(`Failed to broadcast timer expiry error for room ${roomCode}:`, broadcastErr);
+            }
         }
     };
 }
@@ -372,9 +381,9 @@ async function handleDisconnect(io, socket, reason) {
     const { REDIS_TTL } = require('../config/constants');
 
     try {
-        // Skip cleanup if socket was already cleaned up by kick handler
-        if (socket.kicked) {
-            logger.debug(`Skipping disconnect cleanup for kicked socket ${socket.id}`);
+        // Skip cleanup if socket was already cleaned up by kick or explicit leave handler
+        if (socket.kicked || socket.leftRoom) {
+            logger.debug(`Skipping disconnect cleanup for ${socket.kicked ? 'kicked' : 'left'} socket ${socket.id}`);
             return;
         }
 
@@ -491,6 +500,11 @@ async function handleDisconnect(io, socket, reason) {
 
                                 } else {
                                     logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
+                                    // Notify players so they know host transfer failed
+                                    io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_ERROR, {
+                                        code: 'HOST_TRANSFER_FAILED',
+                                        message: 'Host left but automatic host transfer failed. Please rejoin the room.'
+                                    });
                                 }
                             }
                         }
@@ -499,6 +513,14 @@ async function handleDisconnect(io, socket, reason) {
                     }
                 } catch (hostTransferError) {
                     logger.error(`Host transfer failed for room ${roomCode}: ${hostTransferError.message}`);
+                    try {
+                        io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_ERROR, {
+                            code: 'HOST_TRANSFER_FAILED',
+                            message: 'Host left but automatic host transfer failed. Please rejoin the room.'
+                        });
+                    } catch (broadcastErr) {
+                        logger.error(`Failed to broadcast host transfer error: ${broadcastErr.message}`);
+                    }
                 } finally {
                     // ISSUE #7 FIX: Only release lock if we acquired it
                     if (hostTransferLockAcquired) {

@@ -290,8 +290,8 @@ if newRole == 'spymaster' or newRole == 'clicker' then
             local memberData = redis.call('GET', 'player:' .. memberId)
             if memberData then
                 local member = cjson.decode(memberData)
-                -- Check if same team and same role
-                if member.team == player.team and member.role == newRole then
+                -- Check if same team and same role AND player is still connected
+                if member.team == player.team and member.role == newRole and member.connected == true then
                     return cjson.encode({
                         success = false,
                         reason = 'ROLE_TAKEN',
