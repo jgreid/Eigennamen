@@ -22,10 +22,9 @@ module.exports = function playerHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx, validated) => {
-            const canChange = canChangeTeamOrRole(ctx, { isTeamChange: true });
+            const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
-                const errorCode = canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN;
-                throw new GameStateError(errorCode, canChange.reason);
+                throw new GameStateError(canChange.code || ERROR_CODES.CHANGES_LOCKED_DURING_GAME, canChange.reason);
             }
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
@@ -69,7 +68,7 @@ module.exports = function playerHandlers(io, socket) {
         async (ctx, validated) => {
             const canChange = canChangeTeamOrRole(ctx);
             if (!canChange.allowed) {
-                throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
+                throw new GameStateError(canChange.code || ERROR_CODES.CHANGES_LOCKED_DURING_GAME, canChange.reason);
             }
 
             const player = await playerService.setRole(ctx.sessionId, validated.role);
@@ -171,9 +170,12 @@ module.exports = function playerHandlers(io, socket) {
             await playerService.removePlayer(validated.targetSessionId);
 
             // Disconnect the target player's socket
+            // Mark socket as kicked BEFORE disconnect to prevent the disconnect
+            // handler from redundantly trying to clean up the already-removed player
             if (targetSocketId) {
                 const targetSocket = io.sockets.sockets.get(targetSocketId);
                 if (targetSocket) {
+                    targetSocket.kicked = true;
                     targetSocket.emit(SOCKET_EVENTS.ROOM_KICKED, {
                         reason: 'You were removed from the room by the host'
                     });

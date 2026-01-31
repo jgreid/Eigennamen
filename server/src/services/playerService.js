@@ -792,19 +792,26 @@ async function generateReconnectionToken(sessionId) {
         return null;
     }
 
-    // RACE CONDITION FIX: Check for existing token first to make this idempotent
-    // This prevents multiple concurrent calls from generating different tokens
-    const existingToken = await redis.get(`reconnect:session:${sessionId}`);
-    if (existingToken) {
-        logger.debug(`Returning existing reconnection token for session ${sessionId}`);
-        return existingToken;
-    }
-
-    // Generate a cryptographically secure random token
     const tokenBytes = SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32;
     const token = crypto.randomBytes(tokenBytes).toString('hex');
+    const ttl = SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS || 300;
 
-    // Store token with session data for validation
+    // Atomic: SET NX ensures only one token wins if concurrent calls race
+    const sessionKey = `reconnect:session:${sessionId}`;
+    const wasSet = await redis.set(sessionKey, token, { EX: ttl, NX: true });
+
+    if (!wasSet) {
+        // Another call won the race — return the existing token
+        const existingToken = await redis.get(sessionKey);
+        if (existingToken) {
+            logger.debug(`Returning existing reconnection token for session ${sessionId}`);
+            return existingToken;
+        }
+        // Token expired between SET NX and GET — retry once
+        await redis.set(sessionKey, token, { EX: ttl, NX: true });
+    }
+
+    // Store token -> session mapping for validation
     const tokenData = {
         sessionId,
         roomCode: player.roomCode,
@@ -814,19 +821,9 @@ async function generateReconnectionToken(sessionId) {
         createdAt: Date.now()
     };
 
-    const ttl = SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS || 300;
-
-    // Store token -> session mapping for quick lookup
     await redis.set(
         `reconnect:token:${token}`,
         JSON.stringify(tokenData),
-        { EX: ttl }
-    );
-
-    // Store session -> token mapping for cleanup on successful reconnect
-    await redis.set(
-        `reconnect:session:${sessionId}`,
-        token,
         { EX: ttl }
     );
 

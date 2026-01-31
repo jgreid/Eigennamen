@@ -89,7 +89,10 @@ jest.mock('../utils/metrics', () => ({
 // Mock rate limit
 jest.mock('../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next()
+    strictLimiter: (req, res, next) => next(),
+    httpMetricsMiddleware: (req, res, next) => next(),
+    getHttpRateLimitMetrics: () => ({ totalRequests: 0, blockedRequests: 0 }),
+    resetHttpRateLimitMetrics: () => {}
 }));
 
 // Mock roomService for delete operations

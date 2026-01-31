@@ -841,10 +841,10 @@ describe('SESSION_SECURITY Import (Line 323)', () => {
 
         const data = call[1];
         expect(data.reconnectionDeadline).toBeGreaterThan(beforeCall);
-        // Default TTL is 900 seconds (15 minutes)
-        // Deadline should be approximately now + 900000ms
-        const expectedMin = beforeCall + (900 * 1000) - 1000;
-        const expectedMax = afterCall + (900 * 1000) + 1000;
+        // Default TTL is 600 seconds (10 minutes)
+        // Deadline should be approximately now + 600000ms
+        const expectedMin = beforeCall + (600 * 1000) - 1000;
+        const expectedMax = afterCall + (600 * 1000) + 1000;
         expect(data.reconnectionDeadline).toBeGreaterThanOrEqual(expectedMin);
         expect(data.reconnectionDeadline).toBeLessThanOrEqual(expectedMax);
     });

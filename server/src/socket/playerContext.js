@@ -145,32 +145,28 @@ async function getPlayerContext(socket, options = {}) {
 /**
  * Check if a player can change their team/role during an active game.
  *
+ * Simple rule: once the first card has been revealed, all team/role changes
+ * are locked until the game ends. Before any cards are revealed (lobby/setup
+ * phase of an active game), changes are still allowed.
+ *
  * @param {Object} ctx - The player context
- * @returns {{allowed: boolean, reason?: string}}
+ * @returns {{allowed: boolean, reason?: string, code?: string}}
  */
-function canChangeTeamOrRole(ctx, { isTeamChange = false } = {}) {
-    const { player, game } = ctx;
+function canChangeTeamOrRole(ctx) {
+    const { game } = ctx;
 
     if (!game || game.gameOver) {
         return { allowed: true };
     }
 
-    // Spymasters have seen card types — block team changes entirely during active game
-    if (isTeamChange && player.role === 'spymaster') {
+    // Once any card has been revealed, lock all team/role changes
+    const hasRevealedCards = Array.isArray(game.revealed) && game.revealed.some(r => r);
+    if (hasRevealedCards) {
         return {
             allowed: false,
-            reason: 'Cannot change teams as spymaster during an active game (card information would leak)',
-            code: 'SPYMASTER_CANNOT_CHANGE_TEAM'
+            reason: 'Cannot change team or role after cards have been revealed',
+            code: 'CHANGES_LOCKED_DURING_GAME'
         };
-    }
-
-    if (player.role === 'spymaster' || player.role === 'clicker') {
-        if (game.currentTurn === player.team) {
-            return {
-                allowed: false,
-                reason: `Cannot change while you are the active ${player.role} during your team's turn`
-            };
-        }
     }
 
     return { allowed: true };

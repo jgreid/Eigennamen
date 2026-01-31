@@ -20,6 +20,8 @@ const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
+        httpBlockedRequests++;
+        httpBlockedIPs.add(req.ip);
         logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
     }
@@ -40,10 +42,21 @@ const strictLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
+        httpBlockedRequests++;
+        httpBlockedIPs.add(req.ip);
         logger.warn(`Strict rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
     }
 });
+
+/**
+ * Middleware to track HTTP request metrics (apply before rate limiters)
+ */
+function httpMetricsMiddleware(req, _res, next) {
+    httpTotalRequests++;
+    httpUniqueIPs.add(req.ip);
+    next();
+}
 
 // IP multiplier - allows multiple legitimate users on same IP (corporate, shared wifi)
 const IP_RATE_LIMIT_MULTIPLIER = 5;
@@ -383,6 +396,7 @@ function resetHttpRateLimitMetrics() {
 module.exports = {
     apiLimiter,
     strictLimiter,
+    httpMetricsMiddleware,
     createSocketRateLimiter,
     getHttpRateLimitMetrics,
     resetHttpRateLimitMetrics

@@ -152,7 +152,7 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('prevents team switch during active turn for spymaster', async () => {
+        test('prevents team switch once cards are revealed', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'TEST12',
@@ -162,31 +162,11 @@ describe('Player Handlers', () => {
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                currentTurn: 'red'
+                currentTurn: 'red',
+                revealed: [true, false, false]
             });
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
-                code: expect.any(String),
-                message: expect.stringContaining('Cannot change')
-            });
-        });
-
-        test('prevents team switch during active turn for clicker', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1',
-                roomCode: 'TEST12',
-                team: 'blue',
-                role: 'clicker',
-                nickname: 'TestPlayer'
-            });
-            gameService.getGame.mockResolvedValue({
-                gameOver: false,
-                currentTurn: 'blue'
-            });
-
-            await eventHandlers['player:setTeam']({ team: 'red' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
@@ -212,7 +192,7 @@ describe('Player Handlers', () => {
             expect(playerService.setTeam).toHaveBeenCalled();
         });
 
-        test('allows team switch when not current turn for non-spymaster', async () => {
+        test('allows team switch before any cards are revealed', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'TEST12',
@@ -222,7 +202,8 @@ describe('Player Handlers', () => {
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                currentTurn: 'blue' // Different team's turn
+                currentTurn: 'blue',
+                revealed: [false, false, false]
             });
 
             await eventHandlers['player:setTeam']({ team: 'blue' });

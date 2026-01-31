@@ -372,6 +372,12 @@ async function handleDisconnect(io, socket, reason) {
     const { REDIS_TTL } = require('../config/constants');
 
     try {
+        // Skip cleanup if socket was already cleaned up by kick handler
+        if (socket.kicked) {
+            logger.debug(`Skipping disconnect cleanup for kicked socket ${socket.id}`);
+            return;
+        }
+
         const player = await playerService.getPlayer(socket.sessionId);
 
         if (!player) {

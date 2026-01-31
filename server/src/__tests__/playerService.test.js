@@ -689,26 +689,31 @@ describe('Player Service', () => {
             );
             expect(mockRedis.set).toHaveBeenCalledWith(
                 'reconnect:session:s1',
-                token,
-                { EX: 300 }
+                expect.any(String),
+                { EX: 300, NX: true }
             );
         });
 
-        test('returns existing token if one exists', async () => {
+        test('returns existing token if one exists (SET NX fails)', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
             const existingToken = 'a'.repeat(64); // Existing token
-            // Mock different returns for different keys
             mockRedis.get.mockImplementation((key) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
                 if (key === 'reconnect:session:s1') return Promise.resolve(existingToken);
                 return Promise.resolve(null);
             });
+            // SET NX returns null when key already exists
+            mockRedis.set.mockResolvedValueOnce(null);
 
             const token = await playerService.generateReconnectionToken('s1');
 
             expect(token).toBe(existingToken);
-            // Should NOT call set since we returned existing token
-            expect(mockRedis.set).not.toHaveBeenCalled();
+            // SET NX was attempted but failed (key existed), then GET returned existing token
+            expect(mockRedis.set).toHaveBeenCalledWith(
+                'reconnect:session:s1',
+                expect.any(String),
+                expect.objectContaining({ NX: true })
+            );
         });
 
         test('returns null for non-existent player', async () => {

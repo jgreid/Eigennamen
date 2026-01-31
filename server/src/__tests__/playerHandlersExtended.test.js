@@ -79,7 +79,7 @@ describe('Extended Player Handlers Tests', () => {
     });
 
     describe('player:setTeam edge cases', () => {
-        test('prevents team switch during active turn as spymaster', async () => {
+        test('prevents team switch once cards are revealed', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -88,7 +88,8 @@ describe('Extended Player Handlers Tests', () => {
             });
             gameService.getGame.mockResolvedValue({
                 currentTurn: 'red',
-                gameOver: false
+                gameOver: false,
+                revealed: [true, false]
             });
 
             const handlers = mockSocket.on.mock.calls;
@@ -100,7 +101,7 @@ describe('Extended Player Handlers Tests', () => {
             }));
         });
 
-        test('prevents team switch during active turn as clicker', async () => {
+        test('prevents team switch once cards are revealed as clicker', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -109,7 +110,8 @@ describe('Extended Player Handlers Tests', () => {
             });
             gameService.getGame.mockResolvedValue({
                 currentTurn: 'blue',
-                gameOver: false
+                gameOver: false,
+                revealed: [false, true]
             });
 
             const handlers = mockSocket.on.mock.calls;
@@ -145,7 +147,7 @@ describe('Extended Player Handlers Tests', () => {
             expect(playerService.setTeam).toHaveBeenCalled();
         });
 
-        test('allows team switch when not your turn for non-spymaster', async () => {
+        test('allows team switch before any cards are revealed', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -153,8 +155,9 @@ describe('Extended Player Handlers Tests', () => {
                 role: 'clicker'
             });
             gameService.getGame.mockResolvedValue({
-                currentTurn: 'blue', // Other team's turn
-                gameOver: false
+                currentTurn: 'blue',
+                gameOver: false,
+                revealed: [false, false]
             });
             playerService.setTeam.mockResolvedValue({
                 sessionId: 'session-456',

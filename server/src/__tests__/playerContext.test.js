@@ -235,50 +235,40 @@ describe('playerContext', () => {
         it('allows changes when game is over', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spymaster', team: 'red' },
-                game: { gameOver: true, currentTurn: 'red' }
+                game: { gameOver: true, revealed: [true, false] }
             });
             expect(result.allowed).toBe(true);
         });
 
-        it('blocks spymaster from changing during their team turn', () => {
+        it('allows changes before any cards are revealed', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spymaster', team: 'red' },
-                game: { gameOver: false, currentTurn: 'red' }
-            });
-            expect(result.allowed).toBe(false);
-            expect(result.reason).toContain('spymaster');
-        });
-
-        it('blocks clicker from changing during their team turn', () => {
-            const result = canChangeTeamOrRole({
-                player: { role: 'clicker', team: 'blue' },
-                game: { gameOver: false, currentTurn: 'blue' }
-            });
-            expect(result.allowed).toBe(false);
-            expect(result.reason).toContain('clicker');
-        });
-
-        it('allows spymaster to change when it is NOT their team turn', () => {
-            const result = canChangeTeamOrRole({
-                player: { role: 'spymaster', team: 'red' },
-                game: { gameOver: false, currentTurn: 'blue' }
+                game: { gameOver: false, revealed: [false, false, false] }
             });
             expect(result.allowed).toBe(true);
         });
 
-        it('allows spectator to change freely during active game', () => {
+        it('blocks all changes once a card has been revealed', () => {
+            const result = canChangeTeamOrRole({
+                player: { role: 'spymaster', team: 'red' },
+                game: { gameOver: false, revealed: [true, false, false] }
+            });
+            expect(result.allowed).toBe(false);
+            expect(result.code).toBe('CHANGES_LOCKED_DURING_GAME');
+        });
+
+        it('blocks spectator changes once cards are revealed', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spectator', team: null },
-                game: { gameOver: false, currentTurn: 'red' }
+                game: { gameOver: false, revealed: [false, true] }
             });
-            expect(result.allowed).toBe(true);
+            expect(result.allowed).toBe(false);
         });
 
-        it('allows player with non-restricted role to change during game', () => {
-            // A player on a team but with no special role
+        it('allows changes when revealed array is missing', () => {
             const result = canChangeTeamOrRole({
-                player: { role: null, team: 'red' },
-                game: { gameOver: false, currentTurn: 'red' }
+                player: { role: 'clicker', team: 'blue' },
+                game: { gameOver: false }
             });
             expect(result.allowed).toBe(true);
         });

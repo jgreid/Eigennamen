@@ -9,7 +9,7 @@ const compression = require('compression');
 const path = require('path');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, strictLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
+const { apiLimiter, strictLimiter, httpMetricsMiddleware, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
 const { requestTiming, startMemoryMonitoring } = require('./middleware/timing');
 const routes = require('./routes');
@@ -137,6 +137,9 @@ app.use(requestTiming);
 // Body parsing with size limits to prevent memory exhaustion attacks
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// HTTP request metrics tracking (before rate limiters so all requests are counted)
+app.use('/api', httpMetricsMiddleware);
 
 // Rate limiting for API routes
 app.use('/api', apiLimiter);

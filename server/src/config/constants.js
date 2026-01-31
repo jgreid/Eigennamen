@@ -34,7 +34,7 @@ module.exports = {
         MAX_VALIDATION_ATTEMPTS_PER_IP: 20,          // Max validation attempts per IP per minute
         IP_MISMATCH_ALLOWED: true,                   // Allow reconnection from different IP (logged for monitoring)
         SESSION_ID_MIN_LENGTH: 36,                   // UUID length
-        RECONNECTION_TOKEN_TTL_SECONDS: 900,         // 15 minutes TTL for reconnection tokens (US-16.3)
+        RECONNECTION_TOKEN_TTL_SECONDS: 600,         // 10 minutes — must not exceed DISCONNECTED_PLAYER TTL
         RECONNECTION_TOKEN_LENGTH: 32,               // Bytes for secure token
         ROTATE_SESSION_ON_RECONNECT: true,           // Issue new session token after successful reconnection
         RATE_LIMIT_FAIL_CLOSED: false                // If true, deny requests when Redis fails (more secure but less available)
@@ -299,6 +299,7 @@ module.exports = {
         CANNOT_SWITCH_TEAM_DURING_TURN: 'CANNOT_SWITCH_TEAM_DURING_TURN',
         CANNOT_CHANGE_ROLE_DURING_TURN: 'CANNOT_CHANGE_ROLE_DURING_TURN',
         SPYMASTER_CANNOT_CHANGE_TEAM: 'SPYMASTER_CANNOT_CHANGE_TEAM',
+        CHANGES_LOCKED_DURING_GAME: 'CHANGES_LOCKED_DURING_GAME',
         CLUE_NOT_GIVEN: 'CLUE_NOT_GIVEN',
         PLAYER_NOT_FOUND: 'PLAYER_NOT_FOUND',
         GAME_NOT_STARTED: 'GAME_NOT_STARTED'
