@@ -247,6 +247,7 @@ async function joinRoom(roomId, sessionId, nickname) {
  */
 async function leaveRoom(code, sessionId) {
     const redis = getRedis();
+    code = toEnglishLowerCase(code);
     const room = await getRoom(code);
 
     if (!room) {

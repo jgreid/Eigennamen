@@ -12,6 +12,10 @@
 
 const logger = require('../utils/logger');
 
+// Maximum total keys across all data structures before eviction kicks in.
+// This prevents unbounded memory growth in long-running single-instance deployments.
+const MAX_TOTAL_KEYS = parseInt(process.env.MEMORY_STORAGE_MAX_KEYS, 10) || 50000;
+
 // Shared storage across all MemoryStorage instances (for duplicate() support)
 let sharedData = null;
 let sharedExpiries = null;
@@ -78,6 +82,76 @@ class MemoryStorage {
         if (elapsed > 50 || cleanedCount > 100) {
             logger.warn(`Memory storage cleanup: ${cleanedCount}/${initialCount} keys in ${elapsed}ms`);
         }
+
+        // After expiry cleanup, check if we still exceed the key limit
+        this._evictIfNeeded();
+    }
+
+    /**
+     * Count total keys across all data structures
+     */
+    _totalKeyCount() {
+        // Use a Set for accurate deduplication across structures
+        const allKeys = new Set();
+        for (const key of this.data.keys()) allKeys.add(key);
+        for (const key of this.sets.keys()) allKeys.add(key);
+        for (const key of this.lists.keys()) allKeys.add(key);
+        for (const key of this.sortedSets.keys()) allKeys.add(key);
+        return allKeys.size;
+    }
+
+    /**
+     * Evict keys when storage exceeds MAX_TOTAL_KEYS.
+     * Strategy: evict expired keys first, then keys with nearest TTL (volatile-ttl).
+     * Keys without TTL are evicted last.
+     */
+    _evictIfNeeded() {
+        const total = this._totalKeyCount();
+        if (total <= MAX_TOTAL_KEYS) return 0;
+
+        const toEvict = Math.max(Math.floor(total * 0.1), total - MAX_TOTAL_KEYS);
+        let evicted = 0;
+
+        // Phase 1: evict expired keys (should already be cleaned but check anyway)
+        const now = Date.now();
+        for (const [key, expiry] of this.expiries.entries()) {
+            if (evicted >= toEvict) break;
+            if (expiry <= now) {
+                this._deleteKey(key);
+                evicted++;
+            }
+        }
+        if (evicted >= toEvict) return evicted;
+
+        // Phase 2: evict keys with soonest TTL (volatile-ttl strategy)
+        const ttlEntries = [];
+        for (const [key, expiry] of this.expiries.entries()) {
+            ttlEntries.push({ key, expiry });
+        }
+        ttlEntries.sort((a, b) => a.expiry - b.expiry);
+
+        for (const { key } of ttlEntries) {
+            if (evicted >= toEvict) break;
+            this._deleteKey(key);
+            evicted++;
+        }
+
+        if (evicted > 0) {
+            logger.warn(`Memory storage eviction: removed ${evicted} keys (was ${total}, max ${MAX_TOTAL_KEYS})`);
+        }
+
+        return evicted;
+    }
+
+    /**
+     * Delete a key from all data structures
+     */
+    _deleteKey(key) {
+        this.data.delete(key);
+        this.sets.delete(key);
+        this.lists.delete(key);
+        this.sortedSets.delete(key);
+        this.expiries.delete(key);
     }
 
     /**
@@ -116,6 +190,12 @@ class MemoryStorage {
     }
 
     async set(key, value, options = {}) {
+        // NX: only set if key does not already exist (used by distributed locks)
+        if (options.NX) {
+            if (this.data.has(key) && !this._isExpired(key)) {
+                return null; // Key exists, NX fails
+            }
+        }
         // FIX: Remove from all type-specific maps on type change (set -> string)
         this.sets.delete(key);
         this.lists.delete(key);
@@ -133,6 +213,14 @@ class MemoryStorage {
     }
 
     async del(key) {
+        // Redis DEL accepts multiple keys; handle array argument
+        if (Array.isArray(key)) {
+            let count = 0;
+            for (const k of key) {
+                count += await this.del(k);
+            }
+            return count;
+        }
         // Check expiry first - expired keys are treated as non-existent
         if (this._isExpired(key)) return 0;
         const existed = this.data.has(key) || this.sets.has(key) ||
@@ -545,100 +633,81 @@ class MemoryStorage {
         return 0;
     }
 
-    // Lua script support - implement atomic room operations
-    async eval(script, options) {
-        if (!options || !options.keys || options.keys.length === 0) {
-            logger.debug('Memory storage eval called with no keys');
+    /**
+     * Handle lock: prefixed Lua scripts (release, extend).
+     * RELEASE: 1 arg (ownerId) — delete key only if value matches ownerId
+     * EXTEND:  2 args (ownerId, additionalMs) — pexpire only if value matches
+     */
+    _evalLockScript(lockKey, numArgs, args) {
+        const ownerId = args[0];
+        const currentValue = this.data.get(lockKey);
+
+        // Key doesn't exist or is expired
+        if (this._isExpired(lockKey) || currentValue === undefined) {
+            return 0;
+        }
+
+        if (numArgs === 1) {
+            // RELEASE_LOCK_SCRIPT: if GET == ownerId then DEL
+            if (currentValue === ownerId) {
+                this._deleteKey(lockKey);
+                return 1;
+            }
+            return 0;
+        }
+
+        if (numArgs === 2) {
+            // EXTEND_LOCK_SCRIPT: if GET == ownerId then PEXPIRE
+            const additionalMs = parseInt(args[1], 10);
+            if (currentValue === ownerId) {
+                this.expiries.set(lockKey, Date.now() + additionalMs);
+                return 1;
+            }
+            return 0;
+        }
+
+        logger.debug('Memory storage: unsupported lock eval pattern', { lockKey, numArgs });
+        return null;
+    }
+
+    /**
+     * Handle timer: prefixed Lua scripts (claim, addTime, get).
+     * CLAIM:    1 key, 2 args (instanceId, ownerTTL)
+     * ADD_TIME: 1 key, 4 args (secondsToAdd, instanceId, now, ttlBuffer)
+     * GET:      1 key, 0 args
+     */
+    _evalTimerScript(timerKey, numKeys, numArgs, args) {
+        if (numKeys !== 1) {
+            logger.debug('Memory storage: unsupported timer eval pattern', { timerKey, numKeys, numArgs });
             return null;
         }
 
-        // Detect script type based on keys and arguments pattern
-        const numKeys = options.keys.length;
-        const numArgs = options.arguments ? options.arguments.length : 0;
-
-        // Room CREATE script: 2 keys (roomKey, playersKey), 2 args (roomData, ttl)
-        if (numKeys === 2 && numArgs === 2) {
-            const roomKey = options.keys[0];
-            const playersKey = options.keys[1];
-            const roomData = options.arguments[0];
-            const ttl = parseInt(options.arguments[1], 10);
-
-            // Check if room already exists (SETNX behavior)
-            if (this.data.has(roomKey) && !this._isExpired(roomKey)) {
-                return 0; // Room already exists
-            }
-
-            // Create the room
-            this.data.set(roomKey, roomData);
-            this.expiries.set(roomKey, Date.now() + (ttl * 1000));
-
-            // Initialize empty players set
-            this.sets.delete(playersKey);
-            this.sets.set(playersKey, new Set());
-            this.expiries.set(playersKey, Date.now() + (ttl * 1000));
-
-            return 1; // Successfully created
+        // Check timer exists
+        if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
+            return null;
         }
 
-        // Room JOIN script: 1 key (playersKey), 2 args (maxPlayers, sessionId)
-        if (numKeys === 1 && numArgs === 2) {
-            const playersKey = options.keys[0];
-            const maxPlayers = parseInt(options.arguments[0], 10);
-            const sessionId = options.arguments[1];
-
-            // Check for expired key first - treat as empty set
-            if (this._isExpired(playersKey)) {
-                this.sets.set(playersKey, new Set());
-            }
-
-            // Check if already a member
-            const existingSet = this.sets.get(playersKey);
-            if (existingSet && existingSet.has(sessionId)) {
-                return -1; // Already a member
-            }
-
-            // Check capacity
-            const currentCount = existingSet ? existingSet.size : 0;
-            if (currentCount >= maxPlayers) {
-                return 0; // Room is full
-            }
-
-            // Add to set (remove from data map for type consistency)
-            this.data.delete(playersKey);
-            if (!this.sets.has(playersKey)) {
-                this.sets.set(playersKey, new Set());
-            }
-            this.sets.get(playersKey).add(sessionId);
-            return 1; // Successfully added
+        // GET: 0 args — return raw timer data
+        if (numArgs === 0) {
+            return this.data.get(timerKey);
         }
 
-        // FIX C3: Timer CLAIM script: 1 key (timerKey), 2 args (instanceId, newOwnerTTL)
-        // Detects pattern: KEYS[1]=timer:*, ARGV[1]=instanceId, ARGV[2]=TTL
-        if (numKeys === 1 && numArgs === 2 && options.keys[0].startsWith('timer:')) {
-            const timerKey = options.keys[0];
-            const instanceId = options.arguments[0];
-            const ownerTTL = parseInt(options.arguments[1], 10);
-
-            // Check if timer exists
-            if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
-                return null; // Timer doesn't exist
-            }
+        // CLAIM: 2 args (instanceId, ownerTTL)
+        if (numArgs === 2) {
+            const instanceId = args[0];
+            const ownerTTL = parseInt(args[1], 10);
 
             try {
                 const timerData = JSON.parse(this.data.get(timerKey));
 
-                // Check if timer is orphaned (no owner or different owner)
                 if (!timerData.ownerId || timerData.ownerId !== instanceId) {
-                    // Claim the timer
                     timerData.ownerId = instanceId;
                     this.data.set(timerKey, JSON.stringify(timerData));
-                    // Refresh TTL
                     if (ownerTTL > 0) {
                         this.expiries.set(timerKey, Date.now() + (ownerTTL * 1000));
                     }
                     return JSON.stringify(timerData);
                 }
-
                 return null; // Already owned by this instance
             } catch (e) {
                 logger.error('Timer claim script parse error:', e.message);
@@ -646,20 +715,18 @@ class MemoryStorage {
             }
         }
 
-        // FIX C3: Timer ADD TIME script: 1 key (timerKey), 1 arg (secondsToAdd)
-        if (numKeys === 1 && numArgs === 1 && options.keys[0].startsWith('timer:')) {
-            const timerKey = options.keys[0];
-            const secondsToAdd = parseInt(options.arguments[0], 10);
-
-            // Check if timer exists
-            if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
-                return null; // Timer doesn't exist
-            }
+        // ADD_TIME: 4 args (secondsToAdd, instanceId, now, ttlBuffer)
+        if (numArgs === 4) {
+            const secondsToAdd = parseInt(args[0], 10);
+            const ttlBuffer = parseInt(args[3], 10);
 
             try {
                 const timerData = JSON.parse(this.data.get(timerKey));
 
-                // Add time to the timer
+                if (timerData.paused) {
+                    return null;
+                }
+
                 const now = Date.now();
                 const currentRemaining = Math.max(0, timerData.endTime - now);
                 const newEndTime = now + currentRemaining + (secondsToAdd * 1000);
@@ -670,6 +737,12 @@ class MemoryStorage {
 
                 this.data.set(timerKey, JSON.stringify(timerData));
 
+                // Refresh TTL like the real Lua script does
+                if (ttlBuffer > 0) {
+                    const newTTL = Math.ceil((newEndTime - now) / 1000) + ttlBuffer;
+                    this.expiries.set(timerKey, Date.now() + (newTTL * 1000));
+                }
+
                 return JSON.stringify(timerData);
             } catch (e) {
                 logger.error('Timer add time script parse error:', e.message);
@@ -677,16 +750,101 @@ class MemoryStorage {
             }
         }
 
-        // FIX C3: Generic timer GET with update: 1 key (timerKey), 0 args
-        // Used for timer status checks
-        if (numKeys === 1 && numArgs === 0 && options.keys[0].startsWith('timer:')) {
-            const timerKey = options.keys[0];
+        // Legacy: 1 arg (secondsToAdd) — kept for backward compatibility
+        if (numArgs === 1) {
+            const secondsToAdd = parseInt(args[0], 10);
 
-            if (this._isExpired(timerKey) || !this.data.has(timerKey)) {
+            try {
+                const timerData = JSON.parse(this.data.get(timerKey));
+                const now = Date.now();
+                const currentRemaining = Math.max(0, timerData.endTime - now);
+                const newEndTime = now + currentRemaining + (secondsToAdd * 1000);
+
+                timerData.endTime = newEndTime;
+                timerData.duration = timerData.duration + secondsToAdd;
+                timerData.remainingSeconds = Math.ceil((newEndTime - now) / 1000);
+
+                this.data.set(timerKey, JSON.stringify(timerData));
+                return JSON.stringify(timerData);
+            } catch (e) {
+                logger.error('Timer add time script parse error:', e.message);
                 return null;
             }
+        }
 
-            return this.data.get(timerKey);
+        logger.debug('Memory storage: unsupported timer eval pattern', { timerKey, numArgs });
+        return null;
+    }
+
+    // Lua script support - implement atomic operations for memory mode.
+    // Dispatch is keyed on the first key's prefix, then by argument count,
+    // which avoids ambiguity between scripts with the same arity but
+    // different key namespaces (e.g., lock: vs room: vs timer:).
+    async eval(script, options) {
+        if (!options || !options.keys || options.keys.length === 0) {
+            logger.debug('Memory storage eval called with no keys');
+            return null;
+        }
+
+        const numKeys = options.keys.length;
+        const numArgs = options.arguments ? options.arguments.length : 0;
+        const firstKey = options.keys[0];
+
+        // ── Lock scripts (key prefix: lock:) ────────────────────────────
+        if (firstKey.startsWith('lock:')) {
+            return this._evalLockScript(firstKey, numArgs, options.arguments || []);
+        }
+
+        // ── Timer scripts (key prefix: timer:) ──────────────────────────
+        if (firstKey.startsWith('timer:')) {
+            return this._evalTimerScript(firstKey, numKeys, numArgs, options.arguments || []);
+        }
+
+        // ── Room CREATE script: 2 keys (roomKey, playersKey), 2 args (roomData, ttl)
+        if (numKeys === 2 && numArgs === 2 && firstKey.startsWith('room:')) {
+            const roomKey = firstKey;
+            const playersKey = options.keys[1];
+            const roomData = options.arguments[0];
+            const ttl = parseInt(options.arguments[1], 10);
+
+            if (this.data.has(roomKey) && !this._isExpired(roomKey)) {
+                return 0; // Room already exists
+            }
+
+            this.data.set(roomKey, roomData);
+            this.expiries.set(roomKey, Date.now() + (ttl * 1000));
+            this.sets.delete(playersKey);
+            this.sets.set(playersKey, new Set());
+            this.expiries.set(playersKey, Date.now() + (ttl * 1000));
+            return 1;
+        }
+
+        // ── Room JOIN script: 1 key (playersKey), 2 args (maxPlayers, sessionId)
+        if (numKeys === 1 && numArgs === 2 && firstKey.includes(':players')) {
+            const playersKey = firstKey;
+            const maxPlayers = parseInt(options.arguments[0], 10);
+            const sessionId = options.arguments[1];
+
+            if (this._isExpired(playersKey)) {
+                this.sets.set(playersKey, new Set());
+            }
+
+            const existingSet = this.sets.get(playersKey);
+            if (existingSet && existingSet.has(sessionId)) {
+                return -1; // Already a member
+            }
+
+            const currentCount = existingSet ? existingSet.size : 0;
+            if (currentCount >= maxPlayers) {
+                return 0; // Room is full
+            }
+
+            this.data.delete(playersKey);
+            if (!this.sets.has(playersKey)) {
+                this.sets.set(playersKey, new Set());
+            }
+            this.sets.get(playersKey).add(sessionId);
+            return 1;
         }
 
         // ATOMIC_SET_TEAM_SCRIPT: 2 keys (playerKey, roomCode), 4 args (team, ttl, now, sessionId)
@@ -1397,5 +1555,6 @@ function isMemoryMode() {
 module.exports = {
     MemoryStorage,
     getMemoryStorage,
-    isMemoryMode
+    isMemoryMode,
+    MAX_TOTAL_KEYS
 };

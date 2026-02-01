@@ -6,6 +6,7 @@
  */
 
 const playerService = require('../../services/playerService');
+const gameService = require('../../services/gameService');
 const eventLogService = require('../../services/eventLogService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -95,9 +96,12 @@ module.exports = function playerHandlers(io, socket) {
             const roomStats = await playerService.getRoomStats(ctx.roomCode);
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
-            // If becoming spymaster, send card types
-            if (player.role === 'spymaster' && ctx.game && !ctx.game.gameOver) {
-                socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: ctx.game.types });
+            // If becoming spymaster, re-fetch game state to avoid stale context
+            if (player.role === 'spymaster') {
+                const freshGame = await gameService.getGame(ctx.roomCode);
+                if (freshGame && !freshGame.gameOver) {
+                    socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: freshGame.types });
+                }
             }
 
             logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);

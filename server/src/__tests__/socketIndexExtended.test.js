@@ -57,7 +57,11 @@ let mockIsMemoryMode = true;
 let mockPubSubShouldThrow = false;
 
 jest.mock('@socket.io/redis-adapter', () => ({
-    createAdapter: jest.fn(() => function MockAdapter() {})
+    createAdapter: jest.fn(() => {
+        function MockAdapter(nsp) { this.nsp = nsp; }
+        MockAdapter.prototype.disconnectSockets = jest.fn();
+        return MockAdapter;
+    })
 }));
 
 // Control Redis health check result

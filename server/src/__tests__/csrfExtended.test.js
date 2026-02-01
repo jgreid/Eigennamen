@@ -147,10 +147,11 @@ describe('CSRF Protection Extended Tests', () => {
 
         test('handles empty origin header', () => {
             mockReq.headers['origin'] = '';
-            // With empty origin, falls through to referer check or allows
+            // Empty string is falsy, so no origin validation; with restricted CORS
+            // and no referer, the request is rejected
             csrfProtection(mockReq, mockRes, nextFn);
-            // Empty string is falsy, so no origin validation, passes with X-Requested-With
-            expect(nextFn).toHaveBeenCalled();
+            expect(nextFn).not.toHaveBeenCalled();
+            expect(mockRes.status).toHaveBeenCalledWith(403);
         });
     });
 

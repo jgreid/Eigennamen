@@ -658,8 +658,8 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
 
             await socketMod._handleDisconnect(mockIo, mockSocket, 'transport close');
 
-            // Lock should be released (del called)
-            expect(mockRedis.del).toHaveBeenCalled();
+            // Lock should be released via eval (Lua script)
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('handles lock release error gracefully', async () => {
@@ -684,7 +684,7 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
                 hostSessionId: 'host-session'
             });
 
-            mockRedis.del.mockRejectedValue(new Error('Failed to delete lock'));
+            mockRedis.eval.mockRejectedValueOnce(new Error('Failed to delete lock'));
 
             const socketMod = require('../socket/index');
             const mockEmit = jest.fn();

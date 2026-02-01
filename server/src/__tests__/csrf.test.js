@@ -141,10 +141,11 @@ describe('CSRF Protection Middleware', () => {
             });
         });
 
-        test('allows request without origin or referer when X-Requested-With is present', () => {
-            // No origin or referer, but has X-Requested-With
+        test('rejects request without origin or referer even when X-Requested-With is present', () => {
+            // No origin or referer — when CORS is restricted, this is rejected
             csrfProtection(mockReq, mockRes, nextFn);
-            expect(nextFn).toHaveBeenCalled();
+            expect(nextFn).not.toHaveBeenCalled();
+            expect(mockRes.status).toHaveBeenCalledWith(403);
         });
     });
 

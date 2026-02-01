@@ -45,8 +45,10 @@ module.exports = function gameHandlers(io, socket) {
                     wordList: validated.wordList
                 });
 
-                const room = await roomService.getRoom(ctx.roomCode);
-                const players = await playerService.getPlayersInRoom(ctx.roomCode);
+                const [room, players] = await Promise.all([
+                    roomService.getRoom(ctx.roomCode),
+                    playerService.getPlayersInRoom(ctx.roomCode)
+                ]);
 
                 return { game, room, players };
             })();
@@ -155,9 +157,11 @@ module.exports = function gameHandlers(io, socket) {
                 });
 
                 // Save completed game to history
-                const completedGame = await gameService.getGame(ctx.roomCode);
+                const [completedGame, roomForHistory] = await Promise.all([
+                    gameService.getGame(ctx.roomCode),
+                    roomService.getRoom(ctx.roomCode)
+                ]);
                 if (completedGame) {
-                    const roomForHistory = await roomService.getRoom(ctx.roomCode);
                     const gameDataWithTeamNames = {
                         ...completedGame,
                         teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
@@ -293,9 +297,11 @@ module.exports = function gameHandlers(io, socket) {
             });
 
             // Save completed game to history
-            const completedGame = await gameService.getGame(ctx.roomCode);
+            const [completedGame, roomForHistory] = await Promise.all([
+                gameService.getGame(ctx.roomCode),
+                roomService.getRoom(ctx.roomCode)
+            ]);
             if (completedGame) {
-                const roomForHistory = await roomService.getRoom(ctx.roomCode);
                 const gameDataWithTeamNames = {
                     ...completedGame,
                     teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
