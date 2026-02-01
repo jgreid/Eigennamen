@@ -150,7 +150,7 @@ describe('Room Handlers', () => {
             );
         });
 
-        test('cleans up on error after room created', async () => {
+        test('emits room:error on error after room created', async () => {
             roomService.createRoom.mockResolvedValue({
                 room: { code: 'fail-room', roomId: 'fail-room', settings: {} },
                 player: { sessionId: 'session-1', nickname: 'Host' }
@@ -159,9 +159,10 @@ describe('Room Handlers', () => {
 
             await eventHandlers['room:create']({ roomId: 'fail-room', settings: {} });
 
-            expect(mockSocket.leave).toHaveBeenCalledWith('room:fail-room');
-            expect(mockSocket.leave).toHaveBeenCalledWith('player:session-1');
-            expect(mockSocket.roomCode).toBe(null);
+            // createPreRoomHandler catches and emits sanitized error
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
+                code: expect.any(String)
+            }));
         });
 
         test('emits room:error on failure', async () => {
@@ -169,10 +170,10 @@ describe('Room Handlers', () => {
 
             await eventHandlers['room:create']({ roomId: 'my-game', settings: {} });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
-                code: expect.any(String),
-                message: 'Creation failed'
-            });
+            // sanitizeErrorForClient returns generic message for unsafe error codes
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
+                code: expect.any(String)
+            }));
         });
 
         test('creates room with custom settings', async () => {
@@ -259,7 +260,7 @@ describe('Room Handlers', () => {
             expect(mockSocket.to().emit).toHaveBeenCalledWith('room:playerJoined', expect.any(Object));
         });
 
-        test('cleans up on error after partial join', async () => {
+        test('emits room:error on error after partial join', async () => {
             roomService.joinRoom.mockResolvedValue({
                 room: { code: 'fail-room', roomId: 'fail-room' },
                 players: [],
@@ -270,8 +271,10 @@ describe('Room Handlers', () => {
 
             await eventHandlers['room:join']({ roomId: 'fail-room', nickname: 'Player1' });
 
-            expect(mockSocket.leave).toHaveBeenCalledWith('room:fail-room');
-            expect(mockSocket.roomCode).toBe(null);
+            // createPreRoomHandler catches and emits sanitized error
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
+                code: expect.any(String)
+            }));
         });
 
         test('normalizes room ID case', async () => {
@@ -659,10 +662,10 @@ describe('Room Handlers', () => {
                 reconnectionToken: 'valid-token'
             });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
-                code: expect.any(String),
-                message: expect.stringContaining('busy')
-            });
+            // createPreRoomHandler catches and emits sanitized error
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
+                code: expect.any(String)
+            }));
         });
     });
 

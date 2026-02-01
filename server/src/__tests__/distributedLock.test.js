@@ -45,8 +45,9 @@ describe('DistributedLock', () => {
             const lock = new DistributedLock();
             expect(lock.config).toMatchObject({
                 lockTimeout: 5000,
-                retryDelay: 100,
-                maxRetries: 50
+                retryDelay: 50,
+                maxRetries: 20,
+                maxRetryDelay: 500
             });
         });
 
@@ -57,7 +58,7 @@ describe('DistributedLock', () => {
             });
             expect(lock.config.lockTimeout).toBe(10000);
             expect(lock.config.maxRetries).toBe(10);
-            expect(lock.config.retryDelay).toBe(100); // default
+            expect(lock.config.retryDelay).toBe(50); // default
         });
     });
 

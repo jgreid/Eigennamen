@@ -134,8 +134,9 @@ describe('Extended Room Handlers Tests', () => {
             const createHandler = handlers.find(h => h[0] === 'room:create');
             await createHandler[1]({ roomId: 'my-game' });
 
+            // createPreRoomHandler catches and emits sanitized error
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                message: 'Create failed'
+                code: expect.any(String)
             }));
         });
 

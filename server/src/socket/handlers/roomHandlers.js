@@ -1,25 +1,21 @@
 /**
  * Room Socket Event Handlers
  *
- * Partially migrated to use context handler architecture.
- * room:create and room:join do NOT use context handlers because they
- * operate before the player is in a room (no context to validate).
- * room:reconnect has complex custom flow that doesn't fit the pattern.
- *
- * room:leave, room:settings, room:resync, and room:getReconnectionToken
- * are migrated to use context handlers.
+ * All handlers use the context handler architecture:
+ * - room:create and room:join use createPreRoomHandler (no room context needed)
+ * - room:reconnect uses createPreRoomHandler (token-based auth flow)
+ * - room:leave, room:settings, room:resync, room:getReconnectionToken use
+ *   createRoomHandler/createHostHandler (require room context)
  */
 
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const eventLogService = require('../../services/eventLogService');
-const { validateInput } = require('../../middleware/validation');
 const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } = require('../../config/constants');
-const { createRateLimitedHandler } = require('../rateLimitHandler');
-const { createRoomHandler, createHostHandler } = require('../contextHandler');
+const { createRoomHandler, createHostHandler, createPreRoomHandler } = require('../contextHandler');
 const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
@@ -60,20 +56,14 @@ module.exports = function roomHandlers(io, socket) {
 
     /**
      * Create a new room
-     * NOTE: Cannot use context handler - player is not in a room yet
      */
-    socket.on(SOCKET_EVENTS.ROOM_CREATE, createRateLimitedHandler(socket, SOCKET_EVENTS.ROOM_CREATE, async (data) => {
-        let createdRoomCode = null;
-        try {
-            const validated = validateInput(roomCreateSchema, data);
-
+    socket.on(SOCKET_EVENTS.ROOM_CREATE, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_CREATE, roomCreateSchema,
+        async (validated) => {
             const { room, player } = await withTimeout(
                 roomService.createRoom(validated.roomId, socket.sessionId, validated.settings),
                 TIMEOUTS.SOCKET_HANDLER,
                 'room:create'
             );
-
-            createdRoomCode = room.code;
 
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);
@@ -92,32 +82,14 @@ module.exports = function roomHandlers(io, socket) {
             });
 
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
-
-        } catch (error) {
-            if (createdRoomCode) {
-                socket.leave(`room:${createdRoomCode}`);
-                socket.leave(`spectators:${createdRoomCode}`);
-                socket.leave(`player:${socket.sessionId}`);
-                socket.roomCode = null;
-            }
-
-            logger.error('Error creating room:', error);
-            socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
         }
-    }));
+    ));
 
     /**
      * Join an existing room
-     * NOTE: Cannot use context handler - player is not in a room yet
      */
-    socket.on(SOCKET_EVENTS.ROOM_JOIN, createRateLimitedHandler(socket, SOCKET_EVENTS.ROOM_JOIN, async (data) => {
-        let joinedRoomCode = null;
-        try {
-            const validated = validateInput(roomJoinSchema, data);
-
+    socket.on(SOCKET_EVENTS.ROOM_JOIN, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_JOIN, roomJoinSchema,
+        async (validated) => {
             const { room, players, game, player } = await withTimeout(
                 roomService.joinRoom(
                     validated.roomId,
@@ -128,8 +100,6 @@ module.exports = function roomHandlers(io, socket) {
                 'room:join'
             );
 
-            joinedRoomCode = room.code;
-
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);
             socket.roomCode = room.code;
@@ -139,14 +109,17 @@ module.exports = function roomHandlers(io, socket) {
                 socket.join(`spectators:${room.code}`);
             }
 
-            await playerService.invalidateReconnectionToken(socket.sessionId);
-
-            const roomStats = await playerService.getRoomStats(room.code);
+            const [, roomStats] = await Promise.all([
+                playerService.invalidateReconnectionToken(socket.sessionId),
+                playerService.getRoomStats(room.code)
+            ]);
 
             socket.emit(SOCKET_EVENTS.ROOM_JOINED, { room, players, game, you: player, stats: roomStats });
 
-            await sendSpymasterViewIfNeeded(socket, player, game, room.code);
-            await sendTimerStatus(socket, room.code, 'join');
+            await Promise.all([
+                sendSpymasterViewIfNeeded(socket, player, game, room.code),
+                sendTimerStatus(socket, room.code, 'join')
+            ]);
 
             const isReconnect = !!player.lastConnected;
 
@@ -161,22 +134,8 @@ module.exports = function roomHandlers(io, socket) {
             }
 
             logger.info(`Player ${validated.nickname} joined room ${room.code}`);
-
-        } catch (error) {
-            if (joinedRoomCode) {
-                socket.leave(`room:${joinedRoomCode}`);
-                socket.leave(`player:${socket.sessionId}`);
-                socket.leave(`spectators:${joinedRoomCode}`);
-                socket.roomCode = null;
-            }
-
-            logger.error('Error joining room:', error);
-            socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
-                code: error.code || ERROR_CODES.SERVER_ERROR,
-                message: error.message
-            });
         }
-    }));
+    ));
 
     /**
      * Leave the current room
@@ -234,12 +193,14 @@ module.exports = function roomHandlers(io, socket) {
     socket.on(SOCKET_EVENTS.ROOM_RESYNC, createRoomHandler(socket, SOCKET_EVENTS.ROOM_RESYNC, null,
         async (ctx) => {
             const statePromise = (async () => {
-                const room = await roomService.getRoom(ctx.roomCode);
+                const [room, players] = await Promise.all([
+                    roomService.getRoom(ctx.roomCode),
+                    playerService.getPlayersInRoom(ctx.roomCode)
+                ]);
+
                 if (!room) {
                     throw RoomError.notFound(ctx.roomCode);
                 }
-
-                const players = await playerService.getPlayersInRoom(ctx.roomCode);
                 if (!players || !Array.isArray(players)) {
                     throw RoomError.notFound(ctx.roomCode);
                 }
@@ -268,8 +229,10 @@ module.exports = function roomHandlers(io, socket) {
                 stats: roomStats
             });
 
-            await sendSpymasterViewIfNeeded(socket, ctx.player, ctx.game, ctx.roomCode);
-            await sendTimerStatus(socket, ctx.roomCode, 'resync');
+            await Promise.all([
+                sendSpymasterViewIfNeeded(socket, ctx.player, ctx.game, ctx.roomCode),
+                sendTimerStatus(socket, ctx.roomCode, 'resync')
+            ]);
 
             logger.info(`State resynced for player ${ctx.sessionId} in room ${ctx.roomCode}`);
         }
@@ -302,11 +265,9 @@ module.exports = function roomHandlers(io, socket) {
 
     /**
      * Reconnect with a secure token
-     * NOTE: Cannot use context handler - complex custom flow with token validation
      */
-    socket.on(SOCKET_EVENTS.ROOM_RECONNECT, createRateLimitedHandler(socket, SOCKET_EVENTS.ROOM_RECONNECT, async (data) => {
-        try {
-            const validated = validateInput(roomReconnectSchema, data);
+    socket.on(SOCKET_EVENTS.ROOM_RECONNECT, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_RECONNECT, roomReconnectSchema,
+        async (validated) => {
             const { code, reconnectionToken } = validated;
 
             const reconnectPromise = (async () => {
@@ -332,15 +293,18 @@ module.exports = function roomHandlers(io, socket) {
                     lastSeen: Date.now()
                 });
 
-                const player = await playerService.getPlayer(socket.sessionId);
+                const [player, players, game] = await Promise.all([
+                    playerService.getPlayer(socket.sessionId),
+                    playerService.getPlayersInRoom(code),
+                    gameService.getGame(code)
+                ]);
+
                 if (!player) {
                     throw PlayerError.notFound(socket.sessionId);
                 }
-                const players = await playerService.getPlayersInRoom(code);
                 if (!players || !Array.isArray(players)) {
                     throw RoomError.notFound(code);
                 }
-                const game = await gameService.getGame(code);
 
                 let gameState = null;
                 if (game) {
@@ -388,8 +352,10 @@ module.exports = function roomHandlers(io, socket) {
                 reconnectionToken: newReconnectionToken
             });
 
-            await sendSpymasterViewIfNeeded(socket, player, game, code);
-            await sendTimerStatus(socket, code, 'reconnect');
+            await Promise.all([
+                sendSpymasterViewIfNeeded(socket, player, game, code),
+                sendTimerStatus(socket, code, 'reconnect')
+            ]);
 
             socket.to(`room:${code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_RECONNECTED, {
                 sessionId: socket.sessionId,
@@ -405,14 +371,6 @@ module.exports = function roomHandlers(io, socket) {
             });
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
-
-        } catch (error) {
-            const isTimeout = error.code === 'OPERATION_TIMEOUT';
-            logger.error(`Error during secure reconnection${isTimeout ? ' (timeout)' : ''}:`, error);
-            socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
-                code: isTimeout ? ERROR_CODES.SERVER_ERROR : (error.code || ERROR_CODES.SERVER_ERROR),
-                message: isTimeout ? 'Server is busy, please try again' : error.message
-            });
         }
-    }));
+    ));
 };

@@ -12,6 +12,10 @@
 
 const logger = require('../utils/logger');
 
+// Maximum total keys across all data structures before eviction kicks in.
+// This prevents unbounded memory growth in long-running single-instance deployments.
+const MAX_TOTAL_KEYS = parseInt(process.env.MEMORY_STORAGE_MAX_KEYS, 10) || 50000;
+
 // Shared storage across all MemoryStorage instances (for duplicate() support)
 let sharedData = null;
 let sharedExpiries = null;
@@ -78,6 +82,76 @@ class MemoryStorage {
         if (elapsed > 50 || cleanedCount > 100) {
             logger.warn(`Memory storage cleanup: ${cleanedCount}/${initialCount} keys in ${elapsed}ms`);
         }
+
+        // After expiry cleanup, check if we still exceed the key limit
+        this._evictIfNeeded();
+    }
+
+    /**
+     * Count total keys across all data structures
+     */
+    _totalKeyCount() {
+        // Use a Set for accurate deduplication across structures
+        const allKeys = new Set();
+        for (const key of this.data.keys()) allKeys.add(key);
+        for (const key of this.sets.keys()) allKeys.add(key);
+        for (const key of this.lists.keys()) allKeys.add(key);
+        for (const key of this.sortedSets.keys()) allKeys.add(key);
+        return allKeys.size;
+    }
+
+    /**
+     * Evict keys when storage exceeds MAX_TOTAL_KEYS.
+     * Strategy: evict expired keys first, then keys with nearest TTL (volatile-ttl).
+     * Keys without TTL are evicted last.
+     */
+    _evictIfNeeded() {
+        const total = this._totalKeyCount();
+        if (total <= MAX_TOTAL_KEYS) return 0;
+
+        const toEvict = Math.max(Math.floor(total * 0.1), total - MAX_TOTAL_KEYS);
+        let evicted = 0;
+
+        // Phase 1: evict expired keys (should already be cleaned but check anyway)
+        const now = Date.now();
+        for (const [key, expiry] of this.expiries.entries()) {
+            if (evicted >= toEvict) break;
+            if (expiry <= now) {
+                this._deleteKey(key);
+                evicted++;
+            }
+        }
+        if (evicted >= toEvict) return evicted;
+
+        // Phase 2: evict keys with soonest TTL (volatile-ttl strategy)
+        const ttlEntries = [];
+        for (const [key, expiry] of this.expiries.entries()) {
+            ttlEntries.push({ key, expiry });
+        }
+        ttlEntries.sort((a, b) => a.expiry - b.expiry);
+
+        for (const { key } of ttlEntries) {
+            if (evicted >= toEvict) break;
+            this._deleteKey(key);
+            evicted++;
+        }
+
+        if (evicted > 0) {
+            logger.warn(`Memory storage eviction: removed ${evicted} keys (was ${total}, max ${MAX_TOTAL_KEYS})`);
+        }
+
+        return evicted;
+    }
+
+    /**
+     * Delete a key from all data structures
+     */
+    _deleteKey(key) {
+        this.data.delete(key);
+        this.sets.delete(key);
+        this.lists.delete(key);
+        this.sortedSets.delete(key);
+        this.expiries.delete(key);
     }
 
     /**
@@ -1397,5 +1471,6 @@ function isMemoryMode() {
 module.exports = {
     MemoryStorage,
     getMemoryStorage,
-    isMemoryMode
+    isMemoryMode,
+    MAX_TOTAL_KEYS
 };

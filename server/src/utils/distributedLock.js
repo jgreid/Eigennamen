@@ -8,12 +8,17 @@
 const { getRedis } = require('../config/redis');
 const logger = require('./logger');
 const { v4: uuidv4 } = require('uuid');
+const { withTimeout } = require('./timeout');
+
+// Timeout for individual lock Redis operations (release, extend)
+const LOCK_OPERATION_TIMEOUT = 5000;
 
 // Default configuration
 const DEFAULT_CONFIG = {
     lockTimeout: 5000,      // Lock expires after 5 seconds
-    retryDelay: 100,        // Wait 100ms between retries
-    maxRetries: 50,         // Max retry attempts (5 seconds total)
+    retryDelay: 50,         // Initial retry delay in ms (grows exponentially)
+    maxRetryDelay: 500,     // Cap on retry delay to prevent excessive waits
+    maxRetries: 20,         // Max retry attempts
     extendThreshold: 0.5    // Extend when 50% of time remains
 };
 
@@ -79,8 +84,12 @@ class DistributedLock {
                     };
                 }
 
-                // Lock not acquired, wait and retry
-                await this._sleep(config.retryDelay + Math.random() * 50);
+                // Lock not acquired, wait with exponential backoff + jitter
+                const delay = Math.min(
+                    config.retryDelay * Math.pow(2, attempt) + Math.random() * 50,
+                    config.maxRetryDelay
+                );
+                await this._sleep(delay);
             } catch (error) {
                 logger.error('Lock acquisition error', {
                     lockKey,
@@ -109,12 +118,16 @@ class DistributedLock {
         const redis = getRedis();
 
         try {
-            const result = await redis.eval(
-                RELEASE_LOCK_SCRIPT,
-                {
-                    keys: [key],
-                    arguments: [ownerId]
-                }
+            const result = await withTimeout(
+                redis.eval(
+                    RELEASE_LOCK_SCRIPT,
+                    {
+                        keys: [key],
+                        arguments: [ownerId]
+                    }
+                ),
+                LOCK_OPERATION_TIMEOUT,
+                `lock-release-${key}`
             );
 
             if (result === 1) {
@@ -145,12 +158,16 @@ class DistributedLock {
         const redis = getRedis();
 
         try {
-            const result = await redis.eval(
-                EXTEND_LOCK_SCRIPT,
-                {
-                    keys: [key],
-                    arguments: [ownerId, additionalMs.toString()]
-                }
+            const result = await withTimeout(
+                redis.eval(
+                    EXTEND_LOCK_SCRIPT,
+                    {
+                        keys: [key],
+                        arguments: [ownerId, additionalMs.toString()]
+                    }
+                ),
+                LOCK_OPERATION_TIMEOUT,
+                `lock-extend-${key}`
             );
 
             if (result === 1) {

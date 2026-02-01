@@ -103,10 +103,35 @@ function createSimpleContextHandler(socket, eventName, contextOptions, handler) 
     return createContextHandler(socket, eventName, null, contextOptions, handler);
 }
 
+/**
+ * Context handler for pre-room operations (room:create, room:join).
+ * Provides rate limiting, input validation, and consistent error handling
+ * without requiring the player to already be in a room.
+ */
+function createPreRoomHandler(socket, eventName, schema, handler) {
+    return createRateLimitedHandler(socket, eventName, async (data) => {
+        try {
+            const validated = schema ? validateInput(schema, data) : (data || {});
+            await handler(validated);
+        } catch (error) {
+            const errorEvent = `${eventName.split(':')[0]}:error`;
+
+            logger.error(`Error in ${eventName}:`, {
+                error: error.message,
+                code: error.code,
+                sessionId: socket.sessionId
+            });
+
+            socket.emit(errorEvent, sanitizeErrorForClient(error));
+        }
+    });
+}
+
 module.exports = {
     createContextHandler,
     createRoomHandler,
     createHostHandler,
     createGameHandler,
-    createSimpleContextHandler
+    createSimpleContextHandler,
+    createPreRoomHandler
 };
