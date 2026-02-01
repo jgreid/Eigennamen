@@ -1,0 +1,103 @@
+/* ========== CSS CUSTOM PROPERTIES (Design Tokens) ========== */
+:root {
+    /* Color Palette */
+    --color-bg-dark: #0f0f1a;
+    --color-bg-medium: #1a1a2e;
+    --color-bg-light: #16213e;
+
+    /* Team Colors */
+    --color-red-primary: #dc3545;
+    --color-red-secondary: #c0392b;
+    --color-red-dark: #962d22;
+    --color-red-light: #ff6b6b;
+    --color-red-glow: rgba(220, 53, 69, 0.4);
+
+    --color-blue-primary: #007bff;
+    --color-blue-secondary: #2980b9;
+    --color-blue-dark: #1a5276;
+    --color-blue-light: #74b9ff;
+    --color-blue-glow: rgba(0, 123, 255, 0.4);
+
+    /* Neutral Colors */
+    --color-neutral-primary: #6c757d;
+    --color-neutral-light: #adb5bd;
+    --color-neutral-dark: #545b62;
+
+    /* Accent Colors */
+    --color-gold: #ffc107;
+    --color-success: #38ef7d;
+    --color-warning: #ffc107;
+    --color-assassin: #2c3e50;
+
+    /* Text Colors */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: rgba(255, 255, 255, 0.7);
+    --color-text-muted: rgba(255, 255, 255, 0.4);
+
+    /* Border Colors */
+    --color-border-subtle: rgba(255, 255, 255, 0.06);
+    --color-border-light: rgba(255, 255, 255, 0.08);
+    --color-border-medium: rgba(255, 255, 255, 0.15);
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-bg-subtle: rgba(255, 255, 255, 0.02);
+    --glass-blur: 10px;
+
+    /* Layout */
+    --sidebar-width: 300px;
+    --sidebar-min-width: 280px;
+    --sidebar-max-width: 320px;
+    --max-content-width: 1800px;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+
+    /* Z-Index Scale */
+    --z-modal: 1000;
+    --z-dropdown: 100;
+    --z-header: 50;
+
+    /* Typography */
+    --font-family-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family-display: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
+    --font-size-base: 16px;
+    --line-height-base: 1.5;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family-primary);
+    background: linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-medium) 50%, var(--color-bg-light) 100%);
+    min-height: 100vh;
+    padding: 0;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+}
+

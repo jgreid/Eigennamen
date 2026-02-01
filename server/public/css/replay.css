@@ -1,0 +1,439 @@
+/* ========== GAME HISTORY MODAL ========== */
+.history-modal {
+    max-width: 600px;
+    width: 95%;
+    max-height: 80vh;
+}
+
+.history-modal h2 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+}
+
+.history-modal .subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.history-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 30px 0;
+}
+
+.history-loading .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.history-empty {
+    text-align: center;
+    padding: 30px 0;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.history-list {
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.history-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.history-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.history-item-winner {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.history-item-winner.red { color: #ff6b6b; }
+.history-item-winner.blue { color: #74b9ff; }
+
+.history-item-date {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.history-item-stats {
+    text-align: right;
+}
+
+.history-item-score {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.history-item-score .red-score { color: #ff6b6b; }
+.history-item-score .blue-score { color: #74b9ff; }
+
+.history-item-moves {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ========== GAME REPLAY MODAL ========== */
+.replay-modal {
+    max-width: 700px;
+    width: 95%;
+    max-height: 90vh;
+}
+
+.replay-modal h2 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+}
+
+.replay-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+}
+
+.replay-info .winner-badge {
+    font-weight: 600;
+}
+
+.replay-info .winner-badge.red { color: #ff6b6b; }
+.replay-info .winner-badge.blue { color: #74b9ff; }
+
+.replay-board-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.replay-board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.replay-card {
+    aspect-ratio: 1.4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    text-align: center;
+    word-break: break-word;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.3s ease;
+}
+
+.replay-card.revealed {
+    color: white;
+}
+
+.replay-card.revealed.red {
+    background: var(--color-red);
+    border-color: var(--color-red);
+}
+
+.replay-card.revealed.blue {
+    background: var(--color-blue);
+    border-color: var(--color-blue);
+}
+
+.replay-card.revealed.neutral {
+    background: #7f8c8d;
+    border-color: #7f8c8d;
+}
+
+.replay-card.revealed.assassin {
+    background: #1a1a2e;
+    border-color: #333;
+    color: #ff4444;
+}
+
+.replay-card.current-move {
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.8);
+}
+
+.replay-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.replay-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.replay-btn:hover:not(:disabled) {
+    background: rgba(102, 126, 234, 0.3);
+    border-color: #667eea;
+}
+
+.replay-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.replay-btn#replay-next {
+    transform: rotate(0deg);
+}
+
+.replay-progress {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    min-width: 100px;
+    text-align: center;
+}
+
+.replay-event-log {
+    max-height: 150px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.replay-event {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.8rem;
+}
+
+.replay-event:last-child {
+    border-bottom: none;
+}
+
+.replay-event.current {
+    background: rgba(102, 126, 234, 0.15);
+    margin: 0 -12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+
+.replay-event .event-team {
+    font-weight: 600;
+    min-width: 40px;
+}
+
+.replay-event .event-team.red { color: #ff6b6b; }
+.replay-event .event-team.blue { color: #74b9ff; }
+
+.replay-event .event-action {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.replay-event .event-detail {
+    color: white;
+    font-weight: 500;
+}
+
+/* Mobile responsive for replay modal */
+@media (max-width: 600px) {
+    .replay-modal {
+        max-width: 100%;
+    }
+
+    .replay-card {
+        font-size: 0.55rem;
+    }
+
+    .replay-controls {
+        gap: 8px;
+    }
+
+    .replay-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .history-modal {
+        max-width: 100%;
+        max-height: 90vh;
+    }
+
+    .history-list {
+        max-height: 55vh;
+    }
+
+    .history-item {
+        padding: 14px;
+    }
+
+    .replay-event-log {
+        max-height: 120px;
+    }
+}
+
+/* Additional mobile touch improvements */
+@media (max-width: 768px) {
+    /* Ensure all buttons have adequate touch targets */
+    .btn-settings,
+    .btn-spectate,
+    .btn-new-game,
+    .btn-end-turn,
+    .btn-cancel,
+    .btn-primary,
+    .btn-secondary {
+        min-height: 44px;
+        padding: 12px 16px;
+    }
+
+    /* Better spacing for team controls on mobile */
+    .control-group {
+        padding: 12px;
+    }
+
+    .control-group button {
+        padding: 10px 12px;
+    }
+
+    /* History items need larger tap targets */
+    .history-item {
+        min-height: 60px;
+        touch-action: manipulation;
+    }
+
+    /* Improve scrolling on touch devices */
+    .history-list,
+    .replay-event-log,
+    .settings-content {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
+    /* Game title responsive sizing */
+    .game-title {
+        font-size: 1.3rem;
+    }
+
+    /* Toast positioning for mobile */
+    .toast-container {
+        left: 10px;
+        right: 10px;
+        bottom: 20px;
+        width: auto;
+    }
+
+    .toast {
+        width: 100%;
+        max-width: none;
+    }
+
+    /* Utility buttons row stacking */
+    .utility-buttons-row {
+        gap: 8px;
+    }
+
+    /* Clue display improvements */
+    .clue-display {
+        font-size: 0.9rem;
+        padding: 10px 14px;
+    }
+}
+
+/* Landscape mobile improvements */
+@media (max-width: 768px) and (orientation: landscape) {
+    .sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .modal {
+        max-height: 95vh;
+    }
+
+    .settings-content {
+        max-height: 60vh;
+    }
+}
+
+/* Dark mode color scheme for system preference */
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .card {
+        border-width: 2px;
+    }
+
+    .card.revealed.red {
+        border-color: #ff3333;
+    }
+
+    .card.revealed.blue {
+        border-color: #3399ff;
+    }
+
+    button:focus {
+        outline: 3px solid white;
+        outline-offset: 2px;
+    }
+}

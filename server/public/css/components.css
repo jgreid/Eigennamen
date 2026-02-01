@@ -1,0 +1,757 @@
+/* ========== ROLE BANNER ========== */
+.role-banner {
+    text-align: center;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.4;
+    letter-spacing: 0.2px;
+}
+
+.role-banner.host {
+    background: linear-gradient(135deg, rgba(17, 153, 142, 0.3) 0%, rgba(56, 239, 125, 0.2) 100%);
+    border: 1px solid rgba(56, 239, 125, 0.4);
+    color: #38ef7d;
+}
+
+.role-banner.spymaster-red {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.25) 0%, rgba(192, 57, 43, 0.15) 100%);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+    color: #ff6b5b;
+}
+
+.role-banner.spymaster-blue {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.25) 0%, rgba(41, 128, 185, 0.15) 100%);
+    border: 1px solid rgba(52, 152, 219, 0.5);
+    color: #5dade2;
+}
+
+.role-banner.viewer {
+    background: rgba(108, 117, 125, 0.15);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    color: #adb5bd;
+}
+
+.role-banner.clicker-red {
+    background: linear-gradient(135deg, rgba(192, 57, 43, 0.25) 0%, rgba(150, 45, 34, 0.15) 100%);
+    border: 1px solid rgba(192, 57, 43, 0.5);
+    color: #e57373;
+}
+
+.role-banner.clicker-blue {
+    background: linear-gradient(135deg, rgba(41, 128, 185, 0.25) 0%, rgba(31, 99, 145, 0.15) 100%);
+    border: 1px solid rgba(41, 128, 185, 0.5);
+    color: #64b5f6;
+}
+
+.role-banner.spectator-red {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    color: #e57373;
+}
+
+.role-banner.spectator-blue {
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.3);
+    color: #64b5f6;
+}
+
+.role-banner small {
+    display: none; /* Hide descriptive text per user request */
+}
+
+.role-banner .host-badge {
+    display: inline-block;
+    font-size: 0.65em;
+    font-weight: 600;
+    padding: 2px 6px;
+    margin-left: 6px;
+    border-radius: 4px;
+    background: rgba(255, 215, 0, 0.2);
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    color: #ffd700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+
+/* ========== SCOREBOARD (Clickable Team Selection) ========== */
+.scoreboard {
+    display: flex;
+    gap: 10px;
+}
+
+.score {
+    flex: 1;
+    padding: 14px 10px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.score.red {
+    background: linear-gradient(145deg, rgba(220, 53, 69, 0.2) 0%, rgba(180, 40, 55, 0.1) 100%);
+    border: 2px solid rgba(220, 53, 69, 0.4);
+    color: #ff6b6b;
+}
+
+.score.red:hover {
+    background: linear-gradient(145deg, rgba(220, 53, 69, 0.35) 0%, rgba(180, 40, 55, 0.2) 100%);
+    border-color: rgba(220, 53, 69, 0.7);
+}
+
+.score.red.selected {
+    background: linear-gradient(145deg, rgba(220, 53, 69, 0.4) 0%, rgba(180, 40, 55, 0.25) 100%);
+    border-color: #ff6b6b;
+    box-shadow: 0 0 12px rgba(220, 53, 69, 0.4);
+}
+
+.score.blue {
+    background: linear-gradient(145deg, rgba(0, 123, 255, 0.2) 0%, rgba(0, 90, 200, 0.1) 100%);
+    border: 2px solid rgba(0, 123, 255, 0.4);
+    color: #74b9ff;
+}
+
+.score.blue:hover {
+    background: linear-gradient(145deg, rgba(0, 123, 255, 0.35) 0%, rgba(0, 90, 200, 0.2) 100%);
+    border-color: rgba(0, 123, 255, 0.7);
+}
+
+.score.blue.selected {
+    background: linear-gradient(145deg, rgba(0, 123, 255, 0.4) 0%, rgba(0, 90, 200, 0.25) 100%);
+    border-color: #74b9ff;
+    box-shadow: 0 0 12px rgba(0, 123, 255, 0.4);
+}
+
+.score .team-name {
+    display: block;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.85;
+    margin-bottom: 4px;
+}
+
+.score .count {
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+/* ========== TURN INDICATOR ========== */
+.turn-indicator {
+    text-align: center;
+    font-size: 1rem;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.turn-indicator.red-turn {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.2) 0%, rgba(220, 53, 69, 0.08) 100%);
+    border: 1px solid rgba(220, 53, 69, 0.4);
+    color: #ff6b6b;
+}
+
+.turn-indicator.blue-turn {
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.2) 0%, rgba(0, 123, 255, 0.08) 100%);
+    border: 1px solid rgba(0, 123, 255, 0.4);
+    color: #74b9ff;
+}
+
+.turn-indicator.game-over {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.08) 100%);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    color: #ffc107;
+}
+
+/* Pulse animation using opacity and box-shadow (no transform for Chrome/Windows compatibility) */
+@keyframes pulse-glow {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 10px currentColor;
+    }
+    50% {
+        opacity: 0.85;
+        box-shadow: 0 0 20px currentColor;
+    }
+}
+
+.turn-indicator.your-turn {
+    animation: pulse-glow 2s ease-in-out infinite;
+    will-change: opacity;
+}
+
+/* ========== TIMER DISPLAY ========== */
+.timer-display {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    margin-top: 8px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.timer-display.active {
+    display: flex;
+}
+
+.timer-display .timer-icon {
+    font-size: 1rem;
+}
+
+.timer-display .timer-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    min-width: 50px;
+    text-align: center;
+}
+
+.timer-display.warning .timer-value {
+    color: #ffc107;
+}
+
+.timer-display.critical .timer-value {
+    color: #ff6b6b;
+    animation: timer-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.timer-display .timer-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ========== CONTROLS ========== */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Role selection controls */
+.role-controls {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.role-buttons-row {
+    display: flex;
+    gap: 8px;
+}
+
+.role-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 8px;
+}
+
+.role-hint.hidden {
+    display: none;
+}
+
+.btn-spymaster,
+.btn-clicker {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn-spymaster:disabled,
+.btn-clicker:disabled {
+    opacity: 0.4;
+}
+
+/* Red team role buttons */
+.btn-spymaster.red-team {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.btn-spymaster.red-team.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e74c3c;
+}
+
+.btn-clicker.red-team {
+    background: linear-gradient(135deg, #c0392b 0%, #962d22 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.btn-clicker.red-team.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #c0392b;
+}
+
+/* Blue team role buttons */
+.btn-spymaster.blue-team {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.btn-spymaster.blue-team.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3498db;
+}
+
+.btn-clicker.blue-team {
+    background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.btn-clicker.blue-team.active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2980b9;
+}
+
+.utility-buttons-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* ========== BUTTONS ========== */
+button {
+    padding: 10px 16px;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Loading state for buttons */
+button.loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+button.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    animation: btn-spinner 0.6s linear infinite;
+}
+
+@keyframes btn-spinner {
+    to { transform: rotate(360deg); }
+}
+
+button:focus-visible,
+.card:focus-visible {
+    outline: 2px solid #ffc107;
+    outline-offset: 2px;
+}
+
+.btn-new-game {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 16px;
+    font-size: 0.8rem;
+    letter-spacing: 0.3px;
+}
+
+.btn-spectate {
+    background: rgba(108, 117, 125, 0.3);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(108, 117, 125, 0.5);
+    flex: 1;
+}
+
+.btn-spectate:hover {
+    background: rgba(108, 117, 125, 0.4);
+    color: white;
+}
+
+.btn-spectate.active {
+    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+    color: white;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6c757d;
+}
+
+.bottom-controls {
+    display: flex;
+    justify-content: center;
+}
+
+/* Action buttons row - End Turn and New Game at bottom */
+.action-buttons-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.action-buttons-row .btn-end-turn,
+.action-buttons-row .btn-new-game {
+    flex: 1;
+    font-size: 0.8rem;
+    padding: 10px 12px;
+}
+
+.btn-end-turn {
+    background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+    color: white;
+}
+
+.btn-end-turn.can-act {
+    animation: pulse-glow 2s ease-in-out infinite;
+    will-change: opacity;
+}
+
+.btn-end-turn:disabled {
+    animation: none;
+}
+
+.btn-end-turn.hidden {
+    display: none;
+}
+
+.btn-settings {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    flex: 1;
+}
+
+.btn-settings:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+/* Checkmark for active role buttons */
+.btn-spymaster.active::before,
+.btn-clicker.active::before,
+.btn-spectate.active::before {
+    content: '✓ ';
+    font-weight: bold;
+}
+
+/* Muted inactive role buttons */
+.btn-spymaster:not(.active),
+.btn-clicker:not(.active),
+.btn-spectate:not(.active) {
+    opacity: 0.75;
+}
+
+.btn-spymaster:not(.active):hover,
+.btn-clicker:not(.active):hover,
+.btn-spectate:not(.active):hover {
+    opacity: 1;
+}
+
+.btn-copy {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+/* ========== SHARE SECTION ========== */
+.share-section {
+    display: none; /* Hidden to save sidebar space - users can share URL from browser */
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.share-section label {
+    display: block;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.share-input-group {
+    display: flex;
+    gap: 6px;
+}
+
+.share-section input[type="text"] {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    font-size: 0.72rem;
+    background: rgba(0, 0, 0, 0.25);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.share-section .btn-copy {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+}
+
+/* ========== GAME BOARD ========== */
+.board-container {
+    width: 100%;
+    max-width: 900px;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: clamp(8px, 1.5vw, 14px);
+    width: 100%;
+}
+
+.board.no-click .card:not(.revealed) {
+    cursor: default;
+}
+
+.board.no-click .card:not(.revealed):hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* ========== CARDS - Optimized for readability ========== */
+.card {
+    aspect-ratio: 1.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(8px, 1.5vw, 14px);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    font-weight: 700;
+    text-align: center;
+    /* Larger font relative to card size for readability */
+    font-size: clamp(0.9rem, 1.8vw, 1.25rem);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+    /* Card styling */
+    background: linear-gradient(145deg, #f5f0e1, #e8dcc4);
+    color: #2c3e50;
+    border: 2px solid #d4c4a8;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
+    position: relative;
+    overflow: hidden;
+    word-break: break-word;
+    hyphens: auto;
+    contain: layout style;
+}
+
+.card:hover:not(.revealed) {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* Auto-sizing font classes for long words */
+.card.font-lg { font-size: clamp(0.9rem, 1.8vw, 1.25rem); }
+.card.font-md { font-size: clamp(0.75rem, 1.4vw, 1rem); }
+.card.font-sm { font-size: clamp(0.6rem, 1.1vw, 0.85rem); }
+.card.font-xs { font-size: clamp(0.5rem, 0.9vw, 0.7rem); }
+.card.font-min { font-size: 8pt; }
+
+/* Card flip animation with improved 3D effect */
+@keyframes card-flip {
+    0% { transform: perspective(800px) rotateY(0deg); }
+    50% { transform: perspective(800px) rotateY(90deg) scale(1.05); }
+    100% { transform: perspective(800px) rotateY(0deg); }
+}
+
+.card.just-revealed {
+    animation: card-flip 0.4s ease-out;
+}
+
+.card.revealed {
+    cursor: default;
+}
+
+/* Success ripple effect */
+@keyframes success-ripple {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); }
+    100% { box-shadow: 0 0 0 15px rgba(255, 255, 255, 0); }
+}
+
+.card.success-reveal {
+    animation: card-flip 0.4s ease-out, success-ripple 0.6s ease-out 0.2s;
+}
+
+.card.revealed.red {
+    background: linear-gradient(145deg, #e74c3c, #c0392b);
+    color: white;
+    border-color: #a93226;
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}
+
+.card.revealed.blue {
+    background: linear-gradient(145deg, #3498db, #2980b9);
+    color: white;
+    border-color: #1f6391;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+.card.revealed.neutral {
+    background: linear-gradient(145deg, #c4a882, #a89060);
+    color: #3d3020;
+    border-color: #8a7550;
+    box-shadow: 0 2px 8px rgba(120, 100, 70, 0.4);
+}
+
+.card.revealed.assassin {
+    background: linear-gradient(145deg, #2c3e50, #1a252f);
+    color: white;
+    border-color: #17202a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ========== CARD LOADING STATE ========== */
+.card.revealing {
+    position: relative;
+    opacity: 0.7;
+    pointer-events: none;
+    animation: card-pulse 0.8s ease-in-out infinite;
+}
+
+.card.revealing::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    animation: card-spinner 0.6s linear infinite;
+}
+
+@keyframes card-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.98); }
+}
+
+@keyframes card-spinner {
+    to { transform: rotate(360deg); }
+}
+
+/* ========== SPYMASTER VIEW ========== */
+.spymaster-mode .card:not(.revealed) {
+    position: relative;
+}
+
+/* High-contrast spymaster view - art deco inspired */
+.spymaster-mode .card.spy-red:not(.revealed) {
+    border-color: #ff3b3b;
+    border-width: 4px;
+    background: linear-gradient(145deg, #ffe0e0, #ffb8b8);
+    color: #b71c1c;
+    box-shadow: 0 4px 16px rgba(255, 59, 59, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Dots removed - using symbols for accessibility instead */
+
+.spymaster-mode .card.spy-blue:not(.revealed) {
+    border-color: #2196f3;
+    border-width: 4px;
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    color: #0d47a1;
+    box-shadow: 0 4px 16px rgba(33, 150, 243, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Dots removed - using symbols for accessibility instead */
+
+.spymaster-mode .card.spy-neutral:not(.revealed) {
+    border-color: #d4c4a8;
+    border-width: 3px;
+    background: linear-gradient(145deg, #fffef5, #f8f4e8);
+    color: #8d7b5e;
+    box-shadow: 0 3px 10px rgba(139, 115, 85, 0.2);
+}
+
+/* Dots removed - using symbols for accessibility instead */
+
+.spymaster-mode .card.spy-assassin:not(.revealed) {
+    border-color: #000000;
+    border-width: 4px;
+    background: linear-gradient(145deg, #4a4a4a, #2d2d2d);
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.spymaster-mode .card.spy-assassin:not(.revealed)::before {
+    content: '☠';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    width: auto;
+    height: auto;
+    font-size: 1.65rem;
+    color: #ffffff;
+    background: transparent;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ========== CARD TYPE SYMBOLS (Spymaster View) ========== */
+/* Color-blind accessible symbols replace dots for better accessibility */
+.spymaster-mode .card.spy-red:not(.revealed)::after {
+    content: '■';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 1.1rem;
+    color: #d32f2f;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.spymaster-mode .card.spy-blue:not(.revealed)::after {
+    content: '●';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 1.1rem;
+    color: #1976d2;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Neutral cards have no symbol - distinguished by beige color scheme */
+
+/* Assassin uses only skull symbol (::before) - no secondary symbol needed */
+
