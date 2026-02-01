@@ -52,6 +52,11 @@ describe('Player Service', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
+        const mockMulti = {
+            set: jest.fn().mockReturnThis(),
+            exec: jest.fn().mockResolvedValue(['OK'])
+        };
+
         mockRedis = {
             get: jest.fn(),
             set: jest.fn(),
@@ -65,7 +70,10 @@ describe('Player Service', () => {
             eval: jest.fn(),
             zAdd: jest.fn(),
             zRem: jest.fn(),
-            zRangeByScore: jest.fn()
+            zRangeByScore: jest.fn(),
+            watch: jest.fn().mockResolvedValue('OK'),
+            unwatch: jest.fn().mockResolvedValue('OK'),
+            multi: jest.fn().mockReturnValue(mockMulti)
         };
         getRedis.mockReturnValue(mockRedis);
     });
@@ -671,44 +679,44 @@ describe('Player Service', () => {
     describe('generateReconnectionToken', () => {
         test('generates token for existing player', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
-            // Mock different returns for different keys
             mockRedis.get.mockImplementation((key) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
-                if (key === 'reconnect:session:s1') return Promise.resolve(null); // No existing token
                 return Promise.resolve(null);
             });
+            // SET NX succeeds (first call), then normal SET for token->data
             mockRedis.set.mockResolvedValue('OK');
 
             const token = await playerService.generateReconnectionToken('s1');
 
             expect(token).toMatch(/^[a-f0-9]{64}$/);
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                `reconnect:token:${token}`,
-                expect.any(String),
-                { EX: 300 }
-            );
+            // First set: session->token with NX
             expect(mockRedis.set).toHaveBeenCalledWith(
                 'reconnect:session:s1',
                 token,
+                { NX: true, EX: 300 }
+            );
+            // Second set: token->data
+            expect(mockRedis.set).toHaveBeenCalledWith(
+                `reconnect:token:${token}`,
+                expect.any(String),
                 { EX: 300 }
             );
         });
 
         test('returns existing token if one exists', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
-            const existingToken = 'a'.repeat(64); // Existing token
-            // Mock different returns for different keys
+            const existingToken = 'a'.repeat(64);
             mockRedis.get.mockImplementation((key) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
                 if (key === 'reconnect:session:s1') return Promise.resolve(existingToken);
                 return Promise.resolve(null);
             });
+            // SET NX fails (returns null) because token already exists
+            mockRedis.set.mockResolvedValue(null);
 
             const token = await playerService.generateReconnectionToken('s1');
 
             expect(token).toBe(existingToken);
-            // Should NOT call set since we returned existing token
-            expect(mockRedis.set).not.toHaveBeenCalled();
         });
 
         test('returns null for non-existent player', async () => {
@@ -839,12 +847,9 @@ describe('Player Service', () => {
 
             await playerService.setSocketMapping('s1', 'socket-123', '192.168.1.1');
 
-            // updatePlayer is called with lastIP
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'player:s1',
-                expect.stringContaining('192.168.1.1'),
-                expect.any(Object)
-            );
+            // updatePlayer now uses WATCH/MULTI, so the player set goes through multi().set()
+            expect(mockRedis.watch).toHaveBeenCalledWith('player:s1');
+            expect(mockRedis.multi).toHaveBeenCalled();
         });
 
         test('returns false for non-existent player', async () => {

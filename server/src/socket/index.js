@@ -28,6 +28,7 @@ const timerHandlers = require('./handlers/timerHandlers');
 
 let io = null;
 let app = null; // Reference to Express app for socket count updates
+let shuttingDown = false;
 
 // Track connections per IP for DoS protection
 const connectionsPerIP = new Map();
@@ -115,11 +116,33 @@ function initializeSocket(server, expressApp = null) {
         next();
     });
 
-    // Authentication middleware
-    io.use(authenticateSocket);
+    // Authentication middleware - decrement IP counter on auth failure
+    io.use((socket, next) => {
+        authenticateSocket(socket, (err) => {
+            if (err) {
+                // Auth failed: decrement connectionsPerIP to prevent permanent IP blocking
+                if (socket.clientIP) {
+                    const currentCount = connectionsPerIP.get(socket.clientIP) || 1;
+                    if (currentCount <= 1) {
+                        connectionsPerIP.delete(socket.clientIP);
+                    } else {
+                        connectionsPerIP.set(socket.clientIP, currentCount - 1);
+                    }
+                }
+                return next(err);
+            }
+            next();
+        });
+    });
 
     // Connection handling
     io.on('connection', (socket) => {
+        // Reject connections during shutdown to prevent handlers referencing a null io
+        if (shuttingDown) {
+            socket.disconnect(true);
+            return;
+        }
+
         logger.info(`Client connected: ${socket.id} (session: ${socket.sessionId})`);
 
         // Update cached socket count for fast health checks
@@ -173,17 +196,14 @@ function initializeSocket(server, expressApp = null) {
                 logger.error('Error cleaning up rate limiter:', error);
             }
 
-            // FIX C2: Increased timeout to 30s and added background cleanup on timeout
-            // Previously: 10s timeout would abandon critical cleanup operations
-            const DISCONNECT_TIMEOUT_MS = 30000; // 30 seconds - more realistic for slow Redis
-            let _timedOut = false;
+            // Timeout wrapper for disconnect handler - prevents indefinite hangs
+            const DISCONNECT_TIMEOUT_MS = 30000;
 
             try {
                 await Promise.race([
                     handleDisconnect(io, socket, reason),
                     new Promise((_, reject) => {
                         setTimeout(() => {
-                            _timedOut = true;
                             reject(new Error('Disconnect handler timeout'));
                         }, DISCONNECT_TIMEOUT_MS);
                     })
@@ -191,14 +211,8 @@ function initializeSocket(server, expressApp = null) {
             } catch (error) {
                 if (error.message === 'Disconnect handler timeout') {
                     logger.error(`Disconnect handler timed out after ${DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
-
-                    // FIX C2: Continue cleanup in background even after timeout
-                    // This ensures critical operations like host transfer eventually complete
-                    setImmediate(() => {
-                        handleDisconnect(io, socket, reason).catch(bgErr => {
-                            logger.error(`Background disconnect cleanup failed for ${socket.id}:`, bgErr.message);
-                        });
-                    });
+                    // Do NOT retry — the original promise is still running and will complete.
+                    // Retrying would cause duplicate host transfers and disconnect broadcasts.
                 } else {
                     logger.error('Error in disconnect handler:', error);
                 }
@@ -286,6 +300,7 @@ function createTimerExpireCallback() {
                     const redis = getRedis();
                     const lockKey = `lock:timer-restart:${roomCode}`;
                     let lockAcquired = false;
+                    let lockValue;
 
                     try {
                         // Check Redis availability before attempting lock
@@ -297,7 +312,7 @@ function createTimerExpireCallback() {
 
                         // ISSUE #3 FIX: Increase lock TTL to 10s and track acquisition state
                         // SPRINT-15 FIX: Explicit verification of lock result (Redis returns 'OK' or null)
-                        const lockValue = `${process.pid}:${Date.now()}`;
+                        lockValue = `${process.pid}:${Date.now()}`;
                         const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: 10 });
                         lockAcquired = lockResult === 'OK' || lockResult === true;
 
@@ -339,10 +354,11 @@ function createTimerExpireCallback() {
                     } catch (err) {
                         logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
                     } finally {
-                        // ISSUE #3 FIX: Always release lock if we acquired it
+                        // ISSUE #3 FIX: Always release lock if we acquired it (owner-verified)
                         if (lockAcquired) {
                             try {
-                                await redis.del(lockKey);
+                                const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
+                                await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] });
                             } catch (delErr) {
                                 logger.error(`Failed to release timer restart lock for ${roomCode}: ${delErr.message}`);
                             }
@@ -434,11 +450,13 @@ async function handleDisconnect(io, socket, reason) {
                 const redis = getRedis();
                 const lockKey = `lock:host-transfer:${roomCode}`;
                 let hostTransferLockAcquired = false;
+                let hostLockValue;
 
                 try {
                     // ISSUE #7 FIX: Increase lock TTL to 10s for slow Redis operations
-                    // Explicit verification of lock result (Redis returns 'OK' or null)
-                    const lockResult = await redis.set(lockKey, socket.sessionId, { NX: true, EX: 10 });
+                    // Use unique lock value for owner-verified release
+                    hostLockValue = `${socket.sessionId}:${Date.now()}`;
+                    const lockResult = await redis.set(lockKey, hostLockValue, { NX: true, EX: 10 });
                     hostTransferLockAcquired = lockResult === 'OK' || lockResult === true;
 
                     if (hostTransferLockAcquired) {
@@ -492,10 +510,11 @@ async function handleDisconnect(io, socket, reason) {
                 } catch (hostTransferError) {
                     logger.error(`Host transfer failed for room ${roomCode}: ${hostTransferError.message}`);
                 } finally {
-                    // ISSUE #7 FIX: Only release lock if we acquired it
+                    // ISSUE #7 FIX: Only release lock if we acquired it (owner-verified)
                     if (hostTransferLockAcquired) {
                         try {
-                            await redis.del(lockKey);
+                            const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
+                            await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] });
                         } catch (delErr) {
                             logger.error(`Failed to release host transfer lock for ${roomCode}: ${delErr.message}`);
                         }
@@ -565,11 +584,15 @@ function getTimerStatus(roomCode) {
  * Call this before process exit to prevent memory leaks
  */
 function cleanupSocketModule() {
+    // Set shutdown flag to reject new connections immediately
+    shuttingDown = true;
+
     // Stop rate limiter cleanup interval
     stopRateLimitCleanup();
 
     // Close socket.io server if initialized
     if (io) {
+        io.disconnectSockets(true); // Force-disconnect so disconnect handlers run while io is valid
         io.close();
         io = null;
     }

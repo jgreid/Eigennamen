@@ -559,6 +559,7 @@ describe('createGame', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedis.set.mockResolvedValue('OK');
+        mockRedis.eval.mockResolvedValue(1);
         // FIX: createGame now verifies room exists before creating game
         // First call: game existence check (null = no game), second call: room check (room data)
         const defaultRoomData = JSON.stringify({ code: 'TEST', status: 'waiting' });
@@ -932,7 +933,8 @@ describe('revealCard', () => {
         const result = await revealCard('TEST01', 5, 'Player1');
 
         expect(result).toEqual(luaResult);
-        expect(mockRedis.del).toHaveBeenCalled(); // Lock released
+        // Lock released via owner-verified eval (RELEASE_LOCK_SCRIPT)
+        expect(mockRedis.eval).toHaveBeenCalledTimes(2); // Lua reveal + lock release
     });
 
     test('fails when lock cannot be acquired', async () => {
@@ -1090,14 +1092,17 @@ describe('revealCard', () => {
             // Expected error
         }
 
-        expect(mockRedis.del).toHaveBeenCalledWith('lock:reveal:TEST01');
+        // Lock released via owner-verified eval (RELEASE_LOCK_SCRIPT)
+        expect(mockRedis.eval).toHaveBeenCalled();
     });
 
     test('logs error when lock release fails', async () => {
         mockRedis.set.mockResolvedValueOnce('OK');
         const luaResult = { success: true, index: 5, type: 'red' };
-        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
-        mockRedis.del.mockRejectedValueOnce(new Error('Redis down'));
+        // First eval: Lua reveal succeeds. Second eval: lock release fails.
+        mockRedis.eval
+            .mockResolvedValueOnce(JSON.stringify(luaResult))
+            .mockRejectedValueOnce(new Error('Redis down'));
 
         await revealCard('TEST01', 5);
 

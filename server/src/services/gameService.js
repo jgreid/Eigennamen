@@ -31,6 +31,7 @@ const {
 } = require('../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { toEnglishUpperCase, localeIncludes } = require('../utils/sanitize');
+const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
 
 // Use centralized constants
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
@@ -184,7 +185,8 @@ async function createGame(roomCode, options = {}) {
     // RACE CONDITION FIX: Use creation lock to prevent simultaneous game creation
     // Uses centralized LOCKS.GAME_CREATE constant
     const lockKey = `room:${roomCode}:game:creating`;
-    const lockAcquired = await redis.set(lockKey, '1', { NX: true, EX: LOCKS.GAME_CREATE });
+    const lockValue = `${process.pid}:${Date.now()}`;
+    const lockAcquired = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE });
 
     if (!lockAcquired) {
         // Another creation in progress - wait briefly and check if game exists
@@ -326,8 +328,10 @@ async function createGame(roomCode, options = {}) {
         logger.info(`Game created for room ${roomCode} with seed ${seed}`);
         return game;
     } finally {
-        // Always release the creation lock
-        await redis.del(lockKey);
+        // Always release the creation lock (owner-verified to avoid releasing another instance's lock)
+        await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }).catch(err => {
+            logger.error(`Failed to release creation lock for room ${roomCode}:`, err.message);
+        });
     }
 }
 
@@ -682,7 +686,8 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
 
     // ISSUE #17 & #32 FIX: Acquire distributed lock with longer TTL to prevent race conditions
     // Uses centralized LOCKS.CARD_REVEAL constant to accommodate retry loops and slow Redis operations
-    const lockAcquired = await redis.set(lockKey, process.pid.toString(), { NX: true, EX: LOCKS.CARD_REVEAL });
+    const lockValue = `${process.pid}:${Date.now()}`;
+    const lockAcquired = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.CARD_REVEAL });
     if (!lockAcquired) {
         throw new ServerError('Another card reveal is in progress, please try again');
     }
@@ -770,8 +775,8 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
 
         throw ServerError.concurrentModification();
     } finally {
-        // ISSUE #32 FIX: Always release the distributed lock
-        await redis.del(lockKey).catch(err => {
+        // ISSUE #32 FIX: Always release the distributed lock (owner-verified)
+        await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }).catch(err => {
             logger.error(`Failed to release reveal lock for room ${roomCode}:`, err.message);
         });
     }

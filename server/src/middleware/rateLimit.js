@@ -91,6 +91,8 @@ function createSocketRateLimiter(limits) {
     let totalRequests = 0;
     let blockedRequests = 0;
     let blockedByIP = 0;
+    // Capped to prevent unbounded growth in long-running deployments
+    const MAX_UNIQUE_TRACKING = 10000;
     const uniqueSockets = new Set();
     const uniqueIPs = new Set();
     const eventRequests = new Map();   // event -> count
@@ -120,8 +122,8 @@ function createSocketRateLimiter(limits) {
 
             // Track metrics
             totalRequests++;
-            uniqueSockets.add(socket.id);
-            uniqueIPs.add(clientIP);
+            if (uniqueSockets.size < MAX_UNIQUE_TRACKING) uniqueSockets.add(socket.id);
+            if (uniqueIPs.size < MAX_UNIQUE_TRACKING) uniqueIPs.add(clientIP);
             eventRequests.set(eventName, (eventRequests.get(eventName) || 0) + 1);
 
             // === Per-socket rate limiting ===

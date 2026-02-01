@@ -43,8 +43,10 @@ function csrfProtection(req, res, next) {
     // Additionally validate Origin/Referer when CORS is restricted
     const allowedOrigins = getAllowedOrigins();
     if (allowedOrigins !== null) {
-        // Check Origin header
         const origin = req.headers['origin'];
+        const referer = req.headers['referer'];
+
+        // Check Origin header
         if (origin) {
             if (!isOriginAllowed(origin, allowedOrigins)) {
                 logger.warn(`CSRF protection: blocked request from origin ${origin}`);
@@ -59,7 +61,6 @@ function csrfProtection(req, res, next) {
         }
 
         // Check Referer header as fallback
-        const referer = req.headers['referer'];
         if (referer) {
             try {
                 const refererUrl = new URL(referer);
@@ -81,7 +82,17 @@ function csrfProtection(req, res, next) {
                     }
                 });
             }
+            return next();
         }
+
+        // Neither Origin nor Referer present with restricted CORS — reject
+        logger.warn('CSRF protection: blocked request without Origin or Referer header');
+        return res.status(403).json({
+            error: {
+                code: 'CSRF_VALIDATION_FAILED',
+                message: 'Origin or Referer header required'
+            }
+        });
     }
 
     // Custom header present (and origin validated if CORS restricted) - allow

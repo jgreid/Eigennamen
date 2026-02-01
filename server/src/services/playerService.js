@@ -64,24 +64,57 @@ async function getPlayer(sessionId) {
 }
 
 /**
- * Update player data
+ * Update player data atomically using WATCH/MULTI to prevent lost updates
+ * from concurrent read-modify-write operations (e.g., simultaneous disconnect + nickname change).
  */
 async function updatePlayer(sessionId, updates) {
     const redis = getRedis();
-    const player = await getPlayer(sessionId);
+    const playerKey = `player:${sessionId}`;
+    const maxRetries = 3;
 
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        await redis.watch(playerKey);
+
+        const playerData = await redis.get(playerKey);
+        if (!playerData) {
+            await redis.unwatch();
+            throw new ServerError('Player not found');
+        }
+
+        let player;
+        try {
+            player = JSON.parse(playerData);
+        } catch (e) {
+            await redis.unwatch();
+            throw new ServerError('Corrupted player data');
+        }
+
+        const updatedPlayer = {
+            ...player,
+            ...updates,
+            lastSeen: Date.now()
+        };
+
+        const txResult = await redis.multi()
+            .set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER })
+            .exec();
+
+        if (txResult !== null) {
+            return updatedPlayer;
+        }
+
+        // Transaction aborted due to concurrent modification, retry
+        logger.debug(`updatePlayer transaction conflict for ${sessionId}, attempt ${attempt + 1}`);
+    }
+
+    // Fall through after max retries — apply non-atomically as last resort
+    logger.warn(`updatePlayer failed atomically after ${maxRetries} retries for ${sessionId}, applying non-atomically`);
+    const player = await getPlayer(sessionId);
     if (!player) {
         throw new ServerError('Player not found');
     }
-
-    const updatedPlayer = {
-        ...player,
-        ...updates,
-        lastSeen: Date.now()
-    };
-
-    await redis.set(`player:${sessionId}`, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER });
-
+    const updatedPlayer = { ...player, ...updates, lastSeen: Date.now() };
+    await redis.set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER });
     return updatedPlayer;
 }
 
@@ -660,13 +693,7 @@ async function generateReconnectionToken(sessionId) {
         return null;
     }
 
-    // RACE CONDITION FIX: Check for existing token first to make this idempotent
-    // This prevents multiple concurrent calls from generating different tokens
-    const existingToken = await redis.get(`reconnect:session:${sessionId}`);
-    if (existingToken) {
-        logger.debug(`Returning existing reconnection token for session ${sessionId}`);
-        return existingToken;
-    }
+    const ttl = SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS || 300;
 
     // Generate a cryptographically secure random token
     const tokenBytes = SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32;
@@ -682,7 +709,21 @@ async function generateReconnectionToken(sessionId) {
         createdAt: Date.now()
     };
 
-    const ttl = SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS || 300;
+    // Use SET NX for the session->token mapping to prevent TOCTOU race:
+    // If two concurrent calls race, only the first succeeds; the second
+    // discovers an existing mapping and returns that token instead.
+    const sessionKey = `reconnect:session:${sessionId}`;
+    const setResult = await redis.set(sessionKey, token, { NX: true, EX: ttl });
+
+    if (!setResult) {
+        // Another concurrent call won the race — return the existing token
+        const existingToken = await redis.get(sessionKey);
+        if (existingToken) {
+            logger.debug(`Returning existing reconnection token for session ${sessionId} (race resolved)`);
+            return existingToken;
+        }
+        // Token expired between our NX check and get — fall through to create new
+    }
 
     // Store token -> session mapping for quick lookup
     await redis.set(
@@ -691,12 +732,10 @@ async function generateReconnectionToken(sessionId) {
         { EX: ttl }
     );
 
-    // Store session -> token mapping for cleanup on successful reconnect
-    await redis.set(
-        `reconnect:session:${sessionId}`,
-        token,
-        { EX: ttl }
-    );
+    // If NX failed but token expired, overwrite the session->token mapping
+    if (!setResult) {
+        await redis.set(sessionKey, token, { EX: ttl });
+    }
 
     logger.debug(`Generated reconnection token for session ${sessionId}, TTL: ${ttl}s`);
 
