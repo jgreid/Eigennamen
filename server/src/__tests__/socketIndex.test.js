@@ -339,7 +339,7 @@ describe('Socket Connection Handling', () => {
     let server;
     let ioServer;
     let clientSocket;
-    const TEST_PORT = 3099;
+    let testPort;
 
     beforeEach((done) => {
         server = http.createServer();
@@ -355,7 +355,10 @@ describe('Socket Connection Handling', () => {
             next();
         });
 
-        server.listen(TEST_PORT, done);
+        server.listen(0, () => {
+            testPort = server.address().port;
+            done();
+        });
     });
 
     afterEach((done) => {
@@ -372,7 +375,7 @@ describe('Socket Connection Handling', () => {
             done();
         });
 
-        clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+        clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket'],
             auth: { sessionId: 'test-123' }
         });
@@ -388,7 +391,7 @@ describe('Socket Connection Handling', () => {
             socket.emit('connected');
         });
 
-        clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+        clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket']
         });
 
@@ -409,7 +412,7 @@ describe('Socket Connection Handling', () => {
             });
         });
 
-        clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+        clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket']
         });
 
