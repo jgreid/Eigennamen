@@ -13,13 +13,12 @@ services:
       # Production settings are configured in fly.toml for Fly.io deployment
       - NODE_ENV=development
       - PORT=3000
-      # ISSUE #53 FIX: Set POSTGRES_PASSWORD via .env file or shell for non-local environments
-      # The default password is acceptable ONLY for local Docker development
-      # Production on Fly.io uses different configuration (see fly.toml)
-      - DATABASE_URL=postgresql://codenames:${POSTGRES_PASSWORD:-local-dev-password-do-not-use-in-prod}@db:5432/codenames
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      # Secrets are read from .env file (see .env.example for template)
+      # Run: cp .env.example .env  to get started
+      - DATABASE_URL=postgresql://codenames:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/codenames
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - LOG_LEVEL=debug
     depends_on:
       db:
@@ -44,9 +43,7 @@ services:
     image: postgres:15-alpine
     environment:
       - POSTGRES_USER=codenames
-      # ISSUE #53 FIX: Set POSTGRES_PASSWORD via .env file for non-local environments
-      # This default is ONLY for local Docker development
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-local-dev-password-do-not-use-in-prod}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       - POSTGRES_DB=codenames
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -62,11 +59,11 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
