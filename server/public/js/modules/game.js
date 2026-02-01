@@ -78,7 +78,7 @@ export function newGame() {
     setTimeout(() => { state.newGameDebounce = false; }, 500);
 
     // In multiplayer mode, request new game from server
-    if (state.isMultiplayerMode && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         // Server will generate and broadcast the game to all players
         CodenamesClient.startGame({});
         // Reset local state - will be synced when gameStarted event arrives
@@ -327,29 +327,6 @@ export function updateQRCode(url) {
     }
 }
 
-// Copy link to clipboard
-export function copyShareLink() {
-    const shareLinkInput = document.getElementById('share-link-input');
-    const feedback = document.getElementById('copy-feedback');
-
-    if (!shareLinkInput) return;
-
-    navigator.clipboard.writeText(shareLinkInput.value).then(() => {
-        if (feedback) {
-            feedback.textContent = 'Link copied to clipboard!';
-            setTimeout(() => { feedback.textContent = ''; }, 3000);
-        }
-    }).catch(() => {
-        // Fallback for older browsers
-        shareLinkInput.select();
-        document.execCommand('copy');
-        if (feedback) {
-            feedback.textContent = 'Link copied to clipboard!';
-            setTimeout(() => { feedback.textContent = ''; }, 3000);
-        }
-    });
-}
-
 export function revealCard(index) {
     // Provide specific feedback for why card click is blocked
     if (state.gameState.gameOver) {
@@ -385,7 +362,7 @@ export function revealCard(index) {
     }
 
     // In multiplayer mode, send reveal to server and let it broadcast
-    if (state.isMultiplayerMode && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         // Prevent double-click while waiting for server response
         if (state.isRevealingCard) {
             return;
@@ -585,7 +562,7 @@ export function endTurn() {
     }
 
     // In multiplayer mode, send end turn to server
-    if (state.isMultiplayerMode && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         CodenamesClient.endTurn();
         // Don't update local state - wait for server confirmation via turnEnded event
         return;

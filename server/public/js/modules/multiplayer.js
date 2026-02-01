@@ -464,22 +464,6 @@ export function copyRoomId() {
     }
 }
 
-/**
- * Copy shareable link with room code to clipboard
- */
-export function copyRoomLink() {
-    const roomCode = CodenamesClient.getRoomCode();
-    if (roomCode) {
-        const url = new URL(window.location.origin);
-        url.searchParams.set('room', roomCode);
-        navigator.clipboard.writeText(url.toString()).then(() => {
-            showToast('Room link copied!', 'success', 3000);
-        }).catch(() => {
-            showToast('Failed to copy link', 'error', 2000);
-        });
-    }
-}
-
 export function updatePlayerList(ul, players) {
     const mySessionId = CodenamesClient.player?.sessionId;
     const amHost = CodenamesClient.player?.isHost;
@@ -1037,25 +1021,6 @@ export function leaveMultiplayerMode() {
     updateMpIndicator(null, []);
     // Hide room settings nav item
     updateRoomSettingsNavVisibility();
-}
-
-export function syncGameState(game) {
-    // Sync board state from server (for incremental updates)
-    if (game.board && Array.isArray(game.board)) {
-        // Update revealed state
-        game.board.forEach((card, i) => {
-            if (card.revealed && !state.gameState.revealed[i]) {
-                state.gameState.revealed[i] = true;
-            }
-        });
-        renderBoard();
-    }
-
-    // Sync turn
-    if (game.currentTurn || game.currentTeam) {
-        state.gameState.currentTurn = game.currentTurn || game.currentTeam;
-        updateTurnIndicator();
-    }
 }
 
 /**
