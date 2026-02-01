@@ -208,7 +208,6 @@ function createMockRedis(overrides = {}) {
                     // Sequential execution required - commands must run in order for transaction semantics
                     for (const { cmd, args } of commands) {
                         try {
-                            // eslint-disable-next-line no-await-in-loop
                             const result = await self[cmd](...args);
                             results.push([null, result]);
                         } catch (e) {

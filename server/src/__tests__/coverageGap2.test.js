@@ -467,5 +467,3 @@ describe('playerService setTeam/setRole uncovered branches', () => {
         await expect(playerService.setRole('s1', 'spymaster')).rejects.toThrow('Failed to update player role');
     });
 });
-
-

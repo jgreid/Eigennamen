@@ -11,7 +11,7 @@ const path = require('path');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter, strictLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
 const { csrfProtection } = require('./middleware/csrf');
-const { requestTiming, startMemoryMonitoring } = require('./middleware/timing');
+const { requestTiming } = require('./middleware/timing');
 const routes = require('./routes');
 const adminRoutes = require('./routes/adminRoutes');
 const logger = require('./utils/logger');
@@ -55,7 +55,7 @@ async function getCachedSocketCount(io, forceRefresh = false) {
         lastSocketCountUpdate = now;
         setSocketConnections(cachedSocketCount);
         return { count: cachedSocketCount, cached: false };
-    } catch (error) {
+    } catch {
         // Return stale cache on error
         return { count: cachedSocketCount, cached: true, stale: true };
     }

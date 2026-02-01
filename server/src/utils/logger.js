@@ -17,7 +17,7 @@ function loadCorrelationId() {
         try {
             const correlationModule = require('./correlationId');
             getContextFields = correlationModule.getContextFields;
-        } catch (_e) {
+        } catch {
             // Module not available yet, return empty function
             getContextFields = () => ({});
         }
@@ -153,6 +153,7 @@ if (process.env.NODE_ENV === 'production') {
     } catch (err) {
         // If we can't create log files, just use console logging
         // This can happen in containerized environments with read-only filesystems
+        // eslint-disable-next-line no-console -- logger not yet initialized
         console.warn('Could not create log directory, using console logging only:', err.message);
     }
 }

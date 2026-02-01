@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION, PLAYER_CLEANUP } = require('../config/constants');
+const { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
 
 /**
@@ -385,7 +385,7 @@ async function setRole(sessionId, role) {
  * Set player's nickname
  * SECURITY FIX: Defense-in-depth validation for nickname
  */
-async function setNickname(sessionId, nickname) {
+function setNickname(sessionId, nickname) {
     // Zod schema already validates and trims the nickname at the handler level
     const trimmed = (nickname || '').trim();
     return updatePlayer(sessionId, { nickname: trimmed });
@@ -739,7 +739,7 @@ async function setSocketMapping(sessionId, socketId, clientIP = null) {
 /**
  * Get socket ID for a session
  */
-async function getSocketId(sessionId) {
+function getSocketId(sessionId) {
     const redis = getRedis();
     return redis.get(`session:${sessionId}:socket`);
 }
@@ -891,7 +891,7 @@ async function validateReconnectionToken(token, sessionId) {
  * @param {string} sessionId - Player's session ID
  * @returns {Promise<string|null>} Existing token or null
  */
-async function getExistingReconnectionToken(sessionId) {
+function getExistingReconnectionToken(sessionId) {
     const redis = getRedis();
     return redis.get(`reconnect:session:${sessionId}`);
 }

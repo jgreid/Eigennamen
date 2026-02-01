@@ -250,7 +250,7 @@ class DistributedLock {
      * @param {string} lockKey - Lock key
      * @returns {string|null} Owner ID or null if not locked
      */
-    async getLockOwner(lockKey) {
+    getLockOwner(lockKey) {
         const redis = getRedis();
         const key = `lock:${lockKey}`;
         return redis.get(key);

@@ -45,7 +45,7 @@ function extractUser(req, res, next) {
             } else {
                 logger.debug('Invalid auth token structure in word list request');
             }
-        } catch (error) {
+        } catch {
             // Invalid token - continue without user
             logger.debug('Invalid auth token in word list request');
         }

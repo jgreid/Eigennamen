@@ -42,7 +42,7 @@ const MAX_TRANSACTION_RETRIES = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
  * @param {string} operationName - Name for logging
  * @returns {Promise<any>} Result from operation function
  */
-async function executeGameTransaction(gameKey, operation, operationName) {
+async function executeGameTransaction(gameKey, operation, _operationName) {
     const redis = getRedis();
     const roomCode = gameKey.replace('room:', '').replace(':game', '');
     let retries = 0;
@@ -478,7 +478,7 @@ function shuffleWithSeed(array, seed) {
 function generateSeed() {
     try {
         return crypto.randomBytes(6).toString('hex');
-    } catch (e) {
+    } catch {
         // Fallback to Math.random if crypto is unavailable
         return Math.random().toString(36).substring(2, 10) +
                Math.random().toString(36).substring(2, 6);
@@ -1455,7 +1455,7 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
  * Forfeit the game - uses current turn's team as forfeiting team
  * Uses optimistic locking with retries for consistency
  */
-async function forfeitGame(roomCode) {
+function forfeitGame(roomCode) {
     const gameKey = `room:${roomCode}:game`;
 
     return executeGameTransaction(gameKey, (game) => {

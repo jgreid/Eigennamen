@@ -54,6 +54,29 @@ module.exports = [
         }
     },
     {
+        // Memory storage implements Redis-compatible async interface with sync ops
+        files: ['src/config/memoryStorage.js'],
+        rules: {
+            'require-await': 'off'
+        }
+    },
+    {
+        // These files legitimately use sequential await in loops for Redis ops
+        files: [
+            'src/services/gameService.js',
+            'src/services/playerService.js',
+            'src/config/redis.js',
+            'src/config/database.js',
+            'src/utils/retry.js',
+            'src/utils/distributedLock.js',
+            'src/socket/reliableEmit.js',
+            'src/routes/adminRoutes.js'
+        ],
+        rules: {
+            'no-await-in-loop': 'off'
+        }
+    },
+    {
         // Test files have relaxed rules
         files: ['src/__tests__/**/*.js', '**/*.test.js'],
         languageOptions: {
@@ -67,6 +90,7 @@ module.exports = [
         rules: {
             'no-console': 'off',
             'require-await': 'off',
+            'no-await-in-loop': 'off',
             'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
         }
     }

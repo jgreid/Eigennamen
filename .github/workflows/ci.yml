@@ -70,7 +70,7 @@ jobs:
       - run: npm ci
 
       - name: Run ESLint
-        run: npm run lint -- --max-warnings 150
+        run: npm run lint -- --max-warnings 0
 
   docker:
     name: Docker Build

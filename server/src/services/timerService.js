@@ -284,7 +284,7 @@ async function resumeTimer(roomCode, onExpire) {
 
         const remainingSeconds = timer.remainingWhenPaused;
         return await startTimer(roomCode, remainingSeconds, onExpire);
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -296,6 +296,7 @@ async function resumeTimer(roomCode, onExpire) {
  * @param {Function} onExpire - Callback when timer expires
  * @returns {Object|null} Updated timer info or null
  */
+// eslint-disable-next-line require-await -- callers await this; delegates to async addTimeLocal
 async function addTime(roomCode, secondsToAdd, onExpire) {
     // Validate parameters
     if (!roomCode || typeof roomCode !== 'string') {
@@ -384,7 +385,7 @@ async function hasActiveTimer(roomCode) {
 /**
  * Clean up all timers (for shutdown)
  */
-async function cleanupAllTimers() {
+function cleanupAllTimers() {
     // Clear local timers
     for (const [_roomCode, timer] of localTimers) {
         clearTimeout(timer.timeoutId);

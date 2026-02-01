@@ -11,7 +11,7 @@
 const { v4: uuidv4, validate: isValidUuid } = require('uuid');
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
-const { verifyToken, verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../config/jwt');
+const { verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../config/jwt');
 const { getRedis } = require('../config/redis');
 const {
     SESSION_SECURITY,

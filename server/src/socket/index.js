@@ -176,14 +176,14 @@ function initializeSocket(server, expressApp = null) {
             // FIX C2: Increased timeout to 30s and added background cleanup on timeout
             // Previously: 10s timeout would abandon critical cleanup operations
             const DISCONNECT_TIMEOUT_MS = 30000; // 30 seconds - more realistic for slow Redis
-            let timedOut = false;
+            let _timedOut = false;
 
             try {
                 await Promise.race([
                     handleDisconnect(io, socket, reason),
                     new Promise((_, reject) => {
                         setTimeout(() => {
-                            timedOut = true;
+                            _timedOut = true;
                             reject(new Error('Disconnect handler timeout'));
                         }, DISCONNECT_TIMEOUT_MS);
                     })
@@ -366,10 +366,8 @@ function createTimerExpireCallback() {
  */
 async function handleDisconnect(io, socket, reason) {
     const playerService = require('../services/playerService');
-    const roomService = require('../services/roomService');
     const eventLogService = require('../services/eventLogService');
     const { getRedis } = require('../config/redis');
-    const { REDIS_TTL } = require('../config/constants');
 
     try {
         const player = await playerService.getPlayer(socket.sessionId);
@@ -558,7 +556,7 @@ async function stopTurnTimer(roomCode) {
 /**
  * Get timer status for a room (async)
  */
-async function getTimerStatus(roomCode) {
+function getTimerStatus(roomCode) {
     return timerService.getTimerStatus(roomCode);
 }
 

@@ -25,7 +25,6 @@ const { getPlayerContext, syncSocketRooms } = require('./playerContext');
 const { createRateLimitedHandler } = require('./rateLimitHandler');
 const { validateInput } = require('../middleware/validation');
 const logger = require('../utils/logger');
-const { ERROR_CODES } = require('../config/constants');
 const { sanitizeErrorForClient } = require('../errors/GameError');
 
 /**

@@ -264,7 +264,7 @@ router.get('/api/rooms', async (req, res) => {
 /**
  * POST /admin/api/broadcast - Send broadcast message to all rooms
  */
-router.post('/api/broadcast', async (req, res) => {
+router.post('/api/broadcast', (req, res) => {
     try {
         const { message, type = 'info' } = req.body;
 

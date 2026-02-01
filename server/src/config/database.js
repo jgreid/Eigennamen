@@ -18,7 +18,7 @@ let databaseEnabled = false;
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-async function sleep(ms) {
+function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -47,7 +47,7 @@ async function connectDatabase() {
     let PrismaClient;
     try {
         PrismaClient = require('@prisma/client').PrismaClient;
-    } catch (error) {
+    } catch {
         logger.warn('Prisma client not available - running without database');
         databaseEnabled = false;
         return null;

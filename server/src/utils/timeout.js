@@ -69,7 +69,7 @@ const TIMEOUTS = {
  * @returns {Function} Wrapped handler
  */
 function createTimeoutHandler(handler, timeoutMs, operationName) {
-    return async (...args) => {
+    return (...args) => {
         return withTimeout(handler(...args), timeoutMs, operationName);
     };
 }
