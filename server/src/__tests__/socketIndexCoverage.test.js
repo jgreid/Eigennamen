@@ -16,7 +16,7 @@ let mockRedisStorage = {};
 // Mock Redis client
 const mockRedis = {
     get: jest.fn(async (key) => mockRedisStorage[key] || null),
-    set: jest.fn(async (key, value, options) => {
+    set: jest.fn(async (key, value, _options) => {
         mockRedisStorage[key] = typeof value === 'string' ? value : JSON.stringify(value);
         return 'OK';
     }),
@@ -139,7 +139,7 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedisStorage = {};
-        mockRedis.set.mockImplementation(async (key, value, options) => {
+        mockRedis.set.mockImplementation(async (key, value, _options) => {
             mockRedisStorage[key] = typeof value === 'string' ? value : JSON.stringify(value);
             return 'OK';
         });
@@ -471,7 +471,7 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             ]);
 
             // Mock Redis set to return null (lock not acquired)
-            mockRedis.set.mockImplementation(async (key, value, options) => {
+            mockRedis.set.mockImplementation(async (key, value, _options) => {
                 if (key.includes('lock:host-transfer')) {
                     return null;
                 }
@@ -797,7 +797,7 @@ describe('SESSION_SECURITY Import (Line 323)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedisStorage = {};
-        mockRedis.set.mockImplementation(async (key, value, options) => {
+        mockRedis.set.mockImplementation(async (key, value, _options) => {
             mockRedisStorage[key] = typeof value === 'string' ? value : JSON.stringify(value);
             return 'OK';
         });
@@ -854,7 +854,7 @@ describe('Host Change Event Logging (Lines 389-399)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedisStorage = {};
-        mockRedis.set.mockImplementation(async (key, value, options) => {
+        mockRedis.set.mockImplementation(async (key, value, _options) => {
             mockRedisStorage[key] = typeof value === 'string' ? value : JSON.stringify(value);
             return 'OK';
         });
@@ -925,7 +925,7 @@ describe('Player Disconnected Notification Details (Lines 326-340)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedisStorage = {};
-        mockRedis.set.mockImplementation(async (key, value, options) => {
+        mockRedis.set.mockImplementation(async (key, value, _options) => {
             mockRedisStorage[key] = typeof value === 'string' ? value : JSON.stringify(value);
             return 'OK';
         });

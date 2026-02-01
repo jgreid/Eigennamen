@@ -206,7 +206,7 @@ describe('Timing Middleware', () => {
 
             try {
                 await wrappedHandler.call(mockSocket);
-            } catch (e) {
+            } catch {
                 // Expected
             }
 

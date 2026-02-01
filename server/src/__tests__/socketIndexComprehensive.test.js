@@ -210,7 +210,7 @@ describe('Socket Index Comprehensive Tests', () => {
             if (socketModule) {
                 socketModule.cleanupSocketModule();
             }
-        } catch (e) {
+        } catch {
             // Ignore cleanup errors
         }
         if (server && server.listening) {

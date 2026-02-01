@@ -52,7 +52,7 @@ const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
 const eventLogService = require('../services/eventLogService');
-const { withTimeout } = require('../utils/timeout');
+const { withTimeout: _withTimeout } = require('../utils/timeout');
 
 describe('Extended Room Handlers Tests', () => {
     let mockSocket;

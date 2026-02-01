@@ -533,7 +533,7 @@ describe('Game History Service', () => {
             // Mock zRange to return old game IDs
             mockRedis.zRange.mockResolvedValueOnce(['old-game-1', 'old-game-2']);
 
-            const result = await gameHistoryService.cleanupOldHistory('ROOM1');
+            await gameHistoryService.cleanupOldHistory('ROOM1');
 
             expect(mockRedis.del).toHaveBeenCalled();
             expect(mockRedis.zRem).toHaveBeenCalled();
@@ -597,7 +597,7 @@ describe('Game History Service', () => {
         test('getReplayEvents handles error gracefully', async () => {
             // Store a game that will cause buildReplayEvents to fail
             // by having history that throws when accessed
-            const badGame = {
+            const _badGame = {
                 id: 'game-bad',
                 roomCode: 'ROOM1',
                 timestamp: 5000,
@@ -613,7 +613,7 @@ describe('Game History Service', () => {
 
             // Mock get to return the stringified bad game which will parse
             // but then error when accessing history
-            const originalGet = mockRedis.get;
+            const _originalGet = mockRedis.get;
             mockRedis.get.mockImplementationOnce(() => {
                 return JSON.stringify({
                     id: 'game-bad',

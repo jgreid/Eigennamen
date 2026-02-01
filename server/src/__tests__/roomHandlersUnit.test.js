@@ -43,7 +43,7 @@ const roomService = require('../services/roomService');
 const gameService = require('../services/gameService');
 const playerService = require('../services/playerService');
 const eventLogService = require('../services/eventLogService');
-const logger = require('../utils/logger');
+const _logger = require('../utils/logger');
 const { getSocketFunctions } = require('../socket/socketFunctionProvider');
 
 describe('Room Handlers', () => {

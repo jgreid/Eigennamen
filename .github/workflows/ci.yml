@@ -70,10 +70,7 @@ jobs:
       - run: npm ci
 
       - name: Run ESLint
-        # Non-blocking until existing lint errors are cleaned up (27 errors, 138 warnings).
-        # Remove continue-on-error once errors reach 0 to make lint a hard gate.
-        continue-on-error: true
-        run: npm run lint
+        run: npm run lint -- --max-warnings 150
 
   docker:
     name: Docker Build

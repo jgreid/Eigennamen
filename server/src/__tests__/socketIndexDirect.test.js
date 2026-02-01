@@ -353,9 +353,7 @@ describe('Socket Index Direct Tests', () => {
             mockRoomService.getRoom.mockResolvedValue({ code: 'ROOM01' });
 
             // Make delete fail
-            let deleteCallCount = 0;
             mockRedis.del.mockImplementation(async (key) => {
-                deleteCallCount++;
                 if (key.includes('host-transfer')) {
                     throw new Error('Del failed');
                 }
