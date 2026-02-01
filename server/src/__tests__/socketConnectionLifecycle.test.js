@@ -102,7 +102,7 @@ describe('Socket Connection Lifecycle', () => {
     let httpServer;
     let ioServer;
     let clientSocket;
-    const TEST_PORT = 4097;
+    let testPort;
 
     beforeEach((done) => {
         jest.clearAllMocks();
@@ -120,12 +120,17 @@ describe('Socket Connection Lifecycle', () => {
             next();
         });
 
-        httpServer.listen(TEST_PORT, done);
+        httpServer.listen(0, () => {
+            testPort = httpServer.address().port;
+            done();
+        });
     });
 
     afterEach((done) => {
-        if (clientSocket && clientSocket.connected) {
+        if (clientSocket) {
+            clientSocket.removeAllListeners();
             clientSocket.disconnect();
+            clientSocket = null;
         }
         ioServer.close();
         httpServer.close(done);
@@ -138,7 +143,7 @@ describe('Socket Connection Lifecycle', () => {
                 done();
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket'],
                 auth: { sessionId: 'client-session-123' }
             });
@@ -150,7 +155,7 @@ describe('Socket Connection Lifecycle', () => {
                 done();
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
         });
@@ -162,7 +167,7 @@ describe('Socket Connection Lifecycle', () => {
                 done();
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
         });
@@ -170,26 +175,22 @@ describe('Socket Connection Lifecycle', () => {
         test('handles multiple simultaneous connections', (done) => {
             let connectionCount = 0;
             const targetConnections = 3;
+            const clients = [];
 
             ioServer.on('connection', () => {
                 connectionCount++;
                 if (connectionCount === targetConnections) {
+                    clients.forEach(c => c.disconnect());
                     done();
                 }
             });
 
-            const clients = [];
             for (let i = 0; i < targetConnections; i++) {
-                clients.push(Client(`http://localhost:${TEST_PORT}`, {
+                clients.push(Client(`http://localhost:${testPort}`, {
                     transports: ['websocket'],
                     auth: { sessionId: `session-${i}` }
                 }));
             }
-
-            // Cleanup
-            setTimeout(() => {
-                clients.forEach(c => c.disconnect());
-            }, 500);
         });
     });
 
@@ -202,7 +203,7 @@ describe('Socket Connection Lifecycle', () => {
                 });
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
 
@@ -223,7 +224,7 @@ describe('Socket Connection Lifecycle', () => {
                 });
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
 
@@ -240,7 +241,7 @@ describe('Socket Connection Lifecycle', () => {
                 });
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
 
@@ -260,19 +261,21 @@ describe('Socket Connection Lifecycle', () => {
                 done();
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
         });
 
         test('connection errors are handled gracefully', () => {
             // Invalid port should not crash
+            let badClient;
             expect(() => {
-                Client(`http://localhost:99999`, {
+                badClient = Client(`http://localhost:99999`, {
                     transports: ['websocket'],
                     timeout: 100
                 });
             }).not.toThrow();
+            if (badClient) badClient.disconnect();
         });
     });
 
@@ -286,7 +289,7 @@ describe('Socket Connection Lifecycle', () => {
                 done();
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
         });
@@ -299,7 +302,7 @@ describe('Socket Connection Lifecycle', () => {
                 done();
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket'],
                 auth: { sessionId: 'player-123' }
             });
@@ -314,7 +317,7 @@ describe('Socket Connection Lifecycle', () => {
                 });
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
 
@@ -345,7 +348,7 @@ describe('Socket Connection Lifecycle', () => {
                 });
             });
 
-            clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+            clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket']
             });
 

@@ -119,17 +119,10 @@ const Client = require('socket.io-client');
 
 describe('Socket Index Module', () => {
     let server;
-    const TEST_PORT = 3098;
-
     beforeAll((done) => {
         server = http.createServer();
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                // Port in use, try next port
-                server.listen(TEST_PORT + 1, done);
-            }
-        });
-        server.listen(TEST_PORT, done);
+        server.setMaxListeners(0);
+        server.listen(0, done);
     });
 
     afterAll((done) => {
@@ -362,8 +355,10 @@ describe('Socket Connection Handling', () => {
     });
 
     afterEach((done) => {
-        if (clientSocket && clientSocket.connected) {
+        if (clientSocket) {
+            clientSocket.removeAllListeners();
             clientSocket.disconnect();
+            clientSocket = null;
         }
         ioServer.close();
         server.close(done);
