@@ -8,8 +8,8 @@
 
 module.exports = {
     logEvent: async () => {},
-    getEventsSince: async () => [],
-    getRecentEvents: async () => [],
+    getEventsSince: () => Promise.resolve([]),
+    getRecentEvents: () => Promise.resolve([]),
     clearEventLog: async () => {},
     EVENT_TYPES: {}
 };

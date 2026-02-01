@@ -192,17 +192,10 @@ jest.mock('../socket/socketFunctionProvider', () => ({
 describe('Socket Index Comprehensive Tests', () => {
     let server;
     let socketModule;
-    const TEST_PORT = 3200;
-
     beforeAll((done) => {
         server = http.createServer();
-        server.setMaxListeners(20); // Avoid warnings
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                server.listen(TEST_PORT + Math.floor(Math.random() * 100), done);
-            }
-        });
-        server.listen(TEST_PORT, done);
+        server.setMaxListeners(0);
+        server.listen(0, done);
     });
 
     afterAll((done) => {
@@ -210,7 +203,7 @@ describe('Socket Index Comprehensive Tests', () => {
             if (socketModule) {
                 socketModule.cleanupSocketModule();
             }
-        } catch (e) {
+        } catch {
             // Ignore cleanup errors
         }
         if (server && server.listening) {

@@ -16,7 +16,7 @@ let usingMemoryMode = false;
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-async function sleep(ms) {
+function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -154,7 +154,7 @@ async function cleanupPartialConnections() {
             if (client.isOpen) {
                 await client.quit();
             }
-        } catch (e) {
+        } catch {
             // Ignore cleanup errors
         }
     }
@@ -185,7 +185,7 @@ async function isRedisHealthy() {
         }
         await redisClient.ping();
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }
@@ -197,11 +197,11 @@ async function disconnectRedis() {
             if (client.isOpen) {
                 await client.quit();
             }
-        } catch (e) {
+        } catch {
             // Force disconnect if quit fails
             try {
                 client.disconnect();
-            } catch (e2) {
+            } catch {
                 // Ignore
             }
         }

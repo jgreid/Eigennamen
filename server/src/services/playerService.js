@@ -2,11 +2,13 @@
  * Player Service - Player management logic
  */
 
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { REDIS_TTL, ERROR_CODES, SESSION_SECURITY, VALIDATION, PLAYER_CLEANUP } = require('../config/constants');
+const { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
 
 /**
@@ -92,91 +94,7 @@ async function updatePlayer(sessionId, updates) {
  *          {success: false, reason: 'TEAM_WOULD_BE_EMPTY'} if team would become empty
  *          nil if player not found
  */
-const ATOMIC_SAFE_TEAM_SWITCH_SCRIPT = `
-local playerKey = KEYS[1]
-local teamSetKey = KEYS[2]
-local roomCode = KEYS[3]
-local newTeam = ARGV[1]
-local sessionId = ARGV[2]
-local ttl = tonumber(ARGV[3])
-local now = tonumber(ARGV[4])
-local checkEmpty = ARGV[5] == 'true'
-
--- Get current player data
-local playerData = redis.call('GET', playerKey)
-if not playerData then
-    return nil
-end
-
-local player = cjson.decode(playerData)
-local oldTeam = player.team
-local oldRole = player.role
-
--- Determine actual new team value
-local actualNewTeam = nil
-if newTeam ~= '__NULL__' then
-    actualNewTeam = newTeam
-end
-
--- If we need to check for empty team (during active game with team change)
-if checkEmpty and oldTeam and oldTeam ~= cjson.null and oldTeam ~= actualNewTeam then
-    -- Get all session IDs on the old team
-    local teamMembers = redis.call('SMEMBERS', teamSetKey)
-    local otherConnectedCount = 0
-
-    for _, memberId in ipairs(teamMembers) do
-        if memberId ~= sessionId then
-            local memberData = redis.call('GET', 'player:' .. memberId)
-            if memberData then
-                local member = cjson.decode(memberData)
-                if member.connected then
-                    otherConnectedCount = otherConnectedCount + 1
-                end
-            end
-        end
-    end
-
-    -- If no other connected members would remain, reject the switch
-    if otherConnectedCount == 0 then
-        return cjson.encode({success = false, reason = 'TEAM_WOULD_BE_EMPTY'})
-    end
-end
-
--- Proceed with team change
-if actualNewTeam then
-    player.team = actualNewTeam
-else
-    player.team = cjson.null
-end
-player.lastSeen = now
-
--- Clear team-specific roles when switching teams
-if oldTeam ~= actualNewTeam and (oldRole == 'spymaster' or oldRole == 'clicker') then
-    player.role = 'spectator'
-end
-
-redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
-
--- ISSUE #1 FIX: Atomic team set maintenance
--- Remove from old team set if was on a team
-if oldTeam and oldTeam ~= cjson.null then
-    local oldTeamKey = 'room:' .. roomCode .. ':team:' .. oldTeam
-    redis.call('SREM', oldTeamKey, sessionId)
-    -- ISSUE #13 FIX: Clean up empty team sets
-    if redis.call('SCARD', oldTeamKey) == 0 then
-        redis.call('DEL', oldTeamKey)
-    end
-end
-
--- Add to new team set if joining a team
-if actualNewTeam then
-    local newTeamKey = 'room:' .. roomCode .. ':team:' .. actualNewTeam
-    redis.call('SADD', newTeamKey, sessionId)
-    redis.call('EXPIRE', newTeamKey, ttl)
-end
-
-return cjson.encode({success = true, player = player})
-`;
+const ATOMIC_SAFE_TEAM_SWITCH_SCRIPT = fs.readFileSync(path.join(__dirname, '../scripts/safeTeamSwitch.lua'), 'utf8');
 
 /**
  * Set player's team (atomic operation with optional empty-team check)
@@ -261,57 +179,7 @@ async function setTeam(sessionId, team, checkEmpty = false) {
  *          {success: false, reason: 'NO_TEAM'} if player has no team
  *          nil if player not found
  */
-const ATOMIC_SET_ROLE_SCRIPT = `
-local playerKey = KEYS[1]
-local roomPlayersKey = KEYS[2]
-local newRole = ARGV[1]
-local sessionId = ARGV[2]
-local ttl = tonumber(ARGV[3])
-local now = tonumber(ARGV[4])
-
--- Get current player data
-local playerData = redis.call('GET', playerKey)
-if not playerData then
-    return nil
-end
-
-local player = cjson.decode(playerData)
-
--- For spymaster/clicker roles, require team and check for existing role holder
-if newRole == 'spymaster' or newRole == 'clicker' then
-    if not player.team or player.team == cjson.null then
-        return cjson.encode({success = false, reason = 'NO_TEAM'})
-    end
-
-    -- Get all players in room and check if role is taken
-    local memberIds = redis.call('SMEMBERS', roomPlayersKey)
-    for _, memberId in ipairs(memberIds) do
-        if memberId ~= sessionId then
-            local memberData = redis.call('GET', 'player:' .. memberId)
-            if memberData then
-                local member = cjson.decode(memberData)
-                -- Check if same team and same role
-                if member.team == player.team and member.role == newRole then
-                    return cjson.encode({
-                        success = false,
-                        reason = 'ROLE_TAKEN',
-                        existingNickname = member.nickname
-                    })
-                end
-            end
-        end
-    end
-end
-
--- Update the role
-local oldRole = player.role
-player.role = newRole
-player.lastSeen = now
-
-redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
-
-return cjson.encode({success = true, player = player, oldRole = oldRole})
-`;
+const ATOMIC_SET_ROLE_SCRIPT = fs.readFileSync(path.join(__dirname, '../scripts/setRole.lua'), 'utf8');
 
 /**
  * Set player's role with atomic check to prevent race conditions
@@ -385,7 +253,7 @@ async function setRole(sessionId, role) {
  * Set player's nickname
  * SECURITY FIX: Defense-in-depth validation for nickname
  */
-async function setNickname(sessionId, nickname) {
+function setNickname(sessionId, nickname) {
     // Zod schema already validates and trims the nickname at the handler level
     const trimmed = (nickname || '').trim();
     return updatePlayer(sessionId, { nickname: trimmed });
@@ -739,7 +607,7 @@ async function setSocketMapping(sessionId, socketId, clientIP = null) {
 /**
  * Get socket ID for a session
  */
-async function getSocketId(sessionId) {
+function getSocketId(sessionId) {
     const redis = getRedis();
     return redis.get(`session:${sessionId}:socket`);
 }
@@ -891,7 +759,7 @@ async function validateReconnectionToken(token, sessionId) {
  * @param {string} sessionId - Player's session ID
  * @returns {Promise<string|null>} Existing token or null
  */
-async function getExistingReconnectionToken(sessionId) {
+function getExistingReconnectionToken(sessionId) {
     const redis = getRedis();
     return redis.get(`reconnect:session:${sessionId}`);
 }
@@ -918,55 +786,7 @@ async function invalidateReconnectionToken(sessionId) {
  * that could result in no host or multiple hosts
  * Returns: success with new host data, or failure reason
  */
-const ATOMIC_HOST_TRANSFER_SCRIPT = `
-local oldHostKey = KEYS[1]
-local newHostKey = KEYS[2]
-local roomKey = KEYS[3]
-local newHostSessionId = ARGV[1]
-local ttl = tonumber(ARGV[2])
-local now = tonumber(ARGV[3])
-
--- Get old host data
-local oldHostData = redis.call('GET', oldHostKey)
-if not oldHostData then
-    return cjson.encode({success = false, reason = 'OLD_HOST_NOT_FOUND'})
-end
-
--- Get new host data
-local newHostData = redis.call('GET', newHostKey)
-if not newHostData then
-    return cjson.encode({success = false, reason = 'NEW_HOST_NOT_FOUND'})
-end
-
--- Get room data
-local roomData = redis.call('GET', roomKey)
-if not roomData then
-    return cjson.encode({success = false, reason = 'ROOM_NOT_FOUND'})
-end
-
--- Parse all data
-local oldHost = cjson.decode(oldHostData)
-local newHost = cjson.decode(newHostData)
-local room = cjson.decode(roomData)
-
--- Atomically update all three records
-oldHost.isHost = false
-oldHost.lastSeen = now
-newHost.isHost = true
-newHost.lastSeen = now
-room.hostSessionId = newHostSessionId
-
--- Write all updates
-redis.call('SET', oldHostKey, cjson.encode(oldHost), 'EX', ttl)
-redis.call('SET', newHostKey, cjson.encode(newHost), 'EX', ttl)
-redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
-
-return cjson.encode({
-    success = true,
-    oldHost = oldHost,
-    newHost = newHost
-})
-`;
+const ATOMIC_HOST_TRANSFER_SCRIPT = fs.readFileSync(path.join(__dirname, '../scripts/hostTransfer.lua'), 'utf8');
 
 /**
  * Atomically transfer host status from one player to another

@@ -278,7 +278,7 @@ describe('Redis Performance Benchmarks', () => {
                 await timerService.startTimer('ADDTIME1', 60, () => {});
 
                 const start = performance.now();
-                const result = await timerService.addTime('ADDTIME1', 30, () => {});
+                await timerService.addTime('ADDTIME1', 30, () => {});
                 const duration = performance.now() - start;
 
                 expect(duration).toBeLessThan(30);
@@ -314,7 +314,7 @@ describe('Redis Performance Benchmarks', () => {
                 await timerService.pauseTimer('RESUME1');
 
                 const start = performance.now();
-                const result = await timerService.resumeTimer('RESUME1', () => {});
+                await timerService.resumeTimer('RESUME1', () => {});
                 const duration = performance.now() - start;
 
                 expect(duration).toBeLessThan(50);

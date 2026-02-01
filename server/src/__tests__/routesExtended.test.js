@@ -214,7 +214,7 @@ describe('Extended Room Routes', () => {
         });
 
         it('validates room code format', async () => {
-            const response = await request(app)
+            await request(app)
                 .get('/api/rooms/a/info') // Too short
                 .expect(404); // This will be 404 since it won't match the route
 
@@ -377,7 +377,7 @@ describe('Error Handler Integration', () => {
     });
 
     it('handles 404 for unknown routes', async () => {
-        const response = await request(app)
+        await request(app)
             .get('/api/unknown/route')
             .expect(404);
 

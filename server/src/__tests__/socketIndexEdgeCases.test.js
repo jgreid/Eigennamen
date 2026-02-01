@@ -129,16 +129,10 @@ jest.mock('../socket/rateLimitHandler', () => ({
 describe('Socket Index Edge Cases', () => {
     let server;
     let socketModule;
-    const TEST_PORT = 3120 + Math.floor(Math.random() * 50);
-
     beforeAll((done) => {
         server = http.createServer();
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                server.listen(TEST_PORT + 100, () => done());
-            }
-        });
-        server.listen(TEST_PORT, done);
+        server.setMaxListeners(0);
+        server.listen(0, done);
     });
 
     afterAll((done) => {

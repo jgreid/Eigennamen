@@ -256,14 +256,13 @@ describe('Frontend Caching Patterns', () => {
     test('frontend uses element caching pattern', () => {
         const fs = require('fs');
         const path = require('path');
-        const indexHtml = fs.readFileSync(
-            path.join(__dirname, '..', '..', '..', 'index.html'),
+        const stateJs = fs.readFileSync(
+            path.join(__dirname, '..', '..', 'public', 'js', 'modules', 'state.js'),
             'utf8'
         );
 
-        expect(indexHtml).toContain('cachedElements');
-        expect(indexHtml).toContain('initCachedElements');
-        expect(indexHtml).toMatch(/cachedElements\.board\s*\|\|\s*document\.getElementById/);
+        expect(stateJs).toContain('cachedElements');
+        expect(stateJs).toContain('initCachedElements');
     });
 });
 
@@ -271,25 +270,16 @@ describe('Frontend Module Architecture', () => {
     const fs = require('fs');
     const path = require('path');
     const publicJsPath = path.join(__dirname, '..', '..', 'public', 'js');
+    const modulesPath = path.join(publicJsPath, 'modules');
 
-    test('state.js module exists with EventEmitter pattern', () => {
-        const stateJs = fs.readFileSync(path.join(publicJsPath, 'state.js'), 'utf8');
+    test('state.js module exists with shared state object', () => {
+        const stateJs = fs.readFileSync(path.join(modulesPath, 'state.js'), 'utf8');
 
-        // EventEmitter class
-        expect(stateJs).toContain('class EventEmitter');
-        expect(stateJs).toMatch(/on\s*\(\s*event\s*,\s*callback\s*\)/);
-        expect(stateJs).toMatch(/emit\s*\(\s*event/);
-        expect(stateJs).toContain('off(event, callback)');
-
-        // StateStore class
-        expect(stateJs).toContain('class StateStore');
-        expect(stateJs).toContain('extends EventEmitter');
-
-        // AppState class
-        expect(stateJs).toContain('class AppState');
-        expect(stateJs).toContain('createGameStore');
-        expect(stateJs).toContain('createPlayerStore');
-        expect(stateJs).toContain('createUIStore');
+        // Shared state export
+        expect(stateJs).toContain('export const state');
+        expect(stateJs).toContain('gameState');
+        expect(stateJs).toContain('cachedElements');
+        expect(stateJs).toContain('BOARD_SIZE');
     });
 
     test('socket-client.js module exists with reconnection handling', () => {
@@ -310,28 +300,27 @@ describe('Frontend Module Architecture', () => {
         expect(socketJs).toContain('autoRejoin');
     });
 
-    test('ui.js module exists with ElementCache', () => {
-        const uiJs = fs.readFileSync(path.join(publicJsPath, 'ui.js'), 'utf8');
+    test('ui.js module exists with toast and modal support', () => {
+        const uiJs = fs.readFileSync(path.join(modulesPath, 'ui.js'), 'utf8');
 
-        // ElementCache class
-        expect(uiJs).toContain('class ElementCache');
-        expect(uiJs).toContain('this.cache');
-        expect(uiJs).toContain('this.initialized');
-
+        // Toast notifications
+        expect(uiJs).toContain('showToast');
+        // Modal management
+        expect(uiJs).toContain('openModal');
+        expect(uiJs).toContain('closeModal');
         // Screen reader support
-        expect(uiJs).toContain('ScreenReaderAnnouncer');
-        expect(uiJs).toContain('aria-live');
+        expect(uiJs).toContain('announceToScreenReader');
     });
 
     test('game.js module exists with game logic', () => {
-        const gameJs = fs.readFileSync(path.join(publicJsPath, 'game.js'), 'utf8');
+        const gameJs = fs.readFileSync(path.join(modulesPath, 'game.js'), 'utf8');
 
         // Game logic functions
         expect(gameJs).toMatch(/seededRandom|shuffleWithSeed|BOARD_SIZE/);
     });
 
     test('app.js module exists as main entry point', () => {
-        const appJs = fs.readFileSync(path.join(publicJsPath, 'app.js'), 'utf8');
+        const appJs = fs.readFileSync(path.join(modulesPath, 'app.js'), 'utf8');
 
         // Main app initialization
         expect(appJs).toMatch(/init|initialize|DOMContentLoaded/i);
@@ -339,27 +328,29 @@ describe('Frontend Module Architecture', () => {
 
     test('event listener cleanup pattern exists', () => {
         const fs = require('fs');
-        const indexHtml = fs.readFileSync(
-            path.join(__dirname, '..', '..', '..', 'index.html'),
-            'utf8'
-        );
+        const modulesDir = path.join(__dirname, '..', '..', 'public', 'js', 'modules');
+        const allModules = fs.readdirSync(modulesDir)
+            .filter(f => f.endsWith('.js'))
+            .map(f => fs.readFileSync(path.join(modulesDir, f), 'utf8'))
+            .join('\n');
 
         // Modal event cleanup
-        expect(indexHtml).toContain('removeEventListener');
+        expect(allModules).toContain('removeEventListener');
     });
 
-    test('state management uses centralized gameState object', () => {
+    test('state management uses centralized state object', () => {
         const fs = require('fs');
-        const indexHtml = fs.readFileSync(
-            path.join(__dirname, '..', '..', '..', 'index.html'),
+        const stateJs = fs.readFileSync(
+            path.join(__dirname, '..', '..', 'public', 'js', 'modules', 'state.js'),
             'utf8'
         );
 
-        // Centralized state
-        expect(indexHtml).toMatch(/let\s+gameState\s*=/);
-        expect(indexHtml).toContain('gameState.currentTurn');
-        expect(indexHtml).toContain('gameState.gameOver');
-        expect(indexHtml).toContain('gameState.revealed');
+        // Centralized state exported as shared object
+        expect(stateJs).toContain('export const state');
+        expect(stateJs).toContain('gameState');
+        expect(stateJs).toContain('currentTurn');
+        expect(stateJs).toContain('gameOver');
+        expect(stateJs).toContain('revealed');
     });
 });
 

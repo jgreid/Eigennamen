@@ -2,6 +2,8 @@
  * Game Service - Core game logic
  */
 
+const fs = require('fs');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const { getRedis } = require('../config/redis');
@@ -42,7 +44,7 @@ const MAX_TRANSACTION_RETRIES = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
  * @param {string} operationName - Name for logging
  * @returns {Promise<any>} Result from operation function
  */
-async function executeGameTransaction(gameKey, operation, operationName) {
+async function executeGameTransaction(gameKey, operation, _operationName) {
     const redis = getRedis();
     const roomCode = gameKey.replace('room:', '').replace(':game', '');
     let retries = 0;
@@ -98,335 +100,19 @@ async function executeGameTransaction(gameKey, operation, operationName) {
  * Updates only the necessary fields instead of full JSON re-serialization
  * This reduces CPU overhead for frequent card reveal operations
  */
-const OPTIMIZED_REVEAL_SCRIPT = `
-local gameKey = KEYS[1]
-local index = tonumber(ARGV[1])
-local timestamp = tonumber(ARGV[2])
-local playerNickname = ARGV[3]
-local maxHistoryEntries = tonumber(ARGV[4])
-
-local gameData = redis.call('GET', gameKey)
-if not gameData then
-    return cjson.encode({error = 'NO_GAME'})
-end
-
-local game = cjson.decode(gameData)
-
--- Validate preconditions
-if game.gameOver then
-    return cjson.encode({error = 'GAME_OVER'})
-end
-if not game.currentClue then
-    return cjson.encode({error = 'NO_CLUE'})
-end
-if game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
-    return cjson.encode({error = 'NO_GUESSES'})
-end
--- Lua arrays are 1-indexed, so add 1 to the index
-local luaIndex = index + 1
-if game.revealed[luaIndex] then
-    return cjson.encode({error = 'ALREADY_REVEALED'})
-end
-
--- Store previous state
-local previousTurn = game.currentTurn
-local cardType = game.types[luaIndex]
-
--- Execute reveal
-game.revealed[luaIndex] = true
-if cardType == 'red' then
-    game.redScore = game.redScore + 1
-elseif cardType == 'blue' then
-    game.blueScore = game.blueScore + 1
-end
-game.guessesUsed = (game.guessesUsed or 0) + 1
-
--- Determine outcome
-local turnEnded = false
-local endReason = cjson.null
-
--- Check assassin
-if cardType == 'assassin' then
-    game.gameOver = true
-    if previousTurn == 'red' then
-        game.winner = 'blue'
-    else
-        game.winner = 'red'
-    end
-    endReason = 'assassin'
-    turnEnded = true
--- Check win conditions
-elseif game.redScore >= game.redTotal then
-    game.gameOver = true
-    game.winner = 'red'
-    endReason = 'completed'
-    turnEnded = true
-elseif game.blueScore >= game.blueTotal then
-    game.gameOver = true
-    game.winner = 'blue'
-    endReason = 'completed'
-    turnEnded = true
--- Wrong guess
-elseif cardType ~= previousTurn then
-    if previousTurn == 'red' then
-        game.currentTurn = 'blue'
-    else
-        game.currentTurn = 'red'
-    end
-    game.currentClue = cjson.null
-    game.guessesUsed = 0
-    game.guessesAllowed = 0
-    turnEnded = true
--- Max guesses reached
-elseif game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
-    if previousTurn == 'red' then
-        game.currentTurn = 'blue'
-    else
-        game.currentTurn = 'red'
-    end
-    game.currentClue = cjson.null
-    game.guessesUsed = 0
-    game.guessesAllowed = 0
-    turnEnded = true
-    endReason = 'maxGuesses'
-end
-
--- Add to history (with cap)
-if not game.history then
-    game.history = {}
-end
-table.insert(game.history, {
-    action = 'reveal',
-    index = index,
-    word = game.words[luaIndex],
-    type = cardType,
-    team = previousTurn,
-    player = playerNickname,
-    guessNumber = game.guessesUsed,
-    timestamp = timestamp
-})
--- Cap history
-if #game.history > maxHistoryEntries then
-    local newHistory = {}
-    for i = #game.history - maxHistoryEntries + 1, #game.history do
-        table.insert(newHistory, game.history[i])
-    end
-    game.history = newHistory
-end
-
--- Increment version
-game.stateVersion = (game.stateVersion or 0) + 1
-
--- Save updated game
-redis.call('SET', gameKey, cjson.encode(game))
-
--- Return result
-local result = {
-    success = true,
-    index = index,
-    type = cardType,
-    word = game.words[luaIndex],
-    redScore = game.redScore,
-    blueScore = game.blueScore,
-    currentTurn = game.currentTurn,
-    guessesUsed = game.guessesUsed,
-    guessesAllowed = game.guessesAllowed,
-    turnEnded = turnEnded,
-    gameOver = game.gameOver,
-    winner = game.winner,
-    endReason = endReason
-}
-
-if game.gameOver then
-    result.allTypes = game.types
-end
-
-return cjson.encode(result)
-`;
+const OPTIMIZED_REVEAL_SCRIPT = fs.readFileSync(path.join(__dirname, '../scripts/revealCard.lua'), 'utf8');
 
 /**
  * Lua script for optimized clue giving
  * Performs atomic clue validation and state update in Redis
  */
-const OPTIMIZED_GIVE_CLUE_SCRIPT = `
-local gameKey = KEYS[1]
-local team = ARGV[1]
-local clueWord = ARGV[2]
-local clueNumber = tonumber(ARGV[3])
-local spymasterNickname = ARGV[4]
-local timestamp = tonumber(ARGV[5])
-local maxHistoryEntries = tonumber(ARGV[6])
-local boardSize = tonumber(ARGV[7])
-
-local gameData = redis.call('GET', gameKey)
-if not gameData then
-    return cjson.encode({error = 'NO_GAME'})
-end
-
-local game = cjson.decode(gameData)
-
--- Validate preconditions
-if game.gameOver then
-    return cjson.encode({error = 'GAME_OVER'})
-end
-if game.currentTurn ~= team then
-    return cjson.encode({error = 'NOT_YOUR_TURN'})
-end
-if game.currentClue then
-    return cjson.encode({error = 'CLUE_ALREADY_GIVEN'})
-end
-
--- Validate clue number
-if clueNumber < 0 or clueNumber > boardSize then
-    return cjson.encode({error = 'INVALID_NUMBER'})
-end
-
--- Validate clue word is not on the board (case-insensitive)
-local normalizedClue = string.upper(clueWord)
-for i, word in ipairs(game.words) do
-    local normalizedWord = string.upper(word)
-    -- Exact match
-    if normalizedClue == normalizedWord then
-        return cjson.encode({error = 'WORD_ON_BOARD', word = word})
-    end
-    -- Clue contains board word
-    if string.len(normalizedWord) > 1 and string.find(normalizedClue, normalizedWord, 1, true) then
-        return cjson.encode({error = 'CONTAINS_BOARD_WORD', word = word})
-    end
-    -- Board word contains clue
-    if string.len(normalizedClue) > 1 and string.find(normalizedWord, normalizedClue, 1, true) then
-        return cjson.encode({error = 'BOARD_CONTAINS_CLUE', word = word})
-    end
-end
-
--- Create and set clue
-local clue = {
-    team = team,
-    word = string.upper(clueWord),
-    number = clueNumber,
-    spymaster = spymasterNickname,
-    timestamp = timestamp
-}
-
-game.currentClue = clue
--- 0 means unlimited guesses, otherwise number + 1
-game.guessesAllowed = clueNumber == 0 and 0 or clueNumber + 1
-game.guessesUsed = 0
-
-if not game.clues then
-    game.clues = {}
-end
-table.insert(game.clues, clue)
-
--- Add to history
-if not game.history then
-    game.history = {}
-end
-table.insert(game.history, {
-    action = 'clue',
-    team = team,
-    word = clue.word,
-    number = clueNumber,
-    guessesAllowed = game.guessesAllowed,
-    spymaster = spymasterNickname,
-    timestamp = timestamp
-})
-
--- Cap history
-if #game.history > maxHistoryEntries then
-    local newHistory = {}
-    for i = #game.history - maxHistoryEntries + 1, #game.history do
-        table.insert(newHistory, game.history[i])
-    end
-    game.history = newHistory
-end
-
--- Increment version
-game.stateVersion = (game.stateVersion or 0) + 1
-
--- Save game
-redis.call('SET', gameKey, cjson.encode(game))
-
-return cjson.encode({
-    success = true,
-    team = team,
-    word = clue.word,
-    number = clueNumber,
-    spymaster = spymasterNickname,
-    guessesAllowed = game.guessesAllowed,
-    timestamp = timestamp
-})
-`;
+const OPTIMIZED_GIVE_CLUE_SCRIPT = fs.readFileSync(path.join(__dirname, '../scripts/giveClue.lua'), 'utf8');
 
 /**
  * Lua script for optimized end turn
  * Atomically switches turn and resets clue state
  */
-const OPTIMIZED_END_TURN_SCRIPT = `
-local gameKey = KEYS[1]
-local playerNickname = ARGV[1]
-local timestamp = tonumber(ARGV[2])
-local maxHistoryEntries = tonumber(ARGV[3])
-
-local gameData = redis.call('GET', gameKey)
-if not gameData then
-    return cjson.encode({error = 'NO_GAME'})
-end
-
-local game = cjson.decode(gameData)
-
--- Validate preconditions
-if game.gameOver then
-    return cjson.encode({error = 'GAME_OVER'})
-end
-
-local previousTurn = game.currentTurn
-
--- Switch turn
-if game.currentTurn == 'red' then
-    game.currentTurn = 'blue'
-else
-    game.currentTurn = 'red'
-end
-
--- Reset clue state
-game.currentClue = cjson.null
-game.guessesUsed = 0
-game.guessesAllowed = 0
-
--- Add to history
-if not game.history then
-    game.history = {}
-end
-table.insert(game.history, {
-    action = 'endTurn',
-    fromTeam = previousTurn,
-    toTeam = game.currentTurn,
-    player = playerNickname,
-    timestamp = timestamp
-})
-
--- Cap history
-if #game.history > maxHistoryEntries then
-    local newHistory = {}
-    for i = #game.history - maxHistoryEntries + 1, #game.history do
-        table.insert(newHistory, game.history[i])
-    end
-    game.history = newHistory
-end
-
--- Increment version
-game.stateVersion = (game.stateVersion or 0) + 1
-
--- Save game
-redis.call('SET', gameKey, cjson.encode(game))
-
-return cjson.encode({
-    success = true,
-    previousTurn = previousTurn,
-    currentTurn = game.currentTurn
-})
-`;
+const OPTIMIZED_END_TURN_SCRIPT = fs.readFileSync(path.join(__dirname, '../scripts/endTurn.lua'), 'utf8');
 
 /**
  * Seeded random number generator using Mulberry32 algorithm
@@ -478,7 +164,7 @@ function shuffleWithSeed(array, seed) {
 function generateSeed() {
     try {
         return crypto.randomBytes(6).toString('hex');
-    } catch (e) {
+    } catch {
         // Fallback to Math.random if crypto is unavailable
         return Math.random().toString(36).substring(2, 10) +
                Math.random().toString(36).substring(2, 6);
@@ -1455,7 +1141,7 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
  * Forfeit the game - uses current turn's team as forfeiting team
  * Uses optimistic locking with retries for consistency
  */
-async function forfeitGame(roomCode) {
+function forfeitGame(roomCode) {
     const gameKey = `room:${roomCode}:game`;
 
     return executeGameTransaction(gameKey, (game) => {

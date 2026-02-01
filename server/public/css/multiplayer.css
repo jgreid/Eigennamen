@@ -1,0 +1,433 @@
+/* ========== IMPROVED BUTTON STATES ========== */
+.btn-end-turn.disabled-visible {
+    display: flex !important;
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-end-turn.disabled-visible:hover {
+    box-shadow: none;
+    filter: none;
+}
+
+/* Primary button emphasis */
+.btn-save {
+    padding: 12px 24px;
+    font-size: 0.95rem;
+}
+
+.btn-cancel {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+}
+
+/* ========== MULTIPLAYER MODAL STYLES ========== */
+.multiplayer-modal {
+    text-align: center;
+    max-width: 400px;
+}
+
+.multiplayer-modal h2 {
+    color: #667eea;
+    margin-bottom: 8px;
+    font-size: 1.5rem;
+}
+
+.multiplayer-modal .subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+}
+
+.multiplayer-modal .mode-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.multiplayer-modal .mode-btn {
+    flex: 1;
+    padding: 16px;
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: white;
+}
+
+.multiplayer-modal .mode-btn:hover {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.2);
+}
+
+.multiplayer-modal .mode-btn.active {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.3);
+}
+
+.multiplayer-modal .mode-btn .mode-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.multiplayer-modal .mode-btn .mode-title {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.multiplayer-modal .mode-btn .mode-desc {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 4px;
+}
+
+.multiplayer-modal .form-group {
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.multiplayer-modal .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.multiplayer-modal .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.multiplayer-modal .form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.multiplayer-modal .form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.multiplayer-modal .form-group .input-hint {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 4px;
+}
+
+.multiplayer-modal .form-group label .optional-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: normal;
+}
+
+.multiplayer-modal .form-group.error input {
+    border-color: var(--color-red-primary);
+}
+
+.multiplayer-modal .form-group .error-text {
+    color: var(--color-red-light);
+    font-size: 0.8rem;
+    margin-top: 4px;
+    display: none;
+}
+
+.multiplayer-modal .form-group.error .error-text {
+    display: block;
+}
+
+.multiplayer-modal .join-form,
+.multiplayer-modal .create-form {
+    display: none;
+}
+
+.multiplayer-modal .join-form.active,
+.multiplayer-modal .create-form.active {
+    display: block;
+}
+
+.multiplayer-modal .modal-buttons {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.multiplayer-modal .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.multiplayer-modal .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.multiplayer-modal .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.multiplayer-modal .btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 12px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.multiplayer-modal .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.multiplayer-modal .connection-status {
+    margin-top: 16px;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    display: none;
+}
+
+.multiplayer-modal .connection-status.connecting {
+    display: block;
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+}
+
+.multiplayer-modal .connection-status.error {
+    display: block;
+    background: rgba(220, 53, 69, 0.15);
+    color: var(--color-red-light);
+}
+
+.multiplayer-modal .connection-status.success {
+    display: block;
+    background: rgba(56, 239, 125, 0.15);
+    color: var(--color-success);
+}
+
+.multiplayer-modal .divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+}
+
+.multiplayer-modal .divider::before,
+.multiplayer-modal .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.multiplayer-modal .divider span {
+    padding: 0 12px;
+}
+
+/* Multiplayer indicator in sidebar */
+.multiplayer-indicator {
+    display: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(56, 239, 125, 0.1);
+    border: 1px solid rgba(56, 239, 125, 0.3);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: var(--color-success);
+    margin-bottom: 8px;
+}
+
+.multiplayer-indicator.active {
+    display: flex;
+}
+
+.multiplayer-indicator .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.multiplayer-indicator .room-code {
+    font-family: monospace;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.multiplayer-indicator .player-count {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.multiplayer-indicator .mp-room-id-display {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.75rem;
+}
+
+.multiplayer-indicator .mp-room-id-display strong {
+    color: var(--color-success);
+    font-family: monospace;
+    letter-spacing: 0.5px;
+}
+
+.multiplayer-indicator .btn-copy-room-id {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.multiplayer-indicator .btn-copy-room-id:hover {
+    opacity: 1;
+}
+
+.multiplayer-indicator .player-count-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: inherit;
+    transition: background 0.2s;
+}
+
+.multiplayer-indicator .player-count-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.multiplayer-indicator .expand-icon {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+
+.multiplayer-indicator .player-count-btn.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+.mp-player-list {
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mp-player-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mp-player-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.mp-player-list .player-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mp-player-list .player-name {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.mp-player-list .player-name.you {
+    font-weight: 600;
+    color: var(--color-success);
+}
+
+.mp-player-list .player-role {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.mp-player-list .player-team-red {
+    color: #ff6b6b;
+}
+
+.mp-player-list .player-team-blue {
+    color: #74b9ff;
+}
+
+.mp-player-list .player-disconnected {
+    opacity: 0.5;
+}
+
+.mp-player-list .host-badge {
+    font-size: 0.6rem;
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.mp-player-list .btn-kick {
+    background: rgba(220, 53, 69, 0.2);
+    border: 1px solid rgba(220, 53, 69, 0.4);
+    color: #ff6b6b;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mp-player-list .btn-kick:hover {
+    background: rgba(220, 53, 69, 0.4);
+    border-color: rgba(220, 53, 69, 0.6);
+}
+

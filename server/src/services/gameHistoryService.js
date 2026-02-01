@@ -242,8 +242,6 @@ async function getGameById(roomCode, gameId) {
  * @returns {Promise<Object|null>} Replay data with events or null if not found
  */
 async function getReplayEvents(roomCode, gameId) {
-    const redis = getRedis();
-
     if (!roomCode || !gameId) {
         return null;
     }

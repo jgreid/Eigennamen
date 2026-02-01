@@ -133,7 +133,6 @@ class SocketTestServer {
                 sessionId: options.sessionIds?.[i] || uuidv4(),
                 ...options
             };
-            // eslint-disable-next-line no-await-in-loop -- Sequential creation for deterministic test setup
             clients.push(await this.createClient(clientOptions));
         }
         return clients;
@@ -361,7 +360,6 @@ class MockRedis {
                 const results = [];
                 // Sequential execution required for transaction semantics
                 for (const { cmd, args } of commands) {
-                    // eslint-disable-next-line no-await-in-loop
                     const result = await self[cmd](...args);
                     results.push([null, result]);
                 }

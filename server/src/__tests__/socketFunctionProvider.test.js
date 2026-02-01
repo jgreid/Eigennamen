@@ -78,7 +78,7 @@ describe('Socket Function Provider', () => {
 
             try {
                 registerSocketFunctions(partialFunctions);
-                fail('Should have thrown');
+                throw new Error('Should have thrown');
             } catch (error) {
                 expect(error.message).toContain('startTurnTimer');
                 expect(error.message).toContain('stopTurnTimer');
@@ -171,7 +171,7 @@ describe('Socket Function Provider', () => {
         test('error message includes helpful guidance', () => {
             try {
                 getSocketFunctions();
-                fail('Should have thrown');
+                throw new Error('Should have thrown');
             } catch (error) {
                 expect(error.message).toContain('registerSocketFunctions()');
                 expect(error.message).toContain('socket initialization');

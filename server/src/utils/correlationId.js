@@ -159,7 +159,7 @@ function socketCorrelationMiddleware(socket, next) {
  * @returns {Function} Wrapped handler
  */
 function wrapHandler(handler) {
-    return async function(...args) {
+    return function(...args) {
         // Get socket from first argument if it has correlation context
         const socketOrReq = args[0];
         const context = socketOrReq?.correlationContext || getContext() || {

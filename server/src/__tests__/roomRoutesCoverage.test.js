@@ -33,7 +33,7 @@ describe('Room Routes Coverage Tests', () => {
         app.use('/api/rooms', roomRoutes);
 
         // Error handler middleware (respects statusCode from validation)
-        app.use((err, req, res, next) => {
+        app.use((err, req, res, _next) => {
             const statusCode = err.statusCode || 500;
             res.status(statusCode).json({
                 error: {

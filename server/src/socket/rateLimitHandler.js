@@ -45,7 +45,7 @@ function createRateLimitedHandler(socket, eventName, handler) {
     // Socket.io passes the ack callback as the last argument when the client
     // calls socket.emit('event', data, callback). We must call it explicitly —
     // Socket.io 4.8 does NOT auto-ack from async return values.
-    return async (data, ackCallback) => {
+    return (data, ackCallback) => {
         const limiter = socketRateLimiter.getLimiter(eventName);
 
         // FIX C1: Wrap callback-based limiter in Promise so we properly await completion

@@ -15,7 +15,7 @@ jest.mock('../socket/rateLimitHandler', () => ({
 }));
 
 const playerService = require('../services/playerService');
-const roomService = require('../services/roomService');
+const _roomService = require('../services/roomService');
 const timerService = require('../services/timerService');
 const gameService = require('../services/gameService');
 const { getSocketFunctions } = require('../socket/socketFunctionProvider');
@@ -25,7 +25,6 @@ const { ERROR_CODES } = require('../config/constants');
 describe('Timer Handlers', () => {
     let mockSocket;
     let mockIo;
-    let handlers;
 
     beforeEach(() => {
         jest.clearAllMocks();

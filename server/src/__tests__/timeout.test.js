@@ -90,7 +90,7 @@ describe('Timeout Utility', () => {
 
             try {
                 await promise;
-            } catch (e) {
+            } catch {
                 // Expected
             }
 

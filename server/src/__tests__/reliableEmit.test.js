@@ -78,7 +78,7 @@ describe('Reliable Emit Utility', () => {
         test('resolves false on timeout', async () => {
             const mockSocket = {
                 connected: true,
-                emit: jest.fn((event, data, callback) => {
+                emit: jest.fn((_event, _data, _callback) => {
                     // Never call callback - simulate timeout
                 })
             };

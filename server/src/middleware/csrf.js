@@ -72,7 +72,7 @@ function csrfProtection(req, res, next) {
                         }
                     });
                 }
-            } catch (e) {
+            } catch {
                 logger.warn(`CSRF protection: blocked request with invalid referer ${referer}`);
                 return res.status(403).json({
                     error: {
@@ -127,7 +127,7 @@ function isOriginAllowed(origin, allowedOrigins) {
                 const hostname = originUrl.hostname;
                 // Match either exact domain or proper subdomain (with dot prefix)
                 return hostname === domain || hostname.endsWith('.' + domain);
-            } catch (e) {
+            } catch {
                 return false;
             }
         }

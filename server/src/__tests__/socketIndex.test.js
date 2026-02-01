@@ -119,17 +119,10 @@ const Client = require('socket.io-client');
 
 describe('Socket Index Module', () => {
     let server;
-    const TEST_PORT = 3098;
-
     beforeAll((done) => {
         server = http.createServer();
-        server.on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                // Port in use, try next port
-                server.listen(TEST_PORT + 1, done);
-            }
-        });
-        server.listen(TEST_PORT, done);
+        server.setMaxListeners(0);
+        server.listen(0, done);
     });
 
     afterAll((done) => {
@@ -339,7 +332,7 @@ describe('Socket Connection Handling', () => {
     let server;
     let ioServer;
     let clientSocket;
-    const TEST_PORT = 3099;
+    let testPort;
 
     beforeEach((done) => {
         server = http.createServer();
@@ -355,12 +348,17 @@ describe('Socket Connection Handling', () => {
             next();
         });
 
-        server.listen(TEST_PORT, done);
+        server.listen(0, () => {
+            testPort = server.address().port;
+            done();
+        });
     });
 
     afterEach((done) => {
-        if (clientSocket && clientSocket.connected) {
+        if (clientSocket) {
+            clientSocket.removeAllListeners();
             clientSocket.disconnect();
+            clientSocket = null;
         }
         ioServer.close();
         server.close(done);
@@ -372,7 +370,7 @@ describe('Socket Connection Handling', () => {
             done();
         });
 
-        clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+        clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket'],
             auth: { sessionId: 'test-123' }
         });
@@ -388,7 +386,7 @@ describe('Socket Connection Handling', () => {
             socket.emit('connected');
         });
 
-        clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+        clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket']
         });
 
@@ -409,7 +407,7 @@ describe('Socket Connection Handling', () => {
             });
         });
 
-        clientSocket = Client(`http://localhost:${TEST_PORT}`, {
+        clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket']
         });
 

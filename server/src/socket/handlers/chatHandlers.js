@@ -8,7 +8,7 @@
 const playerService = require('../../services/playerService');
 const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
+const { SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
 const { RoomError, PlayerError } = require('../../errors/GameError');
@@ -77,7 +77,7 @@ module.exports = function chatHandlers(io, socket) {
      * Send a spectator-only chat message
      */
     socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
-        async (ctx, validated) => {
+        (ctx, validated) => {
             // Only allow spectators to send spectator-only messages
             if (ctx.player.role !== 'spectator') {
                 throw PlayerError.notAuthorized();
