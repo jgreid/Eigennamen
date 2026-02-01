@@ -256,14 +256,13 @@ describe('Frontend Caching Patterns', () => {
     test('frontend uses element caching pattern', () => {
         const fs = require('fs');
         const path = require('path');
-        const indexHtml = fs.readFileSync(
-            path.join(__dirname, '..', '..', '..', 'index.html'),
+        const stateJs = fs.readFileSync(
+            path.join(__dirname, '..', '..', 'public', 'js', 'modules', 'state.js'),
             'utf8'
         );
 
-        expect(indexHtml).toContain('cachedElements');
-        expect(indexHtml).toContain('initCachedElements');
-        expect(indexHtml).toMatch(/cachedElements\.board\s*\|\|\s*document\.getElementById/);
+        expect(stateJs).toContain('cachedElements');
+        expect(stateJs).toContain('initCachedElements');
     });
 });
 
@@ -339,27 +338,29 @@ describe('Frontend Module Architecture', () => {
 
     test('event listener cleanup pattern exists', () => {
         const fs = require('fs');
-        const indexHtml = fs.readFileSync(
-            path.join(__dirname, '..', '..', '..', 'index.html'),
-            'utf8'
-        );
+        const modulesDir = path.join(__dirname, '..', '..', 'public', 'js', 'modules');
+        const allModules = fs.readdirSync(modulesDir)
+            .filter(f => f.endsWith('.js'))
+            .map(f => fs.readFileSync(path.join(modulesDir, f), 'utf8'))
+            .join('\n');
 
         // Modal event cleanup
-        expect(indexHtml).toContain('removeEventListener');
+        expect(allModules).toContain('removeEventListener');
     });
 
-    test('state management uses centralized gameState object', () => {
+    test('state management uses centralized state object', () => {
         const fs = require('fs');
-        const indexHtml = fs.readFileSync(
-            path.join(__dirname, '..', '..', '..', 'index.html'),
+        const stateJs = fs.readFileSync(
+            path.join(__dirname, '..', '..', 'public', 'js', 'modules', 'state.js'),
             'utf8'
         );
 
-        // Centralized state
-        expect(indexHtml).toMatch(/let\s+gameState\s*=/);
-        expect(indexHtml).toContain('gameState.currentTurn');
-        expect(indexHtml).toContain('gameState.gameOver');
-        expect(indexHtml).toContain('gameState.revealed');
+        // Centralized state exported as shared object
+        expect(stateJs).toContain('export const state');
+        expect(stateJs).toContain('gameState');
+        expect(stateJs).toContain('currentTurn');
+        expect(stateJs).toContain('gameOver');
+        expect(stateJs).toContain('revealed');
     });
 });
 
