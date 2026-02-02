@@ -851,15 +851,6 @@ describe('app.js - service worker and edge cases', () => {
         app = require('../app');
     });
 
-    test('service worker route sets no-cache headers', async () => {
-        const res = await request(app).get('/service-worker.js');
-        // File may not exist but headers should be set if middleware ran
-        // The middleware sets headers then calls next(), so even 404 should have them
-        if (res.headers['cache-control']) {
-            expect(res.headers['cache-control']).toContain('no-cache');
-        }
-    });
-
     test('/health/ready with storage not healthy returns degraded', async () => {
         const { isRedisHealthy: irh } = require('../config/redis');
         irh.mockResolvedValueOnce(false);

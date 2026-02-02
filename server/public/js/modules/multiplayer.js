@@ -1118,7 +1118,7 @@ export function updateURLWithRoomCode(roomCode) {
     if (!roomCode) return;
     const url = new URL(window.location.href);
     url.searchParams.set('room', roomCode);
-    // Remove standalone game parameters when in multiplayer
+    // Remove any stale parameters
     url.searchParams.delete('game');
     url.searchParams.delete('r');
     url.searchParams.delete('t');

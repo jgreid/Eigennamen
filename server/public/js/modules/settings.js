@@ -253,39 +253,6 @@ export function loadLocalSettings() {
     }
 }
 
-export async function tryLoadWordlistFile() {
-    // Skip if custom words exist or mode is 'default' only
-    if (safeGetItem('codenames-custom-words') || state.wordListMode === 'default') {
-        return;
-    }
-
-    try {
-        const response = await fetch('wordlist.txt');
-        if (response.ok) {
-            const text = await response.text();
-            const fileWords = parseWords(text);
-            if (fileWords.length >= BOARD_SIZE) {
-                // Apply based on current mode
-                if (state.wordListMode === 'combined') {
-                    const combined = new Set([...DEFAULT_WORDS, ...fileWords]);
-                    state.activeWords = [...combined];
-                    state.wordSource = 'file';
-                } else if (state.wordListMode === 'custom') {
-                    state.activeWords = fileWords;
-                    state.wordSource = 'file';
-                }
-            }
-        }
-        // 404 is expected when file doesn't exist - no need to log
-    } catch (e) {
-        // Log unexpected errors (network issues, CORS, etc.) in development
-        // TypeError is expected for network errors when file doesn't exist
-        if (e.name !== 'TypeError' && window.location.hostname === 'localhost') {
-            console.warn('Unexpected error loading wordlist.txt:', e.message);
-        }
-    }
-}
-
 // Initialize selected class on page load
 export function initRadioOptionStyles() {
     const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');

@@ -8,7 +8,7 @@ import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, copyLink, copyShareLink, loadGameFromURL, updateURL, updateQRCode,
+    endTurn, copyShareLink,
     closeGameOver, revealCard, updateScoreboard, updateTurnIndicator,
     setRoleCallbacks, showGameOverModal
 } from './game.js';
@@ -21,7 +21,7 @@ import {
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay } from './history.js';
 import {
     openSettings, closeSettings, saveSettings, resetWords, initSettingsNav,
-    loadLocalSettings, tryLoadWordlistFile, initSettingsListeners
+    loadLocalSettings, initSettingsListeners
 } from './settings.js';
 
 // Wire up the card click handler (board -> game callback injection)
@@ -73,19 +73,7 @@ function setupEventListeners() {
                 setClickerCurrent();
                 break;
             case 'spectate':
-                // Spectate clears team affiliation and roles
-                if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
-                    // In multiplayer, sync to server by setting team to null
-                    setTeam(null);
-                } else {
-                    // Standalone mode: update local state directly
-                    state.spymasterTeam = null;
-                    state.clickerTeam = null;
-                    state.playerTeam = null;
-                    updateRoleBanner();
-                    updateControls();
-                    renderBoard();
-                }
+                setTeam(null);
                 break;
             case 'open-settings':
                 openSettings();
@@ -95,9 +83,6 @@ function setupEventListeners() {
                 break;
             case 'confirm-end-turn':
                 confirmEndTurn();
-                break;
-            case 'copy-link':
-                copyLink();
                 break;
             case 'copy-room-code':
                 copyRoomCode();
@@ -156,9 +141,6 @@ function setupEventListeners() {
             case 'close-multiplayer':
                 closeMultiplayer();
                 break;
-            case 'play-offline':
-                closeMultiplayer();
-                break;
 
             // Game history modal
             case 'close-history':
@@ -184,7 +166,6 @@ function setupEventListeners() {
 
 // Initialize room settings UI handlers (for multiplayer host)
 function initRoomSettingsUI() {
-    // Room settings initialization - update room info display
     updateRoomInfoDisplay();
 }
 
@@ -210,12 +191,20 @@ async function init() {
         // Initialize settings listeners (custom words textarea, radio buttons)
         initSettingsListeners();
         loadLocalSettings();
-        await tryLoadWordlistFile();
-        loadGameFromURL();
-        // Initialize QR code with current URL
-        updateQRCode(window.location.href);
+
+        // Unregister any stale service workers from previous versions
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+                registration.unregister();
+            }
+        }
+
+        // Auto-open multiplayer modal if not already in a room
+        if (!state.isMultiplayerMode) {
+            openMultiplayer();
+        }
     } catch (e) {
-        // Show error modal to inform user
         showErrorModal(
             'Failed to load the game. This might be due to corrupted data or a browser issue.',
             e.message || 'Unknown error'
@@ -223,21 +212,8 @@ async function init() {
     }
 }
 
-// ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
-// overwriting existing handlers and follow modern best practices
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
-    // DOM already loaded (e.g., script loaded asynchronously)
     init();
-}
-
-// Service Worker Registration for offline standalone mode
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-            .catch((error) => {
-                console.log('ServiceWorker registration failed:', error);
-            });
-    });
 }

@@ -6,8 +6,8 @@ import { escapeHTML, formatGameTimestamp, formatDuration } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 
 export function openGameHistory() {
-    if (!state.isMultiplayerMode || !CodenamesClient.isConnected()) {
-        showToast('Game history is only available in multiplayer mode', 'info');
+    if (!CodenamesClient || !CodenamesClient.isConnected()) {
+        showToast('Not connected to server - join or create a room first', 'error');
         return;
     }
 

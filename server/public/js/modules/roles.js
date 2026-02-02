@@ -223,26 +223,7 @@ export function setTeam(team) {
         return;
     }
 
-    // Standalone mode: update local state directly
-    // When changing teams, clear any team-specific roles
-    const hadRole = state.spymasterTeam || state.clickerTeam;
-    const oldRole = state.spymasterTeam ? 'Spymaster' : (state.clickerTeam ? 'Clicker' : null);
-
-    if (state.playerTeam !== team) {
-        if (state.spymasterTeam) state.spymasterTeam = null;
-        if (state.clickerTeam) state.clickerTeam = null;
-    }
-    state.playerTeam = team;
-    updateRoleBanner();
-    updateControls();
-    renderBoard();
-
-    // Announce role change to screen reader if role was cleared
-    if (hadRole && oldRole) {
-        // Use nullish coalescing for safe team name access
-        const teamName = (team && state.teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : 'Spectator');
-        announceToScreenReader(`${oldRole} role cleared. Now on ${teamName} team.`);
-    }
+    showToast('Not connected to server - join or create a room first', 'error');
 }
 
 export function setSpymaster(team) {
@@ -327,18 +308,7 @@ export function setSpymaster(team) {
         return;
     }
 
-    // Standalone mode: update local state directly
-    if (state.spymasterTeam === team) {
-        // Toggle off - become team member
-        state.spymasterTeam = null;
-    } else {
-        state.spymasterTeam = team;
-        state.playerTeam = team; // Automatically set team affiliation
-        state.clickerTeam = null; // Can't be both spymaster and clicker
-    }
-    updateRoleBanner();
-    updateControls();
-    renderBoard();
+    showToast('Not connected to server - join or create a room first', 'error');
 }
 
 export function setClicker(team) {
@@ -423,18 +393,7 @@ export function setClicker(team) {
         return;
     }
 
-    // Standalone mode: update local state directly
-    if (state.clickerTeam === team) {
-        // Toggle off - become team member
-        state.clickerTeam = null;
-    } else {
-        state.clickerTeam = team;
-        state.playerTeam = team; // Automatically set team affiliation
-        state.spymasterTeam = null; // Can't be both spymaster and clicker
-    }
-    updateRoleBanner();
-    updateControls();
-    renderBoard();
+    showToast('Not connected to server - join or create a room first', 'error');
 }
 
 // Set spymaster for current team (used by unified role button)
