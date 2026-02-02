@@ -303,4 +303,3 @@ Once you're comfortable with the setup, here's a quick reference:
 If you're still having trouble, you can:
 - Ask a family member who's good with computers to help
 - Check the [main project page](https://github.com/jgreid/Risley-Codenames) for more information
-- The game also works without a server! Just open the `index.html` file directly in your browser for a simpler version

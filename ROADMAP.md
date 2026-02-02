@@ -1,6 +1,6 @@
 # Roadmap - Codenames Online
 
-**Last Updated:** January 29, 2026
+**Last Updated:** February 2, 2026
 **Project Version:** v2.3.0
 
 ---
@@ -18,13 +18,12 @@
 
 ### Completed Features
 - Real-time multiplayer via Socket.io
-- Standalone URL-based mode (no server required)
+- Modular frontend (ES modules, separated CSS)
 - Custom word lists with database persistence
 - Turn timer with pause/resume
 - Password-protected rooms
 - Team chat with filtering
 - Spectator mode
-- QR code room sharing
 - Reconnection with token-based authentication
 - Full state recovery on reconnect
 - Comprehensive security hardening (JWT, rate limiting, CSRF, XSS prevention)
@@ -54,18 +53,7 @@
 
 ## Remaining Work
 
-### Phase 1: Frontend Modernization
-
-The modular frontend (`server/public/js/`) coexists with the monolithic `index.html` (see [ADR-005](docs/adr/0005-frontend-consolidation.md)). Both implementations work; the modular version is the target architecture.
-
-| Task | Priority |
-|------|----------|
-| Add multiplayer panel HTML to modular frontend | High |
-| Wire up all multiplayer socket events in modules | High |
-| Verify feature parity between monolithic and modular | Medium |
-| Remove monolithic inline JS once modular is verified | Low |
-
-### Phase 2: Internationalization
+### Phase 1: Internationalization
 
 | Task | Priority |
 |------|----------|
@@ -74,7 +62,7 @@ The modular frontend (`server/public/js/`) coexists with the monolithic `index.h
 | German, Spanish, French translations | High |
 | Localized word lists (400 words each) | High |
 
-### Phase 3: Accessibility (WCAG 2.1 AA)
+### Phase 2: Accessibility (WCAG 2.1 AA)
 
 | Task | Priority |
 |------|----------|
@@ -83,7 +71,7 @@ The modular frontend (`server/public/js/`) coexists with the monolithic `index.h
 | Keyboard shortcuts for common actions | Medium |
 | Screen reader optimization | Medium |
 
-### Phase 4: Game Modes
+### Phase 3: Game Modes
 
 | Task | Priority |
 |------|----------|

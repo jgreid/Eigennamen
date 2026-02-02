@@ -6,43 +6,13 @@ Get from zero to playing your first game in minutes. This guide covers three dep
 
 | Option | Time | Best For | Requirements |
 |--------|------|----------|--------------|
-| **A. Standalone** | 1 min | Quick demo, single-screen play | Browser only |
-| **B. Docker** | 5 min | Local multiplayer, development | Docker Desktop |
+| **A. Docker** | 5 min | Local multiplayer, development | Docker Desktop |
+| **B. Without Docker** | 5 min | Quick setup, no Docker needed | Node.js 18+ |
 | **C. Cloud** | 10 min | Permanent URL, play anywhere | Fly.io account |
 
 ---
 
-## Option A: Standalone (1 Minute)
-
-The simplest way to play - no server needed. Game state is encoded in the URL.
-
-### Steps
-
-1. **Open the game**
-   ```
-   Open index.html in your browser (double-click the file)
-   ```
-
-2. **Start a game**
-   - Click **"New Game"**
-   - Copy the URL from your browser's address bar
-
-3. **Share with players**
-   - Share your screen via Zoom/Meet
-   - Send the game URL to all players via chat
-   - Each player opens the URL in their own browser
-
-That's it! Players select their roles and you're ready to play.
-
-> **Tip:** If double-clicking doesn't work, serve the file locally:
-> ```bash
-> python -m http.server 8000
-> # Then open http://localhost:8000
-> ```
-
----
-
-## Option B: Docker (5 Minutes)
+## Option A: Docker (5 Minutes)
 
 Run a real-time multiplayer server locally. All players connect to the same server and see updates instantly - no URL sharing needed.
 
@@ -93,6 +63,38 @@ docker compose down
 ```
 
 Or double-click `server/stop-server.bat` on Windows.
+
+---
+
+## Option B: Without Docker (5 Minutes)
+
+Run the server directly with Node.js — no Docker needed.
+
+### Prerequisites
+
+- [Node.js 18+](https://nodejs.org/) installed
+
+### Steps
+
+1. **Clone the repository** (if you haven't already)
+   ```bash
+   git clone https://github.com/jgreid/Risley-Codenames.git
+   cd Risley-Codenames
+   ```
+
+2. **Install dependencies and start**
+   ```bash
+   cd server
+   npm install
+   REDIS_URL=memory npm run dev
+   ```
+
+3. **Open the game**
+   ```
+   http://localhost:3000
+   ```
+
+> **Note:** Using `REDIS_URL=memory` runs with in-memory storage (no Redis needed). Data is lost on restart.
 
 ---
 

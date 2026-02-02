@@ -10,7 +10,7 @@ The project uses a comprehensive testing strategy:
 |------|-----------|----------|---------|
 | Unit Tests | Jest | `server/src/__tests__/` | Service and utility testing |
 | Integration Tests | Jest + Supertest | `server/src/__tests__/` | API endpoint testing |
-| Frontend Unit Tests | Vitest | `src/js/__tests__/` | Client-side module testing |
+| Frontend Unit Tests | Vitest | `src/js/__tests__/` | Client-side module testing (legacy) |
 | E2E Tests | Playwright | `tests/` or `server/e2e/` | Full user flow testing |
 
 ## Quick Start

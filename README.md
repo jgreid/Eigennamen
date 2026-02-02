@@ -4,10 +4,8 @@ A web-based implementation of the popular board game Codenames, optimized for re
 
 ## Features
 
-- **Standalone or multiplayer** - Works offline with URL-based state or with optional real-time server
-- **URL-based game sharing** - All game state is encoded in the URL for easy sharing
-- **Real-time multiplayer** - Optional server provides synchronized game state across all players
-- **Role system** - Support for Host, Spymaster, and Viewer roles
+- **Real-time multiplayer** - Server provides synchronized game state across all players via WebSockets
+- **Role system** - Support for Host, Spymaster, Clicker, and Spectator roles
 - **Custom word lists** - Use your own themed word lists
 - **Responsive design** - Works on desktop and mobile devices
 - **Keyboard accessible** - Full keyboard navigation support
@@ -17,42 +15,28 @@ A web-based implementation of the popular board game Codenames, optimized for re
 
 **New to Codenames?** Check out the [Complete Quickstart Guide](QUICKSTART.md) for step-by-step instructions including your first game walkthrough.
 
-### Option 1: Open directly
-
-1. Download `index.html` to your computer
-2. Double-click to open in any modern web browser
-3. Share your screen and the game link with friends!
-
-### Option 2: Serve locally
-
-If opening directly doesn't work (some browsers restrict local file access), use a simple HTTP server:
+### Option 1: Docker (Recommended)
 
 ```bash
-# Using Python 3
-python -m http.server 8000
-
-# Using Node.js (npx)
-npx serve
-
-# Using PHP
-php -S localhost:8000
-```
-
-Then open `http://localhost:8000` in your browser.
-
-### Option 3: Host online
-
-Upload `index.html` (and optionally `wordlist.txt`) to any web hosting service like GitHub Pages, Netlify, or your own server.
-
-### Option 4: Real-time multiplayer server (Advanced)
-
-For true real-time synchronization without URL sharing, use the optional multiplayer server:
-
-```bash
-docker-compose up -d
+cd server
+docker compose up -d --build
 ```
 
 Then open `http://localhost:3000` in your browser. All players connect to the same server and see updates instantly.
+
+### Option 2: Without Docker
+
+```bash
+cd server
+npm install
+REDIS_URL=memory npm run dev
+```
+
+Then open `http://localhost:3000` in your browser.
+
+### Option 3: Cloud Deployment
+
+Deploy to Fly.io for a permanent URL. See [Deployment Guide](docs/DEPLOYMENT.md).
 
 **Setup Guides:**
 - [Server README](server/README.md) - Detailed setup instructions
@@ -62,10 +46,10 @@ Then open `http://localhost:3000` in your browser. All players connect to the sa
 
 ### Game Setup
 
-1. **Host** opens the game and clicks "New Game"
-2. **Host** copies the game link and shares it with all players
-3. **Everyone** opens the link in their own browser
-4. **Each team** selects one Spymaster and one Clicker
+1. **Host** creates a room and shares the room code with all players
+2. **Everyone** joins the room using the code
+3. **Each team** selects one Spymaster and one Clicker
+4. **Host** clicks "Start Game"
 
 ### Teams and Roles
 
@@ -115,23 +99,6 @@ Players first join a team, then pick a role:
 3. Click **Save & Apply**
 4. Start a **New Game** - your custom words will be included in the game link
 
-### Using a wordlist.txt File
-
-1. Create a file named `wordlist.txt` in the same folder as `index.html`
-2. Add your words, one per line
-3. Lines starting with `#` are treated as comments
-4. Refresh the page - your word list will be loaded automatically
-
-Example `wordlist.txt`:
-```
-# Movie Theme
-HOBBIT
-AVENGERS
-BATMAN
-FROZEN
-# ... at least 25 words total
-```
-
 ### Requirements
 
 - Minimum **25 words** (the game needs exactly 25 for each board)
@@ -143,7 +110,7 @@ FROZEN
 1. Click **Settings**
 2. Enter custom team names (e.g., "Engineers" vs "Marketing")
 3. Click **Save & Apply**
-4. Team names are included in the game link, so all players see them
+4. Team names are synced to all players in the room
 
 ## Accessibility
 
@@ -176,9 +143,9 @@ All cards can be navigated and selected using the keyboard:
 | Problem | Solution |
 |---------|----------|
 | Cards don't respond to clicks | Make sure you've clicked a "Clicker" button for your team. Only the current team's clicker can click cards. |
-| Game link is very long | This happens with custom words. The words are encoded in the URL. Most browsers support URLs up to 2000+ characters. |
+| Can't connect to server | Make sure the server is running. Check `http://localhost:3000/health` for status. |
 | Can't see spymaster view | Click "Red Spymaster" or "Blue Spymaster" button. You'll see colored outlines and dots on cards showing their true types. |
-| Game state not syncing | Make sure everyone has the latest URL. The host should re-share the link after any changes. |
+| Game state not syncing | Check server connection. Players should see a green connection indicator. Try refreshing the page. |
 
 ## Browser Support
 

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document describes the technical architecture for converting Codenames Online from a client-only URL-based game to a centralized real-time multiplayer platform.
+This document describes the technical architecture for the Codenames Online real-time multiplayer platform.
 
 ### 1.1 Goals
 

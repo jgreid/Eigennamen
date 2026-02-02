@@ -1,102 +1,137 @@
 # Frontend JavaScript Architecture
 
-This document explains the relationship between the modular JavaScript files in `/server/public/js/` and the main `index.html` file.
+This document describes the modular JavaScript architecture in `/server/public/js/modules/`.
 
 ## Overview
 
-The frontend can operate in two modes:
-
-1. **Standalone Mode** - Uses the monolithic `index.html` with embedded JavaScript
-2. **Server Mode** - Can optionally use modular JavaScript files
+The frontend is a multiplayer-only application that requires a server connection. All game state comes from the server via Socket.io WebSocket events. There is no offline or standalone mode.
 
 ## File Structure
 
 ```
-server/public/js/
-├── app.js          # Main application entry point (644 lines)
-├── socket-client.js # Socket.io communication layer (943 lines)
-├── ui.js           # UI rendering and DOM manipulation (534 lines)
-├── game.js         # Game logic and state (331 lines)
-├── state.js        # State management utilities (364 lines)
-└── ARCHITECTURE.md # This file
+server/public/
+├── index.html              # HTML shell with modals and layout
+├── css/                    # 8 modular CSS files
+│   ├── variables.css       # CSS custom properties
+│   ├── layout.css          # Page layout
+│   ├── components.css      # UI components
+│   ├── modals.css          # Modal dialogs
+│   ├── multiplayer.css     # Multiplayer-specific styles
+│   ├── accessibility.css   # Color-blind mode, a11y
+│   ├── responsive.css      # Mobile responsive styles
+│   └── replay.css          # Game replay styles
+└── js/
+    ├── modules/            # 12 ES modules
+    │   ├── app.js          # Main entry point, event routing
+    │   ├── state.js        # Client-side state management
+    │   ├── game.js         # Game logic (clues, reveals, turns)
+    │   ├── board.js        # Board rendering and card clicks
+    │   ├── multiplayer.js  # Socket.io event handlers
+    │   ├── roles.js        # Team/role selection
+    │   ├── settings.js     # Game settings UI
+    │   ├── ui.js           # Modals, toasts, DOM helpers
+    │   ├── utils.js        # Utility functions
+    │   ├── timer.js        # Turn timer display
+    │   ├── history.js      # Game history/replay
+    │   └── notifications.js # Browser notifications
+    └── socket-client.js    # Socket.io connection management
 ```
 
 ## Module Responsibilities
 
-### `state.js` (364 lines)
-Core state management:
-- Game state storage and retrieval
-- URL state encoding/decoding for standalone mode
-- State change notifications
+### `app.js` — Application Entry Point
+- Initializes all modules on DOM load
+- Routes `data-action` click events to handler functions
+- Registers modal close handlers
+- Unregisters stale service workers (cleanup from prior PWA support)
 
-### `game.js` (331 lines)
-Game logic:
-- Board generation with seeded PRNG
-- Card reveal logic
-- Turn management
-- Win condition checking
+### `state.js` — State Management
+- Central game state store
+- Constants (board size, card counts, default words)
+- State getters and setters
 
-### `ui.js` (534 lines)
-User interface:
-- DOM element creation and updates
-- Event listener attachment
-- Modal management
-- Responsive layout handling
+### `game.js` — Game Logic
+- New game creation (server-only, shows error if disconnected)
+- Card reveal handling (sends to server)
+- Clue giving and turn management
+- Scoreboard and turn indicator updates
+- Game over detection and display
+- Provides `setRoleCallbacks()` to avoid circular dependency with `roles.js`
 
-### `socket-client.js` (943 lines)
-Network communication:
-- Socket.io connection management
-- Event emission and handling
-- Reconnection logic
-- Session management with reconnection tokens
+### `board.js` — Board Rendering
+- Renders the 5x5 card grid
+- Handles card click events (validates turn, clue state)
+- Spymaster view with color-coded borders
+- Color-blind mode shape indicators
 
-### `app.js` (644 lines)
-Application orchestration:
-- Module initialization
-- Event routing
-- Error handling
-- Application lifecycle
+### `multiplayer.js` — Socket.io Integration
+- Handles all server → client events (`game:started`, `game:cardRevealed`, etc.)
+- Room creation, joining, and leaving
+- Player list updates
+- Settings synchronization
+- Reconnection state recovery
 
-## Relationship to index.html
+### `roles.js` — Team and Role Management
+- Team selection (Red/Blue/Spectator)
+- Role assignment (Spymaster/Clicker)
+- All changes sent to server; shows error if disconnected
 
-The main `index.html` (~8,000 lines) contains:
-- Complete HTML structure
-- Embedded CSS (glassmorphism design)
-- **Self-contained JavaScript** that duplicates functionality from these modules
+### `settings.js` — Settings UI
+- Custom word list management
+- Team name customization
+- Color-blind mode toggle
+- Turn timer configuration
 
-This duplication is intentional for **standalone mode compatibility**:
-- Users can copy just `index.html` and `wordlist.txt`
-- No server required - game state encoded in URL
-- QR codes can share game state
+### `ui.js` — UI Utilities
+- Modal open/close/registration
+- Error modals and toast notifications
+- DOM helper functions
 
-## When to Use What
+### `utils.js` — Utilities
+- `copyShareLink()` — copy room link to clipboard
+- `copyRoomId()` — copy room code to clipboard
+- Team name display helpers
 
-| Scenario | Use |
-|----------|-----|
-| Standalone offline play | `index.html` only |
-| Development/debugging | Modular JS files |
-| Server deployment | Either (both work) |
-| Code changes | Update both if public API changes |
+### `timer.js` — Turn Timer
+- Visual countdown display
+- Timer state management
 
-## Synchronization
+### `history.js` — Game History
+- Move-by-move replay
+- History panel rendering
 
-When making changes:
-1. Changes to game logic should update both `game.js` AND `index.html`
-2. Changes to UI should update both `ui.js` AND `index.html`
-3. Server-only features (like chat) only need to update `socket-client.js`
+### `notifications.js` — Browser Notifications
+- Turn notifications when tab is not focused
+
+## Data Flow
+
+```
+Server (Socket.io) ──► multiplayer.js ──► game.js / board.js / roles.js
+                                              │
+User Action ──► app.js (event router) ──► game.js / roles.js / settings.js
+                                              │
+                                         Socket.io emit ──► Server
+```
+
+1. Server sends events (e.g., `game:cardRevealed`)
+2. `multiplayer.js` handles the event and updates UI via other modules
+3. User clicks trigger `data-action` attributes routed by `app.js`
+4. Action handlers in `game.js`, `roles.js`, etc. emit socket events to server
+
+## Key Patterns
+
+### Callback Injection
+`game.js` uses `setRoleCallbacks()` to receive functions from `roles.js` without creating circular imports.
+
+### Event Delegation
+All button clicks use `data-action` attributes on HTML elements, handled by a central `switch` statement in `app.js`.
+
+### Server-Authoritative State
+All game state changes go through the server. The client never modifies game state locally — it only renders what the server sends.
 
 ## PRNG Synchronization
 
-Critical: The Mulberry32 PRNG implementation must be identical in:
+The Mulberry32 PRNG implementation must be identical in:
 - `server/src/services/gameService.js` (server)
-- `server/public/js/game.js` (modular frontend)
-- `index.html` (standalone frontend)
 
-This ensures deterministic board generation from room codes.
-
-## Future Considerations
-
-Potential improvements:
-1. Use ES modules with build step to generate `index.html`
-2. Implement service worker for offline caching
-3. Create shared module for PRNG to avoid duplication
+The client does not generate boards — it receives them from the server.

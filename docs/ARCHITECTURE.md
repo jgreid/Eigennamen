@@ -8,12 +8,12 @@ This document describes the high-level architecture of Codenames Online, a real-
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              CLIENT LAYER                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐      │
-│  │   Web Browser    │    │   Mobile Browser  │    │   PWA Install    │      │
-│  │   (Desktop)      │    │   (Responsive)    │    │   (Offline OK)   │      │
-│  └────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘      │
-│           │                       │                       │                 │
-│           └───────────────────────┼───────────────────────┘                 │
+│  ┌──────────────────┐    ┌──────────────────┐                              │
+│  │   Web Browser    │    │   Mobile Browser  │                              │
+│  │   (Desktop)      │    │   (Responsive)    │                              │
+│  └────────┬─────────┘    └────────┬─────────┘                              │
+│           │                       │                                         │
+│           └───────────────────────┘                                         │
 │                                   │                                         │
 │                    ┌──────────────┴──────────────┐                         │
 │                    │      Socket.io Client       │                         │
@@ -71,13 +71,10 @@ This document describes the high-level architecture of Codenames Online, a real-
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Web Browser | Vanilla JS, HTML5, CSS3 | Main game interface |
+| Web Browser | Vanilla JS (ES modules), HTML5, CSS3 | Main game interface |
 | Socket.io Client | socket.io-client 4.7 | Real-time communication |
-| Service Worker | Web Workers API | Offline support (PWA) |
 
-**Two Operating Modes:**
-1. **Standalone Mode**: All game state encoded in URL, no server required
-2. **Multiplayer Mode**: Real-time sync via WebSocket
+**Operating Mode:** Real-time multiplayer via WebSocket. A server is required.
 
 ### Server Layer
 
@@ -163,7 +160,7 @@ This document describes the high-level architecture of Codenames Online, a real-
 ### ADR-004: Graceful Degradation
 **Context**: Dependencies (DB, Redis) may be unavailable
 **Decision**: Design for optional dependencies
-**Consequence**: Game works in standalone mode without any server
+**Consequence**: Game works without PostgreSQL or Redis (uses in-memory fallback)
 
 ## Security Architecture
 
@@ -238,39 +235,26 @@ docker-compose.yml
 
 ```
 Risley-Codenames/
-├── index.html              # Monolithic frontend (production)
-├── index-modular.html      # Modular frontend (development)
-├── src/
-│   ├── js/                 # ES6 modules (modern frontend)
-│   │   ├── main.js         # Entry point
-│   │   ├── state.js        # State management
-│   │   ├── ui.js           # DOM manipulation
-│   │   ├── socket.js       # WebSocket client
-│   │   └── multiplayer.js  # Multiplayer logic
-│   └── css/
-│       └── main.css        # Styles
+├── docker-compose.yml      # Multi-service Docker setup
+├── fly.toml                # Fly.io deployment config
 ├── server/
 │   ├── src/
 │   │   ├── index.js        # Server entry point
 │   │   ├── app.js          # Express configuration
 │   │   ├── config/         # Configuration modules
-│   │   │   ├── constants.js
-│   │   │   ├── redis.js
-│   │   │   └── database.js
 │   │   ├── services/       # Business logic
-│   │   │   ├── gameService.js
-│   │   │   ├── roomService.js
-│   │   │   ├── playerService.js
-│   │   │   └── timerService.js
 │   │   ├── socket/         # WebSocket handlers
-│   │   │   ├── index.js
-│   │   │   └── handlers/
+│   │   │   └── handlers/   # Event-specific handlers
 │   │   ├── middleware/     # Express middleware
 │   │   ├── routes/         # REST API routes
 │   │   ├── validators/     # Zod schemas
 │   │   └── __tests__/      # Jest tests
-│   └── prisma/
-│       └── schema.prisma   # Database schema
+│   ├── prisma/
+│   │   └── schema.prisma   # Database schema
+│   └── public/             # Static frontend
+│       ├── index.html      # HTML shell
+│       ├── css/            # 8 modular CSS files
+│       └── js/modules/     # 12 ES module JS files
 ├── docs/                   # Documentation
 │   ├── adr/               # Architecture Decision Records
 │   └── archive/           # Historical documents
@@ -281,7 +265,7 @@ Risley-Codenames/
 
 | Area | Choice | Rationale |
 |------|--------|-----------|
-| Frontend | Vanilla JS | No build step, instant deployment |
+| Frontend | Vanilla JS (ES modules) | No build step, instant deployment |
 | Backend | Node.js + Express | JavaScript ecosystem, Socket.io support |
 | Real-time | Socket.io | Robust WebSocket abstraction, fallbacks |
 | Validation | Zod | TypeScript-first, runtime validation |

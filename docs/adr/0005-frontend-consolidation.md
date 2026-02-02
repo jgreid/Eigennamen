@@ -1,7 +1,7 @@
 # ADR-0005: Frontend Consolidation Strategy
 
 **Date:** 2026-01-25
-**Status:** Accepted
+**Status:** Completed
 **Decision Makers:** Development Team
 
 ## Context
@@ -78,7 +78,7 @@ The modular implementation is the target architecture. The monolithic `index.htm
 | `constants.js` | Game constants (board size, team cards, etc.) | 95 | 100% |
 | `state.js` | Centralized state management | 719 | 90% |
 | `utils.js` | PRNG, hashing, shuffling utilities | 283 | 95% |
-| `qrcode.js` | QR code generation | 552 | 96% |
+| ~~`qrcode.js`~~ | ~~QR code generation~~ | ~~552~~ | *Removed — standalone mode removed* |
 | `ui.js` | DOM manipulation helpers | 705 | Excluded* |
 | `main.js` | Application entry point, event wiring | 802 | Excluded* |
 

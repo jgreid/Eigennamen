@@ -193,7 +193,7 @@ Playwright is in devDependencies but there's no evidence of working E2E tests or
 ### L7: Static File Caching Is 1 Day in Production — No Cache Busting Strategy
 ### L8: No Compression for WebSocket Messages Below 1KB Threshold
 ### L9: `RETRY_CONFIG.DISTRIBUTED_LOCK` Has 50 Max Retries Which Seems Excessive
-### L10: Service Worker Registration Silently Fails With No User Feedback
+### ~~L10: Service Worker Registration Silently Fails With No User Feedback~~ — *Resolved: standalone/offline mode removed*
 
 ---
 
@@ -294,7 +294,7 @@ Playwright is in devDependencies but there's no evidence of working E2E tests or
 | 1 | Add frontend unit tests (Vitest/Jest) | C3 | `src/__tests__/` |
 | 2 | Implement proper state management (replace globals) | M12 | `src/state/` |
 | 3 | Add TypeScript (gradual migration) | M12 | `tsconfig.json` |
-| 4 | PWA improvements (offline support, better SW) | L10 | `service-worker.js` |
+| 4 | ~~PWA improvements~~ | ~~L10~~ | *Removed — standalone/offline mode was removed* |
 | 5 | Performance audit (code splitting, lazy loading) | C3 | Build config |
 
 ---

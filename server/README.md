@@ -212,9 +212,9 @@ Test these URLs in your browser:
 
 Once the server is running:
 
-1. Open the client's `index.html` in a browser
-2. The client will attempt to connect via WebSocket to `ws://localhost:3000`
-3. If using a different host/port, update the client's server URL configuration
+1. Open `http://localhost:3000` in your browser
+2. The client is served by Express and connects via WebSocket automatically
+3. Create or join a room to start playing
 
 ### Troubleshooting
 
