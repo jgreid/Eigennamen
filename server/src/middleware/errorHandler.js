@@ -31,8 +31,6 @@ function errorHandler(err, req, res, _next) {
             [ERROR_CODES.ROOM_FULL]: 403,
             [ERROR_CODES.ROOM_EXPIRED]: 410,
             [ERROR_CODES.ROOM_ALREADY_EXISTS]: 409,
-            [ERROR_CODES.ROOM_PASSWORD_REQUIRED]: 401,
-            [ERROR_CODES.ROOM_PASSWORD_INVALID]: 401,
             [ERROR_CODES.GAME_IN_PROGRESS]: 409,
             [ERROR_CODES.NOT_HOST]: 403,
             [ERROR_CODES.NOT_SPYMASTER]: 403,

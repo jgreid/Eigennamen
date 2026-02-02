@@ -561,7 +561,6 @@
                                 <th>Status</th>
                                 <th>Players</th>
                                 <th>Timer</th>
-                                <th>Password</th>
                                 <th>Created</th>
                                 <th>Actions</th>
                             </tr>
@@ -582,7 +581,6 @@
                                     <td><span class="room-status ${safeStatus}">${escapeHTML(safeStatus)}</span></td>
                                     <td>${safePlayerCount}</td>
                                     <td>${safeTurnTimer}</td>
-                                    <td>${room.hasPassword ? 'Yes' : 'No'}</td>
                                     <td>${safeCreatedAt}</td>
                                     <td>
                                         <button class="btn btn-danger btn-sm" onclick="closeRoom('${safeCode}')">Close</button>

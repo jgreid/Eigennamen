@@ -40,14 +40,6 @@ module.exports = {
         RATE_LIMIT_FAIL_CLOSED: false                // If true, deny requests when Redis fails (more secure but less available)
     },
 
-    // Password security configuration
-    PASSWORD_SECURITY: {
-        BCRYPT_SALT_ROUNDS: 10,              // Increased from 8 for better security
-        MIN_PASSWORD_LENGTH: 4,              // FIX: Increased from 1 - single-char passwords are trivially brute-forceable
-        MAX_PASSWORD_LENGTH: 50,             // Maximum password length
-        REQUIRE_REAUTH_ON_CHANGE: true       // Require re-auth when room password changes (security fix)
-    },
-
     // Turn timer configuration
     TIMER: {
         DEFAULT_TURN_SECONDS: 120,  // 2 minutes default
@@ -278,8 +270,6 @@ module.exports = {
         ROOM_FULL: 'ROOM_FULL',
         ROOM_EXPIRED: 'ROOM_EXPIRED',
         ROOM_ALREADY_EXISTS: 'ROOM_ALREADY_EXISTS',
-        ROOM_PASSWORD_REQUIRED: 'ROOM_PASSWORD_REQUIRED',
-        ROOM_PASSWORD_INVALID: 'ROOM_PASSWORD_INVALID',
         GAME_IN_PROGRESS: 'GAME_IN_PROGRESS',
         NOT_HOST: 'NOT_HOST',
         NOT_SPYMASTER: 'NOT_SPYMASTER',

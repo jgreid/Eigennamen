@@ -5,7 +5,6 @@
  * to enable security auditing and incident investigation.
  *
  * Operations logged:
- * - Room password changes
  * - Host transfers
  * - Role changes (especially spymaster)
  * - Player kicks/bans
@@ -25,8 +24,6 @@ const instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local
 const AUDIT_EVENTS = {
     // Room events
     ROOM_CREATED: 'ROOM_CREATED',
-    ROOM_PASSWORD_CHANGED: 'ROOM_PASSWORD_CHANGED',
-    ROOM_PASSWORD_REMOVED: 'ROOM_PASSWORD_REMOVED',
     ROOM_SETTINGS_CHANGED: 'ROOM_SETTINGS_CHANGED',
     ROOM_DELETED: 'ROOM_DELETED',
 
@@ -85,18 +82,6 @@ function audit(event, details = {}) {
 }
 
 // Convenience functions for common audit events
-
-/**
- * Log room password change
- */
-function auditPasswordChanged(roomCode, sessionId, ip, wasSet) {
-    return audit(wasSet ? AUDIT_EVENTS.ROOM_PASSWORD_CHANGED : AUDIT_EVENTS.ROOM_PASSWORD_REMOVED, {
-        roomCode,
-        sessionId,
-        ip,
-        metadata: { wasSet }
-    });
-}
 
 /**
  * Log host transfer
@@ -222,7 +207,6 @@ module.exports = {
     AUDIT_EVENTS,
     audit,
     // Convenience functions
-    auditPasswordChanged,
     auditHostTransferred,
     auditSpymasterAssigned,
     auditRoleChanged,

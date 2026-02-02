@@ -90,7 +90,7 @@ This document describes the high-level architecture of Codenames Online, a real-
 
 **Key Services:**
 - `gameService.js` - Core game logic, PRNG, board generation
-- `roomService.js` - Room lifecycle, settings, passwords
+- `roomService.js` - Room lifecycle, settings
 - `playerService.js` - Player management, team assignment
 - `timerService.js` - Turn timers with Redis backing
 

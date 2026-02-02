@@ -246,7 +246,6 @@ router.get('/api/rooms', async (req, res) => {
                     rooms.push({
                         code: room.code,
                         status: room.status,
-                        hasPassword: room.hasPassword || false,
                         playerCount: playerKeys.length,
                         createdAt: room.createdAt,
                         settings: {

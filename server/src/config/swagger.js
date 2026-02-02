@@ -162,10 +162,6 @@ See the project README for WebSocket event documentation.
                                     type: 'string',
                                     enum: ['waiting', 'playing', 'finished']
                                 },
-                                hasPassword: {
-                                    type: 'boolean',
-                                    description: 'Whether the room requires a password'
-                                },
                                 settings: {
                                     type: 'object',
                                     properties: {

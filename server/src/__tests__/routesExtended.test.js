@@ -147,20 +147,6 @@ describe('Extended Room Routes', () => {
             expect(response.body.exists).toBe(true);
         });
 
-        it('returns exists true for password-protected room', async () => {
-            mockRedisStorage.set('room:passwd', JSON.stringify({
-                code: 'passwd',
-                status: 'waiting',
-                hasPassword: true
-            }));
-
-            const response = await request(app)
-                .get('/api/rooms/PASSWD/exists')
-                .expect(200);
-
-            // Note: the exists endpoint only returns the exists flag, not hasPassword
-            expect(response.body.exists).toBe(true);
-        });
     });
 
     describe('GET /api/rooms/:code', () => {
@@ -188,12 +174,11 @@ describe('Extended Room Routes', () => {
             expect(response.body.playerCount).toBe(2);
         });
 
-        it('does not expose password hash', async () => {
+        it('does not expose internal fields', async () => {
             mockRedisStorage.set('room:secret', JSON.stringify({
                 code: 'secret',
                 status: 'waiting',
-                passwordHash: 'should-not-be-exposed',
-                hasPassword: true,
+                hostSessionId: 'host-secret',
                 settings: { teamNames: { red: 'Red', blue: 'Blue' } }
             }));
             playerService.getPlayersInRoom.mockResolvedValue([]);
@@ -202,9 +187,7 @@ describe('Extended Room Routes', () => {
                 .get('/api/rooms/SECRET')
                 .expect(200);
 
-            // The route only returns selected fields, not passwordHash or hasPassword
-            expect(response.body.room.passwordHash).toBeUndefined();
-            // hasPassword is not exposed in the public room info endpoint
+            // The route only returns selected fields, not internal data
             expect(response.body.room.hostSessionId).toBeUndefined();
         });
 

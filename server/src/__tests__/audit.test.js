@@ -5,7 +5,6 @@
 const {
     AUDIT_EVENTS,
     audit,
-    auditPasswordChanged,
     auditHostTransferred,
     auditSpymasterAssigned,
     auditRoleChanged,
@@ -38,8 +37,6 @@ describe('Audit Logging', () => {
         test('contains all expected event types', () => {
             // Room events
             expect(AUDIT_EVENTS.ROOM_CREATED).toBe('ROOM_CREATED');
-            expect(AUDIT_EVENTS.ROOM_PASSWORD_CHANGED).toBe('ROOM_PASSWORD_CHANGED');
-            expect(AUDIT_EVENTS.ROOM_PASSWORD_REMOVED).toBe('ROOM_PASSWORD_REMOVED');
             expect(AUDIT_EVENTS.ROOM_SETTINGS_CHANGED).toBe('ROOM_SETTINGS_CHANGED');
             expect(AUDIT_EVENTS.ROOM_DELETED).toBe('ROOM_DELETED');
 
@@ -104,25 +101,6 @@ describe('Audit Logging', () => {
 
             expect(result.metadata.winner).toBe('red');
             expect(result.metadata.duration).toBe(300);
-        });
-    });
-
-    describe('auditPasswordChanged()', () => {
-        test('logs password set event', () => {
-            const result = auditPasswordChanged('ROOM01', 'session-1', '192.168.1.1', true);
-
-            expect(result.event).toBe('ROOM_PASSWORD_CHANGED');
-            expect(result.roomCode).toBe('ROOM01');
-            expect(result.sessionId).toBe('session-1');
-            expect(result.ip).toBe('192.168.1.1');
-            expect(result.metadata.wasSet).toBe(true);
-        });
-
-        test('logs password removed event', () => {
-            const result = auditPasswordChanged('ROOM02', 'session-2', '10.0.0.1', false);
-
-            expect(result.event).toBe('ROOM_PASSWORD_REMOVED');
-            expect(result.metadata.wasSet).toBe(false);
         });
     });
 
