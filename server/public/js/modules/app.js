@@ -8,7 +8,7 @@ import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, copyLink, copyShareLink, loadGameFromURL, updateURL, updateQRCode,
+    endTurn, copyLink, loadGameFromURL, updateURL, updateQRCode,
     closeGameOver, revealCard, updateScoreboard, updateTurnIndicator,
     setRoleCallbacks, showGameOverModal
 } from './game.js';
