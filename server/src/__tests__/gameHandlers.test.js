@@ -365,7 +365,7 @@ describe('Game Handlers', () => {
             const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
-            expect(gameService.endTurn).toHaveBeenCalledWith('TEST12', 'Clicker1');
+            expect(gameService.endTurn).toHaveBeenCalledWith('TEST12', 'Clicker1', expect.anything());
             expect(mockIo.emit).toHaveBeenCalledWith('game:turnEnded', expect.objectContaining({
                 currentTurn: 'blue',
                 previousTurn: 'red'

@@ -29,6 +29,7 @@ const timerHandlers = require('./handlers/timerHandlers');
 let io = null;
 let app = null; // Reference to Express app for socket count updates
 let shuttingDown = false;
+let connectionsCleanupInterval = null;
 
 // Track connections per IP for DoS protection
 const connectionsPerIP = new Map();
@@ -235,6 +236,27 @@ function initializeSocket(server, expressApp = null) {
 
     // Start periodic cleanup of stale rate limit entries
     startRateLimitCleanup();
+
+    // Periodic cleanup of connectionsPerIP to prevent stale entries
+    // Recounts actual connected sockets per IP every 5 minutes
+    if (connectionsCleanupInterval) clearInterval(connectionsCleanupInterval);
+    connectionsCleanupInterval = setInterval(() => {
+        try {
+            if (!io) return;
+            const actualCounts = new Map();
+            for (const [, socket] of io.sockets.sockets) {
+                const ip = socket.clientIP || 'unknown';
+                actualCounts.set(ip, (actualCounts.get(ip) || 0) + 1);
+            }
+            // Reset to actual counts
+            connectionsPerIP.clear();
+            for (const [ip, count] of actualCounts) {
+                connectionsPerIP.set(ip, count);
+            }
+        } catch (error) {
+            logger.error('Error during connectionsPerIP cleanup:', error);
+        }
+    }, 5 * 60 * 1000);
 
     // Initialize timer service with expire callback
     timerService.initializeTimerService(createTimerExpireCallback());
@@ -589,6 +611,12 @@ function cleanupSocketModule() {
 
     // Stop rate limiter cleanup interval
     stopRateLimitCleanup();
+
+    // Stop connectionsPerIP cleanup interval
+    if (connectionsCleanupInterval) {
+        clearInterval(connectionsCleanupInterval);
+        connectionsCleanupInterval = null;
+    }
 
     // Close socket.io server if initialized
     if (io) {

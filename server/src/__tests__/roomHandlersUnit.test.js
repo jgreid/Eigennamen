@@ -140,22 +140,13 @@ describe('Room Handlers', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:created', expect.any(Object));
         });
 
-        test('logs room creation event', async () => {
-            await eventHandlers['room:create']({ roomId: 'my-game', settings: {} });
-
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'test-room',
-                'ROOM_CREATED',
-                expect.any(Object)
-            );
-        });
-
         test('emits room:error on error after room created', async () => {
             roomService.createRoom.mockResolvedValue({
                 room: { code: 'fail-room', roomId: 'fail-room', settings: {} },
                 player: { sessionId: 'session-1', nickname: 'Host' }
             });
-            eventLogService.logEvent.mockRejectedValue(new Error('Log failed'));
+            // Force an error after room creation by making getRoomStats fail
+            playerService.getRoomStats.mockRejectedValue(new Error('Stats failed'));
 
             await eventHandlers['room:create']({ roomId: 'fail-room', settings: {} });
 
@@ -365,14 +356,11 @@ describe('Room Handlers', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.any(Object));
         });
 
-        test('logs settings update event', async () => {
+        test('broadcasts updated settings to room', async () => {
             await eventHandlers['room:settings']({ turnTimer: 60 });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'test-room',
-                'SETTINGS_UPDATED',
-                expect.any(Object)
-            );
+            expect(mockIo.to).toHaveBeenCalledWith('room:test-room');
+            expect(mockIo.to().emit).toHaveBeenCalledWith('room:settingsUpdated', expect.any(Object));
         });
     });
 

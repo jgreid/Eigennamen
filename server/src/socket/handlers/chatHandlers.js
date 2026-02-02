@@ -33,6 +33,11 @@ module.exports = function chatHandlers(io, socket) {
                 timestamp: Date.now()
             };
 
+            // Validate spectatorOnly flag - only spectators can send spectator-only messages
+            if (validated.spectatorOnly && ctx.player.role !== 'spectator') {
+                throw PlayerError.notAuthorized();
+            }
+
             // Spectator-only chat
             if (validated.spectatorOnly && ctx.player.role === 'spectator') {
                 const allPlayers = await playerService.getPlayersInRoom(ctx.roomCode);

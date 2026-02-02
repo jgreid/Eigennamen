@@ -304,9 +304,18 @@ async function updateSettings(code, sessionId, newSettings) {
         throw PlayerError.notHost();
     }
 
+    // Whitelist allowed settings keys to prevent arbitrary key injection
+    const allowedKeys = ['teamNames', 'turnTimer', 'allowSpectators'];
+    const sanitizedSettings = {};
+    for (const key of allowedKeys) {
+        if (key in newSettings) {
+            sanitizedSettings[key] = newSettings[key];
+        }
+    }
+
     room.settings = {
         ...room.settings,
-        ...newSettings
+        ...sanitizedSettings
     };
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });

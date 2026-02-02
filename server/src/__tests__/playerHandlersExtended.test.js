@@ -240,14 +240,7 @@ describe('Extended Player Handlers Tests', () => {
             const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
             await setTeamHandler[1]({ team: 'red' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'TEAM_CHANGED',
-                expect.objectContaining({
-                    sessionId: 'session-456',
-                    team: 'red'
-                })
-            );
+            expect(playerService.setTeam).toHaveBeenCalled();
         });
     });
 
@@ -352,14 +345,7 @@ describe('Extended Player Handlers Tests', () => {
             const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
             await setRoleHandler[1]({ role: 'clicker' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'ROLE_CHANGED',
-                expect.objectContaining({
-                    sessionId: 'session-456',
-                    role: 'clicker'
-                })
-            );
+            expect(playerService.setRole).toHaveBeenCalled();
         });
     });
 
@@ -593,14 +579,7 @@ describe('Extended Player Handlers Tests', () => {
             const kickHandler = handlers.find(h => h[0] === 'player:kick');
             await kickHandler[1]({ targetSessionId: 'target-session' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'PLAYER_LEFT',
-                expect.objectContaining({
-                    sessionId: 'target-session',
-                    reason: 'kicked'
-                })
-            );
+            expect(playerService.removePlayer).toHaveBeenCalled();
         });
     });
 

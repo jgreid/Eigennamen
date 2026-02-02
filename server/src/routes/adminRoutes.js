@@ -7,6 +7,7 @@
 
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
@@ -53,7 +54,11 @@ function basicAuth(req, res, next) {
         const [username, password] = credentials.split(':');
 
         // Accept any username with the correct password (common for simple admin panels)
-        if (password === adminPassword) {
+        // Use constant-time comparison to prevent timing attacks
+        const passwordBuffer = Buffer.from(password || '', 'utf8');
+        const adminBuffer = Buffer.from(adminPassword, 'utf8');
+        if (passwordBuffer.length === adminBuffer.length &&
+            crypto.timingSafeEqual(passwordBuffer, adminBuffer)) {
             req.adminUsername = username || 'admin';
             return next();
         }
@@ -145,14 +150,17 @@ router.get('/api/stats', async (req, res) => {
             socketStats.error = error.message;
         }
 
-        // Get room count
+        // Get room count using SCAN to avoid blocking Redis
         let roomCount = 0;
         try {
             const redis = getRedis();
-            // Count keys matching room:* pattern (excluding sub-keys like room:ABC:players)
-            const roomKeys = await redis.keys('room:*');
-            // Filter to only room codes (6 char alphanumeric after room:)
-            roomCount = roomKeys.filter(key => /^room:[A-Z0-9]{4,8}$/.test(key)).length;
+            let cursor = '0';
+            do {
+                const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
+                cursor = result.cursor.toString();
+                // Filter to only room codes (excluding sub-keys like room:abc:players)
+                roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
+            } while (cursor !== '0');
         } catch (error) {
             logger.warn('Failed to count rooms', { error: error.message });
         }
@@ -209,10 +217,19 @@ router.get('/api/stats', async (req, res) => {
 router.get('/api/rooms', async (req, res) => {
     try {
         const redis = getRedis();
-        const roomKeys = await redis.keys('room:*');
-
-        // Filter to only room codes
-        const validRoomKeys = roomKeys.filter(key => /^room:[A-Z0-9]{4,8}$/.test(key));
+        // Use SCAN to avoid blocking Redis
+        const validRoomKeys = [];
+        let cursor = '0';
+        do {
+            const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
+            cursor = result.cursor.toString();
+            // Filter to only room codes (excluding sub-keys like room:abc:players)
+            for (const key of result.keys) {
+                if (/^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)) {
+                    validRoomKeys.push(key);
+                }
+            }
+        } while (cursor !== '0');
 
         const rooms = [];
         for (const key of validRoomKeys) {
@@ -344,8 +361,8 @@ router.delete('/api/rooms/:code', async (req, res) => {
     try {
         const { code } = req.params;
 
-        // Validate room code format
-        if (!/^[A-Z0-9]{4,8}$/i.test(code)) {
+        // Validate room code format (Unicode letters/numbers, hyphens, underscores)
+        if (!/^[\p{L}\p{N}\-_]{3,20}$/u.test(code)) {
             return res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
@@ -354,7 +371,7 @@ router.delete('/api/rooms/:code', async (req, res) => {
             });
         }
 
-        const normalizedCode = code.toUpperCase();
+        const normalizedCode = code.toLowerCase();
         const redis = getRedis();
 
         // Check if room exists

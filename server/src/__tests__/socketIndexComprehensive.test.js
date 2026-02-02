@@ -102,7 +102,12 @@ jest.mock('../config/constants', () => {
         SOCKET_EVENTS: actual.SOCKET_EVENTS,
         REDIS_TTL: {
             ROOM: 86400
-        }
+        },
+        VALIDATION: actual.VALIDATION,
+        BOARD_SIZE: actual.BOARD_SIZE,
+        RESERVED_NAMES: actual.RESERVED_NAMES,
+        ERROR_CODES: actual.ERROR_CODES,
+        SESSION_SECURITY: actual.SESSION_SECURITY
     };
 });
 
