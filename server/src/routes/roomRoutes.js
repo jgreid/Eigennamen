@@ -6,13 +6,14 @@ const express = require('express');
 const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
 const { validateParams } = require('../middleware/validation');
+const { toEnglishLowerCase } = require('../utils/sanitize');
 const { z } = require('zod');
 
 const router = express.Router();
 
 // Schema for room code param - aligned with socket schema (3-20 chars, Unicode)
 const roomCodeSchema = z.object({
-    code: z.string().min(3).max(20).transform(s => s.toLowerCase()).refine(s => /^[\p{L}\p{N}\-_]+$/u.test(s), 'Invalid room code format')
+    code: z.string().min(3).max(20).transform(s => toEnglishLowerCase(s)).refine(s => /^[\p{L}\p{N}\-_]+$/u.test(s), 'Invalid room code format')
 });
 
 /**

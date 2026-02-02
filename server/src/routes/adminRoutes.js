@@ -14,6 +14,7 @@ const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis
 const { isDatabaseEnabled } = require('../config/database');
 const { getAllMetrics } = require('../utils/metrics');
 const { API_RATE_LIMITS } = require('../config/constants');
+const { toEnglishLowerCase } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -371,7 +372,7 @@ router.delete('/api/rooms/:code', async (req, res) => {
             });
         }
 
-        const normalizedCode = code.toLowerCase();
+        const normalizedCode = toEnglishLowerCase(code);
         const redis = getRedis();
 
         // Check if room exists
