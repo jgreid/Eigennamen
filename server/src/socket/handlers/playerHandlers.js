@@ -43,10 +43,17 @@ module.exports = function playerHandlers(io, socket) {
                 socket.join(`spectators:${ctx.roomCode}`);
             }
 
+            // Build changes object - include role if it was changed by the team switch
+            // (e.g., clicker/spymaster role is reset to spectator when switching teams)
+            const changes = { team: player.team };
+            if (player.role !== ctx.player.role) {
+                changes.role = player.role;
+            }
+
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
-                changes: { team: player.team }
+                changes
             });
 
             // Broadcast updated stats
@@ -63,9 +70,12 @@ module.exports = function playerHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_ROLE, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_ROLE, playerRoleSchema,
         async (ctx, validated) => {
-            const canChange = canChangeTeamOrRole(ctx);
-            if (!canChange.allowed) {
-                throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
+            // Skip validation if player already has the requested role (idempotent)
+            if (ctx.player.role !== validated.role) {
+                const canChange = canChangeTeamOrRole(ctx);
+                if (!canChange.allowed) {
+                    throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
+                }
             }
 
             const player = await playerService.setRole(ctx.sessionId, validated.role);
