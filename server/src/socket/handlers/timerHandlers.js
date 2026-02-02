@@ -11,15 +11,7 @@ const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
-const { z } = require('zod');
-
-// Schema defined inline to avoid issues with test mocks that partially mock constants
-const timerAddTimeSchema = z.object({
-    seconds: z.number()
-        .int()
-        .min(10, 'Must add at least 10 seconds')
-        .max(300, 'Cannot add more than 5 minutes')
-});
+const { timerAddTimeSchema } = require('../../validators/schemas');
 
 module.exports = function timerHandlers(io, socket) {
 

@@ -1040,7 +1040,7 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
  * Optimized end turn using Lua script
  * Atomically switches turn and resets clue state
  */
-async function endTurnOptimized(roomCode, playerNickname = 'Unknown') {
+async function endTurnOptimized(roomCode, playerNickname = 'Unknown', expectedTeam = '') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
@@ -1055,7 +1055,8 @@ async function endTurnOptimized(roomCode, playerNickname = 'Unknown') {
                     arguments: [
                         playerNickname,
                         Date.now().toString(),
-                        MAX_HISTORY_ENTRIES.toString()
+                        MAX_HISTORY_ENTRIES.toString(),
+                        expectedTeam
                     ]
                 }
             ),
@@ -1083,7 +1084,8 @@ async function endTurnOptimized(roomCode, playerNickname = 'Unknown') {
         if (result.error) {
             const errorMap = {
                 'NO_GAME': GameStateError.noActiveGame(),
-                'GAME_OVER': GameStateError.gameOver()
+                'GAME_OVER': GameStateError.gameOver(),
+                'NOT_YOUR_TURN': PlayerError.notYourTurn(expectedTeam)
             };
             throw errorMap[result.error] || new ServerError(result.error);
         }
@@ -1103,10 +1105,10 @@ async function endTurnOptimized(roomCode, playerNickname = 'Unknown') {
  * End the current turn
  * Uses optimized Lua script with fallback to standard implementation
  */
-async function endTurn(roomCode, playerNickname = 'Unknown') {
+async function endTurn(roomCode, playerNickname = 'Unknown', expectedTeam = '') {
     // Try optimized Lua script first
     try {
-        return await endTurnOptimized(roomCode, playerNickname);
+        return await endTurnOptimized(roomCode, playerNickname, expectedTeam);
     } catch (luaError) {
         // Propagate game logic errors
         if (luaError.code && luaError.code !== ERROR_CODES.SERVER_ERROR) {
@@ -1121,6 +1123,11 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
     return executeGameTransaction(gameKey, (game) => {
         if (game.gameOver) {
             throw GameStateError.gameOver();
+        }
+
+        // Validate expected team inside transaction to prevent race condition
+        if (expectedTeam && game.currentTurn !== expectedTeam) {
+            throw PlayerError.notYourTurn(expectedTeam);
         }
 
         const previousTurn = game.currentTurn;
@@ -1143,10 +1150,12 @@ async function endTurn(roomCode, playerNickname = 'Unknown') {
 }
 
 /**
- * Forfeit the game - uses current turn's team as forfeiting team
+ * Forfeit the game
+ * @param {string} roomCode - Room code
+ * @param {string} [forfeitTeam] - Team to forfeit (defaults to current turn's team)
  * Uses optimistic locking with retries for consistency
  */
-function forfeitGame(roomCode) {
+function forfeitGame(roomCode, forfeitTeam) {
     const gameKey = `room:${roomCode}:game`;
 
     return executeGameTransaction(gameKey, (game) => {
@@ -1154,8 +1163,8 @@ function forfeitGame(roomCode) {
             throw GameStateError.gameOver();
         }
 
-        // The current turn's team forfeits, other team wins
-        const forfeitingTeam = game.currentTurn;
+        // Use explicit team if provided, otherwise default to current turn's team
+        const forfeitingTeam = (forfeitTeam === 'red' || forfeitTeam === 'blue') ? forfeitTeam : game.currentTurn;
         game.gameOver = true;
         game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
 

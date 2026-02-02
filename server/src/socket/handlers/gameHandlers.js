@@ -9,7 +9,6 @@ const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
 const gameHistoryService = require('../../services/gameHistoryService');
-const eventLogService = require('../../services/eventLogService');
 const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
@@ -204,13 +203,6 @@ module.exports = function gameHandlers(io, socket) {
                 timestamp: clue.timestamp
             });
 
-            await eventLogService.logEvent(ctx.roomCode, 'CLUE_GIVEN', {
-                team: clue.team,
-                word: clue.word,
-                number: clue.number,
-                spymaster: clue.spymaster
-            });
-
             logger.info(`Clue given in room ${ctx.roomCode}: ${clue.word} ${clue.number}`);
         }
     ));
@@ -249,7 +241,7 @@ module.exports = function gameHandlers(io, socket) {
             }
 
             const result = await withTimeout(
-                gameService.endTurn(ctx.roomCode, ctx.player.nickname),
+                gameService.endTurn(ctx.roomCode, ctx.player.nickname, ctx.player.team),
                 TIMEOUTS.GAME_ACTION,
                 'game:endTurn'
             );
@@ -264,12 +256,6 @@ module.exports = function gameHandlers(io, socket) {
             if (room && room.settings && room.settings.turnTimer) {
                 await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
             }
-
-            await eventLogService.logEvent(ctx.roomCode, 'TURN_ENDED', {
-                currentTurn: result.currentTurn,
-                previousTurn: result.previousTurn,
-                reason: 'manual'
-            });
 
             logger.info(`Turn ended in room ${ctx.roomCode}, now ${result.currentTurn}'s turn`);
         }
@@ -312,12 +298,6 @@ module.exports = function gameHandlers(io, socket) {
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
             auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner, 'forfeit', null);
-
-            await eventLogService.logEvent(ctx.roomCode, 'GAME_OVER', {
-                winner: result.winner,
-                forfeitingTeam: result.forfeitingTeam,
-                reason: 'forfeit'
-            });
 
             logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
         }

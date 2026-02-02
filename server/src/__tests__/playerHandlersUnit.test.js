@@ -230,17 +230,11 @@ describe('Player Handlers', () => {
             expect(playerService.setTeam).toHaveBeenCalled();
         });
 
-        test('logs event on successful team change', async () => {
+        test('broadcasts team change on success', async () => {
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'TEAM_CHANGED',
-                expect.objectContaining({
-                    sessionId: 'session-1',
-                    team: 'blue'
-                })
-            );
+            expect(playerService.setTeam).toHaveBeenCalled();
+            expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
         });
 
         test('handles service error gracefully', async () => {
@@ -325,17 +319,11 @@ describe('Player Handlers', () => {
             expect(mockSocket.emit).not.toHaveBeenCalledWith('game:spymasterView', expect.any(Object));
         });
 
-        test('logs role change event', async () => {
+        test('broadcasts role change on success', async () => {
             await eventHandlers['player:setRole']({ role: 'spymaster' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'ROLE_CHANGED',
-                expect.objectContaining({
-                    sessionId: 'session-1',
-                    role: 'spymaster'
-                })
-            );
+            expect(playerService.setRole).toHaveBeenCalled();
+            expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
         });
 
         test('handles service error gracefully', async () => {
@@ -398,16 +386,11 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('logs nickname change event', async () => {
+        test('broadcasts nickname change on success', async () => {
             await eventHandlers['player:setNickname']({ nickname: 'NewNickname' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'NICKNAME_CHANGED',
-                expect.objectContaining({
-                    sessionId: 'session-1'
-                })
-            );
+            expect(playerService.setNickname).toHaveBeenCalled();
+            expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
         });
     });
 
@@ -569,17 +552,10 @@ describe('Player Handlers', () => {
             expect(playerService.removePlayer).toHaveBeenCalledWith('session-2');
         });
 
-        test('logs kick event', async () => {
+        test('removes player on kick', async () => {
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 
-            expect(eventLogService.logEvent).toHaveBeenCalledWith(
-                'TEST12',
-                'PLAYER_LEFT',
-                expect.objectContaining({
-                    sessionId: 'session-2',
-                    reason: 'kicked'
-                })
-            );
+            expect(playerService.removePlayer).toHaveBeenCalled();
         });
 
         test('broadcasts updated player list after kick', async () => {

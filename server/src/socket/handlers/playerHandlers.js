@@ -7,7 +7,6 @@
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
-const eventLogService = require('../../services/eventLogService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
@@ -56,10 +55,6 @@ module.exports = function playerHandlers(io, socket) {
 
             logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
 
-            await eventLogService.logEvent(ctx.roomCode, 'TEAM_CHANGED', {
-                sessionId: ctx.sessionId,
-                team: player.team
-            });
         }
     ));
 
@@ -106,11 +101,6 @@ module.exports = function playerHandlers(io, socket) {
 
             logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);
 
-            await eventLogService.logEvent(ctx.roomCode, 'ROLE_CHANGED', {
-                sessionId: ctx.sessionId,
-                role: player.role
-            });
-
             return { player };
         }
     ));
@@ -135,11 +125,6 @@ module.exports = function playerHandlers(io, socket) {
             });
 
             logger.info(`Player ${ctx.sessionId} changed nickname to ${sanitizedNickname}`);
-
-            await eventLogService.logEvent(ctx.roomCode, 'NICKNAME_CHANGED', {
-                sessionId: ctx.sessionId,
-                nickname: sanitizedNickname
-            });
 
             return { player };
         }
@@ -197,12 +182,6 @@ module.exports = function playerHandlers(io, socket) {
 
             logger.info(`Host ${sanitizeHtml(ctx.player.nickname)} kicked player ${sanitizeHtml(targetPlayer.nickname)} from room ${ctx.roomCode}`);
 
-            await eventLogService.logEvent(ctx.roomCode, 'PLAYER_LEFT', {
-                sessionId: validated.targetSessionId,
-                nickname: targetPlayer.nickname,
-                reason: 'kicked',
-                kickedBy: ctx.sessionId
-            });
         }
     ));
 };

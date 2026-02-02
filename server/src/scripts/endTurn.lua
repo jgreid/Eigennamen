@@ -2,6 +2,7 @@ local gameKey = KEYS[1]
 local playerNickname = ARGV[1]
 local timestamp = tonumber(ARGV[2])
 local maxHistoryEntries = tonumber(ARGV[3])
+local expectedTeam = ARGV[4]
 
 local gameData = redis.call('GET', gameKey)
 if not gameData then
@@ -13,6 +14,11 @@ local game = cjson.decode(gameData)
 -- Validate preconditions
 if game.gameOver then
     return cjson.encode({error = 'GAME_OVER'})
+end
+
+-- Validate the calling team matches current turn (prevents race condition)
+if expectedTeam and expectedTeam ~= '' and game.currentTurn ~= expectedTeam then
+    return cjson.encode({error = 'NOT_YOUR_TURN'})
 end
 
 local previousTurn = game.currentTurn

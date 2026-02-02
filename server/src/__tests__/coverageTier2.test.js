@@ -16,6 +16,7 @@ const mockRedisInstance = {
     get: jest.fn().mockResolvedValue(null),
     del: jest.fn().mockResolvedValue(1),
     keys: jest.fn().mockResolvedValue([]),
+    scan: jest.fn().mockResolvedValue({ cursor: '0', keys: [] }),
     exists: jest.fn().mockResolvedValue(0),
     eval: jest.fn().mockResolvedValue(null),
     expire: jest.fn().mockResolvedValue(1),
@@ -484,6 +485,7 @@ describe('adminRoutes - uncovered branches', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedisInstance.keys.mockResolvedValue([]);
+        mockRedisInstance.scan.mockResolvedValue({ cursor: '0', keys: [] });
         mockRedisInstance.get.mockResolvedValue(null);
     });
 
@@ -521,7 +523,7 @@ describe('adminRoutes - uncovered branches', () => {
     });
 
     test('GET /admin/api/stats handles room count error', async () => {
-        mockRedisInstance.keys.mockRejectedValueOnce(new Error('keys fail'));
+        mockRedisInstance.scan.mockRejectedValueOnce(new Error('keys fail'));
         const app = createTestApp(PW);
         const res = await request(app)
             .get('/admin/api/stats')
@@ -531,7 +533,7 @@ describe('adminRoutes - uncovered branches', () => {
     });
 
     test('GET /admin/api/rooms handles parse error gracefully', async () => {
-        mockRedisInstance.keys.mockResolvedValueOnce(['room:ABCD']);
+        mockRedisInstance.scan.mockResolvedValueOnce({ cursor: '0', keys: ['room:ABCD'] });
         mockRedisInstance.get.mockResolvedValueOnce('not-valid-json');
         const app = createTestApp(PW);
         const res = await request(app)
@@ -542,7 +544,7 @@ describe('adminRoutes - uncovered branches', () => {
     });
 
     test('GET /admin/api/rooms handles general error', async () => {
-        mockRedisInstance.keys.mockRejectedValueOnce(new Error('boom'));
+        mockRedisInstance.scan.mockRejectedValueOnce(new Error('boom'));
         const app = createTestApp(PW);
         const res = await request(app)
             .get('/admin/api/rooms')

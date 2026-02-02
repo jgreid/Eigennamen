@@ -10,9 +10,9 @@ const { z } = require('zod');
 
 const router = express.Router();
 
-// Schema for room code param
+// Schema for room code param - aligned with socket schema (3-20 chars, Unicode)
 const roomCodeSchema = z.object({
-    code: z.string().length(6).transform(s => s.toUpperCase()).refine(s => /^[A-Z0-9]+$/.test(s), 'Invalid room code format')
+    code: z.string().min(3).max(20).transform(s => s.toLowerCase()).refine(s => /^[\p{L}\p{N}\-_]+$/u.test(s), 'Invalid room code format')
 });
 
 /**

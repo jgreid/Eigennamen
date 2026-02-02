@@ -65,10 +65,9 @@ describe('Room Routes Coverage Tests', () => {
             expect(response.body.exists).toBe(false);
         });
 
-        test('validates room code format - wrong length', async () => {
-            // "invalid" is 7 characters, but the schema expects 6
+        test('validates room code format - too short', async () => {
             const response = await request(app)
-                .get('/api/rooms/TOOLONG/exists')
+                .get('/api/rooms/ab/exists')
                 .expect(400);
 
             expect(response.body.error).toBeDefined();
@@ -88,7 +87,7 @@ describe('Room Routes Coverage Tests', () => {
     describe('GET /api/rooms/:code', () => {
         test('returns room info when room exists', async () => {
             roomService.getRoom.mockResolvedValue({
-                code: 'ABCD12',
+                code: 'abcd12',
                 status: 'waiting',
                 settings: {
                     teamNames: { red: 'Red Team', blue: 'Blue Team' },
@@ -104,7 +103,7 @@ describe('Room Routes Coverage Tests', () => {
                 .get('/api/rooms/ABCD12')
                 .expect(200);
 
-            expect(response.body.room.code).toBe('ABCD12');
+            expect(response.body.room.code).toBe('abcd12');
             expect(response.body.room.status).toBe('waiting');
             expect(response.body.room.settings.teamNames).toBeDefined();
             expect(response.body.playerCount).toBe(2);
@@ -112,7 +111,7 @@ describe('Room Routes Coverage Tests', () => {
 
         test('returns room info with spectators disabled', async () => {
             roomService.getRoom.mockResolvedValue({
-                code: 'NOSPEC',
+                code: 'nospec',
                 status: 'playing',
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
@@ -142,7 +141,7 @@ describe('Room Routes Coverage Tests', () => {
 
         test('validates room code format - too short', async () => {
             const response = await request(app)
-                .get('/api/rooms/ABC12')
+                .get('/api/rooms/ab')
                 .expect(400);
 
             expect(response.body.error).toBeDefined();
@@ -150,7 +149,7 @@ describe('Room Routes Coverage Tests', () => {
 
         test('validates room code format - too long', async () => {
             const response = await request(app)
-                .get('/api/rooms/ABCD123')
+                .get('/api/rooms/abcdefghijklmnopqrstu')
                 .expect(400);
 
             expect(response.body.error).toBeDefined();
@@ -166,9 +165,9 @@ describe('Room Routes Coverage Tests', () => {
             expect(response.body.error.code).toBe('INTERNAL_ERROR');
         });
 
-        test('transforms room code to uppercase', async () => {
+        test('transforms room code to lowercase', async () => {
             roomService.getRoom.mockResolvedValue({
-                code: 'ABCD12',
+                code: 'abcd12',
                 status: 'waiting',
                 settings: {
                     teamNames: {},
@@ -178,10 +177,10 @@ describe('Room Routes Coverage Tests', () => {
             playerService.getPlayersInRoom.mockResolvedValue([]);
 
             await request(app)
-                .get('/api/rooms/abcd12')
+                .get('/api/rooms/ABCD12')
                 .expect(200);
 
-            expect(roomService.getRoom).toHaveBeenCalledWith('ABCD12');
+            expect(roomService.getRoom).toHaveBeenCalledWith('abcd12');
         });
     });
 });

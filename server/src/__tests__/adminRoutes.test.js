@@ -32,6 +32,12 @@ jest.mock('../config/redis', () => {
             const regex = new RegExp('^' + pattern.replace('*', '.*') + '$');
             return Array.from(mockRedisStorage.keys()).filter(key => regex.test(key));
         }),
+        scan: jest.fn(async (cursor, options) => {
+            const pattern = options?.MATCH || '*';
+            const regex = new RegExp('^' + pattern.replace('*', '.*') + '$');
+            const keys = Array.from(mockRedisStorage.keys()).filter(key => regex.test(key));
+            return { cursor: '0', keys };
+        }),
         exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
         expire: jest.fn(async () => 1),
         sMembers: jest.fn(async (key) => {
@@ -480,12 +486,12 @@ describe('Admin Routes', () => {
 
         it('should close a room successfully', async () => {
             const room = {
-                code: 'DELETE',
+                code: 'delete',
                 status: 'waiting',
                 createdAt: Date.now(),
                 settings: {}
             };
-            mockRedisStorage.set('room:DELETE', JSON.stringify(room));
+            mockRedisStorage.set('room:delete', JSON.stringify(room));
 
             const response = await request(app)
                 .delete('/admin/api/rooms/DELETE')
@@ -493,17 +499,17 @@ describe('Admin Routes', () => {
                 .expect(200);
 
             expect(response.body.success).toBe(true);
-            expect(roomService.deleteRoom).toHaveBeenCalledWith('DELETE');
+            expect(roomService.deleteRoom).toHaveBeenCalledWith('delete');
         });
 
         it('should notify players before closing room', async () => {
             const room = {
-                code: 'NOTIFY',
+                code: 'notify',
                 status: 'playing',
                 createdAt: Date.now(),
                 settings: {}
             };
-            mockRedisStorage.set('room:NOTIFY', JSON.stringify(room));
+            mockRedisStorage.set('room:notify', JSON.stringify(room));
 
             await request(app)
                 .delete('/admin/api/rooms/NOTIFY')
@@ -511,7 +517,7 @@ describe('Admin Routes', () => {
                 .expect(200);
 
             const io = app.get('io');
-            expect(io.to).toHaveBeenCalledWith('room:NOTIFY');
+            expect(io.to).toHaveBeenCalledWith('room:notify');
         });
 
         it('should return 404 for non-existing room', async () => {
@@ -532,21 +538,21 @@ describe('Admin Routes', () => {
             expect(response.body.error.code).toBe('INVALID_ROOM_CODE');
         });
 
-        it('should normalize room code to uppercase', async () => {
+        it('should normalize room code to lowercase', async () => {
             const room = {
-                code: 'LOWER1',
+                code: 'lower1',
                 status: 'waiting',
                 createdAt: Date.now(),
                 settings: {}
             };
-            mockRedisStorage.set('room:LOWER1', JSON.stringify(room));
+            mockRedisStorage.set('room:lower1', JSON.stringify(room));
 
             await request(app)
-                .delete('/admin/api/rooms/lower1')
+                .delete('/admin/api/rooms/LOWER1')
                 .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
                 .expect(200);
 
-            expect(roomService.deleteRoom).toHaveBeenCalledWith('LOWER1');
+            expect(roomService.deleteRoom).toHaveBeenCalledWith('lower1');
         });
     });
 

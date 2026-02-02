@@ -121,44 +121,41 @@ describe('Extended Room Routes', () => {
 
     describe('GET /api/rooms/:code/exists', () => {
         it('handles room codes with various valid formats', async () => {
-            const roomCode = 'XY7890';
-            mockRedisStorage.set(`room:${roomCode}`, JSON.stringify({
-                code: roomCode,
+            mockRedisStorage.set('room:xy7890', JSON.stringify({
+                code: 'xy7890',
                 status: 'waiting',
                 settings: {}
             }));
 
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}/exists`)
+                .get('/api/rooms/XY7890/exists')
                 .expect(200);
 
             expect(response.body.exists).toBe(true);
         });
 
         it('handles special valid characters', async () => {
-            const roomCode = 'HJK234';
-            mockRedisStorage.set(`room:${roomCode}`, JSON.stringify({
-                code: roomCode,
+            mockRedisStorage.set('room:hjk234', JSON.stringify({
+                code: 'hjk234',
                 status: 'waiting'
             }));
 
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}/exists`)
+                .get('/api/rooms/HJK234/exists')
                 .expect(200);
 
             expect(response.body.exists).toBe(true);
         });
 
         it('returns exists true for password-protected room', async () => {
-            const roomCode = 'PASSWD';
-            mockRedisStorage.set(`room:${roomCode}`, JSON.stringify({
-                code: roomCode,
+            mockRedisStorage.set('room:passwd', JSON.stringify({
+                code: 'passwd',
                 status: 'waiting',
                 hasPassword: true
             }));
 
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}/exists`)
+                .get('/api/rooms/PASSWD/exists')
                 .expect(200);
 
             // Note: the exists endpoint only returns the exists flag, not hasPassword
@@ -168,9 +165,8 @@ describe('Extended Room Routes', () => {
 
     describe('GET /api/rooms/:code', () => {
         it('returns full room info with player count', async () => {
-            const roomCode = 'GAME01';
-            mockRedisStorage.set(`room:${roomCode}`, JSON.stringify({
-                code: roomCode,
+            mockRedisStorage.set('room:game01', JSON.stringify({
+                code: 'game01',
                 status: 'playing',
                 hostSessionId: 'host-123',
                 settings: {
@@ -184,18 +180,17 @@ describe('Extended Room Routes', () => {
             ]);
 
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}`)
+                .get('/api/rooms/GAME01')
                 .expect(200);
 
-            expect(response.body.room.code).toBe(roomCode);
+            expect(response.body.room.code).toBe('game01');
             expect(response.body.room.status).toBe('playing');
             expect(response.body.playerCount).toBe(2);
         });
 
         it('does not expose password hash', async () => {
-            const roomCode = 'SECRET';
-            mockRedisStorage.set(`room:${roomCode}`, JSON.stringify({
-                code: roomCode,
+            mockRedisStorage.set('room:secret', JSON.stringify({
+                code: 'secret',
                 status: 'waiting',
                 passwordHash: 'should-not-be-exposed',
                 hasPassword: true,
@@ -204,7 +199,7 @@ describe('Extended Room Routes', () => {
             playerService.getPlayersInRoom.mockResolvedValue([]);
 
             const response = await request(app)
-                .get(`/api/rooms/${roomCode}`)
+                .get('/api/rooms/SECRET')
                 .expect(200);
 
             // The route only returns selected fields, not passwordHash or hasPassword
@@ -369,7 +364,7 @@ describe('Error Handler Integration', () => {
 
     it('handles validation errors with proper format', async () => {
         const response = await request(app)
-            .get('/api/rooms/X/exists') // Too short - validation error
+            .get('/api/rooms/X/exists') // Too short (min 3) - validation error
             .expect(400);
 
         expect(response.body.error).toBeDefined();

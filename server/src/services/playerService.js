@@ -901,10 +901,11 @@ async function getSpectators(roomCode) {
 /**
  * Get spectator count only (lightweight version) (US-16.1)
  * @param {string} roomCode - Room code
+ * @param {Array} [existingPlayers] - Pre-fetched players to avoid redundant fetch
  * @returns {number} Number of connected spectators
  */
-async function getSpectatorCount(roomCode) {
-    const players = await getPlayersInRoom(roomCode);
+async function getSpectatorCount(roomCode, existingPlayers) {
+    const players = existingPlayers || await getPlayersInRoom(roomCode);
     return players.filter(p => p.role === 'spectator' && p.connected).length;
 }
 
@@ -912,10 +913,11 @@ async function getSpectatorCount(roomCode) {
  * Get room player statistics (US-16.1)
  * Returns counts by role and team for UI display
  * @param {string} roomCode - Room code
+ * @param {Array} [existingPlayers] - Pre-fetched players to avoid redundant getPlayersInRoom call
  * @returns {Object} Player statistics
  */
-async function getRoomStats(roomCode) {
-    const players = await getPlayersInRoom(roomCode);
+async function getRoomStats(roomCode, existingPlayers) {
+    const players = existingPlayers || await getPlayersInRoom(roomCode);
     const connected = players.filter(p => p.connected);
 
     const stats = {

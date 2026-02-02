@@ -204,12 +204,12 @@ function createSocketRateLimiter(limits) {
         const allEntries = [];
 
         for (const [key, timestamps] of socketRequests.entries()) {
-            const lastActivity = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+            const lastActivity = timestamps.length > 0 ? timestamps[timestamps.length - 1] : 0;
             allEntries.push({ key, map: 'socket', lastActivity });
         }
 
         for (const [key, timestamps] of ipRequests.entries()) {
-            const lastActivity = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+            const lastActivity = timestamps.length > 0 ? timestamps[timestamps.length - 1] : 0;
             allEntries.push({ key, map: 'ip', lastActivity });
         }
 
@@ -355,6 +355,7 @@ function createSocketRateLimiter(limits) {
 }
 
 // HTTP rate limit metrics tracking
+const MAX_HTTP_UNIQUE_TRACKING = 10000;
 let httpTotalRequests = 0;
 let httpBlockedRequests = 0;
 const httpUniqueIPs = new Set();

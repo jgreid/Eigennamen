@@ -244,9 +244,9 @@ describe('Room Routes', () => {
             expect(response.body.error).toBeDefined();
         });
 
-        it('should reject room codes with invalid characters', async () => {
+        it('should reject room codes that are too long', async () => {
             const response = await request(app)
-                .get('/api/rooms/ABC-23/exists') // Contains dash
+                .get('/api/rooms/abcdefghijklmnopqrstuvwxyz/exists') // Too long (> 20)
                 .expect(400);
 
             expect(response.body.error).toBeDefined();
