@@ -55,10 +55,10 @@ function basicAuth(req, res, next) {
 
         // Accept any username with the correct password (common for simple admin panels)
         // Use constant-time comparison to prevent timing attacks
-        const passwordBuffer = Buffer.from(password || '', 'utf8');
-        const adminBuffer = Buffer.from(adminPassword, 'utf8');
-        if (passwordBuffer.length === adminBuffer.length &&
-            crypto.timingSafeEqual(passwordBuffer, adminBuffer)) {
+        // Hash both to fixed-length buffers to avoid leaking password length
+        const passwordHash = crypto.createHash('sha256').update(password || '').digest();
+        const adminHash = crypto.createHash('sha256').update(adminPassword).digest();
+        if (crypto.timingSafeEqual(passwordHash, adminHash)) {
             req.adminUsername = username || 'admin';
             return next();
         }
