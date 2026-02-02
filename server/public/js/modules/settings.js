@@ -3,7 +3,7 @@
 
 import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
-import { openModal, closeModal, showToast } from './ui.js';
+import { openModal, closeModal } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator, updateQRCode } from './game.js';
 
 export function openSettings() {
