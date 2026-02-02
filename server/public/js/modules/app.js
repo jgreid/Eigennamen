@@ -33,6 +33,7 @@ setRoleCallbacks(updateRoleBanner, updateControls);
 // Register all modal close handlers
 registerModalCloseHandler('settings-modal', closeSettings);
 registerModalCloseHandler('confirm-modal', closeConfirm);
+registerModalCloseHandler('confirm-end-turn-modal', closeEndTurnConfirm);
 registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
 registerModalCloseHandler('multiplayer-modal', closeMultiplayer);

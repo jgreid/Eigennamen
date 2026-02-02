@@ -6,13 +6,34 @@
  * ensure users always get the latest version when online.
  */
 
-const CACHE = 'codenames-v9';
+const CACHE = 'codenames-v10';
 
 const OFFLINE_ASSETS = [
     '/',
     '/index.html',
     '/js/qrcode.min.js',
-    '/manifest.json'
+    '/manifest.json',
+    '/css/variables.css',
+    '/css/layout.css',
+    '/css/components.css',
+    '/css/modals.css',
+    '/css/responsive.css',
+    '/css/accessibility.css',
+    '/css/multiplayer.css',
+    '/css/replay.css',
+    '/js/modules/app.js',
+    '/js/modules/state.js',
+    '/js/modules/utils.js',
+    '/js/modules/ui.js',
+    '/js/modules/board.js',
+    '/js/modules/game.js',
+    '/js/modules/roles.js',
+    '/js/modules/settings.js',
+    '/js/modules/notifications.js',
+    '/js/modules/multiplayer.js',
+    '/js/modules/history.js',
+    '/js/modules/timer.js',
+    '/wordlist.txt'
 ];
 
 // Install - cache assets needed for offline standalone mode
