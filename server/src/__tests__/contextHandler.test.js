@@ -37,8 +37,7 @@ const {
     createContextHandler,
     createRoomHandler,
     createHostHandler,
-    createGameHandler,
-    createSimpleContextHandler
+    createGameHandler
 } = require('../socket/contextHandler');
 
 describe('contextHandler', () => {
@@ -278,25 +277,6 @@ describe('contextHandler', () => {
                 requireRoom: true,
                 requireGame: true
             });
-        });
-    });
-
-    describe('createSimpleContextHandler', () => {
-        it('creates handler with custom context options and no schema', async () => {
-            getPlayerContext.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01',
-                player: { sessionId: 'session-1' }, game: null, isInRoom: true
-            });
-            const handler = jest.fn().mockResolvedValue(undefined);
-
-            const wrappedFn = createSimpleContextHandler(
-                mockSocket, 'room:resync',
-                { requireRoom: true }, handler
-            );
-            await wrappedFn({});
-
-            expect(validateInput).not.toHaveBeenCalled();
-            expect(handler).toHaveBeenCalled();
         });
     });
 

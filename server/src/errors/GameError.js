@@ -76,14 +76,6 @@ class RoomError extends GameError {
         );
     }
 
-    static expired(roomCode) {
-        return new RoomError(
-            ERROR_CODES.ROOM_EXPIRED,
-            'Room has expired',
-            { roomCode }
-        );
-    }
-
     static gameInProgress(roomCode) {
         return new RoomError(
             ERROR_CODES.GAME_IN_PROGRESS,
@@ -191,13 +183,6 @@ class GameStateError extends GameError {
         );
     }
 
-    static invalidState(roomCode, expectedState, actualState) {
-        return new GameStateError(
-            ERROR_CODES.SERVER_ERROR,
-            `Invalid game state: expected ${expectedState}, got ${actualState}`,
-            { roomCode, expectedState, actualState }
-        );
-    }
 }
 
 /**
@@ -275,28 +260,6 @@ class ServerError extends GameError {
         );
     }
 
-    static redisError(operation, roomCode = null, originalError = null) {
-        return new ServerError(
-            `Database operation failed: ${operation}`,
-            {
-                roomCode,
-                operation,
-                originalError: originalError?.message,
-                retryable: true
-            }
-        );
-    }
-
-    static lockAcquisitionFailed(lockType, roomCode) {
-        return new ServerError(
-            `Another ${lockType} operation is in progress, please try again`,
-            {
-                roomCode,
-                lockType,
-                retryable: true
-            }
-        );
-    }
 }
 
 /**

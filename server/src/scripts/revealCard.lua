@@ -4,6 +4,9 @@ local timestamp = tonumber(ARGV[2])
 local playerNickname = ARGV[3]
 local maxHistoryEntries = tonumber(ARGV[4])
 
+-- Preserve existing TTL so the key doesn't become permanent
+local currentTTL = redis.call('TTL', gameKey)
+
 local gameData = redis.call('GET', gameKey)
 if not gameData then
     return cjson.encode({error = 'NO_GAME'})
@@ -116,8 +119,12 @@ end
 -- Increment version
 game.stateVersion = (game.stateVersion or 0) + 1
 
--- Save updated game
-redis.call('SET', gameKey, cjson.encode(game))
+-- Save updated game, preserving TTL
+if currentTTL > 0 then
+    redis.call('SET', gameKey, cjson.encode(game), 'EX', currentTTL)
+else
+    redis.call('SET', gameKey, cjson.encode(game))
+end
 
 -- Return result
 local result = {

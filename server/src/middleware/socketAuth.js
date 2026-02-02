@@ -381,23 +381,9 @@ function requireAuth(socket, next) {
     next();
 }
 
-/**
- * Middleware to require valid session in a room
- */
-async function requireRoomSession(socket, next) {
-    const player = await playerService.getPlayer(socket.sessionId);
-    if (!player || !player.roomCode) {
-        return next(new Error('Must be in a room'));
-    }
-    socket.player = player;
-    next();
-}
-
 module.exports = {
     authenticateSocket,
     requireAuth,
-    requireRoomSession,
     getClientIP,
-    validateSession,
-    checkValidationRateLimit
+    validateSession
 };

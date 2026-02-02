@@ -8,10 +8,8 @@
 const {
     authenticateSocket,
     requireAuth,
-    requireRoomSession,
     getClientIP,
-    validateSession,
-    checkValidationRateLimit
+    validateSession
 } = require('../middleware/socketAuth');
 
 // Mock dependencies
@@ -155,87 +153,6 @@ describe('Socket Authentication Middleware', () => {
             const socket = createMockSocket('192.168.1.100', null);
             const ip = getClientIP(socket);
             expect(ip).toBe('192.168.1.100');
-        });
-    });
-
-    describe('checkValidationRateLimit', () => {
-        test('allows first attempt and sets expiry', async () => {
-            mockRedis.incr.mockResolvedValue(1);
-            mockRedis.expire.mockResolvedValue(true);
-
-            const result = await checkValidationRateLimit('192.168.1.1');
-
-            expect(result).toEqual({ allowed: true, attempts: 1 });
-            expect(mockRedis.incr).toHaveBeenCalledWith('session:validation:192.168.1.1');
-            expect(mockRedis.expire).toHaveBeenCalledWith('session:validation:192.168.1.1', 60);
-        });
-
-        test('allows attempts within limit', async () => {
-            mockRedis.incr.mockResolvedValue(15);
-
-            const result = await checkValidationRateLimit('192.168.1.1');
-
-            expect(result).toEqual({ allowed: true, attempts: 15 });
-            expect(mockRedis.expire).not.toHaveBeenCalled();
-        });
-
-        test('blocks attempts exceeding rate limit', async () => {
-            mockRedis.incr.mockResolvedValue(21);
-
-            const result = await checkValidationRateLimit('192.168.1.1');
-
-            expect(result).toEqual({ allowed: false, attempts: 21 });
-            expect(logger.warn).toHaveBeenCalledWith('Session validation rate limited', {
-                clientIP: '192.168.1.1',
-                attempts: 21,
-                maxAttempts: 20
-            });
-        });
-
-        test('blocks at exactly max+1 attempts', async () => {
-            mockRedis.incr.mockResolvedValue(21);
-
-            const result = await checkValidationRateLimit('10.0.0.1');
-
-            expect(result.allowed).toBe(false);
-            expect(result.attempts).toBe(21);
-        });
-
-        test('allows at exactly max attempts', async () => {
-            mockRedis.incr.mockResolvedValue(20);
-
-            const result = await checkValidationRateLimit('10.0.0.1');
-
-            expect(result.allowed).toBe(true);
-            expect(result.attempts).toBe(20);
-        });
-
-        test('fails open when Redis errors', async () => {
-            mockRedis.incr.mockRejectedValue(new Error('Redis connection failed'));
-
-            const result = await checkValidationRateLimit('192.168.1.1');
-
-            expect(result).toEqual({ allowed: true, attempts: 0 });
-            expect(logger.error).toHaveBeenCalledWith('Rate limit check failed:', 'Redis connection failed');
-        });
-
-        test('handles Redis timeout error', async () => {
-            mockRedis.incr.mockRejectedValue(new Error('Connection timeout'));
-
-            const result = await checkValidationRateLimit('192.168.1.1');
-
-            expect(result.allowed).toBe(true);
-            expect(logger.error).toHaveBeenCalled();
-        });
-
-        test('different IPs have separate rate limits', async () => {
-            mockRedis.incr.mockResolvedValue(1);
-
-            await checkValidationRateLimit('192.168.1.1');
-            await checkValidationRateLimit('192.168.1.2');
-
-            expect(mockRedis.incr).toHaveBeenCalledWith('session:validation:192.168.1.1');
-            expect(mockRedis.incr).toHaveBeenCalledWith('session:validation:192.168.1.2');
         });
     });
 
@@ -715,66 +632,4 @@ describe('Socket Authentication Middleware', () => {
         });
     });
 
-    describe('requireRoomSession', () => {
-        test('allows request when player exists with roomCode', async () => {
-            const socket = { sessionId: 'test-session' };
-            const next = jest.fn();
-
-            const player = {
-                sessionId: 'test-session',
-                roomCode: 'ABC123',
-                nickname: 'TestPlayer'
-            };
-            playerService.getPlayer.mockResolvedValue(player);
-
-            await requireRoomSession(socket, next);
-
-            expect(socket.player).toEqual(player);
-            expect(next).toHaveBeenCalledWith();
-        });
-
-        test('rejects request when player not found', async () => {
-            const socket = { sessionId: 'test-session' };
-            const next = jest.fn();
-
-            playerService.getPlayer.mockResolvedValue(null);
-
-            await requireRoomSession(socket, next);
-
-            expect(next).toHaveBeenCalledWith(expect.any(Error));
-            expect(next.mock.calls[0][0].message).toBe('Must be in a room');
-        });
-
-        test('rejects request when player has no roomCode', async () => {
-            const socket = { sessionId: 'test-session' };
-            const next = jest.fn();
-
-            const player = {
-                sessionId: 'test-session',
-                roomCode: null,
-                nickname: 'TestPlayer'
-            };
-            playerService.getPlayer.mockResolvedValue(player);
-
-            await requireRoomSession(socket, next);
-
-            expect(next).toHaveBeenCalledWith(expect.any(Error));
-        });
-
-        test('rejects request when player roomCode is empty string', async () => {
-            const socket = { sessionId: 'test-session' };
-            const next = jest.fn();
-
-            const player = {
-                sessionId: 'test-session',
-                roomCode: '',
-                nickname: 'TestPlayer'
-            };
-            playerService.getPlayer.mockResolvedValue(player);
-
-            await requireRoomSession(socket, next);
-
-            expect(next).toHaveBeenCalledWith(expect.any(Error));
-        });
-    });
 });

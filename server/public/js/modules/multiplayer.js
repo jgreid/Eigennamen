@@ -117,16 +117,16 @@ async function handleJoinGame() {
     const urlRoomCode = getRoomCodeFromURL();
     const joinBtn = document.getElementById('btn-mp-action');
 
-    // Nickname validation
+    // Nickname validation (matches server VALIDATION.NICKNAME_MAX_LENGTH = 30)
     if (!nickname) {
         setFieldError('Please enter your nickname', 'join-nickname-error');
         return;
     }
-    if (nickname.length > 20) {
-        setFieldError('Nickname must be 20 characters or less', 'join-nickname-error');
+    if (nickname.length > 30) {
+        setFieldError('Nickname must be 30 characters or less', 'join-nickname-error');
         return;
     }
-    if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
+    if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
         setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'join-nickname-error');
         return;
     }
@@ -199,16 +199,16 @@ async function handleCreateGame() {
     const roomId = document.getElementById('create-room-id').value.trim();
     const createBtn = document.getElementById('btn-mp-action');
 
-    // Nickname validation
+    // Nickname validation (matches server VALIDATION.NICKNAME_MAX_LENGTH = 30)
     if (!nickname) {
         setFieldError('Please enter your nickname', 'create-nickname-error');
         return;
     }
-    if (nickname.length > 20) {
-        setFieldError('Nickname must be 20 characters or less', 'create-nickname-error');
+    if (nickname.length > 30) {
+        setFieldError('Nickname must be 30 characters or less', 'create-nickname-error');
         return;
     }
-    if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
+    if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
         setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'create-nickname-error');
         return;
     }

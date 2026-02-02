@@ -73,9 +73,13 @@ async function executeGameTransaction(gameKey, operation, _operationName) {
             // Increment state version for conflict detection
             incrementVersion(game);
 
+            // Preserve existing TTL so the key doesn't become permanent
+            const currentTTL = await redis.ttl(gameKey);
+            const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
+
             // Execute transaction
             const txResult = await redis.multi()
-                .set(gameKey, JSON.stringify(game))
+                .set(gameKey, JSON.stringify(game), { EX: ttl })
                 .exec();
 
             // If transaction failed (key was modified), retry
@@ -193,7 +197,7 @@ async function createGame(roomCode, options = {}) {
         await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
         const existingGame = await getGame(roomCode);
         if (existingGame && !existingGame.gameOver) {
-            throw GameStateError.gameInProgress(roomCode);
+            throw RoomError.gameInProgress(roomCode);
         }
         // Lock expired but no game - try again
         throw new Error('Game creation in progress by another player, please try again');
@@ -203,7 +207,7 @@ async function createGame(roomCode, options = {}) {
         // Double-check no game exists (within lock)
         const existingGame = await getGame(roomCode);
         if (existingGame && !existingGame.gameOver) {
-            throw GameStateError.gameInProgress(roomCode);
+            throw RoomError.gameInProgress(roomCode);
         }
 
         // FIX: Verify room still exists before creating game (prevents orphaned games)
@@ -753,9 +757,13 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
                 // Increment state version for conflict detection
                 incrementVersion(game);
 
+                // Preserve TTL so the key doesn't become permanent
+                const currentTTL = await redis.ttl(gameKey);
+                const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
+
                 // Execute transaction
                 const result = await redis.multi()
-                    .set(gameKey, JSON.stringify(game))
+                    .set(gameKey, JSON.stringify(game), { EX: ttl })
                     .exec();
 
                 // If transaction failed (key was modified), retry
@@ -1015,8 +1023,12 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
             // Increment state version for conflict detection
             incrementVersion(game);
 
+            // Preserve TTL so the key doesn't become permanent
+            const currentTTL = await redis.ttl(gameKey);
+            const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
+
             const result = await redis.multi()
-                .set(gameKey, JSON.stringify(game))
+                .set(gameKey, JSON.stringify(game), { EX: ttl })
                 .exec();
 
             // If transaction failed (key was modified), retry

@@ -97,13 +97,6 @@ function createGameHandler(socket, eventName, schema, handler) {
 }
 
 /**
- * Context handler for operations without input validation.
- */
-function createSimpleContextHandler(socket, eventName, contextOptions, handler) {
-    return createContextHandler(socket, eventName, null, contextOptions, handler);
-}
-
-/**
  * Context handler for pre-room operations (room:create, room:join).
  * Provides rate limiting, input validation, and consistent error handling
  * without requiring the player to already be in a room.
@@ -132,6 +125,5 @@ module.exports = {
     createRoomHandler,
     createHostHandler,
     createGameHandler,
-    createSimpleContextHandler,
     createPreRoomHandler
 };

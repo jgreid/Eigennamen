@@ -36,8 +36,8 @@ module.exports = function playerHandlers(io, socket) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            // Update spectator room membership
-            if (player.team) {
+            // Update spectator room membership based on team and role
+            if (player.team && player.role !== 'spectator') {
                 socket.leave(`spectators:${ctx.roomCode}`);
             } else {
                 socket.join(`spectators:${ctx.roomCode}`);

@@ -10,34 +10,7 @@
 
 // ─── sanitize.js ────────────────────────────────────────────────────────────
 
-const { normalizeUnicode, localeCompare, localeIncludes } = require('../utils/sanitize');
-
-describe('sanitize - normalizeUnicode', () => {
-    test('returns empty string for non-string input', () => {
-        expect(normalizeUnicode(123)).toBe('');
-        expect(normalizeUnicode(null)).toBe('');
-        expect(normalizeUnicode(undefined)).toBe('');
-    });
-
-    test('lowercases with caseType=lower', () => {
-        expect(normalizeUnicode('HELLO', 'lower')).toBe('hello');
-    });
-
-    test('uppercases with caseType=upper', () => {
-        expect(normalizeUnicode('hello', 'upper')).toBe('HELLO');
-    });
-
-    test('no case change with caseType=none', () => {
-        expect(normalizeUnicode('Hello', 'none')).toBe('Hello');
-    });
-
-    test('normalizes unicode to NFC', () => {
-        // e + combining accent vs precomposed
-        const decomposed = 'e\u0301'; // é decomposed
-        const result = normalizeUnicode(decomposed, 'none');
-        expect(result).toBe('\u00e9'); // é precomposed
-    });
-});
+const { localeCompare, localeIncludes } = require('../utils/sanitize');
 
 describe('sanitize - localeCompare', () => {
     test('case insensitive by default', () => {
@@ -83,6 +56,7 @@ const mockRedisInstance = {
     keys: jest.fn().mockResolvedValue([]),
     exists: jest.fn().mockResolvedValue(0),
     eval: jest.fn().mockResolvedValue(null),
+    ttl: jest.fn().mockResolvedValue(86400),
     multi: jest.fn().mockReturnValue({
         set: jest.fn().mockReturnThis(),
         del: jest.fn().mockReturnThis(),
@@ -265,11 +239,6 @@ describe('timerService - addTime validation and init', () => {
         expect(result).toBe(true);
     });
 
-    test('getExpireCallback returns the set callback', () => {
-        const cb = jest.fn();
-        timerService.initializeTimerService(cb);
-        expect(timerService.getExpireCallback()).toBe(cb);
-    });
 });
 
 // ─── gameService.js - revealCard Lua result validation ──────────────────────
