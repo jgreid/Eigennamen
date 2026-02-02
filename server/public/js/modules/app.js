@@ -3,20 +3,17 @@
 
 import { state, initCachedElements } from './state.js';
 import { updateCharCounter } from './utils.js';
-import { showErrorModal, closeError, openModal, closeModal, registerModalCloseHandler } from './ui.js';
+import { showErrorModal, closeError, closeModal, registerModalCloseHandler } from './ui.js';
 import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.js';
-import { setCardClickHandler, renderBoard } from './board.js';
+import { setCardClickHandler } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, copyShareLink,
-    closeGameOver, revealCard, updateScoreboard, updateTurnIndicator,
-    setRoleCallbacks, showGameOverModal
+    endTurn, closeGameOver, revealCard, setRoleCallbacks
 } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
     openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
-    copyRoomCode, copyRoomId, updateRoomSettingsNavVisibility, updateRoomInfoDisplay,
-    leaveMultiplayerMode
+    copyRoomCode, updateRoomInfoDisplay
 } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay } from './history.js';
 import {

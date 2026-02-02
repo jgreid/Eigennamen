@@ -2,8 +2,7 @@
 // Core game logic (reveal, turns, scoring, board setup)
 // All game state comes from the multiplayer server.
 
-import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, COPY_BUTTON_TEXT } from './state.js';
-import { escapeHTML, seededRandom } from './utils.js';
+import { state, BOARD_SIZE } from './state.js';
 import { showToast, openModal, closeModal, announceToScreenReader, showErrorModal } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
 import { playNotificationSound } from './notifications.js';

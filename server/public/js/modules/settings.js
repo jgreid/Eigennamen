@@ -4,14 +4,12 @@
 import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
-import { updateURL, updateScoreboard, updateTurnIndicator, updateQRCode } from './game.js';
+import { updateScoreboard, updateTurnIndicator } from './game.js';
 
 export function openSettings() {
     openModal('settings-modal');
     // Reset to Teams panel when opening
     switchSettingsPanel('teams');
-    // Refresh QR code with current URL when opening settings
-    updateQRCode(window.location.href);
     const redNameInput = document.getElementById('red-name-input');
     const blueNameInput = document.getElementById('blue-name-input');
     const customWordsTextarea = document.getElementById('custom-words');
@@ -198,7 +196,6 @@ export function saveSettings() {
     if (wordError) wordError.classList.remove('visible');
     if (textarea) textarea.classList.remove('invalid');
 
-    updateURL();
     updateScoreboard();
     updateTurnIndicator();
     closeSettings();

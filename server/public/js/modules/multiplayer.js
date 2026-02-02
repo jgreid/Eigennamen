@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, safeGetItem, safeSetItem } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
-import { revealCardFromServer, checkGameOver, showGameOver, updateScoreboard, updateTurnIndicator, updateURL, updateQRCode } from './game.js';
+import { revealCardFromServer, checkGameOver, showGameOver, updateScoreboard, updateTurnIndicator } from './game.js';
 import { updateRoleBanner, updateControls } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
