@@ -355,7 +355,6 @@ function createSocketRateLimiter(limits) {
 }
 
 // HTTP rate limit metrics tracking
-const MAX_HTTP_UNIQUE_TRACKING = 10000;
 let httpTotalRequests = 0;
 let httpBlockedRequests = 0;
 const httpUniqueIPs = new Set();

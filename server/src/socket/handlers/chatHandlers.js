@@ -39,7 +39,7 @@ module.exports = function chatHandlers(io, socket) {
             }
 
             // Spectator-only chat
-            if (validated.spectatorOnly && ctx.player.role === 'spectator') {
+            if (validated.spectatorOnly) {
                 const allPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
                 if (!allPlayers || !Array.isArray(allPlayers)) {
                     throw RoomError.notFound(ctx.roomCode);

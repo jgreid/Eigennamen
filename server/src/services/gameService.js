@@ -841,6 +841,10 @@ async function giveClueOptimized(roomCode, team, word, number, spymasterNickname
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
+    // Pre-normalize clue word in JS for Unicode-correct comparison
+    // Lua's string.upper() is ASCII-only and won't handle Unicode properly
+    const normalizedWord = toEnglishUpperCase(String(word).normalize('NFC').trim());
+
     try {
         // Wrap Redis Lua eval with timeout to prevent hanging operations
         const resultStr = await withTimeout(
@@ -850,7 +854,7 @@ async function giveClueOptimized(roomCode, team, word, number, spymasterNickname
                     keys: [gameKey],
                     arguments: [
                         team,
-                        word,
+                        normalizedWord,
                         number.toString(),
                         spymasterNickname || 'Unknown',
                         Date.now().toString(),
