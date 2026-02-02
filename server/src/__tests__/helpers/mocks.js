@@ -321,8 +321,6 @@ function createMockRoom(overrides = {}) {
         },
         status: 'waiting',
         createdAt: Date.now(),
-        passwordHash: null,
-        passwordVersion: 0,
         ...overrides
     };
 }

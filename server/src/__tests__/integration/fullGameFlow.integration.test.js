@@ -696,7 +696,7 @@ describe('Full Game Flow Integration Tests', () => {
     });
 
     describe('Room ID Access', () => {
-        // Skip: test now verifies simplified room ID behavior instead of passwords
+        // Skip: test verifies simplified room ID behavior
         test.skip('room ID is case insensitive for joining', async () => {
             const host = await createClient();
             const player = await createClient();

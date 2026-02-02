@@ -420,30 +420,6 @@ describe('Reconnection Edge Cases', () => {
         });
     });
 
-    describe('Password Changes During Disconnect', () => {
-        test('reconnection requires new password if room password changed', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
-                valid: true,
-                tokenData: {
-                    sessionId: 'session-456',
-                    roomCode: 'TEST12',
-                    passwordVersion: 1
-                }
-            });
-
-            roomService.getRoom.mockResolvedValue({
-                code: 'TEST12',
-                passwordVersion: 2 // Password changed
-            });
-
-            const validation = await playerService.validateReconnectionToken('token', 'session-456');
-            const room = await roomService.getRoom('TEST12');
-
-            // Token's password version doesn't match room's current version
-            expect(validation.tokenData.passwordVersion).not.toBe(room.passwordVersion);
-        });
-    });
-
     describe('Event Log Recovery', () => {
         test('retrieves missed events for replay', async () => {
             const missedEvents = [

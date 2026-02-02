@@ -329,7 +329,6 @@ describe('Admin Routes', () => {
             const room2 = {
                 code: 'XYZ789',
                 status: 'playing',
-                hasPassword: true,
                 createdAt: Date.now() - 1000,
                 settings: { teamNames: { red: 'Fire', blue: 'Ice' }, turnTimer: 60 }
             };
@@ -351,7 +350,6 @@ describe('Admin Routes', () => {
             expect(response.body.rooms[0].code).toBe('ABC123');
             expect(response.body.rooms[0].playerCount).toBe(2);
             expect(response.body.rooms[1].code).toBe('XYZ789');
-            expect(response.body.rooms[1].hasPassword).toBe(true);
         });
 
         it('should not include sensitive room data', async () => {
@@ -359,7 +357,6 @@ describe('Admin Routes', () => {
                 code: 'SECRET',
                 status: 'waiting',
                 hostSessionId: 'secret-host-id',
-                passwordHash: 'hashed-password',
                 createdAt: Date.now(),
                 settings: { teamNames: { red: 'Red', blue: 'Blue' } }
             };
@@ -372,7 +369,6 @@ describe('Admin Routes', () => {
 
             const roomData = response.body.rooms[0];
             expect(roomData.hostSessionId).toBeUndefined();
-            expect(roomData.passwordHash).toBeUndefined();
         });
     });
 

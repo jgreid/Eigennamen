@@ -21,7 +21,6 @@
 - Standalone URL-based mode (no server required)
 - Custom word lists with database persistence
 - Turn timer with pause/resume
-- Password-protected rooms
 - Team chat with filtering
 - Spectator mode
 - QR code room sharing
@@ -48,7 +47,7 @@
 | Sprint 16 | Improvements | Completed |
 | Sprint 15 | Reliability, security | Completed |
 | Sprint 14 | Performance, consolidation | Completed |
-| Sprint 13 | Room passwords, mobile UI | Completed |
+| Sprint 13 | Mobile UI improvements | Completed |
 
 ---
 

@@ -410,7 +410,6 @@ async function cleanupRoom(code) {
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);
 
-    // Get room data to find password lookup key
     const room = await getRoom(code);
 
     // Get all players in room
@@ -433,11 +432,6 @@ async function cleanupRoom(code) {
         `room:${code}:team:red`,   // ISSUE #4 FIX: Include team sets
         `room:${code}:team:blue`   // ISSUE #4 FIX: Include team sets
     ];
-
-    // Add password lookup key if exists
-    if (room?.passwordLookupKey) {
-        keysToDelete.push(`password-lookup:${room.passwordLookupKey}`);
-    }
 
     // Delete all keys in parallel using DEL with multiple keys (single Redis call)
     if (keysToDelete.length > 0) {
