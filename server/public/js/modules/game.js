@@ -495,6 +495,13 @@ export function revealCardFromServer(index, serverData = {}) {
         state.gameState.guessesAllowed = serverData.guessesAllowed;
     }
 
+    // Clear clue state when a reveal causes the turn to end (wrong guess, max guesses)
+    // The server clears currentClue on turn change but the cardRevealed event only
+    // includes a turnEnded flag — no separate turnEnded event is emitted for this path.
+    if (serverData.turnEnded && !state.gameState.gameOver) {
+        state.gameState.currentClue = null;
+    }
+
     // Batch DOM updates using requestAnimationFrame for better performance
     requestAnimationFrame(() => {
         updateSingleCard(index);
