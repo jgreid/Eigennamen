@@ -409,7 +409,7 @@ async function cleanupRoom(code) {
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);
 
-    const room = await getRoom(code);
+    const _room = await getRoom(code);
 
     // Get all players in room
     const sessionIds = await redis.sMembers(`room:${code}:players`);

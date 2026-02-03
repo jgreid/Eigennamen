@@ -8,9 +8,7 @@ const {
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
-    startTimer,
-    timed,
-    withTiming
+    timed
 } = require('../utils/metrics');
 
 describe('Metrics Coverage - Histogram Overflow', () => {

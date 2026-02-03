@@ -124,7 +124,7 @@ describe('Module import/export validation', () => {
         }
 
         if (errors.length > 0) {
-            fail(`Found ${errors.length} import/export mismatch(es):\n  - ${errors.join('\n  - ')}`);
+            throw new Error(`Found ${errors.length} import/export mismatch(es):\n  - ${errors.join('\n  - ')}`);
         }
     });
 });
