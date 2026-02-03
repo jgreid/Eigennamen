@@ -18,7 +18,7 @@
  * - Lines 1399-1405: unknown transaction command
  */
 
-const { MemoryStorage, MAX_TOTAL_KEYS } = require('../config/memoryStorage');
+const { MemoryStorage } = require('../config/memoryStorage');
 
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
@@ -412,8 +412,8 @@ describe('MemoryStorage transaction edge cases', () => {
         txn._unknownCmd = true;
 
         // We need to add a command directly - use the internal approach
-        const commands = [];
-        const originalExec = txn.exec;
+        const _commands = [];
+        const _originalExec = txn.exec;
 
         // Simpler: just test that the warning path exists
         // by calling exec with an unknown command type

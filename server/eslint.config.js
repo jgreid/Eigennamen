@@ -67,6 +67,7 @@ module.exports = [
             'src/services/playerService.js',
             'src/config/redis.js',
             'src/config/database.js',
+            'src/config/memoryStorage.js',
             'src/utils/retry.js',
             'src/utils/distributedLock.js',
             'src/socket/reliableEmit.js',

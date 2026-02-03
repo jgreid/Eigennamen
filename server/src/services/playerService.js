@@ -87,7 +87,7 @@ async function updatePlayer(sessionId, updates) {
         let player;
         try {
             player = JSON.parse(playerData);
-        } catch (e) {
+        } catch {
             await redis.unwatch();
             throw new ServerError('Corrupted player data');
         }

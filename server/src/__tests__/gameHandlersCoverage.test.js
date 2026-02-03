@@ -170,7 +170,7 @@ jest.mock('../validators/schemas', () => ({
 
 // Now require the module under test
 const gameHandlers = require('../socket/handlers/gameHandlers');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../config/constants');
+const { SOCKET_EVENTS } = require('../config/constants');
 
 describe('Game Handlers Coverage', () => {
     let socket;

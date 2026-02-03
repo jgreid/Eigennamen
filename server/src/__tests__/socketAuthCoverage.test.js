@@ -37,7 +37,7 @@ jest.mock('../config/jwt', () => ({
     }
 }));
 
-let mockSessionSecurity = {
+const mockSessionSecurity = {
     MAX_SESSION_AGE_MS: 24 * 60 * 60 * 1000,
     MAX_VALIDATION_ATTEMPTS_PER_IP: 20,
     IP_MISMATCH_ALLOWED: true,
