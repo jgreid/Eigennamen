@@ -18,9 +18,6 @@ local game = cjson.decode(gameData)
 if game.gameOver then
     return cjson.encode({error = 'GAME_OVER'})
 end
-if not game.currentClue then
-    return cjson.encode({error = 'NO_CLUE'})
-end
 if game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
     return cjson.encode({error = 'NO_GUESSES'})
 end

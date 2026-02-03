@@ -14,9 +14,6 @@ export function setCardClickHandler(fn) {
 export function canClickCards() {
     if (state.gameState.gameOver) return false;
 
-    // Must wait for spymaster to give a clue before revealing cards
-    if (state.isMultiplayerMode && !state.gameState.currentClue) return false;
-
     // Clicker for the current team can always click
     if (state.clickerTeam && state.clickerTeam === state.gameState.currentTurn) {
         return true;

@@ -338,10 +338,8 @@ export function revealCard(index) {
         return;
     }
     if (!canClickCards()) {
-        // Determine specific reason (check most specific conditions first)
-        if (state.isMultiplayerMode && !state.gameState.currentClue) {
-            showToast('Wait for the spymaster to give a clue first', 'warning');
-        } else if (state.spymasterTeam) {
+        // Determine specific reason
+        if (state.spymasterTeam) {
             showToast('Spymasters cannot reveal cards', 'warning');
         } else if (state.clickerTeam && state.clickerTeam !== state.gameState.currentTurn) {
             const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;

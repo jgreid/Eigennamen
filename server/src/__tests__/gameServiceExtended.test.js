@@ -155,16 +155,9 @@ describe('validateRevealPreconditions', () => {
         }
     });
 
-    test('rejects when no clue given', () => {
+    test('allows reveal when no clue given (clue tracking removed)', () => {
         const game = createMockGame({ currentClue: null });
-        expect(() => validateRevealPreconditions(game, 0)).toThrow();
-
-        try {
-            validateRevealPreconditions(game, 0);
-        } catch (error) {
-            expect(error.code).toBe(ERROR_CODES.INVALID_INPUT);
-            expect(error.message).toContain('clue');
-        }
+        expect(() => validateRevealPreconditions(game, 0)).not.toThrow();
     });
 
     test('rejects when max guesses reached', () => {

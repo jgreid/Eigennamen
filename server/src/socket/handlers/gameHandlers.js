@@ -235,11 +235,6 @@ module.exports = function gameHandlers(io, socket) {
                 throw PlayerError.notClicker();
             }
 
-            // Cannot end turn before spymaster gives a clue
-            if (!ctx.game.currentClue) {
-                throw new GameStateError(ERROR_CODES.CLUE_NOT_GIVEN, 'Cannot end turn before a clue has been given');
-            }
-
             const result = await withTimeout(
                 gameService.endTurn(ctx.roomCode, ctx.player.nickname, ctx.player.team),
                 TIMEOUTS.GAME_ACTION,

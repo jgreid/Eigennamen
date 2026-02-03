@@ -6,7 +6,6 @@
  * - Line 111: no connected team members
  * - Lines 172-173: save game to history after game over via reveal
  * - Line 216: no team validation in endTurn
- * - Line 240: no clue given check
  * - Line 270: forfeit when no active game
  * - Lines 321-323: game:getHistory handler
  * - Lines 332-339: game:getReplay handler
@@ -284,23 +283,6 @@ describe('Game Handlers Coverage', () => {
 
             await expect(handlers[SOCKET_EVENTS.GAME_END_TURN]({}))
                 .rejects.toThrow('must join a team');
-        });
-    });
-
-    describe('game:endTurn - no clue given (line 240)', () => {
-        test('throws when no clue has been given', async () => {
-            socket._mockCtx = {
-                roomCode: 'ROOM01',
-                player: { team: 'red', role: 'clicker', sessionId: 'test', nickname: 'Test' },
-                game: { currentTurn: 'red', gameOver: false, currentClue: null }
-            };
-
-            mockPlayerService.getTeamMembers.mockResolvedValue([
-                { role: 'clicker', connected: true }
-            ]);
-
-            await expect(handlers[SOCKET_EVENTS.GAME_END_TURN]({}))
-                .rejects.toThrow('clue has been given');
         });
     });
 
