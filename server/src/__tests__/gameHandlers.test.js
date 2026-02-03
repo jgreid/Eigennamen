@@ -230,7 +230,8 @@ describe('Game Handlers', () => {
             const revealHandler = handlers.find(h => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(gameService.revealCard).toHaveBeenCalledWith('TEST12', 5, 'TestPlayer');
+            // Bug #4 fix: revealCard now takes playerTeam as 4th parameter
+            expect(gameService.revealCard).toHaveBeenCalledWith('TEST12', 5, 'TestPlayer', 'red');
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
             expect(mockIo.emit).toHaveBeenCalledWith('game:cardRevealed', expect.any(Object));
         });

@@ -275,6 +275,7 @@ module.exports = {
         NOT_SPYMASTER: 'NOT_SPYMASTER',
         NOT_CLICKER: 'NOT_CLICKER',
         NOT_YOUR_TURN: 'NOT_YOUR_TURN',
+        NO_CLUE: 'NO_CLUE',  // Bug #9 fix: Error when trying to reveal without a clue
         CARD_ALREADY_REVEALED: 'CARD_ALREADY_REVEALED',
         GAME_OVER: 'GAME_OVER',
         INVALID_INPUT: 'INVALID_INPUT',

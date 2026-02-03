@@ -26,8 +26,9 @@ if newRole == 'spymaster' or newRole == 'clicker' then
             local memberData = redis.call('GET', 'player:' .. memberId)
             if memberData then
                 local member = cjson.decode(memberData)
-                -- Check if same team and same role
-                if member.team == player.team and member.role == newRole then
+                -- Bug #5 fix: Only block if same team, same role, AND player is connected
+                -- Disconnected players should not block role assignment
+                if member.team == player.team and member.role == newRole and member.connected then
                     return cjson.encode({
                         success = false,
                         reason = 'ROLE_TAKEN',

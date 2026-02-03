@@ -596,8 +596,9 @@ function buildRevealResult(game, index, type, outcome) {
  * ISSUE #36 FIX: Optimized card reveal using Lua script
  * Performs the entire reveal operation atomically in Redis, avoiding
  * the overhead of multiple round-trips and full JSON re-serialization in Node.js
+ * Bug #4 & #9 fix: Now takes playerTeam for turn validation in Lua
  */
-async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') {
+async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown', playerTeam = '') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
@@ -615,7 +616,8 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
                         index.toString(),
                         Date.now().toString(),
                         playerNickname,
-                        MAX_HISTORY_ENTRIES.toString()
+                        MAX_HISTORY_ENTRIES.toString(),
+                        playerTeam || ''  // Bug #4 fix: Pass team for turn validation
                     ]
                 }
             ),
@@ -647,7 +649,11 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
                 'NO_GAME': { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' },
                 'GAME_OVER': { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' },
                 'NO_GUESSES': { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' },
-                'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' }
+                'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' },
+                // Bug #4 fix: Turn validation error
+                'NOT_YOUR_TURN': { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" },
+                // Bug #9 fix: No clue given error
+                'NO_CLUE': { code: ERROR_CODES.NO_CLUE, message: 'Spymaster must give a clue before revealing cards' }
             };
             const err = errorMap[result.error] || { code: ERROR_CODES.SERVER_ERROR, message: result.error };
             throw err;
@@ -674,8 +680,9 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
  *
  * ISSUE #36 FIX: Now uses optimized Lua script path with fallback to
  * original implementation if Lua evaluation fails
+ * Bug #4 fix: Now takes playerTeam for turn validation in Lua
  */
-async function revealCard(roomCode, index, playerNickname = 'Unknown') {
+async function revealCard(roomCode, index, playerNickname = 'Unknown', playerTeam = '') {
     const redis = getRedis();
     const gameKey = `room:${roomCode}:game`;
     const lockKey = `lock:reveal:${roomCode}`;
@@ -694,7 +701,7 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown') {
     try {
         // ISSUE #36 FIX: Try optimized Lua script first
         try {
-            return await revealCardOptimized(roomCode, index, playerNickname);
+            return await revealCardOptimized(roomCode, index, playerNickname, playerTeam);
         } catch (luaError) {
             // If Lua script fails due to script-specific issues, fall back to original
             // But propagate game logic errors (like GAME_OVER, CARD_ALREADY_REVEALED)

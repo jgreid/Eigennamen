@@ -3,6 +3,8 @@ local index = tonumber(ARGV[1])
 local timestamp = tonumber(ARGV[2])
 local playerNickname = ARGV[3]
 local maxHistoryEntries = tonumber(ARGV[4])
+-- Bug #4 fix: Add player team parameter for turn validation
+local playerTeam = ARGV[5]
 
 -- Preserve existing TTL so the key doesn't become permanent
 local currentTTL = redis.call('TTL', gameKey)
@@ -18,6 +20,18 @@ local game = cjson.decode(gameData)
 if game.gameOver then
     return cjson.encode({error = 'GAME_OVER'})
 end
+
+-- Bug #4 fix: Re-validate turn in Lua script (defense in depth)
+if playerTeam and playerTeam ~= '' and game.currentTurn ~= playerTeam then
+    return cjson.encode({error = 'NOT_YOUR_TURN'})
+end
+
+-- Bug #9 fix: Require a clue before revealing cards
+-- currentClue is nil/null when no clue has been given this turn
+if game.currentClue == nil or game.currentClue == cjson.null then
+    return cjson.encode({error = 'NO_CLUE'})
+end
+
 if game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
     return cjson.encode({error = 'NO_GUESSES'})
 end

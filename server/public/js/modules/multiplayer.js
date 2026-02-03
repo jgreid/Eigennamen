@@ -642,12 +642,13 @@ export function setupMultiplayerListeners() {
             if (data.sessionId === CodenamesClient.player?.sessionId) {
                 let updatedPlayer = state.multiplayerPlayers.find(p => p.sessionId === data.sessionId);
 
-                // If player not in list (edge case), add them or use CodenamesClient.player
+                // Bug #8 fix: If player not in list, construct from changes and CodenamesClient.player
                 if (!updatedPlayer) {
                     // Player might not be in multiplayerPlayers yet (e.g., just created room)
-                    // Use the updated CodenamesClient.player as fallback
-                    updatedPlayer = CodenamesClient.player;
-                    if (updatedPlayer) {
+                    // Merge CodenamesClient.player with server changes for consistency
+                    const basePlayer = CodenamesClient.player || {};
+                    updatedPlayer = { ...basePlayer, ...data.changes };
+                    if (updatedPlayer.sessionId) {
                         // Ensure the player is in the list for future updates
                         state.multiplayerPlayers = [...state.multiplayerPlayers, updatedPlayer];
                         updateMpIndicator({ code: CodenamesClient.getRoomCode() }, state.multiplayerPlayers);
@@ -671,6 +672,9 @@ export function setupMultiplayerListeners() {
                         console.log('playerUpdated: clearing isChangingRole flag');
                         state.isChangingRole = false;
                         state.changingTarget = null;
+                        // Bug #1 fix: Clear operation tracking on successful update
+                        state.roleChangeOperationId = null;
+                        state.roleChangeRevertFn = null;
                     }
 
                     updateControls();
@@ -682,7 +686,10 @@ export function setupMultiplayerListeners() {
                     console.warn('playerUpdated: current player not found in list, clearing isChangingRole');
                     state.isChangingRole = false;
                     state.changingTarget = null;
+                    // Bug #2 fix: Always clear all role change state on edge cases
                     state.pendingRoleChange = null;
+                    state.roleChangeOperationId = null;
+                    state.roleChangeRevertFn = null;
                 }
             }
         }
@@ -785,6 +792,12 @@ export function setupMultiplayerListeners() {
 
     // Disconnect handling
     CodenamesClient.on('disconnected', () => {
+        // Bug #7 fix: Reset all role change state on disconnect
+        state.isChangingRole = false;
+        state.changingTarget = null;
+        state.pendingRoleChange = null;
+        state.roleChangeOperationId = null;
+        state.roleChangeRevertFn = null;
         showToast('Disconnected from server', 'warning');
     });
 
@@ -886,7 +899,10 @@ export function setupMultiplayerListeners() {
         state.isRevealingCard = false;
         state.isChangingRole = false;
         state.changingTarget = null;
-        state.pendingRoleChange = null; // Clear pending role change on error
+        // Bug #2 fix: Clear all role change state on error
+        state.pendingRoleChange = null;
+        state.roleChangeOperationId = null;
+        state.roleChangeRevertFn = null;
         document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
         // Map technical error codes to user-friendly messages
