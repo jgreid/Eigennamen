@@ -839,15 +839,6 @@ describe('revealCardOptimized', () => {
         });
     });
 
-    test('handles NO_CLUE error from Lua script', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_CLUE' }));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.INVALID_INPUT,
-            message: 'Spymaster must give a clue before guessing'
-        });
-    });
-
     test('handles NO_GUESSES error from Lua script', async () => {
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GUESSES' }));
 

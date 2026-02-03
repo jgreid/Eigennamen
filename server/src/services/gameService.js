@@ -646,7 +646,6 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown') 
             const errorMap = {
                 'NO_GAME': { code: ERROR_CODES.ROOM_NOT_FOUND, message: 'No active game' },
                 'GAME_OVER': { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' },
-                'NO_CLUE': { code: ERROR_CODES.INVALID_INPUT, message: 'Spymaster must give a clue before guessing' },
                 'NO_GUESSES': { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' },
                 'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' }
             };
