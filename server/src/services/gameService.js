@@ -465,10 +465,6 @@ function validateRevealPreconditions(game, index) {
         throw GameStateError.gameOver();
     }
 
-    if (!game.currentClue) {
-        throw ValidationError.noClueGiven();
-    }
-
     // 0 = unlimited guesses for "0" clue
     if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
         throw ValidationError.noGuessesRemaining();

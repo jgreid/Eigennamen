@@ -52,8 +52,7 @@ export function updateControls() {
     const spectateBtn = document.getElementById('btn-spectate');
     const roleHint = document.getElementById('role-hint');
 
-    // Clicker can end turn when it's their team's turn and a clue has been given
-    const clueGiven = !!state.gameState.currentClue;
+    // Clicker can end turn when it's their team's turn
     const isActiveClicker = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
     // Also allow non-clicker team members to end turn if clicker is disconnected
     const clickerFallback = state.isMultiplayerMode && !isActiveClicker
@@ -64,7 +63,7 @@ export function updateControls() {
             );
             return !teamClicker || !teamClicker.connected;
         })();
-    const clickerCanAct = (isActiveClicker || clickerFallback) && !state.gameState.gameOver && clueGiven;
+    const clickerCanAct = (isActiveClicker || clickerFallback) && !state.gameState.gameOver;
     if (endTurnBtn) {
         endTurnBtn.disabled = !clickerCanAct;
         endTurnBtn.classList.toggle('can-act', clickerCanAct);
@@ -72,8 +71,6 @@ export function updateControls() {
         // Update tooltip/title based on state
         if (state.gameState.gameOver) {
             endTurnBtn.title = 'Game is over';
-        } else if (!clueGiven) {
-            endTurnBtn.title = 'Waiting for spymaster to give a clue';
         } else if (isActiveClicker || clickerFallback) {
             endTurnBtn.title = 'End your team\'s turn';
         } else if (state.playerTeam === state.gameState.currentTurn) {

@@ -90,9 +90,9 @@ describe('Decomposed Reveal Functions', () => {
             expect(() => validateRevealPreconditions(game, 5)).toThrow();
         });
 
-        it('should throw when no clue has been given', () => {
+        it('should allow reveal when no clue has been given (clue tracking removed)', () => {
             const game = { ...baseGame, currentClue: null };
-            expect(() => validateRevealPreconditions(game, 5)).toThrow();
+            expect(() => validateRevealPreconditions(game, 5)).not.toThrow();
         });
 
         it('should throw when no guesses remaining', () => {
