@@ -924,7 +924,6 @@ export function setupMultiplayerListeners() {
             'CANNOT_SWITCH_TEAM_DURING_TURN': 'Cannot switch teams during your active turn',
             'CANNOT_CHANGE_ROLE_DURING_TURN': 'Cannot change roles during your active turn',
             'SPYMASTER_CANNOT_CHANGE_TEAM': 'Spymasters cannot change teams during an active game',
-            'CLUE_NOT_GIVEN': 'Wait for the spymaster to give a clue first',
             'MUST_JOIN_TEAM': 'Join a team first before selecting a role',
             'ROLE_TAKEN': 'That role is already taken by another player',
             'ROOM_NOT_FOUND': 'Room not found - it may have been closed',

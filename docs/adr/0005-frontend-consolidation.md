@@ -1,31 +1,39 @@
 # ADR-0005: Frontend Consolidation Strategy
 
 **Date:** 2026-01-25
-**Status:** Accepted
+**Status:** Superseded
 **Decision Makers:** Development Team
+**Superseded By:** The consolidation was completed in 2026-02, but in the opposite direction — the `server/public/js/modules/` codebase (loaded by `index.html`) was retained as the production frontend, and `src/js/` was deleted as legacy code.
 
 ## Context
 
-The Codenames Online project has two frontend implementations:
+The Codenames Online project had two frontend implementations:
 
 1. **Monolithic Frontend** (`index.html`)
-   - 5,200+ lines of inline JavaScript
-   - 20+ global variables for state management
-   - Difficult to test in isolation
-   - Works but has maintainability concerns
+   - Originally 5,200+ lines of inline JavaScript
+   - Later refactored to modular ES6 code in `server/public/js/modules/`
+   - This became the production frontend
 
-2. **Modular Frontend** (`src/js/`)
+2. **Experimental Modular Frontend** (`src/js/`)
    - ~3,156 lines across 6 modules
    - Clean separation of concerns (state, ui, utils, constants, qrcode, main)
    - Observable state management pattern in `state.js`
    - 106 unit tests with 93%+ coverage
    - Uses ES6 modules
 
-## Decision
+## Decision (Original)
 
 **We will consolidate to the modular frontend architecture** (`src/js/`).
 
 The modular implementation is the target architecture. The monolithic `index.html` will be kept for backward compatibility during the transition but new features should be developed in the modular codebase.
+
+## Outcome (2026-02)
+
+The consolidation took a different path:
+- `index.html` was refactored to load modular code from `server/public/js/modules/`
+- The `src/js/` codebase was deleted as it was superseded by the `server/public/js/modules/` implementation
+- `index-modular.html` (which loaded `src/js/`) was deleted
+- Frontend testing is now done via E2E tests (Playwright) and server integration tests (Jest)
 
 ## Rationale
 
@@ -132,6 +140,6 @@ npm run build
 ## References
 
 - Vite Configuration: `vite.config.js`
-- Vitest Configuration: `vitest.config.js`
-- State Management: `src/js/state.js`
-- Test Files: `src/js/__tests__/`
+- Production Frontend: `server/public/js/modules/`
+- Server Tests: `server/src/__tests__/`
+- E2E Tests: `tests/` (Playwright)

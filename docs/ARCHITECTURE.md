@@ -238,18 +238,25 @@ docker-compose.yml
 
 ```
 Risley-Codenames/
-├── index.html              # Monolithic frontend (production)
-├── index-modular.html      # Modular frontend (development)
-├── src/
-│   ├── js/                 # ES6 modules (modern frontend)
-│   │   ├── main.js         # Entry point
-│   │   ├── state.js        # State management
-│   │   ├── ui.js           # DOM manipulation
-│   │   ├── socket.js       # WebSocket client
-│   │   └── multiplayer.js  # Multiplayer logic
-│   └── css/
-│       └── main.css        # Styles
+├── index.html              # Frontend entry point (modular)
 ├── server/
+│   ├── public/
+│   │   ├── js/
+│   │   │   ├── modules/    # ES6 modules (modular frontend)
+│   │   │   │   ├── app.js          # Entry point
+│   │   │   │   ├── state.js        # State management
+│   │   │   │   ├── ui.js           # UI utilities
+│   │   │   │   ├── board.js        # Board rendering
+│   │   │   │   ├── game.js         # Game logic
+│   │   │   │   ├── roles.js        # Role management
+│   │   │   │   ├── multiplayer.js  # Multiplayer logic
+│   │   │   │   └── ...
+│   │   │   └── socket-client.js    # WebSocket client wrapper
+│   │   └── css/            # Modular stylesheets
+│   │       ├── variables.css
+│   │       ├── layout.css
+│   │       ├── components.css
+│   │       └── ...
 │   ├── src/
 │   │   ├── index.js        # Server entry point
 │   │   ├── app.js          # Express configuration
