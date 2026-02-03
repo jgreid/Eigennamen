@@ -35,10 +35,17 @@ newHost.isHost = true
 newHost.lastSeen = now
 room.hostSessionId = newHostSessionId
 
--- Write all updates
+-- Write player updates with player TTL
 redis.call('SET', oldHostKey, cjson.encode(oldHost), 'EX', ttl)
 redis.call('SET', newHostKey, cjson.encode(newHost), 'EX', ttl)
-redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
+
+-- Preserve room's existing TTL instead of overwriting with player TTL
+local roomTTL = redis.call('TTL', roomKey)
+if roomTTL > 0 then
+    redis.call('SET', roomKey, cjson.encode(room), 'EX', roomTTL)
+else
+    redis.call('SET', roomKey, cjson.encode(room))
+end
 
 return cjson.encode({
     success = true,

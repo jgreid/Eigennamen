@@ -34,7 +34,8 @@ const mockRedis = {
     watch: jest.fn(),
     unwatch: jest.fn(),
     multi: jest.fn(() => mockMulti),
-    eval: jest.fn()
+    eval: jest.fn(),
+    ttl: jest.fn().mockResolvedValue(86400)
 };
 
 jest.mock('../config/redis', () => ({

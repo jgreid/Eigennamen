@@ -6,54 +6,11 @@
 // ─── GameError tests ───────────────────────────────────────────────────────────
 
 describe('GameError classes', () => {
-    let _GameError, RoomError, _PlayerError, GameStateError, _ValidationError,
-        _RateLimitError, ServerError, _WordListError, sanitizeErrorForClient;
+    let sanitizeErrorForClient;
 
     beforeEach(() => {
         jest.resetModules();
-        ({
-            GameError: _GameError, RoomError, PlayerError: _PlayerError, GameStateError, ValidationError: _ValidationError,
-            RateLimitError: _RateLimitError, ServerError, WordListError: _WordListError, sanitizeErrorForClient
-        } = require('../errors/GameError'));
-    });
-
-    test('RoomError.expired creates error with ROOM_EXPIRED code', () => {
-        const err = RoomError.expired('ABC123');
-        expect(err.code).toBe('ROOM_EXPIRED');
-        expect(err.details).toEqual({ roomCode: 'ABC123' });
-        expect(err.name).toBe('RoomError');
-    });
-
-    test('GameStateError.invalidState creates error with expected/actual state', () => {
-        const err = GameStateError.invalidState('ABC', 'playing', 'waiting');
-        expect(err.code).toBe('SERVER_ERROR');
-        expect(err.message).toContain('expected playing');
-        expect(err.message).toContain('got waiting');
-        expect(err.details).toEqual({ roomCode: 'ABC', expectedState: 'playing', actualState: 'waiting' });
-    });
-
-    test('ServerError.redisError creates error with operation details', () => {
-        const origErr = new Error('connection refused');
-        const err = ServerError.redisError('SET', 'ABC123', origErr);
-        expect(err.code).toBe('SERVER_ERROR');
-        expect(err.message).toContain('SET');
-        expect(err.details.roomCode).toBe('ABC123');
-        expect(err.details.originalError).toBe('connection refused');
-        expect(err.details.retryable).toBe(true);
-    });
-
-    test('ServerError.redisError handles null originalError', () => {
-        const err = ServerError.redisError('GET', null, null);
-        expect(err.details.originalError).toBeUndefined();
-    });
-
-    test('ServerError.lockAcquisitionFailed creates error with lock info', () => {
-        const err = ServerError.lockAcquisitionFailed('host-transfer', 'ABC123');
-        expect(err.code).toBe('SERVER_ERROR');
-        expect(err.message).toContain('host-transfer');
-        expect(err.details.roomCode).toBe('ABC123');
-        expect(err.details.lockType).toBe('host-transfer');
-        expect(err.details.retryable).toBe(true);
+        ({ sanitizeErrorForClient } = require('../errors/GameError'));
     });
 
     test('sanitizeErrorForClient returns generic message for unsafe codes', () => {

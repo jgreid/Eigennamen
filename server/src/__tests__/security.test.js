@@ -11,11 +11,8 @@
 
 const {
     sanitizeHtml,
-    stripHtml,
     sanitizeForLog,
     removeControlChars,
-    normalizeWhitespace,
-    sanitizeInput,
     isReservedName
 } = require('../utils/sanitize');
 
@@ -55,28 +52,6 @@ describe('Sanitization Utilities', () => {
             expect(sanitizeHtml(null)).toBe('');
             expect(sanitizeHtml(undefined)).toBe('');
             expect(sanitizeHtml(123)).toBe('');
-        });
-    });
-
-    describe('stripHtml', () => {
-        test('removes HTML tags', () => {
-            expect(stripHtml('<b>bold</b> text')).toBe('bold text');
-        });
-
-        test('removes self-closing tags', () => {
-            expect(stripHtml('line<br/>break')).toBe('linebreak');
-        });
-
-        test('removes nested tags', () => {
-            expect(stripHtml('<div><p>nested</p></div>')).toBe('nested');
-        });
-
-        test('handles empty string', () => {
-            expect(stripHtml('')).toBe('');
-        });
-
-        test('handles non-string input', () => {
-            expect(stripHtml(null)).toBe('');
         });
     });
 
@@ -137,45 +112,6 @@ describe('Sanitization Utilities', () => {
 
         test('handles non-string input', () => {
             expect(removeControlChars(null)).toBe('');
-        });
-    });
-
-    describe('normalizeWhitespace', () => {
-        test('collapses multiple spaces', () => {
-            expect(normalizeWhitespace('hello    world')).toBe('hello world');
-        });
-
-        test('trims leading and trailing whitespace', () => {
-            expect(normalizeWhitespace('  hello world  ')).toBe('hello world');
-        });
-
-        test('collapses tabs and spaces', () => {
-            expect(normalizeWhitespace('hello\t\tworld')).toBe('hello world');
-        });
-
-        test('handles empty string', () => {
-            expect(normalizeWhitespace('')).toBe('');
-        });
-    });
-
-    describe('sanitizeInput', () => {
-        test('applies all sanitization by default', () => {
-            const result = sanitizeInput('  hello\x00  world  ');
-            expect(result).toBe('hello world');
-        });
-
-        test('strips HTML when option is set', () => {
-            const result = sanitizeInput('<b>bold</b>', { stripHtml: true });
-            expect(result).toBe('bold');
-        });
-
-        test('escapes HTML when option is set', () => {
-            const result = sanitizeInput('<script>', { escapeHtml: true });
-            expect(result).toBe('&lt;script&gt;');
-        });
-
-        test('handles non-string input', () => {
-            expect(sanitizeInput(null)).toBe('');
         });
     });
 

@@ -405,13 +405,6 @@ function initializeTimerService(callback) {
     return true;
 }
 
-/**
- * Get the registered global expire callback.
- */
-function getExpireCallback() {
-    return globalExpireCallback;
-}
-
 module.exports = {
     startTimer,
     stopTimer,
@@ -421,6 +414,5 @@ module.exports = {
     addTime,
     hasActiveTimer,
     cleanupAllTimers,
-    initializeTimerService,
-    getExpireCallback
+    initializeTimerService
 };

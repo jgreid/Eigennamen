@@ -455,6 +455,10 @@ async function handleDisconnect(io, socket, reason) {
                 reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
             });
 
+            // Broadcast updated stats so clients reflect the disconnection
+            const roomStats = await playerService.getRoomStats(roomCode, updatedPlayers);
+            io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+
             // Log disconnection event
             try {
                 await eventLogService.logEvent(roomCode, 'PLAYER_DISCONNECTED', {

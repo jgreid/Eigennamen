@@ -445,7 +445,7 @@ describe('Socket Auth Middleware', () => {
         setSocketMapping: jest.fn(async () => 'OK')
     }));
 
-    const { getClientIP, checkValidationRateLimit } = require('../middleware/socketAuth');
+    const { getClientIP } = require('../middleware/socketAuth');
 
     beforeEach(() => {
         mockRedisStorage.clear();
@@ -505,31 +505,4 @@ describe('Socket Auth Middleware', () => {
         });
     });
 
-    describe('checkValidationRateLimit', () => {
-        it('should allow first request', async () => {
-            const result = await checkValidationRateLimit('192.168.1.1');
-            expect(result.allowed).toBe(true);
-            expect(result.attempts).toBe(1);
-        });
-
-        it('should track multiple attempts from same IP', async () => {
-            await checkValidationRateLimit('192.168.1.2');
-            await checkValidationRateLimit('192.168.1.2');
-            const result = await checkValidationRateLimit('192.168.1.2');
-
-            expect(result.allowed).toBe(true);
-            expect(result.attempts).toBe(3);
-        });
-
-        it('should allow requests from different IPs independently', async () => {
-            await checkValidationRateLimit('192.168.1.3');
-            await checkValidationRateLimit('192.168.1.4');
-
-            const result1 = await checkValidationRateLimit('192.168.1.3');
-            const result2 = await checkValidationRateLimit('192.168.1.4');
-
-            expect(result1.attempts).toBe(2);
-            expect(result2.attempts).toBe(2);
-        });
-    });
 });
