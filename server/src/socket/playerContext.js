@@ -146,9 +146,12 @@ async function getPlayerContext(socket, options = {}) {
  * Check if a player can change their team/role during an active game.
  *
  * @param {Object} ctx - The player context
+ * @param {Object} options
+ * @param {boolean} options.isTeamChange - Whether this is a team change (default: false)
+ * @param {string|null} options.targetRole - The role being changed to (for role changes)
  * @returns {{allowed: boolean, reason?: string}}
  */
-function canChangeTeamOrRole(ctx, { isTeamChange = false } = {}) {
+function canChangeTeamOrRole(ctx, { isTeamChange = false, targetRole = null } = {}) {
     const { player, game } = ctx;
 
     if (!game || game.gameOver) {
@@ -166,6 +169,11 @@ function canChangeTeamOrRole(ctx, { isTeamChange = false } = {}) {
 
     if (player.role === 'spymaster' || player.role === 'clicker') {
         if (game.currentTurn === player.team) {
+            // Allow switching between active roles on the same team (clicker <-> spymaster)
+            // Only block leaving to spectator or changing teams
+            if (!isTeamChange && targetRole && targetRole !== 'spectator') {
+                return { allowed: true };
+            }
             return {
                 allowed: false,
                 reason: `Cannot change while you are the active ${player.role} during your team's turn`

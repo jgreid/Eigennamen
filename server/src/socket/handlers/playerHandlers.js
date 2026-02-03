@@ -72,7 +72,7 @@ module.exports = function playerHandlers(io, socket) {
         async (ctx, validated) => {
             // Skip validation if player already has the requested role (idempotent)
             if (ctx.player.role !== validated.role) {
-                const canChange = canChangeTeamOrRole(ctx);
+                const canChange = canChangeTeamOrRole(ctx, { targetRole: validated.role });
                 if (!canChange.allowed) {
                     throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
                 }
