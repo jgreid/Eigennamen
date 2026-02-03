@@ -39,7 +39,10 @@ async function createPlayer(sessionId, roomCode, nickname, isHost = false, addTo
 
     // Add to room's player list if requested
     if (addToSet) {
-        await redis.sAdd(`room:${roomCode}:players`, sessionId);
+        const playersKey = `room:${roomCode}:players`;
+        await redis.sAdd(playersKey, sessionId);
+        // Ensure the players set has a TTL matching the room
+        await redis.expire(playersKey, REDIS_TTL.ROOM);
     }
 
     logger.info(`Player ${nickname} (${sessionId}) created in room ${roomCode}${addToSet ? '' : ' (data only)'}`);

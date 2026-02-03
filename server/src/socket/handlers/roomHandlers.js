@@ -154,6 +154,10 @@ module.exports = function roomHandlers(io, socket) {
                 players: remainingPlayers || []
             });
 
+            // Broadcast updated stats so clients reflect the player departure
+            const roomStats = await playerService.getRoomStats(ctx.roomCode, remainingPlayers);
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+
             logger.info(`Player ${ctx.sessionId} left room ${ctx.roomCode}`);
             socket.roomCode = null;
         }

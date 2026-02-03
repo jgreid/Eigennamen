@@ -43,9 +43,8 @@ end
 -- Set TTL on the room
 redis.call('EXPIRE', roomKey, ttl)
 
--- Initialize empty players set with same TTL
+-- Clean up any stale players set from a previous room with the same code
 redis.call('DEL', playersKey)
-redis.call('EXPIRE', playersKey, ttl)
 
 return 1
 `;

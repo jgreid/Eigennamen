@@ -86,7 +86,8 @@ jest.mock('../services/playerService', () => ({
     updatePlayer: jest.fn().mockResolvedValue(),
     generateReconnectionToken: jest.fn().mockResolvedValue('test-token-123'),
     // Added for atomic host transfer
-    atomicHostTransfer: jest.fn().mockResolvedValue({ success: true, oldHost: {}, newHost: {} })
+    atomicHostTransfer: jest.fn().mockResolvedValue({ success: true, oldHost: {}, newHost: {} }),
+    getRoomStats: jest.fn().mockResolvedValue({ totalPlayers: 0, spectatorCount: 0, teams: { red: { total: 0 }, blue: { total: 0 } } })
 }));
 
 jest.mock('../services/eventLogService', () => ({
