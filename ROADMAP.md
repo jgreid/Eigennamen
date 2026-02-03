@@ -1,7 +1,7 @@
 # Roadmap - Codenames Online
 
-**Last Updated:** January 29, 2026
-**Project Version:** v2.3.0
+**Last Updated:** February 3, 2026
+**Project Version:** v2.4.0
 
 ---
 
@@ -9,11 +9,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Backend Test Coverage | 91%+ (statements/lines/functions) |
-| Backend Tests | 2,345+ passing |
-| Frontend Tests | 106 passing |
+| Backend Test Coverage | 94%+ |
+| Backend Tests | 2,600+ passing |
 | E2E Tests | 53 passing |
-| Critical Issues | 0 remaining |
+| Critical Issues | 0 |
 | Code Quality | Production-ready |
 
 ### Completed Features
@@ -22,49 +21,19 @@
 - Custom word lists with database persistence
 - Turn timer with pause/resume
 - Team chat with filtering
-- Spectator mode
+- Spectator mode with role selection
 - QR code room sharing
 - Reconnection with token-based authentication
 - Full state recovery on reconnect
 - Comprehensive security hardening (JWT, rate limiting, CSRF, XSS prevention)
 - Performance monitoring (request timing, memory alerts)
-
-### Code Review Status
-- **74 issues identified** in comprehensive code review
-- **65 implemented** (88%)
-- **5 partially implemented** (7%)
-- **0 critical/high issues remaining**
-
----
-
-## Completed Sprints
-
-| Sprint | Focus | Status |
-|--------|-------|--------|
-| Sprint 19 | Security hardening, documentation, performance monitoring | Completed |
-| Sprint 18 | Quick wins, test coverage | Completed |
-| Sprint 17 | E2E tests, architecture | Completed |
-| Sprint 16 | Improvements | Completed |
-| Sprint 15 | Reliability, security | Completed |
-| Sprint 14 | Performance, consolidation | Completed |
-| Sprint 13 | Mobile UI improvements | Completed |
+- Modular ES6 frontend (`server/public/js/modules/`)
 
 ---
 
 ## Remaining Work
 
-### Phase 1: Frontend Modernization
-
-The modular frontend (`server/public/js/`) coexists with the monolithic `index.html` (see [ADR-005](docs/adr/0005-frontend-consolidation.md)). Both implementations work; the modular version is the target architecture.
-
-| Task | Priority |
-|------|----------|
-| Add multiplayer panel HTML to modular frontend | High |
-| Wire up all multiplayer socket events in modules | High |
-| Verify feature parity between monolithic and modular | Medium |
-| Remove monolithic inline JS once modular is verified | Low |
-
-### Phase 2: Internationalization
+### Phase 1: Internationalization
 
 | Task | Priority |
 |------|----------|
@@ -126,22 +95,12 @@ The modular frontend (`server/public/js/`) coexists with the monolithic `index.h
 
 | Issue | Current State | Target |
 |-------|---------------|--------|
-| JSON Serialization | ~2ms per reveal | <0.5ms with selective updates |
-| Player Fetching | O(N) Redis calls | MGET batch fetching |
 | Full board re-render | Complete DOM replacement | Incremental updates |
-
-### Code Quality
-
-- **Function decomposition**: `revealCard()` (157 lines), `giveClue()` (103 lines), `createGame()` (115 lines) should be broken into phases
-- **Socket event constants**: Create `SOCKET_EVENTS` enum for all event names
-- **Error handling**: Standardize on `GameError` class across all services
 
 ### Security Enhancements (Low Priority)
 
-- Session binding to IP/fingerprint
 - WebAuthn support for persistent accounts
 - Subresource Integrity (SRI) for CDN assets
-- Security event logging and alerting
 
 ---
 

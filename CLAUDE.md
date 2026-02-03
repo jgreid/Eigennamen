@@ -38,12 +38,17 @@ cd server && npm run db:studio     # Visual database editor
 
 ```
 Risley-Codenames/
-├── index.html              # Frontend SPA (~8,000 lines, vanilla JS)
+├── index.html              # Frontend entry point (loads modular JS)
 ├── wordlist.txt            # Default word list
 ├── docker-compose.yml      # Multi-service Docker setup
 ├── fly.toml                # Fly.io deployment config
 ├── docs/                   # Additional documentation
 └── server/                 # Node.js backend
+    ├── public/
+    │   ├── js/
+    │   │   ├── modules/    # ES6 modular frontend (~4,800 lines)
+    │   │   └── socket-client.js
+    │   └── css/            # Modular stylesheets
     ├── src/
     │   ├── index.js        # Entry point - server initialization
     │   ├── app.js          # Express configuration
@@ -235,7 +240,7 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 1. Add Zod schema in `server/src/validators/schemas.js`
 2. Create handler in appropriate `server/src/socket/handlers/*.js` file
 3. Register handler in `server/src/socket/index.js`
-4. Add corresponding client handling in `index.html`
+4. Add client handling in `server/public/js/modules/multiplayer.js`
 
 ### Adding a New REST Endpoint
 1. Add route in `server/src/routes/` (or create new route file)
@@ -246,7 +251,7 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 ### Modifying Game Rules
 1. Update constants in `server/src/config/constants.js`
 2. Modify logic in `server/src/services/gameService.js`
-3. Update client logic in `index.html` if needed
+3. Update client logic in `server/public/js/modules/game.js` if needed
 4. Add/update tests in `server/src/__tests__/`
 
 ### Adding Database Models
@@ -258,7 +263,8 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 
 | File | Why It Matters |
 |------|----------------|
-| `index.html` | Entire frontend in one file |
+| `index.html` | Frontend entry point |
+| `server/public/js/modules/` | ES6 modular frontend code |
 | `server/src/config/constants.js` | Game rules, rate limits, error codes |
 | `server/src/services/gameService.js` | Core game logic and PRNG |
 | `server/src/socket/index.js` | Socket.io setup and event registration |
