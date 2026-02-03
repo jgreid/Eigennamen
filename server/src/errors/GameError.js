@@ -213,12 +213,6 @@ class ValidationError extends GameError {
         );
     }
 
-    static noClueGiven() {
-        return new ValidationError(
-            'Spymaster must give a clue before guessing'
-        );
-    }
-
     static invalidClue(reason) {
         return new ValidationError(reason);
     }
@@ -299,7 +293,7 @@ const SAFE_ERROR_CODES = [
     'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
     'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR',
     'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN',
-    'SPYMASTER_CANNOT_CHANGE_TEAM', 'CLUE_NOT_GIVEN',
+    'SPYMASTER_CANNOT_CHANGE_TEAM',
     'GAME_NOT_STARTED'
 ];
 
