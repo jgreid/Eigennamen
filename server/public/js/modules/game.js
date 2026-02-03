@@ -338,8 +338,10 @@ export function revealCard(index) {
         return;
     }
     if (!canClickCards()) {
-        // Determine specific reason
-        if (state.spymasterTeam) {
+        // Determine specific reason (check most specific conditions first)
+        if (state.isMultiplayerMode && !state.gameState.currentClue) {
+            showToast('Wait for the spymaster to give a clue first', 'warning');
+        } else if (state.spymasterTeam) {
             showToast('Spymasters cannot reveal cards', 'warning');
         } else if (state.clickerTeam && state.clickerTeam !== state.gameState.currentTurn) {
             const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
@@ -352,12 +354,6 @@ export function revealCard(index) {
         } else {
             showToast('Only the clicker can reveal cards', 'warning');
         }
-        return;
-    }
-
-    // Check if spymaster has given a clue before allowing guesses
-    if (state.isMultiplayerMode && !state.gameState.currentClue) {
-        showToast('Wait for the spymaster to give a clue first', 'warning');
         return;
     }
 
@@ -497,6 +493,13 @@ export function revealCardFromServer(index, serverData = {}) {
     }
     if (typeof serverData.guessesAllowed === 'number') {
         state.gameState.guessesAllowed = serverData.guessesAllowed;
+    }
+
+    // Clear clue state when a reveal causes the turn to end (wrong guess, max guesses)
+    // The server clears currentClue on turn change but the cardRevealed event only
+    // includes a turnEnded flag — no separate turnEnded event is emitted for this path.
+    if (serverData.turnEnded && !state.gameState.gameOver) {
+        state.gameState.currentClue = null;
     }
 
     // Batch DOM updates using requestAnimationFrame for better performance
