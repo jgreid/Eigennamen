@@ -39,33 +39,23 @@ const { sanitizeErrorForClient } = require('../errors/GameError');
  */
 function createContextHandler(socket, eventName, schema, contextOptions, handler) {
     return createRateLimitedHandler(socket, eventName, async (data) => {
-        try {
-            const validated = schema ? validateInput(schema, data) : (data || {});
-            const ctx = await getPlayerContext(socket, contextOptions);
+        const validated = schema ? validateInput(schema, data) : (data || {});
+        const ctx = await getPlayerContext(socket, contextOptions);
 
-            // Snapshot previous player state before handler modifies it
-            const previousPlayer = ctx.player ? { ...ctx.player } : null;
+        // Snapshot previous player state before handler modifies it
+        const previousPlayer = ctx.player ? { ...ctx.player } : null;
 
-            const result = await handler(ctx, validated);
+        const result = await handler(ctx, validated);
 
-            // Sync socket rooms if handler returned updated player
-            if (result && result.player) {
-                syncSocketRooms(socket, result.player, previousPlayer);
-            }
-
-            return result;
-        } catch (error) {
-            const errorEvent = `${eventName.split(':')[0]}:error`;
-
-            logger.error(`Error in ${eventName}:`, {
-                error: error.message,
-                code: error.code,
-                sessionId: socket.sessionId,
-                roomCode: socket.roomCode
-            });
-
-            socket.emit(errorEvent, sanitizeErrorForClient(error));
+        // Sync socket rooms if handler returned updated player
+        if (result && result.player) {
+            syncSocketRooms(socket, result.player, previousPlayer);
         }
+
+        return result;
+        // Bug #11 fix: Errors are no longer caught here - they propagate to rateLimitHandler
+        // which emits the error event and sends ACK with { error: true }
+        // Previously errors were caught and error event emitted, but ACK returned { ok: true }
     });
 }
 
@@ -103,20 +93,9 @@ function createGameHandler(socket, eventName, schema, handler) {
  */
 function createPreRoomHandler(socket, eventName, schema, handler) {
     return createRateLimitedHandler(socket, eventName, async (data) => {
-        try {
-            const validated = schema ? validateInput(schema, data) : (data || {});
-            await handler(validated);
-        } catch (error) {
-            const errorEvent = `${eventName.split(':')[0]}:error`;
-
-            logger.error(`Error in ${eventName}:`, {
-                error: error.message,
-                code: error.code,
-                sessionId: socket.sessionId
-            });
-
-            socket.emit(errorEvent, sanitizeErrorForClient(error));
-        }
+        const validated = schema ? validateInput(schema, data) : (data || {});
+        await handler(validated);
+        // Bug #11 fix: Errors propagate to rateLimitHandler for consistent error handling
     });
 }
 

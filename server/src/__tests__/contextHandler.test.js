@@ -7,7 +7,9 @@
 
 jest.mock('../socket/playerContext');
 jest.mock('../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: jest.fn((socket, event, handler) => handler)
+    // Bug #11 fix: Updated mock to simulate real rateLimitHandler behavior
+    // Real rateLimitHandler catches errors from handler and emits error events + ACK
+    createRateLimitedHandler: jest.fn()
 }));
 jest.mock('../middleware/validation', () => ({
     validateInput: jest.fn((schema, data) => data)
@@ -53,8 +55,25 @@ describe('contextHandler', () => {
             join: jest.fn(),
             leave: jest.fn()
         };
-        // Default: rate limiter passes through
-        createRateLimitedHandler.mockImplementation((socket, event, handler) => handler);
+        // Bug #11 fix: Mock rateLimitHandler to simulate real behavior
+        // Real rateLimitHandler catches errors from handler and emits error events + ACK
+        const SAFE_CODES = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
+        createRateLimitedHandler.mockImplementation((socket, eventName, handler) => {
+            return async (data) => {
+                try {
+                    return await handler(data);
+                } catch (error) {
+                    const errorEvent = `${eventName.split(':')[0]}:error`;
+                    const code = error.code || 'SERVER_ERROR';
+                    const isSafe = SAFE_CODES.includes(code);
+                    socket.emit(errorEvent, {
+                        code,
+                        message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+                    });
+                    // In real code, this would also call ackCallback({ error: true })
+                }
+            };
+        });
         syncSocketRooms.mockImplementation(() => {});
     });
 
@@ -146,9 +165,13 @@ describe('contextHandler', () => {
             );
             await wrappedFn({});
 
+            // Bug #11 fix: Error event is now emitted by rateLimitHandler mock
             // Error event should use the prefix of the event name
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.any(Object));
-            expect(sanitizeErrorForClient).toHaveBeenCalledWith(error);
+            // SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                code: 'SERVER_ERROR',
+                message: 'An unexpected error occurred'
+            }));
         });
 
         it('emits error on context validation failure', async () => {
@@ -164,8 +187,10 @@ describe('contextHandler', () => {
             await wrappedFn({});
 
             expect(handler).not.toHaveBeenCalled();
+            // Bug #11 fix: Error event is now emitted by rateLimitHandler mock
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'ROOM_NOT_FOUND'
+                code: 'ROOM_NOT_FOUND',
+                message: 'You must be in a room'
             }));
         });
 

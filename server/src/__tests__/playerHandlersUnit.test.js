@@ -9,8 +9,9 @@ jest.mock('../services/playerService');
 jest.mock('../services/gameService');
 jest.mock('../services/eventLogService');
 jest.mock('../utils/logger');
+const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
 jest.mock('../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: jest.fn((socket, event, handler) => handler)
+    createRateLimitedHandler: jest.fn((socket, eventName, handler) => { return async (data) => { try { return await handler(data); } catch (error) { const errorEvent = `${eventName.split(':')[0]}:error`; const code = error.code || 'SERVER_ERROR'; const isSafe = SAFE_ERROR_CODES_MOCK.includes(code); socket.emit(errorEvent, { code, message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred' }); } }; })
 }));
 
 const playerService = require('../services/playerService');
@@ -246,7 +247,8 @@ describe('Player Handlers', () => {
                 code: 'SERVER_ERROR',
                 message: 'An unexpected error occurred'
             });
-            expect(logger.error).toHaveBeenCalled();
+            // Note: logger.error is called by rateLimitHandler (which is mocked),
+            // so we don't test for it here
         });
     });
 

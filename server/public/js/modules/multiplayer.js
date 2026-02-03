@@ -895,6 +895,12 @@ export function setupMultiplayerListeners() {
         // Log full error details for debugging
         console.error('Multiplayer error:', JSON.stringify(error, null, 2));
 
+        // Bug #12 fix: Call revert function BEFORE clearing state to undo optimistic updates
+        if (state.roleChangeRevertFn) {
+            console.log('Multiplayer error: reverting optimistic UI update');
+            state.roleChangeRevertFn();
+        }
+
         // Clear any in-progress flags
         state.isRevealingCard = false;
         state.isChangingRole = false;
