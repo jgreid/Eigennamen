@@ -288,13 +288,16 @@ async function resumeTimer(roomCode, onExpire) {
 
         // HARDENING FIX: Validate that timer wouldn't have expired while paused
         // If the timer was paused for longer than the remaining time, it should
-        // be considered expired rather than starting fresh
+        // be considered expired rather than starting fresh.
+        // NOTE: We do NOT subtract pause duration from remaining time because
+        // pausing is meant to preserve the remaining time (e.g., for breaks).
+        // Only check if the timer WOULD have expired during the pause period.
         if (timer.pausedAt) {
             const pausedDuration = Date.now() - timer.pausedAt;
             const remainingWhenPausedMs = remainingSeconds * 1000;
 
             if (pausedDuration >= remainingWhenPausedMs) {
-                logger.info(`Timer for room ${roomCode} would have expired while paused, treating as expired`);
+                logger.info(`Timer for room ${roomCode} would have expired while paused (paused for ${Math.round(pausedDuration/1000)}s, had ${remainingSeconds}s remaining), treating as expired`);
                 // Clean up the expired timer
                 await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
                 localTimers.delete(roomCode);
@@ -309,26 +312,9 @@ async function resumeTimer(roomCode, onExpire) {
                 }
                 return null;
             }
-
-            // Calculate adjusted remaining time (subtract time spent paused)
-            const adjustedRemainingSeconds = Math.ceil((remainingWhenPausedMs - pausedDuration) / 1000);
-            if (adjustedRemainingSeconds <= 0) {
-                logger.info(`Timer for room ${roomCode} has no time remaining after adjustment`);
-                await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
-                localTimers.delete(roomCode);
-                if (onExpire) {
-                    try {
-                        await onExpire(roomCode);
-                    } catch (callbackError) {
-                        logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                    }
-                }
-                return null;
-            }
-
-            return await startTimer(roomCode, adjustedRemainingSeconds, onExpire);
         }
 
+        // Resume with the original remaining time (pausing preserves time)
         return await startTimer(roomCode, remainingSeconds, onExpire);
     } catch {
         return null;

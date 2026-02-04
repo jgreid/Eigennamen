@@ -107,6 +107,16 @@ async function saveGameResult(roomCode, gameData) {
         return null;
     }
 
+    // HARDENING FIX: Validate game data before saving
+    const validation = validateGameData(gameData);
+    if (!validation.valid) {
+        logger.error('Invalid game data, refusing to save to history', {
+            roomCode,
+            errors: validation.errors
+        });
+        return null;
+    }
+
     // Generate a unique history ID if game doesn't have one
     const historyId = gameData.id || uuidv4();
     const timestamp = Date.now();
@@ -534,6 +544,8 @@ module.exports = {
     getReplayEvents,
     cleanupOldHistory,
     getHistoryStats,
+    // HARDENING FIX: Export validation function for testing
+    validateGameData,
     // Constants for testing
     GAME_HISTORY_TTL,
     MAX_HISTORY_PER_ROOM
