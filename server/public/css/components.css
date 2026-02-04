@@ -641,6 +641,93 @@ button:focus-visible,
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* ========== COLORBLIND-FRIENDLY PATTERNS ========== */
+/* PHASE 2 FIX: Add subtle patterns to revealed cards for colorblind accessibility
+   These patterns provide additional visual cues beyond color alone */
+
+/* Diagonal stripes for red cards */
+.card.revealed.red::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 8px,
+        rgba(255, 255, 255, 0.08) 8px,
+        rgba(255, 255, 255, 0.08) 16px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Dots pattern for blue cards */
+.card.revealed.blue::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(
+        circle at 8px 8px,
+        rgba(255, 255, 255, 0.1) 2px,
+        transparent 2px
+    );
+    background-size: 16px 16px;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Horizontal lines for neutral cards */
+.card.revealed.neutral::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 6px,
+        rgba(0, 0, 0, 0.06) 6px,
+        rgba(0, 0, 0, 0.06) 12px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Crosshatch pattern for assassin */
+.card.revealed.assassin::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 4px,
+            rgba(255, 255, 255, 0.05) 4px,
+            rgba(255, 255, 255, 0.05) 8px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 4px,
+            rgba(255, 255, 255, 0.05) 4px,
+            rgba(255, 255, 255, 0.05) 8px
+        );
+    pointer-events: none;
+    border-radius: inherit;
+}
+
 /* ========== CARD LOADING STATE ========== */
 .card.revealing {
     position: relative;

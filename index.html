@@ -84,10 +84,11 @@
             </div>
 
             <!-- Timer countdown display -->
-            <div class="timer-display" id="timer-display" role="timer" aria-live="polite">
+            <!-- PHASE 2 FIX: Moved aria-live to timer-value where text actually changes -->
+            <div class="timer-display" id="timer-display" role="timer">
                 <span class="timer-icon" aria-hidden="true">⏱️</span>
-                <span class="timer-value" id="timer-value">--:--</span>
-                <span class="timer-label">remaining</span>
+                <span class="timer-value" id="timer-value" aria-live="polite" aria-atomic="true">--:--</span>
+                <span class="timer-label" aria-hidden="true">remaining</span>
             </div>
 
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">

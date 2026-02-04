@@ -9,6 +9,8 @@ import { revealCardFromServer, showGameOver, updateScoreboard, updateTurnIndicat
 import { updateRoleBanner, updateControls } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
+// PHASE 2 FIX: Import shared constants for validation
+import { VALIDATION, validateNickname, validateRoomCode } from './constants.js';
 
 export function openMultiplayer() {
     // Pre-fill nickname from storage
@@ -117,13 +119,10 @@ async function handleJoinGame() {
     const urlRoomCode = getRoomCodeFromURL();
     const joinBtn = document.getElementById('btn-mp-action');
 
-    // Nickname validation (matches server VALIDATION.NICKNAME_MAX_LENGTH = 30)
-    if (!nickname) {
-        setFieldError('Please enter your nickname', 'join-nickname-error');
-        return;
-    }
-    if (nickname.length > 30) {
-        setFieldError('Nickname must be 30 characters or less', 'join-nickname-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const nicknameValidation = validateNickname(nickname);
+    if (!nicknameValidation.valid) {
+        setFieldError(nicknameValidation.error, 'join-nickname-error');
         return;
     }
     if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
@@ -134,22 +133,10 @@ async function handleJoinGame() {
     // Use user input if provided, otherwise fall back to URL room code
     const roomId = roomIdInput || urlRoomCode;
 
-    if (!roomId) {
-        setFieldError('Please enter a Room ID', 'join-error');
-        return;
-    }
-
-    // Validate room ID format (3-20 chars, alphanumeric + hyphens + underscores)
-    if (roomId.length < 3) {
-        setFieldError('Room ID must be at least 3 characters', 'join-error');
-        return;
-    }
-    if (roomId.length > 20) {
-        setFieldError('Room ID must be 20 characters or less', 'join-error');
-        return;
-    }
-    if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
-        setFieldError('Room ID can only contain letters, numbers, hyphens, and underscores', 'join-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const roomValidation = validateRoomCode(roomId);
+    if (!roomValidation.valid) {
+        setFieldError(roomValidation.error, 'join-error');
         return;
     }
 
@@ -199,13 +186,10 @@ async function handleCreateGame() {
     const roomId = document.getElementById('create-room-id').value.trim();
     const createBtn = document.getElementById('btn-mp-action');
 
-    // Nickname validation (matches server VALIDATION.NICKNAME_MAX_LENGTH = 30)
-    if (!nickname) {
-        setFieldError('Please enter your nickname', 'create-nickname-error');
-        return;
-    }
-    if (nickname.length > 30) {
-        setFieldError('Nickname must be 30 characters or less', 'create-nickname-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const nicknameValidation = validateNickname(nickname);
+    if (!nicknameValidation.valid) {
+        setFieldError(nicknameValidation.error, 'create-nickname-error');
         return;
     }
     if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
@@ -213,21 +197,10 @@ async function handleCreateGame() {
         return;
     }
 
-    // Room ID validation
-    if (!roomId) {
-        setFieldError('Please enter a Room ID', 'create-error');
-        return;
-    }
-    if (roomId.length < 3) {
-        setFieldError('Room ID must be at least 3 characters', 'create-error');
-        return;
-    }
-    if (roomId.length > 20) {
-        setFieldError('Room ID must be 20 characters or less', 'create-error');
-        return;
-    }
-    if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
-        setFieldError('Room ID can only contain letters, numbers, hyphens, and underscores', 'create-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const roomValidation = validateRoomCode(roomId);
+    if (!roomValidation.valid) {
+        setFieldError(roomValidation.error, 'create-error');
         return;
     }
 
@@ -1185,8 +1158,9 @@ export function clearRoomCodeFromURL() {
  */
 export function checkURLForRoomJoin() {
     const roomCode = getRoomCodeFromURL();
-    // Room IDs are 3-20 characters, alphanumeric with hyphens and underscores
-    if (roomCode && roomCode.length >= 3 && roomCode.length <= 20 && /^[a-zA-Z0-9\-_]+$/.test(roomCode)) {
+    // PHASE 2 FIX: Use shared validation from constants.js
+    const roomValidation = validateRoomCode(roomCode);
+    if (roomCode && roomValidation.valid) {
         // Pre-fill nickname from storage
         const storedNickname = safeGetItem('codenames-nickname', '');
         document.getElementById('join-nickname').value = storedNickname;

@@ -100,16 +100,35 @@ function getModalCloseHandler(modalId) {
     return modalCloseHandlers.get(modalId);
 }
 
+// ========== MODAL STACK ==========
+// PHASE 2 FIX: Implement modal stack for proper focus management when stacking modals
+// Each entry contains: { modal, previousFocus }
+const modalStack = [];
+
+/**
+ * Get the current modal stack depth (for debugging/testing)
+ * @returns {number} Number of modals in the stack
+ */
+export function getModalStackDepth() {
+    return modalStack.length;
+}
+
 // ========== MODAL MANAGEMENT ==========
 export function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
 
-    state.previouslyFocusedElement = document.activeElement;
+    // PHASE 2 FIX: Push current state onto modal stack before opening new modal
+    // This preserves focus context when multiple modals are opened
+    modalStack.push({
+        modal: modal,
+        previousFocus: document.activeElement
+    });
+
     state.activeModal = modal;
     modal.classList.add('active');
 
-    // Add event listeners only when modal is open (performance optimization)
+    // Add event listeners only when first modal is open (performance optimization)
     if (!state.modalListenersActive) {
         document.addEventListener('keydown', handleModalKeydown);
         document.addEventListener('click', handleOverlayClick);
@@ -128,19 +147,45 @@ export function closeModal(modalId) {
     if (!modal) return;
 
     modal.classList.remove('active');
-    state.activeModal = null;
 
-    // Remove event listeners when no modal is open (performance optimization)
-    if (state.modalListenersActive) {
-        document.removeEventListener('keydown', handleModalKeydown);
-        document.removeEventListener('click', handleOverlayClick);
-        state.modalListenersActive = false;
+    // PHASE 2 FIX: Pop modal from stack and restore previous focus
+    // Find and remove this modal from the stack (it might not be at the top if closed out of order)
+    const stackIndex = modalStack.findIndex(entry => entry.modal === modal);
+    let previousFocus = null;
+
+    if (stackIndex !== -1) {
+        const entry = modalStack.splice(stackIndex, 1)[0];
+        previousFocus = entry.previousFocus;
+    }
+
+    // Update activeModal to the next modal in stack (if any)
+    if (modalStack.length > 0) {
+        state.activeModal = modalStack[modalStack.length - 1].modal;
+    } else {
+        state.activeModal = null;
+
+        // Remove event listeners when no modal is open (performance optimization)
+        if (state.modalListenersActive) {
+            document.removeEventListener('keydown', handleModalKeydown);
+            document.removeEventListener('click', handleOverlayClick);
+            state.modalListenersActive = false;
+        }
     }
 
     // Restore focus to previously focused element
-    if (state.previouslyFocusedElement) {
-        state.previouslyFocusedElement.focus();
-        state.previouslyFocusedElement = null;
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+        // If the previous focus element is inside another modal that's still open, focus it
+        // Otherwise, only focus if no other modal is active
+        const isInActiveModal = state.activeModal && state.activeModal.contains(previousFocus);
+        if (isInActiveModal || !state.activeModal) {
+            previousFocus.focus();
+        } else if (state.activeModal) {
+            // Focus first focusable element in the now-active modal
+            const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+            if (focusableElements.length > 0) {
+                focusableElements[0].focus();
+            }
+        }
     }
 }
 
