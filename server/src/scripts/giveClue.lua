@@ -6,6 +6,7 @@ local spymasterNickname = ARGV[4]
 local timestamp = tonumber(ARGV[5])
 local maxHistoryEntries = tonumber(ARGV[6])
 local boardSize = tonumber(ARGV[7])
+local maxClues = tonumber(ARGV[8]) or 100  -- Default to 100 if not provided
 
 -- Preserve existing TTL so the key doesn't become permanent
 local currentTTL = redis.call('TTL', gameKey)
@@ -69,6 +70,15 @@ if not game.clues then
     game.clues = {}
 end
 table.insert(game.clues, clue)
+
+-- Performance fix: Cap clues array to prevent unbounded memory growth
+if #game.clues > maxClues then
+    local newClues = {}
+    for i = #game.clues - maxClues + 1, #game.clues do
+        table.insert(newClues, game.clues[i])
+    end
+    game.clues = newClues
+end
 
 -- Add to history
 if not game.history then

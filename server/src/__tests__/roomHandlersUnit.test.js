@@ -11,8 +11,9 @@ jest.mock('../services/gameService');
 jest.mock('../services/playerService');
 jest.mock('../services/eventLogService');
 jest.mock('../utils/logger');
+const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
 jest.mock('../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: jest.fn((socket, event, handler) => handler)
+    createRateLimitedHandler: jest.fn((socket, eventName, handler) => { return async (data) => { try { return await handler(data); } catch (error) { const errorEvent = `${eventName.split(':')[0]}:error`; const code = error.code || 'SERVER_ERROR'; const isSafe = SAFE_ERROR_CODES_MOCK.includes(code); socket.emit(errorEvent, { code, message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred' }); } }; })
 }));
 jest.mock('../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -197,14 +198,13 @@ describe('Room Handlers', () => {
         });
 
         test('sends spymaster view if player is spymaster with active game', async () => {
+            // Performance fix: game now includes types directly (from getGameStateForPlayer)
+            // instead of re-fetching via getGame
             roomService.joinRoom.mockResolvedValue({
                 room: { code: 'test-room', roomId: 'test-room' },
                 players: [],
-                game: { gameOver: false },
+                game: { gameOver: false, types: ['red', 'blue', 'neutral'] },
                 player: { role: 'spymaster' }
-            });
-            gameService.getGame.mockResolvedValue({
-                types: ['red', 'blue', 'neutral']
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });

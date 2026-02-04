@@ -94,13 +94,18 @@ module.exports = function gameHandlers(io, socket) {
                 throw PlayerError.notYourTurn(ctx.player.team);
             }
 
-            // Allow reveal if player is clicker OR if clicker is disconnected
+            // Allow reveal if player is clicker OR if clicker is disconnected (but never spymaster)
             const teamMembers = await playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn);
             if (!teamMembers || !Array.isArray(teamMembers)) {
                 throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'Unable to retrieve team members');
             }
             const teamClicker = teamMembers.find(p => p.role === 'clicker');
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
+
+            // Bug #3 fix: Spymasters can never reveal cards, even if clicker is disconnected
+            if (ctx.player.role === 'spymaster') {
+                throw new ValidationError('Spymasters cannot reveal cards - they can only give clues');
+            }
 
             if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
                 throw PlayerError.notClicker();
@@ -111,8 +116,9 @@ module.exports = function gameHandlers(io, socket) {
                 throw new GameStateError(ERROR_CODES.SERVER_ERROR, `No connected players on ${ctx.game.currentTurn} team`);
             }
 
+            // Bug #4 fix: Pass player team to revealCard for Lua-level turn validation
             const result = await withTimeout(
-                gameService.revealCard(ctx.roomCode, validated.index, ctx.player.nickname),
+                gameService.revealCard(ctx.roomCode, validated.index, ctx.player.nickname, ctx.player.team),
                 TIMEOUTS.GAME_ACTION,
                 'game:reveal'
             );
@@ -220,7 +226,7 @@ module.exports = function gameHandlers(io, socket) {
                 throw PlayerError.notYourTurn(ctx.player.team);
             }
 
-            // Allow end turn if player is clicker OR if clicker is disconnected
+            // Allow end turn if player is clicker OR if clicker is disconnected (but never spymaster)
             const teamMembers = await withTimeout(
                 playerService.getTeamMembers(ctx.roomCode, ctx.game.currentTurn),
                 TIMEOUTS.GAME_ACTION,
@@ -230,6 +236,11 @@ module.exports = function gameHandlers(io, socket) {
                 ? teamMembers.find(p => p.role === 'clicker')
                 : null;
             const clickerDisconnected = !teamClicker || !teamClicker.connected;
+
+            // Bug #3 fix: Spymasters can never end turns, even if clicker is disconnected
+            if (ctx.player.role === 'spymaster') {
+                throw new ValidationError('Spymasters cannot end turns - only clickers can');
+            }
 
             if (ctx.player.role !== 'clicker' && !clickerDisconnected) {
                 throw PlayerError.notClicker();

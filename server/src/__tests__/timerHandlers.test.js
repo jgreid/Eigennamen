@@ -9,8 +9,9 @@ jest.mock('../services/roomService');
 jest.mock('../services/timerService');
 jest.mock('../services/gameService');
 jest.mock('../socket/socketFunctionProvider');
+const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
 jest.mock('../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: (socket, eventName, handler) => handler,
+    createRateLimitedHandler: (socket, eventName, handler) => { return async (data) => { try { return await handler(data); } catch (error) { const errorEvent = `${eventName.split(':')[0]}:error`; const code = error.code || 'SERVER_ERROR'; const isSafe = SAFE_ERROR_CODES_MOCK.includes(code); socket.emit(errorEvent, { code, message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred' }); } }; },
     socketRateLimiter: { getLimiter: jest.fn() }
 }));
 
@@ -136,9 +137,10 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:pause'];
             await handler();
 
+            // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'No active timer to pause'
+                message: 'An unexpected error occurred'
             });
         });
 
@@ -223,9 +225,10 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:resume'];
             await handler();
 
+            // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'No paused timer to resume'
+                message: 'An unexpected error occurred'
             });
         });
 
@@ -359,9 +362,10 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 30 });
 
+            // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'No active timer to add time to'
+                message: 'An unexpected error occurred'
             });
         });
     });

@@ -41,13 +41,12 @@ async function sendTimerStatus(socket, roomCode, context) {
 
 /**
  * Helper: Send spymaster view if player is a spymaster with active game
+ * Performance fix: Use game.types directly instead of re-fetching from Redis.
+ * getGameStateForPlayer already includes full types for spymasters.
  */
-async function sendSpymasterViewIfNeeded(socket, player, game, roomCode) {
-    if (player.role === 'spymaster' && game && !game.gameOver) {
-        const fullGame = await gameService.getGame(roomCode);
-        if (fullGame) {
-            socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: fullGame.types });
-        }
+async function sendSpymasterViewIfNeeded(socket, player, game, _roomCode) {
+    if (player.role === 'spymaster' && game && !game.gameOver && game.types) {
+        socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: game.types });
     }
 }
 

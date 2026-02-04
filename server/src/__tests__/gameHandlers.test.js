@@ -3,8 +3,9 @@
  */
 
 // Mock rate limit handler FIRST to bypass rate limiting
+const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
 jest.mock('../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: jest.fn((socket, eventName, handler) => handler)
+    createRateLimitedHandler: jest.fn((socket, eventName, handler) => { return async (data) => { try { return await handler(data); } catch (error) { const errorEvent = `${eventName.split(':')[0]}:error`; const code = error.code || 'SERVER_ERROR'; const isSafe = SAFE_ERROR_CODES_MOCK.includes(code); socket.emit(errorEvent, { code, message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred' }); } }; })
 }));
 
 // Mock dependencies
@@ -230,7 +231,8 @@ describe('Game Handlers', () => {
             const revealHandler = handlers.find(h => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(gameService.revealCard).toHaveBeenCalledWith('TEST12', 5, 'TestPlayer');
+            // Bug #4 fix: revealCard now takes playerTeam as 4th parameter
+            expect(gameService.revealCard).toHaveBeenCalledWith('TEST12', 5, 'TestPlayer', 'red');
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
             expect(mockIo.emit).toHaveBeenCalledWith('game:cardRevealed', expect.any(Object));
         });

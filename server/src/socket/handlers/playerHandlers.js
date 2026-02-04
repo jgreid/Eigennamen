@@ -15,6 +15,35 @@ const { canChangeTeamOrRole } = require('../playerContext');
 const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
 
+/**
+ * Bug #14 Fix: Helper to sync spectator room membership based on CURRENT player state.
+ * This prevents race conditions where concurrent setTeam/setRole operations could
+ * result in inconsistent socket room membership (e.g., spymaster incorrectly in spectators room).
+ *
+ * The issue: Each handler uses the result from its own Lua script to decide room membership,
+ * but that result can be stale if another operation completed after the Lua script ran.
+ *
+ * The fix: Always re-fetch current player state before updating socket rooms.
+ */
+async function syncSpectatorRoomMembership(socket, roomCode, sessionId) {
+    // Re-fetch current player state to ensure we have the latest team/role
+    const currentPlayer = await playerService.getPlayer(sessionId);
+    if (!currentPlayer) return;
+
+    const spectatorRoom = `spectators:${roomCode}`;
+
+    // Player should be in spectators room if:
+    // - They have no team, OR
+    // - Their role is 'spectator'
+    const shouldBeInSpectatorRoom = !currentPlayer.team || currentPlayer.role === 'spectator';
+
+    if (shouldBeInSpectatorRoom) {
+        socket.join(spectatorRoom);
+    } else {
+        socket.leave(spectatorRoom);
+    }
+}
+
 module.exports = function playerHandlers(io, socket) {
 
     /**
@@ -36,12 +65,9 @@ module.exports = function playerHandlers(io, socket) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            // Update spectator room membership based on team and role
-            if (player.team && player.role !== 'spectator') {
-                socket.leave(`spectators:${ctx.roomCode}`);
-            } else {
-                socket.join(`spectators:${ctx.roomCode}`);
-            }
+            // Bug #14 Fix: Sync spectator room membership based on current state
+            // (prevents race with concurrent setRole operations)
+            await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
 
             // Build changes object - include role if it was changed by the team switch
             // (e.g., clicker/spymaster role is reset to spectator when switching teams)
@@ -84,12 +110,9 @@ module.exports = function playerHandlers(io, socket) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            // Update spectator room membership
-            if (player.team && player.role !== 'spectator') {
-                socket.leave(`spectators:${ctx.roomCode}`);
-            } else {
-                socket.join(`spectators:${ctx.roomCode}`);
-            }
+            // Bug #14 Fix: Sync spectator room membership based on current state
+            // (prevents race with concurrent setTeam operations)
+            await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
 
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {

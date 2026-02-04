@@ -137,6 +137,10 @@ export const state = {
     isChangingRole: false,
     changingTarget: null,
     pendingRoleChange: null,
+    // Bug #1 fix: Track operation ID to handle race conditions between ACK and playerUpdated
+    roleChangeOperationId: null,
+    // Bug #1 fix: Store revert function for the current operation
+    roleChangeRevertFn: null,
 
     // Game state
     gameState: {

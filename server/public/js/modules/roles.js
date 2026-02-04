@@ -177,6 +177,10 @@ export function setTeam(team) {
         state.isChangingRole = true;
         state.changingTarget = team || 'spectate';
 
+        // Bug #1 fix: Generate unique operation ID
+        const operationId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        state.roleChangeOperationId = operationId;
+
         // Optimistic UI update — apply team change immediately
         const prevTeam = state.playerTeam;
         const prevSpymaster = state.spymasterTeam;
@@ -190,19 +194,29 @@ export function setTeam(team) {
         updateControls();
         renderBoard();
 
+        // Bug #1 fix: Store revert function for this operation
+        state.roleChangeRevertFn = () => {
+            state.playerTeam = prevTeam;
+            state.spymasterTeam = prevSpymaster;
+            state.clickerTeam = prevClicker;
+            updateRoleBanner();
+            updateControls();
+            renderBoard();
+        };
+
         CodenamesClient.setTeam(team, (ack) => {
-            if (ack && ack.error && state.isChangingRole) {
-                // Only revert if playerUpdated hasn't already handled it
+            // Bug #1 fix: Check operation ID instead of isChangingRole
+            if (ack && ack.error && state.roleChangeOperationId === operationId) {
                 console.warn('setTeam: server ack error, reverting optimistic update');
-                state.playerTeam = prevTeam;
-                state.spymasterTeam = prevSpymaster;
-                state.clickerTeam = prevClicker;
+                if (state.roleChangeRevertFn) {
+                    state.roleChangeRevertFn();
+                    state.roleChangeRevertFn = null;
+                }
                 state.isChangingRole = false;
                 state.changingTarget = null;
+                // Bug #2 fix: Always clear pendingRoleChange on error
                 state.pendingRoleChange = null;
-                updateRoleBanner();
-                updateControls();
-                renderBoard();
+                state.roleChangeOperationId = null;
             }
         });
         // Server will broadcast player:updated which triggers syncLocalPlayerState()
@@ -210,10 +224,12 @@ export function setTeam(team) {
 
         // Safety timeout in case ack is lost (network issue)
         setTimeout(() => {
-            if (state.isChangingRole && !state.pendingRoleChange) {
+            if (state.isChangingRole && !state.pendingRoleChange && state.roleChangeOperationId === operationId) {
                 console.warn('setTeam: Safety timeout - clearing isChangingRole flag');
                 state.isChangingRole = false;
                 state.changingTarget = null;
+                state.roleChangeOperationId = null;
+                state.roleChangeRevertFn = null;
                 updateControls();
             }
         }, 5000);
@@ -260,6 +276,10 @@ export function setSpymaster(team) {
         state.isChangingRole = true;
         state.changingTarget = 'spymaster';
 
+        // Bug #1 fix: Generate unique operation ID
+        const operationId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        state.roleChangeOperationId = operationId;
+
         // Optimistic UI update
         const prevTeam = state.playerTeam;
         const prevSpymaster = state.spymasterTeam;
@@ -273,6 +293,9 @@ export function setSpymaster(team) {
             renderBoard();
         };
 
+        // Bug #1 fix: Store revert function for this operation
+        state.roleChangeRevertFn = revertOptimistic;
+
         if (state.spymasterTeam === team) {
             state.spymasterTeam = null;
         } else {
@@ -285,12 +308,18 @@ export function setSpymaster(team) {
         renderBoard();
 
         const ackHandler = (ack) => {
-            if (ack && ack.error && state.isChangingRole) {
+            // Bug #1 fix: Check operation ID instead of isChangingRole
+            if (ack && ack.error && state.roleChangeOperationId === operationId) {
                 console.warn('setSpymaster: server ack error, reverting optimistic update');
                 state.isChangingRole = false;
                 state.changingTarget = null;
+                // Bug #2 fix: Always clear pendingRoleChange on error
                 state.pendingRoleChange = null;
-                revertOptimistic();
+                state.roleChangeOperationId = null;
+                if (state.roleChangeRevertFn) {
+                    state.roleChangeRevertFn();
+                    state.roleChangeRevertFn = null;
+                }
             }
         };
 
@@ -313,11 +342,13 @@ export function setSpymaster(team) {
 
         // Safety timeout in case ack is lost (network issue)
         setTimeout(() => {
-            if (state.isChangingRole) {
+            if (state.isChangingRole && state.roleChangeOperationId === operationId) {
                 console.warn('setSpymaster: Safety timeout - clearing isChangingRole flag');
                 state.isChangingRole = false;
                 state.changingTarget = null;
                 state.pendingRoleChange = null;
+                state.roleChangeOperationId = null;
+                state.roleChangeRevertFn = null;
                 updateControls();
             }
         }, 5000);
@@ -356,6 +387,10 @@ export function setClicker(team) {
         state.isChangingRole = true;
         state.changingTarget = 'clicker';
 
+        // Bug #1 fix: Generate unique operation ID
+        const operationId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        state.roleChangeOperationId = operationId;
+
         // Optimistic UI update
         const prevTeam = state.playerTeam;
         const prevSpymaster = state.spymasterTeam;
@@ -369,6 +404,9 @@ export function setClicker(team) {
             renderBoard();
         };
 
+        // Bug #1 fix: Store revert function for this operation
+        state.roleChangeRevertFn = revertOptimistic;
+
         if (state.clickerTeam === team) {
             state.clickerTeam = null;
         } else {
@@ -381,12 +419,18 @@ export function setClicker(team) {
         renderBoard();
 
         const ackHandler = (ack) => {
-            if (ack && ack.error && state.isChangingRole) {
+            // Bug #1 fix: Check operation ID instead of isChangingRole
+            if (ack && ack.error && state.roleChangeOperationId === operationId) {
                 console.warn('setClicker: server ack error, reverting optimistic update');
                 state.isChangingRole = false;
                 state.changingTarget = null;
+                // Bug #2 fix: Always clear pendingRoleChange on error
                 state.pendingRoleChange = null;
-                revertOptimistic();
+                state.roleChangeOperationId = null;
+                if (state.roleChangeRevertFn) {
+                    state.roleChangeRevertFn();
+                    state.roleChangeRevertFn = null;
+                }
             }
         };
 
@@ -409,11 +453,13 @@ export function setClicker(team) {
 
         // Safety timeout in case ack is lost (network issue)
         setTimeout(() => {
-            if (state.isChangingRole) {
+            if (state.isChangingRole && state.roleChangeOperationId === operationId) {
                 console.warn('setClicker: Safety timeout - clearing isChangingRole flag');
                 state.isChangingRole = false;
                 state.changingTarget = null;
                 state.pendingRoleChange = null;
+                state.roleChangeOperationId = null;
+                state.roleChangeRevertFn = null;
                 updateControls();
             }
         }, 5000);
