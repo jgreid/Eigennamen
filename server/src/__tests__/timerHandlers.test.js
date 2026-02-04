@@ -137,9 +137,10 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:pause'];
             await handler();
 
+            // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'No active timer to pause'
+                message: 'An unexpected error occurred'
             });
         });
 
@@ -224,9 +225,10 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:resume'];
             await handler();
 
+            // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'No paused timer to resume'
+                message: 'An unexpected error occurred'
             });
         });
 
@@ -360,9 +362,10 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 30 });
 
+            // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'No active timer to add time to'
+                message: 'An unexpected error occurred'
             });
         });
     });

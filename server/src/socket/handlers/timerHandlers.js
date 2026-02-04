@@ -12,6 +12,7 @@ const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { timerAddTimeSchema } = require('../../validators/schemas');
+const { GameStateError } = require('../../errors/GameError');
 
 module.exports = function timerHandlers(io, socket) {
 
@@ -22,19 +23,18 @@ module.exports = function timerHandlers(io, socket) {
         async (ctx) => {
             const result = await timerService.pauseTimer(ctx.roomCode);
 
-            if (result) {
-                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_PAUSED, {
-                    roomCode: ctx.roomCode,
-                    remainingSeconds: result.remainingSeconds,
-                    pausedAt: Date.now()
-                });
-                logger.info(`Timer paused in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
-            } else {
-                socket.emit(SOCKET_EVENTS.TIMER_ERROR, {
-                    code: ERROR_CODES.SERVER_ERROR,
-                    message: 'No active timer to pause'
-                });
+            // Bug #18 fix: Throw error instead of emitting error event
+            // This ensures ACK response is consistent with the error state
+            if (!result) {
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'No active timer to pause');
             }
+
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_PAUSED, {
+                roomCode: ctx.roomCode,
+                remainingSeconds: result.remainingSeconds,
+                pausedAt: Date.now()
+            });
+            logger.info(`Timer paused in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
         }
     ));
 
@@ -46,19 +46,18 @@ module.exports = function timerHandlers(io, socket) {
             const { createTimerExpireCallback } = getSocketFunctions();
             const result = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
 
-            if (result) {
-                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_RESUMED, {
-                    roomCode: ctx.roomCode,
-                    remainingSeconds: result.remainingSeconds,
-                    endTime: result.endTime
-                });
-                logger.info(`Timer resumed in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
-            } else {
-                socket.emit(SOCKET_EVENTS.TIMER_ERROR, {
-                    code: ERROR_CODES.SERVER_ERROR,
-                    message: 'No paused timer to resume'
-                });
+            // Bug #18 fix: Throw error instead of emitting error event
+            // This ensures ACK response is consistent with the error state
+            if (!result) {
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'No paused timer to resume');
             }
+
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_RESUMED, {
+                roomCode: ctx.roomCode,
+                remainingSeconds: result.remainingSeconds,
+                endTime: result.endTime
+            });
+            logger.info(`Timer resumed in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
         }
     ));
 
@@ -70,20 +69,19 @@ module.exports = function timerHandlers(io, socket) {
             const { createTimerExpireCallback } = getSocketFunctions();
             const result = await timerService.addTime(ctx.roomCode, validated.seconds, createTimerExpireCallback());
 
-            if (result) {
-                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_TIME_ADDED, {
-                    roomCode: ctx.roomCode,
-                    secondsAdded: validated.seconds,
-                    newEndTime: result.endTime,
-                    remainingSeconds: result.remainingSeconds
-                });
-                logger.info(`Added ${validated.seconds}s to timer in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
-            } else {
-                socket.emit(SOCKET_EVENTS.TIMER_ERROR, {
-                    code: ERROR_CODES.SERVER_ERROR,
-                    message: 'No active timer to add time to'
-                });
+            // Bug #18 fix: Throw error instead of emitting error event
+            // This ensures ACK response is consistent with the error state
+            if (!result) {
+                throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'No active timer to add time to');
             }
+
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_TIME_ADDED, {
+                roomCode: ctx.roomCode,
+                secondsAdded: validated.seconds,
+                newEndTime: result.endTime,
+                remainingSeconds: result.remainingSeconds
+            });
+            logger.info(`Added ${validated.seconds}s to timer in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
         }
     ));
 
