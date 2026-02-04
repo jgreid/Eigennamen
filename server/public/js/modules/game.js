@@ -446,6 +446,12 @@ export function revealCardFromServer(index, serverData = {}) {
     state.gameState.revealed[index] = true;
     const type = serverData.type || state.gameState.types[index];
 
+    // Bug fix: Update the types array with the revealed type from server
+    // This is critical for non-spymasters who have null for unrevealed cards
+    if (serverData.type) {
+        state.gameState.types[index] = serverData.type;
+    }
+
     // Track for animation (same as local reveal)
     state.lastRevealedIndex = index;
     state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
