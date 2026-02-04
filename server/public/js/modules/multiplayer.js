@@ -564,6 +564,14 @@ export function setupMultiplayerListeners() {
 
     CodenamesClient.on('gameOver', (data) => {
         if (data.winner) {
+            // Sync all card types from server so non-spymasters can see the full board
+            // The server sends types array with all card types when game ends
+            if (data.types && Array.isArray(data.types)) {
+                state.gameState.types = data.types;
+            }
+            state.gameState.gameOver = true;
+            state.gameState.winner = data.winner;
+
             showGameOver(data.winner, data.reason);
             // Clear tab notification on game over
             setTabNotification(false);
