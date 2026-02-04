@@ -192,6 +192,10 @@ async function setTeam(sessionId, team, checkEmpty = false) {
             if (parsed.reason === 'TEAM_WOULD_BE_EMPTY') {
                 throw new ValidationError(`Cannot leave team ${oldTeam} - your team cannot be empty during an active game`);
             }
+            // Defense-in-depth: Invalid team caught by Lua validation
+            if (parsed.reason === 'INVALID_TEAM') {
+                throw new ValidationError('Invalid team specified');
+            }
             throw new ServerError('Failed to update player team');
         }
 
@@ -270,6 +274,10 @@ async function setRole(sessionId, role) {
             }
             if (parsed.reason === 'NO_TEAM') {
                 throw new ValidationError('Must join a team before becoming ' + role);
+            }
+            // Defense-in-depth: Invalid role caught by Lua validation
+            if (parsed.reason === 'INVALID_ROLE') {
+                throw new ValidationError('Invalid role specified');
             }
             throw new ServerError('Failed to update player role');
         }

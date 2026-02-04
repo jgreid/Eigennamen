@@ -653,7 +653,9 @@ async function revealCardOptimized(roomCode, index, playerNickname = 'Unknown', 
                 // Bug #4 fix: Turn validation error
                 'NOT_YOUR_TURN': { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" },
                 // Bug #9 fix: No clue given error
-                'NO_CLUE': { code: ERROR_CODES.NO_CLUE, message: 'Spymaster must give a clue before revealing cards' }
+                'NO_CLUE': { code: ERROR_CODES.NO_CLUE, message: 'Spymaster must give a clue before revealing cards' },
+                // Defense-in-depth: Invalid index caught by Lua bounds check
+                'INVALID_INDEX': { code: ERROR_CODES.INVALID_INPUT, message: 'Invalid card index' }
             };
             const err = errorMap[result.error] || { code: ERROR_CODES.SERVER_ERROR, message: result.error };
             throw err;

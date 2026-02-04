@@ -6,6 +6,13 @@ local maxHistoryEntries = tonumber(ARGV[4])
 -- Bug #4 fix: Add player team parameter for turn validation
 local playerTeam = ARGV[5]
 
+-- Defense-in-depth: Validate index bounds (0-24 for 25-card board)
+-- JS already validates, but Lua should also check to prevent any bypass
+local BOARD_SIZE = 25
+if index == nil or index < 0 or index >= BOARD_SIZE then
+    return cjson.encode({error = 'INVALID_INDEX'})
+end
+
 -- Preserve existing TTL so the key doesn't become permanent
 local currentTTL = redis.call('TTL', gameKey)
 

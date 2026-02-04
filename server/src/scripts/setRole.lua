@@ -5,6 +5,13 @@ local sessionId = ARGV[2]
 local ttl = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
 
+-- Defense-in-depth: Validate role is one of allowed values
+-- JS already validates via Zod schema, but Lua should also check
+local allowedRoles = {spymaster = true, clicker = true, spectator = true}
+if not allowedRoles[newRole] then
+    return cjson.encode({success = false, reason = 'INVALID_ROLE'})
+end
+
 -- Get current player data
 local playerData = redis.call('GET', playerKey)
 if not playerData then

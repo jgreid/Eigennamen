@@ -7,6 +7,14 @@ local ttl = tonumber(ARGV[3])
 local now = tonumber(ARGV[4])
 local checkEmpty = ARGV[5] == 'true'
 
+-- Defense-in-depth: Validate team is one of allowed values
+-- JS already validates via Zod schema, but Lua should also check
+-- __NULL__ is a special sentinel value for leaving a team
+local allowedTeams = {red = true, blue = true, ['__NULL__'] = true}
+if not allowedTeams[newTeam] then
+    return cjson.encode({success = false, reason = 'INVALID_TEAM'})
+end
+
 -- Get current player data
 local playerData = redis.call('GET', playerKey)
 if not playerData then
