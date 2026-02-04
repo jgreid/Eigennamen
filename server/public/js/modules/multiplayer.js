@@ -665,6 +665,21 @@ export function setupMultiplayerListeners() {
                         const roleToSet = state.pendingRoleChange;
                         state.pendingRoleChange = null;
                         console.log('playerUpdated: sending pending role change:', roleToSet);
+
+                        // Bug #13 fix: Update revert function to only revert the role part
+                        // Team change succeeded, so if role change fails, we should only
+                        // revert the role (to spectator), not the team
+                        const confirmedTeam = updatedPlayer.team;
+                        state.roleChangeRevertFn = () => {
+                            // Keep the confirmed team, just revert role to spectator
+                            state.playerTeam = confirmedTeam;
+                            state.spymasterTeam = null;
+                            state.clickerTeam = null;
+                            updateRoleBanner();
+                            updateControls();
+                            renderBoard();
+                        };
+
                         // Don't clear isChangingRole yet - let it clear after role is set
                         CodenamesClient.setRole(roleToSet);
                     } else {
