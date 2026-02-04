@@ -12,6 +12,39 @@ import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '.
 // PHASE 2 FIX: Import shared constants for validation
 import { VALIDATION, validateNickname, validateRoomCode } from './constants.js';
 
+// PHASE 2 FIX: AbortController for request cancellation
+// Allows cancelling in-flight operations when user navigates away
+let joinAbortController = null;
+let createAbortController = null;
+
+/**
+ * Cancel any in-progress join operation
+ */
+export function cancelJoinOperation() {
+    if (joinAbortController) {
+        joinAbortController.abort();
+        joinAbortController = null;
+    }
+}
+
+/**
+ * Cancel any in-progress create operation
+ */
+export function cancelCreateOperation() {
+    if (createAbortController) {
+        createAbortController.abort();
+        createAbortController = null;
+    }
+}
+
+/**
+ * Cancel all in-progress multiplayer operations
+ */
+export function cancelAllOperations() {
+    cancelJoinOperation();
+    cancelCreateOperation();
+}
+
 export function openMultiplayer() {
     // Pre-fill nickname from storage
     const storedNickname = safeGetItem('codenames-nickname', '');
@@ -31,6 +64,8 @@ export function openMultiplayer() {
 }
 
 export function closeMultiplayer() {
+    // PHASE 2 FIX: Cancel any in-progress operations when modal closes
+    cancelAllOperations();
     clearFormErrors();
     closeModal('multiplayer-modal');
 }
@@ -140,6 +175,11 @@ async function handleJoinGame() {
         return;
     }
 
+    // PHASE 2 FIX: Cancel any previous join operation and create new AbortController
+    cancelJoinOperation();
+    joinAbortController = new AbortController();
+    const signal = joinAbortController.signal;
+
     // Disable button to prevent double-click race condition
     if (joinBtn) joinBtn.disabled = true;
 
@@ -151,9 +191,19 @@ async function handleJoinGame() {
             await CodenamesClient.connect();
         }
 
+        // Check if operation was cancelled during connection
+        if (signal.aborted) {
+            return;
+        }
+
         setMpStatus('Joining game...', 'connecting');
         // Join the room with roomId (no password needed)
         const result = await CodenamesClient.joinRoom(roomId, nickname);
+
+        // Check if operation was cancelled while waiting for join response
+        if (signal.aborted) {
+            return;
+        }
 
         // Store the actual room code from server (normalized to lowercase)
         state.currentRoomId = result.room?.code || roomId;
@@ -161,6 +211,11 @@ async function handleJoinGame() {
         onMultiplayerJoined(result, false); // false = not host
 
     } catch (error) {
+        // Silently ignore AbortError - operation was intentionally cancelled
+        if (error.name === 'AbortError' || signal.aborted) {
+            return;
+        }
+
         console.error('Join failed:', error);
         if (error.code === 'ROOM_NOT_FOUND') {
             setMpStatus('Room not found - check the Room ID', 'error');
@@ -176,6 +231,8 @@ async function handleJoinGame() {
     } finally {
         // Re-enable button
         if (joinBtn) joinBtn.disabled = false;
+        // Clear the controller reference
+        joinAbortController = null;
     }
 }
 
@@ -204,6 +261,11 @@ async function handleCreateGame() {
         return;
     }
 
+    // PHASE 2 FIX: Cancel any previous create operation and create new AbortController
+    cancelCreateOperation();
+    createAbortController = new AbortController();
+    const signal = createAbortController.signal;
+
     // Disable button to prevent double-click race condition
     if (createBtn) createBtn.disabled = true;
 
@@ -215,11 +277,21 @@ async function handleCreateGame() {
             await CodenamesClient.connect();
         }
 
+        // Check if operation was cancelled during connection
+        if (signal.aborted) {
+            return;
+        }
+
         // Create room with roomId
         const result = await CodenamesClient.createRoom({
             roomId: roomId,
             nickname: nickname
         });
+
+        // Check if operation was cancelled while waiting for create response
+        if (signal.aborted) {
+            return;
+        }
 
         // Store the actual room code from server (normalized to lowercase)
         state.currentRoomId = result.room?.code || roomId.toLowerCase();
@@ -227,6 +299,11 @@ async function handleCreateGame() {
         onMultiplayerJoined(result, true); // true = isHost
 
     } catch (error) {
+        // Silently ignore AbortError - operation was intentionally cancelled
+        if (error.name === 'AbortError' || signal.aborted) {
+            return;
+        }
+
         console.error('Create failed:', error);
         if (error.code === 'ROOM_ALREADY_EXISTS') {
             setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
@@ -238,6 +315,8 @@ async function handleCreateGame() {
     } finally {
         // Re-enable button
         if (createBtn) createBtn.disabled = false;
+        // Clear the controller reference
+        createAbortController = null;
     }
 }
 
