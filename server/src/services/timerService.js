@@ -242,6 +242,8 @@ async function pauseTimer(roomCode) {
             const timer = JSON.parse(timerData);
             timer.paused = true;
             timer.remainingWhenPaused = remainingSeconds;
+            // HARDENING FIX: Store when the timer was paused to detect expiration while paused
+            timer.pausedAt = Date.now();
             await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: REDIS_TTL.PAUSED_TIMER });
         } catch (e) {
             logger.error(`Failed to parse timer data for ${roomCode}:`, e.message);
@@ -283,6 +285,50 @@ async function resumeTimer(roomCode, onExpire) {
         }
 
         const remainingSeconds = timer.remainingWhenPaused;
+
+        // HARDENING FIX: Validate that timer wouldn't have expired while paused
+        // If the timer was paused for longer than the remaining time, it should
+        // be considered expired rather than starting fresh
+        if (timer.pausedAt) {
+            const pausedDuration = Date.now() - timer.pausedAt;
+            const remainingWhenPausedMs = remainingSeconds * 1000;
+
+            if (pausedDuration >= remainingWhenPausedMs) {
+                logger.info(`Timer for room ${roomCode} would have expired while paused, treating as expired`);
+                // Clean up the expired timer
+                await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+                localTimers.delete(roomCode);
+
+                // Call expire callback if provided
+                if (onExpire) {
+                    try {
+                        await onExpire(roomCode);
+                    } catch (callbackError) {
+                        logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                    }
+                }
+                return null;
+            }
+
+            // Calculate adjusted remaining time (subtract time spent paused)
+            const adjustedRemainingSeconds = Math.ceil((remainingWhenPausedMs - pausedDuration) / 1000);
+            if (adjustedRemainingSeconds <= 0) {
+                logger.info(`Timer for room ${roomCode} has no time remaining after adjustment`);
+                await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+                localTimers.delete(roomCode);
+                if (onExpire) {
+                    try {
+                        await onExpire(roomCode);
+                    } catch (callbackError) {
+                        logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
+                    }
+                }
+                return null;
+            }
+
+            return await startTimer(roomCode, adjustedRemainingSeconds, onExpire);
+        }
+
         return await startTimer(roomCode, remainingSeconds, onExpire);
     } catch {
         return null;

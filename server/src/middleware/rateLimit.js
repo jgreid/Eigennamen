@@ -91,13 +91,15 @@ function createSocketRateLimiter(limits) {
     let totalRequests = 0;
     let blockedRequests = 0;
     let blockedByIP = 0;
-    // Capped to prevent unbounded growth in long-running deployments
+    // HARDENING FIX: Capped with periodic cleanup to prevent unbounded growth
     const MAX_UNIQUE_TRACKING = 10000;
+    const METRICS_CLEANUP_THRESHOLD = MAX_UNIQUE_TRACKING * 0.9; // 90% triggers cleanup
     const uniqueSockets = new Set();
     const uniqueIPs = new Set();
     const eventRequests = new Map();   // event -> count
     const eventBlocked = new Map();    // event -> blocked count
     const startTime = Date.now();
+    let lastMetricsCleanup = Date.now();
 
     /**
      * Get client IP from socket (set by socketAuth middleware)
@@ -285,6 +287,60 @@ function createSocketRateLimiter(limits) {
 
             // Perform LRU eviction if we still have too many entries
             performLRUEviction();
+
+            // HARDENING FIX: Clean up metrics sets to prevent unbounded growth
+            // Only clean up every 5 minutes and when sets are approaching capacity
+            const timeSinceLastMetricsCleanup = now - lastMetricsCleanup;
+            const metricsCleanupInterval = 5 * 60 * 1000; // 5 minutes
+
+            if (timeSinceLastMetricsCleanup >= metricsCleanupInterval) {
+                let metricsCleanedUp = false;
+
+                // Clear uniqueSockets if approaching threshold or if we can verify disconnected sockets
+                if (uniqueSockets.size >= METRICS_CLEANUP_THRESHOLD) {
+                    // Keep only sockets that still have active rate limit entries
+                    const activeSockets = new Set();
+                    for (const socketId of socketKeyIndex.keys()) {
+                        if (uniqueSockets.has(socketId)) {
+                            activeSockets.add(socketId);
+                        }
+                    }
+                    const oldSize = uniqueSockets.size;
+                    uniqueSockets.clear();
+                    for (const socketId of activeSockets) {
+                        uniqueSockets.add(socketId);
+                    }
+                    logger.info(`Metrics cleanup: uniqueSockets reduced from ${oldSize} to ${uniqueSockets.size}`);
+                    metricsCleanedUp = true;
+                }
+
+                // Clear uniqueIPs if approaching threshold
+                if (uniqueIPs.size >= METRICS_CLEANUP_THRESHOLD) {
+                    // Keep only IPs that still have active rate limit entries
+                    const activeIPs = new Set();
+                    for (const key of ipRequests.keys()) {
+                        // Key format is "ip:${clientIP}:${eventName}"
+                        const parts = key.split(':');
+                        if (parts.length >= 2) {
+                            const ip = parts[1];
+                            if (uniqueIPs.has(ip)) {
+                                activeIPs.add(ip);
+                            }
+                        }
+                    }
+                    const oldSize = uniqueIPs.size;
+                    uniqueIPs.clear();
+                    for (const ip of activeIPs) {
+                        uniqueIPs.add(ip);
+                    }
+                    logger.info(`Metrics cleanup: uniqueIPs reduced from ${oldSize} to ${uniqueIPs.size}`);
+                    metricsCleanedUp = true;
+                }
+
+                if (metricsCleanedUp) {
+                    lastMetricsCleanup = now;
+                }
+            }
         } catch (error) {
             logger.error('Error during rate limit cleanup:', error);
         }

@@ -104,7 +104,18 @@ async function createRoom(roomId, hostSessionId, settings = {}) {
     }
 
     // Create host player with provided nickname or default to 'Host'
-    const player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Host', true);
+    // HARDENING FIX: Wrap player creation in try-catch to rollback room creation on failure
+    let player;
+    try {
+        player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Host', true);
+    } catch (playerError) {
+        // Rollback: delete the room we just created
+        logger.warn(`Player creation failed for room "${roomId}", rolling back room creation`);
+        await redis.del(`room:${normalizedRoomId}`);
+        await redis.del(`room:${normalizedRoomId}:players`);
+        throw playerError;
+    }
+
     logger.info(`Room "${roomId}" created by ${hostSessionId}`);
 
     return { room, player };
