@@ -35,6 +35,7 @@ const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
 
 // Use centralized constants
 const MAX_HISTORY_ENTRIES = GAME_HISTORY.MAX_ENTRIES;
+const MAX_CLUES = GAME_HISTORY.MAX_CLUES;
 const MAX_TRANSACTION_RETRIES = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 
 /**
@@ -871,7 +872,8 @@ async function giveClueOptimized(roomCode, team, word, number, spymasterNickname
                         spymasterNickname || 'Unknown',
                         Date.now().toString(),
                         MAX_HISTORY_ENTRIES.toString(),
-                        BOARD_SIZE.toString()
+                        BOARD_SIZE.toString(),
+                        MAX_CLUES.toString()
                     ]
                 }
             ),
@@ -1012,6 +1014,13 @@ async function giveClue(roomCode, team, word, number, spymasterNickname) {
 
             if (!game.clues) game.clues = [];
             game.clues.push(clue);
+
+            // Performance fix: Cap clues array to prevent unbounded memory growth
+            // Unlike history which uses lazy capping, clues are capped eagerly
+            // since they're smaller and less frequently added
+            if (game.clues.length > MAX_CLUES) {
+                game.clues = game.clues.slice(-MAX_CLUES);
+            }
 
             // Add to history with cap
             addToHistory(game, {

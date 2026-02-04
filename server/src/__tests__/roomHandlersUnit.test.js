@@ -198,14 +198,13 @@ describe('Room Handlers', () => {
         });
 
         test('sends spymaster view if player is spymaster with active game', async () => {
+            // Performance fix: game now includes types directly (from getGameStateForPlayer)
+            // instead of re-fetching via getGame
             roomService.joinRoom.mockResolvedValue({
                 room: { code: 'test-room', roomId: 'test-room' },
                 players: [],
-                game: { gameOver: false },
+                game: { gameOver: false, types: ['red', 'blue', 'neutral'] },
                 player: { role: 'spymaster' }
-            });
-            gameService.getGame.mockResolvedValue({
-                types: ['red', 'blue', 'neutral']
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });

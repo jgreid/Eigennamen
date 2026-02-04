@@ -49,6 +49,7 @@ const mockRedis = {
         }
         return 0;
     }),
+    mGet: jest.fn(async (keys) => keys.map(key => mockRedisStorage[key] || null)),
     eval: jest.fn().mockResolvedValue(1)
 };
 

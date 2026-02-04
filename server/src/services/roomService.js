@@ -414,10 +414,9 @@ async function cleanupRoom(code) {
     // Get all players in room
     const sessionIds = await redis.sMembers(`room:${code}:players`);
 
-    // Get reconnection tokens for all players before deleting
-    const reconnectTokens = await Promise.all(
-        sessionIds.map(sessionId => redis.get(`reconnect:session:${sessionId}`))
-    );
+    // Performance fix: Use mGet for batch token lookup instead of N individual gets
+    const tokenKeys = sessionIds.map(id => `reconnect:session:${id}`);
+    const reconnectTokens = tokenKeys.length > 0 ? await redis.mGet(tokenKeys) : [];
 
     // ISSUE #4 FIX: Build list of all keys to delete including team sets
     const keysToDelete = [

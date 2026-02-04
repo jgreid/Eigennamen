@@ -353,14 +353,12 @@ async function getTeamMembers(roomCode, team) {
 
     // ISSUE #12 FIX: Clean up orphaned entries and their lingering data
     if (orphanedIds.length > 0) {
-        const cleanupPromises = [redis.sRem(teamKey, ...orphanedIds)];
-
-        // Also clean up any lingering player data keys
-        for (const sessionId of orphanedIds) {
-            cleanupPromises.push(redis.del(`player:${sessionId}`));
-        }
-
-        await Promise.all(cleanupPromises);
+        // Performance fix: Batch DEL operations into single Redis call
+        const playerKeysToDelete = orphanedIds.map(id => `player:${id}`);
+        await Promise.all([
+            redis.sRem(teamKey, ...orphanedIds),
+            redis.del(playerKeysToDelete)
+        ]);
         logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey}`);
 
         // ISSUE #13 FIX: If team set is now empty, delete it
@@ -423,18 +421,16 @@ async function getPlayersInRoom(roomCode) {
         await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
 
         // Also remove from team sets (both teams since we don't know which team they were on)
-        const cleanupPromises = [
+        // Performance fix: Batch DEL operations into single Redis calls
+        const playerKeysToDelete = orphanedSessionIds.map(id => `player:${id}`);
+        const socketKeysToDelete = orphanedSessionIds.map(id => `session:${id}:socket`);
+
+        await Promise.all([
             redis.sRem(`room:${roomCode}:team:red`, ...orphanedSessionIds),
-            redis.sRem(`room:${roomCode}:team:blue`, ...orphanedSessionIds)
-        ];
-
-        // Also clean up any lingering player data keys and socket mappings
-        for (const sessionId of orphanedSessionIds) {
-            cleanupPromises.push(redis.del(`player:${sessionId}`));
-            cleanupPromises.push(redis.del(`session:${sessionId}:socket`));
-        }
-
-        await Promise.all(cleanupPromises);
+            redis.sRem(`room:${roomCode}:team:blue`, ...orphanedSessionIds),
+            redis.del(playerKeysToDelete),
+            redis.del(socketKeysToDelete)
+        ]);
         logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
     }
 

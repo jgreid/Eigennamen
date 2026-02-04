@@ -106,7 +106,8 @@ module.exports = {
 
     // Game history configuration
     GAME_HISTORY: {
-        MAX_ENTRIES: 200  // Maximum history entries per game
+        MAX_ENTRIES: 200,  // Maximum history entries per game
+        MAX_CLUES: 100     // Maximum clues stored per game (prevents unbounded growth)
     },
 
     // Validation constraints

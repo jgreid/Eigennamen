@@ -12,6 +12,7 @@ const mockRedis = {
     exists: jest.fn(),
     sMembers: jest.fn(),
     sRem: jest.fn(),
+    mGet: jest.fn(),
     eval: jest.fn()
 };
 
@@ -417,6 +418,7 @@ describe('Extended Room Service Tests', () => {
             };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.sMembers.mockResolvedValue(['player1', 'player2']);
+            mockRedis.mGet.mockResolvedValue([null, null]); // No reconnection tokens
             mockRedis.del.mockResolvedValue(6);
             timerService.stopTimer.mockResolvedValue();
 
@@ -432,6 +434,7 @@ describe('Extended Room Service Tests', () => {
             };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.sMembers.mockResolvedValue([]);
+            mockRedis.mGet.mockResolvedValue([]); // No players, no tokens
             mockRedis.del.mockResolvedValue(3);
             timerService.stopTimer.mockResolvedValue();
 
