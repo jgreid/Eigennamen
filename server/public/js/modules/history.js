@@ -5,6 +5,15 @@ import { state } from './state.js';
 import { escapeHTML, formatGameTimestamp, formatDuration } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 
+// PHASE 4: Replay speed options (in milliseconds between moves)
+const REPLAY_SPEEDS = {
+    '0.5x': 3000,  // Slow
+    '1x': 1500,    // Normal (default)
+    '2x': 750,     // Fast
+    '4x': 375      // Very fast
+};
+let currentReplaySpeed = '1x';
+
 export function openGameHistory() {
     if (!state.isMultiplayerMode || !CodenamesClient.isConnected()) {
         showToast('Game history is only available in multiplayer mode', 'info');
@@ -248,6 +257,8 @@ export function setupReplayControls() {
     const prevBtn = document.getElementById('replay-prev');
     const nextBtn = document.getElementById('replay-next');
     const playBtn = document.getElementById('replay-play');
+    const speedBtn = document.getElementById('replay-speed');
+    const shareBtn = document.getElementById('replay-share');
 
     // Remove old listeners by cloning
     const newPrevBtn = prevBtn.cloneNode(true);
@@ -282,12 +293,29 @@ export function setupReplayControls() {
     newPlayBtn.addEventListener('click', () => {
         toggleReplayPlayback();
     });
+
+    // PHASE 4: Speed control
+    if (speedBtn) {
+        const newSpeedBtn = speedBtn.cloneNode(true);
+        speedBtn.parentNode.replaceChild(newSpeedBtn, speedBtn);
+        newSpeedBtn.addEventListener('click', cycleReplaySpeed);
+        newSpeedBtn.textContent = currentReplaySpeed;
+    }
+
+    // PHASE 4: Share/export replay link
+    if (shareBtn) {
+        const newShareBtn = shareBtn.cloneNode(true);
+        shareBtn.parentNode.replaceChild(newShareBtn, shareBtn);
+        newShareBtn.addEventListener('click', copyReplayLink);
+    }
 }
 
 export function toggleReplayPlayback() {
     state.replayPlaying = !state.replayPlaying;
 
     if (state.replayPlaying) {
+        // PHASE 4: Use selected replay speed
+        const speedMs = REPLAY_SPEEDS[currentReplaySpeed] || 1500;
         state.replayInterval = setInterval(() => {
             const events = state.currentReplayData?.events || [];
             if (state.currentReplayIndex < events.length - 1) {
@@ -303,7 +331,7 @@ export function toggleReplayPlayback() {
                 state.replayInterval = null;
                 updateReplayControls();
             }
-        }, 1500); // 1.5 seconds between moves
+        }, speedMs);
     } else {
         if (state.replayInterval) {
             clearInterval(state.replayInterval);
@@ -312,6 +340,97 @@ export function toggleReplayPlayback() {
     }
 
     updateReplayControls();
+}
+
+// PHASE 4: Cycle through replay speed options
+export function cycleReplaySpeed() {
+    const speedKeys = Object.keys(REPLAY_SPEEDS);
+    const currentIndex = speedKeys.indexOf(currentReplaySpeed);
+    const nextIndex = (currentIndex + 1) % speedKeys.length;
+    currentReplaySpeed = speedKeys[nextIndex];
+
+    // Update button text
+    const speedBtn = document.getElementById('replay-speed');
+    if (speedBtn) {
+        speedBtn.textContent = currentReplaySpeed;
+    }
+
+    // If currently playing, restart with new speed
+    if (state.replayPlaying) {
+        clearInterval(state.replayInterval);
+        const speedMs = REPLAY_SPEEDS[currentReplaySpeed];
+        state.replayInterval = setInterval(() => {
+            const events = state.currentReplayData?.events || [];
+            if (state.currentReplayIndex < events.length - 1) {
+                state.currentReplayIndex++;
+                applyReplayState();
+                renderReplayEventLog();
+                updateReplayControls();
+                scrollToCurrentEvent();
+            } else {
+                state.replayPlaying = false;
+                clearInterval(state.replayInterval);
+                state.replayInterval = null;
+                updateReplayControls();
+            }
+        }, speedMs);
+    }
+
+    showToast(`Playback speed: ${currentReplaySpeed}`, 'info');
+}
+
+// PHASE 4: Copy shareable replay link to clipboard
+export function copyReplayLink() {
+    if (!state.currentReplayData?.id) {
+        showToast('No replay data available', 'error');
+        return;
+    }
+
+    const roomCode = CodenamesClient?.getRoomCode() || state.currentRoomId;
+    const gameId = state.currentReplayData.id;
+
+    // Create shareable URL with replay parameters
+    const url = new URL(window.location.href);
+    url.searchParams.set('replay', gameId);
+    if (roomCode) {
+        url.searchParams.set('room', roomCode);
+    }
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(url.toString())
+        .then(() => {
+            showToast('Replay link copied to clipboard!', 'success');
+        })
+        .catch(() => {
+            // Fallback for browsers without clipboard API
+            const textArea = document.createElement('textarea');
+            textArea.value = url.toString();
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Replay link copied!', 'success');
+            } catch (err) {
+                showToast('Could not copy link', 'error');
+            }
+            document.body.removeChild(textArea);
+        });
+}
+
+// PHASE 4: Get current replay speed (for display)
+export function getCurrentReplaySpeed() {
+    return currentReplaySpeed;
+}
+
+// PHASE 4: Set replay speed programmatically
+export function setReplaySpeed(speed) {
+    if (REPLAY_SPEEDS[speed]) {
+        currentReplaySpeed = speed;
+        const speedBtn = document.getElementById('replay-speed');
+        if (speedBtn) {
+            speedBtn.textContent = currentReplaySpeed;
+        }
+    }
 }
 
 export function scrollToCurrentEvent() {

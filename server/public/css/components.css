@@ -917,3 +917,32 @@ button:focus-visible,
     background: rgba(108, 117, 125, 0.4);
     border-color: rgba(108, 117, 125, 0.6);
 }
+
+/* ========== PHASE 4: REPLAY ENHANCEMENTS ========== */
+
+/* Replay speed button */
+.replay-btn.replay-speed-btn {
+    min-width: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(108, 117, 125, 0.2);
+    border: 1px solid rgba(108, 117, 125, 0.4);
+    color: #ffffff;
+}
+
+.replay-btn.replay-speed-btn:hover {
+    background: rgba(108, 117, 125, 0.3);
+    border-color: rgba(108, 117, 125, 0.6);
+}
+
+/* Replay share button */
+.replay-btn.replay-share-btn {
+    font-size: 1rem;
+    background: rgba(52, 152, 219, 0.2);
+    border: 1px solid rgba(52, 152, 219, 0.4);
+}
+
+.replay-btn.replay-share-btn:hover {
+    background: rgba(52, 152, 219, 0.3);
+    border-color: rgba(52, 152, 219, 0.6);
+}
