@@ -842,3 +842,78 @@ button:focus-visible,
 
 /* Assassin uses only skull symbol (::before) - no secondary symbol needed */
 
+/* ========== PHASE 4: SPECTATOR ENHANCEMENTS ========== */
+
+/* Spectator count section */
+.spectator-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    margin: 8px auto;
+    background: rgba(108, 117, 125, 0.15);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    border-radius: 20px;
+    color: #adb5bd;
+    font-size: 0.85rem;
+    font-weight: 500;
+    max-width: fit-content;
+}
+
+.spectator-section .spectator-icon {
+    font-size: 1rem;
+}
+
+.spectator-section .spectator-label {
+    color: #adb5bd;
+}
+
+.spectator-section #spectator-count {
+    font-weight: 700;
+    color: #ffffff;
+}
+
+/* Spectator chat message styles */
+.chat-message.spectator-message {
+    background: rgba(108, 117, 125, 0.1);
+    border-left: 3px solid rgba(108, 117, 125, 0.5);
+    padding-left: 8px;
+    opacity: 0.9;
+}
+
+.chat-message .chat-badge.spectator-badge {
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.chat-message .chat-sender.spectator {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Spectator chat toggle (if used) */
+.spectator-chat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(108, 117, 125, 0.2);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #adb5bd;
+    transition: background 0.2s ease;
+}
+
+.spectator-chat-toggle:hover {
+    background: rgba(108, 117, 125, 0.3);
+}
+
+.spectator-chat-toggle.active {
+    background: rgba(108, 117, 125, 0.4);
+    border-color: rgba(108, 117, 125, 0.6);
+}

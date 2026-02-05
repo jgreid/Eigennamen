@@ -1067,6 +1067,19 @@ export function setupMultiplayerListeners() {
             showToast('Room settings updated', 'info');
         }
     });
+
+    // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
+    CodenamesClient.on('statsUpdated', (data) => {
+        if (data.stats) {
+            updateSpectatorCount(data.stats.spectatorCount || 0);
+            updateRoomStats(data.stats);
+        }
+    });
+
+    // PHASE 4 FIX: Handle spectator chat messages
+    CodenamesClient.on('spectatorChatMessage', (data) => {
+        handleSpectatorChatMessage(data);
+    });
 }
 
 // List of multiplayer event names for cleanup
@@ -1077,7 +1090,9 @@ const multiplayerEventNames = [
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
     'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
     'kicked', 'playerKicked', 'settingsUpdated',
-    'historyResult', 'replayData'
+    'historyResult', 'replayData',
+    // PHASE 4 FIX: Add spectator-related events
+    'statsUpdated', 'spectatorChatMessage'
 ];
 
 export function cleanupMultiplayerListeners() {
@@ -1303,4 +1318,91 @@ export function updateRoomInfoDisplay() {
     if (codeEl) codeEl.textContent = state.currentRoomId || CodenamesClient?.getRoomCode() || '----';
     if (playersEl) playersEl.textContent = state.multiplayerPlayers?.length || 0;
     if (statusEl) statusEl.textContent = state.gameState.status === 'ended' ? 'Game Over' : (state.gameState.status === 'playing' ? 'In Progress' : 'Waiting');
+}
+
+// PHASE 4: Update spectator count display
+export function updateSpectatorCount(count) {
+    const spectatorCountEl = document.getElementById('spectator-count');
+    const spectatorSection = document.getElementById('spectator-section');
+
+    if (spectatorCountEl) {
+        spectatorCountEl.textContent = count;
+    }
+
+    // Show/hide spectator section based on count
+    if (spectatorSection) {
+        spectatorSection.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    // Store in state for other components
+    state.spectatorCount = count;
+}
+
+// PHASE 4: Update room stats (team counts, spectator count, etc.)
+export function updateRoomStats(stats) {
+    if (!stats) return;
+
+    // Update spectator count
+    if (typeof stats.spectatorCount === 'number') {
+        updateSpectatorCount(stats.spectatorCount);
+    }
+
+    // Update team stats if displayed
+    const redCountEl = document.getElementById('team-red-count');
+    const blueCountEl = document.getElementById('team-blue-count');
+
+    if (redCountEl && stats.teams?.red) {
+        redCountEl.textContent = stats.teams.red.total || 0;
+    }
+    if (blueCountEl && stats.teams?.blue) {
+        blueCountEl.textContent = stats.teams.blue.total || 0;
+    }
+
+    // Store full stats in state
+    state.roomStats = stats;
+}
+
+// PHASE 4: Handle spectator chat messages
+function handleSpectatorChatMessage(data) {
+    const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message spectator-message';
+
+    const senderEl = document.createElement('span');
+    senderEl.className = 'chat-sender spectator';
+    senderEl.textContent = data.sender?.nickname || 'Spectator';
+
+    const contentEl = document.createElement('span');
+    contentEl.className = 'chat-content';
+    contentEl.textContent = data.message;
+
+    const badgeEl = document.createElement('span');
+    badgeEl.className = 'chat-badge spectator-badge';
+    badgeEl.textContent = '👁';
+    badgeEl.title = 'Spectator message';
+
+    messageEl.appendChild(badgeEl);
+    messageEl.appendChild(senderEl);
+    messageEl.appendChild(document.createTextNode(': '));
+    messageEl.appendChild(contentEl);
+
+    chatMessages.appendChild(messageEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// PHASE 4: Send a spectator chat message
+export function sendSpectatorChat(message) {
+    if (!message?.trim()) return;
+    if (!CodenamesClient?.isConnected()) return;
+
+    // Only spectators can send spectator messages
+    const player = CodenamesClient.player;
+    if (player?.role !== 'spectator' && player?.team) {
+        showToast('Only spectators can use spectator chat', 'error');
+        return;
+    }
+
+    CodenamesClient.sendSpectatorChat(message.trim());
 }
