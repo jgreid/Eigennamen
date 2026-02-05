@@ -18,6 +18,8 @@ const { createRoomHandler, createHostHandler, createPreRoomHandler } = require('
 const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
+// PHASE 5.1: Import metrics tracking for reconnections
+const { trackReconnection } = require('../../utils/metrics');
 
 /**
  * Helper: Send timer status to a socket
@@ -354,6 +356,9 @@ module.exports = function roomHandlers(io, socket) {
                 nickname: player.nickname,
                 team: player.team
             });
+
+            // PHASE 5.1: Track successful reconnection
+            trackReconnection(code, true);
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
         }

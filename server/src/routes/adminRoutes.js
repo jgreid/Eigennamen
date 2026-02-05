@@ -12,7 +12,8 @@ const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
 const { isDatabaseEnabled } = require('../config/database');
-const { getAllMetrics } = require('../utils/metrics');
+// PHASE 5.1: Import additional metrics tracking functions
+const { getAllMetrics, trackPlayerKick, trackBroadcast } = require('../utils/metrics');
 const { API_RATE_LIMITS } = require('../config/constants');
 const { toEnglishLowerCase } = require('../utils/sanitize');
 
@@ -339,6 +340,9 @@ router.post('/api/broadcast', (req, res) => {
             from: req.adminUsername
         });
 
+        // PHASE 5.1: Track broadcast metrics
+        trackBroadcast(type);
+
         res.json({
             success: true,
             message: 'Broadcast sent successfully'
@@ -526,6 +530,9 @@ router.delete('/api/rooms/:code/players/:playerId', async (req, res) => {
             playerId,
             admin: req.adminUsername
         });
+
+        // PHASE 5.1: Track player kick metrics
+        trackPlayerKick(normalizedCode, 'admin');
 
         res.json({
             success: true,

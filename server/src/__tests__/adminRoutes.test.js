@@ -89,7 +89,10 @@ jest.mock('../utils/metrics', () => ({
         gauges: {},
         histograms: {}
     })),
-    setSocketConnections: jest.fn()
+    setSocketConnections: jest.fn(),
+    // PHASE 5.1: Add mocks for new tracking functions
+    trackBroadcast: jest.fn(),
+    trackPlayerKick: jest.fn()
 }));
 
 // Mock rate limit
