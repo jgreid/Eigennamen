@@ -292,6 +292,12 @@ const METRIC_NAMES = {
     ROOMS_JOINED: 'rooms_joined',
     ERRORS: 'errors',
     RATE_LIMIT_HITS: 'rate_limit_hits',
+    // PHASE 5.1: Additional counters for better observability
+    HTTP_REQUESTS: 'http_requests_total',
+    WEBSOCKET_EVENTS: 'websocket_events_total',
+    RECONNECTIONS: 'reconnections_total',
+    PLAYER_KICKS: 'player_kicks_total',
+    BROADCASTS_SENT: 'broadcasts_sent_total',
 
     // Gauges
     ACTIVE_ROOMS: 'active_rooms',
@@ -300,13 +306,22 @@ const METRIC_NAMES = {
     ACTIVE_TIMERS: 'active_timers',
     SOCKET_CONNECTIONS: 'socket_connections',
     REDIS_CONNECTION_STATUS: 'redis_connection_status',
+    // PHASE 5.1: Additional gauges for system health
+    MEMORY_HEAP_USED: 'memory_heap_used_bytes',
+    MEMORY_HEAP_TOTAL: 'memory_heap_total_bytes',
+    MEMORY_RSS: 'memory_rss_bytes',
+    EVENT_LOOP_LAG: 'event_loop_lag_ms',
+    SPECTATORS: 'spectators_total',
 
     // Histograms
     OPERATION_LATENCY: 'operation_latency_ms',
     REDIS_LATENCY: 'redis_latency_ms',
     GAME_DURATION: 'game_duration_seconds',
     TURN_DURATION: 'turn_duration_seconds',
-    SOCKET_EVENT_LATENCY: 'socket_event_latency_ms'
+    SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
+    // PHASE 5.1: Additional histograms
+    HTTP_REQUEST_DURATION: 'http_request_duration_ms',
+    WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
 };
 
 // Convenience functions for common metrics
@@ -328,6 +343,110 @@ const trackOperationLatency = (operation, durationMs) => recordHistogram(METRIC_
 const trackRedisLatency = (command, durationMs) => recordHistogram(METRIC_NAMES.REDIS_LATENCY, durationMs, { command });
 const trackSocketEventLatency = (event, durationMs) => recordHistogram(METRIC_NAMES.SOCKET_EVENT_LATENCY, durationMs, { event });
 
+// PHASE 5.1: Additional tracking functions
+const trackHttpRequest = (method, path, statusCode) => incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method, path, statusCode: String(statusCode) });
+const trackWebsocketEvent = (event, direction = 'in') => incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event, direction });
+const trackReconnection = (roomCode, success) => incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode, success: String(success) });
+const trackPlayerKick = (roomCode, reason) => incrementCounter(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode, reason });
+const trackBroadcast = (type) => incrementCounter(METRIC_NAMES.BROADCASTS_SENT, 1, { type });
+const trackHttpRequestDuration = (method, path, durationMs) => recordHistogram(METRIC_NAMES.HTTP_REQUEST_DURATION, durationMs, { method, path });
+const trackWebsocketMessageSize = (event, bytes) => recordHistogram(METRIC_NAMES.WEBSOCKET_MESSAGE_SIZE, bytes, { event });
+const setSpectatorCount = (count) => setGauge(METRIC_NAMES.SPECTATORS, count);
+
+// PHASE 5.1: Update system metrics (call periodically)
+function updateSystemMetrics() {
+    const mem = process.memoryUsage();
+    setGauge(METRIC_NAMES.MEMORY_HEAP_USED, mem.heapUsed);
+    setGauge(METRIC_NAMES.MEMORY_HEAP_TOTAL, mem.heapTotal);
+    setGauge(METRIC_NAMES.MEMORY_RSS, mem.rss);
+}
+
+// PHASE 5.1: Measure event loop lag
+let lastLoopTime = process.hrtime.bigint();
+function measureEventLoopLag() {
+    const now = process.hrtime.bigint();
+    const expected = 100n * 1000000n; // 100ms in nanoseconds
+    const actual = now - lastLoopTime;
+    const lag = Number(actual - expected) / 1e6; // Convert to ms
+    if (lag > 0) {
+        setGauge(METRIC_NAMES.EVENT_LOOP_LAG, lag);
+    }
+    lastLoopTime = now;
+}
+
+// Start event loop monitoring (only in non-test environments)
+let eventLoopInterval = null;
+function startEventLoopMonitoring() {
+    if (process.env.NODE_ENV !== 'test' && !eventLoopInterval) {
+        eventLoopInterval = setInterval(measureEventLoopLag, 100);
+        eventLoopInterval.unref(); // Don't keep process alive
+    }
+}
+
+function stopEventLoopMonitoring() {
+    if (eventLoopInterval) {
+        clearInterval(eventLoopInterval);
+        eventLoopInterval = null;
+    }
+}
+
+/**
+ * PHASE 5.1: Export metrics in Prometheus text format
+ * @returns {string} Prometheus-compatible metrics text
+ */
+function getPrometheusMetrics() {
+    const lines = [];
+    const timestamp = Date.now();
+
+    // Add help and type for counters
+    for (const [key, counter] of Object.entries(metrics.counters)) {
+        const name = key.split(':')[0].replace(/[.-]/g, '_');
+        const labelStr = formatPrometheusLabels(counter.labels);
+        lines.push(`# TYPE ${name} counter`);
+        lines.push(`${name}${labelStr} ${counter.value} ${timestamp}`);
+    }
+
+    // Add help and type for gauges
+    for (const [key, gauge] of Object.entries(metrics.gauges)) {
+        const name = key.split(':')[0].replace(/[.-]/g, '_');
+        const labelStr = formatPrometheusLabels(gauge.labels);
+        lines.push(`# TYPE ${name} gauge`);
+        lines.push(`${name}${labelStr} ${gauge.value} ${timestamp}`);
+    }
+
+    // Add histogram summaries
+    for (const [key, histogram] of Object.entries(metrics.histograms)) {
+        if (!histogram || histogram.count === 0) continue;
+        const name = key.split(':')[0].replace(/[.-]/g, '_');
+        const baseLabels = histogram.labels || {};
+        const sorted = [...histogram.values].sort((a, b) => a - b);
+        const percentile = (p) => {
+            const idx = Math.ceil(sorted.length * p) - 1;
+            return sorted[Math.max(0, idx)];
+        };
+
+        lines.push(`# TYPE ${name} summary`);
+        lines.push(`${name}_count${formatPrometheusLabels(baseLabels)} ${histogram.count} ${timestamp}`);
+        lines.push(`${name}_sum${formatPrometheusLabels(baseLabels)} ${histogram.sum} ${timestamp}`);
+        lines.push(`${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.5' })} ${percentile(0.5)} ${timestamp}`);
+        lines.push(`${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.9' })} ${percentile(0.9)} ${timestamp}`);
+        lines.push(`${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.99' })} ${percentile(0.99)} ${timestamp}`);
+    }
+
+    return lines.join('\n');
+}
+
+/**
+ * Format labels for Prometheus
+ */
+function formatPrometheusLabels(labels) {
+    if (!labels || Object.keys(labels).length === 0) return '';
+    const pairs = Object.entries(labels)
+        .map(([k, v]) => `${k}="${String(v).replace(/"/g, '\\"')}"`)
+        .join(',');
+    return `{${pairs}}`;
+}
+
 module.exports = {
     // Core functions
     incrementCounter,
@@ -345,6 +464,14 @@ module.exports = {
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
+
+    // PHASE 5.1: Prometheus export
+    getPrometheusMetrics,
+
+    // PHASE 5.1: System monitoring
+    updateSystemMetrics,
+    startEventLoopMonitoring,
+    stopEventLoopMonitoring,
 
     // Metric names
     METRIC_NAMES,
@@ -364,5 +491,15 @@ module.exports = {
     setSocketConnections,
     trackOperationLatency,
     trackRedisLatency,
-    trackSocketEventLatency
+    trackSocketEventLatency,
+
+    // PHASE 5.1: Additional tracking functions
+    trackHttpRequest,
+    trackWebsocketEvent,
+    trackReconnection,
+    trackPlayerKick,
+    trackBroadcast,
+    trackHttpRequestDuration,
+    trackWebsocketMessageSize,
+    setSpectatorCount
 };

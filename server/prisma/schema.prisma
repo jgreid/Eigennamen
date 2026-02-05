@@ -30,6 +30,8 @@ model User {
   // PostgreSQL allows multiple NULLs with @unique, but this is cleaner
   // as it explicitly documents the intent and works consistently
   @@unique([email], map: "users_email_unique")
+  // PHASE 5.3: Add index for sorting users by creation date
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -49,6 +51,10 @@ model Room {
 
   @@index([code])
   @@index([expiresAt])
+  // PHASE 5.3: Add indexes for filtering rooms
+  @@index([status])
+  @@index([createdAt])
+  @@index([hostId])
   @@map("rooms")
 }
 
@@ -78,6 +84,10 @@ model Game {
   participants GameParticipant[]
 
   @@index([roomId])
+  // PHASE 5.3: Add indexes for common query patterns
+  @@index([createdAt])
+  @@index([gameOver])
+  @@index([roomId, gameNumber])
   @@map("games")
 }
 
@@ -96,6 +106,11 @@ model WordList {
   owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([isPublic])
+  // PHASE 5.3: Add indexes for common query patterns
+  @@index([ownerId])
+  @@index([name])
+  @@index([createdAt])
+  @@index([timesUsed])
   @@map("word_lists")
 }
 
@@ -115,5 +130,9 @@ model GameParticipant {
 
   @@index([gameId])
   @@index([userId])
+  // PHASE 5.3: Add indexes for filtering by team/role
+  @@index([team])
+  @@index([role])
+  @@index([sessionId])
   @@map("game_participants")
 }

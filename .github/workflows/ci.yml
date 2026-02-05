@@ -72,6 +72,55 @@ jobs:
       - name: Run ESLint
         run: npm run lint -- --max-warnings 0
 
+  # PHASE 5.4: Security scanning job
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Check for known vulnerabilities
+        run: |
+          # Run audit and capture output
+          npm audit --json > audit-results.json 2>/dev/null || true
+
+          # Check for critical vulnerabilities
+          CRITICAL=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
+
+          echo "Critical vulnerabilities: $CRITICAL"
+          echo "High vulnerabilities: $HIGH"
+
+          # Fail if critical vulnerabilities exist
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Critical vulnerabilities found!"
+            cat audit-results.json | jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical") | .key'
+            exit 1
+          fi
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit
+          path: server/audit-results.json
+          retention-days: 30
+
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
