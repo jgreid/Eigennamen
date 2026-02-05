@@ -192,6 +192,194 @@ export const state = {
     copyButtonTimeoutId: null
 };
 
+// ========== DEBUGGING UTILITIES ==========
+// Enable debug mode by setting localStorage.debug = 'codenames'
+const DEBUG_KEY = 'codenames';
+const debugEnabled = () => {
+    try {
+        return localStorage.getItem('debug') === DEBUG_KEY;
+    } catch {
+        return false;
+    }
+};
+
+// State change history for debugging
+const stateHistory = [];
+const MAX_HISTORY = 100;
+
+/**
+ * Log a state change with context
+ * @param {string} property - State property being changed
+ * @param {*} oldValue - Previous value
+ * @param {*} newValue - New value
+ * @param {string} source - What triggered the change
+ */
+export function logStateChange(property, oldValue, newValue, source = 'unknown') {
+    if (!debugEnabled()) return;
+
+    const entry = {
+        timestamp: new Date().toISOString(),
+        property,
+        oldValue: safeClone(oldValue),
+        newValue: safeClone(newValue),
+        source,
+        stack: new Error().stack?.split('\n').slice(2, 5).join('\n')
+    };
+
+    stateHistory.push(entry);
+    if (stateHistory.length > MAX_HISTORY) {
+        stateHistory.shift();
+    }
+
+    console.log(`%c[State] ${property}`, 'color: #4a9eff; font-weight: bold',
+        '\nFrom:', oldValue,
+        '\nTo:', newValue,
+        '\nSource:', source
+    );
+}
+
+/**
+ * Safe deep clone for logging (handles circular refs)
+ */
+function safeClone(obj) {
+    if (obj === null || typeof obj !== 'object') return obj;
+    try {
+        return JSON.parse(JSON.stringify(obj));
+    } catch {
+        return '[Circular or non-serializable]';
+    }
+}
+
+/**
+ * Update a state property with logging
+ * @param {string} property - Property path (e.g., 'gameState.currentTurn')
+ * @param {*} value - New value
+ * @param {string} source - What triggered the change
+ */
+export function setState(property, value, source = 'unknown') {
+    const parts = property.split('.');
+    let target = state;
+    let oldValue;
+
+    // Navigate to the parent of the target property
+    for (let i = 0; i < parts.length - 1; i++) {
+        target = target[parts[i]];
+        if (target === undefined) {
+            console.error(`[State] Invalid property path: ${property}`);
+            return;
+        }
+    }
+
+    const lastPart = parts[parts.length - 1];
+    oldValue = target[lastPart];
+    target[lastPart] = value;
+
+    logStateChange(property, oldValue, value, source);
+}
+
+/**
+ * Get state change history
+ * @param {string} property - Optional filter by property
+ * @returns {Array} State change history
+ */
+export function getStateHistory(property = null) {
+    if (property) {
+        return stateHistory.filter(entry => entry.property === property);
+    }
+    return [...stateHistory];
+}
+
+/**
+ * Clear state history
+ */
+export function clearStateHistory() {
+    stateHistory.length = 0;
+}
+
+/**
+ * Get current state snapshot (for debugging)
+ */
+export function getStateSnapshot() {
+    return safeClone(state);
+}
+
+/**
+ * Dump state to console (for debugging)
+ */
+export function dumpState() {
+    console.group('%c[State Dump]', 'color: #4a9eff; font-weight: bold');
+    console.log('isMultiplayerMode:', state.isMultiplayerMode);
+    console.log('currentRoomId:', state.currentRoomId);
+    console.log('isHost:', state.isHost);
+    console.log('playerTeam:', state.playerTeam);
+    console.log('spymasterTeam:', state.spymasterTeam);
+    console.log('clickerTeam:', state.clickerTeam);
+    console.log('gameState:', safeClone(state.gameState));
+    console.log('timerState:', safeClone(state.timerState));
+    console.log('multiplayerPlayers:', state.multiplayerPlayers.length, 'players');
+    console.groupEnd();
+}
+
+/**
+ * Watch for changes to a state property (debugging)
+ * @param {string} property - Property to watch
+ * @param {function} callback - Called on change with (oldValue, newValue)
+ */
+const watchers = new Map();
+export function watchState(property, callback) {
+    if (!watchers.has(property)) {
+        watchers.set(property, []);
+    }
+    watchers.get(property).push(callback);
+
+    // Return unwatch function
+    return () => {
+        const list = watchers.get(property);
+        const idx = list.indexOf(callback);
+        if (idx >= 0) list.splice(idx, 1);
+    };
+}
+
+/**
+ * Trigger watchers for a property
+ */
+export function notifyWatchers(property, oldValue, newValue) {
+    const list = watchers.get(property);
+    if (list) {
+        list.forEach(cb => {
+            try {
+                cb(oldValue, newValue);
+            } catch (e) {
+                console.error('[State] Watcher error:', e);
+            }
+        });
+    }
+}
+
+// Expose debugging utilities globally for console access
+if (typeof window !== 'undefined') {
+    window.__codenamesDebug = {
+        getState: getStateSnapshot,
+        getHistory: getStateHistory,
+        clearHistory: clearStateHistory,
+        dumpState,
+        watchState,
+        enableDebug: () => {
+            localStorage.setItem('debug', DEBUG_KEY);
+            console.log('%c[Debug] Enabled', 'color: #00ff00');
+        },
+        disableDebug: () => {
+            localStorage.removeItem('debug');
+            console.log('%c[Debug] Disabled', 'color: #ff0000');
+        }
+    };
+
+    if (debugEnabled()) {
+        console.log('%c[Codenames Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
+            '\nUse window.__codenamesDebug for debugging utilities');
+    }
+}
+
 // Initialize cached elements (called once on page load)
 export function initCachedElements() {
     state.cachedElements.board = document.getElementById('board');

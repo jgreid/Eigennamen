@@ -18,6 +18,7 @@ const {
     REDIS_TTL,
     ERROR_CODES
 } = require('../config/constants');
+const { audit } = require('../services/auditService');
 
 /**
  * Check if we should trust proxy headers (X-Forwarded-For)
@@ -206,11 +207,88 @@ async function validateSession(sessionId, clientIP) {
 }
 
 /**
+ * Validate WebSocket connection origin for CSRF protection
+ * @param {object} socket - Socket.io socket object
+ * @returns {{valid: boolean, reason?: string}}
+ */
+function validateOrigin(socket) {
+    const origin = socket.handshake.headers.origin;
+    const corsOrigin = process.env.CORS_ORIGIN;
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    // In development with wildcard CORS, allow all origins
+    if (!isProduction && (!corsOrigin || corsOrigin === '*')) {
+        return { valid: true };
+    }
+
+    // If no origin header (e.g., same-origin or non-browser client), allow in dev
+    if (!origin) {
+        if (isProduction) {
+            // In production, missing origin is suspicious - log but allow for backwards compat
+            logger.warn('WebSocket connection without origin header', {
+                socketId: socket.id,
+                clientIP: getClientIP(socket)
+            });
+        }
+        return { valid: true };
+    }
+
+    // Parse allowed origins from CORS_ORIGIN
+    const allowedOrigins = (corsOrigin || '').split(',').map(o => o.trim().toLowerCase());
+
+    // Check if origin is allowed
+    const originLower = origin.toLowerCase();
+    const isAllowed = allowedOrigins.some(allowed => {
+        if (allowed === '*') return true;
+        // Exact match
+        if (allowed === originLower) return true;
+        // Support wildcard subdomains (e.g., *.example.com)
+        if (allowed.startsWith('*.')) {
+            const domain = allowed.slice(2);
+            return originLower.endsWith(domain) &&
+                   (originLower.length === domain.length ||
+                    originLower[originLower.length - domain.length - 1] === '.');
+        }
+        return false;
+    });
+
+    if (!isAllowed) {
+        logger.warn('WebSocket CSRF protection: origin not allowed', {
+            origin,
+            allowedOrigins,
+            socketId: socket.id,
+            clientIP: getClientIP(socket)
+        });
+
+        // Audit suspicious activity
+        audit.suspicious(
+            'WebSocket connection from unauthorized origin',
+            socket.handshake.auth?.sessionId || 'unknown',
+            getClientIP(socket),
+            { origin, allowedOrigins }
+        );
+
+        return {
+            valid: false,
+            reason: 'Origin not allowed'
+        };
+    }
+
+    return { valid: true };
+}
+
+/**
  * Authenticate socket connection
  * Includes comprehensive session validation with security checks
  */
 async function authenticateSocket(socket, next) {
     try {
+        // CSRF Protection: Validate origin header
+        const originValidation = validateOrigin(socket);
+        if (!originValidation.valid) {
+            return next(new Error(originValidation.reason || 'Origin not allowed'));
+        }
+
         const { sessionId, token } = socket.handshake.auth;
 
         // Get client IP (handles proxies)
@@ -385,5 +463,6 @@ module.exports = {
     authenticateSocket,
     requireAuth,
     getClientIP,
-    validateSession
+    validateSession,
+    validateOrigin
 };
