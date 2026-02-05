@@ -815,6 +815,15 @@
             this.socket.emit('chat:message', { text, teamOnly });
         },
 
+        /**
+         * PHASE 4: Send a spectator-only chat message
+         * @param {string} message - Message text
+         */
+        sendSpectatorChat(message) {
+            if (!this.socket || !message?.trim()) return;
+            this.socket.emit('chat:spectator', { message: message.trim() });
+        },
+
         // =====================
         // Utility
         // =====================

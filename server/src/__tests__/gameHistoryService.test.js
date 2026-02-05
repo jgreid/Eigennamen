@@ -141,12 +141,27 @@ describe('Game History Service', () => {
     });
 
     describe('saveGameResult', () => {
+        // HARDENING FIX: Updated mock data to have valid 25 words and types
+        const mockWords = [
+            'APPLE', 'BANANA', 'CHERRY', 'DATE', 'ELDERBERRY',
+            'FIG', 'GRAPE', 'HONEYDEW', 'IMBE', 'JACKFRUIT',
+            'KIWI', 'LEMON', 'MANGO', 'NECTARINE', 'ORANGE',
+            'PAPAYA', 'QUINCE', 'RASPBERRY', 'STRAWBERRY', 'TANGERINE',
+            'UGO', 'VANILLA', 'WATERMELON', 'XIMENIA', 'YAM'
+        ];
+        // 9 red, 8 blue, 7 neutral, 1 assassin
+        const mockTypes = [
+            'red', 'red', 'red', 'red', 'red', 'red', 'red', 'red', 'red',
+            'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue',
+            'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral',
+            'assassin'
+        ];
         const mockGameData = {
             id: 'game-123',
             seed: 'test-seed',
-            words: ['APPLE', 'BANANA', 'CHERRY'],
-            types: ['red', 'blue', 'neutral'],
-            revealed: [true, true, false],
+            words: mockWords,
+            types: mockTypes,
+            revealed: Array(25).fill(false).map((_, i) => i < 2),
             redScore: 1,
             blueScore: 1,
             redTotal: 9,
@@ -170,8 +185,8 @@ describe('Game History Service', () => {
             expect(result).not.toBeNull();
             expect(result.id).toBe('game-123');
             expect(result.roomCode).toBe('ROOM1');
-            expect(result.initialBoard.words).toEqual(['APPLE', 'BANANA', 'CHERRY']);
-            expect(result.initialBoard.types).toEqual(['red', 'blue', 'neutral']);
+            expect(result.initialBoard.words).toEqual(mockWords);
+            expect(result.initialBoard.types).toEqual(mockTypes);
             expect(result.finalState.winner).toBe('red');
             expect(result.finalState.redScore).toBe(1);
             expect(result.clues).toHaveLength(1);
@@ -802,11 +817,20 @@ describe('Game History Service', () => {
 
     describe('getFirstTeam edge cases', () => {
         test('returns red as fallback when totals are equal', async () => {
+            // HARDENING FIX: Use valid 25 words and types for validation
+            const validWords = Array(25).fill('WORD').map((w, i) => `${w}${i}`);
+            // 8 red, 8 blue, 8 neutral, 1 assassin (neither team has 9)
+            const equalTypes = [
+                'red', 'red', 'red', 'red', 'red', 'red', 'red', 'red',
+                'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue',
+                'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral',
+                'assassin'
+            ];
             const gameWithEqualTotals = {
                 id: 'game-equal',
                 seed: 'test-seed',
-                words: ['A'],
-                types: ['red'],
+                words: validWords,
+                types: equalTypes,
                 redScore: 0,
                 blueScore: 0,
                 redTotal: 8,  // Neither team has 9

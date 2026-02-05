@@ -398,13 +398,29 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const roomService = require('../services/roomService');
             const eventLogService = require('../services/eventLogService');
 
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'host-session',
-                nickname: 'HostPlayer',
-                roomCode: 'ROOM01',
-                team: 'red',
-                isHost: true,
-                connected: true
+            // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+            let getPlayerCallCount = 0;
+            playerService.getPlayer.mockImplementation(async () => {
+                getPlayerCallCount++;
+                if (getPlayerCallCount === 1) {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: true
+                    };
+                } else {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: false  // Host is still disconnected
+                    };
+                }
             });
 
             playerService.getPlayersInRoom.mockResolvedValue([
@@ -503,13 +519,29 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const playerService = require('../services/playerService');
             const roomService = require('../services/roomService');
 
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'host-session',
-                nickname: 'HostPlayer',
-                roomCode: 'ROOM01',
-                team: 'red',
-                isHost: true,
-                connected: true
+            // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+            let getPlayerCallCount = 0;
+            playerService.getPlayer.mockImplementation(async () => {
+                getPlayerCallCount++;
+                if (getPlayerCallCount === 1) {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: true
+                    };
+                } else {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: false
+                    };
+                }
             });
 
             playerService.getPlayersInRoom.mockResolvedValue([
@@ -541,13 +573,29 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const playerService = require('../services/playerService');
             const roomService = require('../services/roomService');
 
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'host-session',
-                nickname: 'HostPlayer',
-                roomCode: 'ROOM01',
-                team: 'red',
-                isHost: true,
-                connected: true
+            // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+            let getPlayerCallCount = 0;
+            playerService.getPlayer.mockImplementation(async () => {
+                getPlayerCallCount++;
+                if (getPlayerCallCount === 1) {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: true
+                    };
+                } else {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: false  // Host is still disconnected
+                    };
+                }
             });
 
             playerService.getPlayersInRoom.mockResolvedValue([
@@ -584,13 +632,30 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const playerService = require('../services/playerService');
             const roomService = require('../services/roomService');
 
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'host-session',
-                nickname: 'HostPlayer',
-                roomCode: 'ROOM01',
-                team: 'red',
-                isHost: true,
-                connected: true
+            // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+            // First call returns host info, second call (re-check) returns disconnected state
+            let getPlayerCallCount = 0;
+            playerService.getPlayer.mockImplementation(async () => {
+                getPlayerCallCount++;
+                if (getPlayerCallCount === 1) {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: true
+                    };
+                } else {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: false  // Host is still disconnected
+                    };
+                }
             });
 
             playerService.getPlayersInRoom.mockResolvedValue([
@@ -632,13 +697,29 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const playerService = require('../services/playerService');
             const roomService = require('../services/roomService');
 
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'host-session',
-                nickname: 'HostPlayer',
-                roomCode: 'ROOM01',
-                team: 'red',
-                isHost: true,
-                connected: true
+            // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+            let getPlayerCallCount = 0;
+            playerService.getPlayer.mockImplementation(async () => {
+                getPlayerCallCount++;
+                if (getPlayerCallCount === 1) {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: true
+                    };
+                } else {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: false  // Host is still disconnected
+                    };
+                }
             });
 
             playerService.getPlayersInRoom.mockResolvedValue([
@@ -667,13 +748,29 @@ describe('handleDisconnect Function Coverage (Lines 291-424)', () => {
             const playerService = require('../services/playerService');
             const roomService = require('../services/roomService');
 
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'host-session',
-                nickname: 'HostPlayer',
-                roomCode: 'ROOM01',
-                team: 'red',
-                isHost: true,
-                connected: true
+            // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+            let getPlayerCallCount = 0;
+            playerService.getPlayer.mockImplementation(async () => {
+                getPlayerCallCount++;
+                if (getPlayerCallCount === 1) {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: true
+                    };
+                } else {
+                    return {
+                        sessionId: 'host-session',
+                        nickname: 'HostPlayer',
+                        roomCode: 'ROOM01',
+                        team: 'red',
+                        isHost: true,
+                        connected: false  // Host is still disconnected
+                    };
+                }
             });
 
             playerService.getPlayersInRoom.mockResolvedValue([
@@ -842,10 +939,10 @@ describe('SESSION_SECURITY Import (Line 323)', () => {
 
         const data = call[1];
         expect(data.reconnectionDeadline).toBeGreaterThan(beforeCall);
-        // Default TTL is 900 seconds (15 minutes)
-        // Deadline should be approximately now + 900000ms
-        const expectedMin = beforeCall + (900 * 1000) - 1000;
-        const expectedMax = afterCall + (900 * 1000) + 1000;
+        // HARDENING: TTL reduced to 300 seconds (5 minutes) to limit session hijacking window
+        // Deadline should be approximately now + 300000ms
+        const expectedMin = beforeCall + (300 * 1000) - 1000;
+        const expectedMax = afterCall + (300 * 1000) + 1000;
         expect(data.reconnectionDeadline).toBeGreaterThanOrEqual(expectedMin);
         expect(data.reconnectionDeadline).toBeLessThanOrEqual(expectedMax);
     });
@@ -872,13 +969,32 @@ describe('Host Change Event Logging (Lines 389-399)', () => {
         const roomService = require('../services/roomService');
         const eventLogService = require('../services/eventLogService');
 
-        playerService.getPlayer.mockResolvedValue({
-            sessionId: 'host-session',
-            nickname: 'HostPlayer',
-            roomCode: 'ROOM01',
-            team: 'red',
-            isHost: true,
-            connected: true
+        // HARDENING FIX: The disconnect handler now re-checks if host reconnected
+        // First call returns host info, second call (re-check) returns disconnected state
+        let getPlayerCallCount = 0;
+        playerService.getPlayer.mockImplementation(async () => {
+            getPlayerCallCount++;
+            if (getPlayerCallCount === 1) {
+                // First call: initial player lookup
+                return {
+                    sessionId: 'host-session',
+                    nickname: 'HostPlayer',
+                    roomCode: 'ROOM01',
+                    team: 'red',
+                    isHost: true,
+                    connected: true
+                };
+            } else {
+                // Second call: re-check if host reconnected (should show disconnected)
+                return {
+                    sessionId: 'host-session',
+                    nickname: 'HostPlayer',
+                    roomCode: 'ROOM01',
+                    team: 'red',
+                    isHost: true,
+                    connected: false  // Host is still disconnected
+                };
+            }
         });
 
         playerService.getPlayersInRoom.mockResolvedValue([

@@ -9,6 +9,8 @@ const express = require('express');
 const { isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
 const pubSubHealth = require('../utils/pubSubHealth');
 const logger = require('../utils/logger');
+// PHASE 5.1: Import Prometheus metrics export
+const { getPrometheusMetrics, updateSystemMetrics } = require('../utils/metrics');
 
 const router = express.Router();
 
@@ -168,6 +170,24 @@ router.get('/metrics', async (req, res) => {
             error: 'Failed to collect metrics',
             message: error.message
         });
+    }
+});
+
+/**
+ * PHASE 5.1: Prometheus-compatible metrics endpoint
+ * Returns metrics in Prometheus text exposition format
+ */
+router.get('/metrics/prometheus', (req, res) => {
+    try {
+        // Update system metrics before export
+        updateSystemMetrics();
+
+        const prometheusText = getPrometheusMetrics();
+        res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+        res.send(prometheusText);
+    } catch (error) {
+        logger.error('Prometheus metrics export failed:', error);
+        res.status(500).send('# Error exporting metrics\n');
     }
 });
 

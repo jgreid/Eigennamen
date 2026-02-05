@@ -12,7 +12,8 @@ const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
 const { isDatabaseEnabled } = require('../config/database');
-const { getAllMetrics } = require('../utils/metrics');
+// PHASE 5.1: Import additional metrics tracking functions
+const { getAllMetrics, trackPlayerKick, trackBroadcast } = require('../utils/metrics');
 const { API_RATE_LIMITS } = require('../config/constants');
 const { toEnglishLowerCase } = require('../utils/sanitize');
 
@@ -339,6 +340,9 @@ router.post('/api/broadcast', (req, res) => {
             from: req.adminUsername
         });
 
+        // PHASE 5.1: Track broadcast metrics
+        trackBroadcast(type);
+
         res.json({
             success: true,
             message: 'Broadcast sent successfully'
@@ -349,6 +353,197 @@ router.post('/api/broadcast', (req, res) => {
             error: {
                 code: 'BROADCAST_ERROR',
                 message: 'Failed to send broadcast message'
+            }
+        });
+    }
+});
+
+/**
+ * PHASE 4.7: GET /admin/api/rooms/:code/details - Get detailed room info with players
+ */
+router.get('/api/rooms/:code/details', async (req, res) => {
+    try {
+        const { code } = req.params;
+
+        // Validate room code format
+        if (!/^[\p{L}\p{N}\-_]{3,20}$/u.test(code)) {
+            return res.status(400).json({
+                error: {
+                    code: 'INVALID_ROOM_CODE',
+                    message: 'Invalid room code format'
+                }
+            });
+        }
+
+        const normalizedCode = toEnglishLowerCase(code);
+        const redis = getRedis();
+
+        // Get room data
+        const roomData = await redis.get(`room:${normalizedCode}`);
+        if (!roomData) {
+            return res.status(404).json({
+                error: {
+                    code: 'ROOM_NOT_FOUND',
+                    message: 'Room not found'
+                }
+            });
+        }
+
+        const room = JSON.parse(roomData);
+
+        // Get all player IDs
+        const playerIds = await redis.sMembers(`room:${normalizedCode}:players`);
+
+        // Fetch player data
+        const players = [];
+        for (const playerId of playerIds) {
+            try {
+                const playerData = await redis.get(`player:${playerId}`);
+                if (playerData) {
+                    const player = JSON.parse(playerData);
+                    players.push({
+                        id: playerId,
+                        nickname: player.nickname || 'Unknown',
+                        team: player.team || null,
+                        role: player.role || 'operative',
+                        isHost: room.hostId === playerId,
+                        joinedAt: player.joinedAt
+                    });
+                }
+            } catch (parseError) {
+                logger.warn(`Failed to parse player data for ${playerId}`, { error: parseError.message });
+            }
+        }
+
+        // Sort: host first, then by join time
+        players.sort((a, b) => {
+            if (a.isHost) return -1;
+            if (b.isHost) return 1;
+            return (a.joinedAt || 0) - (b.joinedAt || 0);
+        });
+
+        res.json({
+            code: room.code,
+            status: room.status,
+            hostId: room.hostId,
+            players,
+            settings: room.settings,
+            createdAt: room.createdAt
+        });
+    } catch (error) {
+        logger.error('Failed to fetch room details', { error: error.message, code: req.params.code });
+        res.status(500).json({
+            error: {
+                code: 'ROOM_DETAILS_ERROR',
+                message: 'Failed to fetch room details'
+            }
+        });
+    }
+});
+
+/**
+ * PHASE 4.7: DELETE /admin/api/rooms/:code/players/:playerId - Kick a player from room
+ */
+router.delete('/api/rooms/:code/players/:playerId', async (req, res) => {
+    try {
+        const { code, playerId } = req.params;
+
+        // Validate room code format
+        if (!/^[\p{L}\p{N}\-_]{3,20}$/u.test(code)) {
+            return res.status(400).json({
+                error: {
+                    code: 'INVALID_ROOM_CODE',
+                    message: 'Invalid room code format'
+                }
+            });
+        }
+
+        // Validate player ID format (should be a socket ID or similar)
+        if (!playerId || typeof playerId !== 'string' || playerId.length > 100) {
+            return res.status(400).json({
+                error: {
+                    code: 'INVALID_PLAYER_ID',
+                    message: 'Invalid player ID format'
+                }
+            });
+        }
+
+        const normalizedCode = toEnglishLowerCase(code);
+        const redis = getRedis();
+
+        // Check if room exists
+        const roomData = await redis.get(`room:${normalizedCode}`);
+        if (!roomData) {
+            return res.status(404).json({
+                error: {
+                    code: 'ROOM_NOT_FOUND',
+                    message: 'Room not found'
+                }
+            });
+        }
+
+        const room = JSON.parse(roomData);
+
+        // Don't allow kicking the host
+        if (room.hostId === playerId) {
+            return res.status(400).json({
+                error: {
+                    code: 'CANNOT_KICK_HOST',
+                    message: 'Cannot kick the room host'
+                }
+            });
+        }
+
+        // Check if player is in the room
+        const isMember = await redis.sIsMember(`room:${normalizedCode}:players`, playerId);
+        if (!isMember) {
+            return res.status(404).json({
+                error: {
+                    code: 'PLAYER_NOT_FOUND',
+                    message: 'Player not found in room'
+                }
+            });
+        }
+
+        // Notify the player they've been kicked
+        const app = req.app;
+        const io = app.get('io');
+        if (io) {
+            io.to(playerId).emit('room:kicked', {
+                reason: 'Kicked by administrator',
+                timestamp: new Date().toISOString()
+            });
+
+            // Also notify others in the room
+            io.to(`room:${normalizedCode}`).emit('room:playerKicked', {
+                playerId,
+                reason: 'Kicked by administrator'
+            });
+        }
+
+        // Remove player from room
+        await redis.sRem(`room:${normalizedCode}:players`, playerId);
+        await redis.del(`player:${playerId}`);
+
+        logger.info('Player kicked by admin', {
+            code: normalizedCode,
+            playerId,
+            admin: req.adminUsername
+        });
+
+        // PHASE 5.1: Track player kick metrics
+        trackPlayerKick(normalizedCode, 'admin');
+
+        res.json({
+            success: true,
+            message: 'Player has been kicked'
+        });
+    } catch (error) {
+        logger.error('Failed to kick player', { error: error.message, code: req.params.code, playerId: req.params.playerId });
+        res.status(500).json({
+            error: {
+                code: 'KICK_ERROR',
+                message: 'Failed to kick player'
             }
         });
     }

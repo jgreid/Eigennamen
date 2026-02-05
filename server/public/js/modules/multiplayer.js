@@ -9,6 +9,41 @@ import { revealCardFromServer, showGameOver, updateScoreboard, updateTurnIndicat
 import { updateRoleBanner, updateControls } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
+// PHASE 2 FIX: Import shared constants for validation
+import { VALIDATION, validateNickname, validateRoomCode } from './constants.js';
+
+// PHASE 2 FIX: AbortController for request cancellation
+// Allows cancelling in-flight operations when user navigates away
+let joinAbortController = null;
+let createAbortController = null;
+
+/**
+ * Cancel any in-progress join operation
+ */
+export function cancelJoinOperation() {
+    if (joinAbortController) {
+        joinAbortController.abort();
+        joinAbortController = null;
+    }
+}
+
+/**
+ * Cancel any in-progress create operation
+ */
+export function cancelCreateOperation() {
+    if (createAbortController) {
+        createAbortController.abort();
+        createAbortController = null;
+    }
+}
+
+/**
+ * Cancel all in-progress multiplayer operations
+ */
+export function cancelAllOperations() {
+    cancelJoinOperation();
+    cancelCreateOperation();
+}
 
 export function openMultiplayer() {
     // Pre-fill nickname from storage
@@ -29,6 +64,8 @@ export function openMultiplayer() {
 }
 
 export function closeMultiplayer() {
+    // PHASE 2 FIX: Cancel any in-progress operations when modal closes
+    cancelAllOperations();
     clearFormErrors();
     closeModal('multiplayer-modal');
 }
@@ -117,13 +154,10 @@ async function handleJoinGame() {
     const urlRoomCode = getRoomCodeFromURL();
     const joinBtn = document.getElementById('btn-mp-action');
 
-    // Nickname validation (matches server VALIDATION.NICKNAME_MAX_LENGTH = 30)
-    if (!nickname) {
-        setFieldError('Please enter your nickname', 'join-nickname-error');
-        return;
-    }
-    if (nickname.length > 30) {
-        setFieldError('Nickname must be 30 characters or less', 'join-nickname-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const nicknameValidation = validateNickname(nickname);
+    if (!nicknameValidation.valid) {
+        setFieldError(nicknameValidation.error, 'join-nickname-error');
         return;
     }
     if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
@@ -134,24 +168,17 @@ async function handleJoinGame() {
     // Use user input if provided, otherwise fall back to URL room code
     const roomId = roomIdInput || urlRoomCode;
 
-    if (!roomId) {
-        setFieldError('Please enter a Room ID', 'join-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const roomValidation = validateRoomCode(roomId);
+    if (!roomValidation.valid) {
+        setFieldError(roomValidation.error, 'join-error');
         return;
     }
 
-    // Validate room ID format (3-20 chars, alphanumeric + hyphens + underscores)
-    if (roomId.length < 3) {
-        setFieldError('Room ID must be at least 3 characters', 'join-error');
-        return;
-    }
-    if (roomId.length > 20) {
-        setFieldError('Room ID must be 20 characters or less', 'join-error');
-        return;
-    }
-    if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
-        setFieldError('Room ID can only contain letters, numbers, hyphens, and underscores', 'join-error');
-        return;
-    }
+    // PHASE 2 FIX: Cancel any previous join operation and create new AbortController
+    cancelJoinOperation();
+    joinAbortController = new AbortController();
+    const signal = joinAbortController.signal;
 
     // Disable button to prevent double-click race condition
     if (joinBtn) joinBtn.disabled = true;
@@ -164,9 +191,19 @@ async function handleJoinGame() {
             await CodenamesClient.connect();
         }
 
+        // Check if operation was cancelled during connection
+        if (signal.aborted) {
+            return;
+        }
+
         setMpStatus('Joining game...', 'connecting');
         // Join the room with roomId (no password needed)
         const result = await CodenamesClient.joinRoom(roomId, nickname);
+
+        // Check if operation was cancelled while waiting for join response
+        if (signal.aborted) {
+            return;
+        }
 
         // Store the actual room code from server (normalized to lowercase)
         state.currentRoomId = result.room?.code || roomId;
@@ -174,6 +211,11 @@ async function handleJoinGame() {
         onMultiplayerJoined(result, false); // false = not host
 
     } catch (error) {
+        // Silently ignore AbortError - operation was intentionally cancelled
+        if (error.name === 'AbortError' || signal.aborted) {
+            return;
+        }
+
         console.error('Join failed:', error);
         if (error.code === 'ROOM_NOT_FOUND') {
             setMpStatus('Room not found - check the Room ID', 'error');
@@ -189,6 +231,8 @@ async function handleJoinGame() {
     } finally {
         // Re-enable button
         if (joinBtn) joinBtn.disabled = false;
+        // Clear the controller reference
+        joinAbortController = null;
     }
 }
 
@@ -199,13 +243,10 @@ async function handleCreateGame() {
     const roomId = document.getElementById('create-room-id').value.trim();
     const createBtn = document.getElementById('btn-mp-action');
 
-    // Nickname validation (matches server VALIDATION.NICKNAME_MAX_LENGTH = 30)
-    if (!nickname) {
-        setFieldError('Please enter your nickname', 'create-nickname-error');
-        return;
-    }
-    if (nickname.length > 30) {
-        setFieldError('Nickname must be 30 characters or less', 'create-nickname-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const nicknameValidation = validateNickname(nickname);
+    if (!nicknameValidation.valid) {
+        setFieldError(nicknameValidation.error, 'create-nickname-error');
         return;
     }
     if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
@@ -213,23 +254,17 @@ async function handleCreateGame() {
         return;
     }
 
-    // Room ID validation
-    if (!roomId) {
-        setFieldError('Please enter a Room ID', 'create-error');
+    // PHASE 2 FIX: Use shared validation functions from constants.js
+    const roomValidation = validateRoomCode(roomId);
+    if (!roomValidation.valid) {
+        setFieldError(roomValidation.error, 'create-error');
         return;
     }
-    if (roomId.length < 3) {
-        setFieldError('Room ID must be at least 3 characters', 'create-error');
-        return;
-    }
-    if (roomId.length > 20) {
-        setFieldError('Room ID must be 20 characters or less', 'create-error');
-        return;
-    }
-    if (!/^[a-zA-Z0-9\-_]+$/.test(roomId)) {
-        setFieldError('Room ID can only contain letters, numbers, hyphens, and underscores', 'create-error');
-        return;
-    }
+
+    // PHASE 2 FIX: Cancel any previous create operation and create new AbortController
+    cancelCreateOperation();
+    createAbortController = new AbortController();
+    const signal = createAbortController.signal;
 
     // Disable button to prevent double-click race condition
     if (createBtn) createBtn.disabled = true;
@@ -242,11 +277,21 @@ async function handleCreateGame() {
             await CodenamesClient.connect();
         }
 
+        // Check if operation was cancelled during connection
+        if (signal.aborted) {
+            return;
+        }
+
         // Create room with roomId
         const result = await CodenamesClient.createRoom({
             roomId: roomId,
             nickname: nickname
         });
+
+        // Check if operation was cancelled while waiting for create response
+        if (signal.aborted) {
+            return;
+        }
 
         // Store the actual room code from server (normalized to lowercase)
         state.currentRoomId = result.room?.code || roomId.toLowerCase();
@@ -254,6 +299,11 @@ async function handleCreateGame() {
         onMultiplayerJoined(result, true); // true = isHost
 
     } catch (error) {
+        // Silently ignore AbortError - operation was intentionally cancelled
+        if (error.name === 'AbortError' || signal.aborted) {
+            return;
+        }
+
         console.error('Create failed:', error);
         if (error.code === 'ROOM_ALREADY_EXISTS') {
             setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
@@ -265,6 +315,8 @@ async function handleCreateGame() {
     } finally {
         // Re-enable button
         if (createBtn) createBtn.disabled = false;
+        // Clear the controller reference
+        createAbortController = null;
     }
 }
 
@@ -1015,6 +1067,19 @@ export function setupMultiplayerListeners() {
             showToast('Room settings updated', 'info');
         }
     });
+
+    // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
+    CodenamesClient.on('statsUpdated', (data) => {
+        if (data.stats) {
+            updateSpectatorCount(data.stats.spectatorCount || 0);
+            updateRoomStats(data.stats);
+        }
+    });
+
+    // PHASE 4 FIX: Handle spectator chat messages
+    CodenamesClient.on('spectatorChatMessage', (data) => {
+        handleSpectatorChatMessage(data);
+    });
 }
 
 // List of multiplayer event names for cleanup
@@ -1025,7 +1090,9 @@ const multiplayerEventNames = [
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
     'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
     'kicked', 'playerKicked', 'settingsUpdated',
-    'historyResult', 'replayData'
+    'historyResult', 'replayData',
+    // PHASE 4 FIX: Add spectator-related events
+    'statsUpdated', 'spectatorChatMessage'
 ];
 
 export function cleanupMultiplayerListeners() {
@@ -1185,8 +1252,9 @@ export function clearRoomCodeFromURL() {
  */
 export function checkURLForRoomJoin() {
     const roomCode = getRoomCodeFromURL();
-    // Room IDs are 3-20 characters, alphanumeric with hyphens and underscores
-    if (roomCode && roomCode.length >= 3 && roomCode.length <= 20 && /^[a-zA-Z0-9\-_]+$/.test(roomCode)) {
+    // PHASE 2 FIX: Use shared validation from constants.js
+    const roomValidation = validateRoomCode(roomCode);
+    if (roomCode && roomValidation.valid) {
         // Pre-fill nickname from storage
         const storedNickname = safeGetItem('codenames-nickname', '');
         document.getElementById('join-nickname').value = storedNickname;
@@ -1250,4 +1318,91 @@ export function updateRoomInfoDisplay() {
     if (codeEl) codeEl.textContent = state.currentRoomId || CodenamesClient?.getRoomCode() || '----';
     if (playersEl) playersEl.textContent = state.multiplayerPlayers?.length || 0;
     if (statusEl) statusEl.textContent = state.gameState.status === 'ended' ? 'Game Over' : (state.gameState.status === 'playing' ? 'In Progress' : 'Waiting');
+}
+
+// PHASE 4: Update spectator count display
+export function updateSpectatorCount(count) {
+    const spectatorCountEl = document.getElementById('spectator-count');
+    const spectatorSection = document.getElementById('spectator-section');
+
+    if (spectatorCountEl) {
+        spectatorCountEl.textContent = count;
+    }
+
+    // Show/hide spectator section based on count
+    if (spectatorSection) {
+        spectatorSection.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    // Store in state for other components
+    state.spectatorCount = count;
+}
+
+// PHASE 4: Update room stats (team counts, spectator count, etc.)
+export function updateRoomStats(stats) {
+    if (!stats) return;
+
+    // Update spectator count
+    if (typeof stats.spectatorCount === 'number') {
+        updateSpectatorCount(stats.spectatorCount);
+    }
+
+    // Update team stats if displayed
+    const redCountEl = document.getElementById('team-red-count');
+    const blueCountEl = document.getElementById('team-blue-count');
+
+    if (redCountEl && stats.teams?.red) {
+        redCountEl.textContent = stats.teams.red.total || 0;
+    }
+    if (blueCountEl && stats.teams?.blue) {
+        blueCountEl.textContent = stats.teams.blue.total || 0;
+    }
+
+    // Store full stats in state
+    state.roomStats = stats;
+}
+
+// PHASE 4: Handle spectator chat messages
+function handleSpectatorChatMessage(data) {
+    const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message spectator-message';
+
+    const senderEl = document.createElement('span');
+    senderEl.className = 'chat-sender spectator';
+    senderEl.textContent = data.sender?.nickname || 'Spectator';
+
+    const contentEl = document.createElement('span');
+    contentEl.className = 'chat-content';
+    contentEl.textContent = data.message;
+
+    const badgeEl = document.createElement('span');
+    badgeEl.className = 'chat-badge spectator-badge';
+    badgeEl.textContent = '👁';
+    badgeEl.title = 'Spectator message';
+
+    messageEl.appendChild(badgeEl);
+    messageEl.appendChild(senderEl);
+    messageEl.appendChild(document.createTextNode(': '));
+    messageEl.appendChild(contentEl);
+
+    chatMessages.appendChild(messageEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// PHASE 4: Send a spectator chat message
+export function sendSpectatorChat(message) {
+    if (!message?.trim()) return;
+    if (!CodenamesClient?.isConnected()) return;
+
+    // Only spectators can send spectator messages
+    const player = CodenamesClient.player;
+    if (player?.role !== 'spectator' && player?.team) {
+        showToast('Only spectators can use spectator chat', 'error');
+        return;
+    }
+
+    CodenamesClient.sendSpectatorChat(message.trim());
 }

@@ -14,6 +14,84 @@ const GAME_HISTORY_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
 const GAME_HISTORY_KEY_PREFIX = 'gameHistory:';
 const GAME_HISTORY_INDEX_PREFIX = 'gameHistoryIndex:';
 const MAX_HISTORY_PER_ROOM = 100; // Maximum games to keep per room
+const BOARD_SIZE = 25; // Expected board size
+
+/**
+ * HARDENING FIX: Validate game data structure before saving to history
+ * Prevents corrupted or malformed data from being saved
+ * @param {Object} gameData - Game data to validate
+ * @returns {Object} { valid: boolean, errors: string[] }
+ */
+function validateGameData(gameData) {
+    const errors = [];
+
+    // Check required fields exist
+    if (!gameData) {
+        return { valid: false, errors: ['Game data is null or undefined'] };
+    }
+
+    // Validate words array
+    if (!Array.isArray(gameData.words)) {
+        errors.push('words must be an array');
+    } else if (gameData.words.length !== BOARD_SIZE) {
+        errors.push(`words array must have ${BOARD_SIZE} elements, got ${gameData.words.length}`);
+    } else if (!gameData.words.every(w => typeof w === 'string' && w.length > 0)) {
+        errors.push('All words must be non-empty strings');
+    }
+
+    // Validate types array
+    if (!Array.isArray(gameData.types)) {
+        errors.push('types must be an array');
+    } else if (gameData.types.length !== BOARD_SIZE) {
+        errors.push(`types array must have ${BOARD_SIZE} elements, got ${gameData.types.length}`);
+    } else {
+        const validTypes = ['red', 'blue', 'neutral', 'assassin'];
+        const invalidTypes = gameData.types.filter(t => !validTypes.includes(t));
+        if (invalidTypes.length > 0) {
+            errors.push(`Invalid card types found: ${invalidTypes.join(', ')}`);
+        }
+    }
+
+    // Validate seed
+    if (typeof gameData.seed !== 'string' || gameData.seed.length === 0) {
+        errors.push('seed must be a non-empty string');
+    }
+
+    // Validate scores are non-negative integers
+    if (typeof gameData.redScore !== 'number' || !Number.isInteger(gameData.redScore) || gameData.redScore < 0) {
+        errors.push('redScore must be a non-negative integer');
+    }
+    if (typeof gameData.blueScore !== 'number' || !Number.isInteger(gameData.blueScore) || gameData.blueScore < 0) {
+        errors.push('blueScore must be a non-negative integer');
+    }
+
+    // Validate totals
+    if (typeof gameData.redTotal !== 'number' || !Number.isInteger(gameData.redTotal) || gameData.redTotal < 0) {
+        errors.push('redTotal must be a non-negative integer');
+    }
+    if (typeof gameData.blueTotal !== 'number' || !Number.isInteger(gameData.blueTotal) || gameData.blueTotal < 0) {
+        errors.push('blueTotal must be a non-negative integer');
+    }
+
+    // Validate winner if game is over
+    if (gameData.gameOver) {
+        if (gameData.winner !== 'red' && gameData.winner !== 'blue') {
+            errors.push('winner must be "red" or "blue" when game is over');
+        }
+    }
+
+    // Validate history array if present
+    if (gameData.history !== undefined && !Array.isArray(gameData.history)) {
+        errors.push('history must be an array if provided');
+    }
+
+    // Validate clues array if present
+    if (gameData.clues !== undefined && !Array.isArray(gameData.clues)) {
+        errors.push('clues must be an array if provided');
+    }
+
+    return { valid: errors.length === 0, errors };
+}
 
 /**
  * Save a completed game result
@@ -26,6 +104,16 @@ async function saveGameResult(roomCode, gameData) {
 
     if (!roomCode || !gameData) {
         logger.warn('saveGameResult called with missing parameters', { roomCode, hasGameData: !!gameData });
+        return null;
+    }
+
+    // HARDENING FIX: Validate game data before saving
+    const validation = validateGameData(gameData);
+    if (!validation.valid) {
+        logger.error('Invalid game data, refusing to save to history', {
+            roomCode,
+            errors: validation.errors
+        });
         return null;
     }
 
@@ -456,6 +544,8 @@ module.exports = {
     getReplayEvents,
     cleanupOldHistory,
     getHistoryStats,
+    // HARDENING FIX: Export validation function for testing
+    validateGameData,
     // Constants for testing
     GAME_HISTORY_TTL,
     MAX_HISTORY_PER_ROOM

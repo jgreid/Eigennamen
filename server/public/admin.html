@@ -325,6 +325,138 @@
             background: var(--danger-color);
         }
 
+        /* PHASE 4.7: Health alert indicators */
+        .alert-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .alert-badge.warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: var(--warning-color);
+        }
+
+        .alert-badge.critical {
+            background: rgba(220, 53, 69, 0.2);
+            color: var(--danger-color);
+            animation: pulse 1s infinite;
+        }
+
+        /* PHASE 4.7: Expandable room rows */
+        .room-row {
+            cursor: pointer;
+        }
+
+        .room-row:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .room-details {
+            display: none;
+            background: var(--bg-color);
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .room-details.expanded {
+            display: block;
+        }
+
+        .player-list-admin {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-role {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .player-role.host {
+            background: rgba(74, 144, 217, 0.2);
+            color: var(--primary-color);
+        }
+
+        .player-role.spymaster {
+            background: rgba(255, 193, 7, 0.2);
+            color: var(--warning-color);
+        }
+
+        .team-red { color: #dc3545; }
+        .team-blue { color: #0d6efd; }
+        .team-none { color: var(--text-muted); }
+
+        /* PHASE 4.7: Simple metrics chart */
+        .metrics-chart {
+            height: 80px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            padding: 10px 0;
+        }
+
+        .metrics-bar {
+            flex: 1;
+            background: var(--primary-color);
+            border-radius: 2px 2px 0 0;
+            min-height: 2px;
+            transition: height 0.3s;
+        }
+
+        .metrics-bar.memory {
+            background: #17a2b8;
+        }
+
+        .metrics-bar.connections {
+            background: #28a745;
+        }
+
+        .metrics-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: 12px;
@@ -422,6 +554,22 @@
             </div>
         </div>
 
+        <!-- PHASE 4.7: Metrics History Chart -->
+        <div class="section">
+            <h2>Metrics History (Last 30 Updates)</h2>
+            <div class="metrics-chart" id="metrics-chart"></div>
+            <div class="metrics-legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #17a2b8;"></div>
+                    <span>Memory (MB)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #28a745;"></div>
+                    <span>Connections</span>
+                </div>
+            </div>
+        </div>
+
         <div class="section">
             <h2>Broadcast Message</h2>
             <form class="broadcast-form" id="broadcast-form">
@@ -455,6 +603,19 @@
         // Auto-refresh interval (10 seconds)
         const REFRESH_INTERVAL = 10000;
 
+        // PHASE 4.7: Health alert thresholds
+        const ALERT_THRESHOLDS = {
+            memory: { warning: 400, critical: 480 },  // MB
+            connections: { warning: 800, critical: 950 }
+        };
+
+        // PHASE 4.7: Metrics history for chart
+        const METRICS_HISTORY_SIZE = 30;
+        const metricsHistory = {
+            memory: [],
+            connections: []
+        };
+
         // HTML escape function to prevent XSS when rendering room data
         function escapeHTML(str) {
             if (str === null || str === undefined) return '';
@@ -469,6 +630,54 @@
         // Validate room code format (alphanumeric only)
         function isValidRoomCode(code) {
             return typeof code === 'string' && /^[A-Z0-9]{4,8}$/i.test(code);
+        }
+
+        // PHASE 4.7: Check if value exceeds threshold
+        function getAlertLevel(value, thresholds) {
+            if (value >= thresholds.critical) return 'critical';
+            if (value >= thresholds.warning) return 'warning';
+            return null;
+        }
+
+        // PHASE 4.7: Create alert badge HTML
+        function createAlertBadge(level) {
+            if (!level) return '';
+            const icon = level === 'critical' ? '⚠' : '!';
+            return `<span class="alert-badge ${level}">${icon} ${level}</span>`;
+        }
+
+        // PHASE 4.7: Update metrics history and chart
+        function updateMetricsChart(memory, connections) {
+            // Add to history
+            metricsHistory.memory.push(memory);
+            metricsHistory.connections.push(connections);
+
+            // Trim to max size
+            if (metricsHistory.memory.length > METRICS_HISTORY_SIZE) {
+                metricsHistory.memory.shift();
+                metricsHistory.connections.shift();
+            }
+
+            // Calculate max values for scaling
+            const maxMemory = Math.max(...metricsHistory.memory, ALERT_THRESHOLDS.memory.warning);
+            const maxConnections = Math.max(...metricsHistory.connections, 10);
+
+            // Render chart
+            const chartEl = document.getElementById('metrics-chart');
+            if (!chartEl) return;
+
+            chartEl.innerHTML = metricsHistory.memory.map((mem, i) => {
+                const conn = metricsHistory.connections[i] || 0;
+                const memHeight = Math.max(2, (mem / maxMemory) * 100);
+                const connHeight = Math.max(2, (conn / Math.max(maxConnections, 1)) * 100);
+
+                return `
+                    <div style="flex: 1; display: flex; gap: 1px; align-items: flex-end;">
+                        <div class="metrics-bar memory" style="height: ${memHeight}%;" title="Memory: ${mem}MB"></div>
+                        <div class="metrics-bar connections" style="height: ${connHeight}%;" title="Connections: ${conn}"></div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Show toast notification
@@ -498,11 +707,26 @@
                     <span>${isHealthy ? 'Healthy' : 'Unhealthy'}</span>
                 `;
 
-                // Update stats
+                // Update stats with alert badges
+                const memoryUsed = data.memory.heapUsed;
+                const connections = data.connections.sockets;
+
                 document.getElementById('active-rooms').textContent = data.connections.activeRooms;
-                document.getElementById('connected-players').textContent = data.connections.sockets;
-                document.getElementById('memory-usage').textContent = data.memory.heapUsed;
+
+                // PHASE 4.7: Add alert badges for connections
+                const connAlert = getAlertLevel(connections, ALERT_THRESHOLDS.connections);
+                document.getElementById('connected-players').innerHTML =
+                    `${connections} ${createAlertBadge(connAlert)}`;
+
+                // PHASE 4.7: Add alert badges for memory
+                const memAlert = getAlertLevel(memoryUsed, ALERT_THRESHOLDS.memory);
+                document.getElementById('memory-usage').innerHTML =
+                    `${memoryUsed} ${createAlertBadge(memAlert)}`;
+
                 document.getElementById('uptime').textContent = data.uptime.formatted;
+
+                // PHASE 4.7: Update metrics chart
+                updateMetricsChart(memoryUsed, connections);
 
                 // Update health indicators
                 const redisHealth = document.getElementById('redis-health');
@@ -535,6 +759,9 @@
             }
         }
 
+        // PHASE 4.7: Track expanded rooms
+        const expandedRooms = new Set();
+
         // Fetch and display rooms
         async function fetchRooms() {
             const container = document.getElementById('rooms-container');
@@ -557,6 +784,7 @@
                     <table>
                         <thead>
                             <tr>
+                                <th></th>
                                 <th>Room Code</th>
                                 <th>Status</th>
                                 <th>Players</th>
@@ -574,16 +802,26 @@
                                 const turnTimer = room.settings?.turnTimer;
                                 const safeTurnTimer = Number.isInteger(turnTimer) && turnTimer > 0 ? turnTimer + 's' : 'Off';
                                 const safeCreatedAt = room.createdAt ? new Date(room.createdAt).toLocaleTimeString() : '-';
+                                const isExpanded = expandedRooms.has(room.code);
 
                                 return `
-                                <tr data-code="${safeCode}">
+                                <tr class="room-row" data-code="${safeCode}" onclick="toggleRoomDetails('${safeCode}')">
+                                    <td style="width: 30px; text-align: center;">${isExpanded ? '▼' : '▶'}</td>
                                     <td><strong>${safeCode}</strong></td>
                                     <td><span class="room-status ${safeStatus}">${escapeHTML(safeStatus)}</span></td>
                                     <td>${safePlayerCount}</td>
                                     <td>${safeTurnTimer}</td>
                                     <td>${safeCreatedAt}</td>
                                     <td>
-                                        <button class="btn btn-danger btn-sm" onclick="closeRoom('${safeCode}')">Close</button>
+                                        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); closeRoom('${safeCode}')">Close</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="7" style="padding: 0; border: none;">
+                                        <div class="room-details ${isExpanded ? 'expanded' : ''}" id="room-details-${safeCode}">
+                                            <div class="loading" id="room-loading-${safeCode}">Loading player details...</div>
+                                            <div class="player-list-admin" id="player-list-${safeCode}"></div>
+                                        </div>
                                     </td>
                                 </tr>
                             `}).join('')}
@@ -591,9 +829,119 @@
                     </table>
                 `;
 
+                // PHASE 4.7: Re-fetch details for expanded rooms
+                for (const code of expandedRooms) {
+                    if (validRooms.some(r => r.code === code)) {
+                        fetchRoomDetails(code);
+                    }
+                }
+
             } catch (error) {
                 console.error('Error fetching rooms:', error);
                 container.innerHTML = '<div class="empty-state">Failed to load rooms</div>';
+            }
+        }
+
+        // PHASE 4.7: Toggle room details expansion
+        async function toggleRoomDetails(code) {
+            if (!isValidRoomCode(code)) return;
+
+            const detailsEl = document.getElementById(`room-details-${code}`);
+            if (!detailsEl) return;
+
+            if (expandedRooms.has(code)) {
+                expandedRooms.delete(code);
+                detailsEl.classList.remove('expanded');
+            } else {
+                expandedRooms.add(code);
+                detailsEl.classList.add('expanded');
+                await fetchRoomDetails(code);
+            }
+
+            // Update arrow indicator
+            const row = document.querySelector(`tr[data-code="${code}"]`);
+            if (row) {
+                const arrow = row.querySelector('td:first-child');
+                if (arrow) arrow.textContent = expandedRooms.has(code) ? '▼' : '▶';
+            }
+        }
+
+        // PHASE 4.7: Fetch detailed room info with players
+        async function fetchRoomDetails(code) {
+            if (!isValidRoomCode(code)) return;
+
+            const loadingEl = document.getElementById(`room-loading-${code}`);
+            const playerListEl = document.getElementById(`player-list-${code}`);
+
+            if (!playerListEl) return;
+
+            try {
+                const response = await fetch(`/admin/api/rooms/${encodeURIComponent(code)}/details`);
+                if (!response.ok) throw new Error('Failed to fetch room details');
+
+                const data = await response.json();
+
+                if (loadingEl) loadingEl.style.display = 'none';
+
+                if (!data.players || data.players.length === 0) {
+                    playerListEl.innerHTML = '<div class="empty-state">No players in room</div>';
+                    return;
+                }
+
+                playerListEl.innerHTML = data.players.map(player => {
+                    const safeName = escapeHTML(player.nickname || 'Unknown');
+                    const safeId = escapeHTML(player.id || '');
+                    const isHost = player.isHost;
+                    const isSpymaster = player.role === 'spymaster';
+                    const teamClass = player.team === 'red' ? 'team-red' : player.team === 'blue' ? 'team-blue' : 'team-none';
+
+                    return `
+                        <div class="player-card">
+                            <div class="player-info">
+                                <span class="${teamClass}">${safeName}</span>
+                                ${isHost ? '<span class="player-role host">Host</span>' : ''}
+                                ${isSpymaster ? '<span class="player-role spymaster">Spymaster</span>' : ''}
+                            </div>
+                            ${!isHost ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); kickPlayer('${escapeHTML(code)}', '${safeId}')">Kick</button>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error fetching room details:', error);
+                if (loadingEl) loadingEl.textContent = 'Failed to load players';
+            }
+        }
+
+        // PHASE 4.7: Kick a player from a room
+        async function kickPlayer(roomCode, playerId) {
+            if (!isValidRoomCode(roomCode)) {
+                showToast('Invalid room code', 'error');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to kick this player?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/api/rooms/${encodeURIComponent(roomCode)}/players/${encodeURIComponent(playerId)}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error?.message || 'Failed to kick player');
+                }
+
+                showToast('Player kicked successfully');
+                await fetchRoomDetails(roomCode);
+                fetchRooms();
+                fetchStats();
+
+            } catch (error) {
+                console.error('Error kicking player:', error);
+                showToast(error.message, 'error');
             }
         }
 

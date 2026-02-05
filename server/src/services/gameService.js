@@ -805,10 +805,17 @@ async function revealCard(roomCode, index, playerNickname = 'Unknown', playerTea
  * Uses locale-safe functions to avoid Turkish/Azerbaijani locale issues
  * and Unicode normalization for consistent comparison across different
  * Unicode representations (e.g., 'é' vs 'e' + combining accent)
+ *
+ * HARDENING FIX: Use NFKC normalization instead of NFC to handle
+ * compatibility characters. NFC only handles canonical equivalence
+ * (é composed vs decomposed), while NFKC also handles compatibility
+ * equivalence (ﬁ ligature → fi, ² → 2, etc.). This prevents bypassing
+ * clue validation using visually similar but technically different characters.
  */
 function validateClueWord(clueWord, boardWords) {
     // Normalize and convert to uppercase using English locale
-    const normalizedClue = toEnglishUpperCase(String(clueWord).normalize('NFC').trim());
+    // NFKC provides the strongest normalization for security-sensitive comparisons
+    const normalizedClue = toEnglishUpperCase(String(clueWord).normalize('NFKC').trim());
 
     // Minimum clue length check
     if (normalizedClue.length === 0) {
@@ -816,8 +823,8 @@ function validateClueWord(clueWord, boardWords) {
     }
 
     for (const boardWord of boardWords) {
-        // Normalize and convert to uppercase using English locale
-        const normalizedBoardWord = toEnglishUpperCase(String(boardWord).normalize('NFC').trim());
+        // Normalize and convert to uppercase using English locale (NFKC for consistency)
+        const normalizedBoardWord = toEnglishUpperCase(String(boardWord).normalize('NFKC').trim());
 
         // Check exact match - always invalid
         if (normalizedClue === normalizedBoardWord) {
@@ -856,7 +863,8 @@ async function giveClueOptimized(roomCode, team, word, number, spymasterNickname
 
     // Pre-normalize clue word in JS for Unicode-correct comparison
     // Lua's string.upper() is ASCII-only and won't handle Unicode properly
-    const normalizedWord = toEnglishUpperCase(String(word).normalize('NFC').trim());
+    // HARDENING FIX: Use NFKC for consistency with validateClueWord
+    const normalizedWord = toEnglishUpperCase(String(word).normalize('NFKC').trim());
 
     try {
         // Wrap Redis Lua eval with timeout to prevent hanging operations

@@ -641,6 +641,93 @@ button:focus-visible,
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* ========== COLORBLIND-FRIENDLY PATTERNS ========== */
+/* PHASE 2 FIX: Add subtle patterns to revealed cards for colorblind accessibility
+   These patterns provide additional visual cues beyond color alone */
+
+/* Diagonal stripes for red cards */
+.card.revealed.red::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 8px,
+        rgba(255, 255, 255, 0.08) 8px,
+        rgba(255, 255, 255, 0.08) 16px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Dots pattern for blue cards */
+.card.revealed.blue::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(
+        circle at 8px 8px,
+        rgba(255, 255, 255, 0.1) 2px,
+        transparent 2px
+    );
+    background-size: 16px 16px;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Horizontal lines for neutral cards */
+.card.revealed.neutral::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 6px,
+        rgba(0, 0, 0, 0.06) 6px,
+        rgba(0, 0, 0, 0.06) 12px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Crosshatch pattern for assassin */
+.card.revealed.assassin::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 4px,
+            rgba(255, 255, 255, 0.05) 4px,
+            rgba(255, 255, 255, 0.05) 8px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 4px,
+            rgba(255, 255, 255, 0.05) 4px,
+            rgba(255, 255, 255, 0.05) 8px
+        );
+    pointer-events: none;
+    border-radius: inherit;
+}
+
 /* ========== CARD LOADING STATE ========== */
 .card.revealing {
     position: relative;
@@ -755,3 +842,107 @@ button:focus-visible,
 
 /* Assassin uses only skull symbol (::before) - no secondary symbol needed */
 
+/* ========== PHASE 4: SPECTATOR ENHANCEMENTS ========== */
+
+/* Spectator count section */
+.spectator-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    margin: 8px auto;
+    background: rgba(108, 117, 125, 0.15);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    border-radius: 20px;
+    color: #adb5bd;
+    font-size: 0.85rem;
+    font-weight: 500;
+    max-width: fit-content;
+}
+
+.spectator-section .spectator-icon {
+    font-size: 1rem;
+}
+
+.spectator-section .spectator-label {
+    color: #adb5bd;
+}
+
+.spectator-section #spectator-count {
+    font-weight: 700;
+    color: #ffffff;
+}
+
+/* Spectator chat message styles */
+.chat-message.spectator-message {
+    background: rgba(108, 117, 125, 0.1);
+    border-left: 3px solid rgba(108, 117, 125, 0.5);
+    padding-left: 8px;
+    opacity: 0.9;
+}
+
+.chat-message .chat-badge.spectator-badge {
+    display: inline-block;
+    margin-right: 4px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.chat-message .chat-sender.spectator {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Spectator chat toggle (if used) */
+.spectator-chat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(108, 117, 125, 0.2);
+    border: 1px solid rgba(108, 117, 125, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #adb5bd;
+    transition: background 0.2s ease;
+}
+
+.spectator-chat-toggle:hover {
+    background: rgba(108, 117, 125, 0.3);
+}
+
+.spectator-chat-toggle.active {
+    background: rgba(108, 117, 125, 0.4);
+    border-color: rgba(108, 117, 125, 0.6);
+}
+
+/* ========== PHASE 4: REPLAY ENHANCEMENTS ========== */
+
+/* Replay speed button */
+.replay-btn.replay-speed-btn {
+    min-width: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(108, 117, 125, 0.2);
+    border: 1px solid rgba(108, 117, 125, 0.4);
+    color: #ffffff;
+}
+
+.replay-btn.replay-speed-btn:hover {
+    background: rgba(108, 117, 125, 0.3);
+    border-color: rgba(108, 117, 125, 0.6);
+}
+
+/* Replay share button */
+.replay-btn.replay-share-btn {
+    font-size: 1rem;
+    background: rgba(52, 152, 219, 0.2);
+    border: 1px solid rgba(52, 152, 219, 0.4);
+}
+
+.replay-btn.replay-share-btn:hover {
+    background: rgba(52, 152, 219, 0.3);
+    border-color: rgba(52, 152, 219, 0.6);
+}

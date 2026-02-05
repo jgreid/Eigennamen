@@ -79,15 +79,22 @@
                 </button>
             </div>
 
+            <!-- PHASE 4: Spectator count display (hidden by default) -->
+            <div class="spectator-section" id="spectator-section" style="display: none;">
+                <span class="spectator-icon" aria-hidden="true">👁</span>
+                <span class="spectator-label"><span id="spectator-count">0</span> watching</span>
+            </div>
+
             <div class="turn-indicator" id="turn-indicator">
                 Red Team's Turn
             </div>
 
             <!-- Timer countdown display -->
-            <div class="timer-display" id="timer-display" role="timer" aria-live="polite">
+            <!-- PHASE 2 FIX: Moved aria-live to timer-value where text actually changes -->
+            <div class="timer-display" id="timer-display" role="timer">
                 <span class="timer-icon" aria-hidden="true">⏱️</span>
-                <span class="timer-value" id="timer-value">--:--</span>
-                <span class="timer-label">remaining</span>
+                <span class="timer-value" id="timer-value" aria-live="polite" aria-atomic="true">--:--</span>
+                <span class="timer-label" aria-hidden="true">remaining</span>
             </div>
 
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
@@ -529,7 +536,11 @@
                 <button type="button" class="replay-btn" id="replay-prev" title="Previous Move">&#9664;</button>
                 <button type="button" class="replay-btn" id="replay-play" title="Play/Pause">&#9654;</button>
                 <button type="button" class="replay-btn" id="replay-next" title="Next Move">&#9654;</button>
+                <!-- PHASE 4: Playback speed control -->
+                <button type="button" class="replay-btn replay-speed-btn" id="replay-speed" title="Playback Speed">1x</button>
                 <span class="replay-progress" id="replay-progress">Move 0 / 0</span>
+                <!-- PHASE 4: Share replay link -->
+                <button type="button" class="replay-btn replay-share-btn" id="replay-share" title="Copy Replay Link">🔗</button>
             </div>
 
             <div class="replay-event-log" id="replay-event-log">
