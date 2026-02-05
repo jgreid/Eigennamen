@@ -79,7 +79,18 @@ jest.mock('../config/redis', () => {
         disconnectRedis: jest.fn(async () => {}),
         isRedisHealthy: jest.fn(async () => true),
         isUsingMemoryMode: jest.fn(() => true),
-        getPubSubClients: jest.fn(() => ({ pubClient: mockRedis, subClient: mockRedis }))
+        getPubSubClients: jest.fn(() => ({ pubClient: mockRedis, subClient: mockRedis })),
+        getRedisMemoryInfo: jest.fn(async () => ({
+            mode: 'memory',
+            used_memory: 0,
+            used_memory_human: 'N/A',
+            used_memory_peak: 0,
+            used_memory_peak_human: 'N/A',
+            maxmemory: 0,
+            maxmemory_human: 'N/A',
+            memory_usage_percent: 0,
+            alert: null
+        }))
     };
 });
 

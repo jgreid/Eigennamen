@@ -17,7 +17,11 @@
     "lint": "eslint src/",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "setup": "../scripts/dev-setup.sh",
+    "health": "../scripts/health-check.sh",
+    "predeploy": "../scripts/pre-deploy-check.sh",
+    "redis:inspect": "../scripts/redis-inspect.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.6.0",

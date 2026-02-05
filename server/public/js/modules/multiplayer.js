@@ -1090,18 +1090,53 @@ const multiplayerEventNames = [
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
     'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
     'kicked', 'playerKicked', 'settingsUpdated',
+    'hostChanged',  // Added missing event
     'historyResult', 'replayData',
     // PHASE 4 FIX: Add spectator-related events
     'statsUpdated', 'spectatorChatMessage'
 ];
 
+// Track DOM listeners for cleanup to prevent memory leaks
+const domListenerCleanup = [];
+
+/**
+ * Register a DOM event listener with automatic cleanup tracking
+ * @param {Element} element - DOM element to attach listener to
+ * @param {string} event - Event name
+ * @param {Function} handler - Event handler
+ * @param {Object} options - addEventListener options
+ */
+export function addTrackedListener(element, event, handler, options = {}) {
+    if (!element) return;
+    element.addEventListener(event, handler, options);
+    domListenerCleanup.push({ element, event, handler, options });
+}
+
+/**
+ * Remove all tracked DOM event listeners
+ */
+export function cleanupDOMListeners() {
+    domListenerCleanup.forEach(({ element, event, handler, options }) => {
+        try {
+            element.removeEventListener(event, handler, options);
+        } catch {
+            // Element may have been removed from DOM
+        }
+    });
+    domListenerCleanup.length = 0; // Clear array
+}
+
 export function cleanupMultiplayerListeners() {
-    // Remove all multiplayer event listeners
+    // Remove all multiplayer event listeners from CodenamesClient
     multiplayerEventNames.forEach(eventName => {
         if (CodenamesClient && typeof CodenamesClient.off === 'function') {
             CodenamesClient.off(eventName);
         }
     });
+
+    // Clean up any tracked DOM listeners
+    cleanupDOMListeners();
+
     state.multiplayerListenersSetup = false;
 }
 

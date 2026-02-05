@@ -6,7 +6,7 @@
  */
 
 const express = require('express');
-const { isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
+const { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } = require('../config/redis');
 const pubSubHealth = require('../utils/pubSubHealth');
 const logger = require('../utils/logger');
 // PHASE 5.1: Import Prometheus metrics export
@@ -133,6 +133,13 @@ router.get('/metrics', async (req, res) => {
         const memUsage = process.memoryUsage();
         const pubSubStatus = pubSubHealth.getHealth();
 
+        // Get Redis memory info for monitoring
+        const redisMemory = await withTimeout(
+            getRedisMemoryInfo(),
+            HEALTH_CHECK_TIMEOUT_MS,
+            'Redis memory check'
+        );
+
         const metrics = {
             timestamp: new Date().toISOString(),
             uptime: {
@@ -147,7 +154,8 @@ router.get('/metrics', async (req, res) => {
             },
             redis: {
                 mode: isUsingMemoryMode() ? 'memory' : 'redis',
-                healthy: await withTimeout(isRedisHealthy(), HEALTH_CHECK_TIMEOUT_MS, 'Redis health check')
+                healthy: await withTimeout(isRedisHealthy(), HEALTH_CHECK_TIMEOUT_MS, 'Redis health check'),
+                memory: redisMemory
             },
             pubsub: {
                 healthy: pubSubStatus.isHealthy,
@@ -162,6 +170,20 @@ router.get('/metrics', async (req, res) => {
                 platform: process.platform
             }
         };
+
+        // Add alert status at top level if Redis memory is concerning
+        if (redisMemory.alert) {
+            metrics.alerts = metrics.alerts || [];
+            metrics.alerts.push({
+                type: 'redis_memory',
+                level: redisMemory.alert,
+                message: `Redis memory usage at ${redisMemory.memory_usage_percent}%`,
+                details: {
+                    used: redisMemory.used_memory_human,
+                    max: redisMemory.maxmemory_human
+                }
+            });
+        }
 
         res.json(metrics);
     } catch (error) {

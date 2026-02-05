@@ -190,6 +190,84 @@ async function isRedisHealthy() {
     }
 }
 
+/**
+ * Get Redis memory information for monitoring
+ * Returns memory usage stats and alerts if memory is high
+ */
+async function getRedisMemoryInfo() {
+    try {
+        if (usingMemoryMode) {
+            // Return placeholder for memory mode
+            return {
+                mode: 'memory',
+                used_memory: 0,
+                used_memory_human: 'N/A',
+                used_memory_peak: 0,
+                used_memory_peak_human: 'N/A',
+                maxmemory: 0,
+                maxmemory_human: 'N/A',
+                memory_usage_percent: 0,
+                alert: null
+            };
+        }
+
+        if (!redisClient || !redisClient.isOpen) {
+            return { error: 'Redis not connected', alert: 'critical' };
+        }
+
+        // Get memory info from Redis INFO command
+        const info = await redisClient.info('memory');
+        const lines = info.split('\r\n');
+        const memoryInfo = {};
+
+        for (const line of lines) {
+            const [key, value] = line.split(':');
+            if (key && value) {
+                memoryInfo[key] = value;
+            }
+        }
+
+        const used = parseInt(memoryInfo.used_memory || 0, 10);
+        const peak = parseInt(memoryInfo.used_memory_peak || 0, 10);
+        const max = parseInt(memoryInfo.maxmemory || 0, 10);
+
+        // Calculate usage percentage if maxmemory is set
+        const usagePercent = max > 0 ? Math.round((used / max) * 100) : 0;
+
+        // Determine alert level
+        let alert = null;
+        if (max > 0) {
+            if (usagePercent >= 90) {
+                alert = 'critical';
+                logger.error('Redis memory critical', { usagePercent, used, max });
+            } else if (usagePercent >= 75) {
+                alert = 'warning';
+                logger.warn('Redis memory high', { usagePercent, used, max });
+            }
+        }
+
+        return {
+            mode: 'redis',
+            used_memory: used,
+            used_memory_human: memoryInfo.used_memory_human || 'unknown',
+            used_memory_peak: peak,
+            used_memory_peak_human: memoryInfo.used_memory_peak_human || 'unknown',
+            maxmemory: max,
+            maxmemory_human: memoryInfo.maxmemory_human || 'unlimited',
+            maxmemory_policy: memoryInfo.maxmemory_policy || 'noeviction',
+            memory_usage_percent: usagePercent,
+            fragmentation_ratio: parseFloat(memoryInfo.mem_fragmentation_ratio || 0),
+            alert
+        };
+    } catch (error) {
+        logger.error('Failed to get Redis memory info', { error: error.message });
+        return {
+            error: error.message,
+            alert: 'error'
+        };
+    }
+}
+
 async function disconnectRedis() {
     const clients = [redisClient, pubClient, subClient].filter(Boolean);
     await Promise.all(clients.map(async (client) => {
@@ -222,6 +300,7 @@ module.exports = {
     getRedis,
     getPubSubClients,
     isRedisHealthy,
+    getRedisMemoryInfo,
     disconnectRedis,
     isUsingMemoryMode
 };
