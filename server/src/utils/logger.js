@@ -139,15 +139,26 @@ if (process.env.NODE_ENV === 'production') {
             fs.mkdirSync(logsDir, { recursive: true });
         }
 
+        // Log rotation configuration to prevent disk fill
+        // maxsize: 10MB per file, maxFiles: 5 files kept (50MB total max)
+        const LOG_ROTATION_CONFIG = {
+            maxsize: 10 * 1024 * 1024,  // 10MB per file
+            maxFiles: 5,                  // Keep 5 rotated files
+            tailable: true,               // Most recent logs always in main file
+            zippedArchive: false          // Don't compress (faster writes)
+        };
+
         transports.push(
             new winston.transports.File({
                 filename: 'logs/error.log',
                 level: 'error',
-                format: jsonFormat
+                format: jsonFormat,
+                ...LOG_ROTATION_CONFIG
             }),
             new winston.transports.File({
                 filename: 'logs/combined.log',
-                format: jsonFormat
+                format: jsonFormat,
+                ...LOG_ROTATION_CONFIG
             })
         );
     } catch (err) {

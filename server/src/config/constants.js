@@ -30,7 +30,7 @@ module.exports = {
 
     // Session security configuration
     SESSION_SECURITY: {
-        MAX_SESSION_AGE_MS: 24 * 60 * 60 * 1000,     // 24 hours max session lifetime
+        MAX_SESSION_AGE_MS: 8 * 60 * 60 * 1000,      // 8 hours max session lifetime (reduced from 24h for security)
         MAX_VALIDATION_ATTEMPTS_PER_IP: 20,          // Max validation attempts per IP per minute
         IP_MISMATCH_ALLOWED: true,                   // Allow reconnection from different IP (logged for monitoring)
         SESSION_ID_MIN_LENGTH: 36,                   // UUID length
@@ -67,6 +67,7 @@ module.exports = {
         // Room events
         'room:create': { window: 60000, max: 5 },     // 5 per minute
         'room:join': { window: 60000, max: 10 },      // 10 per minute
+        'room:join:failed': { window: 60000, max: 5 },  // 5 failed attempts per minute (prevents room enumeration)
         'room:leave': { window: 60000, max: 10 },     // 10 per minute
         'room:settings': { window: 5000, max: 5 },    // 5 per 5 seconds
         'room:resync': { window: 5000, max: 3 },      // 3 per 5 seconds

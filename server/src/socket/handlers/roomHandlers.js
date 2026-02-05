@@ -20,6 +20,7 @@ const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 // PHASE 5.1: Import metrics tracking for reconnections
 const { trackReconnection } = require('../../utils/metrics');
+const { getSocketRateLimiter } = require('../rateLimitHandler');
 
 /**
  * Helper: Send timer status to a socket
@@ -49,6 +50,51 @@ async function sendTimerStatus(socket, roomCode, context) {
 async function sendSpymasterViewIfNeeded(socket, player, game, _roomCode) {
     if (player.role === 'spymaster' && game && !game.gameOver && game.types) {
         socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: game.types });
+    }
+}
+
+/**
+ * Helper: Track failed join attempt for rate limiting
+ * Prevents room code enumeration attacks by limiting failed attempts
+ */
+async function trackFailedJoinAttempt(socket) {
+    try {
+        const rateLimiter = getSocketRateLimiter();
+        const limiter = rateLimiter.getLimiter('room:join:failed');
+        // Consume a rate limit token for failed attempts
+        await new Promise((resolve) => {
+            limiter(socket, {}, (err) => {
+                if (err) {
+                    logger.warn('Failed join rate limit exceeded', {
+                        socketId: socket.id,
+                        sessionId: socket.sessionId
+                    });
+                }
+                resolve();
+            });
+        });
+    } catch (error) {
+        // Non-critical - log but don't block
+        logger.debug('Failed to track join attempt', { error: error.message });
+    }
+}
+
+/**
+ * Helper: Check if socket is rate limited for failed joins
+ * @returns {boolean} true if rate limited
+ */
+async function isFailedJoinRateLimited(socket) {
+    try {
+        const rateLimiter = getSocketRateLimiter();
+        const limiter = rateLimiter.getLimiter('room:join:failed');
+        return new Promise((resolve) => {
+            // Check without consuming - peek at current state
+            limiter(socket, {}, (err) => {
+                resolve(!!err);
+            });
+        });
+    } catch {
+        return false; // Fail open
     }
 }
 
@@ -85,15 +131,33 @@ module.exports = function roomHandlers(io, socket) {
      */
     socket.on(SOCKET_EVENTS.ROOM_JOIN, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_JOIN, roomJoinSchema,
         async (validated) => {
-            const { room, players, game, player } = await withTimeout(
-                roomService.joinRoom(
-                    validated.roomId,
-                    socket.sessionId,
-                    validated.nickname
-                ),
-                TIMEOUTS.JOIN_ROOM,
-                'room:join'
-            );
+            // Check if socket is rate limited for too many failed attempts
+            const isRateLimited = await isFailedJoinRateLimited(socket);
+            if (isRateLimited) {
+                throw new RoomError(ERROR_CODES.RATE_LIMITED, 'Too many failed join attempts. Please wait before trying again.');
+            }
+
+            let joinResult;
+            try {
+                joinResult = await withTimeout(
+                    roomService.joinRoom(
+                        validated.roomId,
+                        socket.sessionId,
+                        validated.nickname
+                    ),
+                    TIMEOUTS.JOIN_ROOM,
+                    'room:join'
+                );
+            } catch (error) {
+                // Track failed attempt for rate limiting (prevents room enumeration)
+                if (error.code === ERROR_CODES.ROOM_NOT_FOUND ||
+                    error.code === ERROR_CODES.INVALID_INPUT) {
+                    await trackFailedJoinAttempt(socket);
+                }
+                throw error;
+            }
+
+            const { room, players, game, player } = joinResult;
 
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);

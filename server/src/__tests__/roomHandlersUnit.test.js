@@ -536,16 +536,6 @@ describe('Room Handlers', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnected', expect.any(Object));
         });
 
-        // FIX: These tests skip validation testing since validateInput is mocked.
-        // Validation is tested separately in validators.test.js
-        test.skip('throws error when code is missing (validation tested elsewhere)', async () => {
-            // Zod validation would reject missing code, but validateInput is mocked
-        });
-
-        test.skip('throws error when token is missing (validation tested elsewhere)', async () => {
-            // Zod validation would reject missing token, but validateInput is mocked
-        });
-
         test('throws error when data is null', async () => {
             await eventHandlers['room:reconnect'](null);
 

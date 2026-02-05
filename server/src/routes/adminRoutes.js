@@ -16,6 +16,7 @@ const { isDatabaseEnabled } = require('../config/database');
 const { getAllMetrics, trackPlayerKick, trackBroadcast } = require('../utils/metrics');
 const { API_RATE_LIMITS } = require('../config/constants');
 const { toEnglishLowerCase } = require('../utils/sanitize');
+const { audit, getAuditLogs, getAuditSummary } = require('../services/auditService');
 
 const router = express.Router();
 
@@ -62,11 +63,16 @@ function basicAuth(req, res, next) {
         const adminHash = crypto.createHash('sha256').update(adminPassword).digest();
         if (crypto.timingSafeEqual(passwordHash, adminHash)) {
             req.adminUsername = username || 'admin';
+            // Audit successful login
+            audit.adminLogin(req.ip, true);
             return next();
         }
     } catch (error) {
         logger.warn('Failed to decode admin credentials', { error: error.message });
     }
+
+    // Audit failed login
+    audit.adminLogin(req.ip, false);
 
     res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
     return res.status(401).json({
@@ -534,6 +540,9 @@ router.delete('/api/rooms/:code/players/:playerId', async (req, res) => {
         // PHASE 5.1: Track player kick metrics
         trackPlayerKick(normalizedCode, 'admin');
 
+        // Audit the player kick action
+        audit.adminKickPlayer(normalizedCode, playerId, req.ip, 'Admin action');
+
         res.json({
             success: true,
             message: 'Player has been kicked'
@@ -599,6 +608,9 @@ router.delete('/api/rooms/:code', async (req, res) => {
             admin: req.adminUsername
         });
 
+        // Audit the room deletion
+        audit.adminDeleteRoom(normalizedCode, req.ip, 'Admin action');
+
         res.json({
             success: true,
             message: `Room ${normalizedCode} has been closed`
@@ -609,6 +621,36 @@ router.delete('/api/rooms/:code', async (req, res) => {
             error: {
                 code: 'ROOM_CLOSE_ERROR',
                 message: 'Failed to close room'
+            }
+        });
+    }
+});
+
+/**
+ * GET /admin/api/audit - Get audit logs
+ */
+router.get('/api/audit', async (req, res) => {
+    try {
+        const { category = 'all', limit = 100, severity = null } = req.query;
+
+        const logs = await getAuditLogs({
+            category,
+            limit: Math.min(parseInt(limit, 10) || 100, 1000),
+            severity
+        });
+
+        const summary = await getAuditSummary();
+
+        res.json({
+            summary,
+            logs
+        });
+    } catch (error) {
+        logger.error('Failed to fetch audit logs', { error: error.message });
+        res.status(500).json({
+            error: {
+                code: 'AUDIT_ERROR',
+                message: 'Failed to fetch audit logs'
             }
         });
     }
