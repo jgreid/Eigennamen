@@ -5,10 +5,14 @@
  * Manages server lifecycle, client connections, and mock services.
  */
 
-const http = require('http');
-const { Server } = require('socket.io');
+import http from 'http';
+import { Server } from 'socket.io';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Client = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRecord = Record<string, any>;
 
 // Default test configuration
 const DEFAULT_CONFIG = {
@@ -17,11 +21,24 @@ const DEFAULT_CONFIG = {
     defaultTimeout: 10000
 };
 
+interface EventLogEntry {
+    event: string;
+    data: unknown;
+    timestamp: number;
+}
+
 /**
  * Creates a test server with Socket.io and mock services
  */
 class SocketTestServer {
-    constructor(options = {}) {
+    config: typeof DEFAULT_CONFIG;
+    httpServer: http.Server | null;
+    io: Server | null;
+    clients: AnyRecord[];
+    mockServices: AnyRecord;
+    eventLog: EventLogEntry[];
+
+    constructor(options: Partial<typeof DEFAULT_CONFIG> = {}) {
         this.config = { ...DEFAULT_CONFIG, ...options };
         this.httpServer = null;
         this.io = null;
@@ -33,7 +50,7 @@ class SocketTestServer {
     /**
      * Start the test server
      */
-    async start() {
+    async start(): Promise<void> {
         return new Promise((resolve, reject) => {
             this.httpServer = http.createServer();
             // Increase max listeners to prevent EventEmitter warning during tests
@@ -51,7 +68,7 @@ class SocketTestServer {
                 this._handleConnection(socket);
             });
 
-            this.httpServer.listen(this.config.port, (err) => {
+            this.httpServer.listen(this.config.port, (err?: Error) => {
                 if (err) reject(err);
                 else resolve();
             });
@@ -61,7 +78,7 @@ class SocketTestServer {
     /**
      * Stop the test server and disconnect all clients
      */
-    async stop() {
+    async stop(): Promise<void> {
         // Disconnect all clients
         for (const client of this.clients) {
             if (client.connected) {
@@ -91,7 +108,7 @@ class SocketTestServer {
     /**
      * Create a connected client
      */
-    async createClient(options = {}) {
+    async createClient(options: AnyRecord = {}): Promise<AnyRecord> {
         const sessionId = options.sessionId || uuidv4();
         const url = `http://localhost:${this.config.port}`;
 
@@ -116,7 +133,7 @@ class SocketTestServer {
                 resolve(client);
             });
 
-            client.on('connect_error', (err) => {
+            client.on('connect_error', (err: Error) => {
                 clearTimeout(timeout);
                 reject(err);
             });
@@ -126,8 +143,8 @@ class SocketTestServer {
     /**
      * Create multiple connected clients
      */
-    async createClients(count, options = {}) {
-        const clients = [];
+    async createClients(count: number, options: AnyRecord = {}): Promise<AnyRecord[]> {
+        const clients: AnyRecord[] = [];
         for (let i = 0; i < count; i++) {
             const clientOptions = {
                 sessionId: options.sessionIds?.[i] || uuidv4(),
@@ -141,13 +158,13 @@ class SocketTestServer {
     /**
      * Wait for an event on a client
      */
-    waitForEvent(client, event, timeout = this.config.defaultTimeout) {
+    waitForEvent(client: AnyRecord, event: string, timeout: number = this.config.defaultTimeout): Promise<unknown> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error(`Timeout waiting for event: ${event}`));
             }, timeout);
 
-            client.once(event, (data) => {
+            client.once(event, (data: unknown) => {
                 clearTimeout(timer);
                 resolve(data);
             });
@@ -157,18 +174,18 @@ class SocketTestServer {
     /**
      * Emit and wait for response
      */
-    emitAndWait(client, event, data, responseEvent, timeout = this.config.defaultTimeout) {
+    emitAndWait(client: AnyRecord, event: string, data: unknown, responseEvent: string, timeout: number = this.config.defaultTimeout): Promise<unknown> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error(`Timeout waiting for response to ${event}`));
             }, timeout);
 
-            client.once(responseEvent, (response) => {
+            client.once(responseEvent, (response: unknown) => {
                 clearTimeout(timer);
                 resolve(response);
             });
 
-            client.once(`${event.split(':')[0]}:error`, (error) => {
+            client.once(`${event.split(':')[0]}:error`, (error: unknown) => {
                 clearTimeout(timer);
                 reject(error);
             });
@@ -180,13 +197,13 @@ class SocketTestServer {
     /**
      * Emit with callback acknowledgment
      */
-    emitWithAck(client, event, data, timeout = this.config.defaultTimeout) {
+    emitWithAck(client: AnyRecord, event: string, data: unknown, timeout: number = this.config.defaultTimeout): Promise<unknown> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error(`Timeout waiting for ack on ${event}`));
             }, timeout);
 
-            client.emit(event, data, (response) => {
+            client.emit(event, data, (response: unknown) => {
                 clearTimeout(timer);
                 resolve(response);
             });
@@ -196,48 +213,48 @@ class SocketTestServer {
     /**
      * Register mock service
      */
-    registerMockService(name, service) {
+    registerMockService(name: string, service: AnyRecord): void {
         this.mockServices[name] = service;
     }
 
     /**
      * Get mock service
      */
-    getMockService(name) {
+    getMockService(name: string): AnyRecord {
         return this.mockServices[name];
     }
 
     /**
      * Log an event (for debugging)
      */
-    logEvent(event, data) {
+    logEvent(event: string, data: unknown): void {
         this.eventLog.push({ event, data, timestamp: Date.now() });
     }
 
     /**
      * Get event log
      */
-    getEventLog() {
+    getEventLog(): EventLogEntry[] {
         return [...this.eventLog];
     }
 
     /**
      * Clear event log
      */
-    clearEventLog() {
+    clearEventLog(): void {
         this.eventLog = [];
     }
 
     /**
      * Internal connection handler
      */
-    _handleConnection(socket) {
+    _handleConnection(socket: AnyRecord): void {
         socket.sessionId = socket.handshake.auth?.sessionId || uuidv4();
         socket.roomCode = null;
 
         this.logEvent('connection', { socketId: socket.id, sessionId: socket.sessionId });
 
-        socket.on('disconnect', (reason) => {
+        socket.on('disconnect', (reason: string) => {
             this.logEvent('disconnect', { socketId: socket.id, reason });
         });
     }
@@ -245,14 +262,14 @@ class SocketTestServer {
     /**
      * Get the Socket.io server instance
      */
-    getIO() {
+    getIO(): Server | null {
         return this.io;
     }
 
     /**
      * Get server URL
      */
-    getUrl() {
+    getUrl(): string {
         return `http://localhost:${this.config.port}`;
     }
 }
@@ -261,6 +278,11 @@ class SocketTestServer {
  * Mock Redis client for testing
  */
 class MockRedis {
+    _storage: Map<string, unknown>;
+    _sets: Map<string, Set<string>>;
+    _watching: Set<string>;
+    _subscriptions: Map<string, Array<(message: string) => void>>;
+
     constructor() {
         this._storage = new Map();
         this._sets = new Map();
@@ -268,11 +290,11 @@ class MockRedis {
         this._subscriptions = new Map();
     }
 
-    async get(key) {
+    async get(key: string): Promise<unknown> {
         return this._storage.get(key) || null;
     }
 
-    async set(key, value, options = {}) {
+    async set(key: string, value: unknown, options: AnyRecord = {}): Promise<string> {
         this._storage.set(key, value);
         if (options.EX) {
             setTimeout(() => this._storage.delete(key), options.EX * 1000);
@@ -280,17 +302,17 @@ class MockRedis {
         return 'OK';
     }
 
-    async del(key) {
+    async del(key: string): Promise<number> {
         const existed = this._storage.has(key);
         this._storage.delete(key);
         return existed ? 1 : 0;
     }
 
-    async exists(key) {
+    async exists(key: string): Promise<number> {
         return this._storage.has(key) ? 1 : 0;
     }
 
-    async expire(key, seconds) {
+    async expire(key: string, seconds: number): Promise<number> {
         if (this._storage.has(key)) {
             setTimeout(() => this._storage.delete(key), seconds * 1000);
             return 1;
@@ -298,11 +320,11 @@ class MockRedis {
         return 0;
     }
 
-    async sAdd(key, ...members) {
+    async sAdd(key: string, ...members: string[]): Promise<number> {
         if (!this._sets.has(key)) {
             this._sets.set(key, new Set());
         }
-        const set = this._sets.get(key);
+        const set = this._sets.get(key)!;
         let added = 0;
         for (const member of members) {
             if (!set.has(member)) {
@@ -313,7 +335,7 @@ class MockRedis {
         return added;
     }
 
-    async sRem(key, ...members) {
+    async sRem(key: string, ...members: string[]): Promise<number> {
         const set = this._sets.get(key);
         if (!set) return 0;
         let removed = 0;
@@ -323,44 +345,45 @@ class MockRedis {
         return removed;
     }
 
-    async sMembers(key) {
+    async sMembers(key: string): Promise<string[]> {
         const set = this._sets.get(key);
         return set ? [...set] : [];
     }
 
-    async sIsMember(key, member) {
+    async sIsMember(key: string, member: string): Promise<number> {
         const set = this._sets.get(key);
         return set && set.has(member) ? 1 : 0;
     }
 
-    async watch(key) {
+    async watch(key: string): Promise<string> {
         this._watching.add(key);
         return 'OK';
     }
 
-    async unwatch() {
+    async unwatch(): Promise<string> {
         this._watching.clear();
         return 'OK';
     }
 
-    multi() {
-        const commands = [];
+    multi(): AnyRecord {
+        const commands: Array<{ cmd: string; args: unknown[] }> = [];
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;
 
         return {
-            set(key, value, options) {
+            set(key: string, value: unknown, options?: AnyRecord) {
                 commands.push({ cmd: 'set', args: [key, value, options] });
                 return this;
             },
-            del(key) {
+            del(key: string) {
                 commands.push({ cmd: 'del', args: [key] });
                 return this;
             },
             async exec() {
-                const results = [];
+                const results: Array<[null, unknown]> = [];
                 // Sequential execution required for transaction semantics
                 for (const { cmd, args } of commands) {
-                    const result = await self[cmd](...args);
+                    const result = await (self as AnyRecord)[cmd](...args);
                     results.push([null, result]);
                 }
                 return results;
@@ -368,11 +391,11 @@ class MockRedis {
         };
     }
 
-    async hSet(key, field, value) {
+    async hSet(key: string, field: string | AnyRecord, value?: unknown): Promise<number> {
         if (!this._storage.has(key)) {
-            this._storage.set(key, {});
+            this._storage.set(key, {} as AnyRecord);
         }
-        const hash = this._storage.get(key);
+        const hash = this._storage.get(key) as AnyRecord;
         if (typeof field === 'object') {
             Object.assign(hash, field);
         } else {
@@ -381,30 +404,30 @@ class MockRedis {
         return 1;
     }
 
-    async hGet(key, field) {
-        const hash = this._storage.get(key);
+    async hGet(key: string, field: string): Promise<unknown> {
+        const hash = this._storage.get(key) as AnyRecord | undefined;
         return hash ? hash[field] : null;
     }
 
-    async hGetAll(key) {
-        return this._storage.get(key) || {};
+    async hGetAll(key: string): Promise<AnyRecord> {
+        return (this._storage.get(key) as AnyRecord) || {};
     }
 
-    async publish(channel, message) {
+    async publish(channel: string, message: string): Promise<number> {
         const handlers = this._subscriptions.get(channel) || [];
         handlers.forEach(handler => handler(message));
         return handlers.length;
     }
 
-    async subscribe(channel, handler) {
+    async subscribe(channel: string, handler: (message: string) => void): Promise<void> {
         if (!this._subscriptions.has(channel)) {
             this._subscriptions.set(channel, []);
         }
-        this._subscriptions.get(channel).push(handler);
+        this._subscriptions.get(channel)!.push(handler);
     }
 
     // Clear all data (useful for test cleanup)
-    clear() {
+    clear(): void {
         this._storage.clear();
         this._sets.clear();
         this._watching.clear();
@@ -414,7 +437,7 @@ class MockRedis {
 /**
  * Create mock player data
  */
-function createMockPlayer(overrides = {}) {
+function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
     return {
         sessionId: uuidv4(),
         nickname: `Player${Math.floor(Math.random() * 1000)}`,
@@ -432,7 +455,7 @@ function createMockPlayer(overrides = {}) {
 /**
  * Create mock room data
  */
-function createMockRoom(overrides = {}) {
+function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
     const code = overrides.code || generateRoomCode();
     return {
         code,
@@ -452,7 +475,7 @@ function createMockRoom(overrides = {}) {
 /**
  * Create mock game data
  */
-function createMockGame(overrides = {}) {
+function createMockGame(overrides: AnyRecord = {}): AnyRecord {
     const words = overrides.words || Array.from({ length: 25 }, (_, i) => `WORD${i + 1}`);
     const types = overrides.types || [
         ...Array(9).fill('red'),
@@ -487,7 +510,7 @@ function createMockGame(overrides = {}) {
 /**
  * Generate a random room code
  */
-function generateRoomCode() {
+function generateRoomCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 6; i++) {
@@ -499,32 +522,33 @@ function generateRoomCode() {
 /**
  * Wait for a specified time
  */
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Flush all pending promises
  */
-function flushPromises() {
+function flushPromises(): Promise<void> {
     return new Promise(resolve => setImmediate(resolve));
 }
 
 /**
  * Assert that an async function throws an error with specific properties
  */
-async function expectAsyncError(fn, expectedCode) {
+async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: string): Promise<Error> {
     try {
         await fn();
         throw new Error('Expected function to throw');
-    } catch (error) {
-        if (error.message === 'Expected function to throw') {
-            throw error;
+    } catch (error: unknown) {
+        const err = error as Error & { code?: string };
+        if (err.message === 'Expected function to throw') {
+            throw err;
         }
-        if (expectedCode && error.code !== expectedCode) {
-            throw new Error(`Expected error code ${expectedCode}, got ${error.code}`);
+        if (expectedCode && err.code !== expectedCode) {
+            throw new Error(`Expected error code ${expectedCode}, got ${err.code}`);
         }
-        return error;
+        return err;
     }
 }
 

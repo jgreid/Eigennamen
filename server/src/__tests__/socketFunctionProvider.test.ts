@@ -119,9 +119,10 @@ describe('Socket Function Provider', () => {
             // Object should be frozen
             expect(Object.isFrozen(registered)).toBe(true);
 
-            // In strict mode, assigning to frozen object would throw
-            // In non-strict mode, assignment silently fails
-            registered.newProperty = 'test';
+            // In strict mode (always on in TypeScript), assigning to frozen object throws
+            expect(() => {
+                registered.newProperty = 'test';
+            }).toThrow(TypeError);
             expect(registered.newProperty).toBeUndefined();
         });
 

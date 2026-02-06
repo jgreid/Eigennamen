@@ -2,27 +2,23 @@
   "name": "die-eigennamen-server",
   "version": "2.2.0",
   "description": "Real-time multiplayer server for Die Eigennamen",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "start:ts": "node dist/index.js",
-    "dev": "nodemon src/index.js",
-    "dev:ts": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "build:check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "test": "jest --config jest.config.ts.js",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:ts": "jest --config jest.config.ts.js",
+    "test:watch": "jest --config jest.config.ts.js --watch",
+    "test:coverage": "jest --config jest.config.ts.js --coverage",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:headed": "npx playwright test --headed",
     "test:e2e:chromium": "npx playwright test --project=chromium",
     "test:e2e:install": "npx playwright install",
-    "lint": "eslint src/",
-    "lint:ts": "eslint --ext .ts,.js src/",
+    "lint": "eslint --ext .ts src/",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
@@ -86,16 +82,17 @@
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
-      "**/__tests__/**/*.test.js"
+      "**/__tests__/**/*.test.ts"
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/helpers/"
     ],
     "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/index.js",
-      "!src/__tests__/**"
+      "src/**/*.ts",
+      "!src/index.ts",
+      "!src/__tests__/**",
+      "!src/types/**"
     ],
     "coverageThreshold": {
       "global": {
