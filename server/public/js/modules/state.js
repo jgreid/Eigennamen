@@ -189,7 +189,11 @@ export const state = {
     isRevealingCard: false,
 
     // Copy button
-    copyButtonTimeoutId: null
+    copyButtonTimeoutId: null,
+
+    // i18n
+    language: 'en',
+    localizedDefaultWords: null
 };
 
 // ========== DEBUGGING UTILITIES ==========
