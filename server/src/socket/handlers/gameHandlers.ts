@@ -134,7 +134,7 @@ interface EndTurnResult {
  * Forfeit result
  */
 interface ForfeitResult {
-    winner: Team;
+    winner: Team | null;
     forfeitingTeam: Team;
     allTypes: CardType[];
 }

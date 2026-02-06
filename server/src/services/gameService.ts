@@ -100,7 +100,7 @@ export interface EndTurnResult {
  * Forfeit result
  */
 export interface ForfeitResult {
-    winner: Team;
+    winner: Team | null;
     forfeitingTeam: Team;
     allTypes: CardType[];
 }
@@ -1556,12 +1556,12 @@ export function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<Forfe
         addToHistory(game, {
             action: 'forfeit',
             forfeitingTeam,
-            winner: game.winner as Team,
+            winner: game.winner,
             timestamp: Date.now()
         });
 
         return {
-            winner: game.winner as Team,
+            winner: game.winner,
             forfeitingTeam,
             allTypes: game.types
         };

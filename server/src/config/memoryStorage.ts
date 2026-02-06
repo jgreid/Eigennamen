@@ -517,9 +517,9 @@ export class MemoryStorage {
         // lPush adds to the head (beginning) of the list
         // Redis LPUSH pushes elements one by one in order given,
         // so 'LPUSH key a b c' results in [c, b, a] (c at head)
-        for (const value of values) {
-            list.unshift(value);
-        }
+        // Use a single unshift with reversed values for O(n) instead of O(n*k) per-element unshift
+        const reversed = [...values].reverse();
+        list.unshift(...reversed);
         return list.length;
     }
 
@@ -1522,9 +1522,9 @@ export class MemoryStorage {
                                 const list = storage.lists.get(cmd.key)!;
                                 // lPush adds to the head (beginning) of the list
                                 // Redis LPUSH pushes elements one by one in order given
-                                for (const val of cmd.values!) {
-                                    list.unshift(val);
-                                }
+                                // Use a single unshift with reversed values for O(n) instead of O(n*k)
+                                const txReversed = [...cmd.values!].reverse();
+                                list.unshift(...txReversed);
                                 results.push(list.length);
                                 break;
                             case 'lTrim':

@@ -73,11 +73,12 @@ async function getCachedSocketCount(io: SocketServer, forceRefresh = false): Pro
     }
 
     // Refresh cache with timeout protection
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
         const socketCountPromise = io.fetchSockets().then((s: unknown[]) => s.length);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Socket count timeout')), SOCKET.SOCKET_COUNT_TIMEOUT_MS)
-        );
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Socket count timeout')), SOCKET.SOCKET_COUNT_TIMEOUT_MS);
+        });
 
         cachedSocketCount = await Promise.race([socketCountPromise, timeoutPromise]);
         lastSocketCountUpdate = now;
@@ -86,6 +87,11 @@ async function getCachedSocketCount(io: SocketServer, forceRefresh = false): Pro
     } catch {
         // Return stale cache on error
         return { count: cachedSocketCount, cached: true, stale: true };
+    } finally {
+        // Clear the timeout to prevent timer leak when socketCountPromise wins the race
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId);
+        }
     }
 }
 

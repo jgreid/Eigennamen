@@ -119,8 +119,8 @@ export interface ForfeitHistoryEntry {
   action: 'forfeit';
   /** Team that forfeited */
   forfeitingTeam: Team;
-  /** Team that won */
-  winner: Team;
+  /** Team that won (null in Duet mode cooperative forfeit) */
+  winner: Team | null;
   /** When the action occurred */
   timestamp: number;
 }

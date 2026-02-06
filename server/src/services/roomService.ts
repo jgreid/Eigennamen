@@ -345,19 +345,18 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
         return { newHostId: null, roomDeleted: false };
     }
 
-    // Remove player
-    await playerService.removePlayer(sessionId);
-
-    // Get remaining players
-    const players: Player[] = await playerService.getPlayersInRoom(code);
+    // Get remaining players (excluding the leaving player) for host transfer decision
+    const allPlayers: Player[] = await playerService.getPlayersInRoom(code);
+    const remainingPlayers = allPlayers.filter(p => p.sessionId !== sessionId);
 
     let newHostId: string | null = null;
     let roomDeleted = false;
 
-    // FIX H4: Use atomic host transfer instead of two separate operations
-    // Previously had a race condition window between room update and player update
-    const firstPlayer = players[0];
-    if (room.hostSessionId === sessionId && players.length > 0 && firstPlayer) {
+    // Transfer host BEFORE removing the player so atomicHostTransfer can read old host data.
+    // Previously removePlayer was called first, which deleted the old host's data and caused
+    // atomicHostTransfer to always fail with OLD_HOST_NOT_FOUND, falling back to non-atomic path.
+    const firstPlayer = remainingPlayers[0];
+    if (room.hostSessionId === sessionId && remainingPlayers.length > 0 && firstPlayer) {
         newHostId = firstPlayer.sessionId;
         const transferResult = await playerService.atomicHostTransfer(sessionId, newHostId, code);
         if (!transferResult.success) {
@@ -369,8 +368,11 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
         }
     }
 
+    // Remove player after host transfer is complete
+    await playerService.removePlayer(sessionId);
+
     // If no players left, clean up room completely
-    if (players.length === 0) {
+    if (remainingPlayers.length === 0) {
         await cleanupRoom(code);
         roomDeleted = true;
     }

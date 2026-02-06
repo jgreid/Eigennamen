@@ -15,7 +15,7 @@ const logger = require('../../utils/logger');
 const { SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
-const { RoomError, PlayerError } = require('../../errors/GameError');
+const { PlayerError } = require('../../errors/GameError');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
@@ -93,20 +93,13 @@ function chatHandlers(io: Server, socket: GameSocket): void {
                 throw PlayerError.notAuthorized();
             }
 
-            // Spectator-only chat
+            // Spectator-only chat: use the spectators socket room instead of
+            // fetching all players from Redis and iterating (O(n) -> O(1))
             if (validated.spectatorOnly) {
-                const allPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
-                if (!allPlayers || !Array.isArray(allPlayers)) {
-                    throw RoomError.notFound(ctx.roomCode);
-                }
-                const spectators = allPlayers.filter((p: Player) => p.role === 'spectator' && p.connected);
-
-                for (const spectator of spectators) {
-                    try {
-                        io.to(`player:${spectator.sessionId}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
-                    } catch (emitError) {
-                        logger.error(`Failed to emit chat:message to spectator ${spectator.sessionId}:`, emitError);
-                    }
+                try {
+                    io.to(`spectators:${ctx.roomCode}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
+                } catch (emitError) {
+                    logger.error(`Failed to emit chat:message to spectators in room ${ctx.roomCode}:`, emitError);
                 }
             } else if (validated.teamOnly && ctx.player.team) {
                 const teammates: Player[] = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
