@@ -114,18 +114,18 @@
 }
 
 .multiplayer-modal .form-group input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
 }
 
 .multiplayer-modal .form-group .input-hint {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     margin-top: 4px;
 }
 
 .multiplayer-modal .form-group label .optional-label {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
     font-weight: normal;
 }
 
@@ -231,7 +231,7 @@
     display: flex;
     align-items: center;
     margin: 20px 0;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
     font-size: 0.8rem;
 }
 
@@ -392,7 +392,7 @@
 
 .mp-player-list .player-role {
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .mp-player-list .player-team-red {

@@ -43,7 +43,7 @@
 .history-empty {
     text-align: center;
     padding: 30px 0;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .history-list {
@@ -88,7 +88,7 @@
 
 .history-item-date {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .history-item-stats {
@@ -105,7 +105,7 @@
 
 .history-item-moves {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 /* ========== GAME REPLAY MODAL ========== */

@@ -18,6 +18,11 @@ export interface TeamNames {
 }
 
 /**
+ * Game mode type
+ */
+export type GameMode = 'classic' | 'blitz';
+
+/**
  * Room settings that can be configured
  */
 export interface RoomSettings {
@@ -29,6 +34,8 @@ export interface RoomSettings {
   allowSpectators: boolean;
   /** ID of word list to use */
   wordListId?: string | null;
+  /** Game mode (classic or blitz) */
+  gameMode: GameMode;
 }
 
 /**

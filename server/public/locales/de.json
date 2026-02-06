@@ -1,0 +1,174 @@
+{
+  "app": {
+    "title": "Codenames",
+    "subtitle": "Online"
+  },
+  "nav": {
+    "settings": "Einstellungen",
+    "playOnline": "Online spielen",
+    "history": "Spielverlauf",
+    "newGame": "Neues Spiel"
+  },
+  "teams": {
+    "red": "Rot",
+    "blue": "Blau",
+    "redTeam": "Rotes Team",
+    "blueTeam": "Blaues Team"
+  },
+  "roles": {
+    "spymaster": "Geheimdienstchef",
+    "clicker": "Ermittler",
+    "spectator": "Zuschauer"
+  },
+  "game": {
+    "redTurn": "Rotes Team ist dran",
+    "blueTurn": "Blaues Team ist dran",
+    "redWins": "Rotes Team gewinnt!",
+    "blueWins": "Blaues Team gewinnt!",
+    "gameOver": "Spiel beendet",
+    "endTurn": "Zug beenden",
+    "startGame": "Spiel starten",
+    "newGame": "Neues Spiel",
+    "giveClue": "Hinweis geben",
+    "clueWord": "Hinweiswort",
+    "clueNumber": "Anzahl",
+    "forfeit": "Aufgeben",
+    "remaining": "übrig",
+    "cardsLeft": "{{count}} Karten übrig",
+    "score": "Punktestand",
+    "youAreSpymaster": "Du bist der Geheimdienstchef",
+    "youAreClicker": "Du bist ein Ermittler",
+    "youAreSpectator": "Du bist Zuschauer",
+    "waitingForClue": "Warte auf Hinweis...",
+    "guessesRemaining": "{{count}} Versuche übrig"
+  },
+  "board": {
+    "clickToReveal": "Klicken zum Aufdecken",
+    "revealed": "Aufgedeckt",
+    "assassin": "Attentäter"
+  },
+  "timer": {
+    "remaining": "verbleibend",
+    "expired": "Zeit abgelaufen!",
+    "paused": "Pausiert"
+  },
+  "multiplayer": {
+    "createRoom": "Raum erstellen",
+    "joinRoom": "Raum beitreten",
+    "roomId": "Raum-ID",
+    "nickname": "Spitzname",
+    "enterRoomId": "Raum-ID eingeben",
+    "enterNickname": "Spitznamen eingeben",
+    "players": "Spieler",
+    "host": "Gastgeber",
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "roomCreated": "Raum erstellt!",
+    "roomJoined": "Raum beigetreten!",
+    "playerJoined": "{{name}} ist beigetreten",
+    "playerLeft": "{{name}} hat den Raum verlassen",
+    "kicked": "Du wurdest aus dem Raum entfernt",
+    "roomNotFound": "Raum nicht gefunden",
+    "connectionLost": "Verbindung verloren",
+    "reconnecting": "Verbindung wird wiederhergestellt...",
+    "reconnected": "Wieder verbunden!",
+    "subtitle": "Spiele in Echtzeit mit Freunden",
+    "joinGame": "Spiel beitreten",
+    "hostGame": "Spiel erstellen",
+    "enterRoomIdShort": "Raum-ID eingeben",
+    "createRoomShort": "Neuen Raum erstellen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "teams": "Teams",
+    "words": "Wörter",
+    "rules": "Spielregeln",
+    "about": "Über",
+    "link": "Link teilen",
+    "preferences": "Vorlieben",
+    "roomSettings": "Raumeinstellungen",
+    "redTeamName": "Name Rotes Team",
+    "blueTeamName": "Name Blaues Team",
+    "saveAndApply": "Speichern",
+    "close": "Schließen",
+    "resetWords": "Wörter zurücksetzen",
+    "language": "Sprache",
+    "sounds": "Töne",
+    "notifications": "Benachrichtigungen",
+    "prefsDesc": "Passe dein Spielerlebnis an. Einstellungen werden lokal gespeichert.",
+    "accessibility": "Barrierefreiheit",
+    "colorBlindMode": "Farbenblind-Modus (Orange/Blau mit Beschriftung)",
+    "teamsDesc": "Passe die Teamnamen für dieses Spiel an. Namen werden im teilbaren Link gespeichert.",
+    "wordsDesc": "Wähle, welche Wörter auf dem Spielfeld erscheinen. Eigene Wörter werden im teilbaren Link gespeichert."
+  },
+  "roomSettings": {
+    "title": "Raumeinstellungen",
+    "description": "Verwalte deine Multiplayer-Raumeinstellungen. Nur der Gastgeber kann diese ändern.",
+    "roomInfo": "Rauminformationen",
+    "shareHint": "Teile die Raum-ID mit Freunden, damit sie beitreten können.",
+    "roomId": "Raum-ID",
+    "players": "Spieler",
+    "status": "Status",
+    "waiting": "Wartend",
+    "inProgress": "Läuft",
+    "gameMode": "Spielmodus",
+    "gameModeHint": "Wähle, wie du spielen möchtest.",
+    "classic": "Klassisch",
+    "classicDesc": "Standard-Codenames-Regeln",
+    "blitz": "Blitz",
+    "blitzDesc": "Schnelle 30-Sekunden-Runden",
+    "duet": "Duett",
+    "duetDesc": "Kooperativer 2-Spieler-Modus"
+  },
+  "wordList": {
+    "default": "Standardwörter",
+    "custom": "Eigene Wörter",
+    "combined": "Kombiniert",
+    "customOnly": "Nur eigene",
+    "defaultOnly": "Nur Standard",
+    "enterWords": "Eigene Wörter eingeben (eins pro Zeile)",
+    "wordCount": "{{count}} Wörter",
+    "minWords": "Mindestens 25 Wörter erforderlich"
+  },
+  "rules": {
+    "intro": "Zwei Teams versuchen, alle ihre Wörter zu finden. Geheimdienstchefs geben Hinweise, Ermittler decken Karten auf.",
+    "cardTypes": "Kartentypen",
+    "redCard": "Rotes Team",
+    "blueCard": "Blaues Team",
+    "neutralCard": "Neutral",
+    "assassinCard": "Attentäter",
+    "turnFlow": "Spielablauf",
+    "step1": "Geheimdienstchef gibt ein Hinweiswort + Zahl",
+    "step2": "Ermittler decken passende Karten auf",
+    "step3": "Eigene Farbe = weitermachen, Neutral/Gegner = Zug endet",
+    "step4": "Attentäter = sofortige Niederlage!",
+    "note": "Das anfangende Team findet 9 Wörter, das andere 8. Wer zuerst alle findet, gewinnt!"
+  },
+  "about": {
+    "title": "Über Codenames Online",
+    "description": "Eine kostenlose Open-Source-Umsetzung des beliebten Brettspiels.",
+    "version": "Version",
+    "license": "GPL v3.0",
+    "source": "Quellcode"
+  },
+  "chat": {
+    "placeholder": "Nachricht eingeben...",
+    "send": "Senden",
+    "teamOnly": "Nur Team",
+    "spectatorChat": "Zuschauer-Chat"
+  },
+  "errors": {
+    "connectionFailed": "Verbindung zum Server fehlgeschlagen",
+    "roomFull": "Raum ist voll",
+    "invalidInput": "Ungültige Eingabe",
+    "serverError": "Serverfehler – bitte erneut versuchen",
+    "rateLimited": "Zu viele Anfragen – bitte langsamer"
+  },
+  "toast": {
+    "settingsUpdated": "Raumeinstellungen aktualisiert",
+    "gameStarted": "Neues Spiel gestartet!",
+    "blitzGameStarted": "Blitz-Spiel gestartet!",
+    "copied": "In die Zwischenablage kopiert!",
+    "linkCopied": "Link kopiert!"
+  }
+}

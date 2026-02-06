@@ -22,6 +22,8 @@ import {
     openSettings, closeSettings, saveSettings, resetWords, initSettingsNav,
     loadLocalSettings, tryLoadWordlistFile, initSettingsListeners
 } from './settings.js';
+import { initI18n, setLanguage } from './i18n.js';
+import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
@@ -212,6 +214,19 @@ async function init() {
         loadGameFromURL();
         // Initialize QR code with current URL
         updateQRCode(window.location.href);
+        // Initialize i18n (loads translations, translates page)
+        await initI18n();
+        // Wire up language selector
+        const langSelect = document.getElementById('language-select');
+        if (langSelect) {
+            langSelect.value = state.language;
+            langSelect.addEventListener('change', (e) => {
+                setLanguage(e.target.value);
+            });
+        }
+        // Initialize accessibility features
+        initColorBlindMode();
+        initKeyboardShortcuts();
     } catch (e) {
         // Show error modal to inform user
         showErrorModal(

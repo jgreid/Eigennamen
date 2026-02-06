@@ -156,6 +156,54 @@ export const RETRIES = {
     PUSH_RETRY_DELAYS: [2000, 4000, 8000, 16000]  // Exponential backoff
 } as const;
 
+// Game modes
+export const GAME_MODES = ['classic', 'blitz', 'duet'] as const;
+export type GameMode = typeof GAME_MODES[number];
+
+// Game mode configurations
+export const GAME_MODE_CONFIG = {
+    classic: {
+        label: 'Classic',
+        description: 'Standard Codenames rules',
+        forcedTurnTimer: null,   // Timer is optional, set by host
+        minTurnTimer: 30,
+        maxTurnTimer: 300,
+        cooperative: false
+    },
+    blitz: {
+        label: 'Blitz',
+        description: 'Fast-paced 30-second turns',
+        forcedTurnTimer: 30,     // Always 30 seconds, cannot be changed
+        minTurnTimer: 30,
+        maxTurnTimer: 30,
+        cooperative: false
+    },
+    duet: {
+        label: 'Duet',
+        description: 'Cooperative 2-player mode',
+        forcedTurnTimer: null,
+        minTurnTimer: 30,
+        maxTurnTimer: 300,
+        cooperative: true
+    }
+} as const;
+
+// Duet mode board configuration
+// Each side sees 9 green + 3 assassin + 13 bystander
+// Overlaps: 3 green/green, 1 assassin/assassin
+// Total unique greens: 15
+export const DUET_BOARD_CONFIG = {
+    greenOverlap: 3,       // Cards green from both perspectives
+    greenOnlyA: 6,         // Green for A, bystander for B
+    greenOnlyB: 6,         // Bystander for A, green for B
+    assassinOverlap: 1,    // Assassin from both perspectives
+    assassinOnlyA: 2,      // Assassin for A, bystander for B
+    assassinOnlyB: 2,      // Bystander for A, assassin for B
+    bystanderBoth: 5,      // Bystander from both perspectives
+    timerTokens: 9,        // Starting timer tokens
+    greenTotal: 15         // Unique greens to find for win
+} as const;
+
 // Game teams and roles
 export const TEAMS = ['red', 'blue'] as const;
 export const ROLES = ['spymaster', 'clicker', 'spectator'] as const;
@@ -393,6 +441,9 @@ module.exports = {
     VALIDATION,
     LOCKS,
     RETRIES,
+    GAME_MODES,
+    GAME_MODE_CONFIG,
+    DUET_BOARD_CONFIG,
     TEAMS,
     ROLES,
     CARD_TYPES,

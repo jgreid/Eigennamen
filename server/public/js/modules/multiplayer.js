@@ -573,7 +573,10 @@ export function setupMultiplayerListeners() {
         // Full sync game state from server for new games
         if (data.game) {
             syncGameStateFromServer(data.game);
-            showToast('New game started!', 'success');
+            state.gameMode = data.gameMode || 'classic';
+            updateDuetUI(data.game);
+            const modeLabels = { blitz: 'Blitz game started!', duet: 'Duet game started!', classic: 'New game started!' };
+            showToast(modeLabels[data.gameMode] || 'New game started!', 'success');
         }
     });
 
@@ -587,6 +590,11 @@ export function setupMultiplayerListeners() {
         if (data.index !== undefined) {
             revealCardFromServer(data.index, data);
             playNotificationSound('reveal');
+        }
+
+        // Update Duet info if present
+        if (data.timerTokens !== undefined || data.greenFound !== undefined) {
+            updateDuetInfoBar(data.greenFound, data.timerTokens);
         }
     });
 
@@ -615,19 +623,25 @@ export function setupMultiplayerListeners() {
     });
 
     CodenamesClient.on('gameOver', (data) => {
-        if (data.winner) {
+        // Duet mode can have null winner (cooperative loss)
+        if (data.winner || state.gameMode === 'duet') {
             // Sync all card types from server so non-spymasters can see the full board
-            // The server sends types array with all card types when game ends
             if (data.types && Array.isArray(data.types)) {
                 state.gameState.types = data.types;
+            }
+            if (data.duetTypes && Array.isArray(data.duetTypes)) {
+                state.gameState.duetTypes = data.duetTypes;
             }
             state.gameState.gameOver = true;
             state.gameState.winner = data.winner;
 
-            showGameOver(data.winner, data.reason);
-            // Clear tab notification on game over
+            if (state.gameMode === 'duet') {
+                const duetWin = data.reason === 'completed';
+                showGameOver(duetWin ? 'red' : null, data.reason);
+            } else {
+                showGameOver(data.winner, data.reason);
+            }
             setTabNotification(false);
-            // Play game over sound
             playNotificationSound('gameOver');
         }
     });
@@ -1061,11 +1075,24 @@ export function setupMultiplayerListeners() {
             // Update room info display
             updateRoomInfoDisplay();
 
+            // Sync game mode radio buttons
+            syncGameModeUI(data.settings.gameMode);
+
             // Update multiplayer indicator
             updateMpIndicator({ code: CodenamesClient.getRoomCode() }, state.multiplayerPlayers);
 
             showToast('Room settings updated', 'info');
         }
+    });
+
+    // Game mode radio button change handler
+    const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
+    gameModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (!CodenamesClient?.player?.isHost) return;
+            const gameMode = e.target.value;
+            CodenamesClient.updateSettings({ gameMode });
+        });
     });
 
     // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
@@ -1238,11 +1265,29 @@ export function syncGameStateFromServer(serverGame) {
         state.gameState.guessesAllowed = serverGame.guessesAllowed;
     }
 
+    // Sync Duet mode fields
+    if (serverGame.duetTypes) {
+        state.gameState.duetTypes = serverGame.duetTypes;
+    }
+    if (typeof serverGame.timerTokens === 'number') {
+        state.gameState.timerTokens = serverGame.timerTokens;
+    }
+    if (typeof serverGame.greenFound === 'number') {
+        state.gameState.greenFound = serverGame.greenFound;
+    }
+    if (typeof serverGame.greenTotal === 'number') {
+        state.gameState.greenTotal = serverGame.greenTotal;
+    }
+    if (serverGame.gameMode) {
+        state.gameMode = serverGame.gameMode;
+    }
+
     // Update all UI components
     renderBoard();
     updateScoreboard();
     updateTurnIndicator();
     updateControls();
+    updateDuetUI(serverGame);
 
     // Update tab notification based on current turn
     const isYourTurn = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver;
@@ -1353,6 +1398,42 @@ export function updateRoomInfoDisplay() {
     if (codeEl) codeEl.textContent = state.currentRoomId || CodenamesClient?.getRoomCode() || '----';
     if (playersEl) playersEl.textContent = state.multiplayerPlayers?.length || 0;
     if (statusEl) statusEl.textContent = state.gameState.status === 'ended' ? 'Game Over' : (state.gameState.status === 'playing' ? 'In Progress' : 'Waiting');
+}
+
+// Sync game mode UI with server state
+export function syncGameModeUI(gameMode) {
+    if (!gameMode) return;
+    const radio = document.querySelector(`input[name="gameMode"][value="${gameMode}"]`);
+    if (radio) radio.checked = true;
+}
+
+// Update Duet mode UI elements
+export function updateDuetUI(gameData) {
+    const isDuet = state.gameMode === 'duet';
+    const mainContent = document.querySelector('.main-content');
+    const duetBar = document.getElementById('duet-info-bar');
+
+    if (isDuet) {
+        if (mainContent) mainContent.classList.add('duet-mode');
+        if (duetBar) {
+            duetBar.style.display = 'flex';
+            updateDuetInfoBar(gameData?.greenFound || 0, gameData?.timerTokens);
+        }
+        // Update green total display
+        const totalEl = document.getElementById('duet-green-total');
+        if (totalEl && gameData?.greenTotal) totalEl.textContent = gameData.greenTotal;
+    } else {
+        if (mainContent) mainContent.classList.remove('duet-mode');
+        if (duetBar) duetBar.style.display = 'none';
+    }
+}
+
+// Update Duet info bar with current progress
+export function updateDuetInfoBar(greenFound, timerTokens) {
+    const foundEl = document.getElementById('duet-green-found');
+    const tokensEl = document.getElementById('duet-timer-tokens');
+    if (foundEl && greenFound !== undefined) foundEl.textContent = greenFound;
+    if (tokensEl && timerTokens !== undefined) tokensEl.textContent = timerTokens;
 }
 
 // PHASE 4: Update spectator count display

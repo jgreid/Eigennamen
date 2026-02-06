@@ -1,8 +1,8 @@
 /**
- * Jest Configuration for TypeScript Tests
+ * Jest Configuration for TypeScript
  *
- * This configuration is used when running `npm run test:ts`
- * It extends the base Jest config to support both JS and TS files.
+ * All source and test files are now TypeScript.
+ * This is the primary Jest configuration.
  */
 
 module.exports = {
@@ -21,10 +21,9 @@ module.exports = {
     // File extensions to consider
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 
-    // Test file patterns - support both JS and TS
+    // Test file patterns - TypeScript only
     testMatch: [
-        '**/__tests__/**/*.test.ts',
-        '**/__tests__/**/*.test.js'
+        '**/__tests__/**/*.test.ts'
     ],
 
     // Ignore patterns
@@ -34,16 +33,13 @@ module.exports = {
         '/helpers/'
     ],
 
-    // Transform configuration
+    // Transform configuration - all TypeScript
     transform: {
-        // Use ts-jest for TypeScript files
         '^.+\\.tsx?$': ['ts-jest', {
             tsconfig: 'tsconfig.json',
             // Faster compilation for tests
             isolatedModules: true
-        }],
-        // Use default for JavaScript files
-        '^.+\\.jsx?$': 'babel-jest'
+        }]
     },
 
     // Don't transform node_modules except specific packages
@@ -65,11 +61,9 @@ module.exports = {
         '^@types/(.*)$': '<rootDir>/src/types/$1'
     },
 
-    // Coverage collection
+    // Coverage collection - TypeScript only
     collectCoverageFrom: [
         'src/**/*.ts',
-        'src/**/*.js',
-        '!src/index.js',
         '!src/index.ts',
         '!src/__tests__/**',
         '!src/types/**'

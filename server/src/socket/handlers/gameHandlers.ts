@@ -175,15 +175,17 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     throw RoomError.gameInProgress(ctx.roomCode);
                 }
 
+                // Fetch room first to get gameMode for game creation
+                const room: Room | null = await roomService.getRoom(ctx.roomCode);
+                const gameMode = room?.settings?.gameMode || 'classic';
+
                 const game: GameState = await gameService.createGame(ctx.roomCode, {
                     wordListId: validated.wordListId,
-                    wordList: validated.wordList
+                    wordList: validated.wordList,
+                    gameMode
                 });
 
-                const [room, players] = await Promise.all([
-                    roomService.getRoom(ctx.roomCode),
-                    playerService.getPlayersInRoom(ctx.roomCode)
-                ]) as [Room | null, Player[]];
+                const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
 
                 return { game, room, players };
             })();
@@ -194,11 +196,14 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 'game:start'
             );
 
+            // Include game mode in started event
+            const gameMode = room?.settings?.gameMode || 'classic';
+
             // Send game state to each player (spymasters see card types)
             for (const p of players) {
                 try {
                     const gameState: PlayerGameState | null = gameService.getGameStateForPlayer(game, p);
-                    io.to(`player:${p.sessionId}`).emit(SOCKET_EVENTS.GAME_STARTED, { game: gameState });
+                    io.to(`player:${p.sessionId}`).emit(SOCKET_EVENTS.GAME_STARTED, { game: gameState, gameMode });
                 } catch (emitError) {
                     logger.error(`Failed to emit game:started to player ${p.sessionId}:`, emitError);
                 }
@@ -260,7 +265,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             );
 
             // Broadcast the reveal to all players
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, {
+            const revealPayload: Record<string, unknown> = {
                 index: result.index,
                 type: result.type,
                 word: result.word,
@@ -277,7 +282,11 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     nickname: ctx.player.nickname,
                     team: ctx.player.team
                 }
-            });
+            };
+            // Include Duet-specific fields if present
+            if (result.timerTokens !== undefined) revealPayload.timerTokens = result.timerTokens;
+            if (result.greenFound !== undefined) revealPayload.greenFound = result.greenFound;
+            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, revealPayload);
 
             // Handle turn ending
             if (result.turnEnded && !result.gameOver) {
@@ -291,11 +300,15 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             if (result.gameOver) {
                 await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
-                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
+                const gameOverPayload: Record<string, unknown> = {
                     winner: result.winner,
                     reason: result.endReason,
                     types: result.allTypes
-                });
+                };
+                if (result.allDuetTypes) gameOverPayload.duetTypes = result.allDuetTypes;
+                if (result.greenFound !== undefined) gameOverPayload.greenFound = result.greenFound;
+                if (result.timerTokens !== undefined) gameOverPayload.timerTokens = result.timerTokens;
+                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, gameOverPayload);
 
                 // Save completed game to history
                 const [completedGame, roomForHistory] = await Promise.all([

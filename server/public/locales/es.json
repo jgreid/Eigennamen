@@ -1,0 +1,174 @@
+{
+  "app": {
+    "title": "Codenames",
+    "subtitle": "Online"
+  },
+  "nav": {
+    "settings": "Ajustes",
+    "playOnline": "Jugar en línea",
+    "history": "Historial",
+    "newGame": "Nueva partida"
+  },
+  "teams": {
+    "red": "Rojo",
+    "blue": "Azul",
+    "redTeam": "Equipo Rojo",
+    "blueTeam": "Equipo Azul"
+  },
+  "roles": {
+    "spymaster": "Jefe de espías",
+    "clicker": "Agente de campo",
+    "spectator": "Espectador"
+  },
+  "game": {
+    "redTurn": "Turno del Equipo Rojo",
+    "blueTurn": "Turno del Equipo Azul",
+    "redWins": "¡Gana el Equipo Rojo!",
+    "blueWins": "¡Gana el Equipo Azul!",
+    "gameOver": "Fin de la partida",
+    "endTurn": "Terminar turno",
+    "startGame": "Iniciar partida",
+    "newGame": "Nueva partida",
+    "giveClue": "Dar pista",
+    "clueWord": "Palabra clave",
+    "clueNumber": "Número",
+    "forfeit": "Rendirse",
+    "remaining": "restantes",
+    "cardsLeft": "{{count}} cartas restantes",
+    "score": "Puntuación",
+    "youAreSpymaster": "Eres el Jefe de espías",
+    "youAreClicker": "Eres un Agente de campo",
+    "youAreSpectator": "Eres Espectador",
+    "waitingForClue": "Esperando pista...",
+    "guessesRemaining": "{{count}} intentos restantes"
+  },
+  "board": {
+    "clickToReveal": "Clic para revelar",
+    "revealed": "Revelada",
+    "assassin": "Asesino"
+  },
+  "timer": {
+    "remaining": "restante",
+    "expired": "¡Se acabó el tiempo!",
+    "paused": "Pausado"
+  },
+  "multiplayer": {
+    "createRoom": "Crear sala",
+    "joinRoom": "Unirse a sala",
+    "roomId": "ID de sala",
+    "nickname": "Apodo",
+    "enterRoomId": "Introduce el ID de sala",
+    "enterNickname": "Introduce tu apodo",
+    "players": "Jugadores",
+    "host": "Anfitrión",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "roomCreated": "¡Sala creada!",
+    "roomJoined": "¡Te has unido a la sala!",
+    "playerJoined": "{{name}} se ha unido",
+    "playerLeft": "{{name}} ha salido",
+    "kicked": "Has sido expulsado de la sala",
+    "roomNotFound": "Sala no encontrada",
+    "connectionLost": "Conexión perdida",
+    "reconnecting": "Reconectando...",
+    "reconnected": "¡Reconectado!",
+    "subtitle": "Juega con amigos en tiempo real",
+    "joinGame": "Unirse a partida",
+    "hostGame": "Crear partida",
+    "enterRoomIdShort": "Introduce un ID de sala",
+    "createRoomShort": "Crear una nueva sala"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "teams": "Equipos",
+    "words": "Palabras",
+    "rules": "Cómo jugar",
+    "about": "Acerca de",
+    "link": "Compartir enlace",
+    "preferences": "Preferencias",
+    "roomSettings": "Ajustes de sala",
+    "redTeamName": "Nombre Equipo Rojo",
+    "blueTeamName": "Nombre Equipo Azul",
+    "saveAndApply": "Guardar",
+    "close": "Cerrar",
+    "resetWords": "Restablecer palabras",
+    "language": "Idioma",
+    "sounds": "Sonidos",
+    "notifications": "Notificaciones",
+    "prefsDesc": "Personaliza tu experiencia de juego. Los ajustes se guardan localmente.",
+    "accessibility": "Accesibilidad",
+    "colorBlindMode": "Modo para daltonismo (naranja/azul con etiquetas)",
+    "teamsDesc": "Personaliza los nombres de equipo para esta partida. Los nombres se incluyen en el enlace compartido.",
+    "wordsDesc": "Elige qué palabras aparecen en el tablero. Las palabras personalizadas se incluyen en el enlace compartido."
+  },
+  "roomSettings": {
+    "title": "Ajustes de sala",
+    "description": "Gestiona los ajustes de tu sala multijugador. Solo el anfitrión puede cambiarlos.",
+    "roomInfo": "Info de sala",
+    "shareHint": "Comparte el ID de sala con tus amigos para que se unan.",
+    "roomId": "ID de sala",
+    "players": "Jugadores",
+    "status": "Estado",
+    "waiting": "Esperando",
+    "inProgress": "En curso",
+    "gameMode": "Modo de juego",
+    "gameModeHint": "Elige cómo quieres jugar.",
+    "classic": "Clásico",
+    "classicDesc": "Reglas estándar de Codenames",
+    "blitz": "Blitz",
+    "blitzDesc": "Turnos rápidos de 30 segundos",
+    "duet": "Dueto",
+    "duetDesc": "Modo cooperativo para 2 jugadores"
+  },
+  "wordList": {
+    "default": "Palabras predeterminadas",
+    "custom": "Palabras personalizadas",
+    "combined": "Combinadas",
+    "customOnly": "Solo personalizadas",
+    "defaultOnly": "Solo predeterminadas",
+    "enterWords": "Introduce palabras personalizadas (una por línea)",
+    "wordCount": "{{count}} palabras",
+    "minWords": "Se necesitan al menos 25 palabras"
+  },
+  "rules": {
+    "intro": "Dos equipos compiten por encontrar todas sus palabras. Los Jefes de espías dan pistas, los Agentes revelan cartas.",
+    "cardTypes": "Tipos de carta",
+    "redCard": "Equipo Rojo",
+    "blueCard": "Equipo Azul",
+    "neutralCard": "Neutral",
+    "assassinCard": "Asesino",
+    "turnFlow": "Flujo del turno",
+    "step1": "El Jefe de espías da una palabra clave + número",
+    "step2": "Los Agentes revelan cartas que coincidan con la pista",
+    "step3": "Tu color = sigue jugando, Neutral/Enemigo = fin del turno",
+    "step4": "¡Asesino = derrota instantánea!",
+    "note": "El equipo inicial busca 9 palabras, el otro 8. ¡El primero en encontrar todas gana!"
+  },
+  "about": {
+    "title": "Acerca de Codenames Online",
+    "description": "Una implementación gratuita y de código abierto del popular juego de mesa.",
+    "version": "Versión",
+    "license": "GPL v3.0",
+    "source": "Código fuente"
+  },
+  "chat": {
+    "placeholder": "Escribe un mensaje...",
+    "send": "Enviar",
+    "teamOnly": "Solo equipo",
+    "spectatorChat": "Chat de espectadores"
+  },
+  "errors": {
+    "connectionFailed": "Error al conectar con el servidor",
+    "roomFull": "La sala está llena",
+    "invalidInput": "Entrada no válida",
+    "serverError": "Error del servidor – inténtalo de nuevo",
+    "rateLimited": "Demasiadas solicitudes – ve más despacio"
+  },
+  "toast": {
+    "settingsUpdated": "Ajustes de sala actualizados",
+    "gameStarted": "¡Nueva partida iniciada!",
+    "blitzGameStarted": "¡Partida Blitz iniciada!",
+    "copied": "¡Copiado al portapapeles!",
+    "linkCopied": "¡Enlace copiado!"
+  }
+}

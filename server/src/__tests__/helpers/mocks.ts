@@ -7,20 +7,21 @@
 
 const { v4: uuidv4 } = require('uuid');
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRecord = Record<string, any>;
+
 /**
  * Create a mock Redis client with all common operations
- * @param {Object} overrides - Override specific methods
- * @returns {Object} Mock Redis client
  */
-function createMockRedis(overrides = {}) {
-    const storage = new Map();
-    const sets = new Map();
-    const sortedSets = new Map();
-    const lists = new Map();
-    const watchers = new Set();
-    const subscriptions = new Map();
+function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
+    const storage = new Map<string, string>();
+    const sets = new Map<string, Set<string>>();
+    const sortedSets = new Map<string, Array<{ score: number; value: string }>>();
+    const lists = new Map<string, string[]>();
+    const watchers = new Set<string>();
+    const subscriptions = new Map<string, Array<(message: string) => void>>();
 
-    const mockRedis = {
+    const mockRedis: AnyRecord = {
         // Storage for test inspection
         _storage: storage,
         _sets: sets,
@@ -28,8 +29,8 @@ function createMockRedis(overrides = {}) {
         _lists: lists,
 
         // String operations
-        get: jest.fn(async (key) => storage.get(key) || null),
-        set: jest.fn(async (key, value, options = {}) => {
+        get: jest.fn(async (key: string) => storage.get(key) || null),
+        set: jest.fn(async (key: string, value: string, options: AnyRecord = {}) => {
             // Handle NX (Not Exists) option - must check BEFORE setting
             if (options.NX && storage.has(key)) {
                 return null; // Key already exists, don't set
@@ -37,7 +38,7 @@ function createMockRedis(overrides = {}) {
             storage.set(key, value);
             return 'OK';
         }),
-        del: jest.fn(async (...keys) => {
+        del: jest.fn(async (...keys: Array<string | string[]>) => {
             let deleted = 0;
             for (const key of keys.flat()) {
                 if (storage.delete(key)) deleted++;
@@ -46,22 +47,22 @@ function createMockRedis(overrides = {}) {
             }
             return deleted;
         }),
-        exists: jest.fn(async (...keys) => {
+        exists: jest.fn(async (...keys: Array<string | string[]>) => {
             return keys.flat().filter(k => storage.has(k) || sets.has(k)).length;
         }),
         expire: jest.fn(async () => 1),
         ttl: jest.fn(async () => -1),
-        mGet: jest.fn(async (keys) => keys.map(k => storage.get(k) || null)),
-        incr: jest.fn(async (key) => {
+        mGet: jest.fn(async (keys: string[]) => keys.map(k => storage.get(k) || null)),
+        incr: jest.fn(async (key: string) => {
             const val = parseInt(storage.get(key) || '0', 10) + 1;
             storage.set(key, val.toString());
             return val;
         }),
 
         // Set operations
-        sAdd: jest.fn(async (key, ...members) => {
+        sAdd: jest.fn(async (key: string, ...members: Array<string | string[]>) => {
             if (!sets.has(key)) sets.set(key, new Set());
-            const set = sets.get(key);
+            const set = sets.get(key)!;
             let added = 0;
             for (const member of members.flat()) {
                 if (!set.has(member)) {
@@ -71,7 +72,7 @@ function createMockRedis(overrides = {}) {
             }
             return added;
         }),
-        sRem: jest.fn(async (key, ...members) => {
+        sRem: jest.fn(async (key: string, ...members: Array<string | string[]>) => {
             const set = sets.get(key);
             if (!set) return 0;
             let removed = 0;
@@ -80,23 +81,23 @@ function createMockRedis(overrides = {}) {
             }
             return removed;
         }),
-        sMembers: jest.fn(async (key) => {
+        sMembers: jest.fn(async (key: string) => {
             const set = sets.get(key);
             return set ? [...set] : [];
         }),
-        sIsMember: jest.fn(async (key, member) => {
+        sIsMember: jest.fn(async (key: string, member: string) => {
             const set = sets.get(key);
             return set && set.has(member) ? 1 : 0;
         }),
-        sCard: jest.fn(async (key) => {
+        sCard: jest.fn(async (key: string) => {
             const set = sets.get(key);
             return set ? set.size : 0;
         }),
 
         // Sorted set operations
-        zAdd: jest.fn(async (key, items) => {
+        zAdd: jest.fn(async (key: string, items: AnyRecord | AnyRecord[]) => {
             if (!sortedSets.has(key)) sortedSets.set(key, []);
-            const sorted = sortedSets.get(key);
+            const sorted = sortedSets.get(key)!;
             const itemsArray = Array.isArray(items) ? items : [items];
             for (const item of itemsArray) {
                 sorted.push({ score: item.score, value: item.value });
@@ -104,7 +105,7 @@ function createMockRedis(overrides = {}) {
             sorted.sort((a, b) => a.score - b.score);
             return itemsArray.length;
         }),
-        zRem: jest.fn(async (key, ...members) => {
+        zRem: jest.fn(async (key: string, ...members: Array<string | string[]>) => {
             const sorted = sortedSets.get(key);
             if (!sorted) return 0;
             let removed = 0;
@@ -117,7 +118,7 @@ function createMockRedis(overrides = {}) {
             }
             return removed;
         }),
-        zRangeByScore: jest.fn(async (key, min, max, options = {}) => {
+        zRangeByScore: jest.fn(async (key: string, min: number, max: number, options: AnyRecord = {}) => {
             const sorted = sortedSets.get(key);
             if (!sorted) return [];
             let results = sorted
@@ -130,27 +131,27 @@ function createMockRedis(overrides = {}) {
         }),
 
         // List operations
-        lPush: jest.fn(async (key, ...values) => {
+        lPush: jest.fn(async (key: string, ...values: Array<string | string[]>) => {
             if (!lists.has(key)) lists.set(key, []);
-            const list = lists.get(key);
+            const list = lists.get(key)!;
             for (const val of values.flat()) {
                 list.unshift(val);
             }
             return list.length;
         }),
-        rPush: jest.fn(async (key, ...values) => {
+        rPush: jest.fn(async (key: string, ...values: Array<string | string[]>) => {
             if (!lists.has(key)) lists.set(key, []);
-            const list = lists.get(key);
+            const list = lists.get(key)!;
             list.push(...values.flat());
             return list.length;
         }),
-        lRange: jest.fn(async (key, start, end) => {
+        lRange: jest.fn(async (key: string, start: number, end: number) => {
             const list = lists.get(key);
             if (!list) return [];
             const actualEnd = end === -1 ? list.length : end + 1;
             return list.slice(start, actualEnd);
         }),
-        lTrim: jest.fn(async (key, start, end) => {
+        lTrim: jest.fn(async (key: string, start: number, end: number) => {
             const list = lists.get(key);
             if (!list) return 'OK';
             const actualEnd = end === -1 ? list.length : end + 1;
@@ -158,11 +159,11 @@ function createMockRedis(overrides = {}) {
             lists.set(key, trimmed);
             return 'OK';
         }),
-        lLen: jest.fn(async (key) => {
+        lLen: jest.fn(async (key: string) => {
             const list = lists.get(key);
             return list ? list.length : 0;
         }),
-        lIndex: jest.fn(async (key, index) => {
+        lIndex: jest.fn(async (key: string, index: number) => {
             const list = lists.get(key);
             if (!list) return null;
             const actualIndex = index < 0 ? list.length + index : index;
@@ -170,7 +171,7 @@ function createMockRedis(overrides = {}) {
         }),
 
         // Transaction operations
-        watch: jest.fn(async (key) => {
+        watch: jest.fn(async (key: string) => {
             watchers.add(key);
             return 'OK';
         }),
@@ -179,39 +180,39 @@ function createMockRedis(overrides = {}) {
             return 'OK';
         }),
         multi: jest.fn(() => {
-            const commands = [];
+            const commands: Array<{ cmd: string; args: unknown[] }> = [];
             const self = mockRedis;
 
-            const chain = {
-                set(key, value, options) {
+            const chain: AnyRecord = {
+                set(key: string, value: string, options?: AnyRecord) {
                     commands.push({ cmd: 'set', args: [key, value, options] });
                     return chain;
                 },
-                del(key) {
+                del(key: string) {
                     commands.push({ cmd: 'del', args: [key] });
                     return chain;
                 },
-                expire(key, seconds) {
+                expire(key: string, seconds: number) {
                     commands.push({ cmd: 'expire', args: [key, seconds] });
                     return chain;
                 },
-                lPush(key, value) {
+                lPush(key: string, value: string) {
                     commands.push({ cmd: 'lPush', args: [key, value] });
                     return chain;
                 },
-                lTrim(key, start, end) {
+                lTrim(key: string, start: number, end: number) {
                     commands.push({ cmd: 'lTrim', args: [key, start, end] });
                     return chain;
                 },
                 async exec() {
-                    const results = [];
+                    const results: Array<[Error | null, unknown]> = [];
                     // Sequential execution required - commands must run in order for transaction semantics
                     for (const { cmd, args } of commands) {
                         try {
                             const result = await self[cmd](...args);
                             results.push([null, result]);
                         } catch (e) {
-                            results.push([e, null]);
+                            results.push([e as Error, null]);
                         }
                     }
                     return results;
@@ -222,18 +223,18 @@ function createMockRedis(overrides = {}) {
         }),
 
         // Pub/Sub operations
-        publish: jest.fn(async (channel, message) => {
+        publish: jest.fn(async (channel: string, message: string) => {
             const handlers = subscriptions.get(channel) || [];
             handlers.forEach(h => h(message));
             return handlers.length;
         }),
-        subscribe: jest.fn(async (channel, handler) => {
+        subscribe: jest.fn(async (channel: string, handler: (message: string) => void) => {
             if (!subscriptions.has(channel)) {
                 subscriptions.set(channel, []);
             }
-            subscriptions.get(channel).push(handler);
+            subscriptions.get(channel)!.push(handler);
         }),
-        unsubscribe: jest.fn(async (channel) => {
+        unsubscribe: jest.fn(async (channel: string) => {
             subscriptions.delete(channel);
         }),
 
@@ -243,7 +244,7 @@ function createMockRedis(overrides = {}) {
         scriptLoad: jest.fn(async () => 'mock-sha'),
 
         // SCAN iterator
-        scanIterator: jest.fn(function* (options = {}) {
+        scanIterator: jest.fn(function* (options: AnyRecord = {}) {
             const pattern = options.MATCH || '*';
             const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
             for (const key of storage.keys()) {
@@ -285,10 +286,8 @@ function createMockRedis(overrides = {}) {
 
 /**
  * Create a mock player object
- * @param {Object} overrides - Override specific fields
- * @returns {Object} Mock player
  */
-function createMockPlayer(overrides = {}) {
+function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
     return {
         sessionId: uuidv4(),
         roomCode: 'TESTXX',
@@ -305,10 +304,8 @@ function createMockPlayer(overrides = {}) {
 
 /**
  * Create a mock room object
- * @param {Object} overrides - Override specific fields
- * @returns {Object} Mock room
  */
-function createMockRoom(overrides = {}) {
+function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
     const code = overrides.code || generateRoomCode();
     return {
         code,
@@ -327,10 +324,8 @@ function createMockRoom(overrides = {}) {
 
 /**
  * Create a mock game object
- * @param {Object} overrides - Override specific fields
- * @returns {Object} Mock game
  */
-function createMockGame(overrides = {}) {
+function createMockGame(overrides: AnyRecord = {}): AnyRecord {
     const words = overrides.words || Array.from({ length: 25 }, (_, i) => `WORD${i + 1}`);
     const types = overrides.types || [
         ...Array(9).fill('red'),
@@ -366,10 +361,8 @@ function createMockGame(overrides = {}) {
 
 /**
  * Create a mock socket object
- * @param {Object} overrides - Override specific fields
- * @returns {Object} Mock socket
  */
-function createMockSocket(overrides = {}) {
+function createMockSocket(overrides: AnyRecord = {}): AnyRecord {
     const sessionId = overrides.sessionId || uuidv4();
     const socketId = overrides.id || `socket-${uuidv4()}`;
 
@@ -397,10 +390,8 @@ function createMockSocket(overrides = {}) {
 
 /**
  * Create a mock Socket.io server
- * @param {Object} overrides - Override specific fields
- * @returns {Object} Mock io server
  */
-function createMockIO(overrides = {}) {
+function createMockIO(overrides: AnyRecord = {}): AnyRecord {
     return {
         to: jest.fn(() => ({
             emit: jest.fn()
@@ -417,9 +408,8 @@ function createMockIO(overrides = {}) {
 
 /**
  * Create a mock logger
- * @returns {Object} Mock logger with all log levels
  */
-function createMockLogger() {
+function createMockLogger(): AnyRecord {
     return {
         debug: jest.fn(),
         info: jest.fn(),
@@ -431,9 +421,8 @@ function createMockLogger() {
 
 /**
  * Generate a random room code
- * @returns {string} 6-character room code
  */
-function generateRoomCode() {
+function generateRoomCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 6; i++) {
@@ -444,9 +433,8 @@ function generateRoomCode() {
 
 /**
  * Create mock services bundle
- * @returns {Object} Object with all mock services
  */
-function createMockServices() {
+function createMockServices(): AnyRecord {
     return {
         gameService: {
             createGame: jest.fn(async () => createMockGame()),
@@ -490,39 +478,34 @@ function createMockServices() {
 
 /**
  * Wait for a specified time
- * @param {number} ms - Milliseconds to wait
- * @returns {Promise<void>}
  */
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Flush all pending promises
- * @returns {Promise<void>}
  */
-function flushPromises() {
+function flushPromises(): Promise<void> {
     return new Promise(resolve => setImmediate(resolve));
 }
 
 /**
  * Assert that an async function throws an error with specific properties
- * @param {Function} fn - Async function to test
- * @param {string} expectedCode - Expected error code
- * @returns {Promise<Error>} The thrown error
  */
-async function expectAsyncError(fn, expectedCode) {
+async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: string): Promise<Error> {
     try {
         await fn();
         throw new Error('Expected function to throw');
-    } catch (error) {
-        if (error.message === 'Expected function to throw') {
-            throw error;
+    } catch (error: unknown) {
+        const err = error as Error & { code?: string };
+        if (err.message === 'Expected function to throw') {
+            throw err;
         }
-        if (expectedCode && error.code !== expectedCode) {
-            throw new Error(`Expected error code ${expectedCode}, got ${error.code}`);
+        if (expectedCode && err.code !== expectedCode) {
+            throw new Error(`Expected error code ${expectedCode}, got ${err.code}`);
         }
-        return error;
+        return err;
     }
 }
 

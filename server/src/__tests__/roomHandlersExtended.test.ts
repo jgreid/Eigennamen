@@ -107,7 +107,7 @@ describe('Extended Room Handlers Tests', () => {
             const createHandler = handlers.find(h => h[0] === 'room:create');
             await createHandler[1]({ roomId: 'my-game', settings: { turnTimer: 60 } });
 
-            expect(roomService.createRoom).toHaveBeenCalledWith('my-game', 'session-456', { turnTimer: 60 });
+            expect(roomService.createRoom).toHaveBeenCalledWith('my-game', 'session-456', { gameMode: 'classic', turnTimer: 60 });
             expect(mockSocket.join).toHaveBeenCalledWith('room:my-game');
             expect(mockSocket.emit).toHaveBeenCalledWith('room:created', expect.anything());
             expect(mockSocket.roomCode).toBe('my-game');

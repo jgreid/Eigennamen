@@ -31,7 +31,8 @@ const {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
     ROOM_STATUS,
-    ERROR_CODES
+    ERROR_CODES,
+    GAME_MODE_CONFIG
 } = require('../config/constants');
 const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
 /* eslint-enable @typescript-eslint/no-var-requires */
@@ -168,6 +169,7 @@ export async function createRoom(
             teamNames: { red: 'Red', blue: 'Blue' },
             turnTimer: null,
             allowSpectators: true,
+            gameMode: 'classic',
             ...cleanSettings
         },
         createdAt: Date.now(),
@@ -399,7 +401,7 @@ export async function updateSettings(
     }
 
     // Whitelist allowed settings keys to prevent arbitrary key injection
-    const allowedKeys: (keyof RoomSettings)[] = ['teamNames', 'turnTimer', 'allowSpectators'];
+    const allowedKeys: (keyof RoomSettings)[] = ['teamNames', 'turnTimer', 'allowSpectators', 'gameMode'];
     const sanitizedSettings: Partial<RoomSettings> = {};
     for (const key of allowedKeys) {
         if (key in newSettings) {
@@ -411,6 +413,11 @@ export async function updateSettings(
         ...room.settings,
         ...sanitizedSettings
     };
+
+    // Enforce game mode constraints on turn timer
+    if (room.settings.gameMode === 'blitz') {
+        room.settings.turnTimer = GAME_MODE_CONFIG.blitz.forcedTurnTimer;
+    }
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 

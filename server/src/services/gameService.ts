@@ -34,7 +34,8 @@ const {
     GAME_HISTORY,
     LOCKS,
     RETRY_CONFIG,
-    GAME_INTERNALS
+    GAME_INTERNALS,
+    DUET_BOARD_CONFIG
 } = require('../config/constants');
 const {
     GameStateError,
@@ -54,6 +55,7 @@ const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
 export interface CreateGameOptions {
     wordListId?: string;
     wordList?: string[];
+    gameMode?: string;
 }
 
 /**
@@ -73,6 +75,10 @@ export interface RevealResult {
     winner: Team | null;
     endReason: string | null;
     allTypes: CardType[] | null;
+    // Duet mode fields
+    timerTokens?: number;
+    greenFound?: number;
+    allDuetTypes?: CardType[] | null;
 }
 
 /**
@@ -292,6 +298,36 @@ export function generateSeed(): string {
 }
 
 /**
+ * Generate Duet mode board with dual key cards
+ * Side A (types[]): 9 green (as 'red'), 3 assassin, 13 bystander (as 'neutral')
+ * Side B (duetTypes[]): 9 green (as 'blue'), 3 assassin, 13 bystander (as 'neutral')
+ * With specific overlap distribution per DUET_BOARD_CONFIG
+ */
+export function generateDuetBoard(seed: number): { types: CardType[]; duetTypes: CardType[] } {
+    const { greenOverlap, greenOnlyA, greenOnlyB, assassinOverlap, assassinOnlyA, assassinOnlyB, bystanderBoth } = DUET_BOARD_CONFIG;
+
+    // Build paired type assignments for each position
+    // [typeA, typeB] pairs
+    const pairs: [CardType, CardType][] = [
+        ...Array(greenOverlap).fill(null).map((): [CardType, CardType] => ['red', 'blue']),         // green/green
+        ...Array(greenOnlyA).fill(null).map((): [CardType, CardType] => ['red', 'neutral']),        // green(A)/bystander(B)
+        ...Array(greenOnlyB).fill(null).map((): [CardType, CardType] => ['neutral', 'blue']),       // bystander(A)/green(B)
+        ...Array(assassinOverlap).fill(null).map((): [CardType, CardType] => ['assassin', 'assassin']), // assassin/assassin
+        ...Array(assassinOnlyA).fill(null).map((): [CardType, CardType] => ['assassin', 'neutral']),   // assassin(A)/bystander(B)
+        ...Array(assassinOnlyB).fill(null).map((): [CardType, CardType] => ['neutral', 'assassin']),   // bystander(A)/assassin(B)
+        ...Array(bystanderBoth).fill(null).map((): [CardType, CardType] => ['neutral', 'neutral'])     // bystander/bystander
+    ];
+
+    // Shuffle the pairs to randomize board positions
+    const shuffledPairs = shuffleWithSeed(pairs, seed);
+
+    const types: CardType[] = shuffledPairs.map(p => p[0]);
+    const duetTypes: CardType[] = shuffledPairs.map(p => p[1]);
+
+    return { types, duetTypes };
+}
+
+/**
  * Create a new game for a room
  */
 export async function createGame(
@@ -334,7 +370,8 @@ export async function createGame(
         const seed = generateSeed();
         const numericSeed = hashString(seed);
 
-        const { wordListId, wordList } = options;
+        const { wordListId, wordList, gameMode } = options;
+        const isDuet = gameMode === 'duet';
 
         // Get words - priority: direct wordList > wordListId > default
         let words: string[] = DEFAULT_WORDS;
@@ -380,28 +417,39 @@ export async function createGame(
         // Determine who goes first
         const firstTeam: Team = seededRandom(numericSeed + GAME_INTERNALS.FIRST_TEAM_SEED_OFFSET) > 0.5 ? 'red' : 'blue';
 
-        // Create card types
-        let types: CardType[] = [];
+        let types: CardType[];
+        let duetTypes: CardType[] | undefined;
         let redTotal: number;
         let blueTotal: number;
 
-        if (firstTeam === 'red') {
-            types = [
-                ...Array(FIRST_TEAM_CARDS).fill('red') as CardType[],
-                ...Array(SECOND_TEAM_CARDS).fill('blue') as CardType[]
-            ];
-            redTotal = FIRST_TEAM_CARDS;
-            blueTotal = SECOND_TEAM_CARDS;
+        if (isDuet) {
+            // Duet mode: generate dual key cards
+            const duetBoard = generateDuetBoard(numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);
+            types = duetBoard.types;
+            duetTypes = duetBoard.duetTypes;
+            // In Duet, redTotal/blueTotal represent greens visible to each side (9 each)
+            redTotal = DUET_BOARD_CONFIG.greenOverlap + DUET_BOARD_CONFIG.greenOnlyA;  // 9
+            blueTotal = DUET_BOARD_CONFIG.greenOverlap + DUET_BOARD_CONFIG.greenOnlyB; // 9
         } else {
-            types = [
-                ...Array(SECOND_TEAM_CARDS).fill('red') as CardType[],
-                ...Array(FIRST_TEAM_CARDS).fill('blue') as CardType[]
-            ];
-            redTotal = SECOND_TEAM_CARDS;
-            blueTotal = FIRST_TEAM_CARDS;
+            // Classic/Blitz: standard board generation
+            if (firstTeam === 'red') {
+                types = [
+                    ...Array(FIRST_TEAM_CARDS).fill('red') as CardType[],
+                    ...Array(SECOND_TEAM_CARDS).fill('blue') as CardType[]
+                ];
+                redTotal = FIRST_TEAM_CARDS;
+                blueTotal = SECOND_TEAM_CARDS;
+            } else {
+                types = [
+                    ...Array(SECOND_TEAM_CARDS).fill('red') as CardType[],
+                    ...Array(FIRST_TEAM_CARDS).fill('blue') as CardType[]
+                ];
+                redTotal = SECOND_TEAM_CARDS;
+                blueTotal = FIRST_TEAM_CARDS;
+            }
+            types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral') as CardType[], 'assassin'];
+            types = shuffleWithSeed(types, numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);
         }
-        types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral') as CardType[], 'assassin'];
-        types = shuffleWithSeed(types, numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);
 
         const game: GameState = {
             id: uuidv4(),
@@ -418,12 +466,19 @@ export async function createGame(
             gameOver: false,
             winner: null,
             currentClue: null,
-            guessesUsed: 0,        // Track guesses used this turn
-            guessesAllowed: 0,     // Max guesses allowed (clue number + 1)
+            guessesUsed: 0,
+            guessesAllowed: 0,
             clues: [],
             history: [],
-            stateVersion: 1,       // State versioning for conflict detection
-            createdAt: Date.now()
+            stateVersion: 1,
+            createdAt: Date.now(),
+            ...(isDuet ? {
+                gameMode: 'duet',
+                duetTypes,
+                timerTokens: DUET_BOARD_CONFIG.timerTokens,
+                greenFound: 0,
+                greenTotal: DUET_BOARD_CONFIG.greenTotal
+            } : {})
         };
 
         // Store in Redis with TTL (same as room)
@@ -467,6 +522,7 @@ export function getGameStateForPlayer(
         return null;
     }
 
+    const isDuet = game.gameMode === 'duet';
     const state: PlayerGameState = {
         id: game.id,
         words: game.words,
@@ -483,19 +539,58 @@ export function getGameStateForPlayer(
         guessesAllowed: game.guessesAllowed || 0,
         clues: game.clues || [],
         history: game.history || [],
-        types: []
+        types: [],
+        ...(isDuet ? {
+            gameMode: game.gameMode,
+            timerTokens: game.timerTokens,
+            greenFound: game.greenFound,
+            greenTotal: game.greenTotal
+        } : {})
     };
 
     // SECURITY: Only spymasters see unrevealed card types
     // BUG FIX: Handle null/undefined player parameter gracefully
     const isSpymaster = player && player.role === 'spymaster';
-    if (isSpymaster || game.gameOver) {
-        state.types = game.types;
+    const playerTeam = player?.team;
+
+    if (isDuet) {
+        // Duet mode: each spymaster sees only their own side's key card
+        // Red spymaster sees types[] (Side A), Blue spymaster sees duetTypes[] (Side B)
+        if (game.gameOver) {
+            state.types = game.types;
+            state.duetTypes = game.duetTypes;
+        } else if (isSpymaster && playerTeam === 'red') {
+            // Red spymaster sees Side A key card
+            state.types = game.types;
+            // Sees Side B only for revealed cards
+            state.duetTypes = game.duetTypes?.map((type, i) =>
+                game.revealed[i] ? type : null
+            );
+        } else if (isSpymaster && playerTeam === 'blue') {
+            // Blue spymaster sees Side B key card
+            state.duetTypes = game.duetTypes;
+            // Sees Side A only for revealed cards
+            state.types = game.types.map((type, i) =>
+                game.revealed[i] ? type : null
+            );
+        } else {
+            // Non-spymasters see only revealed cards
+            state.types = game.types.map((type, i) =>
+                game.revealed[i] ? type : null
+            );
+            state.duetTypes = game.duetTypes?.map((type, i) =>
+                game.revealed[i] ? type : null
+            );
+        }
     } else {
-        // Non-spymasters (or null player) only see types of revealed cards
-        state.types = game.types.map((type, i) =>
-            game.revealed[i] ? type : null
-        );
+        // Classic/Blitz mode: standard visibility
+        if (isSpymaster || game.gameOver) {
+            state.types = game.types;
+        } else {
+            state.types = game.types.map((type, i) =>
+                game.revealed[i] ? type : null
+            );
+        }
     }
 
     return state;
@@ -585,20 +680,43 @@ export function validateRevealPreconditions(game: GameState, index: number): voi
 
 /**
  * Execute the reveal and update scores
+ * In Duet mode, uses the active team's perspective to determine card type
  */
 export function executeCardReveal(game: GameState, index: number): CardType {
     game.revealed[index] = true;
-    const type = game.types[index];
 
-    if (type === 'red') {
-        game.redScore++;
-    } else if (type === 'blue') {
-        game.blueScore++;
+    let type: CardType;
+    if (game.gameMode === 'duet') {
+        // Duet: use the current turn's perspective
+        if (game.currentTurn === 'blue' && game.duetTypes) {
+            type = game.duetTypes[index] as CardType;
+        } else {
+            type = game.types[index] as CardType;
+        }
+
+        // Track green cards found
+        if (type === 'red' || type === 'blue') {
+            // 'red' = green for Side A, 'blue' = green for Side B
+            game.greenFound = (game.greenFound || 0) + 1;
+            if (game.currentTurn === 'red') {
+                game.redScore++;
+            } else {
+                game.blueScore++;
+            }
+        }
+    } else {
+        // Classic/Blitz: standard scoring
+        type = game.types[index] as CardType;
+        if (type === 'red') {
+            game.redScore++;
+        } else if (type === 'blue') {
+            game.blueScore++;
+        }
     }
 
     game.guessesUsed = (game.guessesUsed || 0) + 1;
 
-    return type as CardType;
+    return type;
 }
 
 /**
@@ -611,6 +729,11 @@ export function determineRevealOutcome(
 ): RevealOutcome {
     const outcome: RevealOutcome = { turnEnded: false, endReason: null };
 
+    if (game.gameMode === 'duet') {
+        return determineDuetRevealOutcome(game, cardType, revealingTeam, outcome);
+    }
+
+    // Classic/Blitz mode logic
     // Check for assassin - immediate loss
     if (cardType === 'assassin') {
         game.gameOver = true;
@@ -656,6 +779,64 @@ export function determineRevealOutcome(
 }
 
 /**
+ * Determine reveal outcome for Duet mode (cooperative rules)
+ */
+function determineDuetRevealOutcome(
+    game: GameState,
+    cardType: CardType,
+    _revealingTeam: Team,
+    outcome: RevealOutcome
+): RevealOutcome {
+    // Assassin = instant loss (both teams lose, no winner)
+    if (cardType === 'assassin') {
+        game.gameOver = true;
+        game.winner = null; // Cooperative loss - no winner
+        outcome.endReason = 'assassin';
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    // Check for cooperative win (all 15 unique greens found)
+    if ((game.greenFound || 0) >= (game.greenTotal || DUET_BOARD_CONFIG.greenTotal)) {
+        game.gameOver = true;
+        // Both teams win - mark as 'red' (arbitrary; frontend shows "You Win!")
+        game.winner = 'red';
+        outcome.endReason = 'completed';
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    // Bystander (neutral) = wrong guess, costs a timer token, ends turn
+    if (cardType === 'neutral') {
+        game.timerTokens = (game.timerTokens || 0) - 1;
+
+        // Check if out of timer tokens
+        if ((game.timerTokens || 0) <= 0) {
+            game.gameOver = true;
+            game.winner = null; // Cooperative loss
+            outcome.endReason = 'timerTokens';
+            outcome.turnEnded = true;
+            return outcome;
+        }
+
+        switchTurn(game);
+        outcome.turnEnded = true;
+        return outcome;
+    }
+
+    // Correct guess (green card = 'red' for Side A or 'blue' for Side B)
+    // Check if max guesses reached
+    if (game.guessesAllowed > 0 && game.guessesUsed >= game.guessesAllowed) {
+        switchTurn(game);
+        outcome.turnEnded = true;
+        outcome.endReason = 'maxGuesses';
+        return outcome;
+    }
+
+    return outcome;
+}
+
+/**
  * Switch turn to the other team and reset clue state
  */
 export function switchTurn(game: GameState): void {
@@ -679,7 +860,7 @@ export function buildRevealResult(
         ? game.words[index]
         : 'UNKNOWN';
 
-    return {
+    const result: RevealResult = {
         index,
         type,
         word: word || 'UNKNOWN',
@@ -694,6 +875,15 @@ export function buildRevealResult(
         endReason: outcome.endReason,
         allTypes: game.gameOver ? game.types : null
     };
+
+    // Include Duet-specific fields
+    if (game.gameMode === 'duet') {
+        result.timerTokens = game.timerTokens;
+        result.greenFound = game.greenFound;
+        result.allDuetTypes = game.gameOver ? (game.duetTypes || null) : null;
+    }
+
+    return result;
 }
 
 /**
@@ -815,19 +1005,25 @@ export async function revealCard(
     }
 
     try {
-        // ISSUE #36 FIX: Try optimized Lua script first
-        try {
-            return await revealCardOptimized(roomCode, index, playerNickname, playerTeam);
-        } catch (luaError) {
-            // If Lua script fails due to script-specific issues, fall back to original
-            // But propagate game logic errors (like GAME_OVER, CARD_ALREADY_REVEALED)
-            if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-                throw luaError;
+        // Check if this is a Duet game - skip Lua optimization for Duet (uses TypeScript logic)
+        const preCheckData = await redis.get(gameKey);
+        const isDuetGame = preCheckData && preCheckData.includes('"gameMode":"duet"');
+
+        if (!isDuetGame) {
+            // ISSUE #36 FIX: Try optimized Lua script first (classic/blitz only)
+            try {
+                return await revealCardOptimized(roomCode, index, playerNickname, playerTeam);
+            } catch (luaError) {
+                // If Lua script fails due to script-specific issues, fall back to original
+                // But propagate game logic errors (like GAME_OVER, CARD_ALREADY_REVEALED)
+                if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
+                    throw luaError;
+                }
+                logger.warn(`Lua reveal failed, falling back to standard reveal for room ${roomCode}: ${(luaError as Error).message}`);
             }
-            logger.warn(`Lua reveal failed, falling back to standard reveal for room ${roomCode}: ${(luaError as Error).message}`);
         }
 
-        // Fallback to original implementation
+        // Fallback / Duet mode implementation
         const maxRetries = 3;
         let retries = 0;
 
@@ -1075,18 +1271,24 @@ export async function giveClue(
         throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
     }
 
-    // Try optimized Lua script first
-    try {
-        return await giveClueOptimized(roomCode, team, word, number, spymasterNickname);
-    } catch (luaError) {
-        // Propagate game logic errors
-        if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-            throw luaError;
+    // Check if Duet mode - skip Lua for Duet games
+    const preCheckData = await redis.get(gameKey);
+    const isDuetGame = preCheckData && preCheckData.includes('"gameMode":"duet"');
+
+    if (!isDuetGame) {
+        // Try optimized Lua script first (classic/blitz only)
+        try {
+            return await giveClueOptimized(roomCode, team, word, number, spymasterNickname);
+        } catch (luaError) {
+            // Propagate game logic errors
+            if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
+                throw luaError;
+            }
+            logger.warn(`Lua giveClue failed, falling back to standard for room ${roomCode}: ${(luaError as Error).message}`);
         }
-        logger.warn(`Lua giveClue failed, falling back to standard for room ${roomCode}: ${(luaError as Error).message}`);
     }
 
-    // Fallback to original implementation
+    // Fallback / Duet mode implementation
     const maxRetries = 3;
     let retries = 0;
 
@@ -1277,19 +1479,26 @@ export async function endTurn(
     playerNickname: string = 'Unknown',
     expectedTeam: string = ''
 ): Promise<EndTurnResult> {
-    // Try optimized Lua script first
-    try {
-        return await endTurnOptimized(roomCode, playerNickname, expectedTeam);
-    } catch (luaError) {
-        // Propagate game logic errors
-        if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-            throw luaError;
+    // Check if Duet mode - skip Lua for Duet games
+    const redis: RedisClient = getRedis();
+    const gameKey = `room:${roomCode}:game`;
+    const preCheckData = await redis.get(gameKey);
+    const isDuetGame = preCheckData && preCheckData.includes('"gameMode":"duet"');
+
+    if (!isDuetGame) {
+        // Try optimized Lua script first (classic/blitz only)
+        try {
+            return await endTurnOptimized(roomCode, playerNickname, expectedTeam);
+        } catch (luaError) {
+            // Propagate game logic errors
+            if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
+                throw luaError;
+            }
+            logger.warn(`Lua endTurn failed, falling back to standard for room ${roomCode}: ${(luaError as Error).message}`);
         }
-        logger.warn(`Lua endTurn failed, falling back to standard for room ${roomCode}: ${(luaError as Error).message}`);
     }
 
-    // Fallback to original implementation
-    const gameKey = `room:${roomCode}:game`;
+    // Fallback / Duet mode implementation
 
     return executeGameTransaction(gameKey, (game) => {
         if (game.gameOver) {
@@ -1332,21 +1541,27 @@ export function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<Forfe
             throw GameStateError.gameOver();
         }
 
-        // Use explicit team if provided, otherwise default to current turn's team
         const forfeitingTeam: Team = (forfeitTeam === 'red' || forfeitTeam === 'blue') ? forfeitTeam : game.currentTurn;
         game.gameOver = true;
-        game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
+
+        if (game.gameMode === 'duet') {
+            // Duet: cooperative forfeit = no winner
+            game.winner = null;
+        } else {
+            // Classic/Blitz: opposing team wins
+            game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
+        }
 
         // Add to history with cap
         addToHistory(game, {
             action: 'forfeit',
             forfeitingTeam,
-            winner: game.winner,
+            winner: game.winner as Team,
             timestamp: Date.now()
         });
 
         return {
-            winner: game.winner,
+            winner: game.winner as Team,
             forfeitingTeam,
             allTypes: game.types
         };
@@ -1395,6 +1610,7 @@ module.exports = {
     shuffleWithSeed,
     generateSeed,
     validateClueWord,
+    generateDuetBoard,
 
     // Decomposed reveal functions for unit testing
     validateCardIndex,

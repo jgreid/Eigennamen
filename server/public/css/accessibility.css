@@ -150,7 +150,7 @@
 /* ========== CHARACTER COUNTER ========== */
 .char-counter {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     text-align: right;
     margin-top: 4px;
 }
@@ -187,5 +187,222 @@
     color: rgba(255, 255, 255, 0.6);
     margin-top: 16px;
     word-break: break-word;
+}
+
+/* ========== COLOR BLIND MODE ========== */
+/* Replaces red/blue with orange/blue for deuteranopia/protanopia friendliness.
+   Also makes card patterns more visible and adds text labels to revealed cards. */
+
+/* Scoreboard */
+body.colorblind-mode .score.red {
+    background: linear-gradient(145deg, rgba(255, 165, 0, 0.2) 0%, rgba(200, 120, 0, 0.1) 100%);
+    border-color: rgba(255, 165, 0, 0.4);
+    color: #ffa500;
+}
+
+body.colorblind-mode .score.red:hover {
+    background: linear-gradient(145deg, rgba(255, 165, 0, 0.35) 0%, rgba(200, 120, 0, 0.2) 100%);
+    border-color: rgba(255, 165, 0, 0.7);
+}
+
+body.colorblind-mode .score.red.selected {
+    background: linear-gradient(145deg, rgba(255, 165, 0, 0.4) 0%, rgba(200, 120, 0, 0.25) 100%);
+    border-color: #ffa500;
+    box-shadow: 0 0 12px rgba(255, 165, 0, 0.4);
+}
+
+/* Turn indicator */
+body.colorblind-mode .turn-indicator.red-turn {
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.2) 0%, rgba(255, 165, 0, 0.08) 100%);
+    border-color: rgba(255, 165, 0, 0.4);
+    color: #ffa500;
+}
+
+/* Role banner */
+body.colorblind-mode .role-banner.spymaster-red,
+body.colorblind-mode .role-banner.clicker-red,
+body.colorblind-mode .role-banner.spectator-red {
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.25) 0%, rgba(200, 120, 0, 0.15) 100%);
+    border-color: rgba(255, 165, 0, 0.5);
+    color: #ffa500;
+}
+
+/* Role buttons */
+body.colorblind-mode .btn-spymaster.red-team {
+    background: linear-gradient(135deg, #ffa500 0%, #cc8400 100%);
+}
+
+body.colorblind-mode .btn-clicker.red-team {
+    background: linear-gradient(135deg, #cc8400 0%, #996300 100%);
+}
+
+/* Revealed card: Orange instead of Red */
+body.colorblind-mode .card.revealed.red {
+    background: linear-gradient(145deg, #ff8c00, #cc7000);
+    border-color: #b36200;
+    box-shadow: 0 2px 8px rgba(255, 140, 0, 0.3);
+}
+
+/* Stronger patterns on colorblind cards */
+body.colorblind-mode .card.revealed.red::before {
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 6px,
+        rgba(255, 255, 255, 0.15) 6px,
+        rgba(255, 255, 255, 0.15) 12px
+    );
+}
+
+body.colorblind-mode .card.revealed.blue::before {
+    background-image: radial-gradient(
+        circle at 8px 8px,
+        rgba(255, 255, 255, 0.18) 2.5px,
+        transparent 2.5px
+    );
+    background-size: 14px 14px;
+}
+
+/* Type label on revealed cards in colorblind mode */
+body.colorblind-mode .card.revealed.red::after,
+body.colorblind-mode .card.revealed.blue::after,
+body.colorblind-mode .card.revealed.neutral::after,
+body.colorblind-mode .card.revealed.assassin::after {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+body.colorblind-mode .card.revealed.red::after {
+    content: '■ R';
+    color: rgba(255, 255, 255, 0.9);
+}
+
+body.colorblind-mode .card.revealed.blue::after {
+    content: '● B';
+    color: rgba(255, 255, 255, 0.9);
+}
+
+body.colorblind-mode .card.revealed.neutral::after {
+    content: '◆ N';
+    color: rgba(0, 0, 0, 0.5);
+}
+
+body.colorblind-mode .card.revealed.assassin::after {
+    content: '☠ X';
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Spymaster view in colorblind mode */
+body.colorblind-mode .spymaster-mode .card.spy-red:not(.revealed) {
+    border-color: #ff8c00;
+    background: linear-gradient(145deg, #fff3e0, #ffe0b2);
+    color: #e65100;
+    box-shadow: 0 4px 16px rgba(255, 140, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+body.colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
+    color: #e65100;
+}
+
+/* ========== KEYBOARD SHORTCUTS OVERLAY ========== */
+.keyboard-shortcuts-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2500;
+    backdrop-filter: blur(4px);
+}
+
+.shortcuts-panel {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 24px 32px;
+    max-width: 360px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.shortcuts-panel h3 {
+    font-size: 1rem;
+    color: #667eea;
+    margin-bottom: 16px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.shortcut-row:last-of-type {
+    border-bottom: none;
+}
+
+.shortcut-row kbd {
+    display: inline-block;
+    min-width: 32px;
+    padding: 3px 8px;
+    font-size: 0.8rem;
+    font-family: monospace;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    text-align: center;
+}
+
+.shortcut-row span {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+}
+
+.shortcuts-hint {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.shortcuts-hint kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Keyboard shortcut hint styling */
+.kbd-hint {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 6px;
+    vertical-align: middle;
 }
 

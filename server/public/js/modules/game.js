@@ -608,11 +608,25 @@ export function updateTurnIndicator() {
 
     if (state.gameState.gameOver) {
         indicator.className = 'turn-indicator game-over';
-        const assassinIndex = state.gameState.types.indexOf('assassin');
-        if (state.gameState.revealed[assassinIndex]) {
-            indicator.textContent = `${winnerTeamName} WINS! (Assassin revealed)`;
+        if (state.gameMode === 'duet') {
+            // Duet: cooperative win or loss
+            if (state.gameState.winner) {
+                indicator.textContent = 'YOU WIN! All agents found!';
+            } else {
+                const assassinIndex = state.gameState.types.indexOf('assassin');
+                if (state.gameState.revealed[assassinIndex]) {
+                    indicator.textContent = 'GAME OVER - Assassin revealed!';
+                } else {
+                    indicator.textContent = 'GAME OVER - Out of time!';
+                }
+            }
         } else {
-            indicator.textContent = `${winnerTeamName} WINS!`;
+            const assassinIndex = state.gameState.types.indexOf('assassin');
+            if (state.gameState.revealed[assassinIndex]) {
+                indicator.textContent = `${winnerTeamName} WINS! (Assassin revealed)`;
+            } else {
+                indicator.textContent = `${winnerTeamName} WINS!`;
+            }
         }
     } else {
         // Add 'your-turn' class if you're the clicker for the current team
