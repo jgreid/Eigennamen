@@ -196,7 +196,10 @@ export const state = {
     localizedDefaultWords: null,
 
     // Accessibility
-    colorBlindMode: false
+    colorBlindMode: false,
+
+    // Game mode
+    gameMode: 'classic'
 };
 
 // ========== DEBUGGING UTILITIES ==========

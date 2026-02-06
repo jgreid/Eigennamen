@@ -116,7 +116,9 @@
     "classic": "Classic",
     "classicDesc": "Standard Codenames rules",
     "blitz": "Blitz",
-    "blitzDesc": "Fast-paced 30-second turns"
+    "blitzDesc": "Fast-paced 30-second turns",
+    "duet": "Duet",
+    "duetDesc": "Cooperative 2-player mode"
   },
   "wordList": {
     "default": "Default Words",

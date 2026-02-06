@@ -178,14 +178,27 @@ export interface GameState {
   stateVersion: number;
   /** When the game was created */
   createdAt: number;
+  /** Game mode (classic, blitz, duet) */
+  gameMode?: string;
+  // Duet mode fields (optional, only present in duet games)
+  /** Side B's key card types (blue team's perspective) */
+  duetTypes?: CardType[];
+  /** Timer tokens remaining (wrong guesses cost tokens) */
+  timerTokens?: number;
+  /** Total unique green cards found */
+  greenFound?: number;
+  /** Total unique green cards needed to win */
+  greenTotal?: number;
 }
 
 /**
  * Game state as seen by a player (types may be hidden)
  */
-export interface PlayerGameState extends Omit<GameState, 'types' | 'seed' | 'wordListId' | 'stateVersion' | 'createdAt'> {
+export interface PlayerGameState extends Omit<GameState, 'types' | 'duetTypes' | 'seed' | 'wordListId' | 'stateVersion' | 'createdAt'> {
   /** Card types - null for unrevealed cards if not spymaster */
   types: (CardType | null)[];
+  /** Duet: Side B types (only visible to blue team spymaster) */
+  duetTypes?: (CardType | null)[];
 }
 
 /**
@@ -196,6 +209,8 @@ export interface CreateGameOptions {
   wordListId?: string;
   /** Custom words to use (takes precedence over wordListId) */
   wordList?: string[];
+  /** Game mode (classic, blitz, duet) */
+  gameMode?: string;
 }
 
 /**
@@ -225,9 +240,16 @@ export interface RevealResult {
   /** Winner if game is over */
   winner: Team | null;
   /** Reason the turn/game ended */
-  endReason: 'assassin' | 'completed' | 'maxGuesses' | null;
+  endReason: 'assassin' | 'completed' | 'maxGuesses' | 'timerTokens' | null;
   /** All card types (only included if game is over) */
   allTypes: CardType[] | null;
+  // Duet mode fields
+  /** Duet: timer tokens remaining */
+  timerTokens?: number;
+  /** Duet: unique green cards found */
+  greenFound?: number;
+  /** Duet: all Side B types (only included if game over) */
+  allDuetTypes?: CardType[] | null;
 }
 
 /**

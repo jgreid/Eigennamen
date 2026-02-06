@@ -233,6 +233,47 @@
     color: rgba(255, 255, 255, 0.6);
 }
 
+/* ========== DUET MODE INFO BAR ========== */
+.duet-info-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(50, 205, 50, 0.12) 0%, rgba(50, 205, 50, 0.05) 100%);
+    border: 1px solid rgba(50, 205, 50, 0.25);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.duet-info-bar .duet-progress {
+    font-weight: 600;
+    color: #32cd32;
+}
+
+.duet-info-bar .duet-tokens {
+    font-weight: 600;
+    color: #ffa500;
+}
+
+/* Duet mode: green card styling for revealed agents */
+.duet-mode .card.revealed.red,
+.duet-mode .card.revealed.blue {
+    background: linear-gradient(145deg, #2e8b57, #228b22);
+    border-color: #1a6b1a;
+    box-shadow: 0 2px 8px rgba(50, 205, 50, 0.3);
+}
+
+/* Duet mode: green spymaster unrevealed cards */
+.duet-mode .spymaster-mode .card.spy-red:not(.revealed),
+.duet-mode .spymaster-mode .card.spy-blue:not(.revealed) {
+    border-color: #32cd32;
+    background: linear-gradient(145deg, #e8f5e9, #c8e6c9);
+    color: #1b5e20;
+    box-shadow: 0 4px 16px rgba(50, 205, 50, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
 /* ========== CONTROLS ========== */
 .controls {
     display: flex;

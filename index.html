@@ -79,6 +79,12 @@
                 </button>
             </div>
 
+            <!-- Duet mode cooperative info bar (hidden by default) -->
+            <div class="duet-info-bar" id="duet-info-bar" style="display: none;">
+                <span class="duet-progress"><span id="duet-green-found">0</span>/<span id="duet-green-total">15</span> agents found</span>
+                <span class="duet-tokens"><span id="duet-timer-tokens">9</span> tokens left</span>
+            </div>
+
             <!-- PHASE 4: Spectator count display (hidden by default) -->
             <div class="spectator-section" id="spectator-section" style="display: none;">
                 <span class="spectator-icon" aria-hidden="true">👁</span>
@@ -400,6 +406,13 @@
                                         <span class="game-mode-card">
                                             <strong data-i18n="roomSettings.blitz">Blitz</strong>
                                             <small data-i18n="roomSettings.blitzDesc">Fast-paced 30-second turns</small>
+                                        </span>
+                                    </label>
+                                    <label class="game-mode-option">
+                                        <input type="radio" name="gameMode" value="duet">
+                                        <span class="game-mode-card duet-mode-card">
+                                            <strong data-i18n="roomSettings.duet">Duet</strong>
+                                            <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
                                         </span>
                                     </label>
                                 </div>

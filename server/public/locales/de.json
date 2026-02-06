@@ -116,7 +116,9 @@
     "classic": "Klassisch",
     "classicDesc": "Standard-Codenames-Regeln",
     "blitz": "Blitz",
-    "blitzDesc": "Schnelle 30-Sekunden-Runden"
+    "blitzDesc": "Schnelle 30-Sekunden-Runden",
+    "duet": "Duett",
+    "duetDesc": "Kooperativer 2-Spieler-Modus"
   },
   "wordList": {
     "default": "Standardwörter",

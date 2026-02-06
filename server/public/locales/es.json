@@ -116,7 +116,9 @@
     "classic": "Clásico",
     "classicDesc": "Reglas estándar de Codenames",
     "blitz": "Blitz",
-    "blitzDesc": "Turnos rápidos de 30 segundos"
+    "blitzDesc": "Turnos rápidos de 30 segundos",
+    "duet": "Dueto",
+    "duetDesc": "Modo cooperativo para 2 jugadores"
   },
   "wordList": {
     "default": "Palabras predeterminadas",

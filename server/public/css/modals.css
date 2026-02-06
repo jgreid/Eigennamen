@@ -588,6 +588,12 @@
     border-color: rgba(255, 255, 255, 0.25);
 }
 
+/* Duet mode card accent */
+.game-mode-option input[type="radio"]:checked + .duet-mode-card {
+    border-color: rgba(50, 205, 50, 0.6);
+    background: rgba(50, 205, 50, 0.1);
+}
+
 /* Settings footer with buttons */
 .settings-footer {
     padding: 12px 20px;

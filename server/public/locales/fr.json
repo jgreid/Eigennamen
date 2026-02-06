@@ -116,7 +116,9 @@
     "classic": "Classique",
     "classicDesc": "Règles standard de Codenames",
     "blitz": "Blitz",
-    "blitzDesc": "Tours rapides de 30 secondes"
+    "blitzDesc": "Tours rapides de 30 secondes",
+    "duet": "Duo",
+    "duetDesc": "Mode coopératif à 2 joueurs"
   },
   "wordList": {
     "default": "Mots par défaut",
