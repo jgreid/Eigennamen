@@ -171,23 +171,12 @@ async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> {
     }
 }
 
-/**
- * Helper: Check if socket is rate limited for failed joins
- */
-async function isFailedJoinRateLimited(socket: GameSocket): Promise<boolean> {
-    try {
-        const rateLimiter = getSocketRateLimiter();
-        const limiter = rateLimiter.getLimiter('room:join:failed');
-        return new Promise<boolean>((resolve) => {
-            // Check without consuming - peek at current state
-            limiter(socket, {}, (err: Error | undefined) => {
-                resolve(!!err);
-            });
-        });
-    } catch {
-        return false; // Fail open
-    }
-}
+// NOTE: isFailedJoinRateLimited was removed because getLimiter() consumes a
+// rate limit token on each call (not a peek). This caused successful joins to
+// count against the failed-join bucket, and failed joins to be double-counted.
+// The handler-level room:join rate limit (10/min via createPreRoomHandler)
+// provides adequate brute-force protection. trackFailedJoinAttempt still
+// tracks failures for monitoring/metrics.
 
 function roomHandlers(io: Server, socket: GameSocket): void {
 
@@ -222,11 +211,9 @@ function roomHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.ROOM_JOIN, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_JOIN, roomJoinSchema,
         async (validated: RoomJoinInput) => {
-            // Check if socket is rate limited for too many failed attempts
-            const isRateLimited = await isFailedJoinRateLimited(socket);
-            if (isRateLimited) {
-                throw new RoomError(ERROR_CODES.RATE_LIMITED, 'Too many failed join attempts. Please wait before trying again.');
-            }
+            // Rate limiting for join attempts is handled by createPreRoomHandler
+            // (room:join: 10/min). Failed attempts are additionally tracked by
+            // trackFailedJoinAttempt for monitoring/metrics.
 
             let joinResult: { room: Room; players: Player[]; game: GameState | null; player: Player };
             try {

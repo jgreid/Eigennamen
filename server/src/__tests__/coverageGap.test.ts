@@ -142,32 +142,16 @@ describe('chatHandlers - spectatorOnly and null teammates', () => {
         return call ? call[1] : null;
     }
 
-    test('spectatorOnly message sends to spectators only', async () => {
-        playerService.getPlayersInRoom.mockResolvedValue([
-            { sessionId: 'sess-1', role: 'spectator', connected: true },
-            { sessionId: 'sess-2', role: 'spectator', connected: true },
-            { sessionId: 'sess-3', role: 'clicker', connected: true }
-        ]);
-
+    test('spectatorOnly message sends to spectators socket room', async () => {
         const handler = getHandler('chat:message');
         await handler({ text: 'spectator chat', teamOnly: false, spectatorOnly: true });
 
-        // Should emit to 2 spectators, not the clicker
-        expect(mockIo.to).toHaveBeenCalledWith('player:sess-1');
-        expect(mockIo.to).toHaveBeenCalledWith('player:sess-2');
-        expect(mockIo.to).not.toHaveBeenCalledWith('player:sess-3');
-        expect(mockIo.to).toHaveBeenCalledTimes(2);
-    });
-
-    test('spectatorOnly with null getPlayersInRoom throws error', async () => {
-        playerService.getPlayersInRoom.mockResolvedValue(null);
-
-        const handler = getHandler('chat:message');
-        // The error is caught by contextHandler, which emits chat:error
-        await handler({ text: 'spectator chat', teamOnly: false, spectatorOnly: true });
-
-        expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-            message: expect.any(String)
+        // Should emit to the spectators socket room (not individual player rooms)
+        expect(mockIo.to).toHaveBeenCalledWith('spectators:ROOM01');
+        expect(mockIo.to).toHaveBeenCalledTimes(1);
+        expect(mockIo.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
+            text: 'spectator chat',
+            spectatorOnly: true
         }));
     });
 
