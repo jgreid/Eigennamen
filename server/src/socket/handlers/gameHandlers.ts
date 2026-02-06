@@ -194,11 +194,14 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 'game:start'
             );
 
+            // Include game mode in started event
+            const gameMode = room?.settings?.gameMode || 'classic';
+
             // Send game state to each player (spymasters see card types)
             for (const p of players) {
                 try {
                     const gameState: PlayerGameState | null = gameService.getGameStateForPlayer(game, p);
-                    io.to(`player:${p.sessionId}`).emit(SOCKET_EVENTS.GAME_STARTED, { game: gameState });
+                    io.to(`player:${p.sessionId}`).emit(SOCKET_EVENTS.GAME_STARTED, { game: gameState, gameMode });
                 } catch (emitError) {
                     logger.error(`Failed to emit game:started to player ${p.sessionId}:`, emitError);
                 }

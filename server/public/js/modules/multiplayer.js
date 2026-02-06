@@ -573,7 +573,8 @@ export function setupMultiplayerListeners() {
         // Full sync game state from server for new games
         if (data.game) {
             syncGameStateFromServer(data.game);
-            showToast('New game started!', 'success');
+            const modeLabel = data.gameMode === 'blitz' ? 'Blitz game started!' : 'New game started!';
+            showToast(modeLabel, 'success');
         }
     });
 
@@ -1061,11 +1062,24 @@ export function setupMultiplayerListeners() {
             // Update room info display
             updateRoomInfoDisplay();
 
+            // Sync game mode radio buttons
+            syncGameModeUI(data.settings.gameMode);
+
             // Update multiplayer indicator
             updateMpIndicator({ code: CodenamesClient.getRoomCode() }, state.multiplayerPlayers);
 
             showToast('Room settings updated', 'info');
         }
+    });
+
+    // Game mode radio button change handler
+    const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
+    gameModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (!CodenamesClient?.player?.isHost) return;
+            const gameMode = e.target.value;
+            CodenamesClient.updateSettings({ gameMode });
+        });
     });
 
     // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
@@ -1353,6 +1367,13 @@ export function updateRoomInfoDisplay() {
     if (codeEl) codeEl.textContent = state.currentRoomId || CodenamesClient?.getRoomCode() || '----';
     if (playersEl) playersEl.textContent = state.multiplayerPlayers?.length || 0;
     if (statusEl) statusEl.textContent = state.gameState.status === 'ended' ? 'Game Over' : (state.gameState.status === 'playing' ? 'In Progress' : 'Waiting');
+}
+
+// Sync game mode UI with server state
+export function syncGameModeUI(gameMode) {
+    if (!gameMode) return;
+    const radio = document.querySelector(`input[name="gameMode"][value="${gameMode}"]`);
+    if (radio) radio.checked = true;
 }
 
 // PHASE 4: Update spectator count display

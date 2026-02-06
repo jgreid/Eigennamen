@@ -509,6 +509,51 @@
     margin-bottom: 0;
 }
 
+/* Game mode selector */
+.game-mode-selector {
+    display: flex;
+    gap: 12px;
+}
+
+.game-mode-option {
+    flex: 1;
+    cursor: pointer;
+}
+
+.game-mode-option input[type="radio"] {
+    display: none;
+}
+
+.game-mode-card {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+}
+
+.game-mode-card strong {
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.game-mode-card small {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.game-mode-option input[type="radio"]:checked + .game-mode-card {
+    border-color: rgba(100, 200, 255, 0.6);
+    background: rgba(100, 200, 255, 0.1);
+}
+
+.game-mode-option:hover .game-mode-card {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
 /* Settings footer with buttons */
 .settings-footer {
     padding: 12px 20px;

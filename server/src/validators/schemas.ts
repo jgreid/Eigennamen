@@ -12,7 +12,7 @@ import type { z as ZodType } from 'zod';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION, RESERVED_NAMES } = require('../config/constants');
+const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES } = require('../config/constants');
 const { removeControlChars, isReservedName } = require('../utils/sanitize');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
@@ -61,6 +61,7 @@ const roomCreateSchema = z.object({
         turnTimer: z.number().int().min(30).max(300).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
+        gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional().default('classic'),
         // FIX: Host nickname uses full validation (control chars, regex, reserved names)
         nickname: createNicknameSchema().optional()
     }).optional().default({})
@@ -83,7 +84,8 @@ const roomSettingsSchema = z.object({
         blue: z.string().min(1, 'Team name is required').max(VALIDATION.TEAM_NAME_MAX_LENGTH).transform((val: string) => removeControlChars(val).trim()).refine((val: string) => teamNameRegex.test(val), 'Team name contains invalid characters')
     }).optional(),
     turnTimer: z.number().int().min(30).max(300).nullable().optional(),
-    allowSpectators: z.boolean().optional()
+    allowSpectators: z.boolean().optional(),
+    gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional()
 });
 
 // FIX H10: Add schema for room:reconnect validation

@@ -156,6 +156,28 @@ export const RETRIES = {
     PUSH_RETRY_DELAYS: [2000, 4000, 8000, 16000]  // Exponential backoff
 } as const;
 
+// Game modes
+export const GAME_MODES = ['classic', 'blitz'] as const;
+export type GameMode = typeof GAME_MODES[number];
+
+// Game mode configurations
+export const GAME_MODE_CONFIG = {
+    classic: {
+        label: 'Classic',
+        description: 'Standard Codenames rules',
+        forcedTurnTimer: null,   // Timer is optional, set by host
+        minTurnTimer: 30,
+        maxTurnTimer: 300
+    },
+    blitz: {
+        label: 'Blitz',
+        description: 'Fast-paced 30-second turns',
+        forcedTurnTimer: 30,     // Always 30 seconds, cannot be changed
+        minTurnTimer: 30,
+        maxTurnTimer: 30
+    }
+} as const;
+
 // Game teams and roles
 export const TEAMS = ['red', 'blue'] as const;
 export const ROLES = ['spymaster', 'clicker', 'spectator'] as const;
@@ -393,6 +415,8 @@ module.exports = {
     VALIDATION,
     LOCKS,
     RETRIES,
+    GAME_MODES,
+    GAME_MODE_CONFIG,
     TEAMS,
     ROLES,
     CARD_TYPES,
