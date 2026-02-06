@@ -96,6 +96,8 @@
     "sounds": "Sounds",
     "notifications": "Notifications",
     "prefsDesc": "Customize your game experience. Settings are saved locally.",
+    "accessibility": "Accessibility",
+    "colorBlindMode": "Color blind friendly mode (orange/blue with labels)",
     "teamsDesc": "Customize team names for this game. Names are encoded in the shareable link.",
     "wordsDesc": "Choose which words appear on the board. Custom words are encoded in the shareable link."
   },

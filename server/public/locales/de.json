@@ -96,6 +96,8 @@
     "sounds": "Töne",
     "notifications": "Benachrichtigungen",
     "prefsDesc": "Passe dein Spielerlebnis an. Einstellungen werden lokal gespeichert.",
+    "accessibility": "Barrierefreiheit",
+    "colorBlindMode": "Farbenblind-Modus (Orange/Blau mit Beschriftung)",
     "teamsDesc": "Passe die Teamnamen für dieses Spiel an. Namen werden im teilbaren Link gespeichert.",
     "wordsDesc": "Wähle, welche Wörter auf dem Spielfeld erscheinen. Eigene Wörter werden im teilbaren Link gespeichert."
   },

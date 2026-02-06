@@ -123,13 +123,13 @@
 
 .settings-sidebar-qr .qr-label {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     text-align: center;
 }
 
 .settings-sidebar-qr .version {
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 /* Settings content area */
@@ -187,7 +187,7 @@
 /* Word count inline with label */
 .word-count-inline {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
     margin-left: 8px;
 }
 
@@ -196,7 +196,7 @@
 }
 
 .wordlist-mode-options .radio-option em {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
     font-size: 0.8rem;
 }
 
@@ -235,7 +235,7 @@
     padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
 }
 
 .about-content .credits p {
@@ -319,7 +319,7 @@
 
 .qr-hint {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.55);
 }
 
 /* Room Code Share (Multiplayer Mode) */
@@ -345,7 +345,7 @@
 
 .room-code-label {
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -381,7 +381,7 @@
 
 .room-code-hint {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     text-align: center;
     margin-top: 8px;
 }
@@ -520,7 +520,7 @@
 
 .room-settings-content .setting-hint {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     margin-bottom: 12px;
 }
 
@@ -576,7 +576,7 @@
 
 .game-mode-card small {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .game-mode-option input[type="radio"]:checked + .game-mode-card {
@@ -695,7 +695,7 @@
     padding-top: 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .rules-grid {
@@ -830,7 +830,7 @@
 
 .modal-section p {
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     margin-top: 8px;
 }
 
@@ -929,7 +929,7 @@
 
 .word-count {
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     margin-top: 6px;
 }
 

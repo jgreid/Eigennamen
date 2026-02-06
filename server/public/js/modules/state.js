@@ -193,7 +193,10 @@ export const state = {
 
     // i18n
     language: 'en',
-    localizedDefaultWords: null
+    localizedDefaultWords: null,
+
+    // Accessibility
+    colorBlindMode: false
 };
 
 // ========== DEBUGGING UTILITIES ==========

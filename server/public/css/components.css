@@ -257,7 +257,7 @@
 .role-hint {
     display: block;
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     margin-top: 8px;
 }
 
@@ -499,7 +499,7 @@ button:focus-visible,
 .share-section label {
     display: block;
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 1px;

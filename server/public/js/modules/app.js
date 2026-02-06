@@ -23,6 +23,7 @@ import {
     loadLocalSettings, tryLoadWordlistFile, initSettingsListeners
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
+import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
@@ -223,6 +224,9 @@ async function init() {
                 setLanguage(e.target.value);
             });
         }
+        // Initialize accessibility features
+        initColorBlindMode();
+        initKeyboardShortcuts();
     } catch (e) {
         // Show error modal to inform user
         showErrorModal(

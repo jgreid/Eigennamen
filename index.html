@@ -63,12 +63,12 @@
                 </div>
             </div>
 
-            <div class="role-banner" id="role-banner">
+            <div class="role-banner" id="role-banner" role="status" aria-live="polite">
                 <!-- Filled by JS -->
             </div>
 
             <!-- Scoreboard with clickable team names for team selection -->
-            <div class="scoreboard">
+            <div class="scoreboard" role="group" aria-label="Team scores">
                 <button type="button" class="score red" id="btn-team-red" data-action="set-team" data-team="red" title="Click to join Red team">
                     <span id="red-team-name" class="team-name">Red</span>
                     <span class="count"><span id="red-remaining">9</span> left</span>
@@ -85,7 +85,7 @@
                 <span class="spectator-label"><span id="spectator-count">0</span> watching</span>
             </div>
 
-            <div class="turn-indicator" id="turn-indicator">
+            <div class="turn-indicator" id="turn-indicator" role="status" aria-live="polite" aria-atomic="true">
                 Red Team's Turn
             </div>
 
@@ -339,6 +339,15 @@
                             </div>
 
                             <div class="pref-group">
+                                <h3 data-i18n="settings.accessibility">Accessibility</h3>
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="pref-colorblind" class="toggle-checkbox">
+                                    <span class="toggle-switch"></span>
+                                    <span class="toggle-text" data-i18n="settings.colorBlindMode">Color blind friendly mode (orange/blue with labels)</span>
+                                </label>
+                            </div>
+
+                            <div class="pref-group">
                                 <h3 data-i18n="settings.notifications">Notifications</h3>
                                 <label class="toggle-label">
                                     <input type="checkbox" id="pref-sound-notifications" class="toggle-checkbox">
@@ -438,7 +447,7 @@
     <div class="modal-overlay" id="game-over-modal">
         <div class="modal game-over-content">
             <h2>Game Over!</h2>
-            <div class="winner" id="winner-display"></div>
+            <div class="winner" id="winner-display" role="alert" aria-live="assertive"></div>
             <div class="rotation-reminder">
                 <h4>Time to Rotate Roles!</h4>
                 <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
