@@ -101,35 +101,54 @@ function toggleShortcutOverlay() {
     overlayElement.setAttribute('role', 'dialog');
     overlayElement.setAttribute('aria-label', 'Keyboard shortcuts');
 
-    const shortcuts = Object.entries(SHORTCUTS)
-        .map(([key, { description }]) => {
-            const displayKey = key === '?' ? '?' : key.toUpperCase();
-            return `<div class="shortcut-row">
-                <kbd>${displayKey}</kbd>
-                <span>${description}</span>
-            </div>`;
-        })
-        .join('');
+    const panel = document.createElement('div');
+    panel.className = 'shortcuts-panel';
 
-    overlayElement.innerHTML = `
-        <div class="shortcuts-panel">
-            <h3>Keyboard Shortcuts</h3>
-            ${shortcuts}
-            <div class="shortcut-row">
-                <kbd>ESC</kbd>
-                <span>Close modal / this overlay</span>
-            </div>
-            <div class="shortcut-row">
-                <kbd>↑↓←→</kbd>
-                <span>Navigate board cards</span>
-            </div>
-            <div class="shortcut-row">
-                <kbd>ENTER</kbd>
-                <span>Reveal selected card</span>
-            </div>
-            <p class="shortcuts-hint">Press <kbd>?</kbd> to toggle this overlay</p>
-        </div>
-    `;
+    const heading = document.createElement('h3');
+    heading.textContent = 'Keyboard Shortcuts';
+    panel.appendChild(heading);
+
+    // Dynamic shortcuts from SHORTCUTS config
+    for (const [key, { description }] of Object.entries(SHORTCUTS)) {
+        const row = document.createElement('div');
+        row.className = 'shortcut-row';
+        const kbd = document.createElement('kbd');
+        kbd.textContent = key === '?' ? '?' : key.toUpperCase();
+        const span = document.createElement('span');
+        span.textContent = description;
+        row.appendChild(kbd);
+        row.appendChild(span);
+        panel.appendChild(row);
+    }
+
+    // Static shortcut entries
+    const staticShortcuts = [
+        ['ESC', 'Close modal / this overlay'],
+        ['↑↓←→', 'Navigate board cards'],
+        ['ENTER', 'Reveal selected card']
+    ];
+    for (const [keyText, desc] of staticShortcuts) {
+        const row = document.createElement('div');
+        row.className = 'shortcut-row';
+        const kbd = document.createElement('kbd');
+        kbd.textContent = keyText;
+        const span = document.createElement('span');
+        span.textContent = desc;
+        row.appendChild(kbd);
+        row.appendChild(span);
+        panel.appendChild(row);
+    }
+
+    const hint = document.createElement('p');
+    hint.className = 'shortcuts-hint';
+    hint.textContent = 'Press ';
+    const hintKbd = document.createElement('kbd');
+    hintKbd.textContent = '?';
+    hint.appendChild(hintKbd);
+    hint.append(' to toggle this overlay');
+    panel.appendChild(hint);
+
+    overlayElement.appendChild(panel);
 
     overlayElement.addEventListener('click', (e) => {
         if (e.target === overlayElement) {

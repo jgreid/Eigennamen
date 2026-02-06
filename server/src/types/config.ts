@@ -113,7 +113,6 @@ export interface SessionSecurityConfig {
   RECONNECTION_TOKEN_TTL_SECONDS: number;
   RECONNECTION_TOKEN_LENGTH: number;
   ROTATE_SESSION_ON_RECONNECT: boolean;
-  RATE_LIMIT_FAIL_CLOSED: boolean;
 }
 
 // ============================================================================

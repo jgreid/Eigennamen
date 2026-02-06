@@ -13,7 +13,28 @@ import type { Request, Response, NextFunction } from 'express';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
+const { audit } = require('../services/auditService');
 /* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Log a CSRF violation to the audit service (fire-and-forget)
+ */
+function auditCsrfViolation(req: Request, reason: string): void {
+    const clientIP = req.ip || req.socket?.remoteAddress || 'unknown';
+    audit.suspicious(
+        `CSRF violation: ${reason}`,
+        'anonymous',
+        clientIP,
+        {
+            method: req.method,
+            path: req.path,
+            origin: req.headers['origin'] || null,
+            referer: req.headers['referer'] || null
+        }
+    ).catch((err: Error) => {
+        logger.debug('Failed to audit CSRF violation:', err.message);
+    });
+}
 
 /**
  * Validate that the request appears to come from a same-origin source
@@ -36,6 +57,7 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
     const customHeader = req.headers['x-requested-with'];
     if (customHeader !== 'XMLHttpRequest' && customHeader !== 'fetch') {
         logger.warn(`CSRF protection: blocked request without X-Requested-With header`);
+        auditCsrfViolation(req, 'missing X-Requested-With header');
         return res.status(403).json({
             error: {
                 code: 'CSRF_VALIDATION_FAILED',
@@ -54,6 +76,7 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
         if (origin) {
             if (!isOriginAllowed(origin, allowedOrigins)) {
                 logger.warn(`CSRF protection: blocked request from origin ${origin}`);
+                auditCsrfViolation(req, `disallowed origin: ${origin}`);
                 return res.status(403).json({
                     error: {
                         code: 'CSRF_VALIDATION_FAILED',
@@ -70,6 +93,7 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
                 const refererUrl = new URL(referer);
                 if (!isOriginAllowed(refererUrl.origin, allowedOrigins)) {
                     logger.warn(`CSRF protection: blocked request with referer ${referer}`);
+                    auditCsrfViolation(req, `disallowed referer origin: ${refererUrl.origin}`);
                     return res.status(403).json({
                         error: {
                             code: 'CSRF_VALIDATION_FAILED',
@@ -79,6 +103,7 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
                 }
             } catch {
                 logger.warn(`CSRF protection: blocked request with invalid referer ${referer}`);
+                auditCsrfViolation(req, 'invalid referer header');
                 return res.status(403).json({
                     error: {
                         code: 'CSRF_VALIDATION_FAILED',
@@ -91,6 +116,7 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
 
         // Neither Origin nor Referer present with restricted CORS — reject
         logger.warn('CSRF protection: blocked request without Origin or Referer header');
+        auditCsrfViolation(req, 'missing Origin and Referer headers');
         return res.status(403).json({
             error: {
                 code: 'CSRF_VALIDATION_FAILED',

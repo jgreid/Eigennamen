@@ -228,15 +228,10 @@ export async function updatePlayer(
         logger.debug(`updatePlayer transaction conflict for ${sessionId}, attempt ${attempt + 1}`);
     }
 
-    // Fall through after max retries — apply non-atomically as last resort
-    logger.warn(`updatePlayer failed atomically after ${maxRetries} retries for ${sessionId}, applying non-atomically`);
-    const player = await getPlayer(sessionId);
-    if (!player) {
-        throw new ServerError('Player not found');
-    }
-    const updatedPlayer: Player = { ...player, ...updates, lastSeen: Date.now() };
-    await redis.set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER });
-    return updatedPlayer;
+    // All atomic retries exhausted — throw rather than falling back to a non-atomic
+    // write that could silently overwrite concurrent updates
+    logger.error(`updatePlayer failed atomically after ${maxRetries} retries for ${sessionId}`);
+    throw ServerError.concurrentModification(null, `updatePlayer(${sessionId})`);
 }
 
 /**
@@ -829,37 +824,44 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
         createdAt: Date.now()
     };
 
-    // Use SET NX for the session->token mapping to prevent TOCTOU race:
-    // If two concurrent calls race, only the first succeeds; the second
-    // discovers an existing mapping and returns that token instead.
+    // Atomic Lua script: either return the existing token or set both mappings
+    // in a single operation, eliminating the TOCTOU race where a token could
+    // expire between the NX check and the subsequent GET.
     const sessionKey = `reconnect:session:${sessionId}`;
-    const setResult = await redis.set(sessionKey, token, { NX: true, EX: ttl });
+    const tokenKey = `reconnect:token:${token}`;
 
-    if (!setResult) {
-        // Another concurrent call won the race — return the existing token
-        const existingToken = await redis.get(sessionKey);
-        if (existingToken) {
-            logger.debug(`Returning existing reconnection token for session ${sessionId} (race resolved)`);
-            return existingToken;
-        }
-        // Token expired between our NX check and get — fall through to create new
+    const luaScript = `
+        local sessionKey = KEYS[1]
+        local tokenKey = KEYS[2]
+        local newToken = ARGV[1]
+        local tokenData = ARGV[2]
+        local ttl = tonumber(ARGV[3])
+
+        -- Try to get existing token for this session
+        local existing = redis.call('GET', sessionKey)
+        if existing then
+            return existing
+        end
+
+        -- No existing token — set both mappings atomically
+        redis.call('SET', sessionKey, newToken, 'EX', ttl)
+        redis.call('SET', tokenKey, tokenData, 'EX', ttl)
+        return newToken
+    `;
+
+    const result = await redis.eval(luaScript, {
+        keys: [sessionKey, tokenKey],
+        arguments: [token, JSON.stringify(tokenData), String(ttl)]
+    });
+
+    const returnedToken = result as string;
+    if (returnedToken !== token) {
+        logger.debug(`Returning existing reconnection token for session ${sessionId} (race resolved)`);
+    } else {
+        logger.debug(`Generated reconnection token for session ${sessionId}, TTL: ${ttl}s`);
     }
 
-    // Store token -> session mapping for quick lookup
-    await redis.set(
-        `reconnect:token:${token}`,
-        JSON.stringify(tokenData),
-        { EX: ttl }
-    );
-
-    // If NX failed but token expired, overwrite the session->token mapping
-    if (!setResult) {
-        await redis.set(sessionKey, token, { EX: ttl });
-    }
-
-    logger.debug(`Generated reconnection token for session ${sessionId}, TTL: ${ttl}s`);
-
-    return token;
+    return returnedToken;
 }
 
 /**

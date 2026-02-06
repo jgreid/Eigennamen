@@ -51,25 +51,49 @@ export function renderGameHistory(games) {
     emptyEl.style.display = 'none';
     listEl.style.display = 'flex';
 
-    listEl.innerHTML = games.map(game => {
+    listEl.innerHTML = '';
+    for (const game of games) {
         const dateStr = formatGameTimestamp(game.timestamp);
-        const winnerName = escapeHTML(game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue'));
+        const winnerName = game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue');
 
-        return `
-            <div class="history-item" data-game-id="${escapeHTML(game.id)}">
-                <div class="history-item-info">
-                    <div class="history-item-winner ${escapeHTML(game.winner)}">${winnerName} Team Wins!</div>
-                    <div class="history-item-date">${dateStr}</div>
-                </div>
-                <div class="history-item-stats">
-                    <div class="history-item-score">
-                        <span class="red-score">${game.redScore || 0}</span> - <span class="blue-score">${game.blueScore || 0}</span>
-                    </div>
-                    <div class="history-item-moves">${game.moveCount || 0} moves, ${game.clueCount || 0} clues</div>
-                </div>
-            </div>
-        `;
-    }).join('');
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.dataset.gameId = game.id;
+
+        const info = document.createElement('div');
+        info.className = 'history-item-info';
+        const winnerDiv = document.createElement('div');
+        winnerDiv.className = `history-item-winner ${escapeHTML(game.winner)}`;
+        winnerDiv.textContent = `${winnerName} Team Wins!`;
+        info.appendChild(winnerDiv);
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'history-item-date';
+        dateDiv.textContent = dateStr;
+        info.appendChild(dateDiv);
+
+        const stats = document.createElement('div');
+        stats.className = 'history-item-stats';
+        const scoreDiv = document.createElement('div');
+        scoreDiv.className = 'history-item-score';
+        const redSpan = document.createElement('span');
+        redSpan.className = 'red-score';
+        redSpan.textContent = String(game.redScore || 0);
+        const blueSpan = document.createElement('span');
+        blueSpan.className = 'blue-score';
+        blueSpan.textContent = String(game.blueScore || 0);
+        scoreDiv.appendChild(redSpan);
+        scoreDiv.append(' - ');
+        scoreDiv.appendChild(blueSpan);
+        stats.appendChild(scoreDiv);
+        const movesDiv = document.createElement('div');
+        movesDiv.className = 'history-item-moves';
+        movesDiv.textContent = `${game.moveCount || 0} moves, ${game.clueCount || 0} clues`;
+        stats.appendChild(movesDiv);
+
+        item.appendChild(info);
+        item.appendChild(stats);
+        listEl.appendChild(item);
+    }
 
     // Event delegation is set up once via setupHistoryEventDelegation()
     // No need to add listeners per item - prevents memory leaks
@@ -130,14 +154,16 @@ export function renderReplayData(data) {
         return;
     }
 
-    // Render replay info
-    const winnerName = escapeHTML(data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown');
-    const winnerClass = escapeHTML(data.finalState?.winner || '');
-    const durationStr = formatDuration(data.duration || 0);
-    document.getElementById('replay-info').innerHTML = `
-        <span class="winner-badge ${winnerClass}">${winnerName} Team Wins!</span>
-        <span>Duration: ${durationStr} | ${data.totalMoves || 0} moves</span>
-    `;
+    // Render replay info using DOM APIs to prevent XSS
+    const replayInfo = document.getElementById('replay-info');
+    replayInfo.innerHTML = '';
+    const winnerBadge = document.createElement('span');
+    winnerBadge.className = `winner-badge ${escapeHTML(data.finalState?.winner || '')}`;
+    winnerBadge.textContent = `${data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown'} Team Wins!`;
+    replayInfo.appendChild(winnerBadge);
+    const durationSpan = document.createElement('span');
+    durationSpan.textContent = `Duration: ${formatDuration(data.duration || 0)} | ${data.totalMoves || 0} moves`;
+    replayInfo.appendChild(durationSpan);
 
     // Initialize board with words (all hidden)
     renderReplayBoard();
@@ -203,41 +229,55 @@ export function renderReplayEventLog() {
         return;
     }
 
-    logEl.innerHTML = events.map((event, index) => {
+    logEl.innerHTML = '';
+    events.forEach((event, index) => {
         let actionText = '';
         let detailText = '';
-        const team = escapeHTML(event.data?.team || '');
+        const team = event.data?.team || '';
 
         switch (event.type) {
             case 'clue':
                 actionText = 'gave clue';
-                detailText = `"${escapeHTML(event.data?.word || '')}" for ${escapeHTML(String(event.data?.number ?? ''))}`;
+                detailText = `"${event.data?.word || ''}" for ${event.data?.number ?? ''}`;
                 break;
             case 'reveal':
                 actionText = 'revealed';
-                detailText = `${escapeHTML(event.data?.word || '')} (${escapeHTML(event.data?.type || '')})`;
+                detailText = `${event.data?.word || ''} (${event.data?.type || ''})`;
                 break;
             case 'endTurn':
                 actionText = 'ended turn';
-                detailText = '';
                 break;
             case 'forfeit':
                 actionText = 'forfeited';
-                detailText = `${escapeHTML(event.data?.winner || '')} wins`;
+                detailText = `${event.data?.winner || ''} wins`;
                 break;
             default:
-                actionText = escapeHTML(event.type || '');
-                detailText = '';
+                actionText = event.type || '';
         }
 
-        return `
-            <div class="replay-event ${index === state.currentReplayIndex ? 'current' : ''}" data-event-index="${index}">
-                <span class="event-team ${team}">${team.toUpperCase()}</span>
-                <span class="event-action">${actionText}</span>
-                <span class="event-detail">${detailText}</span>
-            </div>
-        `;
-    }).join('');
+        const row = document.createElement('div');
+        row.className = `replay-event${index === state.currentReplayIndex ? ' current' : ''}`;
+        row.dataset.eventIndex = String(index);
+
+        const teamSpan = document.createElement('span');
+        teamSpan.className = `event-team ${escapeHTML(team)}`;
+        teamSpan.textContent = team.toUpperCase();
+        row.appendChild(teamSpan);
+
+        const actionSpan = document.createElement('span');
+        actionSpan.className = 'event-action';
+        actionSpan.textContent = actionText;
+        row.appendChild(actionSpan);
+
+        if (detailText) {
+            const detailSpan = document.createElement('span');
+            detailSpan.className = 'event-detail';
+            detailSpan.textContent = detailText;
+            row.appendChild(detailSpan);
+        }
+
+        logEl.appendChild(row);
+    });
 }
 
 export function updateReplayControls() {

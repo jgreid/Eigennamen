@@ -520,24 +520,45 @@ export function updatePlayerList(ul, players) {
     const mySessionId = CodenamesClient.player?.sessionId;
     const amHost = CodenamesClient.player?.isHost;
 
-    ul.innerHTML = players.map(p => {
+    ul.innerHTML = '';
+    for (const p of players) {
         const isMe = p.sessionId === mySessionId;
-        const teamClass = p.team ? `player-team-${p.team}` : '';
-        const disconnectedClass = p.connected === false ? 'player-disconnected' : '';
-        const roleText = p.role ? `(${p.role})` : '';
-        const hostBadge = p.isHost ? '<span class="host-badge">Host</span>' : '';
-        const kickBtn = amHost && !isMe ?
-            `<button class="btn-kick" data-session="${p.sessionId}" title="Kick player">Kick</button>` : '';
+        const li = document.createElement('li');
+        if (p.connected === false) li.className = 'player-disconnected';
 
-        return `<li class="${disconnectedClass}">
-            <span class="player-info">
-                <span class="player-name ${isMe ? 'you' : ''} ${teamClass}">${escapeHTML(p.nickname)}${isMe ? ' (you)' : ''}</span>
-                ${hostBadge}
-                <span class="player-role">${roleText}${p.connected === false ? ' - offline' : ''}</span>
-            </span>
-            ${kickBtn}
-        </li>`;
-    }).join('');
+        const info = document.createElement('span');
+        info.className = 'player-info';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = `player-name${isMe ? ' you' : ''}${p.team ? ` player-team-${escapeHTML(p.team)}` : ''}`;
+        nameSpan.textContent = p.nickname + (isMe ? ' (you)' : '');
+        info.appendChild(nameSpan);
+
+        if (p.isHost) {
+            const badge = document.createElement('span');
+            badge.className = 'host-badge';
+            badge.textContent = 'Host';
+            info.appendChild(badge);
+        }
+
+        const roleSpan = document.createElement('span');
+        roleSpan.className = 'player-role';
+        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ' - offline' : '');
+        info.appendChild(roleSpan);
+
+        li.appendChild(info);
+
+        if (amHost && !isMe) {
+            const kickBtn = document.createElement('button');
+            kickBtn.className = 'btn-kick';
+            kickBtn.dataset.session = p.sessionId;
+            kickBtn.title = 'Kick player';
+            kickBtn.textContent = 'Kick';
+            li.appendChild(kickBtn);
+        }
+
+        ul.appendChild(li);
+    }
 }
 
 export function initPlayerListUI() {

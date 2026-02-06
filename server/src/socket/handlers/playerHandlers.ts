@@ -265,10 +265,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 kickedBy: sanitizeHtml(ctx.player.nickname)
             });
 
-            // Remove player from room data
-            await playerService.removePlayer(validated.targetSessionId);
-
-            // Disconnect the target player's socket
+            // Disconnect the target player's socket BEFORE removing data from Redis.
+            // This prevents a window where the kicked player's socket can still emit
+            // events that reference their now-deleted player data.
             if (targetSocketId) {
                 const targetSocket = io.sockets.sockets.get(targetSocketId) as GameSocket | undefined;
                 if (targetSocket) {
@@ -280,6 +279,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                     targetSocket.disconnect(true);
                 }
             }
+
+            // Remove player from room data (after socket is disconnected)
+            await playerService.removePlayer(validated.targetSessionId);
 
             // Update player list for remaining players
             const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);

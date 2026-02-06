@@ -155,6 +155,21 @@ jest.mock('../../config/redis', () => {
                 return JSON.stringify({ error: 'SCRIPT_NOT_IMPLEMENTED_IN_MOCK' });
             }
 
+            // Simulate reconnection token atomic script
+            if (options.keys[0] && options.keys[0].startsWith('reconnect:session:')) {
+                const sessionKey = options.keys[0];
+                const tokenKey = options.keys[1];
+                const newToken = options.arguments[0];
+                const tokenData = options.arguments[1];
+
+                const existing = mockRedisStorage.get(sessionKey);
+                if (existing) return existing;
+
+                mockRedisStorage.set(sessionKey, newToken);
+                mockRedisStorage.set(tokenKey, tokenData);
+                return newToken;
+            }
+
             return null;
         }),
         publish: jest.fn(async () => 0),

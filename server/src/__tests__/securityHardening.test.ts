@@ -466,7 +466,7 @@ describe('IP-Based Rate Limiting', () => {
 
     test('rate limits per IP across multiple sockets', (done) => {
         const limits = {
-            'test:event': { window: 1000, max: 1 } // 1 per socket, 5 per IP
+            'test:event': { window: 1000, max: 1 } // 1 per socket, 3 per IP (multiplier=3)
         };
 
         const limiter = createSocketRateLimiter(limits);
@@ -491,9 +491,9 @@ describe('IP-Based Rate Limiting', () => {
                 }
 
                 if (index === sockets.length - 1) {
-                    // First 5 should succeed (IP limit = socket limit * 5)
-                    expect(successCount).toBe(5);
-                    expect(errorCount).toBe(1);
+                    // First 3 should succeed (IP limit = socket limit * 3)
+                    expect(successCount).toBe(3);
+                    expect(errorCount).toBe(3);
                     done();
                 }
             });

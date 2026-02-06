@@ -162,7 +162,7 @@ describe('Rate Limit Coverage Tests', () => {
             const next = jest.fn();
 
             // Create multiple sockets from same IP
-            // IP limit is max * 5 = 15
+            // IP limit is max * 3 = 9 (game:start max=3, IP multiplier=3)
             for (let socketNum = 0; socketNum < 5; socketNum++) {
                 const socket = {
                     id: `test-socket-${socketNum}`,
@@ -173,9 +173,9 @@ describe('Rate Limit Coverage Tests', () => {
                 }
             }
 
-            // Should have allowed 15 requests
+            // Should have allowed 9 requests (3 per-socket × 3 sockets = 9 before IP limit)
             const allowedCalls = next.mock.calls.filter(c => c.length === 0);
-            expect(allowedCalls.length).toBe(15);
+            expect(allowedCalls.length).toBe(9);
 
             // Next request should be blocked
             const socket = {

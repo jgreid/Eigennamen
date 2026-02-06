@@ -47,12 +47,11 @@ export const REDIS_TTL = {
 export const SESSION_SECURITY = {
     MAX_SESSION_AGE_MS: 8 * 60 * 60 * 1000,      // 8 hours max session lifetime (reduced from 24h for security)
     MAX_VALIDATION_ATTEMPTS_PER_IP: 20,          // Max validation attempts per IP per minute
-    IP_MISMATCH_ALLOWED: true,                   // Allow reconnection from different IP (logged for monitoring)
+    IP_MISMATCH_ALLOWED: process.env.ALLOW_IP_MISMATCH === 'true',  // Deny reconnection from different IP by default; set ALLOW_IP_MISMATCH=true to allow
     SESSION_ID_MIN_LENGTH: 36,                   // UUID length
     RECONNECTION_TOKEN_TTL_SECONDS: 300,         // 5 minutes TTL for reconnection tokens (HARDENING: reduced from 15 min to limit session hijacking window)
     RECONNECTION_TOKEN_LENGTH: 32,               // Bytes for secure token
-    ROTATE_SESSION_ON_RECONNECT: true,           // Issue new session token after successful reconnection
-    RATE_LIMIT_FAIL_CLOSED: false                // If true, deny requests when Redis fails (more secure but less available)
+    ROTATE_SESSION_ON_RECONNECT: true            // Issue new session token after successful reconnection
 } as const;
 
 // Turn timer configuration
