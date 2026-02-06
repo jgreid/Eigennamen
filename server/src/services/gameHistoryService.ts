@@ -1,0 +1,741 @@
+/**
+ * Game History Service
+ *
+ * Stores completed game results and provides replay functionality.
+ * Uses Redis with 30-day TTL for game history storage.
+ */
+
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { getRedis } = require('../config/redis');
+const logger = require('../utils/logger');
+const { v4: uuidv4 } = require('uuid');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+import type { Team, CardType } from '../types';
+
+/**
+ * Initial board state for replay
+ */
+export interface InitialBoardState {
+    words: string[];
+    types: CardType[];
+    seed: string;
+    firstTeam: Team;
+}
+
+/**
+ * Final game state
+ */
+export interface FinalGameState {
+    redScore: number;
+    blueScore: number;
+    redTotal: number;
+    blueTotal: number;
+    winner: Team;
+    gameOver: boolean;
+}
+
+/**
+ * Team names configuration
+ */
+export interface TeamNames {
+    red: string;
+    blue: string;
+}
+
+/**
+ * Clue given during a game
+ */
+export interface GameClue {
+    team: Team;
+    word: string;
+    number: number;
+    spymaster?: string;
+    guessesAllowed?: number;
+    timestamp?: number;
+}
+
+/**
+ * History entry for game actions
+ */
+export interface HistoryEntry {
+    action: 'clue' | 'reveal' | 'endTurn' | 'forfeit';
+    timestamp?: number;
+    team?: Team;
+    word?: string;
+    number?: number;
+    spymaster?: string;
+    guessesAllowed?: number;
+    index?: number;
+    type?: CardType;
+    player?: string;
+    guessNumber?: number;
+    fromTeam?: Team;
+    toTeam?: Team;
+    forfeitingTeam?: Team;
+    winner?: Team;
+}
+
+/**
+ * Game data input for saving to history
+ */
+export interface GameDataInput {
+    id?: string;
+    words: string[];
+    types: CardType[];
+    seed: string;
+    redScore: number;
+    blueScore: number;
+    redTotal: number;
+    blueTotal: number;
+    winner?: Team;
+    gameOver?: boolean;
+    createdAt?: number;
+    clues?: GameClue[];
+    history?: HistoryEntry[];
+    teamNames?: TeamNames;
+    wordListId?: string | null;
+    stateVersion?: number;
+}
+
+/**
+ * Game history entry stored in Redis
+ */
+export interface GameHistoryEntry {
+    id: string;
+    roomCode: string;
+    timestamp: number;
+    startedAt: number;
+    endedAt: number;
+    initialBoard: InitialBoardState;
+    finalState: FinalGameState;
+    clues: GameClue[];
+    history: HistoryEntry[];
+    teamNames: TeamNames;
+    wordListId: string | null;
+    stateVersion: number;
+}
+
+/**
+ * Game history summary (for list views)
+ */
+export interface GameHistorySummary {
+    id: string;
+    timestamp: number;
+    startedAt: number;
+    endedAt: number;
+    winner?: Team;
+    redScore?: number;
+    blueScore?: number;
+    redTotal?: number;
+    blueTotal?: number;
+    teamNames?: TeamNames;
+    clueCount: number;
+    moveCount: number;
+}
+
+/**
+ * Replay event data
+ */
+export interface ReplayEvent {
+    timestamp?: number;
+    type: string;
+    data: Record<string, unknown>;
+}
+
+/**
+ * Replay data structure
+ */
+export interface ReplayData {
+    id: string;
+    roomCode: string;
+    timestamp: number;
+    initialBoard: InitialBoardState;
+    events: ReplayEvent[];
+    finalState: FinalGameState;
+    teamNames: TeamNames;
+    duration: number;
+    totalMoves: number;
+    totalClues: number;
+}
+
+/**
+ * Validation result
+ */
+export interface ValidationResult {
+    valid: boolean;
+    errors: string[];
+}
+
+/**
+ * History statistics
+ */
+export interface HistoryStats {
+    count: number;
+    oldest: { id: string; timestamp: number } | null;
+    newest: { id: string; timestamp: number } | null;
+    error?: string;
+}
+
+/**
+ * Redis client type (simplified for migration)
+ */
+interface RedisClient {
+    get(key: string): Promise<string | null>;
+    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
+    del(keys: string | string[]): Promise<number>;
+    mGet(keys: string[]): Promise<(string | null)[]>;
+    multi(): RedisPipeline;
+    zAdd(key: string, member: { score: number; value: string }): Promise<number>;
+    zRange(key: string, start: number, stop: number, options?: { REV?: boolean; WITHSCORES?: boolean }): Promise<string[] | Array<{ value: string; score: number }>>;
+    zRem(key: string, members: string | string[]): Promise<number>;
+    zRemRangeByRank(key: string, start: number, stop: number): Promise<number>;
+    zCard(key: string): Promise<number>;
+    expire(key: string, seconds: number): Promise<number>;
+}
+
+interface RedisPipeline {
+    set(key: string, value: string, options?: { EX?: number }): RedisPipeline;
+    zAdd(key: string, member: { score: number; value: string }): RedisPipeline;
+    zRemRangeByRank(key: string, start: number, stop: number): RedisPipeline;
+    expire(key: string, seconds: number): RedisPipeline;
+    exec(): Promise<unknown[]>;
+}
+
+// Configuration
+export const GAME_HISTORY_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
+const GAME_HISTORY_KEY_PREFIX = 'gameHistory:';
+const GAME_HISTORY_INDEX_PREFIX = 'gameHistoryIndex:';
+export const MAX_HISTORY_PER_ROOM = 100; // Maximum games to keep per room
+const BOARD_SIZE = 25; // Expected board size
+
+/**
+ * HARDENING FIX: Validate game data structure before saving to history
+ * Prevents corrupted or malformed data from being saved
+ */
+export function validateGameData(gameData: GameDataInput | null | undefined): ValidationResult {
+    const errors: string[] = [];
+
+    // Check required fields exist
+    if (!gameData) {
+        return { valid: false, errors: ['Game data is null or undefined'] };
+    }
+
+    // Validate words array
+    if (!Array.isArray(gameData.words)) {
+        errors.push('words must be an array');
+    } else if (gameData.words.length !== BOARD_SIZE) {
+        errors.push(`words array must have ${BOARD_SIZE} elements, got ${gameData.words.length}`);
+    } else if (!gameData.words.every(w => typeof w === 'string' && w.length > 0)) {
+        errors.push('All words must be non-empty strings');
+    }
+
+    // Validate types array
+    if (!Array.isArray(gameData.types)) {
+        errors.push('types must be an array');
+    } else if (gameData.types.length !== BOARD_SIZE) {
+        errors.push(`types array must have ${BOARD_SIZE} elements, got ${gameData.types.length}`);
+    } else {
+        const validTypes = ['red', 'blue', 'neutral', 'assassin'];
+        const invalidTypes = gameData.types.filter(t => !validTypes.includes(t));
+        if (invalidTypes.length > 0) {
+            errors.push(`Invalid card types found: ${invalidTypes.join(', ')}`);
+        }
+    }
+
+    // Validate seed
+    if (typeof gameData.seed !== 'string' || gameData.seed.length === 0) {
+        errors.push('seed must be a non-empty string');
+    }
+
+    // Validate scores are non-negative integers
+    if (typeof gameData.redScore !== 'number' || !Number.isInteger(gameData.redScore) || gameData.redScore < 0) {
+        errors.push('redScore must be a non-negative integer');
+    }
+    if (typeof gameData.blueScore !== 'number' || !Number.isInteger(gameData.blueScore) || gameData.blueScore < 0) {
+        errors.push('blueScore must be a non-negative integer');
+    }
+
+    // Validate totals
+    if (typeof gameData.redTotal !== 'number' || !Number.isInteger(gameData.redTotal) || gameData.redTotal < 0) {
+        errors.push('redTotal must be a non-negative integer');
+    }
+    if (typeof gameData.blueTotal !== 'number' || !Number.isInteger(gameData.blueTotal) || gameData.blueTotal < 0) {
+        errors.push('blueTotal must be a non-negative integer');
+    }
+
+    // Validate winner if game is over
+    if (gameData.gameOver) {
+        if (gameData.winner !== 'red' && gameData.winner !== 'blue') {
+            errors.push('winner must be "red" or "blue" when game is over');
+        }
+    }
+
+    // Validate history array if present
+    if (gameData.history !== undefined && !Array.isArray(gameData.history)) {
+        errors.push('history must be an array if provided');
+    }
+
+    // Validate clues array if present
+    if (gameData.clues !== undefined && !Array.isArray(gameData.clues)) {
+        errors.push('clues must be an array if provided');
+    }
+
+    return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Save a completed game result
+ */
+export async function saveGameResult(
+    roomCode: string,
+    gameData: GameDataInput
+): Promise<GameHistoryEntry | null> {
+    const redis: RedisClient = getRedis();
+
+    if (!roomCode || !gameData) {
+        logger.warn('saveGameResult called with missing parameters', { roomCode, hasGameData: !!gameData });
+        return null;
+    }
+
+    // HARDENING FIX: Validate game data before saving
+    const validation = validateGameData(gameData);
+    if (!validation.valid) {
+        logger.error('Invalid game data, refusing to save to history', {
+            roomCode,
+            errors: validation.errors
+        });
+        return null;
+    }
+
+    // Generate a unique history ID if game doesn't have one
+    const historyId = gameData.id || uuidv4();
+    const timestamp = Date.now();
+
+    // Build the history entry with replay data
+    const historyEntry: GameHistoryEntry = {
+        id: historyId,
+        roomCode,
+        timestamp,
+        startedAt: gameData.createdAt || timestamp,
+        endedAt: timestamp,
+
+        // Initial board state for replay
+        initialBoard: {
+            words: gameData.words,
+            types: gameData.types,
+            seed: gameData.seed,
+            firstTeam: getFirstTeam(gameData)
+        },
+
+        // Final scores and winner
+        finalState: {
+            redScore: gameData.redScore,
+            blueScore: gameData.blueScore,
+            redTotal: gameData.redTotal,
+            blueTotal: gameData.blueTotal,
+            winner: gameData.winner || 'red',
+            gameOver: gameData.gameOver || false
+        },
+
+        // All clues given during the game
+        clues: gameData.clues || [],
+
+        // Game history (reveals, clues, end turns)
+        history: gameData.history || [],
+
+        // Team names (if available from room settings)
+        teamNames: gameData.teamNames || { red: 'Red', blue: 'Blue' },
+
+        // Metadata
+        wordListId: gameData.wordListId || null,
+        stateVersion: gameData.stateVersion || 1
+    };
+
+    try {
+        const gameKey = `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${historyId}`;
+        const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
+
+        // Use pipeline for atomic operations
+        const pipeline = redis.multi();
+
+        // Store the game history entry
+        pipeline.set(gameKey, JSON.stringify(historyEntry), { EX: GAME_HISTORY_TTL });
+
+        // Add to sorted set index (score = timestamp for ordering)
+        pipeline.zAdd(indexKey, { score: timestamp, value: historyId });
+
+        // Trim index to keep only the most recent games
+        pipeline.zRemRangeByRank(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1));
+
+        // Set TTL on index
+        pipeline.expire(indexKey, GAME_HISTORY_TTL);
+
+        await pipeline.exec();
+
+        logger.info('Game result saved to history', {
+            roomCode,
+            gameId: historyId,
+            winner: gameData.winner,
+            redScore: gameData.redScore,
+            blueScore: gameData.blueScore
+        });
+
+        return historyEntry;
+
+    } catch (error) {
+        logger.error('Failed to save game result', {
+            roomCode,
+            gameId: historyId,
+            error: (error as Error).message
+        });
+        // Don't throw - history saving shouldn't break the application
+        return null;
+    }
+}
+
+/**
+ * Determine which team went first based on totals
+ */
+function getFirstTeam(gameData: GameDataInput): Team {
+    // The team with 9 cards went first
+    if (gameData.redTotal === 9) return 'red';
+    if (gameData.blueTotal === 9) return 'blue';
+    // Default fallback
+    return 'red';
+}
+
+/**
+ * Get game history for a room
+ */
+export async function getGameHistory(
+    roomCode: string,
+    limit: number = 10
+): Promise<GameHistorySummary[]> {
+    const redis: RedisClient = getRedis();
+
+    if (!roomCode) {
+        return [];
+    }
+
+    try {
+        const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
+
+        // Get game IDs from sorted set (most recent first)
+        const gameIds = await redis.zRange(indexKey, 0, limit - 1, { REV: true }) as string[];
+
+        if (!gameIds || gameIds.length === 0) {
+            return [];
+        }
+
+        // Fetch all game entries in parallel
+        const gameKeys = gameIds.map(id => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
+        const gameDataArray = await redis.mGet(gameKeys);
+
+        // Parse and create summaries
+        const summaries: (GameHistorySummary | null)[] = gameDataArray
+            .map((data, index): GameHistorySummary | null => {
+                if (!data) return null;
+                try {
+                    const game = JSON.parse(data) as GameHistoryEntry;
+                    // Return summary (not full replay data)
+                    const summary: GameHistorySummary = {
+                        id: game.id,
+                        timestamp: game.timestamp,
+                        startedAt: game.startedAt,
+                        endedAt: game.endedAt,
+                        winner: game.finalState?.winner,
+                        redScore: game.finalState?.redScore,
+                        blueScore: game.finalState?.blueScore,
+                        redTotal: game.finalState?.redTotal,
+                        blueTotal: game.finalState?.blueTotal,
+                        teamNames: game.teamNames,
+                        clueCount: game.clues?.length || 0,
+                        moveCount: game.history?.length || 0
+                    };
+                    return summary;
+                } catch (e) {
+                    logger.warn('Failed to parse game history entry', {
+                        roomCode,
+                        gameId: gameIds[index],
+                        error: (e as Error).message
+                    });
+                    return null;
+                }
+            });
+
+        // Filter out nulls
+        const history: GameHistorySummary[] = summaries.filter(
+            (g): g is GameHistorySummary => g !== null
+        );
+
+        return history;
+
+    } catch (error) {
+        logger.error('Failed to get game history', {
+            roomCode,
+            limit,
+            error: (error as Error).message
+        });
+        return [];
+    }
+}
+
+/**
+ * Get a specific game by ID for replay
+ */
+export async function getGameById(
+    roomCode: string,
+    gameId: string
+): Promise<GameHistoryEntry | null> {
+    const redis: RedisClient = getRedis();
+
+    if (!roomCode || !gameId) {
+        return null;
+    }
+
+    try {
+        const gameKey = `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${gameId}`;
+        const gameData = await redis.get(gameKey);
+
+        if (!gameData) {
+            logger.debug('Game not found in history', { roomCode, gameId });
+            return null;
+        }
+
+        const game = JSON.parse(gameData) as GameHistoryEntry;
+        return game;
+
+    } catch (error) {
+        logger.error('Failed to get game by ID', {
+            roomCode,
+            gameId,
+            error: (error as Error).message
+        });
+        return null;
+    }
+}
+
+/**
+ * Get replay events for a specific game
+ * Combines stored history with any additional event log data
+ */
+export async function getReplayEvents(
+    roomCode: string,
+    gameId: string
+): Promise<ReplayData | null> {
+    if (!roomCode || !gameId) {
+        return null;
+    }
+
+    try {
+        // Get the game from history
+        const game = await getGameById(roomCode, gameId);
+
+        if (!game) {
+            return null;
+        }
+
+        // Build structured replay data
+        const replayData: ReplayData = {
+            id: game.id,
+            roomCode: game.roomCode,
+            timestamp: game.timestamp,
+
+            // Initial board state
+            initialBoard: game.initialBoard,
+
+            // Ordered list of events for replay
+            events: buildReplayEvents(game),
+
+            // Final state
+            finalState: game.finalState,
+
+            // Team names
+            teamNames: game.teamNames,
+
+            // Metadata
+            duration: game.endedAt - game.startedAt,
+            totalMoves: game.history?.length || 0,
+            totalClues: game.clues?.length || 0
+        };
+
+        return replayData;
+
+    } catch (error) {
+        logger.error('Failed to get replay events', {
+            roomCode,
+            gameId,
+            error: (error as Error).message
+        });
+        return null;
+    }
+}
+
+/**
+ * Build ordered replay events from game history
+ */
+function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
+    const events: ReplayEvent[] = [];
+    const history = game.history || [];
+
+    // Convert history entries to replay events
+    for (const entry of history) {
+        const event: ReplayEvent = {
+            timestamp: entry.timestamp,
+            type: entry.action,
+            data: {}
+        };
+
+        switch (entry.action) {
+            case 'clue':
+                event.data = {
+                    team: entry.team,
+                    word: entry.word,
+                    number: entry.number,
+                    spymaster: entry.spymaster,
+                    guessesAllowed: entry.guessesAllowed
+                };
+                break;
+
+            case 'reveal':
+                event.data = {
+                    index: entry.index,
+                    word: entry.word,
+                    type: entry.type,
+                    team: entry.team,
+                    player: entry.player,
+                    guessNumber: entry.guessNumber
+                };
+                break;
+
+            case 'endTurn':
+                event.data = {
+                    fromTeam: entry.fromTeam,
+                    toTeam: entry.toTeam,
+                    player: entry.player
+                };
+                break;
+
+            case 'forfeit':
+                event.data = {
+                    forfeitingTeam: entry.forfeitingTeam,
+                    winner: entry.winner
+                };
+                break;
+
+            default:
+                event.data = entry as unknown as Record<string, unknown>;
+        }
+
+        events.push(event);
+    }
+
+    // Sort by timestamp to ensure correct order
+    events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    return events;
+}
+
+/**
+ * Delete old game history for a room (cleanup function)
+ */
+export async function cleanupOldHistory(roomCode: string): Promise<number> {
+    const redis: RedisClient = getRedis();
+
+    if (!roomCode) {
+        return 0;
+    }
+
+    try {
+        const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
+
+        // Get all game IDs that exceed the limit
+        const oldGameIds = await redis.zRange(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1)) as string[];
+
+        if (!oldGameIds || oldGameIds.length === 0) {
+            return 0;
+        }
+
+        // Delete old game entries
+        const gameKeys = oldGameIds.map(id => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
+        await redis.del(gameKeys);
+
+        // Remove from index
+        await redis.zRem(indexKey, oldGameIds);
+
+        logger.info('Cleaned up old game history', {
+            roomCode,
+            deletedCount: oldGameIds.length
+        });
+
+        return oldGameIds.length;
+
+    } catch (error) {
+        logger.error('Failed to cleanup old history', {
+            roomCode,
+            error: (error as Error).message
+        });
+        return 0;
+    }
+}
+
+/**
+ * Get statistics for game history
+ */
+export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
+    const redis: RedisClient = getRedis();
+
+    if (!roomCode) {
+        return { count: 0, oldest: null, newest: null };
+    }
+
+    try {
+        const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
+
+        const count = await redis.zCard(indexKey);
+        if (count === 0) {
+            return { count: 0, oldest: null, newest: null };
+        }
+
+        // Get oldest and newest entries
+        const [oldestEntries, newestEntries] = await Promise.all([
+            redis.zRange(indexKey, 0, 0, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>,
+            redis.zRange(indexKey, -1, -1, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>
+        ]);
+
+        return {
+            count,
+            oldest: oldestEntries.length > 0 && oldestEntries[0] ? {
+                id: oldestEntries[0].value,
+                timestamp: oldestEntries[0].score
+            } : null,
+            newest: newestEntries.length > 0 && newestEntries[0] ? {
+                id: newestEntries[0].value,
+                timestamp: newestEntries[0].score
+            } : null
+        };
+
+    } catch (error) {
+        logger.error('Failed to get history stats', {
+            roomCode,
+            error: (error as Error).message
+        });
+        return { count: 0, oldest: null, newest: null, error: (error as Error).message };
+    }
+}
+
+// CommonJS exports for compatibility
+module.exports = {
+    saveGameResult,
+    getGameHistory,
+    getGameById,
+    getReplayEvents,
+    cleanupOldHistory,
+    getHistoryStats,
+    // HARDENING FIX: Export validation function for testing
+    validateGameData,
+    // Constants for testing
+    GAME_HISTORY_TTL,
+    MAX_HISTORY_PER_ROOM
+};

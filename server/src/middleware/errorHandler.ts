@@ -1,0 +1,120 @@
+/**
+ * Error Handling Middleware
+ */
+
+import type { Request, Response, NextFunction } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
+const logger = require('../utils/logger');
+const { ERROR_CODES } = require('../config/constants');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Custom error type with code and details
+ */
+interface AppError extends Error {
+    code?: string;
+    details?: unknown;
+    statusCode?: number;
+}
+
+/**
+ * Zod error structure
+ */
+interface ZodError extends Error {
+    name: 'ZodError';
+    errors: Array<{
+        path: (string | number)[];
+        message: string;
+    }>;
+}
+
+/**
+ * Status code mapping for error codes
+ */
+type ErrorStatusMap = Record<string, number>;
+
+/**
+ * Handle 404 Not Found
+ */
+function notFoundHandler(req: Request, res: Response, _next: NextFunction): void {
+    res.status(404).json({
+        error: {
+            code: 'NOT_FOUND',
+            message: `Route ${req.method} ${req.path} not found`
+        }
+    });
+}
+
+/**
+ * Global error handler
+ */
+function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _next: NextFunction): Response {
+    logger.error('Unhandled error:', err);
+
+    // Handle known error types
+    if ('code' in err && err.code && Object.values(ERROR_CODES).includes(err.code)) {
+        // FIX M12: Added missing error code status mappings
+        const statusMap: ErrorStatusMap = {
+            [ERROR_CODES.ROOM_NOT_FOUND]: 404,
+            [ERROR_CODES.ROOM_FULL]: 403,
+            [ERROR_CODES.ROOM_EXPIRED]: 410,
+            [ERROR_CODES.ROOM_ALREADY_EXISTS]: 409,
+            [ERROR_CODES.GAME_IN_PROGRESS]: 409,
+            [ERROR_CODES.NOT_HOST]: 403,
+            [ERROR_CODES.NOT_SPYMASTER]: 403,
+            [ERROR_CODES.NOT_CLICKER]: 403,
+            [ERROR_CODES.NOT_YOUR_TURN]: 400,
+            [ERROR_CODES.CARD_ALREADY_REVEALED]: 400,
+            [ERROR_CODES.GAME_OVER]: 400,
+            [ERROR_CODES.INVALID_INPUT]: 400,
+            [ERROR_CODES.RATE_LIMITED]: 429,
+            [ERROR_CODES.WORD_LIST_NOT_FOUND]: 404,
+            [ERROR_CODES.NOT_AUTHORIZED]: 403,
+            [ERROR_CODES.SERVER_ERROR]: 500,
+            [ERROR_CODES.SESSION_EXPIRED]: 401,
+            [ERROR_CODES.SESSION_NOT_FOUND]: 401,
+            [ERROR_CODES.SESSION_VALIDATION_RATE_LIMITED]: 429,
+            [ERROR_CODES.RESERVED_NAME]: 400,
+            [ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN]: 400,
+            [ERROR_CODES.PLAYER_NOT_FOUND]: 404
+        };
+
+        return res.status(statusMap[err.code] || 500).json({
+            error: {
+                code: err.code,
+                message: err.message,
+                details: (err as AppError).details
+            }
+        });
+    }
+
+    // Handle validation errors (Zod)
+    if (err.name === 'ZodError') {
+        const zodErr = err as ZodError;
+        return res.status(400).json({
+            error: {
+                code: ERROR_CODES.INVALID_INPUT,
+                message: 'Validation error',
+                details: zodErr.errors
+            }
+        });
+    }
+
+    // Default error response
+    return res.status(500).json({
+        error: {
+            code: ERROR_CODES.SERVER_ERROR,
+            message: process.env.NODE_ENV === 'production'
+                ? 'Internal server error'
+                : err.message
+        }
+    });
+}
+
+module.exports = {
+    notFoundHandler,
+    errorHandler
+};
+
+export { notFoundHandler, errorHandler };
