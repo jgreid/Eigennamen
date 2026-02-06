@@ -17,11 +17,38 @@
  * @module socketFunctionProvider
  */
 
+import type { Server as SocketIOServer } from 'socket.io';
+import type { TimerState, TimerCallback } from '../types';
+
+/**
+ * Socket functions interface - all functions provided by the socket module
+ */
+export interface SocketFunctions {
+    emitToRoom: (roomCode: string, event: string, data: unknown) => void;
+    emitToPlayer: (sessionId: string, event: string, data: unknown) => void;
+    startTurnTimer: (roomCode: string, durationSeconds: number) => Promise<TimerInfo>;
+    stopTurnTimer: (roomCode: string) => Promise<void>;
+    getTimerStatus: (roomCode: string) => Promise<TimerState | null>;
+    getIO: () => SocketIOServer;
+    createTimerExpireCallback: () => TimerCallback;
+}
+
+/**
+ * Timer info returned from startTurnTimer
+ */
+export interface TimerInfo {
+    roomCode?: string;
+    durationSeconds?: number;
+    startTime?: number;
+    endTime?: number;
+    remainingSeconds?: number;
+}
+
 // Registered socket functions (set during initialization)
-let socketFunctions = null;
+let socketFunctions: SocketFunctions | null = null;
 
 // Expected function names for validation
-const REQUIRED_FUNCTIONS = [
+const REQUIRED_FUNCTIONS: (keyof SocketFunctions)[] = [
     'emitToRoom',
     'emitToPlayer',
     'startTurnTimer',
@@ -35,16 +62,10 @@ const REQUIRED_FUNCTIONS = [
  * Register socket functions during initialization
  * Called from socket/index.js after functions are defined
  *
- * @param {Object} functions - Object containing socket utility functions
- * @param {Function} functions.emitToRoom - Emit to all sockets in a room
- * @param {Function} functions.emitToPlayer - Emit to a specific player
- * @param {Function} functions.startTurnTimer - Start the turn timer
- * @param {Function} functions.stopTurnTimer - Stop the turn timer
- * @param {Function} functions.getTimerStatus - Get timer status
- * @param {Function} functions.getIO - Get the Socket.io server instance
- * @throws {Error} If required functions are missing
+ * @param functions - Object containing socket utility functions
+ * @throws Error if required functions are missing
  */
-function registerSocketFunctions(functions) {
+function registerSocketFunctions(functions: SocketFunctions): void {
     if (!functions || typeof functions !== 'object') {
         throw new Error('Socket functions must be an object');
     }
@@ -58,15 +79,15 @@ function registerSocketFunctions(functions) {
         throw new Error(`Missing required socket functions: ${missingFunctions.join(', ')}`);
     }
 
-    socketFunctions = Object.freeze({ ...functions });
+    socketFunctions = Object.freeze({ ...functions }) as SocketFunctions;
 }
 
 /**
  * Get socket functions for use in handlers
  * Call this at runtime within handler functions, not at module load time
  *
- * @returns {Object} Socket utility functions
- * @throws {Error} If functions not yet registered
+ * @returns Socket utility functions
+ * @throws Error if functions not yet registered
  *
  * @example
  * // In a handler function:
@@ -76,7 +97,7 @@ function registerSocketFunctions(functions) {
  *     emitToRoom(roomCode, 'game:started', gameData);
  * });
  */
-function getSocketFunctions() {
+function getSocketFunctions(): SocketFunctions {
     if (!socketFunctions) {
         throw new Error(
             'Socket functions not yet registered. ' +
@@ -91,9 +112,9 @@ function getSocketFunctions() {
  * Check if socket functions are available
  * Useful for conditional logic or graceful degradation
  *
- * @returns {boolean} True if functions are registered
+ * @returns True if functions are registered
  */
-function isRegistered() {
+function isRegistered(): boolean {
     return socketFunctions !== null;
 }
 
@@ -101,7 +122,7 @@ function isRegistered() {
  * Clear socket functions
  * Used for testing and cleanup during shutdown
  */
-function clearSocketFunctions() {
+function clearSocketFunctions(): void {
     socketFunctions = null;
 }
 
@@ -109,13 +130,21 @@ function clearSocketFunctions() {
  * Get list of required function names
  * Useful for testing and documentation
  *
- * @returns {string[]} Array of required function names
+ * @returns Array of required function names
  */
-function getRequiredFunctions() {
+function getRequiredFunctions(): (keyof SocketFunctions)[] {
     return [...REQUIRED_FUNCTIONS];
 }
 
 module.exports = {
+    registerSocketFunctions,
+    getSocketFunctions,
+    isRegistered,
+    clearSocketFunctions,
+    getRequiredFunctions
+};
+
+export {
     registerSocketFunctions,
     getSocketFunctions,
     isRegistered,

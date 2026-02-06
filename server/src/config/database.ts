@@ -10,28 +10,36 @@
  * - Persistent custom word lists
  */
 
+/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-let prisma = null;
+// Type for Prisma client (dynamic import)
+interface PrismaClientType {
+    $connect(): Promise<void>;
+    $disconnect(): Promise<void>;
+}
+
+let prisma: PrismaClientType | null = null;
 let databaseEnabled = false;
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Check if database should be enabled
  */
-function isDatabaseConfigured() {
+function isDatabaseConfigured(): boolean {
     const dbUrl = process.env.DATABASE_URL;
     // Skip if not set, empty, or explicitly set to skip
-    return dbUrl && dbUrl.length > 0 && !dbUrl.includes('skip');
+    return !!(dbUrl && dbUrl.length > 0 && !dbUrl.includes('skip'));
 }
 
-async function connectDatabase() {
+async function connectDatabase(): Promise<PrismaClientType | null> {
     // Skip database if not configured
     if (!isDatabaseConfigured()) {
         logger.info('DATABASE_URL not configured - running without database (game history and accounts disabled)');
@@ -44,7 +52,7 @@ async function connectDatabase() {
     }
 
     // Dynamic import to avoid errors when Prisma client isn't generated
-    let PrismaClient;
+    let PrismaClient: new (options?: unknown) => PrismaClientType;
     try {
         PrismaClient = require('@prisma/client').PrismaClient;
     } catch {
@@ -59,7 +67,7 @@ async function connectDatabase() {
             : ['error']
     });
 
-    let lastError = null;
+    let lastError: Error | null = null;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             await prisma.$connect();
@@ -67,7 +75,7 @@ async function connectDatabase() {
             databaseEnabled = true;
             return prisma;
         } catch (error) {
-            lastError = error;
+            lastError = error as Error;
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
 
             if (attempt < MAX_RETRIES) {
@@ -85,7 +93,7 @@ async function connectDatabase() {
     return null;
 }
 
-function getDatabase() {
+function getDatabase(): PrismaClientType | null {
     // Returns null if database is not configured/connected
     return prisma;
 }
@@ -93,11 +101,11 @@ function getDatabase() {
 /**
  * Check if database is enabled and connected
  */
-function isDatabaseEnabled() {
+function isDatabaseEnabled(): boolean {
     return databaseEnabled && prisma !== null;
 }
 
-async function disconnectDatabase() {
+async function disconnectDatabase(): Promise<void> {
     if (prisma) {
         await prisma.$disconnect();
         prisma = null;
@@ -107,6 +115,14 @@ async function disconnectDatabase() {
 }
 
 module.exports = {
+    connectDatabase,
+    getDatabase,
+    isDatabaseEnabled,
+    isDatabaseConfigured,
+    disconnectDatabase
+};
+
+export {
     connectDatabase,
     getDatabase,
     isDatabaseEnabled,

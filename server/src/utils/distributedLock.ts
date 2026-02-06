@@ -13,8 +13,19 @@ const { withTimeout } = require('./timeout');
 // Timeout for individual lock Redis operations (release, extend)
 const LOCK_OPERATION_TIMEOUT = 5000;
 
+/**
+ * Lock configuration interface
+ */
+interface LockConfig {
+    lockTimeout: number;
+    retryDelay: number;
+    maxRetryDelay: number;
+    maxRetries: number;
+    extendThreshold: number;
+}
+
 // Default configuration
-const DEFAULT_CONFIG = {
+const DEFAULT_CONFIG: LockConfig = {
     lockTimeout: 5000,      // Lock expires after 5 seconds
     retryDelay: 50,         // Initial retry delay in ms (grows exponentially)
     maxRetryDelay: 500,     // Cap on retry delay to prevent excessive waits
@@ -41,22 +52,40 @@ end
 `;
 
 /**
+ * Lock acquisition result interface
+ */
+interface LockResult {
+    acquired: boolean;
+    ownerId?: string;
+    release?: () => Promise<boolean>;
+    extend?: (additionalMs?: number) => Promise<boolean>;
+}
+
+/**
+ * Lock options interface
+ */
+interface LockOptions extends Partial<LockConfig> {}
+
+/**
  * Distributed Lock class
  * Provides acquire, release, and extend operations with ownership tracking
  */
 class DistributedLock {
-    constructor(options = {}) {
+    private config: LockConfig;
+    private instanceId: string;
+
+    constructor(options: LockOptions = {}) {
         this.config = { ...DEFAULT_CONFIG, ...options };
         this.instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
     }
 
     /**
      * Acquire a lock
-     * @param {string} lockKey - Unique key for the lock
-     * @param {Object} options - Override options for this acquisition
-     * @returns {Object} { acquired: boolean, release: Function, extend: Function, ownerId: string }
+     * @param lockKey - Unique key for the lock
+     * @param options - Override options for this acquisition
+     * @returns Lock result with acquired status and control functions
      */
-    async acquire(lockKey, options = {}) {
+    async acquire(lockKey: string, options: LockOptions = {}): Promise<LockResult> {
         const config = { ...this.config, ...options };
         const redis = getRedis();
         const key = `lock:${lockKey}`;
@@ -80,7 +109,7 @@ class DistributedLock {
                         acquired: true,
                         ownerId,
                         release: () => this.release(key, ownerId),
-                        extend: (additionalMs) => this.extend(key, ownerId, additionalMs || config.lockTimeout)
+                        extend: (additionalMs?: number) => this.extend(key, ownerId, additionalMs || config.lockTimeout)
                     };
                 }
 
@@ -94,7 +123,7 @@ class DistributedLock {
                 logger.error('Lock acquisition error', {
                     lockKey,
                     attempt,
-                    error: error.message
+                    error: (error as Error).message
                 });
                 // Continue retrying
             }
@@ -110,11 +139,11 @@ class DistributedLock {
 
     /**
      * Release a lock (only if we own it)
-     * @param {string} key - Full lock key
-     * @param {string} ownerId - Owner ID to verify
-     * @returns {boolean} True if released, false if not owned
+     * @param key - Full lock key
+     * @param ownerId - Owner ID to verify
+     * @returns True if released, false if not owned
      */
-    async release(key, ownerId) {
+    async release(key: string, ownerId: string): Promise<boolean> {
         const redis = getRedis();
 
         try {
@@ -141,7 +170,7 @@ class DistributedLock {
             logger.error('Lock release error', {
                 key,
                 ownerId,
-                error: error.message
+                error: (error as Error).message
             });
             return false;
         }
@@ -149,12 +178,12 @@ class DistributedLock {
 
     /**
      * Extend a lock (only if we own it)
-     * @param {string} key - Full lock key
-     * @param {string} ownerId - Owner ID to verify
-     * @param {number} additionalMs - Additional time in milliseconds
-     * @returns {boolean} True if extended, false if not owned
+     * @param key - Full lock key
+     * @param ownerId - Owner ID to verify
+     * @param additionalMs - Additional time in milliseconds
+     * @returns True if extended, false if not owned
      */
-    async extend(key, ownerId, additionalMs) {
+    async extend(key: string, ownerId: string, additionalMs: number): Promise<boolean> {
         const redis = getRedis();
 
         try {
@@ -181,7 +210,7 @@ class DistributedLock {
             logger.error('Lock extension error', {
                 key,
                 ownerId,
-                error: error.message
+                error: (error as Error).message
             });
             return false;
         }
@@ -190,12 +219,12 @@ class DistributedLock {
     /**
      * Execute a function while holding a lock
      * Automatically releases the lock when done
-     * @param {string} lockKey - Lock key
-     * @param {Function} fn - Async function to execute
-     * @param {Object} options - Lock options
-     * @returns {*} Result of the function
+     * @param lockKey - Lock key
+     * @param fn - Async function to execute
+     * @param options - Lock options
+     * @returns Result of the function
      */
-    async withLock(lockKey, fn, options = {}) {
+    async withLock<T>(lockKey: string, fn: () => Promise<T>, options: LockOptions = {}): Promise<T> {
         const lockResult = await this.acquire(lockKey, options);
 
         if (!lockResult.acquired) {
@@ -205,19 +234,19 @@ class DistributedLock {
         try {
             return await fn();
         } finally {
-            await lockResult.release();
+            await lockResult.release!();
         }
     }
 
     /**
      * Execute a function with automatic lock extension
      * For long-running operations that may exceed lock timeout
-     * @param {string} lockKey - Lock key
-     * @param {Function} fn - Async function to execute
-     * @param {Object} options - Lock options
-     * @returns {*} Result of the function
+     * @param lockKey - Lock key
+     * @param fn - Async function to execute
+     * @param options - Lock options
+     * @returns Result of the function
      */
-    async withAutoExtend(lockKey, fn, options = {}) {
+    async withAutoExtend<T>(lockKey: string, fn: () => Promise<T>, options: LockOptions = {}): Promise<T> {
         const config = { ...this.config, ...options };
         const lockResult = await this.acquire(lockKey, options);
 
@@ -227,14 +256,16 @@ class DistributedLock {
 
         // Set up auto-extension with tracking to avoid race conditions
         const extendInterval = config.lockTimeout * config.extendThreshold;
-        let pendingExtension = null;
+        let pendingExtension: Promise<boolean> | null = null;
         const extensionTimer = setInterval(() => {
-            pendingExtension = lockResult.extend(config.lockTimeout).then(extended => {
+            pendingExtension = lockResult.extend!(config.lockTimeout).then(extended => {
                 if (!extended) {
                     logger.warn('Auto-extension failed, lock may have been lost', { lockKey });
                 }
+                return extended;
             }).catch(err => {
-                logger.error('Auto-extension error', { lockKey, error: err.message });
+                logger.error('Auto-extension error', { lockKey, error: (err as Error).message });
+                return false;
             });
         }, extendInterval);
 
@@ -243,19 +274,20 @@ class DistributedLock {
         } finally {
             clearInterval(extensionTimer);
             // Wait for any in-flight extension to complete before releasing
-            if (pendingExtension) {
-                await pendingExtension.catch(() => {});
+            const pending = pendingExtension;
+            if (pending) {
+                await (pending as Promise<boolean>).catch(() => {});
             }
-            await lockResult.release();
+            await lockResult.release!();
         }
     }
 
     /**
      * Check if a lock is currently held
-     * @param {string} lockKey - Lock key
-     * @returns {boolean} True if locked
+     * @param lockKey - Lock key
+     * @returns True if locked
      */
-    async isLocked(lockKey) {
+    async isLocked(lockKey: string): Promise<boolean> {
         const redis = getRedis();
         const key = `lock:${lockKey}`;
         const result = await redis.exists(key);
@@ -264,10 +296,10 @@ class DistributedLock {
 
     /**
      * Get the owner of a lock
-     * @param {string} lockKey - Lock key
-     * @returns {string|null} Owner ID or null if not locked
+     * @param lockKey - Lock key
+     * @returns Owner ID or null if not locked
      */
-    getLockOwner(lockKey) {
+    getLockOwner(lockKey: string): Promise<string | null> {
         const redis = getRedis();
         const key = `lock:${lockKey}`;
         return redis.get(key);
@@ -275,10 +307,10 @@ class DistributedLock {
 
     /**
      * Force release a lock (use with caution - for admin/recovery only)
-     * @param {string} lockKey - Lock key
-     * @returns {boolean} True if released
+     * @param lockKey - Lock key
+     * @returns True if released
      */
-    async forceRelease(lockKey) {
+    async forceRelease(lockKey: string): Promise<boolean> {
         const redis = getRedis();
         const key = `lock:${lockKey}`;
 
@@ -289,13 +321,13 @@ class DistributedLock {
         } catch (error) {
             logger.error('Force release error', {
                 lockKey,
-                error: error.message
+                error: (error as Error).message
             });
             return false;
         }
     }
 
-    _sleep(ms) {
+    private _sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
@@ -304,12 +336,23 @@ class DistributedLock {
 const defaultLock = new DistributedLock();
 
 // Convenience functions using default instance
-const acquire = (lockKey, options) => defaultLock.acquire(lockKey, options);
-const withLock = (lockKey, fn, options) => defaultLock.withLock(lockKey, fn, options);
-const withAutoExtend = (lockKey, fn, options) => defaultLock.withAutoExtend(lockKey, fn, options);
-const isLocked = (lockKey) => defaultLock.isLocked(lockKey);
-const getLockOwner = (lockKey) => defaultLock.getLockOwner(lockKey);
-const forceRelease = (lockKey) => defaultLock.forceRelease(lockKey);
+const acquire = (lockKey: string, options?: LockOptions): Promise<LockResult> =>
+    defaultLock.acquire(lockKey, options);
+
+const withLock = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOptions): Promise<T> =>
+    defaultLock.withLock(lockKey, fn, options);
+
+const withAutoExtend = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOptions): Promise<T> =>
+    defaultLock.withAutoExtend(lockKey, fn, options);
+
+const isLocked = (lockKey: string): Promise<boolean> =>
+    defaultLock.isLocked(lockKey);
+
+const getLockOwner = (lockKey: string): Promise<string | null> =>
+    defaultLock.getLockOwner(lockKey);
+
+const forceRelease = (lockKey: string): Promise<boolean> =>
+    defaultLock.forceRelease(lockKey);
 
 module.exports = {
     DistributedLock,
@@ -323,3 +366,18 @@ module.exports = {
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT
 };
+
+// ES6 exports for TypeScript imports
+export {
+    DistributedLock,
+    acquire,
+    withLock,
+    withAutoExtend,
+    isLocked,
+    getLockOwner,
+    forceRelease,
+    RELEASE_LOCK_SCRIPT,
+    EXTEND_LOCK_SCRIPT
+};
+
+export type { LockConfig, LockResult, LockOptions };

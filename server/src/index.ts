@@ -2,10 +2,15 @@
  * Codenames Online - Server Entry Point
  */
 
+import type { Server as HttpServer } from 'http';
+import type { Server as SocketServer } from 'socket.io';
+import type { Application } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 require('dotenv').config();
 
 const http = require('http');
-const app = require('./app');
+const app = require('./app') as Application & { updateSocketCount: (delta: number) => void };
 const { initializeSocket, cleanupSocketModule } = require('./socket');
 const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
 const { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } = require('./config/database');
@@ -13,10 +18,11 @@ const { validateEnv, getEnvInt } = require('./config/env');
 const timerService = require('./services/timerService');
 const { startMemoryMonitoring, stopMemoryMonitoring } = require('./middleware/timing');
 const logger = require('./utils/logger');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-const PORT = getEnvInt('PORT', 3000);
+const PORT: number = getEnvInt('PORT', 3000);
 
-async function startServer() {
+async function startServer(): Promise<void> {
     try {
         // Validate environment variables first
         validateEnv();
@@ -31,10 +37,10 @@ async function startServer() {
         logger.info('Redis connected');
 
         // Create HTTP server
-        const server = http.createServer(app);
+        const server: HttpServer = http.createServer(app);
 
         // Initialize Socket.io with app reference for socket count caching
-        const io = initializeSocket(server, app);
+        const io: SocketServer = initializeSocket(server, app);
         logger.info('Socket.io initialized');
 
         // Attach dependencies to app for health checks
@@ -57,7 +63,7 @@ async function startServer() {
         });
 
         // Graceful shutdown
-        const shutdown = async (signal) => {
+        const shutdown = async (signal: string): Promise<void> => {
             logger.info(`${signal} received, shutting down gracefully`);
 
             // Sprint 19: Stop memory monitoring
@@ -99,12 +105,12 @@ async function startServer() {
         process.on('SIGINT', () => shutdown('SIGINT'));
 
         // Handle uncaught errors
-        process.on('uncaughtException', (error) => {
+        process.on('uncaughtException', (error: Error) => {
             logger.error('Uncaught exception:', error);
             shutdown('UNCAUGHT_EXCEPTION');
         });
 
-        process.on('unhandledRejection', (reason, promise) => {
+        process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
             logger.error('Unhandled rejection at:', promise, 'reason:', reason);
             // In production, terminate on unhandled rejections to avoid corrupted state
             if (process.env.NODE_ENV === 'production') {

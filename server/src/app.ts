@@ -2,6 +2,10 @@
  * Express Application Configuration
  */
 
+import type { Request, Response, NextFunction, Application } from 'express';
+import type { Server as SocketServer } from 'socket.io';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,8 +22,32 @@ const logger = require('./utils/logger');
 const { setupSwagger } = require('./config/swagger');
 const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
 const { SOCKET } = require('./config/constants');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-const app = express();
+/**
+ * Extended Express Application with custom properties
+ */
+interface ExtendedApp extends Application {
+    updateSocketCount: (delta: number) => void;
+}
+
+/**
+ * Socket count result
+ */
+interface SocketCountResult {
+    count: number;
+    cached: boolean;
+    stale?: boolean;
+}
+
+/**
+ * Rate limiter with metrics
+ */
+interface RateLimiterWithMetrics {
+    getMetrics: () => Record<string, unknown>;
+}
+
+const app: ExtendedApp = express() as ExtendedApp;
 
 // Trust proxy when behind reverse proxy (Fly.io, nginx, etc.)
 // Required for accurate IP detection in rate limiting and logging
@@ -36,7 +64,7 @@ let lastSocketCountUpdate = 0;
  * Get cached socket count (updated on connect/disconnect)
  * Falls back to io.fetchSockets() if cache is stale
  */
-async function getCachedSocketCount(io, forceRefresh = false) {
+async function getCachedSocketCount(io: SocketServer, forceRefresh = false): Promise<SocketCountResult> {
     const now = Date.now();
 
     // Return cached value if fresh
@@ -46,8 +74,8 @@ async function getCachedSocketCount(io, forceRefresh = false) {
 
     // Refresh cache with timeout protection
     try {
-        const socketCountPromise = io.fetchSockets().then(s => s.length);
-        const timeoutPromise = new Promise((_, reject) =>
+        const socketCountPromise = io.fetchSockets().then((s: unknown[]) => s.length);
+        const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('Socket count timeout')), SOCKET.SOCKET_COUNT_TIMEOUT_MS)
         );
 
@@ -64,7 +92,7 @@ async function getCachedSocketCount(io, forceRefresh = false) {
 /**
  * Update socket count on connection change (called from socket/index.js)
  */
-function updateSocketCount(delta) {
+function updateSocketCount(delta: number): void {
     cachedSocketCount = Math.max(0, cachedSocketCount + delta);
     lastSocketCountUpdate = Date.now();
     setSocketConnections(cachedSocketCount);
@@ -122,7 +150,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-    origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()),
+    origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With']
@@ -151,7 +179,7 @@ app.use('/api', routes);
 app.use('/admin', adminRoutes);
 
 // Service worker must never be HTTP-cached so browser always checks for updates
-app.get('/service-worker.js', (req, res, next) => {
+app.get('/service-worker.js', (_req: Request, res: Response, next: NextFunction) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     next();
 });
@@ -164,7 +192,7 @@ app.use(express.static(path.join(__dirname, '../public'), {
 }));
 
 // Basic health check (fast, for load balancer keep-alive)
-app.get('/health', (req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -172,10 +200,27 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Health check response interface
+interface HealthCheckResponse {
+    status: string;
+    timestamp: string;
+    uptime: number;
+    memory: NodeJS.MemoryUsage;
+    instance?: {
+        flyAllocId: string;
+        flyRegion?: string;
+    };
+    checks: {
+        database?: { status: string; note?: string; message?: string };
+        storage?: { status: string; type?: string; note?: string; message?: string };
+        socketio?: { status: string; connections?: number; cached?: boolean; note?: string; message?: string };
+    };
+}
+
 // Detailed health check with all dependencies (Redis, Database, Socket.io)
 // This is the endpoint Fly.io should use for readiness checks
-app.get('/health/ready', async (req, res) => {
-    const checks = {
+app.get('/health/ready', async (_req: Request, res: Response) => {
+    const checks: HealthCheckResponse = {
         status: 'ok',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
@@ -195,7 +240,7 @@ app.get('/health/ready', async (req, res) => {
     try {
         const { isDatabaseEnabled } = require('./config/database');
         if (isDatabaseEnabled()) {
-            const getDatabase = app.get('database');
+            const getDatabase = app.get('database') as () => { $queryRaw: (query: TemplateStringsArray) => Promise<unknown> };
             const prisma = getDatabase();
             // Simple query to verify database connectivity
             await prisma.$queryRaw`SELECT 1`;
@@ -204,16 +249,16 @@ app.get('/health/ready', async (req, res) => {
             checks.checks.database = { status: 'disabled', note: 'Game works without database' };
         }
     } catch (error) {
-        checks.checks.database = { status: 'error', message: error.message };
+        checks.checks.database = { status: 'error', message: (error as Error).message };
         // Database errors don't degrade overall status since it's optional
-        logger.warn('Health check: Database error (non-critical)', error.message);
+        logger.warn('Health check: Database error (non-critical)', (error as Error).message);
     }
 
     // Check Redis/Storage
     try {
         const { isRedisHealthy, isUsingMemoryMode } = require('./config/redis');
-        const healthy = await isRedisHealthy();
-        const memoryMode = isUsingMemoryMode();
+        const healthy: boolean = await isRedisHealthy();
+        const memoryMode: boolean = isUsingMemoryMode();
         if (healthy) {
             checks.checks.storage = {
                 status: 'ok',
@@ -225,14 +270,14 @@ app.get('/health/ready', async (req, res) => {
             checks.status = 'degraded';
         }
     } catch (error) {
-        checks.checks.storage = { status: 'error', message: error.message };
+        checks.checks.storage = { status: 'error', message: (error as Error).message };
         checks.status = 'degraded';
-        logger.error('Health check: Storage error', error.message);
+        logger.error('Health check: Storage error', (error as Error).message);
     }
 
     // Check Socket.io with cached count for fast response
     try {
-        const io = app.get('io');
+        const io = app.get('io') as SocketServer | undefined;
         if (io) {
             const { count, cached, stale } = await getCachedSocketCount(io);
             checks.checks.socketio = {
@@ -245,7 +290,7 @@ app.get('/health/ready', async (req, res) => {
             checks.checks.socketio = { status: 'not_configured' };
         }
     } catch (error) {
-        checks.checks.socketio = { status: 'error', message: error.message };
+        checks.checks.socketio = { status: 'error', message: (error as Error).message };
         checks.status = 'degraded';
     }
 
@@ -254,17 +299,43 @@ app.get('/health/ready', async (req, res) => {
 });
 
 // Liveness probe (Kubernetes/Fly.io) - just confirms process is running
-app.get('/health/live', (req, res) => {
+app.get('/health/live', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'alive' });
 });
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
 setupSwagger(app);
 
+// Metrics response interface
+interface MetricsResponse {
+    timestamp: string;
+    process: {
+        uptime: number;
+        memory: NodeJS.MemoryUsage;
+        cpu: NodeJS.CpuUsage;
+    };
+    instance?: {
+        flyAllocId: string;
+        flyRegion?: string;
+    };
+    socketio?: {
+        status: string;
+        connections?: number;
+        cached?: boolean;
+        note?: string;
+        error?: string;
+    };
+    application?: Record<string, unknown> | { status: string; error: string };
+    rateLimits?: {
+        http: Record<string, unknown>;
+        socket: Record<string, unknown> | { status: string };
+    };
+}
+
 // Metrics endpoint with rate limit visibility and application metrics
 // Rate limited to prevent abuse (metrics can be expensive to compute)
-app.get('/metrics', strictLimiter, async (req, res) => {
-    const metricsData = {
+app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
+    const metricsData: MetricsResponse = {
         timestamp: new Date().toISOString(),
         process: {
             uptime: process.uptime(),
@@ -283,7 +354,7 @@ app.get('/metrics', strictLimiter, async (req, res) => {
 
     // Add socket.io stats with cached count
     try {
-        const io = app.get('io');
+        const io = app.get('io') as SocketServer | undefined;
         if (io) {
             const { count, cached, stale } = await getCachedSocketCount(io);
             metricsData.socketio = {
@@ -294,10 +365,10 @@ app.get('/metrics', strictLimiter, async (req, res) => {
             };
         }
     } catch (error) {
-        logger.warn('Failed to fetch socket stats for metrics:', error.message);
+        logger.warn('Failed to fetch socket stats for metrics:', (error as Error).message);
         metricsData.socketio = {
             status: 'error',
-            error: error.message
+            error: (error as Error).message
         };
     }
 
@@ -306,23 +377,23 @@ app.get('/metrics', strictLimiter, async (req, res) => {
         const appMetrics = getAllMetrics();
         metricsData.application = appMetrics;
     } catch (error) {
-        logger.warn('Failed to fetch application metrics:', error.message);
+        logger.warn('Failed to fetch application metrics:', (error as Error).message);
         metricsData.application = {
             status: 'error',
-            error: error.message
+            error: (error as Error).message
         };
     }
 
     // Add rate limit metrics
     try {
         const httpMetrics = getHttpRateLimitMetrics();
-        const socketRateLimiter = app.get('socketRateLimiter');
+        const socketRateLimiter = app.get('socketRateLimiter') as RateLimiterWithMetrics | undefined;
         metricsData.rateLimits = {
             http: httpMetrics,
             socket: socketRateLimiter ? socketRateLimiter.getMetrics() : { status: 'not initialized' }
         };
     } catch (error) {
-        logger.warn('Failed to fetch rate limit metrics:', error.message);
+        logger.warn('Failed to fetch rate limit metrics:', (error as Error).message);
         metricsData.rateLimits = {
             http: {},
             socket: {}
@@ -334,7 +405,7 @@ app.get('/metrics', strictLimiter, async (req, res) => {
 
 // Serve the game for any non-API route (SPA support)
 const RESERVED_PATH_PREFIXES = ['/api', '/socket.io', '/health', '/metrics', '/api-docs', '/admin'];
-app.get('*', (req, res, next) => {
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
     if (RESERVED_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
         return next();
     }
@@ -346,3 +417,4 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 module.exports = app;
+export default app;

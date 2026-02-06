@@ -16,7 +16,7 @@ const logger = require('./logger');
 const { getCorrelationId } = require('./correlationId');
 
 // Instance ID for distributed deployments
-const instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
+const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
 
 /**
  * Audit event types
@@ -53,20 +53,39 @@ const AUDIT_EVENTS = {
     RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
     VALIDATION_FAILED: 'VALIDATION_FAILED',
     IP_MISMATCH_DETECTED: 'IP_MISMATCH_DETECTED'
-};
+} as const;
+
+type AuditEventType = typeof AUDIT_EVENTS[keyof typeof AUDIT_EVENTS];
+
+/**
+ * Audit entry details interface
+ */
+interface AuditDetails {
+    roomCode?: string;
+    sessionId?: string;
+    ip?: string;
+    nickname?: string;
+    metadata?: Record<string, unknown>;
+}
+
+/**
+ * Audit entry interface
+ */
+interface AuditEntry extends AuditDetails {
+    type: 'AUDIT';
+    event: AuditEventType;
+    timestamp: string;
+    correlationId: string;
+    instanceId: string;
+}
 
 /**
  * Log an audit event
- * @param {string} event - Event type from AUDIT_EVENTS
- * @param {Object} details - Event details
- * @param {string} details.roomCode - Room code (if applicable)
- * @param {string} details.sessionId - Session ID of the actor
- * @param {string} details.ip - IP address of the actor
- * @param {string} details.nickname - Nickname of the actor
- * @param {Object} details.metadata - Additional event-specific data
+ * @param event - Event type from AUDIT_EVENTS
+ * @param details - Event details
  */
-function audit(event, details = {}) {
-    const entry = {
+function audit(event: AuditEventType, details: AuditDetails = {}): AuditEntry {
+    const entry: AuditEntry = {
         type: 'AUDIT',
         event,
         timestamp: new Date().toISOString(),
@@ -86,7 +105,13 @@ function audit(event, details = {}) {
 /**
  * Log host transfer
  */
-function auditHostTransferred(roomCode, fromSessionId, toSessionId, reason, ip) {
+function auditHostTransferred(
+    roomCode: string,
+    fromSessionId: string,
+    toSessionId: string,
+    reason: string,
+    ip?: string
+): AuditEntry {
     return audit(AUDIT_EVENTS.HOST_TRANSFERRED, {
         roomCode,
         sessionId: fromSessionId,
@@ -102,7 +127,13 @@ function auditHostTransferred(roomCode, fromSessionId, toSessionId, reason, ip) 
 /**
  * Log spymaster assignment
  */
-function auditSpymasterAssigned(roomCode, sessionId, nickname, team, ip) {
+function auditSpymasterAssigned(
+    roomCode: string,
+    sessionId: string,
+    nickname: string,
+    team: string,
+    ip?: string
+): AuditEntry {
     return audit(AUDIT_EVENTS.SPYMASTER_ASSIGNED, {
         roomCode,
         sessionId,
@@ -115,7 +146,14 @@ function auditSpymasterAssigned(roomCode, sessionId, nickname, team, ip) {
 /**
  * Log role change
  */
-function auditRoleChanged(roomCode, sessionId, nickname, oldRole, newRole, ip) {
+function auditRoleChanged(
+    roomCode: string,
+    sessionId: string,
+    nickname: string,
+    oldRole: string,
+    newRole: string,
+    ip?: string
+): AuditEntry {
     return audit(AUDIT_EVENTS.ROLE_CHANGED, {
         roomCode,
         sessionId,
@@ -128,7 +166,12 @@ function auditRoleChanged(roomCode, sessionId, nickname, oldRole, newRole, ip) {
 /**
  * Log game start
  */
-function auditGameStarted(roomCode, sessionId, playerCount, ip) {
+function auditGameStarted(
+    roomCode: string,
+    sessionId: string,
+    playerCount: number,
+    ip?: string
+): AuditEntry {
     return audit(AUDIT_EVENTS.GAME_STARTED, {
         roomCode,
         sessionId,
@@ -139,14 +182,21 @@ function auditGameStarted(roomCode, sessionId, playerCount, ip) {
 
 /**
  * Log game end
- * @param {string} roomCode - Room code
- * @param {string} sessionId - Session ID of player who triggered game end (optional for timeouts)
- * @param {string} ip - IP address of player (optional)
- * @param {string} winner - Winning team
- * @param {string} endReason - Reason game ended
- * @param {number} duration - Game duration in seconds (optional)
+ * @param roomCode - Room code
+ * @param sessionId - Session ID of player who triggered game end (optional for timeouts)
+ * @param ip - IP address of player (optional)
+ * @param winner - Winning team
+ * @param endReason - Reason game ended
+ * @param duration - Game duration in seconds (optional)
  */
-function auditGameEnded(roomCode, sessionId, ip, winner, endReason, duration) {
+function auditGameEnded(
+    roomCode: string,
+    sessionId: string | undefined,
+    ip: string | undefined,
+    winner: string,
+    endReason: string,
+    duration?: number
+): AuditEntry {
     return audit(AUDIT_EVENTS.GAME_ENDED, {
         roomCode,
         sessionId,
@@ -158,7 +208,11 @@ function auditGameEnded(roomCode, sessionId, ip, winner, endReason, duration) {
 /**
  * Log session hijack blocked
  */
-function auditSessionHijackBlocked(sessionId, ip, attemptedFromIP) {
+function auditSessionHijackBlocked(
+    sessionId: string,
+    ip: string,
+    attemptedFromIP: string
+): AuditEntry {
     return audit(AUDIT_EVENTS.SESSION_HIJACK_BLOCKED, {
         sessionId,
         ip: attemptedFromIP,
@@ -169,7 +223,12 @@ function auditSessionHijackBlocked(sessionId, ip, attemptedFromIP) {
 /**
  * Log rate limit exceeded
  */
-function auditRateLimitExceeded(sessionId, ip, event, attempts) {
+function auditRateLimitExceeded(
+    sessionId: string,
+    ip: string,
+    event: string,
+    attempts: number
+): AuditEntry {
     return audit(AUDIT_EVENTS.RATE_LIMIT_EXCEEDED, {
         sessionId,
         ip,
@@ -180,7 +239,13 @@ function auditRateLimitExceeded(sessionId, ip, event, attempts) {
 /**
  * Log player kicked
  */
-function auditPlayerKicked(roomCode, kickedSessionId, kickedBy, reason, ip) {
+function auditPlayerKicked(
+    roomCode: string,
+    kickedSessionId: string,
+    kickedBy: string,
+    reason: string,
+    ip?: string
+): AuditEntry {
     return audit(AUDIT_EVENTS.PLAYER_KICKED, {
         roomCode,
         sessionId: kickedBy,
@@ -192,7 +257,12 @@ function auditPlayerKicked(roomCode, kickedSessionId, kickedBy, reason, ip) {
 /**
  * Log word list modification
  */
-function auditWordListModified(wordListId, action, sessionId, ip) {
+function auditWordListModified(
+    wordListId: string,
+    action: 'create' | 'delete' | 'modify',
+    sessionId: string,
+    ip?: string
+): AuditEntry {
     const eventType = action === 'create' ? AUDIT_EVENTS.WORD_LIST_CREATED
         : action === 'delete' ? AUDIT_EVENTS.WORD_LIST_DELETED
             : AUDIT_EVENTS.WORD_LIST_MODIFIED;
@@ -217,3 +287,20 @@ module.exports = {
     auditPlayerKicked,
     auditWordListModified
 };
+
+// ES6 exports for TypeScript imports
+export {
+    AUDIT_EVENTS,
+    audit,
+    auditHostTransferred,
+    auditSpymasterAssigned,
+    auditRoleChanged,
+    auditGameStarted,
+    auditGameEnded,
+    auditSessionHijackBlocked,
+    auditRateLimitExceeded,
+    auditPlayerKicked,
+    auditWordListModified
+};
+
+export type { AuditEventType, AuditDetails, AuditEntry };

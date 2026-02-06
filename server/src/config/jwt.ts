@@ -4,29 +4,63 @@
  * Provides secure JWT configuration with production requirements.
  */
 
+/* eslint-disable @typescript-eslint/no-var-requires */
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * JWT payload structure
+ */
+export interface JwtPayload {
+    userId?: string;
+    sessionId?: string;
+    type?: string;
+    iat?: number;
+    exp?: number;
+    iss?: string;
+    aud?: string;
+    [key: string]: unknown;
+}
+
+/**
+ * Token verification result with error
+ */
+export interface TokenVerificationError {
+    error: string;
+    message: string;
+}
+
+/**
+ * Token verification result with claims
+ */
+export interface TokenVerificationResult {
+    valid: boolean;
+    decoded?: JwtPayload;
+    error?: string;
+    message?: string;
+}
 
 // JWT configuration constants
-const JWT_CONFIG = {
+export const JWT_CONFIG = {
     algorithm: 'HS256',
     expiresIn: '24h',
     issuer: 'die-eigennamen',
     audience: 'game-client'
-};
+} as const;
 
 // Minimum secret length for production
-const MIN_SECRET_LENGTH = 32;
+export const MIN_SECRET_LENGTH = 32;
 
 // Development-only fallback secret (never use in production)
 const DEV_SECRET = 'development-secret-do-not-use-in-production';
 
 /**
  * Get JWT secret with validation
- * @returns {string|null} - JWT secret or null if not configured
- * @throws {Error} - In production if secret is missing or too short
+ * @returns JWT secret or null if not configured
+ * @throws In production if secret is missing or too short
  */
-function getJwtSecret() {
+function getJwtSecret(): string | null {
     const secret = process.env.JWT_SECRET;
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -56,25 +90,35 @@ function getJwtSecret() {
 
 /**
  * Check if JWT authentication is available
- * @returns {boolean} - True if JWT is configured and usable
+ * @returns True if JWT is configured and usable
  */
-function isJwtEnabled() {
+function isJwtEnabled(): boolean {
     try {
         return getJwtSecret() !== null;
     } catch (e) {
         // FIX M14: Log error instead of silently returning false
-        logger.debug('JWT not enabled:', e.message);
+        logger.debug('JWT not enabled:', (e as Error).message);
         return false;
     }
 }
 
 /**
- * Sign a JWT token with proper configuration
- * @param {object} payload - Token payload
- * @param {object} options - Additional options to merge with defaults
- * @returns {string|null} - Signed token or null if JWT not configured
+ * Sign options for JWT
  */
-function signToken(payload, options = {}) {
+interface SignOptions {
+    expiresIn?: string;
+    algorithm?: string;
+    issuer?: string;
+    audience?: string;
+}
+
+/**
+ * Sign a JWT token with proper configuration
+ * @param payload - Token payload
+ * @param options - Additional options to merge with defaults
+ * @returns Signed token or null if JWT not configured
+ */
+function signToken(payload: JwtPayload, options: SignOptions = {}): string | null {
     const secret = getJwtSecret();
     if (!secret) {
         return null;
@@ -94,23 +138,29 @@ function signToken(payload, options = {}) {
 }
 
 // JWT error codes for structured error handling
-const JWT_ERROR_CODES = {
+export const JWT_ERROR_CODES = {
     TOKEN_EXPIRED: 'TOKEN_EXPIRED',
     TOKEN_INVALID: 'TOKEN_INVALID',
     TOKEN_MALFORMED: 'TOKEN_MALFORMED',
     TOKEN_NOT_ACTIVE: 'TOKEN_NOT_ACTIVE',
     CLAIMS_MISMATCH: 'CLAIMS_MISMATCH',
     JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED'
-};
+} as const;
+
+/**
+ * Verify options for JWT
+ */
+interface VerifyOptions {
+    returnError?: boolean;
+}
 
 /**
  * Verify and decode a JWT token with detailed error information
- * @param {string} token - Token to verify
- * @param {object} options - Optional verification options
- * @param {boolean} options.returnError - If true, returns error object instead of null on failure
- * @returns {object|null} - Decoded payload, or error object if returnError is true, or null if invalid
+ * @param token - Token to verify
+ * @param options - Optional verification options
+ * @returns Decoded payload, or error object if returnError is true, or null if invalid
  */
-function verifyToken(token, options = {}) {
+function verifyToken(token: string, options: VerifyOptions = {}): JwtPayload | TokenVerificationError | null {
     const secret = getJwtSecret();
     if (!secret) {
         if (options.returnError) {
@@ -124,32 +174,33 @@ function verifyToken(token, options = {}) {
             algorithms: [JWT_CONFIG.algorithm],
             issuer: JWT_CONFIG.issuer,
             audience: JWT_CONFIG.audience
-        });
+        }) as JwtPayload;
     } catch (error) {
-        let errorCode;
-        let errorMessage;
+        let errorCode: string;
+        let errorMessage: string;
+        const err = error as Error & { name: string; expiredAt?: Date; date?: Date };
 
-        if (error.name === 'TokenExpiredError') {
+        if (err.name === 'TokenExpiredError') {
             errorCode = JWT_ERROR_CODES.TOKEN_EXPIRED;
-            errorMessage = `Token expired at ${error.expiredAt}`;
-            logger.debug('JWT token expired', { expiredAt: error.expiredAt });
-        } else if (error.name === 'NotBeforeError') {
+            errorMessage = `Token expired at ${err.expiredAt}`;
+            logger.debug('JWT token expired', { expiredAt: err.expiredAt });
+        } else if (err.name === 'NotBeforeError') {
             errorCode = JWT_ERROR_CODES.TOKEN_NOT_ACTIVE;
-            errorMessage = `Token not active until ${error.date}`;
-            logger.debug('JWT token not yet active', { notBefore: error.date });
-        } else if (error.name === 'JsonWebTokenError') {
+            errorMessage = `Token not active until ${err.date}`;
+            logger.debug('JWT token not yet active', { notBefore: err.date });
+        } else if (err.name === 'JsonWebTokenError') {
             // Distinguish between malformed and other JWT errors
-            if (error.message.includes('malformed') || error.message.includes('invalid')) {
+            if (err.message.includes('malformed') || err.message.includes('invalid')) {
                 errorCode = JWT_ERROR_CODES.TOKEN_MALFORMED;
             } else {
                 errorCode = JWT_ERROR_CODES.TOKEN_INVALID;
             }
-            errorMessage = error.message;
-            logger.debug('Invalid JWT token:', error.message);
+            errorMessage = err.message;
+            logger.debug('Invalid JWT token:', err.message);
         } else {
             errorCode = JWT_ERROR_CODES.TOKEN_INVALID;
-            errorMessage = error.message;
-            logger.warn('JWT verification error:', error.message);
+            errorMessage = err.message;
+            logger.warn('JWT verification error:', err.message);
         }
 
         if (options.returnError) {
@@ -161,16 +212,15 @@ function verifyToken(token, options = {}) {
 
 /**
  * Verify token and validate that claims match expected values
- * @param {string} token - Token to verify
- * @param {object} expectedClaims - Claims to validate (e.g., { userId, sessionId })
- * @returns {{valid: boolean, decoded?: object, error?: string, message?: string}}
+ * @param token - Token to verify
+ * @param expectedClaims - Claims to validate (e.g., { userId, sessionId })
  */
-function verifyTokenWithClaims(token, expectedClaims = {}) {
+function verifyTokenWithClaims(token: string, expectedClaims: Record<string, unknown> = {}): TokenVerificationResult {
     const result = verifyToken(token, { returnError: true });
 
     // Check if verification failed
-    if (result && result.error) {
-        return { valid: false, error: result.error, message: result.message };
+    if (result && 'error' in result) {
+        return { valid: false, error: result.error as string, message: result.message as string };
     }
 
     // Check if token decoded successfully
@@ -178,13 +228,15 @@ function verifyTokenWithClaims(token, expectedClaims = {}) {
         return { valid: false, error: JWT_ERROR_CODES.TOKEN_INVALID, message: 'Token verification failed' };
     }
 
+    const decoded = result as JwtPayload;
+
     // Validate expected claims
     for (const [key, expectedValue] of Object.entries(expectedClaims)) {
-        if (expectedValue !== undefined && result[key] !== expectedValue) {
+        if (expectedValue !== undefined && decoded[key] !== expectedValue) {
             logger.debug('JWT claims mismatch', {
                 claim: key,
                 expected: expectedValue,
-                actual: result[key]
+                actual: decoded[key]
             });
             return {
                 valid: false,
@@ -194,32 +246,32 @@ function verifyTokenWithClaims(token, expectedClaims = {}) {
         }
     }
 
-    return { valid: true, decoded: result };
+    return { valid: true, decoded };
 }
 
 /**
  * Decode a token without verification (for debugging/logging)
- * @param {string} token - Token to decode
- * @returns {object|null} - Decoded payload or null if malformed
+ * @param token - Token to decode
+ * @returns Decoded payload or null if malformed
  */
-function decodeToken(token) {
+function decodeToken(token: string): JwtPayload | null {
     try {
-        return jwt.decode(token);
+        return jwt.decode(token) as JwtPayload | null;
     } catch (e) {
         // FIX M14: Log error instead of silently returning null
-        logger.debug('Failed to decode token:', e.message);
+        logger.debug('Failed to decode token:', (e as Error).message);
         return null;
     }
 }
 
 /**
  * Generate a new session token for a user
- * @param {string} userId - User ID
- * @param {string} sessionId - Session ID
- * @param {object} additionalClaims - Additional claims to include
- * @returns {string|null} - Signed token or null if JWT not configured
+ * @param userId - User ID
+ * @param sessionId - Session ID
+ * @param additionalClaims - Additional claims to include
+ * @returns Signed token or null if JWT not configured
  */
-function generateSessionToken(userId, sessionId, additionalClaims = {}) {
+function generateSessionToken(userId: string, sessionId: string, additionalClaims: Record<string, unknown> = {}): string | null {
     return signToken({
         userId,
         sessionId,
@@ -232,6 +284,16 @@ module.exports = {
     JWT_CONFIG,
     JWT_ERROR_CODES,
     MIN_SECRET_LENGTH,
+    getJwtSecret,
+    isJwtEnabled,
+    signToken,
+    verifyToken,
+    verifyTokenWithClaims,
+    decodeToken,
+    generateSessionToken
+};
+
+export {
     getJwtSecret,
     isJwtEnabled,
     signToken,

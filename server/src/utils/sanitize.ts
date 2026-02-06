@@ -7,10 +7,10 @@
 
 /**
  * Sanitize HTML special characters to prevent XSS
- * @param {string} input - The string to sanitize
- * @returns {string} - Sanitized string with HTML entities escaped
+ * @param input - The string to sanitize
+ * @returns Sanitized string with HTML entities escaped
  */
-function sanitizeHtml(input) {
+function sanitizeHtml(input: unknown): string {
     if (typeof input !== 'string') return '';
 
     return input
@@ -24,19 +24,19 @@ function sanitizeHtml(input) {
 
 /**
  * Sanitize object for logging (redact sensitive fields)
- * @param {object} obj - Object to sanitize
- * @returns {object} - Object with sensitive fields redacted
+ * @param obj - Object to sanitize
+ * @returns Object with sensitive fields redacted
  */
-function sanitizeForLog(obj) {
+function sanitizeForLog<T>(obj: T): T {
     if (!obj || typeof obj !== 'object') return obj;
 
     // Handle arrays — recurse into each element
     if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeForLog(item));
+        return obj.map(item => sanitizeForLog(item)) as unknown as T;
     }
 
     const sensitivePatterns = ['password', 'token', 'secret', 'key', 'auth', 'credential'];
-    const sanitized = { ...obj };
+    const sanitized = { ...obj } as Record<string, unknown>;
 
     for (const key of Object.keys(sanitized)) {
         const lowerKey = key.toLowerCase();
@@ -47,15 +47,15 @@ function sanitizeForLog(obj) {
         }
     }
 
-    return sanitized;
+    return sanitized as T;
 }
 
 /**
  * Remove control characters from string
- * @param {string} input - The string to clean
- * @returns {string} - String with control characters removed
+ * @param input - The string to clean
+ * @returns String with control characters removed
  */
-function removeControlChars(input) {
+function removeControlChars(input: unknown): string {
     if (typeof input !== 'string') return '';
     // Remove ASCII control characters (0x00-0x1F) except newline (0x0A) and carriage return (0x0D)
     return input.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '');
@@ -63,11 +63,11 @@ function removeControlChars(input) {
 
 /**
  * Check if a nickname is reserved
- * @param {string} nickname - The nickname to check
- * @param {string[]} reservedNames - List of reserved names (lowercase)
- * @returns {boolean} - True if the nickname is reserved
+ * @param nickname - The nickname to check
+ * @param reservedNames - List of reserved names (lowercase)
+ * @returns True if the nickname is reserved
  */
-function isReservedName(nickname, reservedNames) {
+function isReservedName(nickname: unknown, reservedNames: string[]): boolean {
     if (typeof nickname !== 'string') return false;
     const normalized = toEnglishLowerCase(nickname).trim();
     return reservedNames.some(reserved => normalized === reserved);
@@ -75,44 +75,50 @@ function isReservedName(nickname, reservedNames) {
 
 /**
  * Convert string to lowercase using English locale
- * Avoids Turkish/Azerbaijani locale issues where 'I' becomes 'ı' (dotless i)
- * @param {string} input - The string to convert
- * @returns {string} - Lowercase string
+ * Avoids Turkish/Azerbaijani locale issues where 'I' becomes 'i' (dotless i)
+ * @param input - The string to convert
+ * @returns Lowercase string
  */
-function toEnglishLowerCase(input) {
+function toEnglishLowerCase(input: unknown): string {
     if (typeof input !== 'string') return '';
     return input.toLocaleLowerCase('en-US');
 }
 
 /**
  * Convert string to uppercase using English locale
- * Avoids Turkish/Azerbaijani locale issues where 'i' becomes 'İ' (dotted I)
- * @param {string} input - The string to convert
- * @returns {string} - Uppercase string
+ * Avoids Turkish/Azerbaijani locale issues where 'i' becomes 'I' (dotted I)
+ * @param input - The string to convert
+ * @returns Uppercase string
  */
-function toEnglishUpperCase(input) {
+function toEnglishUpperCase(input: unknown): string {
     if (typeof input !== 'string') return '';
     return input.toLocaleUpperCase('en-US');
 }
 
 /**
+ * Options for locale comparison
+ */
+interface LocaleCompareOptions {
+    caseInsensitive?: boolean;
+}
+
+/**
  * Compare two strings in a locale-safe manner
  * Uses English collation to ensure consistent comparison across locales
- * @param {string} a - First string
- * @param {string} b - Second string
- * @param {object} options - Comparison options
- * @param {boolean} options.caseInsensitive - Whether to ignore case (default: true)
- * @returns {number} - -1, 0, or 1 for sorting; 0 means equal
+ * @param a - First string
+ * @param b - Second string
+ * @param options - Comparison options
+ * @returns -1, 0, or 1 for sorting; 0 means equal
  */
-function localeCompare(a, b, options = {}) {
+function localeCompare(a: unknown, b: unknown, options: LocaleCompareOptions = {}): number {
     const { caseInsensitive = true } = options;
 
-    if (typeof a !== 'string') a = '';
-    if (typeof b !== 'string') b = '';
+    let strA = typeof a === 'string' ? a : '';
+    let strB = typeof b === 'string' ? b : '';
 
     // Normalize both strings first
-    const normalizedA = a.normalize('NFC');
-    const normalizedB = b.normalize('NFC');
+    const normalizedA = strA.normalize('NFC');
+    const normalizedB = strB.normalize('NFC');
 
     // Use English collator for consistent comparison across locales
     const collator = new Intl.Collator('en-US', {
@@ -125,12 +131,12 @@ function localeCompare(a, b, options = {}) {
 
 /**
  * Check if string A contains string B (locale-safe)
- * @param {string} haystack - String to search in
- * @param {string} needle - String to search for
- * @param {boolean} caseInsensitive - Whether to ignore case (default: true)
- * @returns {boolean} - True if haystack contains needle
+ * @param haystack - String to search in
+ * @param needle - String to search for
+ * @param caseInsensitive - Whether to ignore case (default: true)
+ * @returns True if haystack contains needle
  */
-function localeIncludes(haystack, needle, caseInsensitive = true) {
+function localeIncludes(haystack: unknown, needle: unknown, caseInsensitive: boolean = true): boolean {
     if (typeof haystack !== 'string' || typeof needle !== 'string') return false;
 
     // Normalize both strings
@@ -155,3 +161,17 @@ module.exports = {
     localeCompare,
     localeIncludes
 };
+
+// ES6 exports for TypeScript imports
+export {
+    sanitizeHtml,
+    sanitizeForLog,
+    removeControlChars,
+    isReservedName,
+    toEnglishLowerCase,
+    toEnglishUpperCase,
+    localeCompare,
+    localeIncludes
+};
+
+export type { LocaleCompareOptions };

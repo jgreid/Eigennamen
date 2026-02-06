@@ -12,26 +12,89 @@
  * 4. Reduces boilerplate in every handler
  */
 
+import type { Player, GameState, Team, Role } from '../types';
+import type { GameSocket } from './rateLimitHandler';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
 const logger = require('../utils/logger');
 const { RoomError, PlayerError } = require('../errors/GameError');
 const { ERROR_CODES } = require('../config/constants');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Options for building player context
+ */
+export interface PlayerContextOptions {
+    /** Throw if not in a room (default: true) */
+    requireRoom?: boolean;
+    /** Throw if no active game (default: false) */
+    requireGame?: boolean;
+    /** Throw if not the host (default: false) */
+    requireHost?: boolean;
+    /** Throw if not on a team (default: false) */
+    requireTeam?: boolean;
+    /** Throw if not this role (default: null) */
+    requireRole?: Role | null;
+}
+
+/**
+ * Player context returned from getPlayerContext
+ */
+export interface PlayerContextResult {
+    /** Session ID */
+    sessionId: string;
+    /** Room code (null if not in room) */
+    roomCode: string | null;
+    /** Player data from Redis */
+    player: Player | null;
+    /** Game state (null if no active game) */
+    game: GameState | null;
+    /** Whether player is in a room */
+    isInRoom: boolean;
+    /** Whether player is the host */
+    isHost: boolean;
+    /** Player's team (null if unassigned) */
+    team: Team | null;
+    /** Player's role (null if not set) */
+    role: Role | null;
+}
+
+/**
+ * Result of team/role change check
+ */
+export interface CanChangeResult {
+    /** Whether the change is allowed */
+    allowed: boolean;
+    /** Reason if not allowed */
+    reason?: string;
+    /** Error code if not allowed */
+    code?: string;
+}
+
+/**
+ * Options for team/role change check
+ */
+export interface ChangeCheckOptions {
+    /** Whether this is a team change (default: false) */
+    isTeamChange?: boolean;
+    /** The role being changed to (for role changes) */
+    targetRole?: Role | null;
+}
 
 /**
  * Build a validated player context from socket state.
  * This is the ONLY place where socket.roomCode and Redis state are reconciled.
  *
- * @param {Object} socket - Socket.io socket instance
- * @param {Object} options - Options for context building
- * @param {boolean} options.requireRoom - Throw if not in a room (default: true)
- * @param {boolean} options.requireGame - Throw if no active game (default: false)
- * @param {boolean} options.requireHost - Throw if not the host (default: false)
- * @param {boolean} options.requireTeam - Throw if not on a team (default: false)
- * @param {string} options.requireRole - Throw if not this role (default: null)
- * @returns {Promise<Object>} PlayerContext
+ * @param socket - Socket.io socket instance
+ * @param options - Options for context building
+ * @returns PlayerContext
  */
-async function getPlayerContext(socket, options = {}) {
+async function getPlayerContext(
+    socket: GameSocket,
+    options: PlayerContextOptions = {}
+): Promise<PlayerContextResult> {
     const {
         requireRoom = true,
         requireGame = false,
@@ -43,7 +106,7 @@ async function getPlayerContext(socket, options = {}) {
     const sessionId = socket.sessionId;
 
     // Step 1: Get player data from Redis (single source of truth)
-    const player = await playerService.getPlayer(sessionId);
+    const player: Player | null = await playerService.getPlayer(sessionId);
 
     // Step 2: Determine the authoritative roomCode
     const redisRoomCode = player?.roomCode || null;
@@ -86,7 +149,7 @@ async function getPlayerContext(socket, options = {}) {
     const roomCode = redisRoomCode;
 
     // Step 4: Build the context object
-    const context = {
+    const context: PlayerContextResult = {
         sessionId,
         roomCode,
         player,
@@ -145,20 +208,25 @@ async function getPlayerContext(socket, options = {}) {
 /**
  * Check if a player can change their team/role during an active game.
  *
- * @param {Object} ctx - The player context
- * @param {Object} options
- * @param {boolean} options.isTeamChange - Whether this is a team change (default: false)
- * @param {string|null} options.targetRole - The role being changed to (for role changes)
- * @returns {{allowed: boolean, reason?: string}}
+ * @param ctx - The player context
+ * @param options - Options for the check
+ * @returns Object with allowed status and reason if not allowed
  */
-function canChangeTeamOrRole(ctx, { isTeamChange = false, targetRole = null } = {}) {
+function canChangeTeamOrRole(
+    ctx: PlayerContextResult,
+    { isTeamChange = false, targetRole = null }: ChangeCheckOptions = {}
+): CanChangeResult {
     const { player, game } = ctx;
 
     if (!game || game.gameOver) {
         return { allowed: true };
     }
 
-    // Spymasters have seen card types — block team changes entirely during active game
+    if (!player) {
+        return { allowed: true };
+    }
+
+    // Spymasters have seen card types - block team changes entirely during active game
     if (isTeamChange && player.role === 'spymaster') {
         return {
             allowed: false,
@@ -189,11 +257,15 @@ function canChangeTeamOrRole(ctx, { isTeamChange = false, targetRole = null } = 
  * Manages spectator room membership when players transition between
  * team roles and spectator status.
  *
- * @param {Object} socket - Socket.io socket instance
- * @param {Object|null} currentPlayer - Current player state
- * @param {Object|null} previousPlayer - Previous player state (null on first call)
+ * @param socket - Socket.io socket instance
+ * @param currentPlayer - Current player state
+ * @param previousPlayer - Previous player state (null on first call)
  */
-function syncSocketRooms(socket, currentPlayer, previousPlayer) {
+function syncSocketRooms(
+    socket: GameSocket,
+    currentPlayer: Player | null,
+    previousPlayer: Player | null
+): void {
     if (!currentPlayer || !currentPlayer.roomCode) {
         return;
     }
@@ -218,6 +290,12 @@ function syncSocketRooms(socket, currentPlayer, previousPlayer) {
 }
 
 module.exports = {
+    getPlayerContext,
+    canChangeTeamOrRole,
+    syncSocketRooms
+};
+
+export {
     getPlayerContext,
     canChangeTeamOrRole,
     syncSocketRooms

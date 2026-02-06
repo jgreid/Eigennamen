@@ -9,8 +9,47 @@
 
 const logger = require('./logger');
 
-class LRUCache {
-    constructor(options = {}) {
+/**
+ * Cache entry interface
+ */
+interface CacheEntry<T> {
+    value: T;
+    expiresAt: number;
+    createdAt: number;
+}
+
+/**
+ * Cache statistics interface
+ */
+interface CacheStats {
+    size: number;
+    maxSize: number;
+    hits: number;
+    misses: number;
+    hitRate: string;
+}
+
+/**
+ * LRU Cache options
+ */
+interface LRUCacheOptions {
+    maxSize?: number;
+    defaultTTL?: number;
+}
+
+/**
+ * Factory function type for getOrSet
+ */
+type CacheFactory<T> = () => Promise<T>;
+
+class LRUCache<T = unknown> {
+    private maxSize: number;
+    private defaultTTL: number;
+    private cache: Map<string, CacheEntry<T>>;
+    private hits: number;
+    private misses: number;
+
+    constructor(options: LRUCacheOptions = {}) {
         this.maxSize = options.maxSize || 1000;
         this.defaultTTL = options.defaultTTL || 5000; // 5 seconds default
         this.cache = new Map();
@@ -20,10 +59,10 @@ class LRUCache {
 
     /**
      * Get a value from the cache
-     * @param {string} key - Cache key
-     * @returns {*} Cached value or undefined
+     * @param key - Cache key
+     * @returns Cached value or undefined
      */
-    get(key) {
+    get(key: string): T | undefined {
         const entry = this.cache.get(key);
 
         if (!entry) {
@@ -48,15 +87,17 @@ class LRUCache {
 
     /**
      * Set a value in the cache
-     * @param {string} key - Cache key
-     * @param {*} value - Value to cache
-     * @param {number} ttl - Time-to-live in milliseconds (optional)
+     * @param key - Cache key
+     * @param value - Value to cache
+     * @param ttl - Time-to-live in milliseconds (optional)
      */
-    set(key, value, ttl = this.defaultTTL) {
+    set(key: string, value: T, ttl: number = this.defaultTTL): void {
         // Evict oldest entries if at capacity
         while (this.cache.size >= this.maxSize) {
             const oldestKey = this.cache.keys().next().value;
-            this.cache.delete(oldestKey);
+            if (oldestKey !== undefined) {
+                this.cache.delete(oldestKey);
+            }
         }
 
         this.cache.set(key, {
@@ -68,24 +109,24 @@ class LRUCache {
 
     /**
      * Delete a value from the cache
-     * @param {string} key - Cache key
+     * @param key - Cache key
      */
-    delete(key) {
+    delete(key: string): void {
         this.cache.delete(key);
     }
 
     /**
      * Clear all entries from the cache
      */
-    clear() {
+    clear(): void {
         this.cache.clear();
     }
 
     /**
      * Invalidate all entries matching a pattern
-     * @param {string} pattern - Pattern to match (simple startsWith)
+     * @param pattern - Pattern to match (simple startsWith)
      */
-    invalidatePattern(pattern) {
+    invalidatePattern(pattern: string): void {
         for (const key of this.cache.keys()) {
             if (key.startsWith(pattern)) {
                 this.cache.delete(key);
@@ -95,12 +136,12 @@ class LRUCache {
 
     /**
      * Get or set a value with a factory function
-     * @param {string} key - Cache key
-     * @param {Function} factory - Function to generate value if not cached
-     * @param {number} ttl - TTL in milliseconds
-     * @returns {Promise<*>} Cached or newly generated value
+     * @param key - Cache key
+     * @param factory - Function to generate value if not cached
+     * @param ttl - TTL in milliseconds
+     * @returns Cached or newly generated value
      */
-    async getOrSet(key, factory, ttl = this.defaultTTL) {
+    async getOrSet(key: string, factory: CacheFactory<T>, ttl: number = this.defaultTTL): Promise<T> {
         const cached = this.get(key);
         if (cached !== undefined) {
             return cached;
@@ -113,9 +154,9 @@ class LRUCache {
 
     /**
      * Get cache statistics
-     * @returns {Object} Cache stats
+     * @returns Cache stats
      */
-    getStats() {
+    getStats(): CacheStats {
         const total = this.hits + this.misses;
         return {
             size: this.cache.size,
@@ -129,10 +170,19 @@ class LRUCache {
     /**
      * Reset statistics
      */
-    resetStats() {
+    resetStats(): void {
         this.hits = 0;
         this.misses = 0;
     }
+}
+
+/**
+ * All cache stats interface
+ */
+interface AllCacheStats {
+    room: CacheStats;
+    player: CacheStats;
+    game: CacheStats;
 }
 
 // Singleton caches for different data types
@@ -154,7 +204,7 @@ const gameCache = new LRUCache({
 /**
  * Get all cache stats
  */
-function getAllCacheStats() {
+function getAllCacheStats(): AllCacheStats {
     return {
         room: roomCache.getStats(),
         player: playerCache.getStats(),
@@ -165,7 +215,7 @@ function getAllCacheStats() {
 /**
  * Clear all caches
  */
-function clearAllCaches() {
+function clearAllCaches(): void {
     roomCache.clear();
     playerCache.clear();
     gameCache.clear();
@@ -175,7 +225,7 @@ function clearAllCaches() {
 /**
  * Invalidate caches for a specific room
  */
-function invalidateRoomCaches(roomCode) {
+function invalidateRoomCaches(roomCode: string): void {
     roomCache.delete(`room:${roomCode}`);
     playerCache.invalidatePattern(`players:${roomCode}`);
     gameCache.delete(`game:${roomCode}`);
@@ -190,3 +240,16 @@ module.exports = {
     clearAllCaches,
     invalidateRoomCaches
 };
+
+// ES6 exports for TypeScript imports
+export {
+    LRUCache,
+    roomCache,
+    playerCache,
+    gameCache,
+    getAllCacheStats,
+    clearAllCaches,
+    invalidateRoomCaches
+};
+
+export type { CacheEntry, CacheStats, LRUCacheOptions, CacheFactory, AllCacheStats };

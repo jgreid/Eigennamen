@@ -7,8 +7,46 @@
 
 const logger = require('./logger');
 
+/**
+ * Last error interface
+ */
+interface LastError {
+    type: string;
+    message: string;
+    timestamp: number;
+}
+
+/**
+ * Health state interface
+ */
+interface HealthState {
+    isHealthy: boolean;
+    lastSuccessfulPublish: number | null;
+    lastSuccessfulSubscribe: number | null;
+    lastError: LastError | null;
+    consecutiveFailures: number;
+    totalPublishes: number;
+    totalFailures: number;
+}
+
+/**
+ * Health status interface
+ */
+interface HealthStatus {
+    isHealthy: boolean;
+    lastSuccessfulPublish: number | null;
+    lastSuccessfulSubscribe: number | null;
+    publishAgeMs: number | null;
+    subscribeAgeMs: number | null;
+    consecutiveFailures: number;
+    totalPublishes: number;
+    totalFailures: number;
+    failureRate: string;
+    lastError: LastError | null;
+}
+
 // Health state
-const healthState = {
+const healthState: HealthState = {
     isHealthy: true,
     lastSuccessfulPublish: null,
     lastSuccessfulSubscribe: null,
@@ -25,10 +63,15 @@ const RECOVERY_SUCCESS_THRESHOLD = 2;
 let recoverySuccesses = 0;
 
 /**
- * Record a successful pub/sub operation
- * @param {string} operationType - 'publish' or 'subscribe'
+ * Operation type for pub/sub operations
  */
-function recordSuccess(operationType) {
+type OperationType = 'publish' | 'subscribe';
+
+/**
+ * Record a successful pub/sub operation
+ * @param operationType - 'publish' or 'subscribe'
+ */
+function recordSuccess(operationType: OperationType): void {
     const now = Date.now();
 
     if (operationType === 'publish') {
@@ -54,10 +97,10 @@ function recordSuccess(operationType) {
 
 /**
  * Record a failed pub/sub operation
- * @param {string} operationType - 'publish' or 'subscribe'
- * @param {Error} error - The error that occurred
+ * @param operationType - 'publish' or 'subscribe'
+ * @param error - The error that occurred
  */
-function recordFailure(operationType, error) {
+function recordFailure(operationType: OperationType, error: Error): void {
     healthState.consecutiveFailures++;
     healthState.totalFailures++;
     healthState.lastError = {
@@ -81,9 +124,9 @@ function recordFailure(operationType, error) {
 
 /**
  * Get current pub/sub health status
- * @returns {Object} Health status object
+ * @returns Health status object
  */
-function getHealth() {
+function getHealth(): HealthStatus {
     const now = Date.now();
     const publishAge = healthState.lastSuccessfulPublish
         ? now - healthState.lastSuccessfulPublish
@@ -110,16 +153,16 @@ function getHealth() {
 
 /**
  * Check if pub/sub is healthy
- * @returns {boolean}
+ * @returns True if healthy
  */
-function isHealthy() {
+function isHealthy(): boolean {
     return healthState.isHealthy;
 }
 
 /**
  * Reset health state (for testing)
  */
-function reset() {
+function reset(): void {
     healthState.isHealthy = true;
     healthState.lastSuccessfulPublish = null;
     healthState.lastSuccessfulSubscribe = null;
@@ -137,3 +180,14 @@ module.exports = {
     isHealthy,
     reset
 };
+
+// ES6 exports for TypeScript imports
+export {
+    recordSuccess,
+    recordFailure,
+    getHealth,
+    isHealthy,
+    reset
+};
+
+export type { LastError, HealthState, HealthStatus, OperationType };

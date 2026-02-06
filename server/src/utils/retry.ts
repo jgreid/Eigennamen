@@ -9,25 +9,35 @@ const { RETRY_CONFIG } = require('../config/constants');
 
 /**
  * Sleep for a specified duration
- * @param {number} ms - Milliseconds to sleep
- * @returns {Promise<void>}
+ * @param ms - Milliseconds to sleep
  */
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
+ * Retry options interface
+ */
+interface RetryOptions {
+    maxRetries?: number;
+    baseDelayMs?: number;
+    shouldRetry?: (error: Error) => boolean;
+    onRetry?: (error: Error, attempt: number) => void;
+    jitter?: boolean;
+}
+
+/**
+ * Retry function type
+ */
+type RetryFunction<T> = (attempt: number) => Promise<T>;
+
+/**
  * Execute a function with retry logic and exponential backoff
  *
- * @param {Function} fn - Async function to execute (receives attempt number as argument)
- * @param {Object} options - Retry options
- * @param {number} [options.maxRetries=3] - Maximum number of retry attempts
- * @param {number} [options.baseDelayMs=100] - Base delay in milliseconds
- * @param {Function} [options.shouldRetry] - Function to determine if error is retryable (receives error)
- * @param {Function} [options.onRetry] - Callback called before each retry (receives error, attempt)
- * @param {boolean} [options.jitter=true] - Add random jitter to delay
- * @returns {Promise<*>} - Result of the function
- * @throws {Error} - Last error if all retries fail
+ * @param fn - Async function to execute (receives attempt number as argument)
+ * @param options - Retry options
+ * @returns Result of the function
+ * @throws Last error if all retries fail
  *
  * @example
  * // Basic usage
@@ -50,7 +60,7 @@ function sleep(ms) {
  *   }
  * );
  */
-async function withRetry(fn, options = {}) {
+async function withRetry<T>(fn: RetryFunction<T>, options: RetryOptions = {}): Promise<T> {
     const {
         maxRetries = 3,
         baseDelayMs = 100,
@@ -59,16 +69,16 @@ async function withRetry(fn, options = {}) {
         jitter = true
     } = options;
 
-    let lastError;
+    let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             return await fn(attempt);
         } catch (error) {
-            lastError = error;
+            lastError = error as Error;
 
             // Check if we should retry
-            if (attempt === maxRetries || !shouldRetry(error)) {
+            if (attempt === maxRetries || !shouldRetry(lastError)) {
                 throw error;
             }
 
@@ -82,7 +92,7 @@ async function withRetry(fn, options = {}) {
 
             // Call retry callback if provided
             if (onRetry) {
-                onRetry(error, attempt);
+                onRetry(lastError, attempt);
             }
 
             await sleep(delay);
@@ -96,8 +106,8 @@ async function withRetry(fn, options = {}) {
  * Create a retry wrapper with preset configuration
  * Useful for creating domain-specific retry functions
  *
- * @param {Object} defaultOptions - Default options for all retries
- * @returns {Function} - Configured withRetry function
+ * @param defaultOptions - Default options for all retries
+ * @returns Configured withRetry function
  *
  * @example
  * const redisRetry = createRetryWrapper({
@@ -108,18 +118,25 @@ async function withRetry(fn, options = {}) {
  *
  * const result = await redisRetry(async () => await redis.get('key'));
  */
-function createRetryWrapper(defaultOptions = {}) {
-    return function(fn, overrideOptions = {}) {
+function createRetryWrapper(defaultOptions: RetryOptions = {}): <T>(fn: RetryFunction<T>, overrideOptions?: RetryOptions) => Promise<T> {
+    return function<T>(fn: RetryFunction<T>, overrideOptions: RetryOptions = {}): Promise<T> {
         return withRetry(fn, { ...defaultOptions, ...overrideOptions });
     };
 }
 
 /**
- * Check if an error is likely retryable (network/transient errors)
- * @param {Error} error - The error to check
- * @returns {boolean} - True if the error is retryable
+ * Error with optional code property
  */
-function isRetryableError(error) {
+interface ErrorWithCode extends Error {
+    code?: string;
+}
+
+/**
+ * Check if an error is likely retryable (network/transient errors)
+ * @param error - The error to check
+ * @returns True if the error is retryable
+ */
+function isRetryableError(error: Error): boolean {
     // Common retryable error codes
     const retryableCodes = [
         'ECONNRESET',
@@ -131,7 +148,8 @@ function isRetryableError(error) {
         'EPIPE'
     ];
 
-    if (error.code && retryableCodes.includes(error.code)) {
+    const errorWithCode = error as ErrorWithCode;
+    if (errorWithCode.code && retryableCodes.includes(errorWithCode.code)) {
         return true;
     }
 
@@ -149,11 +167,12 @@ function isRetryableError(error) {
 
 /**
  * Check if an error indicates a concurrent modification (for optimistic locking)
- * @param {Error} error - The error to check
- * @returns {boolean} - True if the error is a concurrent modification
+ * @param error - The error to check
+ * @returns True if the error is a concurrent modification
  */
-function isConcurrentModificationError(error) {
-    if (error.code === 'CONCURRENT_MODIFICATION') {
+function isConcurrentModificationError(error: Error): boolean {
+    const errorWithCode = error as ErrorWithCode;
+    if (errorWithCode.code === 'CONCURRENT_MODIFICATION') {
         return true;
     }
     if (error.message && (
@@ -205,3 +224,17 @@ module.exports = {
     withNetworkRetry,
     sleep
 };
+
+// ES6 exports for TypeScript imports
+export {
+    withRetry,
+    createRetryWrapper,
+    isRetryableError,
+    isConcurrentModificationError,
+    withOptimisticLockRetry,
+    withRedisRetry,
+    withNetworkRetry,
+    sleep
+};
+
+export type { RetryOptions, RetryFunction, ErrorWithCode };

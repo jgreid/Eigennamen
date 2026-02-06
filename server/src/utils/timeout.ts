@@ -9,7 +9,10 @@ const logger = require('./logger');
  * Custom error class for timeout errors
  */
 class TimeoutError extends Error {
-    constructor(message, operationName) {
+    public operationName: string;
+    public code: string;
+
+    constructor(message: string, operationName: string) {
         super(message);
         this.name = 'TimeoutError';
         this.operationName = operationName;
@@ -19,15 +22,19 @@ class TimeoutError extends Error {
 
 /**
  * Wrap a promise with a timeout
- * @param {Promise} promise - The promise to wrap
- * @param {number} timeoutMs - Timeout in milliseconds
- * @param {string} operationName - Name of the operation (for logging)
- * @returns {Promise} The promise result or rejects with TimeoutError
+ * @param promise - The promise to wrap
+ * @param timeoutMs - Timeout in milliseconds
+ * @param operationName - Name of the operation (for logging)
+ * @returns The promise result or rejects with TimeoutError
  */
-async function withTimeout(promise, timeoutMs, operationName = 'operation') {
-    let timeoutId;
+async function withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    operationName: string = 'operation'
+): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout>;
 
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
             const error = new TimeoutError(
                 `${operationName} timed out after ${timeoutMs}ms`,
@@ -40,10 +47,10 @@ async function withTimeout(promise, timeoutMs, operationName = 'operation') {
 
     try {
         const result = await Promise.race([promise, timeoutPromise]);
-        clearTimeout(timeoutId);
+        clearTimeout(timeoutId!);
         return result;
     } catch (error) {
-        clearTimeout(timeoutId);
+        clearTimeout(timeoutId!);
         throw error;
     }
 }
@@ -58,18 +65,29 @@ const TIMEOUTS = {
     RECONNECT: 15000,           // 15 seconds for reconnection
     GAME_ACTION: 10000,         // 10 seconds for game actions
     TIMER_OPERATION: 5000       // 5 seconds for timer operations
-};
+} as const;
+
+type TimeoutType = keyof typeof TIMEOUTS;
+
+/**
+ * Handler function type
+ */
+type AsyncHandler<T extends unknown[], R> = (...args: T) => Promise<R>;
 
 /**
  * Create a timeout-wrapped version of an async handler
  * Useful for wrapping entire socket event handlers
- * @param {Function} handler - Async handler function
- * @param {number} timeoutMs - Timeout in milliseconds
- * @param {string} operationName - Name of the operation
- * @returns {Function} Wrapped handler
+ * @param handler - Async handler function
+ * @param timeoutMs - Timeout in milliseconds
+ * @param operationName - Name of the operation
+ * @returns Wrapped handler
  */
-function createTimeoutHandler(handler, timeoutMs, operationName) {
-    return (...args) => {
+function createTimeoutHandler<T extends unknown[], R>(
+    handler: AsyncHandler<T, R>,
+    timeoutMs: number,
+    operationName: string
+): AsyncHandler<T, R> {
+    return (...args: T): Promise<R> => {
         return withTimeout(handler(...args), timeoutMs, operationName);
     };
 }
@@ -80,3 +98,13 @@ module.exports = {
     TimeoutError,
     TIMEOUTS
 };
+
+// ES6 exports for TypeScript imports
+export {
+    withTimeout,
+    createTimeoutHandler,
+    TimeoutError,
+    TIMEOUTS
+};
+
+export type { TimeoutType, AsyncHandler };

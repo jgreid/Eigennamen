@@ -3,6 +3,14 @@
  * Optimized for Fly.io deployment with WebSocket transport
  */
 
+import type { Server as HttpServer } from 'http';
+import type { Server as SocketIOServer, Socket } from 'socket.io';
+import type { Express } from 'express';
+import type { Player, GameState, TimerCallback, RedisSetOptions, LuaEvalOptions } from '../types';
+import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
+import type { TimerInfo } from './socketFunctionProvider';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
@@ -25,17 +33,40 @@ const gameHandlers = require('./handlers/gameHandlers');
 const playerHandlers = require('./handlers/playerHandlers');
 const chatHandlers = require('./handlers/chatHandlers');
 const timerHandlers = require('./handlers/timerHandlers');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-let io = null;
-let app = null; // Reference to Express app for socket count updates
+/**
+ * Express app with socket count update function
+ */
+interface ExpressAppWithSockets extends Express {
+    updateSocketCount?: (delta: number) => void;
+}
+
+/**
+ * Redis client interface for socket operations
+ */
+interface RedisClient {
+    set: (key: string, value: string, options?: RedisSetOptions) => Promise<string | null>;
+    del: (key: string) => Promise<number>;
+    eval: (script: string, options: LuaEvalOptions) => Promise<unknown>;
+}
+
+let io: SocketIOServer | null = null;
+let app: ExpressAppWithSockets | null = null; // Reference to Express app for socket count updates
 let shuttingDown = false;
-let connectionsCleanupInterval = null;
+let connectionsCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 // Track connections per IP for DoS protection
-const connectionsPerIP = new Map();
+const connectionsPerIP = new Map<string, number>();
 
-function initializeSocket(server, expressApp = null) {
-    app = expressApp;
+/**
+ * Initialize Socket.io with the HTTP server
+ * @param server - HTTP server instance
+ * @param expressApp - Optional Express app for socket count updates
+ * @returns Socket.io server instance
+ */
+function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets): SocketIOServer {
+    app = expressApp || null;
     const isProduction = process.env.NODE_ENV === 'production';
     const corsOrigin = process.env.CORS_ORIGIN || '*';
 
@@ -47,9 +78,9 @@ function initializeSocket(server, expressApp = null) {
         process.exit(1);
     }
 
-    io = new Server(server, {
+    const socketServer: SocketIOServer = new Server(server, {
         cors: {
-            origin: corsOrigin === '*' ? true : corsOrigin.split(',').map(s => s.trim()),
+            origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
             methods: ['GET', 'POST'],
             credentials: true
         },
@@ -86,21 +117,24 @@ function initializeSocket(server, expressApp = null) {
         }
     });
 
+    // Assign to module-level variable
+    io = socketServer;
+
     // Use Redis adapter for horizontal scaling (skip in memory mode)
     if (isUsingMemoryMode()) {
         logger.info('Using Socket.io in-memory adapter (single-instance mode)');
     } else {
         try {
             const { pubClient, subClient } = getPubSubClients();
-            io.adapter(createAdapter(pubClient, subClient));
+            socketServer.adapter(createAdapter(pubClient, subClient));
             logger.info('Socket.io Redis adapter configured for horizontal scaling');
         } catch (error) {
-            logger.warn('Redis adapter not available, using in-memory adapter (single instance only):', error.message);
+            logger.warn('Redis adapter not available, using in-memory adapter (single instance only):', (error as Error).message);
         }
     }
 
     // Connection limits middleware - check before authentication
-    io.use((socket, next) => {
+    socketServer.use((socket: Socket, next: (err?: Error) => void) => {
         // SECURITY FIX: Use getClientIP which only trusts X-Forwarded-For behind configured proxies
         const clientIP = getClientIP(socket) || 'unknown';
 
@@ -112,22 +146,23 @@ function initializeSocket(server, expressApp = null) {
         }
 
         // Store IP on socket for tracking
-        socket.clientIP = clientIP;
+        (socket as GameSocket).clientIP = clientIP;
         connectionsPerIP.set(clientIP, currentCount + 1);
         next();
     });
 
     // Authentication middleware - decrement IP counter on auth failure
-    io.use((socket, next) => {
-        authenticateSocket(socket, (err) => {
+    socketServer.use((socket: Socket, next: (err?: Error) => void) => {
+        authenticateSocket(socket, (err?: Error) => {
             if (err) {
                 // Auth failed: decrement connectionsPerIP to prevent permanent IP blocking
-                if (socket.clientIP) {
-                    const currentCount = connectionsPerIP.get(socket.clientIP) || 1;
+                const gameSocket = socket as GameSocket;
+                if (gameSocket.clientIP) {
+                    const currentCount = connectionsPerIP.get(gameSocket.clientIP) || 1;
                     if (currentCount <= 1) {
-                        connectionsPerIP.delete(socket.clientIP);
+                        connectionsPerIP.delete(gameSocket.clientIP);
                     } else {
-                        connectionsPerIP.set(socket.clientIP, currentCount - 1);
+                        connectionsPerIP.set(gameSocket.clientIP, currentCount - 1);
                     }
                 }
                 return next(err);
@@ -137,14 +172,16 @@ function initializeSocket(server, expressApp = null) {
     });
 
     // Connection handling
-    io.on('connection', (socket) => {
+    socketServer.on('connection', (socket: Socket) => {
+        const gameSocket = socket as GameSocket;
+
         // Reject connections during shutdown to prevent handlers referencing a null io
         if (shuttingDown) {
             socket.disconnect(true);
             return;
         }
 
-        logger.info(`Client connected: ${socket.id} (session: ${socket.sessionId})`);
+        logger.info(`Client connected: ${socket.id} (session: ${gameSocket.sessionId})`);
 
         // Update cached socket count for fast health checks
         if (app && typeof app.updateSocketCount === 'function') {
@@ -153,31 +190,31 @@ function initializeSocket(server, expressApp = null) {
 
         // Store the Fly.io instance ID for debugging multi-instance issues
         if (process.env.FLY_ALLOC_ID) {
-            socket.flyInstanceId = process.env.FLY_ALLOC_ID;
+            gameSocket.flyInstanceId = process.env.FLY_ALLOC_ID;
         }
 
         // Attach rate limiter to socket for use in handlers
-        socket.rateLimiter = socketRateLimiter;
+        gameSocket.rateLimiter = socketRateLimiter;
 
         // Register all event handlers
-        roomHandlers(io, socket);
-        gameHandlers(io, socket);
-        playerHandlers(io, socket);
-        chatHandlers(io, socket);
-        timerHandlers(io, socket);
+        roomHandlers(socketServer, gameSocket);
+        gameHandlers(socketServer, gameSocket);
+        playerHandlers(socketServer, gameSocket);
+        chatHandlers(socketServer, gameSocket);
+        timerHandlers(socketServer, gameSocket);
 
         // Handle disconnection
         // ISSUE #9 FIX: Wrap disconnect handler in timeout to prevent hangs
-        socket.on('disconnect', async (reason) => {
+        socket.on('disconnect', async (reason: string) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
 
             // Decrement connection count for this IP
-            if (socket.clientIP) {
-                const currentCount = connectionsPerIP.get(socket.clientIP) || 1;
+            if (gameSocket.clientIP) {
+                const currentCount = connectionsPerIP.get(gameSocket.clientIP) || 1;
                 if (currentCount <= 1) {
-                    connectionsPerIP.delete(socket.clientIP);
+                    connectionsPerIP.delete(gameSocket.clientIP);
                 } else {
-                    connectionsPerIP.set(socket.clientIP, currentCount - 1);
+                    connectionsPerIP.set(gameSocket.clientIP, currentCount - 1);
                 }
             }
 
@@ -192,7 +229,7 @@ function initializeSocket(server, expressApp = null) {
 
             // Clean up rate limiter entries for this socket to prevent memory leaks
             try {
-                socketRateLimiter.cleanupSocket(socket.id);
+                (socketRateLimiter as SocketRateLimiter).cleanupSocket(socket.id);
             } catch (error) {
                 logger.error('Error cleaning up rate limiter:', error);
             }
@@ -202,7 +239,7 @@ function initializeSocket(server, expressApp = null) {
 
             try {
                 await Promise.race([
-                    handleDisconnect(io, socket, reason),
+                    handleDisconnect(socketServer, gameSocket, reason),
                     new Promise((_, reject) => {
                         setTimeout(() => {
                             reject(new Error('Disconnect handler timeout'));
@@ -210,9 +247,9 @@ function initializeSocket(server, expressApp = null) {
                     })
                 ]);
             } catch (error) {
-                if (error.message === 'Disconnect handler timeout') {
+                if ((error as Error).message === 'Disconnect handler timeout') {
                     logger.error(`Disconnect handler timed out after ${DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
-                    // Do NOT retry — the original promise is still running and will complete.
+                    // Do NOT retry - the original promise is still running and will complete.
                     // Retrying would cause duplicate host transfers and disconnect broadcasts.
                 } else {
                     logger.error('Error in disconnect handler:', error);
@@ -221,10 +258,10 @@ function initializeSocket(server, expressApp = null) {
         });
 
         // Handle socket errors
-        socket.on('error', (error) => {
+        socket.on('error', (error: Error) => {
             logger.error(`Socket error for ${socket.id}:`, {
                 message: error.message,
-                sessionId: socket.sessionId
+                sessionId: gameSocket.sessionId
             });
 
             socket.emit('socket:error', {
@@ -243,9 +280,9 @@ function initializeSocket(server, expressApp = null) {
     connectionsCleanupInterval = setInterval(() => {
         try {
             if (!io) return;
-            const actualCounts = new Map();
+            const actualCounts = new Map<string, number>();
             for (const [, socket] of io.sockets.sockets) {
-                const ip = socket.clientIP || 'unknown';
+                const ip = (socket as GameSocket).clientIP || 'unknown';
                 actualCounts.set(ip, (actualCounts.get(ip) || 0) + 1);
             }
             // Reset to actual counts
@@ -272,20 +309,20 @@ function initializeSocket(server, expressApp = null) {
         createTimerExpireCallback
     });
 
-    return io;
+    return socketServer;
 }
 
 /**
  * Create the callback for timer expiration
  */
-function createTimerExpireCallback() {
-    return async (roomCode) => {
+function createTimerExpireCallback(): TimerCallback {
+    return async (roomCode: string): Promise<void> => {
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
         const eventLogService = require('../services/eventLogService');
         try {
             // Check if game is still active before ending turn (prevents race condition)
-            const game = await gameService.getGame(roomCode);
+            const game: GameState | null = await gameService.getGame(roomCode);
             if (!game) {
                 logger.debug(`Timer expired for room ${roomCode} but no game found`);
                 return;
@@ -309,7 +346,7 @@ function createTimerExpireCallback() {
                     previousTurn: result.previousTurn
                 });
             } catch (logErr) {
-                logger.warn(`Failed to log timer expire event: ${logErr.message}`);
+                logger.warn(`Failed to log timer expire event: ${(logErr as Error).message}`);
             }
 
             // Restart timer for the new turn (if timer is configured and game not over)
@@ -319,10 +356,10 @@ function createTimerExpireCallback() {
             setImmediate(() => {
                 (async () => {
                     const { getRedis, isRedisHealthy } = require('../config/redis');
-                    const redis = getRedis();
+                    const redis: RedisClient = getRedis();
                     const lockKey = `lock:timer-restart:${roomCode}`;
                     let lockAcquired = false;
-                    let lockValue;
+                    let lockValue: string | undefined;
 
                     try {
                         // Check Redis availability before attempting lock
@@ -336,7 +373,9 @@ function createTimerExpireCallback() {
                         // SPRINT-15 FIX: Explicit verification of lock result (Redis returns 'OK' or null)
                         lockValue = `${process.pid}:${Date.now()}`;
                         const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: 10 });
-                        lockAcquired = lockResult === 'OK' || lockResult === true;
+                        // Redis SET with NX returns 'OK' on success or null on failure
+                        // Some Redis client versions may return boolean, so we check for truthy value
+                        lockAcquired = lockResult === 'OK' || (lockResult as unknown) === true || !!lockResult;
 
                         if (!lockAcquired) {
                             logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`, {
@@ -352,7 +391,7 @@ function createTimerExpireCallback() {
                         });
 
                         const room = await roomService.getRoom(roomCode);
-                        const game = await gameService.getGame(roomCode);
+                        const currentGame: GameState | null = await gameService.getGame(roomCode);
 
                         if (!room) {
                             logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
@@ -362,27 +401,27 @@ function createTimerExpireCallback() {
                             logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
                             return;
                         }
-                        if (!game) {
+                        if (!currentGame) {
                             logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
                             return;
                         }
-                        if (game.gameOver) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${game.winner})`);
+                        if (currentGame.gameOver) {
+                            logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${currentGame.winner})`);
                             return;
                         }
 
                         await startTurnTimer(roomCode, room.settings.turnTimer);
-                        logger.debug(`Timer restarted for room ${roomCode}, new turn: ${game.currentTurn}`);
+                        logger.debug(`Timer restarted for room ${roomCode}, new turn: ${currentGame.currentTurn}`);
                     } catch (err) {
-                        logger.error(`Timer restart failed for room ${roomCode}: ${err.message}`);
+                        logger.error(`Timer restart failed for room ${roomCode}: ${(err as Error).message}`);
                     } finally {
                         // ISSUE #3 FIX: Always release lock if we acquired it (owner-verified)
-                        if (lockAcquired) {
+                        if (lockAcquired && lockValue) {
                             try {
                                 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
                                 await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] });
                             } catch (delErr) {
-                                logger.error(`Failed to release timer restart lock for ${roomCode}: ${delErr.message}`);
+                                logger.error(`Failed to release timer restart lock for ${roomCode}: ${(delErr as Error).message}`);
                             }
                         }
                     }
@@ -402,13 +441,17 @@ function createTimerExpireCallback() {
  * Uses lock to prevent race conditions during host transfer
  * ISSUE #17 FIX: Generate reconnection token for secure reconnection
  */
-async function handleDisconnect(io, socket, reason) {
+async function handleDisconnect(
+    ioInstance: SocketIOServer,
+    socket: GameSocket,
+    reason: string
+): Promise<void> {
     const playerService = require('../services/playerService');
     const eventLogService = require('../services/eventLogService');
     const { getRedis } = require('../config/redis');
 
     try {
-        const player = await playerService.getPlayer(socket.sessionId);
+        const player: Player | null = await playerService.getPlayer(socket.sessionId);
 
         if (!player) {
             return;
@@ -417,11 +460,11 @@ async function handleDisconnect(io, socket, reason) {
         const roomCode = player.roomCode;
 
         // ISSUE #17 FIX: Generate reconnection token before marking as disconnected
-        let reconnectionToken = null;
+        let reconnectionToken: string | null = null;
         try {
             reconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);
         } catch (tokenError) {
-            logger.warn(`Failed to generate reconnection token for ${socket.sessionId}:`, tokenError.message);
+            logger.warn(`Failed to generate reconnection token for ${socket.sessionId}:`, (tokenError as Error).message);
         }
 
         // Update player's connected status
@@ -430,7 +473,7 @@ async function handleDisconnect(io, socket, reason) {
         // Notify other players in the room
         if (roomCode) {
             // ISSUE #15 FIX: Get updated player list to ensure clients have consistent state
-            const updatedPlayers = await playerService.getPlayersInRoom(roomCode);
+            const updatedPlayers: Player[] = await playerService.getPlayersInRoom(roomCode);
 
             // US-16.3: Calculate reconnection deadline for frontend display
             const { SESSION_SECURITY } = require('../config/constants');
@@ -441,7 +484,7 @@ async function handleDisconnect(io, socket, reason) {
             // Now the token is stored server-side only and validated during reconnection handshake.
             // The disconnecting player should proactively request their reconnection token via
             // 'room:getReconnectionToken' event BEFORE they disconnect (e.g., on 'beforeunload').
-            io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, {
+            ioInstance.to(`room:${roomCode}`).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team,
@@ -457,7 +500,7 @@ async function handleDisconnect(io, socket, reason) {
 
             // Broadcast updated stats so clients reflect the disconnection
             const roomStats = await playerService.getRoomStats(roomCode, updatedPlayers);
-            io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+            ioInstance.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // Log disconnection event
             try {
@@ -468,44 +511,46 @@ async function handleDisconnect(io, socket, reason) {
                     reason: reason
                 });
             } catch (logErr) {
-                logger.warn(`Failed to log disconnect event: ${logErr.message}`);
+                logger.warn(`Failed to log disconnect event: ${(logErr as Error).message}`);
             }
 
             // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL
             if (player.isHost) {
-                const redis = getRedis();
+                const redis: RedisClient = getRedis();
                 const lockKey = `lock:host-transfer:${roomCode}`;
                 let hostTransferLockAcquired = false;
-                let hostLockValue;
+                let hostLockValue: string | undefined;
 
                 try {
                     // ISSUE #7 FIX: Increase lock TTL to 10s for slow Redis operations
                     // Use unique lock value for owner-verified release
                     hostLockValue = `${socket.sessionId}:${Date.now()}`;
                     const lockResult = await redis.set(lockKey, hostLockValue, { NX: true, EX: 10 });
-                    hostTransferLockAcquired = lockResult === 'OK' || lockResult === true;
+                    // Redis SET with NX returns 'OK' on success or null on failure
+                    // Some Redis client versions may return boolean, so we check for truthy value
+                    hostTransferLockAcquired = lockResult === 'OK' || (lockResult as unknown) === true || !!lockResult;
 
                     if (hostTransferLockAcquired) {
                         // HARDENING FIX: Re-check if the disconnected host has reconnected
                         // This prevents transferring host to someone else when the original host
                         // successfully reconnected within the grace period
-                        const currentHostPlayer = await playerService.getPlayer(socket.sessionId);
+                        const currentHostPlayer: Player | null = await playerService.getPlayer(socket.sessionId);
                         if (currentHostPlayer && currentHostPlayer.connected) {
                             logger.info(`Host ${socket.sessionId} reconnected before transfer, skipping host transfer for room ${roomCode}`);
                             // Skip host transfer - host is back
                         } else {
-                            const players = await playerService.getPlayersInRoom(roomCode);
+                            const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
                             // FIX: Don't early return - just skip transfer if we can't get players
                             // Early return was causing the rest of disconnect handling to be skipped
                             if (!players || !Array.isArray(players)) {
                                 logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
                                 // Continue to finally block to release lock, but skip transfer
                             } else {
-                                const connectedPlayers = players.filter(p => p.connected && p.sessionId !== socket.sessionId);
+                                const connectedPlayers = players.filter((p: Player) => p.connected && p.sessionId !== socket.sessionId);
 
                                 if (connectedPlayers.length > 0) {
                                     // Transfer host to first connected player
-                                    const newHost = connectedPlayers[0];
+                                    const newHost = connectedPlayers[0]!;
 
                                     // SECURITY FIX: Use atomic host transfer to prevent race conditions
                                     // This atomically updates old host, new host, and room in a single Lua script
@@ -516,7 +561,7 @@ async function handleDisconnect(io, socket, reason) {
                                     );
 
                                     if (transferResult.success) {
-                                        io.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_HOST_CHANGED, {
+                                        ioInstance.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_HOST_CHANGED, {
                                             newHostSessionId: newHost.sessionId,
                                             newHostNickname: newHost.nickname,
                                             reason: 'previousHostDisconnected'
@@ -530,7 +575,7 @@ async function handleDisconnect(io, socket, reason) {
                                                 reason: 'previousHostDisconnected'
                                             });
                                         } catch (logErr) {
-                                            logger.warn(`Failed to log host change event: ${logErr.message}`);
+                                            logger.warn(`Failed to log host change event: ${(logErr as Error).message}`);
                                         }
 
                                     } else {
@@ -543,15 +588,15 @@ async function handleDisconnect(io, socket, reason) {
                         logger.debug(`Host transfer lock not acquired for room ${roomCode}, another instance handling it`);
                     }
                 } catch (hostTransferError) {
-                    logger.error(`Host transfer failed for room ${roomCode}: ${hostTransferError.message}`);
+                    logger.error(`Host transfer failed for room ${roomCode}: ${(hostTransferError as Error).message}`);
                 } finally {
                     // ISSUE #7 FIX: Only release lock if we acquired it (owner-verified)
-                    if (hostTransferLockAcquired) {
+                    if (hostTransferLockAcquired && hostLockValue) {
                         try {
                             const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
                             await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] });
                         } catch (delErr) {
-                            logger.error(`Failed to release host transfer lock for ${roomCode}: ${delErr.message}`);
+                            logger.error(`Failed to release host transfer lock for ${roomCode}: ${(delErr as Error).message}`);
                         }
                     }
                 }
@@ -563,22 +608,30 @@ async function handleDisconnect(io, socket, reason) {
     }
 }
 
-function getIO() {
+/**
+ * Get the Socket.io server instance
+ * @throws Error if not initialized
+ */
+function getIO(): SocketIOServer {
     if (!io) {
         throw new Error('Socket.io not initialized');
     }
     return io;
 }
 
-// Helper to emit to a specific room
-function emitToRoom(roomCode, event, data) {
+/**
+ * Helper to emit to a specific room
+ */
+function emitToRoom(roomCode: string, event: string, data: unknown): void {
     if (io) {
         io.to(`room:${roomCode}`).emit(event, data);
     }
 }
 
-// Helper to emit to a specific player
-function emitToPlayer(sessionId, event, data) {
+/**
+ * Helper to emit to a specific player
+ */
+function emitToPlayer(sessionId: string, event: string, data: unknown): void {
     if (io) {
         io.to(`player:${sessionId}`).emit(event, data);
     }
@@ -587,8 +640,8 @@ function emitToPlayer(sessionId, event, data) {
 /**
  * Start a turn timer for a room (async)
  */
-async function startTurnTimer(roomCode, durationSeconds) {
-    const timerInfo = await timerService.startTimer(roomCode, durationSeconds, createTimerExpireCallback());
+async function startTurnTimer(roomCode: string, durationSeconds: number): Promise<TimerInfo> {
+    const timerInfo: TimerInfo = await timerService.startTimer(roomCode, durationSeconds, createTimerExpireCallback());
 
     // Broadcast timer start
     emitToRoom(roomCode, SOCKET_EVENTS.TIMER_STARTED, {
@@ -602,7 +655,7 @@ async function startTurnTimer(roomCode, durationSeconds) {
 /**
  * Stop the turn timer for a room (async)
  */
-async function stopTurnTimer(roomCode) {
+async function stopTurnTimer(roomCode: string): Promise<void> {
     await timerService.stopTimer(roomCode);
     emitToRoom(roomCode, SOCKET_EVENTS.TIMER_STOPPED, { roomCode });
 }
@@ -610,7 +663,7 @@ async function stopTurnTimer(roomCode) {
 /**
  * Get timer status for a room (async)
  */
-function getTimerStatus(roomCode) {
+function getTimerStatus(roomCode: string): Promise<unknown> {
     return timerService.getTimerStatus(roomCode);
 }
 
@@ -618,7 +671,7 @@ function getTimerStatus(roomCode) {
  * Cleanup socket module resources on shutdown
  * Call this before process exit to prevent memory leaks
  */
-function cleanupSocketModule() {
+function cleanupSocketModule(): void {
     // Set shutdown flag to reject new connections immediately
     shuttingDown = true;
 
@@ -656,4 +709,19 @@ module.exports = {
     // Exported for testing only - do not use directly in production code
     _handleDisconnect: handleDisconnect,
     _createTimerExpireCallback: createTimerExpireCallback
+};
+
+export {
+    initializeSocket,
+    getIO,
+    emitToRoom,
+    emitToPlayer,
+    startTurnTimer,
+    stopTurnTimer,
+    getTimerStatus,
+    getSocketRateLimiter,
+    createRateLimitedHandler,
+    cleanupSocketModule,
+    handleDisconnect as _handleDisconnect,
+    createTimerExpireCallback as _createTimerExpireCallback
 };

@@ -9,10 +9,57 @@ const winston = require('winston');
 const fs = require('fs');
 const path = require('path');
 
-// Lazy load correlation ID to avoid circular dependencies
-let getContextFields = null;
+import type { Logger as WinstonLogger } from 'winston';
 
-function loadCorrelationId() {
+/**
+ * Context fields interface
+ */
+interface ContextFields {
+    correlationId?: string;
+    sessionId?: string;
+    roomCode?: string;
+    instanceId?: string;
+}
+
+/**
+ * Log metadata interface
+ */
+interface LogMeta extends ContextFields {
+    [key: string]: unknown;
+}
+
+/**
+ * Error metadata interface
+ */
+interface ErrorMeta {
+    message: string;
+    code?: string;
+    stack?: string;
+}
+
+/**
+ * Child logger interface
+ */
+interface ChildLogger {
+    error(msg: string, meta?: LogMeta): void;
+    warn(msg: string, meta?: LogMeta): void;
+    info(msg: string, meta?: LogMeta): void;
+    http(msg: string, meta?: LogMeta): void;
+    debug(msg: string, meta?: LogMeta): void;
+}
+
+/**
+ * Logger interface
+ */
+interface Logger extends ChildLogger {
+    _buildMeta(metaOrError: LogMeta | Error): LogMeta;
+    child(defaultMeta: LogMeta): ChildLogger;
+}
+
+// Lazy load correlation ID to avoid circular dependencies
+let getContextFields: (() => ContextFields) | null = null;
+
+function loadCorrelationId(): () => ContextFields {
     if (getContextFields === null) {
         try {
             const correlationModule = require('./correlationId');
@@ -22,10 +69,13 @@ function loadCorrelationId() {
             getContextFields = () => ({});
         }
     }
-    return getContextFields;
+    return getContextFields as () => ContextFields;
 }
 
-const levels = {
+/**
+ * Log levels
+ */
+const levels: Record<string, number> = {
     error: 0,
     warn: 1,
     info: 2,
@@ -38,7 +88,7 @@ const levels = {
  * Priority: LOG_LEVEL env var > NODE_ENV-based default
  * Production defaults to 'warn' for reduced noise, development to 'debug'
  */
-const level = () => {
+const level = (): string => {
     // Explicit LOG_LEVEL takes priority
     const explicitLevel = process.env.LOG_LEVEL;
     if (explicitLevel && levels[explicitLevel] !== undefined) {
@@ -57,7 +107,7 @@ const level = () => {
     }
 };
 
-const colors = {
+const colors: Record<string, string> = {
     error: 'red',
     warn: 'yellow',
     info: 'green',
@@ -68,7 +118,7 @@ const colors = {
 winston.addColors(colors);
 
 // Instance ID for multi-instance logging
-const instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
+const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
 
 /**
  * Format for console output (human-readable)
@@ -76,23 +126,23 @@ const instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local
 const consoleFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
     winston.format.colorize({ all: true }),
-    winston.format.printf((info) => {
+    winston.format.printf((info: { timestamp: string; level: string; message: string; [key: string]: unknown }) => {
         const { timestamp, level, message, ...meta } = info;
 
         // Build context string from metadata
         let contextStr = '';
         if (meta.correlationId) {
-            contextStr += ` [${meta.correlationId.slice(0, 8)}]`;
+            contextStr += ` [${(meta.correlationId as string).slice(0, 8)}]`;
         }
         if (meta.sessionId) {
-            contextStr += ` [session:${meta.sessionId.slice(0, 8)}]`;
+            contextStr += ` [session:${(meta.sessionId as string).slice(0, 8)}]`;
         }
         if (meta.roomCode) {
             contextStr += ` [room:${meta.roomCode}]`;
         }
 
         // Format additional fields
-        const extraFields = { ...meta };
+        const extraFields: Record<string, unknown> = { ...meta };
         delete extraFields.correlationId;
         delete extraFields.sessionId;
         delete extraFields.roomCode;
@@ -117,18 +167,28 @@ const jsonFormat = winston.format.combine(
 /**
  * Choose format based on environment
  */
-const getFormat = () => {
+const getFormat = (): ReturnType<typeof winston.format.combine> => {
     if (process.env.LOG_FORMAT === 'json' || process.env.NODE_ENV === 'production') {
         return jsonFormat;
     }
     return consoleFormat;
 };
 
-const transports = [
+const transports: InstanceType<typeof winston.transports.Console | typeof winston.transports.File>[] = [
     new winston.transports.Console({
         format: getFormat()
     })
 ];
+
+/**
+ * Log rotation configuration
+ */
+interface LogRotationConfig {
+    maxsize: number;
+    maxFiles: number;
+    tailable: boolean;
+    zippedArchive: boolean;
+}
 
 // Add file transports in production (if possible)
 if (process.env.NODE_ENV === 'production') {
@@ -141,7 +201,7 @@ if (process.env.NODE_ENV === 'production') {
 
         // Log rotation configuration to prevent disk fill
         // maxsize: 10MB per file, maxFiles: 5 files kept (50MB total max)
-        const LOG_ROTATION_CONFIG = {
+        const LOG_ROTATION_CONFIG: LogRotationConfig = {
             maxsize: 10 * 1024 * 1024,  // 10MB per file
             maxFiles: 5,                  // Keep 5 rotated files
             tailable: true,               // Most recent logs always in main file
@@ -165,11 +225,11 @@ if (process.env.NODE_ENV === 'production') {
         // If we can't create log files, just use console logging
         // This can happen in containerized environments with read-only filesystems
         // eslint-disable-next-line no-console -- logger not yet initialized
-        console.warn('Could not create log directory, using console logging only:', err.message);
+        console.warn('Could not create log directory, using console logging only:', (err as Error).message);
     }
 }
 
-const winstonLogger = winston.createLogger({
+const winstonLogger: WinstonLogger = winston.createLogger({
     level: level(),
     levels,
     defaultMeta: { instanceId },
@@ -179,10 +239,10 @@ const winstonLogger = winston.createLogger({
 /**
  * ISSUE #22 FIX: Sanitize user input for safe logging
  * Removes/escapes control characters that could be used for log injection
- * @param {string} input - User input to sanitize
- * @returns {string} Sanitized string safe for logging
+ * @param input - User input to sanitize
+ * @returns Sanitized string safe for logging
  */
-function sanitizeForLog(input) {
+function sanitizeForLog(input: unknown): string {
     if (typeof input !== 'string') {
         return String(input);
     }
@@ -197,50 +257,50 @@ function sanitizeForLog(input) {
 /**
  * Enhanced logger wrapper with structured logging support
  */
-const logger = {
+const logger: Logger = {
     /**
      * Log error message
-     * @param {string} message - Log message
-     * @param {Object|Error} metaOrError - Additional metadata or Error object
+     * @param message - Log message
+     * @param metaOrError - Additional metadata or Error object
      */
-    error(message, metaOrError = {}) {
+    error(message: string, metaOrError: LogMeta | Error = {}): void {
         const meta = this._buildMeta(metaOrError);
         winstonLogger.error(message, meta);
     },
 
     /**
      * Log warning message
-     * @param {string} message - Log message
-     * @param {Object} meta - Additional metadata
+     * @param message - Log message
+     * @param meta - Additional metadata
      */
-    warn(message, meta = {}) {
+    warn(message: string, meta: LogMeta = {}): void {
         winstonLogger.warn(message, this._buildMeta(meta));
     },
 
     /**
      * Log info message
-     * @param {string} message - Log message
-     * @param {Object} meta - Additional metadata
+     * @param message - Log message
+     * @param meta - Additional metadata
      */
-    info(message, meta = {}) {
+    info(message: string, meta: LogMeta = {}): void {
         winstonLogger.info(message, this._buildMeta(meta));
     },
 
     /**
      * Log http message
-     * @param {string} message - Log message
-     * @param {Object} meta - Additional metadata
+     * @param message - Log message
+     * @param meta - Additional metadata
      */
-    http(message, meta = {}) {
+    http(message: string, meta: LogMeta = {}): void {
         winstonLogger.http(message, this._buildMeta(meta));
     },
 
     /**
      * Log debug message
-     * @param {string} message - Log message
-     * @param {Object} meta - Additional metadata
+     * @param message - Log message
+     * @param meta - Additional metadata
      */
-    debug(message, meta = {}) {
+    debug(message: string, meta: LogMeta = {}): void {
         winstonLogger.debug(message, this._buildMeta(meta));
     },
 
@@ -248,19 +308,20 @@ const logger = {
      * Build metadata object with correlation context
      * @private
      */
-    _buildMeta(metaOrError) {
+    _buildMeta(metaOrError: LogMeta | Error): LogMeta {
         // Get correlation context
         const contextFields = loadCorrelationId()();
 
         // Handle Error objects
         if (metaOrError instanceof Error) {
+            const errorMeta: ErrorMeta = {
+                message: metaOrError.message,
+                code: (metaOrError as Error & { code?: string }).code,
+                stack: metaOrError.stack
+            };
             return {
                 ...contextFields,
-                error: {
-                    message: metaOrError.message,
-                    code: metaOrError.code,
-                    stack: metaOrError.stack
-                }
+                error: errorMeta
             };
         }
 
@@ -273,17 +334,17 @@ const logger = {
 
     /**
      * Create a child logger with additional default metadata
-     * @param {Object} defaultMeta - Default metadata for all log calls
-     * @returns {Object} Child logger
+     * @param defaultMeta - Default metadata for all log calls
+     * @returns Child logger
      */
-    child(defaultMeta) {
+    child(defaultMeta: LogMeta): ChildLogger {
         const parent = this;
         return {
-            error(msg, meta = {}) { parent.error(msg, { ...defaultMeta, ...meta }); },
-            warn(msg, meta = {}) { parent.warn(msg, { ...defaultMeta, ...meta }); },
-            info(msg, meta = {}) { parent.info(msg, { ...defaultMeta, ...meta }); },
-            http(msg, meta = {}) { parent.http(msg, { ...defaultMeta, ...meta }); },
-            debug(msg, meta = {}) { parent.debug(msg, { ...defaultMeta, ...meta }); }
+            error(msg: string, meta: LogMeta = {}): void { parent.error(msg, { ...defaultMeta, ...meta }); },
+            warn(msg: string, meta: LogMeta = {}): void { parent.warn(msg, { ...defaultMeta, ...meta }); },
+            info(msg: string, meta: LogMeta = {}): void { parent.info(msg, { ...defaultMeta, ...meta }); },
+            http(msg: string, meta: LogMeta = {}): void { parent.http(msg, { ...defaultMeta, ...meta }); },
+            debug(msg: string, meta: LogMeta = {}): void { parent.debug(msg, { ...defaultMeta, ...meta }); }
         };
     }
 };
@@ -291,3 +352,9 @@ const logger = {
 // Export both the logger and the sanitize function
 module.exports = logger;
 module.exports.sanitizeForLog = sanitizeForLog;
+
+// ES6 exports for TypeScript imports
+export default logger;
+export { sanitizeForLog };
+
+export type { ContextFields, LogMeta, ErrorMeta, ChildLogger, Logger, LogRotationConfig };
