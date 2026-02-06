@@ -27,7 +27,13 @@ export interface Player {
   /** Last activity timestamp */
   lastSeen: number;
   /** When the player joined */
-  joinedAt: number;
+  joinedAt?: number;
+  /** When the player connected (timestamp) */
+  connectedAt?: number;
+  /** When the player disconnected (timestamp) */
+  disconnectedAt?: number;
+  /** Last known IP address */
+  lastIP?: string;
 }
 
 /**
