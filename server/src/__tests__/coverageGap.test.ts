@@ -4,7 +4,7 @@
  * Targets specific uncovered branches across multiple modules:
  * - sanitize.js: normalizeUnicode, localeCompare, localeIncludes
  * - chatHandlers.js: spectatorOnly chat, null teammates fallback
- * - timerService.js: addTime validation, initializeTimerService, getExpireCallback
+ * - timerService.js: addTime validation, getExpireCallback
  * - gameService.js: createGame lock branches, revealCard Lua result validation
  */
 
@@ -216,12 +216,6 @@ describe('timerService - addTime validation and init', () => {
     test('addTime throws for secondsToAdd exceeding MAX_TURN_SECONDS', async () => {
         await expect(timerService.addTime('ROOM1', 999999, jest.fn()))
             .rejects.toThrow('cannot exceed');
-    });
-
-    test('initializeTimerService sets callback and returns true', () => {
-        const cb = jest.fn();
-        const result = timerService.initializeTimerService(cb);
-        expect(result).toBe(true);
     });
 
 });

@@ -62,10 +62,14 @@ interface TimerInfo {
 function timerHandlers(io: Server, socket: GameSocket): void {
 
     /**
-     * Pause the current turn timer (host only)
+     * Pause the current turn timer (host only, requires active game)
      */
     socket.on(SOCKET_EVENTS.TIMER_PAUSE, createHostHandler(socket, SOCKET_EVENTS.TIMER_PAUSE, null,
         async (ctx: RoomContext) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game in progress');
+            }
+
             const result: PauseResult | null = await timerService.pauseTimer(ctx.roomCode);
 
             // Bug #18 fix: Throw error instead of emitting error event
@@ -84,10 +88,14 @@ function timerHandlers(io: Server, socket: GameSocket): void {
     ));
 
     /**
-     * Resume a paused timer (host only)
+     * Resume a paused timer (host only, requires active game)
      */
     socket.on(SOCKET_EVENTS.TIMER_RESUME, createHostHandler(socket, SOCKET_EVENTS.TIMER_RESUME, null,
         async (ctx: RoomContext) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game in progress');
+            }
+
             const { createTimerExpireCallback } = getSocketFunctions();
             const result: TimerInfo | null = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
 
@@ -107,10 +115,14 @@ function timerHandlers(io: Server, socket: GameSocket): void {
     ));
 
     /**
-     * Add time to the current timer (host only)
+     * Add time to the current timer (host only, requires active game)
      */
     socket.on(SOCKET_EVENTS.TIMER_ADD_TIME, createHostHandler(socket, SOCKET_EVENTS.TIMER_ADD_TIME, timerAddTimeSchema,
         async (ctx: RoomContext, validated: TimerAddTimeInput) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game in progress');
+            }
+
             const { createTimerExpireCallback } = getSocketFunctions();
             const result: TimerInfo | null = await timerService.addTime(ctx.roomCode, validated.seconds, createTimerExpireCallback());
 
@@ -131,10 +143,14 @@ function timerHandlers(io: Server, socket: GameSocket): void {
     ));
 
     /**
-     * Stop the current timer (host only)
+     * Stop the current timer (host only, requires active game)
      */
     socket.on(SOCKET_EVENTS.TIMER_STOP, createHostHandler(socket, SOCKET_EVENTS.TIMER_STOP, null,
         async (ctx: RoomContext) => {
+            if (!ctx.game || ctx.game.gameOver) {
+                throw new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game in progress');
+            }
+
             await timerService.stopTimer(ctx.roomCode);
 
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_STOPPED, {

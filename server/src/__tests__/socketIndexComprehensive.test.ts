@@ -149,13 +149,8 @@ const mockEventLogService = {
 };
 jest.mock('../services/eventLogService', () => mockEventLogService);
 
-// Timer service mock - capture callback
-let timerExpireCallback = null;
+// Timer service mock
 const mockTimerService = {
-    initializeTimerService: jest.fn((callback) => {
-        timerExpireCallback = callback;
-        return true;
-    }),
     startTimer: jest.fn(async (roomCode, duration) => ({
         startTime: Date.now(),
         endTime: Date.now() + duration * 1000,
@@ -187,9 +182,13 @@ jest.mock('../socket/rateLimitHandler', () => ({
     stopRateLimitCleanup: jest.fn()
 }));
 
-// Socket function provider mock
+// Socket function provider mock - capture registered functions
+let mockRegisteredFunctions: Record<string, unknown> | null = null;
 jest.mock('../socket/socketFunctionProvider', () => ({
-    registerSocketFunctions: jest.fn()
+    registerSocketFunctions: jest.fn((fns: Record<string, unknown>) => {
+        mockRegisteredFunctions = fns;
+    }),
+    getSocketFunctions: jest.fn(() => mockRegisteredFunctions)
 }));
 
 // ============ Tests ============
@@ -233,8 +232,7 @@ describe('Socket Index Comprehensive Tests', () => {
         mockRoomData = null;
         mockPlayerData = null;
         mockPlayersInRoom = [];
-        timerExpireCallback = null;
-
+        mockRegisteredFunctions = null;
         // Reset module
         jest.resetModules();
     });
@@ -266,24 +264,28 @@ describe('Socket Index Comprehensive Tests', () => {
             );
         });
 
-        test('initializes timer service with callback', () => {
+        test('registers createTimerExpireCallback via socket function provider', () => {
             mockIsMemoryMode = true;
 
             socketModule = require('../socket/index');
             socketModule.initializeSocket(server);
 
-            expect(mockTimerService.initializeTimerService).toHaveBeenCalledWith(
-                expect.any(Function)
-            );
-            expect(timerExpireCallback).not.toBeNull();
+            const { getSocketFunctions } = require('../socket/socketFunctionProvider');
+            const fns = getSocketFunctions();
+            expect(typeof fns.createTimerExpireCallback).toBe('function');
         });
     });
 
     describe('Timer Expire Callback', () => {
+        let timerExpireCallback;
+
         beforeEach(() => {
             mockIsMemoryMode = true;
             socketModule = require('../socket/index');
             socketModule.initializeSocket(server);
+
+            const { getSocketFunctions } = require('../socket/socketFunctionProvider');
+            timerExpireCallback = getSocketFunctions().createTimerExpireCallback();
         });
 
         test('handles timer expiry when game exists and is active', async () => {

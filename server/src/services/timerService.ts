@@ -82,11 +82,6 @@ interface RedisClient {
 // Local timers for this instance
 const localTimers = new Map<string, LocalTimerData>();
 
-// Global timer expire callback (set via initializeTimerService)
-// This is set but not yet used; keeping for future use
-// @ts-expect-error Unused variable kept for future implementation
-let _globalExpireCallback: TimerExpireCallback | null = null;
-
 // Use centralized constants
 const TIMER_TTL_BUFFER: number = TIMER.TIMER_TTL_BUFFER_SECONDS;
 
@@ -497,15 +492,6 @@ export function cleanupAllTimers(): void {
     logger.info('All local timers cleaned up');
 }
 
-/**
- * Initialize the timer service with a global expire callback.
- */
-export function initializeTimerService(callback: TimerExpireCallback): boolean {
-    _globalExpireCallback = callback;
-    logger.info('Timer service initialized with expire callback');
-    return true;
-}
-
 // CommonJS exports for compatibility
 module.exports = {
     startTimer,
@@ -515,6 +501,5 @@ module.exports = {
     resumeTimer,
     addTime,
     hasActiveTimer,
-    cleanupAllTimers,
-    initializeTimerService
+    cleanupAllTimers
 };

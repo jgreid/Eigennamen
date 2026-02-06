@@ -3,6 +3,7 @@
  *
  * Records security-relevant actions for compliance and forensics.
  * Stores audit logs in Redis with configurable retention.
+ * Falls back to in-memory ring buffers when Redis is unavailable.
  */
 
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -118,6 +119,28 @@ const AUDIT_LOG_KEY = `${AUDIT_KEY_PREFIX}:log`;
 const AUDIT_ADMIN_KEY = `${AUDIT_KEY_PREFIX}:admin`;
 const AUDIT_SECURITY_KEY = `${AUDIT_KEY_PREFIX}:security`;
 
+// In-memory fallback storage (used when Redis is unavailable)
+const memoryLogs: Map<string, AuditLogEntry[]> = new Map([
+    [AUDIT_LOG_KEY, []],
+    [AUDIT_ADMIN_KEY, []],
+    [AUDIT_SECURITY_KEY, []]
+]);
+
+/**
+ * Push an entry to the front of an in-memory log list, maintaining max size
+ */
+function memoryPush(key: string, entry: AuditLogEntry): void {
+    let list = memoryLogs.get(key);
+    if (!list) {
+        list = [];
+        memoryLogs.set(key, list);
+    }
+    list.unshift(entry);
+    if (list.length > MAX_LOGS_PER_CATEGORY) {
+        list.length = MAX_LOGS_PER_CATEGORY;
+    }
+}
+
 /**
  * Get severity level for an event
  */
@@ -185,22 +208,31 @@ export async function logAuditEvent(
         ...logEntry
     });
 
-    // Store in Redis for queryability (if available)
+    // Store for queryability
     try {
-        if (!isUsingMemoryMode()) {
+        const listKey = getAuditListKey(event);
+
+        if (isUsingMemoryMode()) {
+            // In-memory fallback: store in ring buffers
+            memoryPush(listKey, logEntry);
+            if (listKey !== AUDIT_LOG_KEY) {
+                memoryPush(AUDIT_LOG_KEY, logEntry);
+            }
+        } else {
             const redis: RedisClient = getRedis();
             const logJson = JSON.stringify(logEntry);
 
             // Store in appropriate lists based on event type
-            const listKey = getAuditListKey(event);
             await redis.lPush(listKey, logJson);
             await redis.lTrim(listKey, 0, MAX_LOGS_PER_CATEGORY - 1);
             await redis.expire(listKey, AUDIT_LOG_TTL);
 
             // Also store in main audit log
-            await redis.lPush(AUDIT_LOG_KEY, logJson);
-            await redis.lTrim(AUDIT_LOG_KEY, 0, MAX_LOGS_PER_CATEGORY - 1);
-            await redis.expire(AUDIT_LOG_KEY, AUDIT_LOG_TTL);
+            if (listKey !== AUDIT_LOG_KEY) {
+                await redis.lPush(AUDIT_LOG_KEY, logJson);
+                await redis.lTrim(AUDIT_LOG_KEY, 0, MAX_LOGS_PER_CATEGORY - 1);
+                await redis.expire(AUDIT_LOG_KEY, AUDIT_LOG_TTL);
+            }
         }
     } catch (error) {
         // Don't fail if audit storage fails, but log the error
@@ -219,24 +251,26 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
     const { category = 'all', limit = 100, severity = null } = options;
 
     try {
-        if (isUsingMemoryMode()) {
-            return [];
-        }
-
-        const redis: RedisClient = getRedis();
         let key = AUDIT_LOG_KEY;
-
         if (category === 'admin') key = AUDIT_ADMIN_KEY;
         else if (category === 'security') key = AUDIT_SECURITY_KEY;
 
-        const logs = await redis.lRange(key, 0, limit - 1);
-        let parsed: AuditLogEntry[] = logs.map(log => {
-            try {
-                return JSON.parse(log) as AuditLogEntry;
-            } catch {
-                return null;
-            }
-        }).filter((entry): entry is AuditLogEntry => entry !== null);
+        let parsed: AuditLogEntry[];
+
+        if (isUsingMemoryMode()) {
+            const list = memoryLogs.get(key) || [];
+            parsed = list.slice(0, limit);
+        } else {
+            const redis: RedisClient = getRedis();
+            const logs = await redis.lRange(key, 0, limit - 1);
+            parsed = logs.map(log => {
+                try {
+                    return JSON.parse(log) as AuditLogEntry;
+                } catch {
+                    return null;
+                }
+            }).filter((entry): entry is AuditLogEntry => entry !== null);
+        }
 
         // Filter by severity if specified
         if (severity) {
@@ -255,21 +289,22 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
  */
 export async function getAuditSummary(): Promise<AuditSummary> {
     try {
-        if (isUsingMemoryMode()) {
-            return {
-                total: 0,
-                admin: 0,
-                security: 0,
-                bySeverity: {}
-            };
-        }
+        let total: number;
+        let admin: number;
+        let security: number;
 
-        const redis: RedisClient = getRedis();
-        const [total, admin, security] = await Promise.all([
-            redis.lLen(AUDIT_LOG_KEY),
-            redis.lLen(AUDIT_ADMIN_KEY),
-            redis.lLen(AUDIT_SECURITY_KEY)
-        ]);
+        if (isUsingMemoryMode()) {
+            total = (memoryLogs.get(AUDIT_LOG_KEY) || []).length;
+            admin = (memoryLogs.get(AUDIT_ADMIN_KEY) || []).length;
+            security = (memoryLogs.get(AUDIT_SECURITY_KEY) || []).length;
+        } else {
+            const redis: RedisClient = getRedis();
+            [total, admin, security] = await Promise.all([
+                redis.lLen(AUDIT_LOG_KEY),
+                redis.lLen(AUDIT_ADMIN_KEY),
+                redis.lLen(AUDIT_SECURITY_KEY)
+            ]);
+        }
 
         // Get recent logs to calculate severity breakdown
         const recentLogs = await getAuditLogs({ limit: 1000 });
@@ -424,11 +459,21 @@ export const audit = {
     }
 };
 
+/**
+ * Clear in-memory audit logs (for testing only)
+ */
+export function clearMemoryLogs(): void {
+    for (const [key] of memoryLogs) {
+        memoryLogs.set(key, []);
+    }
+}
+
 // CommonJS exports for compatibility
 module.exports = {
     AUDIT_EVENTS,
     logAuditEvent,
     getAuditLogs,
     getAuditSummary,
-    audit
+    audit,
+    clearMemoryLogs
 };

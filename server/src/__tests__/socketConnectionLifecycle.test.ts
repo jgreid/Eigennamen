@@ -54,7 +54,6 @@ jest.mock('../utils/logger', () => ({
 }));
 
 jest.mock('../services/timerService', () => ({
-    initializeTimerService: jest.fn().mockResolvedValue(true),
     startTimer: jest.fn().mockResolvedValue({
         startTime: Date.now(),
         endTime: Date.now() + 60000,
