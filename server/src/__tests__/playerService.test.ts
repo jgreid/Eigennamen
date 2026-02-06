@@ -679,40 +679,38 @@ describe('Player Service', () => {
     describe('generateReconnectionToken', () => {
         test('generates token for existing player', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
-            mockRedis.get.mockImplementation((key) => {
+            mockRedis.get.mockImplementation((key: string) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
                 return Promise.resolve(null);
             });
-            // SET NX succeeds (first call), then normal SET for token->data
-            mockRedis.set.mockResolvedValue('OK');
+            // Lua script returns the new token (no existing token found)
+            let capturedToken: string | null = null;
+            mockRedis.eval.mockImplementation((_script: string, opts: { arguments: string[] }) => {
+                capturedToken = opts.arguments[0];
+                return Promise.resolve(capturedToken);
+            });
 
             const token = await playerService.generateReconnectionToken('s1');
 
             expect(token).toMatch(/^[a-f0-9]{64}$/);
-            // First set: session->token with NX
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'reconnect:session:s1',
-                token,
-                { NX: true, EX: 300 }
-            );
-            // Second set: token->data
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                `reconnect:token:${token}`,
+            expect(mockRedis.eval).toHaveBeenCalledWith(
                 expect.any(String),
-                { EX: 300 }
+                expect.objectContaining({
+                    keys: [`reconnect:session:s1`, expect.stringMatching(/^reconnect:token:[a-f0-9]{64}$/)],
+                    arguments: [expect.stringMatching(/^[a-f0-9]{64}$/), expect.any(String), '300']
+                })
             );
         });
 
         test('returns existing token if one exists', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
             const existingToken = 'a'.repeat(64);
-            mockRedis.get.mockImplementation((key) => {
+            mockRedis.get.mockImplementation((key: string) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
-                if (key === 'reconnect:session:s1') return Promise.resolve(existingToken);
                 return Promise.resolve(null);
             });
-            // SET NX fails (returns null) because token already exists
-            mockRedis.set.mockResolvedValue(null);
+            // Lua script returns the existing token (found in Redis)
+            mockRedis.eval.mockResolvedValue(existingToken);
 
             const token = await playerService.generateReconnectionToken('s1');
 

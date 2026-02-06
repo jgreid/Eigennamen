@@ -234,15 +234,19 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
                 logger.error('Error cleaning up rate limiter:', error);
             }
 
-            // Timeout wrapper for disconnect handler - prevents indefinite hangs
+            // Timeout wrapper for disconnect handler - prevents indefinite hangs.
+            // Uses AbortController so the handler can check signal.aborted between
+            // async steps and stop doing unnecessary work after timeout.
             const DISCONNECT_TIMEOUT_MS = 30000;
+            const abortController = new AbortController();
             let disconnectTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
             try {
                 await Promise.race([
-                    handleDisconnect(socketServer, gameSocket, reason),
+                    handleDisconnect(socketServer, gameSocket, reason, abortController.signal),
                     new Promise((_, reject) => {
                         disconnectTimeoutId = setTimeout(() => {
+                            abortController.abort();
                             reject(new Error('Disconnect handler timeout'));
                         }, DISCONNECT_TIMEOUT_MS);
                     })
@@ -250,8 +254,6 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
             } catch (error) {
                 if ((error as Error).message === 'Disconnect handler timeout') {
                     logger.error(`Disconnect handler timed out after ${DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
-                    // Do NOT retry - the original promise is still running and will complete.
-                    // Retrying would cause duplicate host transfers and disconnect broadcasts.
                 } else {
                     logger.error('Error in disconnect handler:', error);
                 }
@@ -450,7 +452,8 @@ function createTimerExpireCallback(): TimerCallback {
 async function handleDisconnect(
     ioInstance: SocketIOServer,
     socket: GameSocket,
-    reason: string
+    reason: string,
+    abortSignal?: AbortSignal
 ): Promise<void> {
     const playerService = require('../services/playerService');
     const eventLogService = require('../services/eventLogService');
@@ -475,6 +478,12 @@ async function handleDisconnect(
 
         // Update player's connected status
         await playerService.handleDisconnect(socket.sessionId);
+
+        // Check if we've been aborted (timed out) — skip remaining non-critical work
+        if (abortSignal?.aborted) {
+            logger.debug(`Disconnect handler aborted after critical work for socket ${socket.id}`);
+            return;
+        }
 
         // Notify other players in the room
         if (roomCode) {
@@ -518,6 +527,12 @@ async function handleDisconnect(
                 });
             } catch (logErr) {
                 logger.warn(`Failed to log disconnect event: ${(logErr as Error).message}`);
+            }
+
+            // Check abort before expensive host transfer
+            if (abortSignal?.aborted) {
+                logger.debug(`Disconnect handler aborted before host transfer for socket ${socket.id}`);
+                return;
             }
 
             // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL

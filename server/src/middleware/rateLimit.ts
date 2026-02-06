@@ -145,7 +145,8 @@ const strictLimiter = rateLimit({
 });
 
 // IP multiplier - allows multiple legitimate users on same IP (corporate, shared wifi)
-const IP_RATE_LIMIT_MULTIPLIER = 5;
+// Reduced from 5x to 3x to limit room enumeration (e.g. room:join 10/min * 3 = 30/min per IP)
+const IP_RATE_LIMIT_MULTIPLIER = 3;
 
 // LRU eviction configuration - prevents unbounded memory growth
 const MAX_TRACKED_ENTRIES = parseInt(process.env.RATE_LIMIT_MAX_ENTRIES || '') || 10000;

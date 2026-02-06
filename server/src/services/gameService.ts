@@ -1007,7 +1007,16 @@ export async function revealCard(
     try {
         // Check if this is a Duet game - skip Lua optimization for Duet (uses TypeScript logic)
         const preCheckData = await redis.get(gameKey);
-        const isDuetGame = preCheckData && preCheckData.includes('"gameMode":"duet"');
+        let isDuetGame = false;
+        if (preCheckData) {
+            try {
+                const parsed = JSON.parse(preCheckData);
+                isDuetGame = parsed.gameMode === 'duet';
+            } catch {
+                logger.warn(`Failed to parse game state for room ${roomCode}, falling back to standard reveal`);
+                isDuetGame = false;
+            }
+        }
 
         if (!isDuetGame) {
             // ISSUE #36 FIX: Try optimized Lua script first (classic/blitz only)

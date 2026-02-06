@@ -72,6 +72,9 @@ function getJwtSecret(): string | null {
         if (secret.length < MIN_SECRET_LENGTH) {
             throw new Error(`JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters in production`);
         }
+        if (secret === DEV_SECRET) {
+            throw new Error('JWT_SECRET must not be the development fallback secret in production');
+        }
         return secret;
     }
 

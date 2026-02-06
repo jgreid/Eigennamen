@@ -1284,6 +1284,29 @@ export class MemoryStorage {
             }
         }
 
+        // Reconnection token script: 2 keys (sessionKey, tokenKey), 3 args (newToken, tokenData, ttl)
+        // Used by playerService.generateReconnectionToken()
+        if (numKeys === 2 && numArgs === 3 && firstKey.startsWith('reconnect:session:')) {
+            const sessionKey = firstKey;
+            const tokenKey = keys[1] as string;
+            const newToken = args[0] as string;
+            const tokenData = args[1] as string;
+            const ttl = parseInt(args[2] as string, 10);
+
+            // Check for existing token
+            const existing = this.data.get(sessionKey);
+            if (existing && !this._isExpired(sessionKey)) {
+                return existing;
+            }
+
+            // Set both mappings atomically
+            this.data.set(sessionKey, newToken);
+            this.expiries.set(sessionKey, Date.now() + (ttl * 1000));
+            this.data.set(tokenKey, tokenData);
+            this.expiries.set(tokenKey, Date.now() + (ttl * 1000));
+            return newToken;
+        }
+
         logger.debug('Memory storage eval called with unsupported script pattern', {
             numKeys, numArgs, firstKey
         });

@@ -43,8 +43,7 @@ const mockSessionSecurity = {
     IP_MISMATCH_ALLOWED: true,
     SESSION_ID_MIN_LENGTH: 36,
     RECONNECTION_TOKEN_TTL_SECONDS: 300,
-    RECONNECTION_TOKEN_LENGTH: 32,
-    RATE_LIMIT_FAIL_CLOSED: false
+    RECONNECTION_TOKEN_LENGTH: 32
 };
 
 jest.mock('../config/redis', () => ({
@@ -84,7 +83,6 @@ describe('Socket Auth Coverage', () => {
 
         // Reset to defaults
         mockSessionSecurity.IP_MISMATCH_ALLOWED = true;
-        mockSessionSecurity.RATE_LIMIT_FAIL_CLOSED = false;
     });
 
     describe('Rate limit Redis failure - in-memory fallback', () => {
