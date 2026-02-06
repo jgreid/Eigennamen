@@ -5,6 +5,10 @@
  * validation, error handling, and socket room management.
  */
 
+import type { Server, Socket } from 'socket.io';
+import type { Player, GameState, Team, Role } from '../../types';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
@@ -14,6 +18,74 @@ const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { canChangeTeamOrRole } = require('../playerContext');
 const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Extended Socket type with custom properties
+ */
+interface GameSocket extends Socket {
+    sessionId: string;
+    roomCode: string | null;
+}
+
+/**
+ * Room handler context
+ */
+interface RoomContext {
+    sessionId: string;
+    roomCode: string;
+    player: Player;
+    game: GameState | null;
+}
+
+/**
+ * Player team input
+ */
+interface PlayerTeamInput {
+    team: Team | null;
+}
+
+/**
+ * Player role input
+ */
+interface PlayerRoleInput {
+    role: Role;
+}
+
+/**
+ * Player nickname input
+ */
+interface PlayerNicknameInput {
+    nickname: string;
+}
+
+/**
+ * Player kick input
+ */
+interface PlayerKickInput {
+    targetSessionId: string;
+}
+
+/**
+ * Room stats
+ */
+interface RoomStats {
+    totalPlayers: number;
+    spectatorCount: number;
+    teams: {
+        red: { total: number; spymaster: string | null; clicker: string | null };
+        blue: { total: number; spymaster: string | null; clicker: string | null };
+    };
+}
+
+/**
+ * Change permission result
+ */
+interface ChangePermission {
+    allowed: boolean;
+    reason?: string;
+    code?: string;
+}
 
 /**
  * Bug #14 Fix: Helper to sync spectator room membership based on CURRENT player state.
@@ -25,9 +97,13 @@ const { sanitizeHtml } = require('../../utils/sanitize');
  *
  * The fix: Always re-fetch current player state before updating socket rooms.
  */
-async function syncSpectatorRoomMembership(socket, roomCode, sessionId) {
+async function syncSpectatorRoomMembership(
+    socket: GameSocket,
+    roomCode: string,
+    sessionId: string
+): Promise<void> {
     // Re-fetch current player state to ensure we have the latest team/role
-    const currentPlayer = await playerService.getPlayer(sessionId);
+    const currentPlayer: Player | null = await playerService.getPlayer(sessionId);
     if (!currentPlayer) return;
 
     const spectatorRoom = `spectators:${roomCode}`;
@@ -44,14 +120,14 @@ async function syncSpectatorRoomMembership(socket, roomCode, sessionId) {
     }
 }
 
-module.exports = function playerHandlers(io, socket) {
+function playerHandlers(io: Server, socket: GameSocket): void {
 
     /**
      * Set player's team
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
-        async (ctx, validated) => {
-            const canChange = canChangeTeamOrRole(ctx, { isTeamChange: true });
+        async (ctx: RoomContext, validated: PlayerTeamInput) => {
+            const canChange: ChangePermission = canChangeTeamOrRole(ctx, { isTeamChange: true });
             if (!canChange.allowed) {
                 const errorCode = canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN;
                 throw new GameStateError(errorCode, canChange.reason);
@@ -59,7 +135,7 @@ module.exports = function playerHandlers(io, socket) {
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
                 ctx.player.team && ctx.player.team !== validated.team);
-            const player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
+            const player: Player | null = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
             if (!player) {
                 throw PlayerError.notFound(ctx.sessionId);
@@ -71,7 +147,7 @@ module.exports = function playerHandlers(io, socket) {
 
             // Build changes object - include role if it was changed by the team switch
             // (e.g., clicker/spymaster role is reset to spectator when switching teams)
-            const changes = { team: player.team };
+            const changes: { team: Team | null; role?: Role } = { team: player.team };
             if (player.role !== ctx.player.role) {
                 changes.role = player.role;
             }
@@ -83,7 +159,7 @@ module.exports = function playerHandlers(io, socket) {
             });
 
             // Broadcast updated stats
-            const roomStats = await playerService.getRoomStats(ctx.roomCode);
+            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
@@ -95,16 +171,16 @@ module.exports = function playerHandlers(io, socket) {
      * Set player's role
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_ROLE, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_ROLE, playerRoleSchema,
-        async (ctx, validated) => {
+        async (ctx: RoomContext, validated: PlayerRoleInput) => {
             // Skip validation if player already has the requested role (idempotent)
             if (ctx.player.role !== validated.role) {
-                const canChange = canChangeTeamOrRole(ctx, { targetRole: validated.role });
+                const canChange: ChangePermission = canChangeTeamOrRole(ctx, { targetRole: validated.role });
                 if (!canChange.allowed) {
                     throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
                 }
             }
 
-            const player = await playerService.setRole(ctx.sessionId, validated.role);
+            const player: Player | null = await playerService.setRole(ctx.sessionId, validated.role);
 
             if (!player) {
                 throw PlayerError.notFound(ctx.sessionId);
@@ -121,12 +197,12 @@ module.exports = function playerHandlers(io, socket) {
             });
 
             // Broadcast updated stats
-            const roomStats = await playerService.getRoomStats(ctx.roomCode);
+            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // If becoming spymaster, re-fetch game state to avoid stale context
             if (player.role === 'spymaster') {
-                const freshGame = await gameService.getGame(ctx.roomCode);
+                const freshGame: GameState | null = await gameService.getGame(ctx.roomCode);
                 if (freshGame && !freshGame.gameOver) {
                     socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: freshGame.types });
                 }
@@ -142,14 +218,14 @@ module.exports = function playerHandlers(io, socket) {
      * Update nickname
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_NICKNAME, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_NICKNAME, playerNicknameSchema,
-        async (ctx, validated) => {
-            const player = await playerService.setNickname(ctx.sessionId, validated.nickname);
+        async (ctx: RoomContext, validated: PlayerNicknameInput) => {
+            const player: Player | null = await playerService.setNickname(ctx.sessionId, validated.nickname);
 
             if (!player) {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            const sanitizedNickname = sanitizeHtml(player.nickname);
+            const sanitizedNickname: string = sanitizeHtml(player.nickname);
 
             // Broadcast to room
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
@@ -167,20 +243,20 @@ module.exports = function playerHandlers(io, socket) {
      * Kick a player from the room (host only)
      */
     socket.on(SOCKET_EVENTS.PLAYER_KICK, createHostHandler(socket, SOCKET_EVENTS.PLAYER_KICK, playerKickSchema,
-        async (ctx, validated) => {
+        async (ctx: RoomContext, validated: PlayerKickInput) => {
             // Cannot kick yourself
             if (validated.targetSessionId === ctx.sessionId) {
                 throw new ValidationError('Cannot kick yourself');
             }
 
             // Get target player
-            const targetPlayer = await playerService.getPlayer(validated.targetSessionId);
+            const targetPlayer: Player | null = await playerService.getPlayer(validated.targetSessionId);
             if (!targetPlayer || targetPlayer.roomCode !== ctx.roomCode) {
                 throw PlayerError.notFound(validated.targetSessionId);
             }
 
             // Get target player's socket ID
-            const targetSocketId = await playerService.getSocketId(validated.targetSessionId);
+            const targetSocketId: string | null = await playerService.getSocketId(validated.targetSessionId);
 
             // Broadcast kick event before removing player
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_KICKED, {
@@ -194,7 +270,7 @@ module.exports = function playerHandlers(io, socket) {
 
             // Disconnect the target player's socket
             if (targetSocketId) {
-                const targetSocket = io.sockets.sockets.get(targetSocketId);
+                const targetSocket = io.sockets.sockets.get(targetSocketId) as GameSocket | undefined;
                 if (targetSocket) {
                     targetSocket.emit(SOCKET_EVENTS.ROOM_KICKED, {
                         reason: 'You were removed from the room by the host'
@@ -206,7 +282,7 @@ module.exports = function playerHandlers(io, socket) {
             }
 
             // Update player list for remaining players
-            const remainingPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
+            const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                 sessionId: validated.targetSessionId,
                 newHost: null,
@@ -217,4 +293,7 @@ module.exports = function playerHandlers(io, socket) {
 
         }
     ));
-};
+}
+
+module.exports = playerHandlers;
+export default playerHandlers;

@@ -28,12 +28,16 @@ export interface Player {
   lastSeen: number;
   /** When the player joined */
   joinedAt?: number;
+  /** When the player was created (timestamp) */
+  createdAt?: number;
   /** When the player connected (timestamp) */
   connectedAt?: number;
   /** When the player disconnected (timestamp) */
   disconnectedAt?: number;
   /** Last known IP address */
   lastIP?: string;
+  /** User ID from authenticated account (if any) */
+  userId?: string;
 }
 
 /**

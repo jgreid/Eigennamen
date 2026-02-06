@@ -8,6 +8,10 @@
  * - JWT token verification
  */
 
+import type { Socket } from 'socket.io';
+import type { Player } from '../types';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const { v4: uuidv4, validate: isValidUuid } = require('uuid');
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
@@ -19,12 +23,87 @@ const {
     ERROR_CODES
 } = require('../config/constants');
 const { audit } = require('../services/auditService');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Extended socket with custom properties
+ */
+interface AuthSocket extends Socket {
+    sessionId: string;
+    clientIP: string;
+    userId?: string;
+    user?: JwtPayload;
+    jwtVerified?: boolean;
+    jwtExpired?: boolean;
+    ipMismatch?: boolean;
+}
+
+/**
+ * JWT payload structure
+ */
+interface JwtPayload {
+    userId: string;
+    sessionId?: string;
+    [key: string]: unknown;
+}
+
+/**
+ * Token verification result
+ */
+interface TokenVerificationResult {
+    valid: boolean;
+    decoded?: JwtPayload;
+    error?: string;
+    message?: string;
+}
+
+/**
+ * Rate limit check result
+ */
+interface RateLimitResult {
+    allowed: boolean;
+    attempts: number;
+}
+
+/**
+ * Session age validation result
+ */
+interface SessionAgeResult {
+    valid: boolean;
+    reason?: string;
+}
+
+/**
+ * IP validation result
+ */
+interface IPValidationResult {
+    valid: boolean;
+    ipMismatch: boolean;
+}
+
+/**
+ * Session validation result
+ */
+interface SessionValidationResult {
+    valid: boolean;
+    player?: Player;
+    reason?: string;
+    ipMismatch?: boolean;
+}
+
+/**
+ * Origin validation result
+ */
+interface OriginValidationResult {
+    valid: boolean;
+    reason?: string;
+}
 
 /**
  * Check if we should trust proxy headers (X-Forwarded-For)
  * Only trust when explicitly configured or in known deployment environments
  */
-function shouldTrustProxy() {
+function shouldTrustProxy(): boolean {
     // Trust proxy if explicitly configured
     if (process.env.TRUST_PROXY === 'true' || process.env.TRUST_PROXY === '1') {
         return true;
@@ -45,14 +124,15 @@ function shouldTrustProxy() {
  * Get client IP address from socket, handling proxies securely
  * Only trusts X-Forwarded-For when behind a known/configured proxy
  */
-function getClientIP(socket) {
+function getClientIP(socket: Socket): string {
     // Only check X-Forwarded-For if we're configured to trust proxy
     if (shouldTrustProxy()) {
         const xForwardedFor = socket.handshake.headers['x-forwarded-for'];
         if (xForwardedFor) {
             // X-Forwarded-For can contain multiple IPs; the first one is the original client
-            const ips = xForwardedFor.split(',').map(ip => ip.trim());
-            return ips[0];
+            const headerValue = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
+            const ips = (headerValue || '').split(',').map(ip => ip.trim());
+            return ips[0] || socket.handshake.address;
         }
     }
     // Fall back to direct connection address
@@ -62,15 +142,13 @@ function getClientIP(socket) {
 /**
  * Rate limit session validation attempts by IP
  * Prevents brute-force session hijacking attempts
- * @param {string} clientIP - Client IP address
- * @returns {Promise<{allowed: boolean, attempts: number}>}
  */
-async function checkValidationRateLimit(clientIP) {
+async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResult> {
     const redis = getRedis();
     const key = `session:validation:${clientIP}`;
 
     try {
-        const attempts = await redis.incr(key);
+        const attempts: number = await redis.incr(key);
 
         // Set expiry on first attempt
         if (attempts === 1) {
@@ -90,7 +168,7 @@ async function checkValidationRateLimit(clientIP) {
         return { allowed: true, attempts };
     } catch (error) {
         // Configurable fail behavior: fail-open (availability) vs fail-closed (security)
-        logger.error('Rate limit check failed:', error.message);
+        logger.error('Rate limit check failed:', (error as Error).message);
         if (SESSION_SECURITY.RATE_LIMIT_FAIL_CLOSED) {
             logger.warn('Rate limit Redis failure - denying request (fail-closed mode)');
             return { allowed: false, attempts: 0 };
@@ -102,10 +180,8 @@ async function checkValidationRateLimit(clientIP) {
 
 /**
  * Validate session age
- * @param {object} player - Player object with createdAt or connectedAt
- * @returns {{valid: boolean, reason?: string}}
  */
-function validateSessionAge(player) {
+function validateSessionAge(player: Player): SessionAgeResult {
     const createdAt = player.createdAt || player.connectedAt;
     if (!createdAt) {
         // No creation time - allow but log
@@ -126,11 +202,8 @@ function validateSessionAge(player) {
 
 /**
  * Validate IP consistency for session reconnection
- * @param {object} player - Existing player object
- * @param {string} currentIP - Current client IP
- * @returns {{valid: boolean, ipMismatch: boolean}}
  */
-function validateIPConsistency(player, currentIP) {
+function validateIPConsistency(player: Player, currentIP: string): IPValidationResult {
     if (!player.lastIP) {
         // No previous IP recorded - allow
         return { valid: true, ipMismatch: false };
@@ -158,11 +231,8 @@ function validateIPConsistency(player, currentIP) {
 
 /**
  * Comprehensive session validation
- * @param {string} sessionId - Session ID to validate
- * @param {string} clientIP - Client IP address
- * @returns {Promise<{valid: boolean, player?: object, reason?: string, ipMismatch?: boolean}>}
  */
-async function validateSession(sessionId, clientIP) {
+async function validateSession(sessionId: string, clientIP: string): Promise<SessionValidationResult> {
     // Check rate limit first
     const rateLimit = await checkValidationRateLimit(clientIP);
     if (!rateLimit.allowed) {
@@ -173,7 +243,7 @@ async function validateSession(sessionId, clientIP) {
     }
 
     // Get player data
-    const player = await playerService.getPlayer(sessionId);
+    const player: Player | null = await playerService.getPlayer(sessionId);
     if (!player) {
         return {
             valid: false,
@@ -208,10 +278,8 @@ async function validateSession(sessionId, clientIP) {
 
 /**
  * Validate WebSocket connection origin for CSRF protection
- * @param {object} socket - Socket.io socket object
- * @returns {{valid: boolean, reason?: string}}
  */
-function validateOrigin(socket) {
+function validateOrigin(socket: Socket): OriginValidationResult {
     const origin = socket.handshake.headers.origin;
     const corsOrigin = process.env.CORS_ORIGIN;
     const isProduction = process.env.NODE_ENV === 'production';
@@ -263,7 +331,7 @@ function validateOrigin(socket) {
         // Audit suspicious activity
         audit.suspicious(
             'WebSocket connection from unauthorized origin',
-            socket.handshake.auth?.sessionId || 'unknown',
+            (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
             getClientIP(socket),
             { origin, allowedOrigins }
         );
@@ -281,22 +349,25 @@ function validateOrigin(socket) {
  * Authenticate socket connection
  * Includes comprehensive session validation with security checks
  */
-async function authenticateSocket(socket, next) {
+async function authenticateSocket(socket: Socket, next: (err?: Error) => void): Promise<void> {
     try {
+        const authSocket = socket as AuthSocket;
+
         // CSRF Protection: Validate origin header
         const originValidation = validateOrigin(socket);
         if (!originValidation.valid) {
             return next(new Error(originValidation.reason || 'Origin not allowed'));
         }
 
-        const { sessionId, token } = socket.handshake.auth;
+        const auth = socket.handshake.auth as { sessionId?: string; token?: string; reconnectToken?: string };
+        const { sessionId, token } = auth;
 
         // Get client IP (handles proxies)
         const currentIP = getClientIP(socket);
 
         // Validate and use provided session ID, or generate new one
-        let validatedSessionId = null;
-        let sessionValidationResult = null;
+        let validatedSessionId: string | null = null;
+        let sessionValidationResult: SessionValidationResult | null = null;
 
         if (sessionId) {
             // Validate session ID format (must be valid UUID)
@@ -307,7 +378,7 @@ async function authenticateSocket(socket, next) {
                 });
             } else {
                 // Check if there's an existing player with this session
-                const existingPlayer = await playerService.getPlayer(sessionId);
+                const existingPlayer: Player | null = await playerService.getPlayer(sessionId);
 
                 if (existingPlayer) {
                     // Only allow session reuse if player is disconnected (legitimate reconnection)
@@ -317,7 +388,7 @@ async function authenticateSocket(socket, next) {
 
                         if (sessionValidationResult.valid) {
                             // ISSUE #17 FIX: Validate reconnection token
-                            const reconnectToken = socket.handshake.auth.reconnectToken;
+                            const reconnectToken = auth.reconnectToken;
 
                             // SECURITY FIX: Validate token format before processing
                             // Reconnection tokens are hex-encoded, so length should be 64 chars (32 bytes * 2)
@@ -337,7 +408,7 @@ async function authenticateSocket(socket, next) {
                                 // Treat as no token provided - will generate new session
                                 validatedSessionId = null;
                             } else {
-                                const tokenValid = await playerService.validateReconnectToken(sessionId, reconnectToken);
+                                const tokenValid: boolean = await playerService.validateReconnectToken(sessionId, reconnectToken);
 
                                 if (tokenValid) {
                                     validatedSessionId = sessionId;
@@ -348,7 +419,7 @@ async function authenticateSocket(socket, next) {
 
                                     // Flag IP mismatch on socket for monitoring
                                     if (sessionValidationResult.ipMismatch) {
-                                        socket.ipMismatch = true;
+                                        authSocket.ipMismatch = true;
                                     }
                                 } else {
                                     logger.warn('Reconnection token validation failed', {
@@ -385,26 +456,26 @@ async function authenticateSocket(socket, next) {
         }
 
         // Use validated session ID or generate new one
-        socket.sessionId = validatedSessionId || uuidv4();
+        authSocket.sessionId = validatedSessionId || uuidv4();
 
         // Store client IP on socket for rate limiting
-        socket.clientIP = currentIP;
+        authSocket.clientIP = currentIP;
 
         // Handle JWT token verification with claims validation
         if (token && isJwtEnabled()) {
             // Build expected claims for validation
-            const expectedClaims = {};
+            const expectedClaims: Record<string, unknown> = {};
             // If we have a validated session, the token should match it
             if (validatedSessionId && sessionValidationResult?.player?.userId) {
                 expectedClaims.userId = sessionValidationResult.player.userId;
             }
 
-            const tokenResult = verifyTokenWithClaims(token, expectedClaims);
+            const tokenResult: TokenVerificationResult = verifyTokenWithClaims(token, expectedClaims);
 
-            if (tokenResult.valid) {
-                socket.userId = tokenResult.decoded.userId;
-                socket.user = tokenResult.decoded;
-                socket.jwtVerified = true;
+            if (tokenResult.valid && tokenResult.decoded) {
+                authSocket.userId = tokenResult.decoded.userId;
+                authSocket.user = tokenResult.decoded;
+                authSocket.jwtVerified = true;
                 logger.debug('JWT token verified for socket', {
                     socketId: socket.id,
                     userId: tokenResult.decoded.userId,
@@ -420,25 +491,25 @@ async function authenticateSocket(socket, next) {
 
                 // Handle specific error cases
                 if (tokenResult.error === JWT_ERROR_CODES.TOKEN_EXPIRED) {
-                    socket.jwtExpired = true;
+                    authSocket.jwtExpired = true;
                 } else if (tokenResult.error === JWT_ERROR_CODES.CLAIMS_MISMATCH) {
                     // Potential session/token mismatch - log for security monitoring
                     logger.warn('JWT claims mismatch detected', {
                         socketId: socket.id,
                         clientIP: currentIP,
-                        sessionId: socket.sessionId
+                        sessionId: authSocket.sessionId
                     });
                 }
             }
         }
 
         // Map socket ID to session ID for this connection (with IP tracking for security)
-        await playerService.setSocketMapping(socket.sessionId, socket.id, currentIP);
+        await playerService.setSocketMapping(authSocket.sessionId, socket.id, currentIP);
 
         logger.debug('Socket authenticated', {
             socketId: socket.id,
-            sessionId: socket.sessionId,
-            hasUserId: !!socket.userId,
+            sessionId: authSocket.sessionId,
+            hasUserId: !!authSocket.userId,
             clientIP: currentIP
         });
         next();
@@ -452,14 +523,23 @@ async function authenticateSocket(socket, next) {
 /**
  * Middleware to require authenticated user (JWT)
  */
-function requireAuth(socket, next) {
-    if (!socket.userId) {
+function requireAuth(socket: Socket, next: (err?: Error) => void): void {
+    const authSocket = socket as AuthSocket;
+    if (!authSocket.userId) {
         return next(new Error('Authentication required'));
     }
     next();
 }
 
 module.exports = {
+    authenticateSocket,
+    requireAuth,
+    getClientIP,
+    validateSession,
+    validateOrigin
+};
+
+export {
     authenticateSocket,
     requireAuth,
     getClientIP,

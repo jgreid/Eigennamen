@@ -348,12 +348,21 @@ export interface SanitizedError {
  * @param error - The error to sanitize
  * @returns Safe error payload
  */
-export function sanitizeErrorForClient(error: Error | GameError | { code?: string; message?: string }): SanitizedError {
-    const code = ('code' in error ? error.code : undefined) ?? ERROR_CODES.SERVER_ERROR;
+export function sanitizeErrorForClient(error: unknown): SanitizedError {
+    // Handle primitive types (string, number, etc.) thrown as errors
+    if (error === null || typeof error !== 'object') {
+        return {
+            code: ERROR_CODES.SERVER_ERROR,
+            message: 'An unexpected error occurred'
+        };
+    }
+
+    const errorObj = error as Error | GameError | { code?: string; message?: string };
+    const code = ('code' in errorObj ? errorObj.code : undefined) ?? ERROR_CODES.SERVER_ERROR;
     const isSafe = (SAFE_ERROR_CODES as readonly string[]).includes(code);
     return {
         code,
-        message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+        message: isSafe ? (errorObj.message || 'An unexpected error occurred') : 'An unexpected error occurred'
     };
 }
 

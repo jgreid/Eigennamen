@@ -5,31 +5,97 @@
  * Designed for Kubernetes liveness/readiness probes and monitoring systems.
  */
 
+import type { Request, Response, Router as ExpressRouter } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } = require('../config/redis');
 const pubSubHealth = require('../utils/pubSubHealth');
 const logger = require('../utils/logger');
 // PHASE 5.1: Import Prometheus metrics export
 const { getPrometheusMetrics, updateSystemMetrics } = require('../utils/metrics');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-const router = express.Router();
+const router: ExpressRouter = express.Router();
 
 // Track server start time for uptime calculation
-const serverStartTime = Date.now();
+const serverStartTime: number = Date.now();
 
 // Health check timeout (prevents hanging if Redis is slow)
 const HEALTH_CHECK_TIMEOUT_MS = 3000;
 
 /**
- * Wrap a promise with a timeout
- * @param {Promise} promise - The promise to wrap
- * @param {number} timeoutMs - Timeout in milliseconds
- * @param {string} operation - Operation name for error message
- * @returns {Promise} - Resolves with result or rejects on timeout
+ * Redis memory info
  */
-async function withTimeout(promise, timeoutMs, operation) {
-    let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
+interface RedisMemoryInfo {
+    used_memory_human?: string;
+    maxmemory_human?: string;
+    memory_usage_percent?: number;
+    alert?: string;
+}
+
+/**
+ * Health check result
+ */
+interface HealthCheck {
+    healthy: boolean;
+    mode?: string;
+    status?: string;
+    consecutiveFailures?: number;
+    lastError?: string | null;
+    error?: string;
+}
+
+/**
+ * Metrics response
+ */
+interface MetricsResponse {
+    timestamp: string;
+    uptime: {
+        seconds: number;
+        startTime: string;
+    };
+    memory: {
+        heapUsed: string;
+        heapTotal: string;
+        rss: string;
+        external: string;
+    };
+    redis: {
+        mode: string;
+        healthy: boolean;
+        memory: RedisMemoryInfo;
+    };
+    pubsub: {
+        healthy: boolean;
+        totalPublishes: number;
+        totalFailures: number;
+        failureRate: number;
+        consecutiveFailures: number;
+    };
+    process: {
+        pid: number;
+        nodeVersion: string;
+        platform: string;
+    };
+    alerts?: Array<{
+        type: string;
+        level: string;
+        message: string;
+        details: Record<string, unknown>;
+    }>;
+}
+
+/**
+ * Wrap a promise with a timeout
+ */
+async function withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    operation: string
+): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
             reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
         }, timeoutMs);
@@ -37,10 +103,10 @@ async function withTimeout(promise, timeoutMs, operation) {
 
     try {
         const result = await Promise.race([promise, timeoutPromise]);
-        clearTimeout(timeoutId);
+        clearTimeout(timeoutId!);
         return result;
     } catch (error) {
-        clearTimeout(timeoutId);
+        clearTimeout(timeoutId!);
         throw error;
     }
 }
@@ -49,7 +115,7 @@ async function withTimeout(promise, timeoutMs, operation) {
  * Basic health check - always returns 200 if server is running
  * Used for basic availability monitoring
  */
-router.get('/', (req, res) => {
+router.get('/', (_req: Request, res: Response) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -62,8 +128,8 @@ router.get('/', (req, res) => {
  * Returns 503 if any critical dependency is unhealthy
  * Used by load balancers to determine if instance should receive traffic
  */
-router.get('/ready', async (req, res) => {
-    const checks = {
+router.get('/ready', async (_req: Request, res: Response) => {
+    const checks: { redis: HealthCheck; pubsub: HealthCheck } = {
         redis: { healthy: false, mode: 'unknown' },
         pubsub: { healthy: true, status: 'not_applicable' }
     };
@@ -74,7 +140,7 @@ router.get('/ready', async (req, res) => {
             checks.redis = { healthy: true, mode: 'memory' };
             checks.pubsub = { healthy: true, status: 'memory_mode' };
         } else {
-            const redisHealthy = await withTimeout(
+            const redisHealthy: boolean = await withTimeout(
                 isRedisHealthy(),
                 HEALTH_CHECK_TIMEOUT_MS,
                 'Redis health check'
@@ -106,7 +172,7 @@ router.get('/ready', async (req, res) => {
         res.status(503).json({
             status: 'error',
             timestamp: new Date().toISOString(),
-            error: error.message,
+            error: (error as Error).message,
             checks
         });
     }
@@ -117,7 +183,7 @@ router.get('/ready', async (req, res) => {
  * Used by Kubernetes to determine if the container should be restarted
  * Minimal check - just confirms the event loop is responding
  */
-router.get('/live', (req, res) => {
+router.get('/live', (_req: Request, res: Response) => {
     res.json({
         status: 'live',
         timestamp: new Date().toISOString()
@@ -128,19 +194,19 @@ router.get('/live', (req, res) => {
  * Detailed health metrics - for monitoring dashboards
  * Returns comprehensive system information
  */
-router.get('/metrics', async (req, res) => {
+router.get('/metrics', async (_req: Request, res: Response) => {
     try {
         const memUsage = process.memoryUsage();
         const pubSubStatus = pubSubHealth.getHealth();
 
         // Get Redis memory info for monitoring
-        const redisMemory = await withTimeout(
+        const redisMemory: RedisMemoryInfo = await withTimeout(
             getRedisMemoryInfo(),
             HEALTH_CHECK_TIMEOUT_MS,
             'Redis memory check'
         );
 
-        const metrics = {
+        const metrics: MetricsResponse = {
             timestamp: new Date().toISOString(),
             uptime: {
                 seconds: Math.floor((Date.now() - serverStartTime) / 1000),
@@ -190,7 +256,7 @@ router.get('/metrics', async (req, res) => {
         logger.error('Metrics collection failed:', error);
         res.status(500).json({
             error: 'Failed to collect metrics',
-            message: error.message
+            message: (error as Error).message
         });
     }
 });
@@ -199,12 +265,12 @@ router.get('/metrics', async (req, res) => {
  * PHASE 5.1: Prometheus-compatible metrics endpoint
  * Returns metrics in Prometheus text exposition format
  */
-router.get('/metrics/prometheus', (req, res) => {
+router.get('/metrics/prometheus', (_req: Request, res: Response) => {
     try {
         // Update system metrics before export
         updateSystemMetrics();
 
-        const prometheusText = getPrometheusMetrics();
+        const prometheusText: string = getPrometheusMetrics();
         res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
         res.send(prometheusText);
     } catch (error) {
@@ -214,3 +280,4 @@ router.get('/metrics/prometheus', (req, res) => {
 });
 
 module.exports = router;
+export default router;

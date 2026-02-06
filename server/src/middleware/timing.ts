@@ -3,15 +3,69 @@
  * Sprint 19: Adds request timing and logging for monitoring
  */
 
+import type { Request, Response, NextFunction } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Extended request with timing properties
+ */
+interface TimedRequest extends Request {
+    requestId?: string;
+}
+
+/**
+ * Socket with session info
+ */
+interface GameSocket {
+    id: string;
+    sessionId?: string;
+}
+
+/**
+ * Request log data
+ */
+interface RequestLogData {
+    requestId: string;
+    method: string;
+    path: string;
+    statusCode: number;
+    durationMs: number;
+    contentLength: string | number;
+    userAgent?: string;
+}
+
+/**
+ * Socket event log data
+ */
+interface SocketEventLogData {
+    event: string;
+    socketId: string;
+    sessionId?: string;
+    durationMs: number;
+    error?: string;
+}
+
+/**
+ * Memory log data
+ */
+interface MemoryLogData {
+    heapUsedMB: number;
+    heapTotalMB: number;
+    rssMB: number;
+    externalMB: number;
+    heapUsagePercent: number;
+}
 
 /**
  * HTTP request timing middleware
  * Logs request duration for all HTTP requests
  */
-function requestTiming(req, res, next) {
+function requestTiming(req: TimedRequest, res: Response, next: NextFunction): void {
     const start = process.hrtime.bigint();
-    const requestId = req.headers['x-request-id'] || generateRequestId();
+    const requestId = (req.headers['x-request-id'] as string) || generateRequestId();
 
     // Attach request ID for correlation
     req.requestId = requestId;
@@ -20,7 +74,7 @@ function requestTiming(req, res, next) {
     // Log request completion
     res.on('finish', () => {
         const duration = Number(process.hrtime.bigint() - start) / 1e6; // Convert to ms
-        const logData = {
+        const logData: RequestLogData = {
             requestId,
             method: req.method,
             path: req.path,
@@ -47,12 +101,12 @@ function requestTiming(req, res, next) {
 /**
  * Socket event timing wrapper
  * Wraps socket handlers to measure execution time
- * @param {string} eventName - Name of the socket event
- * @param {Function} handler - The event handler function
- * @returns {Function} Wrapped handler with timing
  */
-function socketEventTiming(eventName, handler) {
-    return async function timedHandler(...args) {
+function socketEventTiming<T extends unknown[]>(
+    eventName: string,
+    handler: (this: GameSocket, ...args: T) => Promise<unknown> | unknown
+): (this: GameSocket, ...args: T) => Promise<unknown> {
+    return async function timedHandler(this: GameSocket, ...args: T): Promise<unknown> {
         const start = process.hrtime.bigint();
         const socket = this;
 
@@ -60,7 +114,7 @@ function socketEventTiming(eventName, handler) {
             const result = await handler.apply(this, args);
             const duration = Number(process.hrtime.bigint() - start) / 1e6;
 
-            const logData = {
+            const logData: SocketEventLogData = {
                 event: eventName,
                 socketId: socket.id,
                 sessionId: socket.sessionId,
@@ -81,7 +135,7 @@ function socketEventTiming(eventName, handler) {
                 socketId: socket.id,
                 sessionId: socket.sessionId,
                 durationMs: Math.round(duration * 100) / 100,
-                error: error.message
+                error: (error as Error).message
             });
             throw error;
         }
@@ -92,11 +146,11 @@ function socketEventTiming(eventName, handler) {
  * Memory usage monitoring
  * Logs memory stats periodically
  */
-let memoryCheckInterval = null;
+let memoryCheckInterval: ReturnType<typeof setInterval> | null = null;
 const MEMORY_CHECK_INTERVAL_MS = 60000; // 1 minute
 const MEMORY_WARNING_THRESHOLD_MB = 400; // Warn at 400MB
 
-function startMemoryMonitoring() {
+function startMemoryMonitoring(): void {
     if (memoryCheckInterval) return;
 
     memoryCheckInterval = setInterval(() => {
@@ -105,7 +159,7 @@ function startMemoryMonitoring() {
         const heapTotalMB = Math.round(usage.heapTotal / 1024 / 1024);
         const rssMB = Math.round(usage.rss / 1024 / 1024);
 
-        const logData = {
+        const logData: MemoryLogData = {
             heapUsedMB,
             heapTotalMB,
             rssMB,
@@ -123,7 +177,7 @@ function startMemoryMonitoring() {
     logger.info('Memory monitoring started');
 }
 
-function stopMemoryMonitoring() {
+function stopMemoryMonitoring(): void {
     if (memoryCheckInterval) {
         clearInterval(memoryCheckInterval);
         memoryCheckInterval = null;
@@ -134,11 +188,18 @@ function stopMemoryMonitoring() {
 /**
  * Generate a simple request ID
  */
-function generateRequestId() {
+function generateRequestId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
 module.exports = {
+    requestTiming,
+    socketEventTiming,
+    startMemoryMonitoring,
+    stopMemoryMonitoring
+};
+
+export {
     requestTiming,
     socketEventTiming,
     startMemoryMonitoring,

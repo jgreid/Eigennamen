@@ -9,7 +9,11 @@
  * level of protection without requiring full CSRF token management.
  */
 
+import type { Request, Response, NextFunction } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Validate that the request appears to come from a same-origin source
@@ -19,7 +23,7 @@ const logger = require('../utils/logger');
  * This prevents CSRF because browsers won't send custom headers cross-origin
  * without a preflight that our CORS policy would block.
  */
-function csrfProtection(req, res, next) {
+function csrfProtection(req: Request, res: Response, next: NextFunction): Response | void {
     // Skip for safe methods (GET, HEAD, OPTIONS)
     const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
     if (safeMethods.includes(req.method)) {
@@ -102,7 +106,7 @@ function csrfProtection(req, res, next) {
 /**
  * Get list of allowed origins from configuration
  */
-function getAllowedOrigins() {
+function getAllowedOrigins(): string[] | null {
     const corsOrigin = process.env.CORS_ORIGIN || '*';
 
     if (corsOrigin === '*') {
@@ -118,7 +122,7 @@ function getAllowedOrigins() {
 /**
  * Check if an origin is in the allowed list
  */
-function isOriginAllowed(origin, allowedOrigins) {
+function isOriginAllowed(origin: string, allowedOrigins: string[] | null): boolean {
     // If no restrictions (CORS_ORIGIN=*), allow all
     if (allowedOrigins === null) {
         return true;
@@ -149,3 +153,5 @@ function isOriginAllowed(origin, allowedOrigins) {
 module.exports = {
     csrfProtection
 };
+
+export { csrfProtection };

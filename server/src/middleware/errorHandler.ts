@@ -2,13 +2,42 @@
  * Error Handling Middleware
  */
 
+import type { Request, Response, NextFunction } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
 const { ERROR_CODES } = require('../config/constants');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
+/**
+ * Custom error type with code and details
+ */
+interface AppError extends Error {
+    code?: string;
+    details?: unknown;
+    statusCode?: number;
+}
+
+/**
+ * Zod error structure
+ */
+interface ZodError extends Error {
+    name: 'ZodError';
+    errors: Array<{
+        path: (string | number)[];
+        message: string;
+    }>;
+}
+
+/**
+ * Status code mapping for error codes
+ */
+type ErrorStatusMap = Record<string, number>;
 
 /**
  * Handle 404 Not Found
  */
-function notFoundHandler(req, res, _next) {
+function notFoundHandler(req: Request, res: Response, _next: NextFunction): void {
     res.status(404).json({
         error: {
             code: 'NOT_FOUND',
@@ -20,13 +49,13 @@ function notFoundHandler(req, res, _next) {
 /**
  * Global error handler
  */
-function errorHandler(err, req, res, _next) {
+function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _next: NextFunction): Response {
     logger.error('Unhandled error:', err);
 
     // Handle known error types
-    if (err.code && Object.values(ERROR_CODES).includes(err.code)) {
+    if ('code' in err && err.code && Object.values(ERROR_CODES).includes(err.code)) {
         // FIX M12: Added missing error code status mappings
-        const statusMap = {
+        const statusMap: ErrorStatusMap = {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
             [ERROR_CODES.ROOM_EXPIRED]: 410,
@@ -55,24 +84,25 @@ function errorHandler(err, req, res, _next) {
             error: {
                 code: err.code,
                 message: err.message,
-                details: err.details
+                details: (err as AppError).details
             }
         });
     }
 
     // Handle validation errors (Zod)
     if (err.name === 'ZodError') {
+        const zodErr = err as ZodError;
         return res.status(400).json({
             error: {
                 code: ERROR_CODES.INVALID_INPUT,
                 message: 'Validation error',
-                details: err.errors
+                details: zodErr.errors
             }
         });
     }
 
     // Default error response
-    res.status(500).json({
+    return res.status(500).json({
         error: {
             code: ERROR_CODES.SERVER_ERROR,
             message: process.env.NODE_ENV === 'production'
@@ -86,3 +116,5 @@ module.exports = {
     notFoundHandler,
     errorHandler
 };
+
+export { notFoundHandler, errorHandler };

@@ -6,6 +6,9 @@
  * authentication is implemented.
  */
 
+import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const wordListService = require('../services/wordListService');
@@ -15,8 +18,38 @@ const { BOARD_SIZE } = require('../config/constants');
 const logger = require('../utils/logger');
 const { getJwtSecret } = require('../config/jwt');
 const { removeControlChars } = require('../utils/sanitize');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-const router = express.Router();
+const router: ExpressRouter = express.Router();
+
+/**
+ * User from JWT token
+ */
+interface JwtUser {
+    id: string;
+    [key: string]: unknown;
+}
+
+/**
+ * Request with authenticated user
+ */
+interface AuthenticatedRequest extends Request {
+    user?: JwtUser;
+}
+
+/**
+ * Word list data
+ */
+interface WordList {
+    id: string;
+    name: string;
+    description?: string;
+    words: string[];
+    isPublic: boolean;
+    ownerId: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 /**
  * Authentication middleware placeholder
@@ -24,7 +57,7 @@ const router = express.Router();
  * Uses centralized JWT secret management but simple verification
  * (no issuer/audience claims required for backwards compatibility)
  */
-function extractUser(req, res, next) {
+function extractUser(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
     // Check for Authorization header
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -38,7 +71,7 @@ function extractUser(req, res, next) {
         try {
             const token = authHeader.substring(7);
             // Use simple verification with just algorithm check (original behavior)
-            const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
+            const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtUser;
             // Validate token structure
             if (decoded && typeof decoded.id === 'string') {
                 req.user = decoded;
@@ -56,7 +89,7 @@ function extractUser(req, res, next) {
 /**
  * Authorization middleware - requires authenticated user
  */
-function requireAuth(req, res, next) {
+function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Response | void {
     if (!req.user || !req.user.id) {
         return res.status(403).json({
             error: {
@@ -83,30 +116,30 @@ const wordListQuerySchema = z.object({
 });
 
 const createWordListSchema = z.object({
-    name: z.string().min(1).max(100).transform(val => removeControlChars(val).trim()),
-    description: z.string().max(500).transform(val => removeControlChars(val).trim()).optional(),
+    name: z.string().min(1).max(100).transform((val: string) => removeControlChars(val).trim()),
+    description: z.string().max(500).transform((val: string) => removeControlChars(val).trim()).optional(),
     // FIX: Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
     words: z.array(
         z.string()
             .min(1)
             .max(50)
-            .transform(val => removeControlChars(val).trim())
-            .refine(val => val.length >= 1, 'Word cannot be empty after sanitization')
+            .transform((val: string) => removeControlChars(val).trim())
+            .refine((val: string) => val.length >= 1, 'Word cannot be empty after sanitization')
     )
         .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`),
     isPublic: z.boolean().optional().default(false)
 });
 
 const updateWordListSchema = z.object({
-    name: z.string().min(1).max(100).transform(val => removeControlChars(val).trim()).optional(),
-    description: z.string().max(500).transform(val => removeControlChars(val).trim()).optional(),
+    name: z.string().min(1).max(100).transform((val: string) => removeControlChars(val).trim()).optional(),
+    description: z.string().max(500).transform((val: string) => removeControlChars(val).trim()).optional(),
     // FIX: Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
     words: z.array(
         z.string()
             .min(1)
             .max(50)
-            .transform(val => removeControlChars(val).trim())
-            .refine(val => val.length >= 1, 'Word cannot be empty after sanitization')
+            .transform((val: string) => removeControlChars(val).trim())
+            .refine((val: string) => val.length >= 1, 'Word cannot be empty after sanitization')
     )
         .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
         .optional(),
@@ -117,9 +150,9 @@ const updateWordListSchema = z.object({
  * Get all public word lists
  * GET /api/wordlists
  */
-router.get('/', validateQuery(wordListQuerySchema), async (req, res, next) => {
+router.get('/', validateQuery(wordListQuerySchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { search, limit, offset } = req.query;
+        const { search, limit, offset } = req.query as { search?: string; limit?: number; offset?: number };
         const wordLists = await wordListService.getPublicWordLists({
             search,
             limit,
@@ -136,17 +169,18 @@ router.get('/', validateQuery(wordListQuerySchema), async (req, res, next) => {
  * Get a specific word list by ID
  * GET /api/wordlists/:id
  */
-router.get('/:id', validateParams(wordListIdSchema), async (req, res, next) => {
+router.get('/:id', validateParams(wordListIdSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const wordList = await wordListService.getWordList(req.params.id);
+        const wordList: WordList | null = await wordListService.getWordList(req.params.id);
 
         if (!wordList) {
-            return res.status(404).json({
+            res.status(404).json({
                 error: {
                     code: 'WORD_LIST_NOT_FOUND',
                     message: 'Word list not found'
                 }
             });
+            return;
         }
 
         // Only return full word list if public or owned by requester
@@ -154,12 +188,13 @@ router.get('/:id', validateParams(wordListIdSchema), async (req, res, next) => {
             // Check ownership - user must be authenticated and be the owner
             const isOwner = req.user && req.user.id && wordList.ownerId === req.user.id;
             if (!isOwner) {
-                return res.status(403).json({
+                res.status(403).json({
                     error: {
                         code: 'NOT_AUTHORIZED',
                         message: 'Not authorized to view this word list'
                     }
                 });
+                return;
             }
         }
 
@@ -179,7 +214,7 @@ router.get('/:id', validateParams(wordListIdSchema), async (req, res, next) => {
  * POST /api/wordlists
  * Requires authentication
  */
-router.post('/', requireAuth, validateBody(createWordListSchema), async (req, res, next) => {
+router.post('/', requireAuth, validateBody(createWordListSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { name, description, words, isPublic } = req.body;
 
@@ -188,7 +223,7 @@ router.post('/', requireAuth, validateBody(createWordListSchema), async (req, re
             description,
             words,
             isPublic,
-            ownerId: req.user.id
+            ownerId: req.user!.id
         });
 
         res.status(201).json({ wordList });
@@ -202,14 +237,14 @@ router.post('/', requireAuth, validateBody(createWordListSchema), async (req, re
  * PUT /api/wordlists/:id
  * Requires authentication and ownership
  */
-router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(updateWordListSchema), async (req, res, next) => {
+router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(updateWordListSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { name, description, words, isPublic } = req.body;
 
         const wordList = await wordListService.updateWordList(
             req.params.id,
             { name, description, words, isPublic },
-            req.user.id
+            req.user!.id
         );
 
         res.json({ wordList });
@@ -223,9 +258,9 @@ router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(u
  * DELETE /api/wordlists/:id
  * Requires authentication and ownership
  */
-router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req, res, next) => {
+router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-        await wordListService.deleteWordList(req.params.id, req.user.id);
+        await wordListService.deleteWordList(req.params.id, req.user!.id);
         res.json({ success: true });
     } catch (error) {
         next(error);
@@ -233,3 +268,4 @@ router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req,
 });
 
 module.exports = router;
+export default router;

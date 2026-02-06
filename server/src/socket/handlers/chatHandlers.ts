@@ -5,6 +5,10 @@
  * validation, error handling, and socket room management.
  */
 
+import type { Server, Socket } from 'socket.io';
+import type { Player, GameState, Team, Role } from '../../types';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const playerService = require('../../services/playerService');
 const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -12,15 +16,66 @@ const { SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
 const { RoomError, PlayerError } = require('../../errors/GameError');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-module.exports = function chatHandlers(io, socket) {
+/**
+ * Extended Socket type with custom properties
+ */
+interface GameSocket extends Socket {
+    sessionId: string;
+    roomCode: string | null;
+}
+
+/**
+ * Room handler context
+ */
+interface RoomContext {
+    sessionId: string;
+    roomCode: string;
+    player: Player;
+    game: GameState | null;
+}
+
+/**
+ * Chat message input
+ */
+interface ChatMessageInput {
+    text: string;
+    teamOnly?: boolean;
+    spectatorOnly?: boolean;
+}
+
+/**
+ * Spectator chat input
+ */
+interface SpectatorChatInput {
+    message: string;
+}
+
+/**
+ * Chat message structure
+ */
+interface ChatMessage {
+    from: {
+        sessionId: string;
+        nickname: string;
+        team: Team | null;
+        role: Role;
+    };
+    text: string;
+    teamOnly?: boolean;
+    spectatorOnly?: boolean;
+    timestamp: number;
+}
+
+function chatHandlers(io: Server, socket: GameSocket): void {
 
     /**
      * Send a chat message
      */
     socket.on(SOCKET_EVENTS.CHAT_MESSAGE, createRoomHandler(socket, SOCKET_EVENTS.CHAT_MESSAGE, chatMessageSchema,
-        async (ctx, validated) => {
-            const message = {
+        async (ctx: RoomContext, validated: ChatMessageInput) => {
+            const message: ChatMessage = {
                 from: {
                     sessionId: ctx.player.sessionId,
                     nickname: sanitizeHtml(ctx.player.nickname),
@@ -40,11 +95,11 @@ module.exports = function chatHandlers(io, socket) {
 
             // Spectator-only chat
             if (validated.spectatorOnly) {
-                const allPlayers = await playerService.getPlayersInRoom(ctx.roomCode);
+                const allPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
                 if (!allPlayers || !Array.isArray(allPlayers)) {
                     throw RoomError.notFound(ctx.roomCode);
                 }
-                const spectators = allPlayers.filter(p => p.role === 'spectator' && p.connected);
+                const spectators = allPlayers.filter((p: Player) => p.role === 'spectator' && p.connected);
 
                 for (const spectator of spectators) {
                     try {
@@ -54,7 +109,7 @@ module.exports = function chatHandlers(io, socket) {
                     }
                 }
             } else if (validated.teamOnly && ctx.player.team) {
-                const teammates = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
+                const teammates: Player[] = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
                 if (!teammates || !Array.isArray(teammates)) {
                     logger.warn(`No teammates found for ${ctx.player.team} team in room ${ctx.roomCode}`);
                     socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
@@ -82,7 +137,7 @@ module.exports = function chatHandlers(io, socket) {
      * Send a spectator-only chat message
      */
     socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
-        (ctx, validated) => {
+        (ctx: RoomContext, validated: SpectatorChatInput) => {
             // Only allow spectators to send spectator-only messages
             if (ctx.player.role !== 'spectator') {
                 throw PlayerError.notAuthorized();
@@ -106,4 +161,7 @@ module.exports = function chatHandlers(io, socket) {
             }
         }
     ));
-};
+}
+
+module.exports = chatHandlers;
+export default chatHandlers;

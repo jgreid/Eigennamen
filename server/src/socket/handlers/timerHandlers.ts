@@ -6,6 +6,10 @@
  * validation, error handling, and socket room management.
  */
 
+import type { Server, Socket } from 'socket.io';
+import type { Player, GameState } from '../../types';
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const timerService = require('../../services/timerService');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
@@ -13,15 +17,56 @@ const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { timerAddTimeSchema } = require('../../validators/schemas');
 const { GameStateError } = require('../../errors/GameError');
+/* eslint-enable @typescript-eslint/no-var-requires */
 
-module.exports = function timerHandlers(io, socket) {
+/**
+ * Extended Socket type with custom properties
+ */
+interface GameSocket extends Socket {
+    sessionId: string;
+    roomCode: string | null;
+}
+
+/**
+ * Room handler context
+ */
+interface RoomContext {
+    sessionId: string;
+    roomCode: string;
+    player: Player;
+    game: GameState | null;
+}
+
+/**
+ * Timer add time input
+ */
+interface TimerAddTimeInput {
+    seconds: number;
+}
+
+/**
+ * Pause result
+ */
+interface PauseResult {
+    remainingSeconds: number;
+}
+
+/**
+ * Timer info
+ */
+interface TimerInfo {
+    endTime: number;
+    remainingSeconds: number;
+}
+
+function timerHandlers(io: Server, socket: GameSocket): void {
 
     /**
      * Pause the current turn timer (host only)
      */
     socket.on(SOCKET_EVENTS.TIMER_PAUSE, createHostHandler(socket, SOCKET_EVENTS.TIMER_PAUSE, null,
-        async (ctx) => {
-            const result = await timerService.pauseTimer(ctx.roomCode);
+        async (ctx: RoomContext) => {
+            const result: PauseResult | null = await timerService.pauseTimer(ctx.roomCode);
 
             // Bug #18 fix: Throw error instead of emitting error event
             // This ensures ACK response is consistent with the error state
@@ -42,9 +87,9 @@ module.exports = function timerHandlers(io, socket) {
      * Resume a paused timer (host only)
      */
     socket.on(SOCKET_EVENTS.TIMER_RESUME, createHostHandler(socket, SOCKET_EVENTS.TIMER_RESUME, null,
-        async (ctx) => {
+        async (ctx: RoomContext) => {
             const { createTimerExpireCallback } = getSocketFunctions();
-            const result = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
+            const result: TimerInfo | null = await timerService.resumeTimer(ctx.roomCode, createTimerExpireCallback());
 
             // Bug #18 fix: Throw error instead of emitting error event
             // This ensures ACK response is consistent with the error state
@@ -65,9 +110,9 @@ module.exports = function timerHandlers(io, socket) {
      * Add time to the current timer (host only)
      */
     socket.on(SOCKET_EVENTS.TIMER_ADD_TIME, createHostHandler(socket, SOCKET_EVENTS.TIMER_ADD_TIME, timerAddTimeSchema,
-        async (ctx, validated) => {
+        async (ctx: RoomContext, validated: TimerAddTimeInput) => {
             const { createTimerExpireCallback } = getSocketFunctions();
-            const result = await timerService.addTime(ctx.roomCode, validated.seconds, createTimerExpireCallback());
+            const result: TimerInfo | null = await timerService.addTime(ctx.roomCode, validated.seconds, createTimerExpireCallback());
 
             // Bug #18 fix: Throw error instead of emitting error event
             // This ensures ACK response is consistent with the error state
@@ -89,7 +134,7 @@ module.exports = function timerHandlers(io, socket) {
      * Stop the current timer (host only)
      */
     socket.on(SOCKET_EVENTS.TIMER_STOP, createHostHandler(socket, SOCKET_EVENTS.TIMER_STOP, null,
-        async (ctx) => {
+        async (ctx: RoomContext) => {
             await timerService.stopTimer(ctx.roomCode);
 
             io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_STOPPED, {
@@ -100,4 +145,7 @@ module.exports = function timerHandlers(io, socket) {
             logger.info(`Timer stopped in room ${ctx.roomCode} by host ${ctx.player.nickname}`);
         }
     ));
-};
+}
+
+module.exports = timerHandlers;
+export default timerHandlers;
