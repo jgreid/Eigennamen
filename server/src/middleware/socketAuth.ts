@@ -140,8 +140,59 @@ function getClientIP(socket: Socket): string {
 }
 
 /**
+ * In-memory rate limit fallback when Redis is unavailable.
+ * Uses a simple Map with periodic cleanup to prevent unbounded growth.
+ * This ensures rate limiting is never fully bypassed during Redis outages.
+ */
+const memoryRateLimits = new Map<string, { count: number; expiresAt: number }>();
+const MEMORY_RATE_LIMIT_CLEANUP_INTERVAL = 60_000; // 1 minute
+let memoryRateLimitCleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureMemoryRateLimitCleanup(): void {
+    if (memoryRateLimitCleanupTimer) return;
+    memoryRateLimitCleanupTimer = setInterval(() => {
+        const now = Date.now();
+        for (const [key, entry] of memoryRateLimits) {
+            if (entry.expiresAt <= now) {
+                memoryRateLimits.delete(key);
+            }
+        }
+    }, MEMORY_RATE_LIMIT_CLEANUP_INTERVAL);
+    // Don't block process exit
+    if (memoryRateLimitCleanupTimer.unref) {
+        memoryRateLimitCleanupTimer.unref();
+    }
+}
+
+function checkMemoryRateLimit(clientIP: string): RateLimitResult {
+    ensureMemoryRateLimitCleanup();
+    const now = Date.now();
+    const windowMs = REDIS_TTL.SESSION_VALIDATION_WINDOW * 1000;
+    const key = `session:validation:${clientIP}`;
+    const entry = memoryRateLimits.get(key);
+
+    if (!entry || entry.expiresAt <= now) {
+        memoryRateLimits.set(key, { count: 1, expiresAt: now + windowMs });
+        return { allowed: true, attempts: 1 };
+    }
+
+    entry.count++;
+    const maxAttempts = SESSION_SECURITY.MAX_VALIDATION_ATTEMPTS_PER_IP;
+    if (entry.count > maxAttempts) {
+        logger.warn('Session validation rate limited (in-memory fallback)', {
+            clientIP,
+            attempts: entry.count,
+            maxAttempts
+        });
+        return { allowed: false, attempts: entry.count };
+    }
+    return { allowed: true, attempts: entry.count };
+}
+
+/**
  * Rate limit session validation attempts by IP
  * Prevents brute-force session hijacking attempts
+ * Falls back to in-memory rate limiting when Redis is unavailable
  */
 async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResult> {
     const redis = getRedis();
@@ -167,14 +218,9 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
 
         return { allowed: true, attempts };
     } catch (error) {
-        // Configurable fail behavior: fail-open (availability) vs fail-closed (security)
-        logger.error('Rate limit check failed:', (error as Error).message);
-        if (SESSION_SECURITY.RATE_LIMIT_FAIL_CLOSED) {
-            logger.warn('Rate limit Redis failure - denying request (fail-closed mode)');
-            return { allowed: false, attempts: 0 };
-        }
-        // Default: fail-open for availability
-        return { allowed: true, attempts: 0 };
+        // Redis failed — always enforce rate limiting via in-memory fallback
+        logger.error('Rate limit Redis check failed, using in-memory fallback:', (error as Error).message);
+        return checkMemoryRateLimit(clientIP);
     }
 }
 

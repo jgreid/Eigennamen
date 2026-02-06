@@ -87,22 +87,8 @@ describe('Socket Auth Coverage', () => {
         mockSessionSecurity.RATE_LIMIT_FAIL_CLOSED = false;
     });
 
-    describe('Rate limit Redis failure - fail-closed (lines 92-98)', () => {
-        test('denies request when Redis fails and fail-closed is enabled', async () => {
-            mockSessionSecurity.RATE_LIMIT_FAIL_CLOSED = true;
-            mockRedis.incr.mockRejectedValue(new Error('Redis connection failed'));
-
-            const result = await validateSession('test-session', '192.168.1.1');
-
-            expect(result.valid).toBe(false);
-            expect(result.reason).toBe('SESSION_VALIDATION_RATE_LIMITED');
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('fail-closed mode')
-            );
-        });
-
-        test('allows request when Redis fails and fail-open (default)', async () => {
-            mockSessionSecurity.RATE_LIMIT_FAIL_CLOSED = false;
+    describe('Rate limit Redis failure - in-memory fallback', () => {
+        test('allows first request via in-memory fallback when Redis fails', async () => {
             mockRedis.incr.mockRejectedValue(new Error('Redis connection failed'));
 
             playerService.getPlayer.mockResolvedValue({
@@ -113,6 +99,29 @@ describe('Socket Auth Coverage', () => {
 
             const result = await validateSession('test-session', '192.168.1.1');
             expect(result.valid).toBe(true);
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.stringContaining('in-memory fallback'),
+                expect.any(String)
+            );
+        });
+
+        test('denies request via in-memory fallback when limit exceeded', async () => {
+            mockRedis.incr.mockRejectedValue(new Error('Redis connection failed'));
+
+            // Exceed the in-memory rate limit by making many requests
+            for (let i = 0; i < mockSessionSecurity.MAX_VALIDATION_ATTEMPTS_PER_IP; i++) {
+                playerService.getPlayer.mockResolvedValue({
+                    sessionId: 'test-session',
+                    createdAt: Date.now(),
+                    lastIP: '10.0.0.99'
+                });
+                await validateSession('test-session', '10.0.0.99');
+            }
+
+            // The next request should be denied
+            const result = await validateSession('test-session', '10.0.0.99');
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('SESSION_VALIDATION_RATE_LIMITED');
         });
     });
 

@@ -13,6 +13,7 @@
     "test": "jest --config jest.config.ts.js",
     "test:watch": "jest --config jest.config.ts.js --watch",
     "test:coverage": "jest --config jest.config.ts.js --coverage",
+    "test:frontend": "jest --config jest.config.frontend.js",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:headed": "npx playwright test --headed",
@@ -64,17 +65,18 @@
     "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "typescript-eslint": "^8.0.0",
     "eslint": "^9.0.0",
     "globals": "^17.1.0",
     "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.2.0",
     "nodemon": "^3.0.1",
     "socket.io-client": "^4.7.2",
     "supertest": "^7.2.2",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

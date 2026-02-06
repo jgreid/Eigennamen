@@ -30,7 +30,8 @@ module.exports = {
     testPathIgnorePatterns: [
         '/node_modules/',
         '/dist/',
-        '/helpers/'
+        '/helpers/',
+        '/__tests__/frontend/'
     ],
 
     // Transform configuration - all TypeScript

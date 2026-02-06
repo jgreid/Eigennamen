@@ -228,15 +228,10 @@ export async function updatePlayer(
         logger.debug(`updatePlayer transaction conflict for ${sessionId}, attempt ${attempt + 1}`);
     }
 
-    // Fall through after max retries — apply non-atomically as last resort
-    logger.warn(`updatePlayer failed atomically after ${maxRetries} retries for ${sessionId}, applying non-atomically`);
-    const player = await getPlayer(sessionId);
-    if (!player) {
-        throw new ServerError('Player not found');
-    }
-    const updatedPlayer: Player = { ...player, ...updates, lastSeen: Date.now() };
-    await redis.set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER });
-    return updatedPlayer;
+    // All atomic retries exhausted — throw rather than falling back to a non-atomic
+    // write that could silently overwrite concurrent updates
+    logger.error(`updatePlayer failed atomically after ${maxRetries} retries for ${sessionId}`);
+    throw ServerError.concurrentModification(null, `updatePlayer(${sessionId})`);
 }
 
 /**
