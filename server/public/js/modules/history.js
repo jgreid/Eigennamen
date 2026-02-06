@@ -181,11 +181,15 @@ export function renderReplayData(data) {
 export function renderReplayBoard() {
     const board = document.getElementById('replay-board');
     const words = state.currentReplayData?.initialBoard?.words || [];
-    const types = state.currentReplayData?.initialBoard?.types || [];
 
-    board.innerHTML = words.map((word, index) => {
-        return `<div class="replay-card" data-index="${index}">${escapeHTML(word)}</div>`;
-    }).join('');
+    board.innerHTML = '';
+    words.forEach((word, index) => {
+        const card = document.createElement('div');
+        card.className = 'replay-card';
+        card.dataset.index = String(index);
+        card.textContent = word;
+        board.appendChild(card);
+    });
 
     // Apply revealed state up to current index
     applyReplayState();

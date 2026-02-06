@@ -65,7 +65,10 @@ describe('Timer Handlers', () => {
             isHost: true,
             nickname: 'HostPlayer'
         });
-        gameService.getGame.mockResolvedValue(null);
+        gameService.getGame.mockResolvedValue({
+            currentTurn: 'red',
+            gameOver: false
+        });
 
         // Register handlers
         timerHandlers(mockIo, mockSocket);

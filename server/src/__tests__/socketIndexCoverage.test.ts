@@ -101,7 +101,6 @@ jest.mock('../services/eventLogService', () => ({
 
 // Mock timer service
 jest.mock('../services/timerService', () => ({
-    initializeTimerService: jest.fn().mockResolvedValue(true),
     startTimer: jest.fn().mockResolvedValue({
         startTime: Date.now(),
         endTime: Date.now() + 60000,

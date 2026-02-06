@@ -2,14 +2,14 @@
 
 **Date**: 2026-02-06
 **Scope**: Full codebase review of Risley-Codenames (server + frontend)
-**Last Updated**: 2026-02-06 (refreshed after H1-H4 and M1-M8 fixes)
+**Last Updated**: 2026-02-06 (refreshed after H1-H4, M1-M8, R1, L4, L5, L7 fixes)
 **Test Status**: Backend 91/92 suites passing (1 skipped), Frontend 1/1 suite (36 tests), timing.test.ts known flaky
 
 ---
 
 ## Summary
 
-The codebase has undergone two rounds of hardening since the initial review. All 4 HIGH and all 8 MEDIUM items have been addressed, with one partial regression identified during re-verification. The remaining work consists of low-priority items and the identified regression.
+The codebase has undergone three rounds of hardening since the initial review. All 4 HIGH and all 8 MEDIUM items have been addressed. The R1 regression and LOW-priority items L4, L5, and L7 have now also been fixed. Only L2 (debug utilities, acceptable risk) remains open.
 
 Security posture is strong: Zod input validation at all entry points, in-memory rate limit fallback when Redis is unavailable, atomic Lua scripts for critical operations, DOM-based rendering (replacing innerHTML), CSRF audit logging, AbortController-based disconnect cleanup, and IP mismatch defaulting to blocked.
 
@@ -46,18 +46,7 @@ Security posture is strong: Zod input validation at all entry points, in-memory 
 ### R1. renderReplayBoard Still Uses innerHTML (H1 Partial Regression)
 
 **File**: `server/public/js/modules/history.js:186`
-
-```javascript
-board.innerHTML = words.map((word, index) => {
-    return `<div class="replay-card" data-index="${index}">${escapeHTML(word)}</div>`;
-}).join('');
-```
-
-The `renderReplayBoard` function was missed during the H1 innerHTML-to-DOM refactoring. While `escapeHTML()` is applied to the `word` value, the `index` variable is interpolated into a `data-index` attribute without quoting concerns, and the overall pattern is inconsistent with the DOM API approach used everywhere else.
-
-**Risk**: LOW (escapeHTML covers the dynamic word content; index is a numeric loop variable). But should be converted for consistency.
-
-**Recommendation**: Refactor to use `createElement`/`textContent` like the other rendering functions.
+**Status**: **FIXED** — Refactored to use `createElement`/`textContent`/`dataset` like all other rendering functions.
 
 ---
 
@@ -66,38 +55,24 @@ The `renderReplayBoard` function was missed during the H1 innerHTML-to-DOM refac
 ### L2. Debug State Dump in Console
 
 **File**: `server/public/js/modules/state.js:320-328`
-**Status**: OPEN
+**Status**: OPEN (acceptable risk)
 
-A `dumpState()` function logs complete game state (including spymaster assignments, current turn, room IDs) to the browser console. Any player can call this from DevTools.
-
-**Recommendation**: Gate debug output behind a build-time flag, or remove it. Note: sensitive fields (card types for non-spymasters) are correctly stripped by `getGameStateForPlayer()` on the server, so the actual risk is limited to exposing non-secret state metadata.
+A `dumpState()` function logs game state to the browser console, gated behind `localStorage.debug === 'codenames'`. Only exposed via `window.__codenamesDebug`. Sensitive fields (card types for non-spymasters) are correctly stripped by `getGameStateForPlayer()` on the server, so the actual risk is limited to exposing non-secret state metadata.
 
 ### L4. Audit Logs Lost in Memory Mode
 
-**File**: `server/src/services/auditService.ts:189-204`
-**Status**: OPEN
-
-When running without external Redis (memory mode), all audit log writes are silently discarded. Security events from the newly added CSRF audit logging (M6) and other audit points are completely lost in memory-only deployments.
-
-**Recommendation**: Write audit logs to the in-memory storage (same as game data), or fall back to file-based logging when Redis is unavailable. This became more relevant now that M6 added CSRF audit events.
+**File**: `server/src/services/auditService.ts`
+**Status**: **FIXED** — Added in-memory ring buffer fallback. When Redis is unavailable, audit logs are stored in memory with the same size limits (`MAX_LOGS_PER_CATEGORY`). Both `getAuditLogs()` and `getAuditSummary()` now return data in memory mode.
 
 ### L5. Timer Handlers Missing Active Game Check
 
-**File**: `server/src/socket/handlers/timerHandlers.ts:67-147`
-**Status**: OPEN
-
-Timer pause/resume/stop handlers use `createHostHandler` (correct for authorization), but don't verify that an active game exists. A host can manipulate timers on a room with no game in progress.
-
-**Recommendation**: Add a game-active check at the start of timer handlers, or use `createGameHandler` which enforces game context.
+**File**: `server/src/socket/handlers/timerHandlers.ts`
+**Status**: **FIXED** — All four timer handlers (pause, resume, addTime, stop) now verify `ctx.game` exists and is not game-over before proceeding. Throws `GAME_NOT_STARTED` error if no active game.
 
 ### L7. Dead Code in Timer Service
 
-**File**: `server/src/services/timerService.ts:88, 503-507`
-**Status**: OPEN
-
-`_globalExpireCallback` is declared (with `@ts-expect-error` suppressing the unused warning) and `initializeTimerService()` sets it, but it's never called. This is dead code that adds confusion.
-
-**Recommendation**: Remove the unused global callback and `initializeTimerService()` function.
+**File**: `server/src/services/timerService.ts`
+**Status**: **FIXED** — Removed `_globalExpireCallback`, `initializeTimerService()`, and the call from `socket/index.ts`. Timer expire callbacks are passed directly per-operation via `startTimer()`, `resumeTimer()`, and `addTime()`.
 
 ---
 

@@ -303,9 +303,6 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
         }
     }, 5 * 60 * 1000);
 
-    // Initialize timer service with expire callback
-    timerService.initializeTimerService(createTimerExpireCallback());
-
     // Register socket functions for handlers (breaks circular dependency)
     registerSocketFunctions({
         emitToRoom,

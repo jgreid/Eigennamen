@@ -197,8 +197,7 @@ jest.mock('../../utils/logger', () => ({
 jest.mock('../../services/timerService', () => ({
     startTimer: jest.fn(async () => ({ durationSeconds: 120, endTime: Date.now() + 120000 })),
     stopTimer: jest.fn(async () => {}),
-    getTimerStatus: jest.fn(async () => null),
-    initializeTimerService: jest.fn()
+    getTimerStatus: jest.fn(async () => null)
 }));
 
 // Import after mocks

@@ -85,7 +85,6 @@ jest.mock('../services/eventLogService', () => ({
 
 // Mock timer service
 jest.mock('../services/timerService', () => ({
-    initializeTimerService: jest.fn().mockResolvedValue(true),
     startTimer: jest.fn().mockResolvedValue({
         startTime: Date.now(),
         endTime: Date.now() + 60000,
@@ -159,13 +158,14 @@ describe('Socket Index Module', () => {
             socketMod.cleanupSocketModule();
         });
 
-        test('initializes timer service', () => {
+        test('registers socket functions including timer callback', () => {
             jest.resetModules();
-            const timerService = require('../services/timerService');
             const socketMod = require('../socket/index');
 
             socketMod.initializeSocket(server);
-            expect(timerService.initializeTimerService).toHaveBeenCalled();
+            const { getSocketFunctions } = require('../socket/socketFunctionProvider');
+            const fns = getSocketFunctions();
+            expect(typeof fns.createTimerExpireCallback).toBe('function');
             socketMod.cleanupSocketModule();
         });
 

@@ -44,7 +44,8 @@ const {
     logAuditEvent,
     getAuditLogs,
     getAuditSummary,
-    audit
+    audit,
+    clearMemoryLogs
 } = require('../services/auditService');
 const logger = require('../utils/logger');
 const { isUsingMemoryMode } = require('../config/redis');
@@ -53,6 +54,7 @@ describe('Audit Service', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedisStorage.clear();
+        clearMemoryLogs();
         mockUsingMemoryMode = false;
     });
 
@@ -320,10 +322,18 @@ describe('Audit Service', () => {
     });
 
     describe('getAuditLogs()', () => {
-        it('should return empty array in memory mode', async () => {
+        it('should return empty array in memory mode with no prior events', async () => {
             mockUsingMemoryMode = true;
             const logs = await getAuditLogs();
             expect(logs).toEqual([]);
+        });
+
+        it('should return stored logs in memory mode after logging events', async () => {
+            mockUsingMemoryMode = true;
+            await logAuditEvent(AUDIT_EVENTS.ROOM_CREATED, { actor: 'session-1', target: 'ROOM1' });
+            const logs = await getAuditLogs();
+            expect(logs.length).toBeGreaterThanOrEqual(1);
+            expect(logs[0].event).toBe(AUDIT_EVENTS.ROOM_CREATED);
         });
 
         it('should return parsed logs from main log key by default', async () => {
@@ -411,7 +421,7 @@ describe('Audit Service', () => {
     });
 
     describe('getAuditSummary()', () => {
-        it('should return zero counts in memory mode', async () => {
+        it('should return zero counts in memory mode with no prior events', async () => {
             mockUsingMemoryMode = true;
 
             const summary = await getAuditSummary();
