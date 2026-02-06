@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy package files from server directory
 COPY server/package*.json ./
 
-# Install all dependencies (including devDependencies for build)
+# Install all dependencies (including devDependencies for TypeScript build)
 RUN npm ci
 
 # Copy server source code
@@ -16,8 +16,14 @@ COPY server/ .
 # Copy root index.html (symlinked from server/public/index.html)
 COPY index.html ./public/index.html
 
-# Generate Prisma client
+# Generate Prisma client (needed before TypeScript compilation)
 RUN npx prisma generate
+
+# Compile TypeScript to JavaScript in dist/
+RUN npm run build
+
+# Copy Lua scripts (non-TS assets referenced at runtime via fs.readFileSync)
+RUN cp -r src/scripts dist/scripts
 
 # Production stage
 FROM node:20-alpine
@@ -40,8 +46,8 @@ RUN npm ci --omit=dev && \
     npx prisma generate && \
     npm cache clean --force
 
-# Copy source code from builder
-COPY --from=builder /app/src ./src
+# Copy compiled JavaScript from builder
+COPY --from=builder /app/dist ./dist
 
 # Copy public folder (static assets) from builder
 COPY --from=builder /app/public ./public
@@ -64,4 +70,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:3000/health/ready || exit 1
 
 # Start application
-CMD ["node", "src/index.js"]
+CMD ["node", "dist/index.js"]
