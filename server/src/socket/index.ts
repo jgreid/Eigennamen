@@ -236,12 +236,13 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
 
             // Timeout wrapper for disconnect handler - prevents indefinite hangs
             const DISCONNECT_TIMEOUT_MS = 30000;
+            let disconnectTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
             try {
                 await Promise.race([
                     handleDisconnect(socketServer, gameSocket, reason),
                     new Promise((_, reject) => {
-                        setTimeout(() => {
+                        disconnectTimeoutId = setTimeout(() => {
                             reject(new Error('Disconnect handler timeout'));
                         }, DISCONNECT_TIMEOUT_MS);
                     })
@@ -253,6 +254,11 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
                     // Retrying would cause duplicate host transfers and disconnect broadcasts.
                 } else {
                     logger.error('Error in disconnect handler:', error);
+                }
+            } finally {
+                // Clear the timeout to prevent timer leak when handleDisconnect resolves first
+                if (disconnectTimeoutId !== undefined) {
+                    clearTimeout(disconnectTimeoutId);
                 }
             }
         });
