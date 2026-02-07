@@ -45,10 +45,11 @@ const createNicknameSchema = (): ZodType.ZodEffects<ZodType.ZodEffects<ZodType.Z
 // Room schemas
 const roomCreateSchema = z.object({
     // Room ID provided by host - serves as both room name and access key
+    // FIX: Add .toLowerCase() for consistency with roomReconnectSchema and roomCodeSchema
     roomId: z.string()
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
-        .transform((val: string) => removeControlChars(val).trim())
+        .transform((val: string) => removeControlChars(val).trim().toLowerCase())
         .refine((val: string) => roomIdRegex.test(val), 'Room ID contains invalid characters'),
     settings: z.object({
         teamNames: z.object({
@@ -67,10 +68,11 @@ const roomCreateSchema = z.object({
 
 const roomJoinSchema = z.object({
     // Room ID - the same ID the host used when creating the room
+    // FIX: Add .toLowerCase() for consistency with roomReconnectSchema and roomCodeSchema
     roomId: z.string()
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
-        .transform((val: string) => removeControlChars(val).trim())
+        .transform((val: string) => removeControlChars(val).trim().toLowerCase())
         .refine((val: string) => roomIdRegex.test(val), 'Room ID contains invalid characters'),
     nickname: createNicknameSchema()
 });

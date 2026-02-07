@@ -78,12 +78,18 @@ return 1
 
 /**
  * Lua script for atomic room join with capacity check
- * Returns: 1 if added successfully, 0 if room is full, -1 if already a member
+ * Returns: 1 if added successfully, 0 if room is full, -1 if already a member, -2 if room doesn't exist
  */
 const ATOMIC_JOIN_SCRIPT = `
 local playersKey = KEYS[1]
+local roomKey = KEYS[2]
 local maxPlayers = tonumber(ARGV[1])
 local sessionId = ARGV[2]
+
+-- Verify room still exists (prevents orphaned player sets if room was deleted between getRoom and this script)
+if redis.call('EXISTS', roomKey) == 0 then
+    return -2
+end
 
 -- Check if already a member
 if redis.call('SISMEMBER', playersKey, sessionId) == 1 then
@@ -271,17 +277,23 @@ export async function joinRoom(
     } else {
         // New join - use Lua script for atomic capacity check and add
         // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+        // FIX: Pass room key as KEYS[2] so the script can verify room still exists
         const result = await withTimeout(
             redis.eval(
                 ATOMIC_JOIN_SCRIPT,
                 {
-                    keys: [`room:${normalizedRoomId}:players`],
+                    keys: [`room:${normalizedRoomId}:players`, `room:${normalizedRoomId}`],
                     arguments: [ROOM_MAX_PLAYERS.toString(), sessionId]
                 }
             ),
             TIMEOUTS.REDIS_OPERATION,
             `joinRoom-lua-${normalizedRoomId}`
         ) as number;
+
+        if (result === -2) {
+            // Room was deleted between getRoom() and the atomic script
+            throw RoomError.notFound(roomId);
+        }
 
         if (result === 0) {
             throw RoomError.full(roomId);

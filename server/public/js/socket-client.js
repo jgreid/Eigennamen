@@ -610,13 +610,16 @@
                 this.socket.emit('room:join', { roomId, nickname });
 
                 // ISSUE #20 FIX: Store timeout ID for cancellation
-                // Timeout matches server JOIN_ROOM timeout (15s)
+                // FIX: Client timeout (20s) exceeds server JOIN_ROOM timeout (15s) to
+                // account for post-join processing (stats, token invalidation) and network latency.
+                // Previously both were 15s, causing the client to timeout before receiving
+                // the server's response when post-join operations added even small delays.
                 timeoutId = setTimeout(() => {
                     if (settled) return;
                     settled = true;
                     cleanup();
                     reject(new Error('Join room timeout'));
-                }, 15000);
+                }, 20000);
             });
         },
 

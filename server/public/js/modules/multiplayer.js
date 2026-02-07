@@ -197,8 +197,11 @@ async function handleJoinGame() {
         }
 
         setMpStatus('Joining game...', 'connecting');
-        // Join the room with roomId (no password needed)
-        const result = await CodenamesClient.joinRoom(roomId, nickname);
+        // FIX: Normalize room ID to lowercase before sending to server
+        // This ensures consistency with server-side normalization and prevents
+        // case-mismatch issues between client state and server state
+        const normalizedRoomId = roomId.toLowerCase();
+        const result = await CodenamesClient.joinRoom(normalizedRoomId, nickname);
 
         // Check if operation was cancelled while waiting for join response
         if (signal.aborted) {
@@ -206,7 +209,8 @@ async function handleJoinGame() {
         }
 
         // Store the actual room code from server (normalized to lowercase)
-        state.currentRoomId = result.room?.code || roomId;
+        // FIX: Use normalizedRoomId as fallback instead of raw roomId to prevent case mismatch
+        state.currentRoomId = result.room?.code || normalizedRoomId;
 
         onMultiplayerJoined(result, false); // false = not host
 
