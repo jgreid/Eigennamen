@@ -49,29 +49,29 @@ npx playwright test
 ```
 server/src/__tests__/
 ├── services/
-│   ├── gameService.test.js      # Game logic tests
-│   ├── roomService.test.js      # Room management tests
-│   ├── playerService.test.js    # Player management tests
-│   ├── timerService.test.js     # Timer functionality tests
-│   └── wordListService.test.js  # Word list tests
+│   ├── gameService.test.ts      # Game logic tests
+│   ├── roomService.test.ts      # Room management tests
+│   ├── playerService.test.ts    # Player management tests
+│   ├── timerService.test.ts     # Timer functionality tests
+│   └── wordListService.test.ts  # Word list tests
 ├── handlers/
-│   ├── gameHandlers.test.js     # Game event handlers
-│   ├── roomHandlers.test.js     # Room event handlers
-│   └── playerHandlers.test.js   # Player event handlers
+│   ├── gameHandlers.test.ts     # Game event handlers
+│   ├── roomHandlers.test.ts     # Room event handlers
+│   └── playerHandlers.test.ts   # Player event handlers
 ├── middleware/
-│   ├── rateLimit.test.js        # Rate limiting tests
-│   ├── socketAuth.test.js       # Authentication tests
-│   └── validation.test.js       # Input validation tests
+│   ├── rateLimit.test.ts        # Rate limiting tests
+│   ├── socketAuth.test.ts       # Authentication tests
+│   └── validation.test.ts       # Input validation tests
 ├── routes/
-│   └── routes.test.js           # REST API tests
+│   └── routes.test.ts           # REST API tests
 └── integration/
-    └── multiplayer.test.js      # Multi-player scenarios
+    └── multiplayer.test.ts      # Multi-player scenarios
 ```
 
 ### Writing Unit Tests
 
 ```javascript
-// server/src/__tests__/services/gameService.test.js
+// server/src/__tests__/services/gameService.test.ts
 const gameService = require('../../services/gameService');
 const { getRedis } = require('../../config/redis');
 
@@ -194,7 +194,7 @@ function mockPlayer(overrides = {}) {
 ### Testing Socket Handlers
 
 ```javascript
-// server/src/__tests__/handlers/gameHandlers.test.js
+// server/src/__tests__/handlers/gameHandlers.test.ts
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const Client = require('socket.io-client');
@@ -239,7 +239,7 @@ describe('gameHandlers', () => {
 For integration tests that need real Redis:
 
 ```javascript
-// server/src/__tests__/integration/redis.test.js
+// server/src/__tests__/integration/redis.test.ts
 const { getRedis, initializeRedis } = require('../../config/redis');
 
 describe('Redis Integration', () => {

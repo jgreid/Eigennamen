@@ -50,8 +50,8 @@ Risley-Codenames/
     │   │   └── socket-client.js
     │   └── css/            # Modular stylesheets
     ├── src/
-    │   ├── index.js        # Entry point - server initialization
-    │   ├── app.js          # Express configuration
+    │   ├── index.ts        # Entry point - server initialization
+    │   ├── app.ts          # Express configuration
     │   ├── config/         # Configuration modules
     │   ├── middleware/     # Express middleware
     │   ├── routes/         # REST API routes
@@ -75,24 +75,25 @@ Risley-Codenames/
 
 ### Backend
 - **Runtime**: Node.js 18+
+- **Language**: TypeScript 5.3+ (compiled to `dist/` via `npm run build`)
 - **Framework**: Express.js 4.18
 - **Real-time**: Socket.io 4.7
 - **Database**: PostgreSQL 15+ via Prisma (optional)
 - **Cache**: Redis 7+ (optional, has in-memory fallback)
 - **Validation**: Zod schemas
-- **Testing**: Jest 29 + Supertest
+- **Testing**: Jest 29 + Supertest + ts-jest
 - **Logging**: Winston
 
 ## Key Services
 
 | Service | File | Purpose |
 |---------|------|---------|
-| `gameService` | `server/src/services/gameService.js` | Core game logic, card shuffling, PRNG |
-| `roomService` | `server/src/services/roomService.js` | Room lifecycle management |
-| `playerService` | `server/src/services/playerService.js` | Player/team management |
-| `timerService` | `server/src/services/timerService.js` | Turn timers with Redis backing |
-| `wordListService` | `server/src/services/wordListService.js` | Custom word list management |
-| `eventLogService` | `server/src/services/eventLogService.js` | Event logging for reconnection recovery |
+| `gameService` | `server/src/services/gameService.ts` | Core game logic, card shuffling, PRNG |
+| `roomService` | `server/src/services/roomService.ts` | Room lifecycle management |
+| `playerService` | `server/src/services/playerService.ts` | Player/team management |
+| `timerService` | `server/src/services/timerService.ts` | Turn timers with Redis backing |
+| `wordListService` | `server/src/services/wordListService.ts` | Custom word list management |
+| `eventLogService` | `server/src/services/eventLogService.ts` | Event logging for reconnection recovery |
 
 ## WebSocket Events
 
@@ -130,7 +131,7 @@ Risley-Codenames/
 ## Code Conventions
 
 ### File Naming
-- **Files**: camelCase (`gameService.js`, `roomHandlers.js`)
+- **Files**: camelCase (`gameService.ts`, `roomHandlers.ts`)
 - **Classes/Objects**: PascalCase
 - **Functions**: camelCase
 - **Events**: colon-separated (`game:start`, `room:playerJoined`)
@@ -140,7 +141,7 @@ Risley-Codenames/
 1. **Service Layer**: All business logic goes in `/server/src/services/`
 2. **Handler Pattern**: Socket/HTTP handlers delegate to services
 3. **Validation First**: Use Zod schemas at entry points (in `/validators/`)
-4. **Typed Errors**: Use error codes from `/config/constants.js`
+4. **Typed Errors**: Use error codes from `/config/constants.ts`
 
 ### Data Flow
 1. Client sends Socket.io event with data
@@ -161,9 +162,9 @@ npm run test:coverage    # With coverage report
 **Coverage requirements**: 80% minimum for branches, functions, lines, and statements
 
 **Test files location**: `server/src/__tests__/`
-- `gameService.test.js` - PRNG, board generation
-- `timerService.test.js` - Redis-backed timers
-- `validators.test.js` - Input validation schemas
+- `gameService.test.ts` - PRNG, board generation
+- `timerService.test.ts` - Redis-backed timers
+- `validators.test.ts` - Input validation schemas
 
 ## Environment Variables
 
@@ -214,7 +215,7 @@ REDIS_URL=memory npm run dev
 ## Important Implementation Details
 
 ### Seeded PRNG
-The game uses Mulberry32 algorithm for deterministic card shuffling, synced between client and server. See `gameService.js`.
+The game uses Mulberry32 algorithm for deterministic card shuffling, synced between client and server. See `gameService.ts`.
 
 ### Graceful Degradation
 - Database is optional - game works fully without PostgreSQL
@@ -237,20 +238,20 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 ## Common Tasks
 
 ### Adding a New Socket Event
-1. Add Zod schema in `server/src/validators/schemas.js`
-2. Create handler in appropriate `server/src/socket/handlers/*.js` file
-3. Register handler in `server/src/socket/index.js`
+1. Add Zod schema in `server/src/validators/schemas.ts`
+2. Create handler in appropriate `server/src/socket/handlers/*.ts` file
+3. Register handler in `server/src/socket/index.ts`
 4. Add client handling in `server/public/js/modules/multiplayer.js`
 
 ### Adding a New REST Endpoint
 1. Add route in `server/src/routes/` (or create new route file)
 2. Add validation middleware if needed
 3. Implement service logic in `server/src/services/`
-4. Register route in `server/src/routes/index.js`
+4. Register route in `server/src/routes/index.ts`
 
 ### Modifying Game Rules
-1. Update constants in `server/src/config/constants.js`
-2. Modify logic in `server/src/services/gameService.js`
+1. Update constants in `server/src/config/constants.ts`
+2. Modify logic in `server/src/services/gameService.ts`
 3. Update client logic in `server/public/js/modules/game.js` if needed
 4. Add/update tests in `server/src/__tests__/`
 
@@ -265,9 +266,9 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 |------|----------------|
 | `index.html` | Frontend entry point |
 | `server/public/js/modules/` | ES6 modular frontend code |
-| `server/src/config/constants.js` | Game rules, rate limits, error codes |
-| `server/src/services/gameService.js` | Core game logic and PRNG |
-| `server/src/socket/index.js` | Socket.io setup and event registration |
+| `server/src/config/constants.ts` | Game rules, rate limits, error codes |
+| `server/src/services/gameService.ts` | Core game logic and PRNG |
+| `server/src/socket/index.ts` | Socket.io setup and event registration |
 | `server/prisma/schema.prisma` | Database schema definition |
 | `docker-compose.yml` | Local development infrastructure |
 | `fly.toml` | Production deployment config |

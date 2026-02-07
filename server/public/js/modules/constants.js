@@ -1,6 +1,6 @@
 // ========== SHARED FRONTEND CONSTANTS ==========
 // PHASE 2 FIX: Centralize hardcoded limits for consistency with server validation
-// These values should match the server-side constants in server/src/config/constants.js
+// These values should match the server-side constants in server/src/config/constants.ts
 
 /**
  * Validation limits for user input
