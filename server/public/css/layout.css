@@ -90,29 +90,4 @@ header {
     letter-spacing: 0.5px;
 }
 
-/* ========== BOARD FOOTER ========== */
-.board-footer {
-    text-align: center;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* ========== GLASSMORPHISM PANELS ========== */
-.glass-panel {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 16px;
-    contain: layout style;
-}
-
-.glass-panel-subtle {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 12px;
-}
 

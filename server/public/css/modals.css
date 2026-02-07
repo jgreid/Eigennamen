@@ -664,26 +664,6 @@
     justify-content: center;
 }
 
-/* Rules section in Settings (collapsible) */
-.rules-section {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
-}
-
-.rules-section summary {
-    cursor: pointer;
-    user-select: none;
-}
-
-.rules-section summary h3 {
-    margin: 0;
-    color: #667eea;
-    font-size: 0.9rem;
-}
-
 .rules-content {
     margin-top: 0;
     color: rgba(255, 255, 255, 0.8);

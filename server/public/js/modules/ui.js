@@ -105,14 +105,6 @@ function getModalCloseHandler(modalId) {
 // Each entry contains: { modal, previousFocus }
 const modalStack = [];
 
-/**
- * Get the current modal stack depth (for debugging/testing)
- * @returns {number} Number of modals in the stack
- */
-export function getModalStackDepth() {
-    return modalStack.length;
-}
-
 // ========== MODAL MANAGEMENT ==========
 export function openModal(modalId) {
     const modal = document.getElementById(modalId);

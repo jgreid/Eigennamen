@@ -1172,19 +1172,6 @@ const multiplayerEventNames = [
 const domListenerCleanup = [];
 
 /**
- * Register a DOM event listener with automatic cleanup tracking
- * @param {Element} element - DOM element to attach listener to
- * @param {string} event - Event name
- * @param {Function} handler - Event handler
- * @param {Object} options - addEventListener options
- */
-export function addTrackedListener(element, event, handler, options = {}) {
-    if (!element) return;
-    element.addEventListener(event, handler, options);
-    domListenerCleanup.push({ element, event, handler, options });
-}
-
-/**
  * Remove all tracked DOM event listeners
  */
 export function cleanupDOMListeners() {
