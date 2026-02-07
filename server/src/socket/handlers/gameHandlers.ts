@@ -108,6 +108,10 @@ interface RevealResult {
     winner: Team | null;
     endReason: string | null;
     allTypes: CardType[] | null;
+    // Duet mode fields
+    timerTokens?: number;
+    greenFound?: number;
+    allDuetTypes?: CardType[] | null;
 }
 
 /**
