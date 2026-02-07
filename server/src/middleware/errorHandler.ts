@@ -4,10 +4,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
 const { ERROR_CODES } = require('../config/constants');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Custom error type with code and details

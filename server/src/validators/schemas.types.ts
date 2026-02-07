@@ -11,7 +11,6 @@
 import { z } from 'zod';
 
 // Import schemas - using require for CommonJS compatibility
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const schemas = require('./schemas');
 
 // ============================================================================

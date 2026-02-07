@@ -7,9 +7,7 @@
 
 import type { Socket, Server as SocketIOServer } from 'socket.io';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Retry options for reliable emit

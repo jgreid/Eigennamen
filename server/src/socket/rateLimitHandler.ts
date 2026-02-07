@@ -1,16 +1,14 @@
 /**
  * Rate-limited Socket Handler Utility
- * Extracted to avoid circular dependencies between socket/index.js and handlers
+ * Extracted to avoid circular dependencies between socket/index.ts and handlers
  */
 
 import type { Socket } from 'socket.io';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { createSocketRateLimiter } = require('../middleware/rateLimit');
 const { RATE_LIMITS, ERROR_CODES } = require('../config/constants');
 const logger = require('../utils/logger');
 const { sanitizeErrorForClient } = require('../errors/GameError');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Socket type with game-specific properties
@@ -87,7 +85,7 @@ type RateLimitedHandler = (data: unknown, ackCallback?: AckCallback) => Promise<
 type HandlerFunction = (data: unknown) => Promise<void>;
 
 // Create socket rate limiter using centralized constants
-// This ensures consistency between constants.js and actual rate limiting
+// This ensures consistency between constants.ts and actual rate limiting
 const socketRateLimiter: SocketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
 
 // Store reference for cleanup on shutdown

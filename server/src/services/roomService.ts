@@ -18,7 +18,6 @@ import type {
 import type { Player, PlayerGameState } from '../types';
 
 // Using require for CommonJS modules during migration
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { getRedis } = require('../config/redis');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
@@ -35,7 +34,6 @@ const {
     GAME_MODE_CONFIG
 } = require('../config/constants');
 const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Redis client type (simplified for migration)

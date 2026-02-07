@@ -5,7 +5,6 @@
  */
 
 // Import logger - using require for CommonJS compatibility during migration
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const logger = require('../utils/logger');
 
 /**

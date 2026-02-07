@@ -6,10 +6,8 @@
  * Falls back to in-memory ring buffers when Redis is unavailable.
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
 const { getRedis, isUsingMemoryMode } = require('../config/redis');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Severity levels for audit events

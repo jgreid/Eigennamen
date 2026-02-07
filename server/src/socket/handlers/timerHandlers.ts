@@ -9,7 +9,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { Player, GameState } from '../../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const timerService = require('../../services/timerService');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
@@ -17,7 +16,6 @@ const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { timerAddTimeSchema } = require('../../validators/schemas');
 const { GameStateError } = require('../../errors/GameError');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Socket type with custom properties

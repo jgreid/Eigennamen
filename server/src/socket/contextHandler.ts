@@ -26,11 +26,9 @@ import type { Player } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { PlayerContextOptions, PlayerContextResult } from './playerContext';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { getPlayerContext, syncSocketRooms } = require('./playerContext');
 const { createRateLimitedHandler } = require('./rateLimitHandler');
 const { validateInput } = require('../middleware/validation');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Handler result that may include updated player for room syncing

@@ -5,10 +5,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ZodSchema, ZodError as ZodErrorType, ZodIssue } from 'zod';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { ZodError } = require('zod');
 const { ERROR_CODES } = require('../config/constants');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Validation error structure

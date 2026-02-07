@@ -8,7 +8,6 @@
 
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const wordListService = require('../services/wordListService');
@@ -18,7 +17,6 @@ const { BOARD_SIZE } = require('../config/constants');
 const logger = require('../utils/logger');
 const { getJwtSecret } = require('../config/jwt');
 const { removeControlChars } = require('../utils/sanitize');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 const router: ExpressRouter = express.Router();
 

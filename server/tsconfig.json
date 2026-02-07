@@ -63,14 +63,12 @@
     }
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.js"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "coverage",
-    "src/__tests__/**/*.test.js",
     "src/__tests__/**/*.test.ts"
   ]
 }

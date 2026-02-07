@@ -4,7 +4,6 @@
 
 import type { Team, Role, Player } from '../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -13,7 +12,6 @@ const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Player update data
@@ -584,7 +582,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
  * Handle player disconnection
  * Updates player status and schedules cleanup after grace period
  * Note: Token generation is handled by generateReconnectionToken() which
- * should be called before this function in socket/index.js
+ * should be called before this function in socket/index.ts
  * ISSUE #57 FIX: Schedule player cleanup after grace period
  */
 export async function handleDisconnect(sessionId: string): Promise<Player | null> {

@@ -4,10 +4,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Rate limit configuration
