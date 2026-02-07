@@ -368,6 +368,7 @@ export function onMultiplayerJoined(result, isHostParam = false) {
     // Update role-specific UI
     updateControls();
     updateRoleBanner();
+    updateForfeitButton();
 
     // Close modal after brief delay and show appropriate message
     setTimeout(() => {
@@ -596,6 +597,7 @@ export function setupMultiplayerListeners() {
             syncGameStateFromServer(data.game);
             state.gameMode = data.gameMode || 'classic';
             updateDuetUI(data.game);
+            updateForfeitButton();
             const modeLabels = { blitz: 'Blitz game started!', duet: 'Duet game started!', classic: 'New game started!' };
             showToast(modeLabels[data.gameMode] || 'New game started!', 'success');
         }
@@ -664,6 +666,7 @@ export function setupMultiplayerListeners() {
             }
             setTabNotification(false);
             playNotificationSound('gameOver');
+            updateForfeitButton();
         }
     });
 
@@ -853,6 +856,7 @@ export function setupMultiplayerListeners() {
         // Update UI elements that depend on host status
         updateRoomSettingsNavVisibility();
         updateRoleBanner();
+        updateForfeitButton();
 
         if (state.isHost && !wasHost) {
             showToast('You are now the host!', 'info');
@@ -909,9 +913,21 @@ export function setupMultiplayerListeners() {
         state.roleChangeOperationId = null;
         state.roleChangeRevertFn = null;
         showToast('Disconnected from server', 'warning');
+        // Show reconnection overlay if we were in a room
+        if (state.isMultiplayerMode) {
+            showReconnectionOverlay();
+        }
+    });
+
+    // Show reconnection overlay when auto-rejoin is being attempted
+    CodenamesClient.on('rejoining', () => {
+        showReconnectionOverlay();
     });
 
     CodenamesClient.on('rejoined', (data) => {
+        // Hide reconnection overlay
+        hideReconnectionOverlay();
+
         // Sync current player's state after auto-rejoin
         const currentPlayer = data?.you || CodenamesClient.player;
         if (currentPlayer) {
@@ -932,12 +948,16 @@ export function setupMultiplayerListeners() {
         // Update UI elements
         updateControls();
         updateRoleBanner();
+        updateForfeitButton();
 
         showToast('Reconnected!', 'success');
     });
 
     // Handle token-based reconnection
     CodenamesClient.on('roomReconnected', (data) => {
+        // Hide reconnection overlay
+        hideReconnectionOverlay();
+
         // Sync current player's state after token-based reconnection
         const currentPlayer = data?.you || CodenamesClient.player;
         if (currentPlayer) {
@@ -958,11 +978,15 @@ export function setupMultiplayerListeners() {
         // Update UI elements
         updateControls();
         updateRoleBanner();
+        updateForfeitButton();
 
         showToast('Reconnected!', 'success');
     });
 
     CodenamesClient.on('rejoinFailed', (data) => {
+        // Hide reconnection overlay
+        hideReconnectionOverlay();
+
         if (data.error?.code === 'ROOM_NOT_FOUND') {
             showToast('Previous game no longer exists', 'warning');
         } else {
@@ -1136,7 +1160,7 @@ const multiplayerEventNames = [
     'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
     'playerUpdated', 'clueGiven', 'spymasterView',
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
-    'roomReconnected', 'disconnected', 'rejoined', 'rejoinFailed', 'error',
+    'roomReconnected', 'disconnected', 'rejoining', 'rejoined', 'rejoinFailed', 'error',
     'kicked', 'playerKicked', 'settingsUpdated',
     'hostChanged',  // Added missing event
     'historyResult', 'replayData',
@@ -1146,19 +1170,6 @@ const multiplayerEventNames = [
 
 // Track DOM listeners for cleanup to prevent memory leaks
 const domListenerCleanup = [];
-
-/**
- * Register a DOM event listener with automatic cleanup tracking
- * @param {Element} element - DOM element to attach listener to
- * @param {string} event - Event name
- * @param {Function} handler - Event handler
- * @param {Object} options - addEventListener options
- */
-export function addTrackedListener(element, event, handler, options = {}) {
-    if (!element) return;
-    element.addEventListener(event, handler, options);
-    domListenerCleanup.push({ element, event, handler, options });
-}
 
 /**
  * Remove all tracked DOM event listeners
@@ -1197,6 +1208,10 @@ export function leaveMultiplayerMode() {
 
     // Reset tab notification
     setTabNotification(false);
+
+    // Hide reconnection overlay and forfeit button
+    hideReconnectionOverlay();
+    updateForfeitButton();
 
     // Leave room and disconnect
     if (CodenamesClient && CodenamesClient.isConnected()) {
@@ -1542,4 +1557,159 @@ export function sendSpectatorChat(message) {
     }
 
     CodenamesClient.sendSpectatorChat(message.trim());
+}
+
+// ========== FORFEIT GAME ==========
+
+/**
+ * Show forfeit confirmation modal (host only, during active game)
+ */
+export function confirmForfeit() {
+    if (!state.isMultiplayerMode || !CodenamesClient?.isConnected()) {
+        showToast('Forfeit is only available in multiplayer mode', 'warning');
+        return;
+    }
+    if (!CodenamesClient.player?.isHost) {
+        showToast('Only the host can forfeit the game', 'warning');
+        return;
+    }
+    if (state.gameState.gameOver) {
+        showToast('The game is already over', 'info');
+        return;
+    }
+    openModal('confirm-forfeit-modal');
+}
+
+/**
+ * Close the forfeit confirmation modal
+ */
+export function closeForfeitConfirm() {
+    closeModal('confirm-forfeit-modal');
+}
+
+/**
+ * Execute the forfeit action
+ */
+export function forfeitGame() {
+    if (!state.isMultiplayerMode || !CodenamesClient?.isConnected()) return;
+    if (!CodenamesClient.player?.isHost) return;
+    if (state.gameState.gameOver) return;
+
+    CodenamesClient.forfeit();
+}
+
+/**
+ * Update forfeit button visibility based on game state
+ * Shows only for host during an active multiplayer game
+ */
+export function updateForfeitButton() {
+    const forfeitRow = document.getElementById('forfeit-btn-row');
+    if (!forfeitRow) return;
+
+    const shouldShow = state.isMultiplayerMode
+        && CodenamesClient?.player?.isHost
+        && !state.gameState.gameOver;
+
+    forfeitRow.style.display = shouldShow ? 'flex' : 'none';
+}
+
+// ========== NICKNAME EDIT ==========
+
+/**
+ * Initialize nickname edit UI event handlers
+ */
+export function initNicknameEditUI() {
+    const editBtn = document.getElementById('btn-edit-nickname');
+    const saveBtn = document.getElementById('btn-nickname-save');
+    const cancelBtn = document.getElementById('btn-nickname-cancel');
+    const input = document.getElementById('nickname-edit-input');
+
+    if (editBtn) {
+        editBtn.addEventListener('click', () => {
+            const form = document.getElementById('nickname-edit-form');
+            if (form) {
+                form.style.display = 'flex';
+                editBtn.style.display = 'none';
+                // Pre-fill with current nickname
+                if (input && CodenamesClient?.player?.nickname) {
+                    input.value = CodenamesClient.player.nickname;
+                    input.focus();
+                    input.select();
+                }
+            }
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => saveNickname());
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => cancelNicknameEdit());
+    }
+
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveNickname();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelNicknameEdit();
+            }
+        });
+    }
+}
+
+function saveNickname() {
+    const input = document.getElementById('nickname-edit-input');
+    const nickname = input?.value?.trim();
+
+    if (!nickname || nickname.length < 1 || nickname.length > 20) {
+        showToast('Nickname must be 1-20 characters', 'warning');
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
+        showToast('Only letters, numbers, spaces, hyphens and underscores allowed', 'warning');
+        return;
+    }
+
+    if (CodenamesClient?.isConnected()) {
+        CodenamesClient.setNickname(nickname);
+        // Update stored nickname
+        try { localStorage.setItem('codenames-nickname', nickname); } catch { /* ignore */ }
+        showToast('Nickname updated!', 'success', 2000);
+    }
+
+    cancelNicknameEdit();
+}
+
+function cancelNicknameEdit() {
+    const form = document.getElementById('nickname-edit-form');
+    const editBtn = document.getElementById('btn-edit-nickname');
+    if (form) form.style.display = 'none';
+    if (editBtn) editBtn.style.display = '';
+}
+
+// ========== RECONNECTION FEEDBACK ==========
+
+/**
+ * Show the reconnection overlay banner
+ */
+export function showReconnectionOverlay() {
+    const overlay = document.getElementById('reconnection-overlay');
+    if (overlay) {
+        overlay.style.display = 'block';
+    }
+}
+
+/**
+ * Hide the reconnection overlay banner
+ */
+export function hideReconnectionOverlay() {
+    const overlay = document.getElementById('reconnection-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
 }

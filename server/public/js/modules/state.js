@@ -350,22 +350,6 @@ export function watchState(property, callback) {
     };
 }
 
-/**
- * Trigger watchers for a property
- */
-export function notifyWatchers(property, oldValue, newValue) {
-    const list = watchers.get(property);
-    if (list) {
-        list.forEach(cb => {
-            try {
-                cb(oldValue, newValue);
-            } catch (e) {
-                console.error('[State] Watcher error:', e);
-            }
-        });
-    }
-}
-
 // Expose debugging utilities globally for console access
 if (typeof window !== 'undefined') {
     window.__codenamesDebug = {

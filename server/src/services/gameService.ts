@@ -55,9 +55,6 @@ const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
 
 // Result types imported from ../types (single source of truth)
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
-/** @deprecated Use ClueWithGuesses from types instead */
-export type ClueResult = ClueWithGuesses;
-
 /**
  * Reveal outcome determination (internal)
  */
@@ -1127,7 +1124,7 @@ export async function giveClueOptimized(
     word: string,
     number: number,
     spymasterNickname: string
-): Promise<ClueResult> {
+): Promise<ClueWithGuesses> {
     const redis: RedisClient = getRedis();
     const gameKey = `room:${roomCode}:game`;
 
@@ -1164,7 +1161,7 @@ export async function giveClueOptimized(
             throw new ServerError('Invalid Lua script result: empty or non-string');
         }
 
-        let result: ClueResult & { error?: string; word?: string };
+        let result: ClueWithGuesses & { error?: string; word?: string };
         try {
             result = JSON.parse(resultStr);
         } catch (parseError) {
@@ -1211,7 +1208,7 @@ export async function giveClue(
     word: string,
     number: number,
     spymasterNickname: string
-): Promise<ClueResult> {
+): Promise<ClueWithGuesses> {
     const redis: RedisClient = getRedis();
     const gameKey = `room:${roomCode}:game`;
 

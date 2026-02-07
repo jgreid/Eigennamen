@@ -392,17 +392,4 @@ body.colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
     color: rgba(255, 255, 255, 0.8);
 }
 
-/* Keyboard shortcut hint styling */
-.kbd-hint {
-    display: inline-block;
-    padding: 1px 5px;
-    font-size: 0.7rem;
-    font-family: monospace;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-left: 6px;
-    vertical-align: middle;
-}
 

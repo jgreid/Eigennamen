@@ -138,25 +138,3 @@ export function validateRoomCode(roomCode) {
     return { valid: true, error: null };
 }
 
-/**
- * Validate a clue word against constraints
- * @param {string} clue - Clue word to validate
- * @returns {Object} { valid: boolean, error: string|null }
- */
-export function validateClue(clue) {
-    if (!clue || typeof clue !== 'string') {
-        return { valid: false, error: 'Clue is required' };
-    }
-
-    const trimmed = clue.trim();
-
-    if (trimmed.length < VALIDATION.CLUE_MIN_LENGTH) {
-        return { valid: false, error: 'Clue is required' };
-    }
-
-    if (trimmed.length > VALIDATION.CLUE_MAX_LENGTH) {
-        return { valid: false, error: `Clue must be ${VALIDATION.CLUE_MAX_LENGTH} characters or less` };
-    }
-
-    return { valid: true, error: null };
-}

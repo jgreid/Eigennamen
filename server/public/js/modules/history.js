@@ -461,22 +461,6 @@ export function copyReplayLink() {
         });
 }
 
-// PHASE 4: Get current replay speed (for display)
-export function getCurrentReplaySpeed() {
-    return currentReplaySpeed;
-}
-
-// PHASE 4: Set replay speed programmatically
-export function setReplaySpeed(speed) {
-    if (REPLAY_SPEEDS[speed]) {
-        currentReplaySpeed = speed;
-        const speedBtn = document.getElementById('replay-speed');
-        if (speedBtn) {
-            speedBtn.textContent = currentReplaySpeed;
-        }
-    }
-}
-
 export function scrollToCurrentEvent() {
     const logEl = document.getElementById('replay-event-log');
     const currentEventEl = logEl.querySelector('.replay-event.current');

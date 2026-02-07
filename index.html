@@ -38,6 +38,14 @@
     <!-- Toast notification container -->
     <div id="toast-container" class="toast-container" role="alert" aria-live="polite"></div>
 
+    <!-- Reconnection overlay -->
+    <div class="reconnection-overlay" id="reconnection-overlay" style="display: none;" role="alert" aria-live="assertive">
+        <div class="reconnection-content">
+            <div class="reconnection-spinner"></div>
+            <span class="reconnection-text">Reconnecting...</span>
+        </div>
+    </div>
+
     <div class="app-layout">
         <!-- LEFT SIDEBAR - Controls & Info -->
         <aside class="sidebar">
@@ -60,6 +68,14 @@
                 <!-- Player list (expandable) -->
                 <div class="mp-player-list" id="mp-player-list" style="display: none;">
                     <ul id="mp-players-ul"></ul>
+                    <div class="nickname-edit" id="nickname-edit">
+                        <button type="button" class="btn-edit-nickname" id="btn-edit-nickname" title="Change your nickname">Edit Nickname</button>
+                        <div class="nickname-edit-form" id="nickname-edit-form" style="display: none;">
+                            <input type="text" id="nickname-edit-input" placeholder="New nickname" minlength="1" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+">
+                            <button type="button" class="btn-nickname-save" id="btn-nickname-save" title="Save nickname">Save</button>
+                            <button type="button" class="btn-nickname-cancel" id="btn-nickname-cancel" title="Cancel">Cancel</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -121,6 +137,10 @@
                 <div class="utility-buttons-row">
                     <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate" data-i18n="roles.spectator">Spectator</button>
                     <button type="button" class="btn-settings" data-action="open-settings" data-i18n="nav.settings">Settings</button>
+                </div>
+
+                <div class="utility-buttons-row mp-only" id="forfeit-btn-row" style="display: none;">
+                    <button type="button" class="btn-forfeit" id="btn-forfeit" data-action="confirm-forfeit" title="Forfeit the current game (host only)">Forfeit Game</button>
                 </div>
 
                 <div class="utility-buttons-row">
@@ -452,6 +472,18 @@
             <div class="modal-buttons">
                 <button type="button" class="btn-end-turn" data-action="confirm-yes-end-turn">Yes, End Turn</button>
                 <button type="button" class="btn-cancel" data-action="close-end-turn-confirm">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Forfeit Modal -->
+    <div class="modal-overlay" id="confirm-forfeit-modal">
+        <div class="modal confirm-dialog">
+            <h2>Forfeit Game?</h2>
+            <p>This will end the game and award the win to the opposing team. Are you sure?</p>
+            <div class="modal-buttons">
+                <button type="button" class="btn-forfeit" data-action="confirm-yes-forfeit">Yes, Forfeit</button>
+                <button type="button" class="btn-cancel" data-action="close-forfeit-confirm">Cancel</button>
             </div>
         </div>
     </div>
