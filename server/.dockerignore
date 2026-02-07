@@ -28,7 +28,9 @@ Thumbs.db
 # Test files
 __tests__
 *.test.js
+*.test.ts
 *.spec.js
+*.spec.ts
 coverage
 
 # Build artifacts

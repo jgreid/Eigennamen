@@ -128,7 +128,7 @@ function revealCard(game, index) {
 
 1. **Services handle business logic**
    ```javascript
-   // server/src/services/gameService.js
+   // server/src/services/gameService.ts
    async function revealCard(roomCode, index, player) {
        // All game logic here
    }
@@ -136,7 +136,7 @@ function revealCard(game, index) {
 
 2. **Handlers handle I/O**
    ```javascript
-   // server/src/socket/handlers/gameHandlers.js
+   // server/src/socket/handlers/gameHandlers.ts
    socket.on('game:reveal', async (data) => {
        // Validate, call service, emit response
    });
@@ -144,7 +144,7 @@ function revealCard(game, index) {
 
 3. **Validators at entry points**
    ```javascript
-   // server/src/validators/schemas.js
+   // server/src/validators/schemas.ts
    const revealCardSchema = z.object({
        index: z.number().int().min(0).max(24)
    });
@@ -291,7 +291,7 @@ npx playwright test
 ### Writing Tests
 
 ```javascript
-// server/src/__tests__/gameService.test.js
+// server/src/__tests__/gameService.test.ts
 describe('gameService', () => {
     describe('revealCard', () => {
         it('should reveal card and update game state', async () => {

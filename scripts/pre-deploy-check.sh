@@ -55,12 +55,12 @@ echo "🔐 Security checks..."
 cd "$SERVER_DIR"
 
 # Check for hardcoded secrets (basic check)
-if grep -r "password.*=" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.js" | grep -v "process.env" | grep -v "schema" | head -1 > /dev/null; then
+if grep -r "password.*=" --include="*.ts" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.\(js\|ts\)" | grep -v "process.env" | grep -v "schema" | head -1 > /dev/null; then
     warning "Possible hardcoded password found - please review"
 fi
 
 # Check for debug code
-if grep -rn "console\.log" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.js" | grep -v "logger" | head -1 > /dev/null; then
+if grep -rn "console\.log" --include="*.ts" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.\(js\|ts\)" | grep -v "logger" | head -1 > /dev/null; then
     warning "console.log statements found - consider using logger instead"
 fi
 

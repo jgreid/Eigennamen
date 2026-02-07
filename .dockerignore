@@ -34,7 +34,9 @@ docs
 server/__tests__
 server/src/__tests__
 **/*.test.js
+**/*.test.ts
 **/*.spec.js
+**/*.spec.ts
 coverage
 server/coverage
 

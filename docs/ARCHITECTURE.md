@@ -258,19 +258,19 @@ Risley-Codenames/
 │   │       ├── components.css
 │   │       └── ...
 │   ├── src/
-│   │   ├── index.js        # Server entry point
-│   │   ├── app.js          # Express configuration
+│   │   ├── index.ts        # Server entry point
+│   │   ├── app.ts          # Express configuration
 │   │   ├── config/         # Configuration modules
-│   │   │   ├── constants.js
-│   │   │   ├── redis.js
-│   │   │   └── database.js
+│   │   │   ├── constants.ts
+│   │   │   ├── redis.ts
+│   │   │   └── database.ts
 │   │   ├── services/       # Business logic
-│   │   │   ├── gameService.js
-│   │   │   ├── roomService.js
-│   │   │   ├── playerService.js
-│   │   │   └── timerService.js
+│   │   │   ├── gameService.ts
+│   │   │   ├── roomService.ts
+│   │   │   ├── playerService.ts
+│   │   │   └── timerService.ts
 │   │   ├── socket/         # WebSocket handlers
-│   │   │   ├── index.js
+│   │   │   ├── index.ts
 │   │   │   └── handlers/
 │   │   ├── middleware/     # Express middleware
 │   │   ├── routes/         # REST API routes
