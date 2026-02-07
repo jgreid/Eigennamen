@@ -15,7 +15,8 @@ import {
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
     openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
-    copyRoomCode, updateRoomInfoDisplay
+    copyRoomCode, updateRoomInfoDisplay, initNicknameEditUI,
+    confirmForfeit, closeForfeitConfirm, forfeitGame
 } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay } from './history.js';
 import {
@@ -37,6 +38,7 @@ registerModalCloseHandler('confirm-modal', closeConfirm);
 registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
 registerModalCloseHandler('multiplayer-modal', closeMultiplayer);
+registerModalCloseHandler('confirm-forfeit-modal', closeForfeitConfirm);
 registerModalCloseHandler('history-modal', () => closeModal('history-modal'));
 registerModalCloseHandler('replay-modal', () => closeModal('replay-modal'));
 
@@ -132,6 +134,18 @@ function setupEventListeners() {
                 closeEndTurnConfirm();
                 break;
 
+            // Confirm forfeit modal
+            case 'confirm-forfeit':
+                confirmForfeit();
+                break;
+            case 'confirm-yes-forfeit':
+                forfeitGame();
+                closeForfeitConfirm();
+                break;
+            case 'close-forfeit-confirm':
+                closeForfeitConfirm();
+                break;
+
             // Game over modal
             case 'game-over-new-game':
                 newGame();
@@ -200,6 +214,8 @@ async function init() {
         initMultiplayerModal();
         // Initialize player list UI (kick buttons)
         initPlayerListUI();
+        // Initialize nickname edit UI
+        initNicknameEditUI();
         // Load notification preferences
         loadNotificationPrefs();
         initNotificationPrefsUI();
