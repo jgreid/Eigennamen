@@ -5,14 +5,12 @@
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 import type { Room, Player } from '../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
 const { validateParams } = require('../middleware/validation');
 const { toEnglishLowerCase } = require('../utils/sanitize');
 const { z } = require('zod');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 const router: ExpressRouter = express.Router();
 

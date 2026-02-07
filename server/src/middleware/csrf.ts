@@ -11,10 +11,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
 const { audit } = require('../services/auditService');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Log a CSRF violation to the audit service (fire-and-forget)

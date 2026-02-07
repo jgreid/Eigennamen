@@ -6,12 +6,10 @@
  * - Local timeouts handle expiration
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { TIMER, REDIS_TTL } = require('../config/constants');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Timer state stored in Redis

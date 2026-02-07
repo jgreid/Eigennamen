@@ -5,11 +5,9 @@
  * Uses Redis with 30-day TTL for game history storage.
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 import type { Team, CardType } from '../types';
 

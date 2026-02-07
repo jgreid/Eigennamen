@@ -5,13 +5,11 @@
  * All functions return empty/null results when database is disabled.
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { getDatabase, isDatabaseEnabled } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE } = require('../config/constants');
 const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
 const { toEnglishUpperCase } = require('../utils/sanitize');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Word list data structure

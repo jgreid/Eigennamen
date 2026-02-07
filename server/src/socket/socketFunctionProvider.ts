@@ -1,12 +1,12 @@
 /**
  * Socket Function Provider
  *
- * Solves the circular dependency problem between socket/index.js and handlers:
- * - socket/index.js defines utility functions (emitToRoom, startTurnTimer, etc.)
- * - handlers need these functions but are imported by socket/index.js
+ * Solves the circular dependency problem between socket/index.ts and handlers:
+ * - socket/index.ts defines utility functions (emitToRoom, startTurnTimer, etc.)
+ * - handlers need these functions but are imported by socket/index.ts
  *
  * Solution: Dependency Injection via this provider
- * 1. socket/index.js registers functions after defining them
+ * 1. socket/index.ts registers functions after defining them
  * 2. Handlers call getSocketFunctions() at runtime (after registration)
  *
  * This pattern allows:

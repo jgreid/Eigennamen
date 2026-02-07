@@ -6,9 +6,7 @@
  */
 
 // Use require for CommonJS compatibility during migration
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const swaggerJsdoc = require('swagger-jsdoc');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const swaggerUi = require('swagger-ui-express');
 
 // Import types

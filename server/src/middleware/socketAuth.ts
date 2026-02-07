@@ -11,7 +11,6 @@
 import type { Socket } from 'socket.io';
 import type { Player } from '../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { v4: uuidv4, validate: isValidUuid } = require('uuid');
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
@@ -23,7 +22,6 @@ const {
     ERROR_CODES
 } = require('../config/constants');
 const { audit } = require('../services/auditService');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended socket with custom properties

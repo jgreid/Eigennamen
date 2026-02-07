@@ -6,9 +6,8 @@
  */
 
 import type { Server, Socket } from 'socket.io';
-import type { Player, GameState, PlayerGameState, Team, CardType, Room } from '../../types';
+import type { Player, GameState, PlayerGameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
@@ -26,7 +25,6 @@ const {
 const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Socket type with custom properties
@@ -91,53 +89,7 @@ interface GameReplayInput {
     gameId: string;
 }
 
-/**
- * Reveal result from gameService
- */
-interface RevealResult {
-    index: number;
-    type: CardType;
-    word: string;
-    redScore: number;
-    blueScore: number;
-    currentTurn: Team;
-    guessesUsed: number;
-    guessesAllowed: number;
-    turnEnded: boolean;
-    gameOver: boolean;
-    winner: Team | null;
-    endReason: string | null;
-    allTypes: CardType[] | null;
-}
-
-/**
- * Clue result from gameService
- */
-interface ClueResult {
-    team: Team;
-    word: string;
-    number: number;
-    spymaster: string;
-    guessesAllowed: number;
-    timestamp: number;
-}
-
-/**
- * End turn result
- */
-interface EndTurnResult {
-    currentTurn: Team;
-    previousTurn: Team;
-}
-
-/**
- * Forfeit result
- */
-interface ForfeitResult {
-    winner: Team | null;
-    forfeitingTeam: Team;
-    allTypes: CardType[];
-}
+// Result types (RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses) imported from ../../types
 
 /**
  * History entry
@@ -341,7 +293,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 throw PlayerError.notSpymaster();
             }
 
-            const clue: ClueResult = await gameService.giveClue(
+            const clue: ClueWithGuesses = await gameService.giveClue(
                 ctx.roomCode,
                 ctx.player.team,
                 validated.word,

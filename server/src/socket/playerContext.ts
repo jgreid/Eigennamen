@@ -15,13 +15,11 @@
 import type { Player, GameState, Team, Role } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
 const logger = require('../utils/logger');
 const { RoomError, PlayerError } = require('../errors/GameError');
 const { ERROR_CODES } = require('../config/constants');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Options for building player context

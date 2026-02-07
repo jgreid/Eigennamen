@@ -6,17 +6,14 @@
  */
 
 // Use require for CommonJS compatibility during migration
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { createClient } = require('redis');
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const logger = require('../utils/logger');
 
 // Import types
 import type { RedisClientType } from 'redis';
 
 // Import memory storage functions
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { getMemoryStorage, isMemoryMode } = require('./memoryStorage');
 
 // ============================================================================

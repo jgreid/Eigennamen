@@ -7,14 +7,12 @@
 
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } = require('../config/redis');
 const pubSubHealth = require('../utils/pubSubHealth');
 const logger = require('../utils/logger');
 // PHASE 5.1: Import Prometheus metrics export
 const { getPrometheusMetrics, updateSystemMetrics } = require('../utils/metrics');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 const router: ExpressRouter = express.Router();
 

@@ -4,10 +4,8 @@
  * Provides secure JWT configuration with production requirements.
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * JWT payload structure

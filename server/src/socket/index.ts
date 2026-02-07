@@ -10,7 +10,6 @@ import type { Player, GameState, TimerCallback, RedisSetOptions, LuaEvalOptions 
 import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
@@ -33,7 +32,6 @@ const gameHandlers = require('./handlers/gameHandlers');
 const playerHandlers = require('./handlers/playerHandlers');
 const chatHandlers = require('./handlers/chatHandlers');
 const timerHandlers = require('./handlers/timerHandlers');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Express app with socket count update function
@@ -71,7 +69,7 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     const corsOrigin = process.env.CORS_ORIGIN || '*';
 
     // SECURITY FIX: Block wildcard CORS in production for Socket.io
-    // This matches the validation in app.js for Express CORS
+    // This matches the validation in app.ts for Express CORS
     if (isProduction && corsOrigin === '*') {
         logger.error('FATAL: CORS_ORIGIN cannot be wildcard (*) in production for Socket.io');
         logger.error('Set CORS_ORIGIN to your domain(s), e.g., CORS_ORIGIN=https://yourdomain.com');

@@ -10,9 +10,7 @@
  * - Persistent custom word lists
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 // Type for Prisma client (dynamic import)
 interface PrismaClientType {

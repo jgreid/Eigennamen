@@ -266,8 +266,8 @@ export interface EndTurnResult {
  * Result of forfeiting the game
  */
 export interface ForfeitResult {
-  /** The winning team */
-  winner: Team;
+  /** The winning team (null for cooperative Duet mode forfeit) */
+  winner: Team | null;
   /** The team that forfeited */
   forfeitingTeam: Team;
   /** All card types (revealed after forfeit) */

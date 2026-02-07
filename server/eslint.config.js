@@ -44,22 +44,6 @@ module.exports = [
         ignores: ['node_modules/**', 'coverage/**', 'prisma/**', 'dist/**']
     },
     {
-        // Main configuration for all JS files
-        files: ['src/**/*.js'],
-        languageOptions: {
-            ecmaVersion: 'latest',
-            sourceType: 'commonjs',
-            globals: {
-                ...globals.node,
-                ...globals.es2021
-            }
-        },
-        rules: {
-            ...baseRules,
-            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
-        }
-    },
-    {
         // TypeScript files configuration (non-type-checked rules for faster linting)
         files: ['src/**/*.ts'],
         languageOptions: {
@@ -119,24 +103,6 @@ module.exports = [
         ],
         rules: {
             'no-await-in-loop': 'off'
-        }
-    },
-    {
-        // Test files have relaxed rules (JavaScript)
-        files: ['src/__tests__/**/*.js', '**/*.test.js'],
-        languageOptions: {
-            ecmaVersion: 'latest',
-            sourceType: 'commonjs',
-            globals: {
-                ...globals.node,
-                ...globals.jest
-            }
-        },
-        rules: {
-            'no-console': 'off',
-            'require-await': 'off',
-            'no-await-in-loop': 'off',
-            'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
         }
     },
     {

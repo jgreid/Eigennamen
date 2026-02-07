@@ -5,7 +5,6 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Server as SocketServer } from 'socket.io';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -22,7 +21,6 @@ const logger = require('./utils/logger');
 const { setupSwagger } = require('./config/swagger');
 const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
 const { SOCKET } = require('./config/constants');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Express Application with custom properties
@@ -96,7 +94,7 @@ async function getCachedSocketCount(io: SocketServer, forceRefresh = false): Pro
 }
 
 /**
- * Update socket count on connection change (called from socket/index.js)
+ * Update socket count on connection change (called from socket/index.ts)
  */
 function updateSocketCount(delta: number): void {
     cachedSocketCount = Math.max(0, cachedSocketCount + delta);

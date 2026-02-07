@@ -10,9 +10,7 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import type { Player } from '../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const logger = require('../utils/logger');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Emission metrics for monitoring

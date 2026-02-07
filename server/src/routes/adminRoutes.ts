@@ -8,7 +8,6 @@
 import type { Request, Response, NextFunction, Router as ExpressRouter, Application } from 'express';
 import type { Server } from 'socket.io';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
@@ -21,7 +20,6 @@ const { getAllMetrics, trackPlayerKick, trackBroadcast } = require('../utils/met
 const { API_RATE_LIMITS } = require('../config/constants');
 const { toEnglishLowerCase } = require('../utils/sanitize');
 const { audit, getAuditLogs, getAuditSummary } = require('../services/auditService');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 const router: ExpressRouter = express.Router();
 

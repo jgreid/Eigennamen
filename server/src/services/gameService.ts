@@ -12,10 +12,15 @@ import type {
     EndTurnHistoryEntry,
     ForfeitHistoryEntry,
     Player,
-    PlayerGameState
+    PlayerGameState,
+    CreateGameOptions,
+    RevealResult,
+    ClueWithGuesses,
+    EndTurnResult,
+    ForfeitResult,
+    ClueValidationResult
 } from '../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -47,78 +52,18 @@ const {
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { toEnglishUpperCase, localeIncludes } = require('../utils/sanitize');
 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
-/* eslint-enable @typescript-eslint/no-var-requires */
+
+// Result types imported from ../types (single source of truth)
+export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
+/** @deprecated Use ClueWithGuesses from types instead */
+export type ClueResult = ClueWithGuesses;
 
 /**
- * Game creation options
- */
-export interface CreateGameOptions {
-    wordListId?: string;
-    wordList?: string[];
-    gameMode?: string;
-}
-
-/**
- * Reveal result returned to clients
- */
-export interface RevealResult {
-    index: number;
-    type: CardType;
-    word: string;
-    redScore: number;
-    blueScore: number;
-    currentTurn: Team;
-    guessesUsed: number;
-    guessesAllowed: number;
-    turnEnded: boolean;
-    gameOver: boolean;
-    winner: Team | null;
-    endReason: string | null;
-    allTypes: CardType[] | null;
-    // Duet mode fields
-    timerTokens?: number;
-    greenFound?: number;
-    allDuetTypes?: CardType[] | null;
-}
-
-/**
- * Clue result returned to clients
- */
-export interface ClueResult extends Clue {
-    guessesAllowed: number;
-}
-
-/**
- * End turn result
- */
-export interface EndTurnResult {
-    currentTurn: Team;
-    previousTurn: Team;
-}
-
-/**
- * Forfeit result
- */
-export interface ForfeitResult {
-    winner: Team | null;
-    forfeitingTeam: Team;
-    allTypes: CardType[];
-}
-
-/**
- * Clue validation result
- */
-export interface ClueValidationResult {
-    valid: boolean;
-    reason?: string;
-}
-
-/**
- * Reveal outcome determination
+ * Reveal outcome determination (internal)
  */
 interface RevealOutcome {
     turnEnded: boolean;
-    endReason: string | null;
+    endReason: RevealResult['endReason'];
 }
 
 /**

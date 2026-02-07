@@ -8,7 +8,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
@@ -18,7 +17,6 @@ const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { canChangeTeamOrRole } = require('../playerContext');
 const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Socket type with custom properties

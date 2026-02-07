@@ -6,7 +6,6 @@ import type { Server as HttpServer } from 'http';
 import type { Server as SocketServer } from 'socket.io';
 import type { Application } from 'express';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 require('dotenv').config();
 
 const http = require('http');
@@ -18,7 +17,6 @@ const { validateEnv, getEnvInt } = require('./config/env');
 const timerService = require('./services/timerService');
 const { startMemoryMonitoring, stopMemoryMonitoring } = require('./middleware/timing');
 const logger = require('./utils/logger');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 const PORT: number = getEnvInt('PORT', 3000);
 

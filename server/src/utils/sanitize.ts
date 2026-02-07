@@ -113,8 +113,8 @@ interface LocaleCompareOptions {
 function localeCompare(a: unknown, b: unknown, options: LocaleCompareOptions = {}): number {
     const { caseInsensitive = true } = options;
 
-    let strA = typeof a === 'string' ? a : '';
-    let strB = typeof b === 'string' ? b : '';
+    const strA = typeof a === 'string' ? a : '';
+    const strB = typeof b === 'string' ? b : '';
 
     // Normalize both strings first
     const normalizedA = strA.normalize('NFC');

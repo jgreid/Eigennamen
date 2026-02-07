@@ -8,7 +8,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const playerService = require('../../services/playerService');
 const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
@@ -16,7 +15,6 @@ const { SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
 const { PlayerError } = require('../../errors/GameError');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Socket type with custom properties

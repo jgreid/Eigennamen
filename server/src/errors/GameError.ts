@@ -8,7 +8,6 @@
 import type { ErrorCode, SafeErrorCode } from '../types/errors';
 
 // Import error codes from constants (will be typed when constants.ts is converted)
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ERROR_CODES } = require('../config/constants');
 
 /**

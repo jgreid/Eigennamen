@@ -11,7 +11,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
@@ -25,7 +24,6 @@ const { getSocketFunctions } = require('../socketFunctionProvider');
 // PHASE 5.1: Import metrics tracking for reconnections
 const { trackReconnection } = require('../../utils/metrics');
 const { getSocketRateLimiter } = require('../rateLimitHandler');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * Extended Socket type with custom properties

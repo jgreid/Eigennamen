@@ -10,11 +10,9 @@
 
 import type { z as ZodType } from 'zod';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { z } = require('zod');
 const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES } = require('../config/constants');
 const { removeControlChars, isReservedName } = require('../utils/sanitize');
-/* eslint-enable @typescript-eslint/no-var-requires */
 
 // Re-export z for external use
 export { z };
@@ -226,7 +224,7 @@ const playerKickSchema = z.object({
         .refine((val: string) => sessionIdRegex.test(val), 'Invalid session ID format')
 });
 
-// Timer add-time schema (centralized from timerHandlers.js)
+// Timer add-time schema (centralized from timerHandlers.ts)
 const timerAddTimeSchema = z.object({
     seconds: z.number()
         .int()
