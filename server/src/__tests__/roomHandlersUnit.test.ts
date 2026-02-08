@@ -251,7 +251,7 @@ describe('Room Handlers', () => {
             expect(mockSocket.to().emit).toHaveBeenCalledWith('room:playerJoined', expect.any(Object));
         });
 
-        test('emits room:error on error after partial join', async () => {
+        test('still emits room:joined when token invalidation fails (non-critical)', async () => {
             roomService.joinRoom.mockResolvedValue({
                 room: { code: 'fail-room', roomId: 'fail-room' },
                 players: [],
@@ -262,9 +262,9 @@ describe('Room Handlers', () => {
 
             await eventHandlers['room:join']({ roomId: 'fail-room', nickname: 'Player1' });
 
-            // createPreRoomHandler catches and emits sanitized error
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: expect.any(String)
+            // Token invalidation failure is caught gracefully - join still succeeds
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:joined', expect.objectContaining({
+                room: expect.objectContaining({ code: 'fail-room' })
             }));
         });
 

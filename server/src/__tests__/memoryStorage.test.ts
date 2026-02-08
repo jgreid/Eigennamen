@@ -404,30 +404,41 @@ describe('MemoryStorage', () => {
 
         describe('eval', () => {
             it('should handle atomic room join script', async () => {
-                // Simulate room join script
+                // Room must exist for join to succeed
+                await storage.set('room:TEST', '{"code":"TEST"}', { EX: 3600 });
                 const result = await storage.eval('script', {
-                    keys: ['room:players:TEST'],
+                    keys: ['room:TEST:players', 'room:TEST'],
                     arguments: ['10', 'session-123']
                 });
                 expect(result).toBe(1); // Successfully added
             });
 
             it('should return -1 if already a member', async () => {
-                await storage.sAdd('room:players:TEST', 'session-123');
+                await storage.set('room:TEST', '{"code":"TEST"}', { EX: 3600 });
+                await storage.sAdd('room:TEST:players', 'session-123');
                 const result = await storage.eval('script', {
-                    keys: ['room:players:TEST'],
+                    keys: ['room:TEST:players', 'room:TEST'],
                     arguments: ['10', 'session-123']
                 });
                 expect(result).toBe(-1); // Already a member
             });
 
             it('should return 0 if room is full', async () => {
-                await storage.sAdd('room:players:TEST', 'session-1', 'session-2');
+                await storage.set('room:TEST', '{"code":"TEST"}', { EX: 3600 });
+                await storage.sAdd('room:TEST:players', 'session-1', 'session-2');
                 const result = await storage.eval('script', {
-                    keys: ['room:players:TEST'],
+                    keys: ['room:TEST:players', 'room:TEST'],
                     arguments: ['2', 'session-123'] // Max 2 players
                 });
                 expect(result).toBe(0); // Room is full
+            });
+
+            it('should return -2 if room does not exist', async () => {
+                const result = await storage.eval('script', {
+                    keys: ['room:TEST:players', 'room:TEST'],
+                    arguments: ['10', 'session-123']
+                });
+                expect(result).toBe(-2); // Room doesn't exist
             });
         });
     });
@@ -725,8 +736,10 @@ describe('MemoryStorage', () => {
         });
 
         it('should handle evalSha', async () => {
+            // Room must exist for join eval to succeed
+            await storage.set('room:TEST', '{"code":"TEST"}', { EX: 3600 });
             const result = await storage.evalSha('fakeSha', {
-                keys: ['room:players:TEST'],
+                keys: ['room:TEST:players', 'room:TEST'],
                 arguments: ['10', 'session-123']
             });
             expect(result).toBe(1);
@@ -941,11 +954,13 @@ describe('MemoryStorage', () => {
         });
 
         it('should handle eval join script on expired players set', async () => {
-            await storage.sAdd('room:players:TEST', 'existing');
-            storage.expiries.set('room:players:TEST', Date.now() - 1000);
+            // Room must exist for join to succeed
+            await storage.set('room:TEST', '{"code":"TEST"}', { EX: 3600 });
+            await storage.sAdd('room:TEST:players', 'existing');
+            storage.expiries.set('room:TEST:players', Date.now() - 1000);
 
             const result = await storage.eval('script', {
-                keys: ['room:players:TEST'],
+                keys: ['room:TEST:players', 'room:TEST'],
                 arguments: ['10', 'new-session']
             });
             expect(result).toBe(1); // Successfully added to fresh set

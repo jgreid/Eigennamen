@@ -961,7 +961,8 @@ export class MemoryStorage {
         }
 
         // Room CREATE script: 2 keys (roomKey, playersKey), 2 args (roomData, ttl)
-        if (numKeys === 2 && numArgs === 2 && firstKey.startsWith('room:')) {
+        // Guard: firstKey must NOT contain ':players' to distinguish from JOIN script
+        if (numKeys === 2 && numArgs === 2 && firstKey.startsWith('room:') && !firstKey.includes(':players')) {
             const roomKey = firstKey;
             const playersKey = keys[1] as string;
             const roomData = args[0] as string;
@@ -979,11 +980,18 @@ export class MemoryStorage {
             return 1;
         }
 
-        // Room JOIN script: 1 key (playersKey), 2 args (maxPlayers, sessionId)
-        if (numKeys === 1 && numArgs === 2 && firstKey.includes(':players')) {
+        // Room JOIN script: 2 keys (playersKey, roomKey), 2 args (maxPlayers, sessionId)
+        // The script atomically verifies room existence, checks capacity, and adds the player
+        if (numKeys === 2 && numArgs === 2 && firstKey.includes(':players')) {
             const playersKey = firstKey;
+            const roomKey = keys[1] as string;
             const maxPlayers = parseInt(args[0] as string, 10);
             const sessionId = args[1] as string;
+
+            // Verify room still exists (mirrors Lua script room existence check)
+            if (!this.data.has(roomKey) || this._isExpired(roomKey)) {
+                return -2; // Room doesn't exist
+            }
 
             if (this._isExpired(playersKey)) {
                 this.sets.set(playersKey, new Set());

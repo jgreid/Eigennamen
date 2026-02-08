@@ -244,14 +244,18 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 socket.join(`spectators:${room.code}`);
             }
 
-            const [, roomStats] = await Promise.all([
-                playerService.invalidateReconnectionToken(socket.sessionId),
-                playerService.getRoomStats(room.code)
-            ]) as [void, RoomStats];
-
-            const gameState: PlayerGameState | null = game
-                ? gameService.getGameStateForPlayer(game, player)
-                : null;
+            // FIX: Run stats fetch, token invalidation, and game state computation in parallel
+            // to reduce total response time and avoid pushing past the client's timeout
+            const [, roomStats, gameState] = await Promise.all([
+                playerService.invalidateReconnectionToken(socket.sessionId).catch((err: Error) => {
+                    logger.warn(`Failed to invalidate reconnection token during join: ${err.message}`);
+                }),
+                playerService.getRoomStats(room.code).catch((err: Error) => {
+                    logger.warn(`Failed to get room stats during join: ${err.message}`);
+                    return { totalPlayers: players.length, spectatorCount: 0, teams: { red: { total: 0, spymaster: null, clicker: null }, blue: { total: 0, spymaster: null, clicker: null } } } as RoomStats;
+                }),
+                Promise.resolve(game ? gameService.getGameStateForPlayer(game, player) : null)
+            ]) as [void, RoomStats, PlayerGameState | null];
 
             socket.emit(SOCKET_EVENTS.ROOM_JOINED, { room, players, game: gameState, you: player, stats: roomStats });
 

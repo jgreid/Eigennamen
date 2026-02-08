@@ -558,42 +558,55 @@ describe('MemoryStorage', () => {
             });
         });
 
-        describe('Room JOIN (1 key, 2 args)', () => {
+        describe('Room JOIN (2 keys, 2 args)', () => {
             test('joins successfully', async () => {
+                storage.data.set('room:ABC', '{"code":"ABC"}');
                 storage.sets.set('room:ABC:players', new Set());
                 const result = await storage.eval('', {
-                    keys: ['room:ABC:players'],
+                    keys: ['room:ABC:players', 'room:ABC'],
                     arguments: ['10', 'sess1']
                 });
                 expect(result).toBe(1);
             });
 
             test('returns 0 when full', async () => {
+                storage.data.set('room:ABC', '{"code":"ABC"}');
                 storage.sets.set('room:ABC:players', new Set(['s1', 's2']));
                 const result = await storage.eval('', {
-                    keys: ['room:ABC:players'],
+                    keys: ['room:ABC:players', 'room:ABC'],
                     arguments: ['2', 'sess3']
                 });
                 expect(result).toBe(0);
             });
 
             test('returns -1 when already member', async () => {
+                storage.data.set('room:ABC', '{"code":"ABC"}');
                 storage.sets.set('room:ABC:players', new Set(['sess1']));
                 const result = await storage.eval('', {
-                    keys: ['room:ABC:players'],
+                    keys: ['room:ABC:players', 'room:ABC'],
                     arguments: ['10', 'sess1']
                 });
                 expect(result).toBe(-1);
             });
 
             test('handles expired players key', async () => {
+                storage.data.set('room:ABC', '{"code":"ABC"}');
                 storage.sets.set('room:ABC:players', new Set(['old']));
                 storage.expiries.set('room:ABC:players', Date.now() - 1000);
                 const result = await storage.eval('', {
-                    keys: ['room:ABC:players'],
+                    keys: ['room:ABC:players', 'room:ABC'],
                     arguments: ['10', 'sess1']
                 });
                 expect(result).toBe(1);
+            });
+
+            test('returns -2 when room does not exist', async () => {
+                storage.sets.set('room:ABC:players', new Set());
+                const result = await storage.eval('', {
+                    keys: ['room:ABC:players', 'room:ABC'],
+                    arguments: ['10', 'sess1']
+                });
+                expect(result).toBe(-2);
             });
         });
 
