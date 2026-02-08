@@ -412,8 +412,6 @@ export function updateMpIndicator(room, players) {
     const indicator = document.getElementById('mp-indicator');
     const codeEl = document.getElementById('mp-room-code');
     const countEl = document.getElementById('mp-player-count');
-    const roomIdDisplay = document.getElementById('mp-room-id-display');
-    const roomIdText = document.getElementById('mp-room-id-text');
     const playerListEl = document.getElementById('mp-player-list');
     const playersUl = document.getElementById('mp-players-ul');
     const mpExtraRow = document.getElementById('mp-extra-buttons-row');
@@ -428,14 +426,6 @@ export function updateMpIndicator(room, players) {
             mpExtraRow.style.display = 'flex';
         }
 
-        // Show Room ID if we're the host
-        if (state.currentRoomId && CodenamesClient.player?.isHost) {
-            roomIdText.textContent = state.currentRoomId;
-            roomIdDisplay.style.display = 'flex';
-        } else {
-            roomIdDisplay.style.display = 'none';
-        }
-
         // Update player list
         if (playersUl && players) {
             updatePlayerList(playersUl, players);
@@ -445,7 +435,6 @@ export function updateMpIndicator(room, players) {
         updateSharePanelMode(true, room.code);
     } else {
         indicator.classList.remove('active');
-        roomIdDisplay.style.display = 'none';
         if (playerListEl) playerListEl.style.display = 'none';
         // Hide multiplayer-only buttons when not in multiplayer mode
         if (mpExtraRow) {
