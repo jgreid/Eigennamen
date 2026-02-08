@@ -153,7 +153,14 @@ const historySchema = z.object({
 
 ---
 
-## Phase 2: Frontend Improvements (Short-term)
+## Phase 2: Frontend Improvements (Short-term) ✅ COMPLETED
+
+> **Status**: All 5 items implemented and verified.
+> - 2.1: Modal stack with focus management (ui.js)
+> - 2.2: Request cancellation with AbortController (multiplayer.js)
+> - 2.3: Shared constants module + HTML maxlength alignment (constants.js, index.html, multiplayer.js)
+> - 2.4: Timer aria-live on correct element (index.html)
+> - 2.5: Colorblind-friendly card patterns with SVG (components.css)
 
 ### 2.1 Fix Modal Stacking Issue
 **Location**: `server/public/js/modules/ui.js`

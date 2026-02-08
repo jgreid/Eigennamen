@@ -1669,8 +1669,8 @@ function saveNickname() {
     const input = document.getElementById('nickname-edit-input');
     const nickname = input?.value?.trim();
 
-    if (!nickname || nickname.length < 1 || nickname.length > 20) {
-        showToast('Nickname must be 1-20 characters', 'warning');
+    if (!nickname || nickname.length < VALIDATION.NICKNAME_MIN_LENGTH || nickname.length > VALIDATION.NICKNAME_MAX_LENGTH) {
+        showToast(`Nickname must be ${VALIDATION.NICKNAME_MIN_LENGTH}-${VALIDATION.NICKNAME_MAX_LENGTH} characters`, 'warning');
         return;
     }
 
