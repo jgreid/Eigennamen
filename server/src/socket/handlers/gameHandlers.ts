@@ -6,7 +6,7 @@
  */
 
 import type { Server, Socket } from 'socket.io';
-import type { Player, GameState, PlayerGameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
+import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
