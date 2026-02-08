@@ -108,25 +108,19 @@
             <!-- Spectator count now shown inline in multiplayer indicator -->
 
             <div class="turn-indicator" id="turn-indicator" role="status" aria-live="polite" aria-atomic="true">
-                Red Team's Turn
-            </div>
-
-            <!-- Timer countdown display -->
-            <!-- PHASE 2 FIX: Moved aria-live to timer-value where text actually changes -->
-            <div class="timer-display" id="timer-display" role="timer">
-                <span class="timer-icon" aria-hidden="true">⏱️</span>
-                <span class="timer-value" id="timer-value" aria-live="polite" aria-atomic="true">--:--</span>
-                <span class="timer-label" aria-hidden="true" data-i18n="timer.remaining">remaining</span>
+                <span class="turn-text">Red Team's Turn</span>
+                <span class="timer-inline" id="timer-display" role="timer">
+                    <span class="timer-icon" aria-hidden="true">⏱️</span>
+                    <span class="timer-value" id="timer-value" aria-live="polite" aria-atomic="true">--:--</span>
+                </span>
             </div>
 
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
-                <!-- Role selection for current team -->
                 <div class="role-controls" id="role-controls">
                     <div class="role-buttons-row">
                         <button type="button" class="btn-spymaster" id="btn-spymaster" data-action="set-spymaster-current" data-i18n="roles.spymaster">Spymaster</button>
                         <button type="button" class="btn-clicker" id="btn-clicker" data-action="set-clicker-current" data-i18n="roles.clicker">Clicker</button>
                     </div>
-                    <span class="role-hint" id="role-hint">Select a team above to choose a role</span>
                 </div>
 
                 <div class="action-buttons-row">

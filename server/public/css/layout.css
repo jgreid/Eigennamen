@@ -6,54 +6,52 @@
     margin: 0 auto;
 }
 
-/* Left Sidebar - Compact */
+/* Left Sidebar - Compact, fits viewport without scroll */
 .sidebar {
-    width: 300px;
-    min-width: 280px;
-    max-width: 320px;
+    width: 280px;
+    min-width: 260px;
+    max-width: 300px;
     flex-shrink: 0;
-    padding: 10px 12px;
+    padding: 8px 10px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
-    overflow-y: auto;
     max-height: 100vh;
+    overflow: hidden;
 }
 
-/* Right Main Area - 75% width */
+/* Right Main Area */
 .main-content {
     flex: 1;
-    padding: 24px 32px;
+    padding: 16px 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    /* Removed contain: layout style - can cause click issues */
 }
 
 /* ========== HEADER ========== */
 header {
     text-align: center;
-    padding-bottom: 12px;
+    padding-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .game-title {
-    font-size: 2.2rem;
+    font-size: 1.6rem;
     margin: 0;
     background: linear-gradient(135deg, #c9b037 0%, #f0e68c 25%, #daa520 50%, #f0e68c 75%, #c9b037 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     font-weight: 900;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     text-transform: uppercase;
     font-family: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
     line-height: 1.1;
 }
 
