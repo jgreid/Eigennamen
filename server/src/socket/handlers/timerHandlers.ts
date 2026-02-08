@@ -16,6 +16,7 @@ const { createHostHandler } = require('../contextHandler');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { timerAddTimeSchema } = require('../../validators/schemas');
 const { GameStateError } = require('../../errors/GameError');
+const { safeEmitToRoom } = require('../safeEmit');
 
 /**
  * Extended Socket type with custom properties
@@ -76,7 +77,7 @@ function timerHandlers(io: Server, socket: GameSocket): void {
                 throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'No active timer to pause');
             }
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_PAUSED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.TIMER_PAUSED, {
                 roomCode: ctx.roomCode,
                 remainingSeconds: result.remainingSeconds,
                 pausedAt: Date.now()
@@ -103,7 +104,7 @@ function timerHandlers(io: Server, socket: GameSocket): void {
                 throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'No paused timer to resume');
             }
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_RESUMED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.TIMER_RESUMED, {
                 roomCode: ctx.roomCode,
                 remainingSeconds: result.remainingSeconds,
                 endTime: result.endTime
@@ -130,7 +131,7 @@ function timerHandlers(io: Server, socket: GameSocket): void {
                 throw new GameStateError(ERROR_CODES.SERVER_ERROR, 'No active timer to add time to');
             }
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_TIME_ADDED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.TIMER_TIME_ADDED, {
                 roomCode: ctx.roomCode,
                 secondsAdded: validated.seconds,
                 newEndTime: result.endTime,
@@ -151,7 +152,7 @@ function timerHandlers(io: Server, socket: GameSocket): void {
 
             await timerService.stopTimer(ctx.roomCode);
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.TIMER_STOPPED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.TIMER_STOPPED, {
                 roomCode: ctx.roomCode,
                 stoppedAt: Date.now()
             });

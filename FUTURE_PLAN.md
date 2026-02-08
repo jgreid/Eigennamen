@@ -16,7 +16,12 @@ The Codenames Online codebase is **well-architected with strong defensive progra
 
 ---
 
-## Phase 1: Critical Hardening (Immediate)
+## Phase 1: Critical Hardening (Immediate) ✅ COMPLETED
+
+> **Status**: All 11 items implemented and verified. See commit history for details.
+> - 1.1.1-1.1.4: Backend service fixes (NFKC normalization, atomic Lua tokens, room rollback, timer pause validation)
+> - 1.2.1-1.2.4: WebSocket hardening (safeEmit integration, LRU metrics cleanup, 5min token TTL, host transfer re-check)
+> - 1.3.1-1.3.3: Security enhancements (3x IP multiplier, 2/10s token rate limit, game data validation)
 
 ### 1.1 Backend Service Fixes
 
