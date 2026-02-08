@@ -2,7 +2,7 @@
 // Board rendering
 
 import { state, BOARD_SIZE } from './state.js';
-import { getCardFontClass } from './utils.js';
+import { getCardFontClass, fitCardText } from './utils.js';
 
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler = null;
@@ -92,6 +92,9 @@ export function renderBoard() {
         const card = document.createElement('div');
         const fontClass = getCardFontClass(word);
         card.className = `card ${fontClass}`;
+        if (word.includes(' ')) {
+            card.classList.add('multi-word');
+        }
         card.textContent = word;
         card.setAttribute('data-index', index);
 
@@ -113,6 +116,9 @@ export function renderBoard() {
 
         board.appendChild(card);
     });
+
+    // Shrink font on any single-word cards that overflow their container
+    fitCardText(board);
 
     state.boardInitialized = true;
     initBoardEventDelegation();
