@@ -25,6 +25,7 @@ const {
     stopRateLimitCleanup
 } = require('./rateLimitHandler');
 const { registerSocketFunctions } = require('./socketFunctionProvider');
+const { safeEmitToRoom } = require('./safeEmit');
 
 // Import handlers AFTER rate limiter is set up to avoid circular dependency issues
 const roomHandlers = require('./handlers/roomHandlers');
@@ -494,7 +495,7 @@ async function handleDisconnect(
             // Now the token is stored server-side only and validated during reconnection handshake.
             // The disconnecting player should proactively request their reconnection token via
             // 'room:getReconnectionToken' event BEFORE they disconnect (e.g., on 'beforeunload').
-            ioInstance.to(`room:${roomCode}`).emit(SOCKET_EVENTS.PLAYER_DISCONNECTED, {
+            safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.PLAYER_DISCONNECTED, {
                 sessionId: socket.sessionId,
                 nickname: player.nickname,
                 team: player.team,
@@ -510,7 +511,7 @@ async function handleDisconnect(
 
             // Broadcast updated stats so clients reflect the disconnection
             const roomStats = await playerService.getRoomStats(roomCode, updatedPlayers);
-            ioInstance.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+            safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // Log disconnection event
             try {
@@ -577,7 +578,7 @@ async function handleDisconnect(
                                     );
 
                                     if (transferResult.success) {
-                                        ioInstance.to(`room:${roomCode}`).emit(SOCKET_EVENTS.ROOM_HOST_CHANGED, {
+                                        safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
                                             newHostSessionId: newHost.sessionId,
                                             newHostNickname: newHost.nickname,
                                             reason: 'previousHostDisconnected'
@@ -637,20 +638,19 @@ function getIO(): SocketIOServer {
 
 /**
  * Helper to emit to a specific room
+ * HARDENING: Delegates to safeEmitToRoom for consistent error handling
  */
 function emitToRoom(roomCode: string, event: string, data: unknown): void {
-    if (io) {
-        io.to(`room:${roomCode}`).emit(event, data);
-    }
+    safeEmitToRoom(io, roomCode, event, data);
 }
 
 /**
  * Helper to emit to a specific player
+ * HARDENING: Delegates to safeEmitToPlayer for consistent error handling
  */
 function emitToPlayer(sessionId: string, event: string, data: unknown): void {
-    if (io) {
-        io.to(`player:${sessionId}`).emit(event, data);
-    }
+    const { safeEmitToPlayer } = require('./safeEmit');
+    safeEmitToPlayer(io, sessionId, event, data);
 }
 
 /**

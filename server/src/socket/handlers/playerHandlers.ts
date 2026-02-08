@@ -17,6 +17,7 @@ const { createRoomHandler, createHostHandler } = require('../contextHandler');
 const { canChangeTeamOrRole } = require('../playerContext');
 const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
+const { safeEmitToRoom } = require('../safeEmit');
 
 /**
  * Extended Socket type with custom properties
@@ -151,14 +152,14 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             }
 
             // Broadcast to room
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
                 changes
             });
 
             // Broadcast updated stats
             const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
 
@@ -189,14 +190,14 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
 
             // Broadcast to room
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
                 changes: { role: player.role }
             });
 
             // Broadcast updated stats
             const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // If becoming spymaster, re-fetch game state to avoid stale context
             if (player.role === 'spymaster') {
@@ -226,7 +227,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             const sanitizedNickname: string = sanitizeHtml(player.nickname);
 
             // Broadcast to room
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_UPDATED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
                 changes: { nickname: sanitizedNickname }
             });
@@ -257,7 +258,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             const targetSocketId: string | null = await playerService.getSocketId(validated.targetSessionId);
 
             // Broadcast kick event before removing player
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.PLAYER_KICKED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_KICKED, {
                 sessionId: validated.targetSessionId,
                 nickname: sanitizeHtml(targetPlayer.nickname),
                 kickedBy: sanitizeHtml(ctx.player.nickname)
@@ -283,7 +284,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
 
             // Update player list for remaining players
             const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                 sessionId: validated.targetSessionId,
                 newHost: null,
                 players: remainingPlayers || []

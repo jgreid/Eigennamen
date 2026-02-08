@@ -25,6 +25,7 @@ const {
 const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
+const { safeEmitToRoom, safeEmitToPlayers } = require('../safeEmit');
 
 /**
  * Extended Socket type with custom properties
@@ -152,14 +153,11 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             const gameMode = room?.settings?.gameMode || 'classic';
 
             // Send game state to each player (spymasters see card types)
-            for (const p of players) {
-                try {
-                    const gameState: PlayerGameState | null = gameService.getGameStateForPlayer(game, p);
-                    io.to(`player:${p.sessionId}`).emit(SOCKET_EVENTS.GAME_STARTED, { game: gameState, gameMode });
-                } catch (emitError) {
-                    logger.error(`Failed to emit game:started to player ${p.sessionId}:`, emitError);
-                }
-            }
+            // HARDENING: Use safeEmitToPlayers for consistent error handling and metrics
+            safeEmitToPlayers(io, players, SOCKET_EVENTS.GAME_STARTED, (p: Player) => ({
+                game: gameService.getGameStateForPlayer(game, p),
+                gameMode
+            }));
 
             // Start turn timer if configured
             if (room && room.settings && room.settings.turnTimer) {
@@ -238,7 +236,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             // Include Duet-specific fields if present
             if (result.timerTokens !== undefined) revealPayload.timerTokens = result.timerTokens;
             if (result.greenFound !== undefined) revealPayload.greenFound = result.greenFound;
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_CARD_REVEALED, revealPayload);
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CARD_REVEALED, revealPayload);
 
             // Handle turn ending
             if (result.turnEnded && !result.gameOver) {
@@ -260,7 +258,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 if (result.allDuetTypes) gameOverPayload.duetTypes = result.allDuetTypes;
                 if (result.greenFound !== undefined) gameOverPayload.greenFound = result.greenFound;
                 if (result.timerTokens !== undefined) gameOverPayload.timerTokens = result.timerTokens;
-                io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, gameOverPayload);
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
 
                 // Save completed game to history
                 const [completedGame, roomForHistory] = await Promise.all([
@@ -301,7 +299,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 ctx.player.nickname
             );
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_CLUE_GIVEN, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CLUE_GIVEN, {
                 team: clue.team,
                 word: clue.word,
                 number: clue.number,
@@ -353,7 +351,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 'game:endTurn'
             );
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_TURN_ENDED, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn
             });
@@ -382,7 +380,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             const result: ForfeitResult = await gameService.forfeitGame(ctx.roomCode);
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.GAME_OVER, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, {
                 winner: result.winner,
                 forfeitingTeam: result.forfeitingTeam,
                 reason: 'forfeit',

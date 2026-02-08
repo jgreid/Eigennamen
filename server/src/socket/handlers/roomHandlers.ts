@@ -24,6 +24,7 @@ const { getSocketFunctions } = require('../socketFunctionProvider');
 // PHASE 5.1: Import metrics tracking for reconnections
 const { trackReconnection } = require('../../utils/metrics');
 const { getSocketRateLimiter } = require('../rateLimitHandler');
+const { safeEmitToRoom } = require('../safeEmit');
 
 /**
  * Extended Socket type with custom properties
@@ -297,7 +298,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             const remainingPlayers: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_PLAYER_LEFT, {
                 sessionId: ctx.sessionId,
                 newHost: result?.newHostId || null,
                 players: remainingPlayers || []
@@ -305,7 +306,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             // Broadcast updated stats so clients reflect the player departure
             const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode, remainingPlayers);
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             logger.info(`Player ${ctx.sessionId} left room ${ctx.roomCode}`);
             socket.roomCode = null;
@@ -323,7 +324,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 validated
             );
 
-            io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.ROOM_SETTINGS_UPDATED, { settings });
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_SETTINGS_UPDATED, { settings });
 
             logger.info(`Room ${ctx.roomCode} settings updated`);
         }

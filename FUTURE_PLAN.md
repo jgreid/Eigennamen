@@ -16,7 +16,12 @@ The Codenames Online codebase is **well-architected with strong defensive progra
 
 ---
 
-## Phase 1: Critical Hardening (Immediate)
+## Phase 1: Critical Hardening (Immediate) ✅ COMPLETED
+
+> **Status**: All 11 items implemented and verified. See commit history for details.
+> - 1.1.1-1.1.4: Backend service fixes (NFKC normalization, atomic Lua tokens, room rollback, timer pause validation)
+> - 1.2.1-1.2.4: WebSocket hardening (safeEmit integration, LRU metrics cleanup, 5min token TTL, host transfer re-check)
+> - 1.3.1-1.3.3: Security enhancements (3x IP multiplier, 2/10s token rate limit, game data validation)
 
 ### 1.1 Backend Service Fixes
 
@@ -148,7 +153,14 @@ const historySchema = z.object({
 
 ---
 
-## Phase 2: Frontend Improvements (Short-term)
+## Phase 2: Frontend Improvements (Short-term) ✅ COMPLETED
+
+> **Status**: All 5 items implemented and verified.
+> - 2.1: Modal stack with focus management (ui.js)
+> - 2.2: Request cancellation with AbortController (multiplayer.js)
+> - 2.3: Shared constants module + HTML maxlength alignment (constants.js, index.html, multiplayer.js)
+> - 2.4: Timer aria-live on correct element (index.html)
+> - 2.5: Colorblind-friendly card patterns with SVG (components.css)
 
 ### 2.1 Fix Modal Stacking Issue
 **Location**: `server/public/js/modules/ui.js`
