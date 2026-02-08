@@ -603,40 +603,40 @@ export function updateScoreboard() {
 export function updateTurnIndicator() {
     const indicator = state.cachedElements.turnIndicator || document.getElementById('turn-indicator');
     if (!indicator) return;
+    const turnText = indicator.querySelector('.turn-text');
+    if (!turnText) return;
     const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
     const winnerTeamName = state.gameState.winner === 'red' ? state.teamNames.red : state.teamNames.blue;
 
     if (state.gameState.gameOver) {
         indicator.className = 'turn-indicator game-over';
         if (state.gameMode === 'duet') {
-            // Duet: cooperative win or loss
             if (state.gameState.winner) {
-                indicator.textContent = 'YOU WIN! All agents found!';
+                turnText.textContent = 'YOU WIN! All agents found!';
             } else {
                 const assassinIndex = state.gameState.types.indexOf('assassin');
                 if (state.gameState.revealed[assassinIndex]) {
-                    indicator.textContent = 'GAME OVER - Assassin revealed!';
+                    turnText.textContent = 'GAME OVER - Assassin revealed!';
                 } else {
-                    indicator.textContent = 'GAME OVER - Out of time!';
+                    turnText.textContent = 'GAME OVER - Out of time!';
                 }
             }
         } else {
             const assassinIndex = state.gameState.types.indexOf('assassin');
             if (state.gameState.revealed[assassinIndex]) {
-                indicator.textContent = `${winnerTeamName} WINS! (Assassin revealed)`;
+                turnText.textContent = `${winnerTeamName} WINS! (Assassin)`;
             } else {
-                indicator.textContent = `${winnerTeamName} WINS!`;
+                turnText.textContent = `${winnerTeamName} WINS!`;
             }
         }
     } else {
-        // Add 'your-turn' class if you're the clicker for the current team
         const isYourTurn = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
         indicator.className = `turn-indicator ${state.gameState.currentTurn}-turn${isYourTurn ? ' your-turn' : ''}`;
 
         if (isYourTurn) {
-            indicator.textContent = `${currentTeamName}'s Turn - Your move!`;
+            turnText.textContent = `${currentTeamName}'s Turn - Go!`;
         } else {
-            indicator.textContent = `${currentTeamName}'s Turn`;
+            turnText.textContent = `${currentTeamName}'s Turn`;
         }
     }
 }

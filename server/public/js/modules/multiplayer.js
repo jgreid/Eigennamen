@@ -416,16 +416,16 @@ export function updateMpIndicator(room, players) {
     const roomIdText = document.getElementById('mp-room-id-text');
     const playerListEl = document.getElementById('mp-player-list');
     const playersUl = document.getElementById('mp-players-ul');
-    const historyBtnRow = document.getElementById('history-btn-row');
+    const mpExtraRow = document.getElementById('mp-extra-buttons-row');
 
     if (room) {
         codeEl.textContent = room.code;
         countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
         indicator.classList.add('active');
 
-        // Show game history button in multiplayer mode
-        if (historyBtnRow) {
-            historyBtnRow.style.display = 'flex';
+        // Show multiplayer-only buttons row (history + forfeit)
+        if (mpExtraRow) {
+            mpExtraRow.style.display = 'flex';
         }
 
         // Show Room ID if we're the host
@@ -447,9 +447,9 @@ export function updateMpIndicator(room, players) {
         indicator.classList.remove('active');
         roomIdDisplay.style.display = 'none';
         if (playerListEl) playerListEl.style.display = 'none';
-        // Hide game history button when not in multiplayer mode
-        if (historyBtnRow) {
-            historyBtnRow.style.display = 'none';
+        // Hide multiplayer-only buttons when not in multiplayer mode
+        if (mpExtraRow) {
+            mpExtraRow.style.display = 'none';
         }
 
         // Update share panel for standalone mode
@@ -1478,14 +1478,24 @@ export function updateDuetInfoBar(greenFound, timerTokens) {
 
 // PHASE 4: Update spectator count display
 export function updateSpectatorCount(count) {
+    // Update inline spectator count in multiplayer indicator
+    const mpSpectatorCount = document.getElementById('mp-spectator-count');
+    const mpSpectatorInline = document.getElementById('mp-spectator-inline');
+
+    if (mpSpectatorCount) {
+        mpSpectatorCount.textContent = count;
+    }
+    if (mpSpectatorInline) {
+        mpSpectatorInline.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    // Legacy standalone element (kept for backwards compat)
     const spectatorCountEl = document.getElementById('spectator-count');
     const spectatorSection = document.getElementById('spectator-section');
 
     if (spectatorCountEl) {
         spectatorCountEl.textContent = count;
     }
-
-    // Show/hide spectator section based on count
     if (spectatorSection) {
         spectatorSection.style.display = count > 0 ? 'flex' : 'none';
     }
@@ -1607,14 +1617,14 @@ export function forfeitGame() {
  * Shows only for host during an active multiplayer game
  */
 export function updateForfeitButton() {
-    const forfeitRow = document.getElementById('forfeit-btn-row');
-    if (!forfeitRow) return;
+    const forfeitBtn = document.getElementById('btn-forfeit');
+    if (!forfeitBtn) return;
 
     const shouldShow = state.isMultiplayerMode
         && CodenamesClient?.player?.isHost
         && !state.gameState.gameOver;
 
-    forfeitRow.style.display = shouldShow ? 'flex' : 'none';
+    forfeitBtn.style.display = shouldShow ? 'inline-block' : 'none';
 }
 
 // ========== NICKNAME EDIT ==========

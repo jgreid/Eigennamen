@@ -1,11 +1,11 @@
 /* ========== ROLE BANNER ========== */
 .role-banner {
     text-align: center;
-    padding: 12px 16px;
-    border-radius: 10px;
+    padding: 6px 12px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 1rem;
-    line-height: 1.4;
+    font-size: 0.85rem;
+    line-height: 1.3;
     letter-spacing: 0.2px;
 }
 
@@ -79,13 +79,13 @@
 /* ========== SCOREBOARD (Clickable Team Selection) ========== */
 .scoreboard {
     display: flex;
-    gap: 10px;
+    gap: 6px;
 }
 
 .score {
     flex: 1;
-    padding: 14px 10px;
-    border-radius: 10px;
+    padding: 8px 8px;
+    border-radius: 8px;
     font-weight: 700;
     text-align: center;
     cursor: pointer;
@@ -128,23 +128,26 @@
 
 .score .team-name {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     opacity: 0.85;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .score .count {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     font-weight: 800;
 }
 
 /* ========== TURN INDICATOR ========== */
 .turn-indicator {
-    text-align: center;
-    font-size: 1rem;
-    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    padding: 6px 12px;
     border-radius: 8px;
     font-weight: 600;
     letter-spacing: 0.3px;
@@ -185,40 +188,36 @@
     will-change: opacity;
 }
 
-/* ========== TIMER DISPLAY ========== */
-.timer-display {
+/* ========== TIMER DISPLAY (inline in turn indicator) ========== */
+.timer-inline {
     display: none;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    margin-top: 8px;
+    gap: 4px;
+    margin-left: auto;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    opacity: 0.9;
 }
 
-.timer-display.active {
-    display: flex;
+.timer-inline.active {
+    display: inline-flex;
 }
 
-.timer-display .timer-icon {
-    font-size: 1rem;
+.timer-inline .timer-icon {
+    font-size: 0.8rem;
 }
 
-.timer-display .timer-value {
-    font-size: 1.1rem;
+.timer-inline .timer-value {
+    font-size: 0.85rem;
     font-weight: 700;
-    min-width: 50px;
+    min-width: 40px;
     text-align: center;
 }
 
-.timer-display.warning .timer-value {
+.timer-inline.warning .timer-value {
     color: #ffc107;
 }
 
-.timer-display.critical .timer-value {
+.timer-inline.critical .timer-value {
     color: #ff6b6b;
     animation: timer-pulse 0.5s ease-in-out infinite;
 }
@@ -226,11 +225,6 @@
 @keyframes timer-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
-}
-
-.timer-display .timer-label {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
 }
 
 /* ========== DUET MODE INFO BAR ========== */
@@ -278,39 +272,24 @@
 .controls {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
 }
 
 /* Role selection controls */
 .role-controls {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
+    /* No background wrapper - just bare buttons for compactness */
 }
 
 .role-buttons-row {
     display: flex;
-    gap: 8px;
-}
-
-.role-hint {
-    display: block;
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 8px;
-}
-
-.role-hint.hidden {
-    display: none;
+    gap: 6px;
 }
 
 .btn-spymaster,
 .btn-clicker {
     flex: 1;
-    padding: 10px 16px;
-    font-size: 0.85rem;
+    padding: 8px 12px;
+    font-size: 0.8rem;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -365,15 +344,15 @@
 
 .utility-buttons-row {
     display: flex;
-    gap: 8px;
+    gap: 6px;
 }
 
 /* ========== BUTTONS ========== */
 button {
-    padding: 10px 16px;
-    font-size: 0.8rem;
+    padding: 8px 12px;
+    font-size: 0.78rem;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
@@ -429,8 +408,6 @@ button:focus-visible,
 .btn-new-game {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 10px 16px;
-    font-size: 0.8rem;
     letter-spacing: 0.3px;
 }
 
@@ -452,20 +429,17 @@ button:focus-visible,
     box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6c757d;
 }
 
-/* Action buttons row - End Turn and New Game at bottom */
+/* Action buttons row - End Turn and New Game */
 .action-buttons-row {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 6px;
 }
 
 .action-buttons-row .btn-end-turn,
 .action-buttons-row .btn-new-game {
     flex: 1;
-    font-size: 0.8rem;
-    padding: 10px 12px;
+    font-size: 0.78rem;
+    padding: 8px 10px;
 }
 
 .btn-end-turn {
@@ -564,7 +538,7 @@ button:focus-visible,
 /* ========== GAME BOARD ========== */
 .board-container {
     width: 100%;
-    max-width: 900px;
+    max-width: min(900px, 85vh);
 }
 
 .board {

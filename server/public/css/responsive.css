@@ -1,61 +1,46 @@
 /* ========== TABLET/LAPTOP RESPONSIVE (768px - 1024px) ========== */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 260px;
-        min-width: 240px;
-        max-width: 280px;
-        padding: 8px 10px;
-        gap: 5px;
-    }
-
-    .team-controls-row {
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .control-group.team-red,
-    .control-group.team-blue {
-        padding: 8px;
-    }
-
-    .control-group-label {
-        font-size: 0.75rem;
-        margin-bottom: 4px;
+        width: 240px;
+        min-width: 220px;
+        max-width: 260px;
+        padding: 6px 8px;
+        gap: 3px;
     }
 
     .role-banner {
-        padding: 8px 12px;
-        font-size: 0.9rem;
+        padding: 4px 10px;
+        font-size: 0.8rem;
     }
 
     .scoreboard {
-        gap: 6px;
+        gap: 4px;
     }
 
     .score {
-        padding: 8px 6px;
+        padding: 6px 4px;
     }
 
     .score .team-name {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
     }
 
     .score .count {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 
     .turn-indicator {
-        padding: 8px 12px;
-        font-size: 0.9rem;
+        padding: 4px 10px;
+        font-size: 0.8rem;
     }
 
     button {
-        padding: 8px 12px;
-        font-size: 0.75rem;
+        padding: 6px 10px;
+        font-size: 0.72rem;
     }
 
     .main-content {
-        padding: 16px 20px;
+        padding: 12px 16px;
     }
 
     .card {
@@ -63,19 +48,12 @@
     }
 
     h1, .game-title {
-        font-size: 1.8rem;
-        letter-spacing: 3px;
+        font-size: 1.4rem;
+        letter-spacing: 2px;
     }
-}
 
-/* ========== SMALL LAPTOP / LARGER TABLET (1024px - 1200px) ========== */
-@media (min-width: 1025px) and (max-width: 1200px) {
-    .sidebar {
-        width: 280px;
-        min-width: 260px;
-        max-width: 300px;
-        padding: 10px 12px;
-        gap: 6px;
+    .controls {
+        gap: 4px;
     }
 }
 
@@ -89,12 +67,13 @@
         width: 100%;
         max-width: none;
         height: auto;
+        max-height: none;
+        overflow: visible;
         position: relative;
         border-right: none;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 16px;
-        gap: 12px;
-        /* Disable expensive backdrop-filter on mobile for better performance */
+        padding: 12px;
+        gap: 8px;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
         background: rgba(15, 15, 26, 0.95);
