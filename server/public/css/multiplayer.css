@@ -254,11 +254,11 @@
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    background: rgba(56, 239, 125, 0.1);
-    border: 1px solid rgba(56, 239, 125, 0.3);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
     font-size: 0.8rem;
-    color: var(--color-success);
+    color: rgba(255, 255, 255, 0.8);
     margin-bottom: 8px;
 }
 
@@ -270,7 +270,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-success);
+    background: #38ef7d;
     animation: pulse 2s infinite;
 }
 
@@ -302,7 +302,7 @@
 }
 
 .multiplayer-indicator .mp-room-id-display strong {
-    color: var(--color-success);
+    color: #ffffff;
     font-family: monospace;
     letter-spacing: 0.5px;
 }
@@ -319,6 +319,21 @@
 
 .multiplayer-indicator .btn-copy-room-id:hover {
     opacity: 1;
+}
+
+.multiplayer-indicator .mp-spectator-inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.multiplayer-indicator .mp-spectator-inline .spectator-icon {
+    font-size: 0.8rem;
 }
 
 .multiplayer-indicator .player-count-btn {
@@ -433,7 +448,7 @@
 
 /* ========== FORFEIT BUTTON ========== */
 .btn-forfeit {
-    width: 100%;
+    flex: 1;
     padding: 10px 16px;
     background: rgba(220, 53, 69, 0.15);
     border: 1px solid rgba(220, 53, 69, 0.4);

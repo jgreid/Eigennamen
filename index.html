@@ -65,6 +65,10 @@
                     <span>Room ID: <strong id="mp-room-id-text"></strong></span>
                     <button type="button" class="btn-copy-room-id" id="btn-copy-room-id" title="Copy Room ID" aria-label="Copy Room ID">📋</button>
                 </div>
+                <div class="mp-spectator-inline" id="mp-spectator-inline" style="display: none;">
+                    <span class="spectator-icon" aria-hidden="true">👁</span>
+                    <span><span id="mp-spectator-count">0</span> watching</span>
+                </div>
                 <!-- Player list (expandable) -->
                 <div class="mp-player-list" id="mp-player-list" style="display: none;">
                     <ul id="mp-players-ul"></ul>
@@ -101,11 +105,7 @@
                 <span class="duet-tokens"><span id="duet-timer-tokens">9</span> tokens left</span>
             </div>
 
-            <!-- PHASE 4: Spectator count display (hidden by default) -->
-            <div class="spectator-section" id="spectator-section" style="display: none;">
-                <span class="spectator-icon" aria-hidden="true">👁</span>
-                <span class="spectator-label"><span id="spectator-count">0</span> watching</span>
-            </div>
+            <!-- Spectator count now shown inline in multiplayer indicator -->
 
             <div class="turn-indicator" id="turn-indicator" role="status" aria-live="polite" aria-atomic="true">
                 Red Team's Turn
@@ -137,18 +137,12 @@
                 <div class="utility-buttons-row">
                     <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate" data-i18n="roles.spectator">Spectator</button>
                     <button type="button" class="btn-settings" data-action="open-settings" data-i18n="nav.settings">Settings</button>
+                    <button type="button" class="btn-settings" id="btn-multiplayer" data-action="open-multiplayer" data-i18n="nav.playOnline">Play Online</button>
                 </div>
 
-                <div class="utility-buttons-row mp-only" id="forfeit-btn-row" style="display: none;">
-                    <button type="button" class="btn-forfeit" id="btn-forfeit" data-action="confirm-forfeit" title="Forfeit the current game (host only)">Forfeit Game</button>
-                </div>
-
-                <div class="utility-buttons-row">
-                    <button type="button" class="btn-settings" id="btn-multiplayer" data-action="open-multiplayer" style="width: 100%;" data-i18n="nav.playOnline">Play Online</button>
-                </div>
-
-                <div class="utility-buttons-row mp-only" id="history-btn-row" style="display: none;">
-                    <button type="button" class="btn-settings" id="btn-history" data-action="open-history" style="width: 100%;" data-i18n="nav.history">Game History</button>
+                <div class="utility-buttons-row mp-only" id="mp-extra-buttons-row" style="display: none;">
+                    <button type="button" class="btn-settings" id="btn-history" data-action="open-history" data-i18n="nav.history">Game History</button>
+                    <button type="button" class="btn-forfeit" id="btn-forfeit" data-action="confirm-forfeit" title="Forfeit the current game (host only)">Forfeit</button>
                 </div>
             </div>
 
