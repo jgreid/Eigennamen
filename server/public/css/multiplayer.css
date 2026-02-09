@@ -289,37 +289,6 @@
     color: rgba(255, 255, 255, 0.6);
 }
 
-.multiplayer-indicator .mp-room-id-display {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.75rem;
-}
-
-.multiplayer-indicator .mp-room-id-display strong {
-    color: #ffffff;
-    font-family: monospace;
-    letter-spacing: 0.5px;
-}
-
-.multiplayer-indicator .btn-copy-room-id {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 2px 4px;
-    font-size: 0.8rem;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.multiplayer-indicator .btn-copy-room-id:hover {
-    opacity: 1;
-}
-
 .multiplayer-indicator .mp-spectator-inline {
     display: flex;
     align-items: center;

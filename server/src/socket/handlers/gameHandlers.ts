@@ -138,7 +138,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     gameMode
                 });
 
-                const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
+                // Reset all player roles to spectator for the new game
+                // Team membership is preserved, but roles must be re-chosen
+                const players: Player[] = await playerService.resetRolesForNewGame(ctx.roomCode);
 
                 return { game, room, players };
             })();
@@ -152,12 +154,19 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             // Include game mode in started event
             const gameMode = room?.settings?.gameMode || 'classic';
 
-            // Send game state to each player (spymasters see card types)
-            // HARDENING: Use safeEmitToPlayers for consistent error handling and metrics
+            // Send game state to each player (all roles are now spectator)
             safeEmitToPlayers(io, players, SOCKET_EVENTS.GAME_STARTED, (p: Player) => ({
                 game: gameService.getGameStateForPlayer(game, p),
                 gameMode
             }));
+
+            // Broadcast role resets so all clients clear spymaster/clicker state
+            for (const p of players) {
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
+                    sessionId: p.sessionId,
+                    changes: { role: 'spectator', team: p.team }
+                });
+            }
 
             // Start turn timer if configured
             if (room && room.settings && room.settings.turnTimer) {

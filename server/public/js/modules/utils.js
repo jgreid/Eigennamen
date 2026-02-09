@@ -150,6 +150,26 @@ export function getCardFontClass(word) {
     return 'font-min';                   // Minimum 8pt
 }
 
+/**
+ * After board render, shrink font on single-word cards that overflow.
+ * Multi-word cards are allowed to wrap at word boundaries so they're skipped.
+ * Uses requestAnimationFrame to measure after layout.
+ */
+export function fitCardText(board) {
+    requestAnimationFrame(() => {
+        const cards = board.querySelectorAll('.card:not(.multi-word)');
+        const MIN_FONT_SIZE = 8; // px
+        cards.forEach(card => {
+            let fontSize = parseFloat(getComputedStyle(card).fontSize);
+            // Shrink until text fits or we hit the minimum
+            while (card.scrollWidth > card.clientWidth && fontSize > MIN_FONT_SIZE) {
+                fontSize -= 1;
+                card.style.fontSize = `${fontSize}px`;
+            }
+        });
+    });
+}
+
 // ========== SAFE LOCALSTORAGE WRAPPER ==========
 // localStorage can throw in private browsing mode or when quota is exceeded
 export function safeGetItem(key, defaultValue = null) {

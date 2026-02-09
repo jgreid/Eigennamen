@@ -1062,6 +1062,26 @@ export async function getRoomStats(
     return stats;
 }
 
+/**
+ * Reset all players' roles to 'spectator' for a new game while preserving teams.
+ * This ensures spymaster/clicker roles are re-chosen each game.
+ */
+export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> {
+    const players = await getPlayersInRoom(roomCode);
+    const updated: Player[] = [];
+
+    for (const player of players) {
+        if (player.role && player.role !== 'spectator') {
+            const updatedPlayer = await updatePlayer(player.sessionId, { role: 'spectator' as Role });
+            updated.push(updatedPlayer);
+        } else {
+            updated.push(player);
+        }
+    }
+
+    return updated;
+}
+
 // CommonJS exports for compatibility
 module.exports = {
     createPlayer,
@@ -1093,5 +1113,7 @@ module.exports = {
     getSpectatorCount,
     getRoomStats,
     // SECURITY FIX: Atomic host transfer
-    atomicHostTransfer
+    atomicHostTransfer,
+    // Reset roles for new game
+    resetRolesForNewGame
 };

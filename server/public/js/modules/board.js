@@ -2,10 +2,26 @@
 // Board rendering
 
 import { state, BOARD_SIZE } from './state.js';
-import { getCardFontClass } from './utils.js';
+import { getCardFontClass, fitCardText } from './utils.js';
 
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler = null;
+
+// Re-fit card text on resize (debounced)
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        const board = document.getElementById('board');
+        if (board && board.children.length > 0) {
+            // Reset inline font sizes so CSS classes take effect at new size
+            for (const card of board.querySelectorAll('.card:not(.multi-word)')) {
+                card.style.fontSize = '';
+            }
+            fitCardText(board);
+        }
+    }, 150);
+});
 
 export function setCardClickHandler(fn) {
     cardClickHandler = fn;
@@ -92,6 +108,9 @@ export function renderBoard() {
         const card = document.createElement('div');
         const fontClass = getCardFontClass(word);
         card.className = `card ${fontClass}`;
+        if (word.includes(' ')) {
+            card.classList.add('multi-word');
+        }
         card.textContent = word;
         card.setAttribute('data-index', index);
 
@@ -114,6 +133,9 @@ export function renderBoard() {
         board.appendChild(card);
     });
 
+    // Shrink font on any single-word cards that overflow their container
+    fitCardText(board);
+
     state.boardInitialized = true;
     initBoardEventDelegation();
 }
@@ -129,6 +151,7 @@ export function updateBoardIncremental() {
     if (!canClickCards()) className += ' no-click';
     board.className = className;
 
+    let needsFit = false;
     const cards = board.children;
     for (let index = 0; index < cards.length; index++) {
         const card = cards[index];
@@ -140,9 +163,17 @@ export function updateBoardIncremental() {
         if (card.textContent !== word) {
             card.textContent = word;
             // Update font class based on word length
-            card.classList.remove('small-text', 'tiny-text');
+            card.classList.remove('font-lg', 'font-md', 'font-sm', 'font-xs', 'font-min');
+            card.style.fontSize = ''; // clear any fitCardText override
             const fontClass = getCardFontClass(word);
             if (fontClass) card.classList.add(fontClass);
+            // Update multi-word class
+            if (word.includes(' ')) {
+                card.classList.add('multi-word');
+            } else {
+                card.classList.remove('multi-word');
+            }
+            needsFit = true;
         }
 
         // Update ARIA
@@ -170,6 +201,10 @@ export function updateBoardIncremental() {
                 }
             }
         }
+    }
+
+    if (needsFit) {
+        fitCardText(board);
     }
 }
 

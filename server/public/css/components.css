@@ -538,7 +538,7 @@ button:focus-visible,
 /* ========== GAME BOARD ========== */
 .board-container {
     width: 100%;
-    max-width: min(900px, 85vh);
+    max-width: 1100px;
 }
 
 .board {
@@ -559,17 +559,16 @@ button:focus-visible,
 
 /* ========== CARDS - Optimized for readability ========== */
 .card {
-    aspect-ratio: 1.6;
+    aspect-ratio: 2;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: clamp(8px, 1.5vw, 14px);
+    padding: clamp(6px, 1vw, 10px);
     border-radius: 10px;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
     font-weight: 700;
     text-align: center;
-    /* Larger font relative to card size for readability */
     font-size: clamp(0.9rem, 1.8vw, 1.25rem);
     text-transform: uppercase;
     letter-spacing: 0.3px;
@@ -581,9 +580,14 @@ button:focus-visible,
     box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
     position: relative;
     overflow: hidden;
-    word-break: break-word;
-    hyphens: auto;
+    white-space: nowrap;
     contain: layout style;
+}
+
+/* Multi-word cards can wrap at word boundaries */
+.card.multi-word {
+    white-space: normal;
+    word-spacing: 0.05em;
 }
 
 .card:hover:not(.revealed) {
@@ -851,58 +855,6 @@ button:focus-visible,
 /* Neutral cards have no symbol - distinguished by beige color scheme */
 
 /* Assassin uses only skull symbol (::before) - no secondary symbol needed */
-
-/* ========== PHASE 4: SPECTATOR ENHANCEMENTS ========== */
-
-/* Spectator count section */
-.spectator-section {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px 16px;
-    margin: 8px auto;
-    background: rgba(108, 117, 125, 0.15);
-    border: 1px solid rgba(108, 117, 125, 0.3);
-    border-radius: 20px;
-    color: #adb5bd;
-    font-size: 0.85rem;
-    font-weight: 500;
-    max-width: fit-content;
-}
-
-.spectator-section .spectator-icon {
-    font-size: 1rem;
-}
-
-.spectator-section .spectator-label {
-    color: #adb5bd;
-}
-
-.spectator-section #spectator-count {
-    font-weight: 700;
-    color: #ffffff;
-}
-
-/* Spectator chat message styles */
-.chat-message.spectator-message {
-    background: rgba(108, 117, 125, 0.1);
-    border-left: 3px solid rgba(108, 117, 125, 0.5);
-    padding-left: 8px;
-    opacity: 0.9;
-}
-
-.chat-message .chat-badge.spectator-badge {
-    display: inline-block;
-    margin-right: 4px;
-    font-size: 0.8rem;
-    opacity: 0.7;
-}
-
-.chat-message .chat-sender.spectator {
-    color: #adb5bd;
-    font-style: italic;
-}
 
 /* ========== PHASE 4: REPLAY ENHANCEMENTS ========== */
 
