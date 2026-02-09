@@ -243,13 +243,24 @@ describe('Timing Middleware', () => {
     });
 
     describe('Memory Monitoring', () => {
+        let memoryUsageSpy;
+
         beforeEach(() => {
             jest.useFakeTimers();
+            // Mock process.memoryUsage to return values below warning threshold (300MB)
+            memoryUsageSpy = jest.spyOn(process, 'memoryUsage').mockReturnValue({
+                rss: 150 * 1024 * 1024,
+                heapTotal: 200 * 1024 * 1024,
+                heapUsed: 100 * 1024 * 1024,
+                external: 10 * 1024 * 1024,
+                arrayBuffers: 5 * 1024 * 1024,
+            });
         });
 
         afterEach(() => {
             jest.useRealTimers();
             stopMemoryMonitoring();
+            memoryUsageSpy.mockRestore();
         });
 
         it('should start memory monitoring', () => {

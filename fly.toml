@@ -1,5 +1,9 @@
 # Fly.io configuration for Die Eigennamen game server
 # See https://fly.io/docs/reference/configuration/ for details
+#
+# IMPORTANT: This app uses in-memory storage (REDIS_URL=memory) by default.
+# Only 1 machine should be running - multiple machines have separate game state!
+# After first deploy, scale to 1 machine:  fly scale count 1
 
 app = "die-eigennamen"
 primary_region = "iad"
@@ -8,6 +12,7 @@ primary_region = "iad"
   dockerfile = "server/Dockerfile"
 
 [deploy]
+  strategy = "immediate"
   # Database migrations are skipped - database is optional
   # The game works fully with just in-memory storage (REDIS_URL=memory)
   # To enable database: set DATABASE_URL secret and uncomment the release_command below
@@ -47,23 +52,16 @@ primary_region = "iad"
     hard_limit = 250
     soft_limit = 200
 
-# Health check that verifies all dependencies (Redis, DB, Socket.io)
+# Service-level health check (used for routing decisions)
+# This is the only health check needed - the separate [checks] block was
+# causing duplicate checks that raced against startup, producing spurious
+# "failed" messages before the grace period could take effect.
 [[http_service.checks]]
   grace_period = "30s"
   interval = "30s"
   method = "GET"
   timeout = "10s"
   path = "/health/ready"
-
-[checks]
-  [checks.health]
-    grace_period = "30s"
-    interval = "30s"
-    method = "GET"
-    timeout = "10s"
-    path = "/health/ready"
-    port = 3000
-    type = "http"
 
 [[vm]]
   memory = "512mb"
