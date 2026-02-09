@@ -130,7 +130,10 @@ function setMpError(message) {
 
 export async function handleMpAction() {
     const actionBtn = document.getElementById('btn-mp-action');
+    const originalText = actionBtn.textContent;
     actionBtn.disabled = true;
+    actionBtn.textContent = state.currentMpMode === 'join' ? 'Joining...' : 'Creating...';
+    actionBtn.classList.add('loading');
 
     try {
         if (state.currentMpMode === 'join') {
@@ -143,6 +146,8 @@ export async function handleMpAction() {
         setMpStatus(error.message || 'Connection failed', 'error');
     } finally {
         actionBtn.disabled = false;
+        actionBtn.textContent = originalText;
+        actionBtn.classList.remove('loading');
     }
 }
 

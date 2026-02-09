@@ -323,6 +323,101 @@ spec:
 
 ---
 
+## Staging Environment
+
+For validating changes before production deployment, create a staging environment:
+
+### Fly.io Staging
+
+```bash
+# Create a staging app (separate from production)
+fly apps create codenames-staging
+
+# Deploy to staging
+fly deploy --app codenames-staging
+
+# Use a separate Redis instance
+fly redis create codenames-staging-redis --region iad
+fly redis attach codenames-staging-redis --app codenames-staging
+
+# Run database migrations in staging first
+fly ssh console --app codenames-staging -C "cd /app/server && npx prisma migrate deploy"
+
+# Verify health
+fly status --app codenames-staging
+curl https://codenames-staging.fly.dev/health/ready
+```
+
+### Docker Compose Staging
+
+For local staging that mirrors production:
+
+```bash
+# Use production-like config with memory limits
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+```
+
+### Staging Checklist
+
+- [ ] Deploy to staging before production
+- [ ] Run database migrations in staging
+- [ ] Verify health endpoints respond
+- [ ] Test multiplayer flow (create room, join, play)
+- [ ] Check reconnection works
+- [ ] Run E2E tests against staging: `BASE_URL=https://codenames-staging.fly.dev npm run test:e2e`
+
+---
+
+## Database Backup Strategy
+
+### PostgreSQL Backups
+
+PostgreSQL stores word lists and optional user data. Even if the database is optional, backups protect against data loss.
+
+#### Automated Backups with pg_dump
+
+```bash
+# Daily backup via cron (add to crontab -e)
+0 3 * * * pg_dump -Fc $DATABASE_URL > /backups/codenames_$(date +\%Y\%m\%d).dump
+
+# Restore from backup
+pg_restore -d $DATABASE_URL /backups/codenames_20260209.dump
+```
+
+#### Fly.io Managed Backups
+
+Fly.io Postgres clusters include automatic daily backups:
+
+```bash
+# List available backups
+fly postgres backups list --app codenames-db
+
+# Restore from a backup
+fly postgres backups restore <backup-id> --app codenames-db
+```
+
+### Redis Data
+
+Redis stores ephemeral game state (rooms, players, timers). It is designed to be losable - the application recovers gracefully. However, for multi-day tournaments:
+
+```bash
+# Manual Redis snapshot
+redis-cli BGSAVE
+
+# Copy the dump file
+cp /var/lib/redis/dump.rdb /backups/redis_$(date +%Y%m%d).rdb
+```
+
+### Backup Retention
+
+| Data | Frequency | Retention | Priority |
+|------|-----------|-----------|----------|
+| PostgreSQL (word lists) | Daily | 30 days | Medium |
+| Redis (game state) | Manual/none | Ephemeral | Low |
+| Application logs | Continuous | 7 days | Medium |
+
+---
+
 ## Security Checklist
 
 Before going to production:

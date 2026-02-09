@@ -41,7 +41,7 @@ function safeClone(obj: unknown): unknown {
 }
 
 // State change history for debugging
-let stateHistory: Array<{
+const stateHistory: Array<{
     timestamp: string;
     property: string;
     oldValue: unknown;
@@ -186,7 +186,6 @@ function logStateChange(
 function setState(property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
     let target: Record<string, unknown> = state as unknown as Record<string, unknown>;
-    let oldValue: unknown;
 
     // Navigate to the parent of the target property
     for (let i = 0; i < parts.length - 1; i++) {
@@ -198,7 +197,7 @@ function setState(property: string, value: unknown, source: string = 'unknown'):
     }
 
     const lastPart = parts[parts.length - 1];
-    oldValue = target[lastPart];
+    const oldValue = target[lastPart];
     target[lastPart] = value;
 
     logStateChange(property, oldValue, value, source);

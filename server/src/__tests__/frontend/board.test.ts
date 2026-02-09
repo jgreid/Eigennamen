@@ -134,7 +134,7 @@ function canClickCards(): boolean {
 
 let cardClickHandler: ((index: number) => void) | null = null;
 
-function setCardClickHandler(fn: ((index: number) => void) | null): void {
+function _setCardClickHandler(fn: ((index: number) => void) | null): void {
     cardClickHandler = fn;
 }
 
