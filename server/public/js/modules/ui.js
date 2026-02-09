@@ -128,7 +128,7 @@ export function openModal(modalId) {
     }
 
     // Focus first focusable element in modal
-    const focusableElements = modal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+    const focusableElements = modal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
     if (focusableElements.length > 0) {
         setTimeout(() => focusableElements[0].focus(), 50);
     }
@@ -173,7 +173,7 @@ export function closeModal(modalId) {
             previousFocus.focus();
         } else if (state.activeModal) {
             // Focus first focusable element in the now-active modal
-            const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+            const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
             if (focusableElements.length > 0) {
                 focusableElements[0].focus();
             }
@@ -195,11 +195,19 @@ export function handleModalKeydown(e) {
 
     // Tab key focus trapping
     if (e.key === 'Tab') {
-        const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, [tabindex]:not([tabindex="-1"])');
+        const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
         if (focusableElements.length === 0) return;
 
         const firstElement = focusableElements[0];
         const lastElement = focusableElements[focusableElements.length - 1];
+
+        // If focus has escaped the modal, bring it back
+        const focusInModal = state.activeModal.contains(document.activeElement);
+        if (!focusInModal) {
+            e.preventDefault();
+            firstElement.focus();
+            return;
+        }
 
         if (e.shiftKey && document.activeElement === firstElement) {
             e.preventDefault();
