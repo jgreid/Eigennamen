@@ -30,16 +30,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install curl for healthcheck and openssl for Prisma
-RUN apk add --no-cache curl openssl
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
+# Install curl for healthcheck and openssl for Prisma, create non-root user
+RUN apk add --no-cache curl openssl && \
+    addgroup -g 1001 -S nodejs && \
     adduser -S codenames -u 1001
 
 # Copy package files and prisma schema (needed for generate)
-COPY server/package*.json ./
-COPY server/prisma ./prisma
+COPY --chown=codenames:nodejs server/package*.json ./
+COPY --chown=codenames:nodejs server/prisma ./prisma
 
 # Install production dependencies and generate prisma client
 RUN npm ci --omit=dev && \
@@ -47,16 +45,13 @@ RUN npm ci --omit=dev && \
     npm cache clean --force
 
 # Copy compiled JavaScript from builder
-COPY --from=builder /app/dist ./dist
+COPY --chown=codenames:nodejs --from=builder /app/dist ./dist
 
 # Copy public folder (static assets) from builder
-COPY --from=builder /app/public ./public
+COPY --chown=codenames:nodejs --from=builder /app/public ./public
 
 # Create logs directory for production logging
-RUN mkdir -p /app/logs
-
-# Set ownership of app directory to non-root user
-RUN chown -R codenames:nodejs /app
+RUN mkdir -p /app/logs && chown codenames:nodejs /app/logs
 
 # Switch to non-root user
 USER codenames

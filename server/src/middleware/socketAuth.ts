@@ -98,6 +98,15 @@ interface OriginValidationResult {
 }
 
 /**
+ * Session resolution result (internal)
+ */
+interface SessionResolutionResult {
+    validatedSessionId: string | null;
+    sessionValidation: SessionValidationResult | null;
+    ipMismatch: boolean;
+}
+
+/**
  * Check if we should trust proxy headers (X-Forwarded-For)
  * Only trust when explicitly configured or in known deployment environments
  */
@@ -390,6 +399,182 @@ function validateOrigin(socket: Socket): OriginValidationResult {
 }
 
 /**
+ * Validate reconnection token format and value.
+ * Returns true if the token is valid (or absent but accepted by playerService).
+ * Returns false if the token has an invalid format or fails validation.
+ */
+async function validateReconnectionToken(
+    sessionId: string,
+    reconnectToken: string | undefined,
+    currentIP: string
+): Promise<boolean> {
+    // Validate token format before processing
+    // Reconnection tokens are hex-encoded, so length should be 64 chars (32 bytes * 2)
+    const expectedTokenLength = (SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32) * 2;
+    const isValidFormat = !reconnectToken ||
+        (typeof reconnectToken === 'string' &&
+         reconnectToken.length === expectedTokenLength &&
+         /^[0-9a-f]+$/i.test(reconnectToken));
+
+    if (reconnectToken && !isValidFormat) {
+        logger.warn('Invalid reconnection token format', {
+            sessionId,
+            tokenLength: reconnectToken?.length,
+            expectedLength: expectedTokenLength,
+            clientIP: currentIP
+        });
+        return false;
+    }
+
+    // Validate token value via playerService
+    const tokenValid: boolean = await playerService.validateReconnectToken(sessionId, reconnectToken);
+
+    if (!tokenValid) {
+        logger.warn('Reconnection token validation failed', {
+            sessionId,
+            hasToken: !!reconnectToken,
+            clientIP: currentIP
+        });
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Resolve session ID from handshake auth params.
+ * Validates existing sessions, checks for hijacking attempts,
+ * and verifies reconnection tokens. Uses early returns to keep nesting flat.
+ */
+async function resolveSessionId(
+    auth: { sessionId?: string; token?: string; reconnectToken?: string },
+    currentIP: string
+): Promise<SessionResolutionResult> {
+    const { sessionId } = auth;
+    const noSession: SessionResolutionResult = { validatedSessionId: null, sessionValidation: null, ipMismatch: false };
+
+    // No session ID provided - will generate a new one
+    if (!sessionId) {
+        return noSession;
+    }
+
+    // Validate session ID format (must be valid UUID)
+    if (!isValidUuid(sessionId)) {
+        logger.warn('Invalid session ID format rejected', {
+            sessionId: sessionId.substring(0, 10) + '...',
+            clientIP: currentIP
+        });
+        return noSession;
+    }
+
+    // Check if there's an existing player with this session
+    const existingPlayer: Player | null = await playerService.getPlayer(sessionId);
+
+    // No existing player - could be returning user or stale session
+    // Allow it (session will be created fresh when they join a room)
+    if (!existingPlayer) {
+        return { validatedSessionId: sessionId, sessionValidation: null, ipMismatch: false };
+    }
+
+    // Player is currently connected - potential hijacking attempt
+    // Generate new session instead of rejecting (more user-friendly)
+    if (existingPlayer.connected) {
+        logger.warn('Session hijacking attempt blocked', {
+            sessionId,
+            clientIP: currentIP
+        });
+        return noSession;
+    }
+
+    // Disconnected player - perform full session validation
+    const sessionValidation = await validateSession(sessionId, currentIP);
+
+    if (!sessionValidation.valid) {
+        logger.warn('Session validation failed', {
+            sessionId,
+            reason: sessionValidation.reason,
+            clientIP: currentIP
+        });
+        return { validatedSessionId: null, sessionValidation, ipMismatch: false };
+    }
+
+    // Validate reconnection token (ISSUE #17 FIX)
+    const tokenValid = await validateReconnectionToken(sessionId, auth.reconnectToken, currentIP);
+
+    if (!tokenValid) {
+        // Token invalid - generate new session
+        return { validatedSessionId: null, sessionValidation, ipMismatch: false };
+    }
+
+    logger.debug('Session validated for reconnection with token', {
+        sessionId,
+        ipMismatch: sessionValidation.ipMismatch
+    });
+
+    return {
+        validatedSessionId: sessionId,
+        sessionValidation,
+        ipMismatch: !!sessionValidation.ipMismatch
+    };
+}
+
+/**
+ * Handle JWT token verification with claims validation.
+ * Sets userId, user, jwtVerified, and jwtExpired on the auth socket as appropriate.
+ */
+function handleJwtVerification(
+    authSocket: AuthSocket,
+    token: string | undefined,
+    validatedSessionId: string | null,
+    sessionValidation: SessionValidationResult | null,
+    currentIP: string
+): void {
+    if (!token || !isJwtEnabled()) {
+        return;
+    }
+
+    // Build expected claims for validation
+    const expectedClaims: Record<string, unknown> = {};
+    // If we have a validated session, the token should match it
+    if (validatedSessionId && sessionValidation?.player?.userId) {
+        expectedClaims.userId = sessionValidation.player.userId;
+    }
+
+    const tokenResult: TokenVerificationResult = verifyTokenWithClaims(token, expectedClaims);
+
+    if (tokenResult.valid && tokenResult.decoded) {
+        authSocket.userId = tokenResult.decoded.userId;
+        authSocket.user = tokenResult.decoded;
+        authSocket.jwtVerified = true;
+        logger.debug('JWT token verified for socket', {
+            socketId: authSocket.id,
+            userId: tokenResult.decoded.userId,
+            sessionId: tokenResult.decoded.sessionId
+        });
+        return;
+    }
+
+    // Log detailed error information for debugging
+    logger.debug('JWT token validation failed for socket', {
+        socketId: authSocket.id,
+        errorCode: tokenResult.error,
+        errorMessage: tokenResult.message
+    });
+
+    // Handle specific error cases
+    if (tokenResult.error === JWT_ERROR_CODES.TOKEN_EXPIRED) {
+        authSocket.jwtExpired = true;
+    } else if (tokenResult.error === JWT_ERROR_CODES.CLAIMS_MISMATCH) {
+        // Potential session/token mismatch - log for security monitoring
+        logger.warn('JWT claims mismatch detected', {
+            socketId: authSocket.id,
+            clientIP: currentIP,
+            sessionId: authSocket.sessionId
+        });
+    }
+}
+
+/**
  * Authenticate socket connection
  * Includes comprehensive session validation with security checks
  */
@@ -397,157 +582,32 @@ async function authenticateSocket(socket: Socket, next: (err?: Error) => void): 
     try {
         const authSocket = socket as AuthSocket;
 
-        // CSRF Protection: Validate origin header
+        // Step 1: CSRF Protection - Validate origin header
         const originValidation = validateOrigin(socket);
         if (!originValidation.valid) {
             return next(new Error(originValidation.reason || 'Origin not allowed'));
         }
 
-        const auth = socket.handshake.auth as { sessionId?: string; token?: string; reconnectToken?: string };
-        const { sessionId, token } = auth;
-
-        // Get client IP (handles proxies)
+        // Step 2: Get client IP (handles proxies)
         const currentIP = getClientIP(socket);
 
-        // Validate and use provided session ID, or generate new one
-        let validatedSessionId: string | null = null;
-        let sessionValidationResult: SessionValidationResult | null = null;
-
-        if (sessionId) {
-            // Validate session ID format (must be valid UUID)
-            if (!isValidUuid(sessionId)) {
-                logger.warn('Invalid session ID format rejected', {
-                    sessionId: sessionId.substring(0, 10) + '...',
-                    clientIP: currentIP
-                });
-            } else {
-                // Check if there's an existing player with this session
-                const existingPlayer: Player | null = await playerService.getPlayer(sessionId);
-
-                if (existingPlayer) {
-                    // Only allow session reuse if player is disconnected (legitimate reconnection)
-                    if (!existingPlayer.connected) {
-                        // Perform full session validation
-                        sessionValidationResult = await validateSession(sessionId, currentIP);
-
-                        if (sessionValidationResult.valid) {
-                            // ISSUE #17 FIX: Validate reconnection token
-                            const reconnectToken = auth.reconnectToken;
-
-                            // SECURITY FIX: Validate token format before processing
-                            // Reconnection tokens are hex-encoded, so length should be 64 chars (32 bytes * 2)
-                            const expectedTokenLength = (SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32) * 2;
-                            const isValidFormat = !reconnectToken ||
-                                (typeof reconnectToken === 'string' &&
-                                 reconnectToken.length === expectedTokenLength &&
-                                 /^[0-9a-f]+$/i.test(reconnectToken));
-
-                            if (reconnectToken && !isValidFormat) {
-                                logger.warn('Invalid reconnection token format', {
-                                    sessionId,
-                                    tokenLength: reconnectToken?.length,
-                                    expectedLength: expectedTokenLength,
-                                    clientIP: currentIP
-                                });
-                                // Treat as no token provided - will generate new session
-                                validatedSessionId = null;
-                            } else {
-                                const tokenValid: boolean = await playerService.validateReconnectToken(sessionId, reconnectToken);
-
-                                if (tokenValid) {
-                                    validatedSessionId = sessionId;
-                                    logger.debug('Session validated for reconnection with token', {
-                                        sessionId,
-                                        ipMismatch: sessionValidationResult.ipMismatch
-                                    });
-
-                                    // Flag IP mismatch on socket for monitoring
-                                    if (sessionValidationResult.ipMismatch) {
-                                        authSocket.ipMismatch = true;
-                                    }
-                                } else {
-                                    logger.warn('Reconnection token validation failed', {
-                                        sessionId,
-                                        hasToken: !!reconnectToken,
-                                        clientIP: currentIP
-                                    });
-                                    // Token invalid - generate new session
-                                    validatedSessionId = null;
-                                }
-                            }
-                        } else {
-                            logger.warn('Session validation failed', {
-                                sessionId,
-                                reason: sessionValidationResult.reason,
-                                clientIP: currentIP
-                            });
-                        }
-                    } else {
-                        // Player is currently connected - potential hijacking attempt
-                        logger.warn('Session hijacking attempt blocked', {
-                            sessionId,
-                            clientIP: currentIP
-                        });
-                        // Generate new session instead of rejecting (more user-friendly)
-                        validatedSessionId = null;
-                    }
-                } else {
-                    // No existing player with this session - could be returning user or stale session
-                    // Allow it (session will be created fresh when they join a room)
-                    validatedSessionId = sessionId;
-                }
-            }
-        }
+        // Step 3: Resolve session ID from auth params
+        const auth = socket.handshake.auth as { sessionId?: string; token?: string; reconnectToken?: string };
+        const resolution = await resolveSessionId(auth, currentIP);
 
         // Use validated session ID or generate new one
-        authSocket.sessionId = validatedSessionId || uuidv4();
-
-        // Store client IP on socket for rate limiting
+        authSocket.sessionId = resolution.validatedSessionId || uuidv4();
         authSocket.clientIP = currentIP;
 
-        // Handle JWT token verification with claims validation
-        if (token && isJwtEnabled()) {
-            // Build expected claims for validation
-            const expectedClaims: Record<string, unknown> = {};
-            // If we have a validated session, the token should match it
-            if (validatedSessionId && sessionValidationResult?.player?.userId) {
-                expectedClaims.userId = sessionValidationResult.player.userId;
-            }
-
-            const tokenResult: TokenVerificationResult = verifyTokenWithClaims(token, expectedClaims);
-
-            if (tokenResult.valid && tokenResult.decoded) {
-                authSocket.userId = tokenResult.decoded.userId;
-                authSocket.user = tokenResult.decoded;
-                authSocket.jwtVerified = true;
-                logger.debug('JWT token verified for socket', {
-                    socketId: socket.id,
-                    userId: tokenResult.decoded.userId,
-                    sessionId: tokenResult.decoded.sessionId
-                });
-            } else {
-                // Log detailed error information for debugging
-                logger.debug('JWT token validation failed for socket', {
-                    socketId: socket.id,
-                    errorCode: tokenResult.error,
-                    errorMessage: tokenResult.message
-                });
-
-                // Handle specific error cases
-                if (tokenResult.error === JWT_ERROR_CODES.TOKEN_EXPIRED) {
-                    authSocket.jwtExpired = true;
-                } else if (tokenResult.error === JWT_ERROR_CODES.CLAIMS_MISMATCH) {
-                    // Potential session/token mismatch - log for security monitoring
-                    logger.warn('JWT claims mismatch detected', {
-                        socketId: socket.id,
-                        clientIP: currentIP,
-                        sessionId: authSocket.sessionId
-                    });
-                }
-            }
+        // Flag IP mismatch on socket for monitoring
+        if (resolution.ipMismatch) {
+            authSocket.ipMismatch = true;
         }
 
-        // Map socket ID to session ID for this connection (with IP tracking for security)
+        // Step 4: Handle JWT token verification with claims validation
+        handleJwtVerification(authSocket, auth.token, resolution.validatedSessionId, resolution.sessionValidation, currentIP);
+
+        // Step 5: Map socket ID to session ID for this connection (with IP tracking for security)
         await playerService.setSocketMapping(authSocket.sessionId, socket.id, currentIP);
 
         logger.debug('Socket authenticated', {
