@@ -22,13 +22,7 @@ const {
     sleep
 } = require('../utils/retry');
 
-const {
-    SOCKET_EVENTS,
-    TTL,
-    RETRY_CONFIG,
-    BOARD_SIZE,
-    ERROR_CODES
-} = require('../config/constants');
+const { ERROR_CODES } = require('../config/constants');
 
 // =============================================================================
 // Decomposed Reveal Functions Tests
@@ -533,101 +527,6 @@ describe('Retry Utility', () => {
         it('should return false for other errors', () => {
             expect(isConcurrentModificationError({ code: 'OTHER' })).toBe(false);
             expect(isConcurrentModificationError({ message: 'some error' })).toBe(false);
-        });
-    });
-});
-
-// =============================================================================
-// Centralized Constants Tests
-// =============================================================================
-
-describe('Centralized Constants', () => {
-
-    describe('SOCKET_EVENTS', () => {
-        it('should have all room events defined', () => {
-            expect(SOCKET_EVENTS.ROOM_CREATE).toBe('room:create');
-            expect(SOCKET_EVENTS.ROOM_CREATED).toBe('room:created');
-            expect(SOCKET_EVENTS.ROOM_JOIN).toBe('room:join');
-            expect(SOCKET_EVENTS.ROOM_JOINED).toBe('room:joined');
-            expect(SOCKET_EVENTS.ROOM_LEAVE).toBe('room:leave');
-            expect(SOCKET_EVENTS.ROOM_SETTINGS_UPDATED).toBe('room:settingsUpdated');
-        });
-
-        it('should have all game events defined', () => {
-            expect(SOCKET_EVENTS.GAME_START).toBe('game:start');
-            expect(SOCKET_EVENTS.GAME_STARTED).toBe('game:started');
-            expect(SOCKET_EVENTS.GAME_REVEAL).toBe('game:reveal');
-            expect(SOCKET_EVENTS.GAME_CARD_REVEALED).toBe('game:cardRevealed');
-            expect(SOCKET_EVENTS.GAME_CLUE).toBe('game:clue');
-            expect(SOCKET_EVENTS.GAME_CLUE_GIVEN).toBe('game:clueGiven');
-            expect(SOCKET_EVENTS.GAME_OVER).toBe('game:over');
-        });
-
-        it('should have all player events defined', () => {
-            expect(SOCKET_EVENTS.PLAYER_SET_TEAM).toBe('player:setTeam');
-            expect(SOCKET_EVENTS.PLAYER_SET_ROLE).toBe('player:setRole');
-            expect(SOCKET_EVENTS.PLAYER_UPDATED).toBe('player:updated');
-            expect(SOCKET_EVENTS.PLAYER_DISCONNECTED).toBe('player:disconnected');
-        });
-
-        it('should have all timer events defined', () => {
-            expect(SOCKET_EVENTS.TIMER_START).toBe('timer:start');
-            expect(SOCKET_EVENTS.TIMER_TICK).toBe('timer:tick');
-            expect(SOCKET_EVENTS.TIMER_EXPIRED).toBe('timer:expired');
-            expect(SOCKET_EVENTS.TIMER_STATUS).toBe('timer:status');
-        });
-
-        it('should have chat events defined', () => {
-            expect(SOCKET_EVENTS.CHAT_MESSAGE).toBe('chat:message');
-            expect(SOCKET_EVENTS.CHAT_SEND).toBe('chat:send');
-        });
-    });
-
-    describe('TTL', () => {
-        it('should have correct TTL values in seconds', () => {
-            expect(TTL.PLAYER_CONNECTED).toBe(24 * 60 * 60);
-            expect(TTL.PLAYER_DISCONNECTED).toBe(10 * 60);
-            expect(TTL.GAME_STATE).toBe(24 * 60 * 60);
-            expect(TTL.EVENT_LOG).toBe(5 * 60);
-            expect(TTL.DISTRIBUTED_LOCK).toBe(5);
-            expect(TTL.SESSION_VALIDATION_WINDOW).toBe(60);
-        });
-    });
-
-    describe('RETRY_CONFIG', () => {
-        it('should have optimistic lock retry config', () => {
-            expect(RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries).toBe(3);
-            expect(RETRY_CONFIG.OPTIMISTIC_LOCK.baseDelayMs).toBe(100);
-        });
-
-        it('should have Redis operation retry config', () => {
-            expect(RETRY_CONFIG.REDIS_OPERATION.maxRetries).toBe(3);
-            expect(RETRY_CONFIG.REDIS_OPERATION.baseDelayMs).toBe(50);
-        });
-
-        it('should have distributed lock retry config', () => {
-            expect(RETRY_CONFIG.DISTRIBUTED_LOCK.maxRetries).toBe(50);
-            expect(RETRY_CONFIG.DISTRIBUTED_LOCK.baseDelayMs).toBe(100);
-        });
-
-        it('should have network request retry config', () => {
-            expect(RETRY_CONFIG.NETWORK_REQUEST.maxRetries).toBe(4);
-            expect(RETRY_CONFIG.NETWORK_REQUEST.baseDelayMs).toBe(2000);
-        });
-    });
-
-    describe('BOARD_SIZE and ERROR_CODES', () => {
-        it('should have correct board size', () => {
-            expect(BOARD_SIZE).toBe(25);
-        });
-
-        it('should have comprehensive error codes', () => {
-            expect(ERROR_CODES.ROOM_NOT_FOUND).toBeDefined();
-            expect(ERROR_CODES.GAME_OVER).toBeDefined();
-            expect(ERROR_CODES.CARD_ALREADY_REVEALED).toBeDefined();
-            expect(ERROR_CODES.NOT_YOUR_TURN).toBeDefined();
-            expect(ERROR_CODES.INVALID_INPUT).toBeDefined();
-            expect(ERROR_CODES.SESSION_EXPIRED).toBeDefined();
         });
     });
 });

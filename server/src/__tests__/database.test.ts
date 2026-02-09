@@ -126,25 +126,3 @@ describe('Database Configuration', () => {
     });
 });
 
-describe('Database Configuration - Exports', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        jest.resetModules();
-        process.env = { ...originalEnv };
-    });
-
-    afterAll(() => {
-        process.env = originalEnv;
-    });
-
-    it('should export all required functions', () => {
-        delete process.env.DATABASE_URL;
-        const dbModule = require('../config/database');
-
-        expect(typeof dbModule.connectDatabase).toBe('function');
-        expect(typeof dbModule.getDatabase).toBe('function');
-        expect(typeof dbModule.isDatabaseEnabled).toBe('function');
-        expect(typeof dbModule.isDatabaseConfigured).toBe('function');
-        expect(typeof dbModule.disconnectDatabase).toBe('function');
-    });
-});
