@@ -635,7 +635,7 @@ describe('Uptime formatting', () => {
             .set('Authorization', createAuthHeader('admin', 'test-password'))
             .expect(200);
 
-        // Uptime should be a readable format like "1h 2m 3s"
-        expect(response.body.uptime.formatted).toMatch(/(\d+d\s)?(\d+h\s)?(\d+m\s)?(\d+s)/);
+        // Uptime should be a readable format like "1h 2m 3s", "1m", "0s", etc.
+        expect(response.body.uptime.formatted).toMatch(/^\d+[dhms](\s\d+[dhms])*$/);
     });
 });
