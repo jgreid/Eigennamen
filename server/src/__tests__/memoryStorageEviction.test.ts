@@ -42,6 +42,12 @@ describe('MemoryStorage Eviction', () => {
         storage.sortedSets.clear();
     });
 
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
+    });
+
     test('evicts expired keys first (phase 1)', async () => {
         // Fill storage to just over limit
         // We need to get past MAX_TOTAL_KEYS
@@ -94,6 +100,12 @@ describe('MemoryStorage set NX', () => {
         storage.sortedSets.clear();
     });
 
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
+    });
+
     test('NX returns null when key already exists and not expired', async () => {
         await storage.set('key1', 'existing');
         const result = await storage.set('key1', 'new', { NX: true });
@@ -123,6 +135,12 @@ describe('MemoryStorage del with expired keys', () => {
         storage.sortedSets.clear();
     });
 
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
+    });
+
     test('del returns 0 for expired key', async () => {
         storage.data.set('key1', 'val');
         storage.expiries.set('key1', Date.now() - 1000);
@@ -149,6 +167,12 @@ describe('MemoryStorage eval - lock scripts', () => {
         storage.sets.clear();
         storage.lists.clear();
         storage.sortedSets.clear();
+    });
+
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
     });
 
     test('lock release returns 0 when key expired', async () => {
@@ -214,6 +238,12 @@ describe('MemoryStorage eval - timer scripts', () => {
         storage.sets.clear();
         storage.lists.clear();
         storage.sortedSets.clear();
+    });
+
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
     });
 
     test('timer GET returns null when timer not found', async () => {
@@ -364,6 +394,12 @@ describe('MemoryStorage eval - unsupported patterns', () => {
         storage.sortedSets.clear();
     });
 
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
+    });
+
     test('eval with no keys returns null', async () => {
         const result = await storage.eval(null, { keys: [] });
         expect(result).toBeNull();
@@ -389,6 +425,12 @@ describe('MemoryStorage transaction edge cases', () => {
         storage.lists.clear();
         storage.sortedSets.clear();
         storage._watchedKeys.clear();
+    });
+
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
     });
 
     test('watched key expired between watch and exec returns null', async () => {
@@ -436,6 +478,12 @@ describe('MemoryStorage host transfer script error', () => {
         storage.sets.clear();
         storage.lists.clear();
         storage.sortedSets.clear();
+    });
+
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
     });
 
     test('host transfer returns SCRIPT_ERROR on parse failure', async () => {
@@ -496,6 +544,12 @@ describe('MemoryStorage set role script error', () => {
         storage.sortedSets.clear();
     });
 
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
+    });
+
     test('set role returns null on parse error', async () => {
         storage.data.set('player:p1', 'not-json');
         storage.sets.set('room:ROOM01:players', new Set(['p1']));
@@ -520,6 +574,12 @@ describe('MemoryStorage set team script error', () => {
         storage.sortedSets.clear();
     });
 
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
+    });
+
     test('set team returns null on parse error', async () => {
         storage.data.set('player:p1', 'not-json');
 
@@ -541,6 +601,12 @@ describe('MemoryStorage safe team switch script error', () => {
         storage.sets.clear();
         storage.lists.clear();
         storage.sortedSets.clear();
+    });
+
+    afterEach(async () => {
+        if (storage) {
+            await storage.quit();
+        }
     });
 
     test('safe team switch returns null on parse error', async () => {
