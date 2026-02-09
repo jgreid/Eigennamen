@@ -79,12 +79,23 @@ async function startServer(): Promise<void> {
                 logger.info('HTTP server closed');
 
                 try {
-                    // Close database connections
-                    await disconnectRedis();
-                    logger.info('Redis disconnected');
+                    // Close connections with individual timeouts to prevent hanging
+                    // (e.g., if Redis is unresponsive, don't block DB disconnect)
+                    const disconnectWithTimeout = (fn: () => Promise<unknown>, name: string, ms: number) =>
+                        Promise.race([
+                            fn().then(() => logger.info(`${name} disconnected`)),
+                            new Promise<void>((resolve) =>
+                                setTimeout(() => {
+                                    logger.warn(`${name} disconnect timed out after ${ms}ms`);
+                                    resolve();
+                                }, ms)
+                            )
+                        ]);
 
-                    await disconnectDatabase();
-                    logger.info('Database disconnected');
+                    await Promise.all([
+                        disconnectWithTimeout(disconnectRedis, 'Redis', 3000),
+                        disconnectWithTimeout(disconnectDatabase, 'Database', 3000),
+                    ]);
                 } catch (error) {
                     logger.error('Error during cleanup:', error);
                 }

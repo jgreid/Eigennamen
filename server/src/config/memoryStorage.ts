@@ -115,7 +115,9 @@ export interface ScanIteratorOptions {
 
 // Maximum total keys across all data structures before eviction kicks in.
 // This prevents unbounded memory growth in long-running single-instance deployments.
-export const MAX_TOTAL_KEYS = parseInt(process.env['MEMORY_STORAGE_MAX_KEYS'] || '', 10) || 50000;
+// Default 10,000 is sized for 512MB VMs (~1,100 rooms at ~9 keys each, ~8KB per room).
+// Override via MEMORY_STORAGE_MAX_KEYS env var if running on larger instances.
+export const MAX_TOTAL_KEYS = parseInt(process.env['MEMORY_STORAGE_MAX_KEYS'] || '', 10) || 10000;
 
 // ============================================================================
 // Shared Storage
@@ -1689,6 +1691,29 @@ export class MemoryStorage {
     }
 
     // ========================================================================
+    // Memory management
+    // ========================================================================
+
+    /**
+     * Force cleanup of expired keys and run eviction if needed.
+     * Called by memory monitoring when heap usage exceeds critical threshold.
+     * Returns the number of keys cleaned/evicted.
+     */
+    forceCleanup(): number {
+        const before = this._totalKeyCount();
+        this._cleanupExpired();
+        const after = this._totalKeyCount();
+        return before - after;
+    }
+
+    /**
+     * Get the current total key count across all data structures.
+     */
+    getKeyCount(): number {
+        return this._totalKeyCount();
+    }
+
+    // ========================================================================
     // Health check
     // ========================================================================
 
@@ -1814,5 +1839,5 @@ module.exports = {
     MemoryStorage,
     getMemoryStorage,
     isMemoryMode,
-    MAX_TOTAL_KEYS
+    MAX_TOTAL_KEYS,
 };

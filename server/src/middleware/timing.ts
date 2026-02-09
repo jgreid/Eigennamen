@@ -142,11 +142,16 @@ function socketEventTiming<T extends unknown[]>(
 
 /**
  * Memory usage monitoring
- * Logs memory stats periodically
+ * Logs memory stats periodically and triggers cleanup under memory pressure.
+ *
+ * Thresholds (for 512MB Fly.io VM):
+ *   - Warning (300MB): Log warning for awareness
+ *   - Critical (400MB): Force MemoryStorage cleanup to reclaim memory before OOM
  */
 let memoryCheckInterval: ReturnType<typeof setInterval> | null = null;
 const MEMORY_CHECK_INTERVAL_MS = 60000; // 1 minute
-const MEMORY_WARNING_THRESHOLD_MB = 400; // Warn at 400MB
+const MEMORY_WARNING_THRESHOLD_MB = 300; // Warn at 300MB (212MB headroom)
+const MEMORY_CRITICAL_THRESHOLD_MB = 400; // Force cleanup at 400MB (112MB before OOM)
 
 function startMemoryMonitoring(): void {
     if (memoryCheckInterval) return;
@@ -165,7 +170,21 @@ function startMemoryMonitoring(): void {
             heapUsagePercent: Math.round((heapUsedMB / heapTotalMB) * 100)
         };
 
-        if (heapUsedMB > MEMORY_WARNING_THRESHOLD_MB) {
+        if (heapUsedMB > MEMORY_CRITICAL_THRESHOLD_MB) {
+            logger.error('Critical memory usage - forcing cleanup', logData);
+            // Trigger emergency cleanup in MemoryStorage
+            try {
+                const { isMemoryMode, getMemoryStorage } = require('../config/memoryStorage');
+                if (isMemoryMode()) {
+                    const storage = getMemoryStorage();
+                    const cleaned = storage.forceCleanup();
+                    const keyCount = storage.getKeyCount();
+                    logger.warn(`Emergency cleanup completed: ${cleaned} keys removed, ${keyCount} remaining`);
+                }
+            } catch (e) {
+                logger.error('Failed to run emergency cleanup:', e);
+            }
+        } else if (heapUsedMB > MEMORY_WARNING_THRESHOLD_MB) {
             logger.warn('High memory usage detected', logData);
         } else {
             logger.debug('Memory usage', logData);
