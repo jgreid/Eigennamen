@@ -344,94 +344,12 @@ describe('Race Condition Tests', () => {
         });
     });
 
-    describe('Game State Consistency', () => {
-        // Skip: requires full mock support for game state operations
-        test.skip('game start sets proper initial state', async () => {
-            const host = await createClient();
-
-            try {
-                // Create room
-                const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', { roomId: 'race-test' });
-                await createPromise;
-
-                // Start game
-                const startPromise = waitForEvent(host, 'game:started');
-                host.emit('game:start', {});
-                const { game } = await startPromise;
-
-                // Verify game state
-                expect(game.words).toHaveLength(25);
-                expect(game.revealed).toHaveLength(25);
-                expect(game.revealed.every(r => r === false)).toBe(true);
-                expect(['red', 'blue']).toContain(game.currentTurn);
-                expect(game.gameOver).toBe(false);
-                expect(game.redScore).toBe(0);
-                expect(game.blueScore).toBe(0);
-            } finally {
-                host.disconnect();
-            }
-        });
-
-        test.skip('cannot start multiple games in same room', async () => {
-            const host = await createClient();
-
-            try {
-                // Create room
-                const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', { roomId: 'race-test' });
-                await createPromise;
-
-                // Start first game
-                const startPromise = waitForEvent(host, 'game:started');
-                host.emit('game:start', {});
-                await startPromise;
-
-                // Try to start second game
-                const errorPromise = waitForEvent(host, 'game:error');
-                host.emit('game:start', {});
-                const error = await errorPromise;
-
-                expect(error.code).toBe(ERROR_CODES.GAME_IN_PROGRESS);
-            } finally {
-                host.disconnect();
-            }
-        });
-    });
+    // Note: Game state consistency and multiple-game-start tests require full mock support.
+    // These are covered by unit tests in gameService.test.ts and gameHandlers.test.ts.
 
     describe('Player State Management', () => {
-        // Skip: Flaky due to socket event timing in test environment
-        test.skip('player can change team', async () => {
-            const host = await createClient();
-            const player = await createClient();
-
-            try {
-                // Create room
-                const createPromise = waitForEvent(host, 'room:created');
-                host.emit('room:create', { roomId: 'race-test' });
-                const { room } = await createPromise;
-
-                // Join room
-                const joinPromise = waitForEvent(player, 'room:joined');
-                player.emit('room:join', { roomId: room.code, nickname: 'Player' });
-                await joinPromise;
-
-                // Set team to red
-                let updatePromise = waitForEvent(player, 'player:updated');
-                player.emit('player:setTeam', { team: 'red' });
-                let update = await updatePromise;
-                expect(update.changes.team).toBe('red');
-
-                // Change team to blue
-                updatePromise = waitForEvent(player, 'player:updated');
-                player.emit('player:setTeam', { team: 'blue' });
-                update = await updatePromise;
-                expect(update.changes.team).toBe('blue');
-            } finally {
-                host.disconnect();
-                player.disconnect();
-            }
-        });
+        // Note: Team change test removed - flaky due to socket timing in test environment.
+        // Covered by unit tests in playerService.test.ts.
 
         test('role requires team assignment', async () => {
             const host = await createClient();
