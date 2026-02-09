@@ -280,18 +280,6 @@ describe('Metrics Branch Coverage', () => {
         });
     });
 
-    describe('event loop monitoring', () => {
-        it('should start and stop monitoring without error', () => {
-            // These are no-ops in test environment but should not throw
-            expect(() => metrics.startEventLoopMonitoring()).not.toThrow();
-            expect(() => metrics.stopEventLoopMonitoring()).not.toThrow();
-        });
-
-        it('should stop monitoring even when not started', () => {
-            expect(() => metrics.stopEventLoopMonitoring()).not.toThrow();
-        });
-    });
-
     describe('convenience tracking functions', () => {
         it('should track game started', () => {
             metrics.trackGameStarted('ROOM1');

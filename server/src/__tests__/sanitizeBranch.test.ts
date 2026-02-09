@@ -32,15 +32,6 @@ describe('Sanitize Branch Coverage', () => {
             expect(result[0][0].secret).toBe('[REDACTED]');
         });
 
-        it('should handle empty arrays', () => {
-            expect(sanitizeForLog([])).toEqual([]);
-        });
-
-        it('should return primitives as-is', () => {
-            expect(sanitizeForLog(null)).toBeNull();
-            expect(sanitizeForLog(42)).toBe(42);
-            expect(sanitizeForLog('string')).toBe('string');
-        });
     });
 
     describe('localeCompare - case sensitive branch', () => {

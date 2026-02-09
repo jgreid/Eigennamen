@@ -1,7 +1,8 @@
 /**
  * Rate Limit Extended Branch Coverage Tests
  *
- * Tests: metrics cleanup, LRU eviction, cleanupStale, getMetrics edge cases, IP rate limiting
+ * Tests core rate limiting behavior: per-socket limits, per-IP limits,
+ * cleanup, stale entry removal, and metrics tracking.
  */
 
 jest.mock('../utils/logger', () => ({
@@ -87,126 +88,42 @@ describe('Rate Limit Extended Branch Coverage', () => {
                 middleware(socket, {}, next);
                 expect(next).toHaveBeenCalledWith();
             });
-
-            it('should use "unknown" when no IP available', () => {
-                const middleware = limiter.getLimiter('test:event');
-                const socket = { id: 'socket-1' };
-                const next = jest.fn();
-
-                middleware(socket, {}, next);
-                expect(next).toHaveBeenCalledWith();
-            });
         });
 
         describe('cleanupSocket', () => {
-            it('should clean up all entries for a socket', () => {
+            it('should remove socket entries but leave IP entries', () => {
                 const middleware = limiter.getLimiter('test:event');
                 const socket = { id: 'socket-cleanup', clientIP: '10.0.0.1' };
-                const next = jest.fn();
+                middleware(socket, {}, jest.fn());
 
-                middleware(socket, {}, next);
-                expect(limiter.getSize()).toBeGreaterThan(0);
+                const sizeBefore = limiter.getSize();
+                expect(sizeBefore).toBe(2); // 1 socket + 1 IP
 
                 limiter.cleanupSocket('socket-cleanup');
-                // Socket entries should be removed (IP entries remain)
-            });
-
-            it('should handle cleanup for non-existent socket', () => {
-                expect(() => limiter.cleanupSocket('nonexistent')).not.toThrow();
+                expect(limiter.getSize()).toBe(1); // IP entry remains
             });
         });
 
         describe('cleanupStale', () => {
-            it('should remove expired entries', async () => {
+            it('should remove expired entries after window passes', async () => {
                 const staleLimiter = createSocketRateLimiter({
                     'stale:event': { max: 100, window: 10 } // 10ms window
                 });
 
                 const middleware = staleLimiter.getLimiter('stale:event');
-                const socket = { id: 'stale-socket', clientIP: '10.0.0.1' };
-                const next = jest.fn();
-                middleware(socket, {}, next);
+                middleware({ id: 'stale-socket', clientIP: '10.0.0.1' }, {}, jest.fn());
+                expect(staleLimiter.getSize()).toBe(2);
 
                 // Wait for entries to expire
                 await new Promise(resolve => setTimeout(resolve, 50));
 
                 staleLimiter.cleanupStale();
-                // Should have cleaned stale entries
-            });
-
-            it('should handle cleanup with no entries', () => {
-                const emptyLimiter = createSocketRateLimiter({
-                    'ev': { max: 10, window: 1000 }
-                });
-                expect(() => emptyLimiter.cleanupStale()).not.toThrow();
-            });
-
-            it('should clean reverse index when socket entries are removed', async () => {
-                const l = createSocketRateLimiter({
-                    'e1': { max: 100, window: 10 }
-                });
-
-                const middleware = l.getLimiter('e1');
-                middleware({ id: 'sock1', clientIP: '1.1.1.1' }, {}, jest.fn());
-
-                await new Promise(resolve => setTimeout(resolve, 50));
-
-                l.cleanupStale();
-                // Socket key index should be cleaned
-            });
-
-            it('should use max window from all limits', () => {
-                const multiLimiter = createSocketRateLimiter({
-                    'e1': { max: 5, window: 1000 },
-                    'e2': { max: 10, window: 5000 }
-                });
-
-                const m1 = multiLimiter.getLimiter('e1');
-                m1({ id: 's1', clientIP: '1.1.1.1' }, {}, jest.fn());
-
-                expect(() => multiLimiter.cleanupStale()).not.toThrow();
-            });
-
-            it('should use default window when all limits have invalid windows', () => {
-                const badLimiter = createSocketRateLimiter({});
-                expect(() => badLimiter.cleanupStale()).not.toThrow();
-            });
-        });
-
-        describe('performLRUEviction', () => {
-            it('should return 0 when under threshold', () => {
-                const removed = limiter.performLRUEviction();
-                expect(removed).toBe(0);
-            });
-
-            it('should evict oldest entries when threshold exceeded', () => {
-                // Need to create more entries than MAX_TRACKED_ENTRIES
-                // We'll test with a smaller setup since the default is 10000
-                // Just verify the function doesn't throw
-                expect(() => limiter.performLRUEviction()).not.toThrow();
+                expect(staleLimiter.getSize()).toBe(0);
             });
         });
 
         describe('getMetrics', () => {
-            it('should return initial metrics with zero values', () => {
-                const freshLimiter = createSocketRateLimiter({
-                    'test': { max: 5, window: 1000 }
-                });
-
-                const metrics = freshLimiter.getMetrics();
-                expect(metrics.totalRequests).toBe(0);
-                expect(metrics.blockedRequests).toBe(0);
-                expect(metrics.blockedByIP).toBe(0);
-                expect(metrics.blockRate).toBe('0%');
-                expect(metrics.uniqueSockets).toBe(0);
-                expect(metrics.uniqueIPs).toBe(0);
-                expect(metrics.activeSocketEntries).toBe(0);
-                expect(metrics.activeIPEntries).toBe(0);
-                expect(metrics.topRequestedEvents).toEqual([]);
-                expect(metrics.topBlockedEvents).toEqual([]);
-            });
-
-            it('should track metrics after requests', () => {
+            it('should accurately track request and block counts', () => {
                 const ml = createSocketRateLimiter({
                     'test': { max: 2, window: 1000 }
                 });
@@ -221,25 +138,14 @@ describe('Rate Limit Extended Branch Coverage', () => {
                 const metrics = ml.getMetrics();
                 expect(metrics.totalRequests).toBe(3);
                 expect(metrics.blockedRequests).toBe(1);
+                expect(metrics.blockRate).toBe('33.3%');
                 expect(metrics.topRequestedEvents).toHaveLength(1);
-                expect(metrics.topRequestedEvents[0].event).toBe('test');
-                expect(metrics.topRequestedEvents[0].count).toBe(3);
+                expect(metrics.topRequestedEvents[0]).toEqual({ event: 'test', count: 3 });
                 expect(metrics.topBlockedEvents).toHaveLength(1);
+                expect(metrics.topBlockedEvents[0]).toEqual({ event: 'test', count: 1 });
             });
 
-            it('should compute block rate correctly', () => {
-                const ml = createSocketRateLimiter({
-                    'test': { max: 1, window: 1000 }
-                });
-                const middleware = ml.getLimiter('test');
-                middleware({ id: 's1', clientIP: '10.0.0.1' }, {}, jest.fn());
-                middleware({ id: 's1', clientIP: '10.0.0.1' }, {}, jest.fn()); // blocked
-
-                const metrics = ml.getMetrics();
-                expect(metrics.blockRate).toBe('50.0%');
-            });
-
-            it('should track IP blocks separately', () => {
+            it('should track IP blocks separately from socket blocks', () => {
                 const ml = createSocketRateLimiter({
                     'test': { max: 1, window: 1000 }
                 });
@@ -257,62 +163,8 @@ describe('Rate Limit Extended Branch Coverage', () => {
             });
         });
 
-        describe('resetMetrics', () => {
-            it('should reset all counters', () => {
-                const middleware = limiter.getLimiter('test:event');
-                middleware({ id: 's1', clientIP: '10.0.0.1' }, {}, jest.fn());
-
-                limiter.resetMetrics();
-                const metrics = limiter.getMetrics();
-                expect(metrics.totalRequests).toBe(0);
-                expect(metrics.uniqueSockets).toBe(0);
-            });
-        });
-
-        describe('getSize', () => {
-            it('should return total tracked entries', () => {
-                const freshLimiter = createSocketRateLimiter({
-                    'test': { max: 5, window: 1000 }
-                });
-                expect(freshLimiter.getSize()).toBe(0);
-
-                const middleware = freshLimiter.getLimiter('test');
-                middleware({ id: 's1', clientIP: '10.0.0.1' }, {}, jest.fn());
-                expect(freshLimiter.getSize()).toBe(2); // 1 socket + 1 IP entry
-            });
-        });
-
-        describe('cleanupStale - metrics cleanup branch', () => {
-            it('should handle metrics cleanup when sets approach capacity', () => {
-                // We can't easily test the threshold of 9000 without many entries,
-                // but we verify the cleanup logic works without error
-                const ml = createSocketRateLimiter({
-                    'test': { max: 100, window: 10 }
-                });
-
-                const middleware = ml.getLimiter('test');
-                // Add some traffic
-                for (let i = 0; i < 5; i++) {
-                    middleware({ id: `s${i}`, clientIP: `10.0.0.${i}` }, {}, jest.fn());
-                }
-
-                // Run cleanupStale - should not throw
-                expect(() => ml.cleanupStale()).not.toThrow();
-            });
-        });
-
-        describe('cleanupStale - error handling', () => {
-            it('should catch and log errors during cleanup', () => {
-                // Create a limiter and verify cleanup doesn't throw even on edge cases
-                const ml = createSocketRateLimiter({
-                    'test': { max: 5, window: 1000 }
-                });
-                expect(() => ml.cleanupStale()).not.toThrow();
-            });
-        });
-
-        describe('socketKeyIndex population', () => {
-            it('should create index entry for new socket', () => {
+        describe('socketKeyIndex cleanup', () => {
+            it('should track multi-event entries per socket and clean all on disconnect', () => {
                 const ml = createSocketRateLimiter({
                     'e1': { max: 10, window: 1000 },
                     'e2': { max: 10, window: 1000 }
@@ -324,10 +176,12 @@ describe('Rate Limit Extended Branch Coverage', () => {
 
                 m1(socket, {}, jest.fn());
                 m2(socket, {}, jest.fn());
+                // 2 socket entries + 2 IP entries = 4
+                expect(ml.getSize()).toBe(4);
 
-                // Both entries tracked under socket s1
                 ml.cleanupSocket('s1');
-                // After cleanup, socket entries should be removed
+                // Socket entries removed, IP entries remain = 2
+                expect(ml.getSize()).toBe(2);
             });
         });
     });

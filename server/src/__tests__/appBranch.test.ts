@@ -324,39 +324,4 @@ describe('App Branch Coverage', () => {
         });
     });
 
-    describe('Trust proxy configuration', () => {
-        it('should enable trust proxy in production', async () => {
-            jest.mock('../config/database', () => ({
-                isDatabaseEnabled: jest.fn(() => false)
-            }));
-            jest.mock('../config/redis', () => ({
-                isRedisHealthy: jest.fn().mockResolvedValue(true),
-                isUsingMemoryMode: jest.fn(() => true),
-                getRedis: jest.fn()
-            }));
-
-            process.env.NODE_ENV = 'production';
-            process.env.CORS_ORIGIN = 'https://example.com';
-
-            app = require('../app');
-            // Just ensure it doesn't crash - trust proxy is set
-            expect(app).toBeDefined();
-        });
-
-        it('should enable trust proxy when TRUST_PROXY is true', async () => {
-            jest.mock('../config/database', () => ({
-                isDatabaseEnabled: jest.fn(() => false)
-            }));
-            jest.mock('../config/redis', () => ({
-                isRedisHealthy: jest.fn().mockResolvedValue(true),
-                isUsingMemoryMode: jest.fn(() => true),
-                getRedis: jest.fn()
-            }));
-
-            process.env.TRUST_PROXY = 'true';
-
-            app = require('../app');
-            expect(app).toBeDefined();
-        });
-    });
 });

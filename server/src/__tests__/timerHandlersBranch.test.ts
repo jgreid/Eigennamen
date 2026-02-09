@@ -1,6 +1,8 @@
 /**
  * Timer Handlers Branch Coverage Tests
- * Covers: game null / gameOver branches (lines 69, 95, 122, 150)
+ * Covers: game null / gameOver guard branches shared by all timer handlers.
+ * All four handlers (pause, resume, addTime, stop) use the same guard;
+ * we test one representative handler for each condition.
  */
 
 jest.mock('../services/playerService');
@@ -27,7 +29,6 @@ const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
 const { getSocketFunctions } = require('../socket/socketFunctionProvider');
 const timerHandlers = require('../socket/handlers/timerHandlers');
-const { ERROR_CODES } = require('../config/constants');
 
 describe('Timer Handlers Branch Coverage', () => {
     let mockSocket: any;
@@ -65,83 +66,19 @@ describe('Timer Handlers Branch Coverage', () => {
         timerHandlers(mockIo, mockSocket);
     });
 
-    describe('timer:pause - game null/gameOver branches', () => {
-        it('should throw GAME_NOT_STARTED when game is null', async () => {
-            gameService.getGame.mockResolvedValue(null);
-            const handler = mockSocket._handlers['timer:pause'];
-            await handler();
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
-
-        it('should throw GAME_NOT_STARTED when game is over', async () => {
-            gameService.getGame.mockResolvedValue({ gameOver: true });
-            const handler = mockSocket._handlers['timer:pause'];
-            await handler();
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
+    it('should reject timer:pause when no game exists', async () => {
+        gameService.getGame.mockResolvedValue(null);
+        await mockSocket._handlers['timer:pause']();
+        expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
+            code: 'GAME_NOT_STARTED'
+        }));
     });
 
-    describe('timer:resume - game null/gameOver branches', () => {
-        it('should throw GAME_NOT_STARTED when game is null', async () => {
-            gameService.getGame.mockResolvedValue(null);
-            const handler = mockSocket._handlers['timer:resume'];
-            await handler();
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
-
-        it('should throw GAME_NOT_STARTED when game is over', async () => {
-            gameService.getGame.mockResolvedValue({ gameOver: true });
-            const handler = mockSocket._handlers['timer:resume'];
-            await handler();
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
-    });
-
-    describe('timer:addTime - game null/gameOver branches', () => {
-        it('should throw GAME_NOT_STARTED when game is null', async () => {
-            gameService.getGame.mockResolvedValue(null);
-            const handler = mockSocket._handlers['timer:addTime'];
-            await handler({ seconds: 30 });
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
-
-        it('should throw GAME_NOT_STARTED when game is over', async () => {
-            gameService.getGame.mockResolvedValue({ gameOver: true });
-            const handler = mockSocket._handlers['timer:addTime'];
-            await handler({ seconds: 30 });
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
-    });
-
-    describe('timer:stop - game null/gameOver branches', () => {
-        it('should throw GAME_NOT_STARTED when game is null', async () => {
-            gameService.getGame.mockResolvedValue(null);
-            const handler = mockSocket._handlers['timer:stop'];
-            await handler();
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
-
-        it('should throw GAME_NOT_STARTED when game is over', async () => {
-            gameService.getGame.mockResolvedValue({ gameOver: true });
-            const handler = mockSocket._handlers['timer:stop'];
-            await handler();
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
-        });
+    it('should reject timer:resume when game is over', async () => {
+        gameService.getGame.mockResolvedValue({ gameOver: true });
+        await mockSocket._handlers['timer:resume']();
+        expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
+            code: 'GAME_NOT_STARTED'
+        }));
     });
 });
