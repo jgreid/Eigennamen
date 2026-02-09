@@ -40,6 +40,7 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
+    "isolatedModules": true,
 
     // Type roots
     "typeRoots": [

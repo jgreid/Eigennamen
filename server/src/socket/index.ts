@@ -236,7 +236,6 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
             // Timeout wrapper for disconnect handler - prevents indefinite hangs.
             // Uses AbortController so the handler can check signal.aborted between
             // async steps and stop doing unnecessary work after timeout.
-            const DISCONNECT_TIMEOUT_MS = 30000;
             const abortController = new AbortController();
             let disconnectTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -247,12 +246,12 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
                         disconnectTimeoutId = setTimeout(() => {
                             abortController.abort();
                             reject(new Error('Disconnect handler timeout'));
-                        }, DISCONNECT_TIMEOUT_MS);
+                        }, SOCKET.DISCONNECT_TIMEOUT_MS);
                     })
                 ]);
             } catch (error) {
                 if ((error as Error).message === 'Disconnect handler timeout') {
-                    logger.error(`Disconnect handler timed out after ${DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
+                    logger.error(`Disconnect handler timed out after ${SOCKET.DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
                 } else {
                     logger.error('Error in disconnect handler:', error);
                 }
@@ -300,7 +299,7 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
         } catch (error) {
             logger.error('Error during connectionsPerIP cleanup:', error);
         }
-    }, 5 * 60 * 1000);
+    }, SOCKET.CONNECTIONS_CLEANUP_INTERVAL_MS);
 
     // Register socket functions for handlers (breaks circular dependency)
     registerSocketFunctions({

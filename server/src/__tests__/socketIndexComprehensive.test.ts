@@ -217,6 +217,18 @@ describe('Socket Index Comprehensive Tests', () => {
         }
     });
 
+    afterEach(() => {
+        // Clean up socket module to prevent leaked setInterval timers
+        try {
+            if (socketModule && typeof socketModule.cleanupSocketModule === 'function') {
+                socketModule.cleanupSocketModule();
+            }
+        } catch {
+            // Ignore cleanup errors
+        }
+        socketModule = null;
+    });
+
     beforeEach(() => {
         // Reset all mocks
         jest.clearAllMocks();
