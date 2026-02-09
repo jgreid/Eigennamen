@@ -79,10 +79,6 @@
         background: rgba(15, 15, 26, 0.95);
     }
 
-    .team-controls-row {
-        flex-direction: column;
-    }
-
     .modal-overlay {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
@@ -98,10 +94,6 @@
     }
 
     h1 {
-        font-size: 1.4rem;
-    }
-
-    .title-text span {
         font-size: 1.4rem;
     }
 
@@ -127,16 +119,6 @@
     button {
         min-height: 44px;
         padding: 12px 14px;
-    }
-
-    .control-group.team-red,
-    .control-group.team-blue {
-        padding: 8px;
-    }
-
-    .share-section {
-        margin-top: 12px;
-        padding-top: 12px;
     }
 
     .modal {

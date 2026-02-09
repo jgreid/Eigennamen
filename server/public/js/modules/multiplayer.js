@@ -748,14 +748,12 @@ export function setupMultiplayerListeners() {
 
                 if (updatedPlayer) {
                     syncLocalPlayerState(updatedPlayer);
-                    console.log('playerUpdated: synced local state, changes:', data.changes, 'pendingRoleChange:', state.pendingRoleChange, 'isChangingRole:', state.isChangingRole);
 
                     // Check for pending role change after team change completed
                     if (state.pendingRoleChange && data.changes.team) {
                         // Team change completed, now send the queued role change
                         const roleToSet = state.pendingRoleChange;
                         state.pendingRoleChange = null;
-                        console.log('playerUpdated: sending pending role change:', roleToSet);
 
                         // Bug #13 fix: Update revert function to only revert the role part
                         // Team change succeeded, so if role change fails, we should only
@@ -774,8 +772,6 @@ export function setupMultiplayerListeners() {
                         // Don't clear isChangingRole yet - let it clear after role is set
                         CodenamesClient.setRole(roleToSet);
                     } else {
-                        // Role change completed or no pending change - clear the flag
-                        console.log('playerUpdated: clearing isChangingRole flag');
                         state.isChangingRole = false;
                         state.changingTarget = null;
                         // Bug #1 fix: Clear operation tracking on successful update
@@ -1024,7 +1020,6 @@ export function setupMultiplayerListeners() {
 
         // Bug #12 fix: Call revert function BEFORE clearing state to undo optimistic updates
         if (state.roleChangeRevertFn) {
-            console.log('Multiplayer error: reverting optimistic UI update');
             state.roleChangeRevertFn();
         }
 
@@ -1316,6 +1311,8 @@ export function syncGameStateFromServer(serverGame) {
     updateScoreboard();
     updateTurnIndicator();
     updateControls();
+    updateRoleBanner();
+    updateForfeitButton();
     updateDuetUI(serverGame);
 
     // Update tab notification based on current turn

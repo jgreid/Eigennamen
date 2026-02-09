@@ -177,13 +177,13 @@
 }
 
 .replay-card.revealed.red {
-    background: var(--color-red);
-    border-color: var(--color-red);
+    background: var(--color-red-primary);
+    border-color: var(--color-red-primary);
 }
 
 .replay-card.revealed.blue {
-    background: var(--color-blue);
-    border-color: var(--color-blue);
+    background: var(--color-blue-primary);
+    border-color: var(--color-blue-primary);
 }
 
 .replay-card.revealed.neutral {
