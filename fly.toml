@@ -27,10 +27,14 @@ primary_region = "iad"
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
   CORS_ORIGIN = "https://die-eigennamen.fly.dev"
 
-  # In-memory storage mode - no external dependencies required!
-  # Game data lives in memory (lost on restart, but rooms are temporary anyway)
-  # NOTE: Rooms typically last a few hours, so memory mode is suitable for casual use
-  # For persistence/multi-instance scaling: fly secrets set REDIS_URL=rediss://...
+  # RECOMMENDED: Use Fly.io Upstash Redis for shared state across machines
+  #   fly redis create
+  #   fly secrets set REDIS_URL=rediss://...
+  #
+  # Fallback: In-memory storage mode (single-instance only!)
+  # WARNING: Memory mode means rooms exist ONLY on the machine that created them.
+  # If Fly.io routes a joining player to a different machine, they get ROOM_NOT_FOUND.
+  # Memory mode is ONLY safe with exactly 1 machine (fly scale count 1).
   REDIS_URL = "memory"
   # DATABASE_URL is NOT required - the game works fully without a database
   # Database only needed for: user accounts, game history, persistent word lists

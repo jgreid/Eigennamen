@@ -36,6 +36,8 @@ describe('Environment Configuration', () => {
         delete process.env.JWT_SECRET;
         delete process.env.CORS_ORIGIN;
         delete process.env.LOG_LEVEL;
+        delete process.env.FLY_ALLOC_ID;
+        delete process.env.MEMORY_MODE_ALLOW_FLY;
     });
 
     afterAll(() => {
@@ -107,6 +109,59 @@ describe('Environment Configuration', () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 expect.stringContaining('PRODUCTION WARNING: Running in memory storage mode')
             );
+        });
+
+        it('should block memory mode on Fly.io (FLY_ALLOC_ID present)', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'memory';
+            process.env.FLY_ALLOC_ID = 'abc123def456';
+
+            expect(() => validateEnv()).toThrow(
+                'FATAL: In-memory storage mode (REDIS_URL=memory) is not supported on Fly.io'
+            );
+        });
+
+        it('should allow memory mode on Fly.io when MEMORY_MODE_ALLOW_FLY=true', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'memory';
+            process.env.FLY_ALLOC_ID = 'abc123def456';
+            process.env.MEMORY_MODE_ALLOW_FLY = 'true';
+
+            expect(() => validateEnv()).not.toThrow();
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('DANGER: Memory mode forced on Fly.io')
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Ensure EXACTLY 1 machine is running')
+            );
+        });
+
+        it('should not block memory mode when FLY_ALLOC_ID is absent (non-Fly deployment)', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'memory';
+            delete process.env.FLY_ALLOC_ID;
+
+            expect(() => validateEnv()).not.toThrow();
+
+            // Should still get the general memory mode warning
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('PRODUCTION WARNING: Running in memory storage mode')
+            );
+        });
+
+        it('should not trigger Fly.io guard when using real Redis URL', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'rediss://production-redis:6379';
+            process.env.FLY_ALLOC_ID = 'abc123def456';
+
+            expect(() => validateEnv()).not.toThrow();
+
+            // Should NOT have the memory mode warning
+            const memoryWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+                (call: string[]) => call[0].includes('memory storage mode')
+            );
+            expect(memoryWarnings).toHaveLength(0);
         });
 
         it('should warn about missing JWT_SECRET in production', () => {
