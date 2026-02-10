@@ -109,17 +109,6 @@ describe('Phase 5.1: Room Existence Rate Limit', () => {
 });
 
 // ============================================
-// Phase 5.4: Timer Lock TTL Audit
-// ============================================
-
-describe('Phase 5.4: Timer Lock TTL', () => {
-    test('distributed lock TTL should be 10 seconds', () => {
-        const { TTL } = require('../config/constants');
-        expect(TTL.DISTRIBUTED_LOCK).toBe(10);
-    });
-});
-
-// ============================================
 // Phase 7.3: Centralized Constants
 // ============================================
 

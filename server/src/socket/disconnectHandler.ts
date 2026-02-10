@@ -48,7 +48,6 @@ function createTimerExpireCallback(
     return async (roomCode: string): Promise<void> => {
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
-        const eventLogService = require('../services/eventLogService');
         try {
             // Check if game is still active before ending turn (prevents race condition)
             const game: GameState | null = await gameService.getGame(roomCode);
@@ -68,15 +67,6 @@ function createTimerExpireCallback(
                 reason: 'timerExpired'
             });
             emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
-
-            try {
-                await eventLogService.logEvent(roomCode, 'TIMER_EXPIRED', {
-                    currentTurn: result.currentTurn,
-                    previousTurn: result.previousTurn
-                });
-            } catch (logErr) {
-                logger.warn(`Failed to log timer expire event: ${(logErr as Error).message}`);
-            }
 
             // Restart timer for the new turn (if timer is configured and game not over)
             // BUG-6 & ISSUE #3 FIX: Use distributed lock with improved error handling
@@ -183,7 +173,6 @@ async function handleDisconnect(
     abortSignal?: AbortSignal
 ): Promise<void> {
     const playerService = require('../services/playerService');
-    const eventLogService = require('../services/eventLogService');
     const { getRedis } = require('../config/redis');
 
     try {
@@ -244,18 +233,6 @@ async function handleDisconnect(
             const roomStats = await playerService.getRoomStats(roomCode, updatedPlayers);
             safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
-            // Log disconnection event
-            try {
-                await eventLogService.logEvent(roomCode, 'PLAYER_DISCONNECTED', {
-                    sessionId: socket.sessionId,
-                    nickname: player.nickname,
-                    team: player.team,
-                    reason: reason
-                });
-            } catch (logErr) {
-                logger.warn(`Failed to log disconnect event: ${(logErr as Error).message}`);
-            }
-
             // Check abort before expensive host transfer
             if (abortSignal?.aborted) {
                 logger.debug(`Disconnect handler aborted before host transfer for socket ${socket.id}`);
@@ -314,17 +291,6 @@ async function handleDisconnect(
                                             newHostNickname: newHost.nickname,
                                             reason: 'previousHostDisconnected'
                                         });
-
-                                        try {
-                                            await eventLogService.logEvent(roomCode, 'HOST_CHANGED', {
-                                                previousHostSessionId: socket.sessionId,
-                                                newHostSessionId: newHost.sessionId,
-                                                newHostNickname: newHost.nickname,
-                                                reason: 'previousHostDisconnected'
-                                            });
-                                        } catch (logErr) {
-                                            logger.warn(`Failed to log host change event: ${(logErr as Error).message}`);
-                                        }
 
                                     } else {
                                         logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });

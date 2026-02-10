@@ -7,7 +7,6 @@
 // Mock dependencies before requiring the module
 jest.mock('../services/playerService');
 jest.mock('../services/gameService');
-jest.mock('../services/eventLogService');
 jest.mock('../utils/logger');
 const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
 jest.mock('../socket/rateLimitHandler', () => ({
@@ -16,7 +15,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
-const eventLogService = require('../services/eventLogService');
 const logger = require('../utils/logger');
 
 describe('Player Handlers', () => {
@@ -86,14 +84,6 @@ describe('Player Handlers', () => {
 
         // Default game mock - no game
         gameService.getGame.mockResolvedValue(null);
-
-        eventLogService.logEvent.mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            TEAM_CHANGED: 'TEAM_CHANGED',
-            ROLE_CHANGED: 'ROLE_CHANGED',
-            NICKNAME_CHANGED: 'NICKNAME_CHANGED',
-            PLAYER_LEFT: 'PLAYER_LEFT'
-        };
 
         // Load handlers
         const playerHandlers = require('../socket/handlers/playerHandlers');

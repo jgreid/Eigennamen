@@ -40,10 +40,6 @@ jest.mock('../services/roomService', () => ({
     getRoom: jest.fn(),
 }));
 
-jest.mock('../services/eventLogService', () => ({
-    logEvent: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('../socket/safeEmit', () => ({
     safeEmitToRoom: jest.fn(),
 }));

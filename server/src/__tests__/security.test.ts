@@ -2,19 +2,13 @@
  * Security Tests - Phase 2 Security Hardening
  *
  * Tests for:
- * - Sanitization utilities
  * - JWT configuration
  * - Session validation
  * - Reserved names
  * - Input validation hardening
+ *
+ * Note: Sanitization utility tests are in sanitize.test.ts
  */
-
-const {
-    sanitizeHtml,
-    sanitizeForLog,
-    removeControlChars,
-    isReservedName
-} = require('../utils/sanitize');
 
 const {
     JWT_CONFIG,
@@ -28,122 +22,6 @@ const {
 } = require('../config/jwt');
 
 const { RESERVED_NAMES } = require('../config/constants');
-
-describe('Sanitization Utilities', () => {
-    describe('sanitizeHtml', () => {
-        test('escapes HTML special characters', () => {
-            expect(sanitizeHtml('<script>alert("xss")</script>'))
-                .toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
-        });
-
-        test('escapes ampersands', () => {
-            expect(sanitizeHtml('foo & bar')).toBe('foo &amp; bar');
-        });
-
-        test('escapes single quotes', () => {
-            expect(sanitizeHtml("it's")).toBe('it&#x27;s');
-        });
-
-        test('handles empty string', () => {
-            expect(sanitizeHtml('')).toBe('');
-        });
-
-        test('handles non-string input', () => {
-            expect(sanitizeHtml(null)).toBe('');
-            expect(sanitizeHtml(undefined)).toBe('');
-            expect(sanitizeHtml(123)).toBe('');
-        });
-    });
-
-    describe('sanitizeForLog', () => {
-        test('redacts password fields', () => {
-            const result = sanitizeForLog({ username: 'user', password: 'secret' });
-            expect(result.username).toBe('user');
-            expect(result.password).toBe('[REDACTED]');
-        });
-
-        test('redacts token fields', () => {
-            const result = sanitizeForLog({ userId: '123', token: 'jwt-token-here' });
-            expect(result.userId).toBe('123');
-            expect(result.token).toBe('[REDACTED]');
-        });
-
-        test('redacts nested sensitive fields', () => {
-            const result = sanitizeForLog({
-                user: { name: 'John', authToken: 'secret' }
-            });
-            expect(result.user.name).toBe('John');
-            expect(result.user.authToken).toBe('[REDACTED]');
-        });
-
-        test('handles null input', () => {
-            expect(sanitizeForLog(null)).toBeNull();
-        });
-
-        test('handles non-object input', () => {
-            expect(sanitizeForLog('string')).toBe('string');
-        });
-    });
-
-    describe('removeControlChars', () => {
-        test('removes null character', () => {
-            expect(removeControlChars('hello\x00world')).toBe('helloworld');
-        });
-
-        test('removes bell character', () => {
-            expect(removeControlChars('hello\x07world')).toBe('helloworld');
-        });
-
-        test('removes backspace', () => {
-            expect(removeControlChars('hello\x08world')).toBe('helloworld');
-        });
-
-        test('preserves newlines', () => {
-            expect(removeControlChars('hello\nworld')).toBe('hello\nworld');
-        });
-
-        test('preserves carriage returns', () => {
-            expect(removeControlChars('hello\rworld')).toBe('hello\rworld');
-        });
-
-        test('handles empty string', () => {
-            expect(removeControlChars('')).toBe('');
-        });
-
-        test('handles non-string input', () => {
-            expect(removeControlChars(null)).toBe('');
-        });
-    });
-
-    describe('isReservedName', () => {
-        test('detects reserved names (exact match)', () => {
-            expect(isReservedName('admin', RESERVED_NAMES)).toBe(true);
-        });
-
-        test('detects reserved names (case insensitive)', () => {
-            expect(isReservedName('ADMIN', RESERVED_NAMES)).toBe(true);
-            expect(isReservedName('Admin', RESERVED_NAMES)).toBe(true);
-        });
-
-        test('allows non-reserved names', () => {
-            expect(isReservedName('player1', RESERVED_NAMES)).toBe(false);
-        });
-
-        test('handles whitespace in input', () => {
-            expect(isReservedName('  admin  ', RESERVED_NAMES)).toBe(true);
-        });
-
-        test('handles non-string input', () => {
-            expect(isReservedName(null, RESERVED_NAMES)).toBe(false);
-        });
-
-        test('checks all reserved names', () => {
-            expect(isReservedName('system', RESERVED_NAMES)).toBe(true);
-            expect(isReservedName('moderator', RESERVED_NAMES)).toBe(true);
-            expect(isReservedName('bot', RESERVED_NAMES)).toBe(true);
-        });
-    });
-});
 
 describe('JWT Configuration', () => {
     const originalEnv = process.env;

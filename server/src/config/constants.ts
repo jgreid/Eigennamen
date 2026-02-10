@@ -44,7 +44,7 @@ import {
 
 import {
     ROOM_CODE_LENGTH, ROOM_MAX_PLAYERS, ROOM_EXPIRY_HOURS,
-    REDIS_TTL, TIMER, TTL, PLAYER_CLEANUP
+    REDIS_TTL, TIMER, PLAYER_CLEANUP
 } from './roomConfig';
 
 module.exports = {
@@ -74,7 +74,6 @@ module.exports = {
     CARD_TYPES,
     ROOM_STATUS,
     SOCKET_EVENTS,
-    TTL,
     RETRY_CONFIG,
     GAME_INTERNALS,
     PLAYER_CLEANUP,
