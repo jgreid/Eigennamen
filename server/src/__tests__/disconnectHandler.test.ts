@@ -188,6 +188,68 @@ describe('disconnectHandler', () => {
                 expect.any(Object)
             );
         });
+
+        it('should skip host transfer when no connected players remain', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                    team: 'red', isHost: true, connected: true,
+                })
+                .mockResolvedValueOnce(null); // host didn't reconnect
+
+            playerService.getPlayersInRoom
+                .mockResolvedValueOnce([]) // for notification
+                .mockResolvedValueOnce([]); // no connected players for host transfer
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            // No connected players to transfer to - silently skips
+            expect(playerService.atomicHostTransfer).not.toHaveBeenCalled();
+        });
+
+        it('should skip host transfer when players list is non-array', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                    team: 'red', isHost: true, connected: true,
+                })
+                .mockResolvedValueOnce(null);
+
+            playerService.getPlayersInRoom
+                .mockResolvedValueOnce([]) // for notification
+                .mockResolvedValueOnce(null); // Redis returned null
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            expect(playerService.atomicHostTransfer).not.toHaveBeenCalled();
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Unable to fetch players')
+            );
+        });
+
+        it('should handle lock release failure without crashing', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                    team: 'red', isHost: true, connected: true,
+                })
+                .mockResolvedValueOnce(null);
+
+            playerService.getPlayersInRoom
+                .mockResolvedValueOnce([])
+                .mockResolvedValueOnce([
+                    { sessionId: 'sess-2', nickname: 'Bob', connected: true },
+                ]);
+            playerService.atomicHostTransfer.mockResolvedValue({ success: true });
+
+            // Lock release will fail
+            mockRedis.eval.mockRejectedValue(new Error('Redis eval failed'));
+
+            // Should not throw despite lock release failure
+            await expect(
+                handleDisconnect(mockIo, mockSocket, 'transport close')
+            ).resolves.not.toThrow();
+        });
     });
 
     describe('createTimerExpireCallback', () => {

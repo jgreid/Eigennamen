@@ -16,7 +16,8 @@ import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, se
 import {
     openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
     copyRoomCode, updateRoomInfoDisplay, initNicknameEditUI,
-    confirmForfeit, closeForfeitConfirm, forfeitGame
+    confirmForfeit, closeForfeitConfirm, forfeitGame,
+    closeKickConfirm, confirmKickPlayer
 } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay } from './history.js';
 import {
@@ -39,6 +40,7 @@ registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
 registerModalCloseHandler('multiplayer-modal', closeMultiplayer);
 registerModalCloseHandler('confirm-forfeit-modal', closeForfeitConfirm);
+registerModalCloseHandler('confirm-kick-modal', closeKickConfirm);
 registerModalCloseHandler('history-modal', () => closeModal('history-modal'));
 registerModalCloseHandler('replay-modal', () => closeModal('replay-modal'));
 
@@ -144,6 +146,14 @@ function setupEventListeners() {
                 break;
             case 'close-forfeit-confirm':
                 closeForfeitConfirm();
+                break;
+
+            // Confirm kick modal
+            case 'confirm-yes-kick':
+                confirmKickPlayer();
+                break;
+            case 'close-kick-confirm':
+                closeKickConfirm();
                 break;
 
             // Game over modal
