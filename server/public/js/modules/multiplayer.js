@@ -17,6 +17,9 @@ import { VALIDATION, validateNickname, validateRoomCode } from './constants.js';
 let joinAbortController = null;
 let createAbortController = null;
 
+// Session ID pending kick confirmation (used by confirm-kick-modal)
+let pendingKickSessionId = null;
+
 /**
  * Cancel any in-progress join operation
  */
@@ -239,9 +242,9 @@ async function handleJoinGame() {
             // Show actual server validation message (could be room ID or nickname issue)
             setMpStatus(error.message || 'Invalid input - check Room ID and nickname', 'error');
         } else if (error.message?.includes('connect')) {
-            setMpStatus('Could not connect to server', 'error');
+            setMpStatus('Could not connect to server - check your connection and try again', 'error');
         } else {
-            setMpStatus(error.message || 'Failed to join game', 'error');
+            setMpStatus(error.message || 'Failed to join game - please try again', 'error');
         }
     } finally {
         // Re-enable button
@@ -324,9 +327,9 @@ async function handleCreateGame() {
         if (error.code === 'ROOM_ALREADY_EXISTS') {
             setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
         } else if (error.message?.includes('connect')) {
-            setMpStatus('Could not connect to server', 'error');
+            setMpStatus('Could not connect to server - check your connection and try again', 'error');
         } else {
-            setMpStatus(error.message || 'Failed to create game', 'error');
+            setMpStatus(error.message || 'Failed to create game - please try again', 'error');
         }
     } finally {
         // Re-enable button
@@ -578,14 +581,15 @@ export function initPlayerListUI() {
         });
     }
 
-    // Event delegation for kick buttons
+    // Event delegation for kick buttons - uses custom modal instead of native confirm()
     if (playersUl) {
         playersUl.addEventListener('click', (e) => {
             const kickBtn = e.target.closest('.btn-kick');
             if (kickBtn) {
                 const sessionId = kickBtn.dataset.session;
-                if (sessionId && confirm('Are you sure you want to kick this player?')) {
-                    CodenamesClient.kickPlayer(sessionId);
+                if (sessionId) {
+                    pendingKickSessionId = sessionId;
+                    openModal('confirm-kick-modal');
                 }
             }
         });
@@ -1076,18 +1080,7 @@ export function setupMultiplayerListeners() {
         document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
         // Map technical error codes to user-friendly messages
-        const userFriendlyMessage = getErrorMessage(error);
-
-        if (error.type === 'game') {
-            showToast(userFriendlyMessage, 'error');
-        } else if (error.type === 'player') {
-            showToast(userFriendlyMessage, 'error');
-        } else if (error.type === 'room') {
-            showToast(userFriendlyMessage, 'error');
-        } else {
-            // Generic error
-            showToast(userFriendlyMessage, 'error');
-        }
+        showToast(getErrorMessage(error), 'error');
     });
 
     /**
@@ -1649,6 +1642,24 @@ export function confirmForfeit() {
  */
 export function closeForfeitConfirm() {
     closeModal('confirm-forfeit-modal');
+}
+
+/**
+ * Close the kick confirmation modal
+ */
+export function closeKickConfirm() {
+    closeModal('confirm-kick-modal');
+    pendingKickSessionId = null;
+}
+
+/**
+ * Execute the pending kick action
+ */
+export function confirmKickPlayer() {
+    if (pendingKickSessionId && state.isMultiplayerMode && CodenamesClient?.isConnected()) {
+        CodenamesClient.kickPlayer(pendingKickSessionId);
+    }
+    closeKickConfirm();
 }
 
 /**

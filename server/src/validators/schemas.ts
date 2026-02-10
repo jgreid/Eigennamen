@@ -11,7 +11,7 @@
 import type { z as ZodType } from 'zod';
 
 const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES, TIMER } = require('../config/constants');
+const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES, TIMER, GAME_MODE_CONFIG } = require('../config/constants');
 const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
 
 // Re-export z for external use
@@ -73,6 +73,33 @@ const createNicknameSchema = (): ZodType.ZodEffects<ZodType.ZodEffects<ZodType.Z
     .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
     .refine((val: string) => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
 
+/**
+ * Validate turnTimer against game mode limits from GAME_MODE_CONFIG.
+ * Blitz mode forces a 30s timer; classic/duet allow host-configured timers within mode bounds.
+ */
+const validateModeTimer = (data: { gameMode?: string; turnTimer?: number | null }, ctx: ZodType.RefinementCtx) => {
+    if (data.turnTimer == null || data.gameMode == null) return;
+    const modeConfig = GAME_MODE_CONFIG[data.gameMode as keyof typeof GAME_MODE_CONFIG];
+    if (!modeConfig) return;
+
+    if (modeConfig.forcedTurnTimer != null && data.turnTimer !== modeConfig.forcedTurnTimer) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${modeConfig.label} mode requires a ${modeConfig.forcedTurnTimer}s timer`,
+            path: ['turnTimer']
+        });
+        return;
+    }
+
+    if (data.turnTimer < modeConfig.minTurnTimer || data.turnTimer > modeConfig.maxTurnTimer) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Timer must be between ${modeConfig.minTurnTimer}s and ${modeConfig.maxTurnTimer}s for ${modeConfig.label} mode`,
+            path: ['turnTimer']
+        });
+    }
+};
+
 // Room schemas
 const roomCreateSchema = z.object({
     roomId: createRoomIdSchema(),
@@ -86,7 +113,7 @@ const roomCreateSchema = z.object({
         wordListId: z.string().uuid().nullable().optional(),
         gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional().default('classic'),
         nickname: createNicknameSchema().optional()
-    }).optional().default({})
+    }).superRefine(validateModeTimer).optional().default({})
 });
 
 const roomJoinSchema = z.object({
@@ -102,7 +129,7 @@ const roomSettingsSchema = z.object({
     turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
     allowSpectators: z.boolean().optional(),
     gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional()
-});
+}).superRefine(validateModeTimer);
 
 // FIX H10: Add schema for room:reconnect validation
 // Reconnection token is 64 hex characters (32 bytes in hex)

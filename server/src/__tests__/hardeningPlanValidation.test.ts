@@ -41,14 +41,35 @@ describe('Phase 1.1: Timer Validation Mismatch', () => {
         expect(result.success).toBe(false);
     });
 
-    test('Zod roomCreateSchema allows turnTimer up to 600', () => {
+    test('Zod roomCreateSchema enforces mode-specific timer limits', () => {
         const { roomCreateSchema } = require('../validators/schemas');
-        // roomCreateSchema requires roomId and allows optional settings
-        const result = roomCreateSchema.safeParse({
+
+        // Classic mode allows up to 300s (not 600s global max)
+        const over300 = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 600 }
+            settings: { turnTimer: 600, gameMode: 'classic' }
         });
-        expect(result.success).toBe(true);
+        expect(over300.success).toBe(false);
+
+        // Classic mode accepts 300s
+        const at300 = roomCreateSchema.safeParse({
+            roomId: 'test-room',
+            settings: { turnTimer: 300, gameMode: 'classic' }
+        });
+        expect(at300.success).toBe(true);
+
+        // Blitz mode forces exactly 30s
+        const blitzWrong = roomCreateSchema.safeParse({
+            roomId: 'test-room',
+            settings: { turnTimer: 60, gameMode: 'blitz' }
+        });
+        expect(blitzWrong.success).toBe(false);
+
+        const blitzCorrect = roomCreateSchema.safeParse({
+            roomId: 'test-room',
+            settings: { turnTimer: 30, gameMode: 'blitz' }
+        });
+        expect(blitzCorrect.success).toBe(true);
     });
 });
 

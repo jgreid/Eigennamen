@@ -28,7 +28,8 @@ export function showToast(message, type = 'error', duration = 4000) {
     const icons = {
         error: '&#10060;',
         success: '&#10004;',
-        warning: '&#9888;'
+        warning: '&#9888;',
+        info: '&#8505;'
     };
 
     toast.innerHTML = `
@@ -50,8 +51,9 @@ export function showToast(message, type = 'error', duration = 4000) {
         dismissToast(toast);
     }, duration);
 
-    // Announce to screen readers
-    announceToScreenReader(message);
+    // Announce to screen readers with message type for context
+    const typeLabel = type === 'error' ? 'Error: ' : type === 'warning' ? 'Warning: ' : '';
+    announceToScreenReader(typeLabel + message);
 
     return toast;
 }
