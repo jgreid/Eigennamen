@@ -76,7 +76,31 @@ export const UI = {
 
     // Debounce delays
     INPUT_DEBOUNCE_MS: 300,
-    RESIZE_DEBOUNCE_MS: 100
+    RESIZE_DEBOUNCE_MS: 100,
+
+    // Card reveal safety timeout (per-card, clears pending state if server doesn't respond)
+    CARD_REVEAL_TIMEOUT_MS: 10000,
+
+    // New game debounce to prevent rapid clicks
+    NEW_GAME_DEBOUNCE_MS: 500,
+
+    // New game button safety timeout (re-enables if server doesn't respond)
+    NEW_GAME_SAFETY_TIMEOUT_MS: 10000,
+
+    // Animation tracking clear delay (animation duration + small buffer)
+    ANIMATION_CLEAR_MS: 800,
+
+    // Screen reader announcement auto-clear delay
+    SR_ANNOUNCEMENT_MS: 1000,
+
+    // Reconnection overlay timeout before showing failure
+    RECONNECTION_TIMEOUT_MS: 15000,
+
+    // Copy feedback display duration
+    COPY_FEEDBACK_MS: 2000,
+
+    // Multiplayer join modal close delay
+    MP_JOIN_CLOSE_DELAY_MS: 500
 };
 
 /**

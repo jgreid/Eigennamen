@@ -10,7 +10,7 @@ import { updateRoleBanner, updateControls } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
 // PHASE 2 FIX: Import shared constants for validation
-import { VALIDATION, validateNickname, validateRoomCode } from './constants.js';
+import { VALIDATION, UI, validateNickname, validateRoomCode } from './constants.js';
 
 // PHASE 2 FIX: AbortController for request cancellation
 // Allows cancelling in-flight operations when user navigates away
@@ -404,7 +404,7 @@ export function onMultiplayerJoined(result, isHostParam = false) {
         } else {
             showToast('Connected to multiplayer game!', 'success');
         }
-    }, 500);
+    }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }
 
 /**
@@ -504,7 +504,7 @@ export async function copyRoomCode() {
     if (copied) {
         if (feedback) {
             feedback.textContent = 'Room code copied!';
-            setTimeout(() => { feedback.textContent = ''; }, 2000);
+            setTimeout(() => { feedback.textContent = ''; }, UI.COPY_FEEDBACK_MS);
         }
         showToast('Room code copied to clipboard');
     } else {
@@ -1877,7 +1877,6 @@ function detectOfflineChanges(data) {
 
 // Reconnection overlay timeout ID for cleanup
 let reconnectionTimeoutId = null;
-const RECONNECTION_TIMEOUT_MS = 15000; // 15 seconds before showing failure message
 
 /**
  * Show the reconnection overlay banner with a timeout fallback.
@@ -1903,7 +1902,7 @@ export function showReconnectionOverlay() {
             hideReconnectionOverlay();
             showToast('Reconnection failed \u2014 please refresh the page', 'error', 8000);
         }
-    }, RECONNECTION_TIMEOUT_MS);
+    }, UI.RECONNECTION_TIMEOUT_MS);
 }
 
 /**

@@ -6,6 +6,7 @@ import { escapeHTML, hashString, shuffleWithSeed, generateGameSeed, seededRandom
 import { showToast, openModal, closeModal, announceToScreenReader, showErrorModal } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
 import { playNotificationSound } from './notifications.js';
+import { UI } from './constants.js';
 
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed) {
@@ -75,7 +76,7 @@ export function newGame() {
     // Prevent rapid clicks
     if (state.newGameDebounce) return;
     state.newGameDebounce = true;
-    setTimeout(() => { state.newGameDebounce = false; }, 500);
+    setTimeout(() => { state.newGameDebounce = false; }, UI.NEW_GAME_DEBOUNCE_MS);
 
     // In multiplayer mode, request new game from server
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
@@ -88,7 +89,7 @@ export function newGame() {
             setTimeout(() => {
                 newGameBtn.disabled = false;
                 newGameBtn.classList.remove('loading');
-            }, 10000);
+            }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
         }
         // Server will generate and broadcast the game to all players
         CodenamesClient.startGame({});
@@ -375,7 +376,7 @@ export function revealCard(index) {
         state.revealingCards.add(index);
         state.isRevealingCard = state.revealingCards.size > 0;
 
-        // Per-card safety timeout: if server doesn't respond within 10s,
+        // Per-card safety timeout: if server doesn't respond in time,
         // clear only this card's pending state (not all cards)
         const timeoutId = setTimeout(() => {
             if (state.revealingCards.has(index)) {
@@ -384,7 +385,7 @@ export function revealCard(index) {
                 const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
                 if (pendingCard) pendingCard.classList.remove('revealing');
             }
-        }, 10000);
+        }, UI.CARD_REVEAL_TIMEOUT_MS);
         state[`_revealTimeout_${index}`] = timeoutId;
 
         // Add visual feedback - show card as "pending"
@@ -442,11 +443,11 @@ export function revealCard(index) {
         });
     }
 
-    // Clear animation tracking after animation completes (800ms = 0.6s animation + 0.2s delay)
+    // Clear animation tracking after animation completes (animation duration + buffer)
     setTimeout(() => {
         state.lastRevealedIndex = -1;
         state.lastRevealedWasCorrect = false;
-    }, 800);
+    }, UI.ANIMATION_CLEAR_MS);
 
     // Screen reader announcement
     const word = state.gameState.words[index];
