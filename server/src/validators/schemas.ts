@@ -131,7 +131,6 @@ const roomSettingsSchema = z.object({
     gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional()
 }).superRefine(validateModeTimer);
 
-// FIX H10: Add schema for room:reconnect validation
 // Reconnection token is 64 hex characters (32 bytes in hex)
 const reconnectionTokenRegex = /^[0-9a-f]{64}$/i;
 

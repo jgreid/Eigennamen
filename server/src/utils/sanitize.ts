@@ -151,18 +151,7 @@ function localeIncludes(haystack: unknown, needle: unknown, caseInsensitive: boo
     return normalizedHaystack.includes(normalizedNeedle);
 }
 
-module.exports = {
-    sanitizeHtml,
-    sanitizeForLog,
-    removeControlChars,
-    isReservedName,
-    toEnglishLowerCase,
-    toEnglishUpperCase,
-    localeCompare,
-    localeIncludes
-};
-
-// ES6 exports for TypeScript imports
+// ES6 exports
 export {
     sanitizeHtml,
     sanitizeForLog,

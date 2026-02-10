@@ -52,7 +52,6 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
 
     // Handle known error types
     if ('code' in err && err.code && Object.values(ERROR_CODES).includes(err.code)) {
-        // FIX M12: Added missing error code status mappings
         const statusMap: ErrorStatusMap = {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
