@@ -420,6 +420,48 @@ describe('Chat Handlers', () => {
         });
     });
 
+    describe('Team-Only Message Fallback', () => {
+        test('falls back to sender-only emit when getTeamMembers returns null', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'RedPlayer',
+                team: 'red',
+                role: 'clicker'
+            });
+            playerService.getTeamMembers.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            await messageHandler[1]({ text: 'Team message', teamOnly: true });
+
+            // Should fall back to emitting just to the sender
+            expect(mockSocket.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
+                text: 'Team message',
+                teamOnly: true
+            }));
+        });
+
+        test('falls back to sender-only emit when getTeamMembers returns non-array', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'RedPlayer',
+                team: 'red',
+                role: 'clicker'
+            });
+            playerService.getTeamMembers.mockResolvedValue('invalid');
+
+            const handlers = mockSocket.on.mock.calls;
+            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            await messageHandler[1]({ text: 'Team message', teamOnly: true });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
+                text: 'Team message'
+            }));
+        });
+    });
+
     describe('Spectator-Only Message Authorization', () => {
         test('rejects spectatorOnly message from non-spectator', async () => {
             playerService.getPlayer.mockResolvedValue({

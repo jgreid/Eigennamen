@@ -518,6 +518,163 @@ describe('Extended Game Handlers Tests', () => {
         });
     });
 
+    describe('game:endTurn rule enforcement', () => {
+        test('spymaster cannot end turn even when clicker is disconnected', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                team: 'red',
+                nickname: 'Spymaster1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red', role: 'spymaster' },
+                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' }
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            await endTurnHandler[1]();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                message: expect.stringContaining('Spymasters cannot end turns')
+            }));
+            expect(gameService.endTurn).not.toHaveBeenCalled();
+        });
+
+        test('rejects endTurn when player has no team', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spectator',
+                team: null,
+                nickname: 'Spectator1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+
+            const handlers = mockSocket.on.mock.calls;
+            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            await endTurnHandler[1]();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                message: expect.stringContaining('join a team')
+            }));
+            expect(gameService.endTurn).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('game:forfeit rule enforcement', () => {
+        test('rejects forfeit when no active game', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true
+            });
+            gameService.getGame.mockResolvedValue({ gameOver: true });
+
+            const handlers = mockSocket.on.mock.calls;
+            const forfeitHandler = handlers.find(h => h[0] === 'game:forfeit');
+            await forfeitHandler[1]();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND',
+                message: 'No active game'
+            }));
+            expect(gameService.forfeitGame).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('game:reveal no connected team members', () => {
+        test('rejects reveal when all team members are disconnected', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                team: 'red',
+                nickname: 'Clicker1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // All team members disconnected (except the current player is marked connected
+            // but the filter checks p.connected)
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: false, team: 'red', role: 'clicker' }
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                code: 'SERVER_ERROR'
+            }));
+            expect(gameService.revealCard).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('game:getHistory and game:getReplay', () => {
+        const gameHistoryService = require('../services/gameHistoryService');
+
+        test('retrieves past game history with limit', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Player1'
+            });
+            gameHistoryService.getGameHistory.mockResolvedValue([
+                { gameId: 'g1', winner: 'red' },
+                { gameId: 'g2', winner: 'blue' }
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const getHistoryHandler = handlers.find(h => h[0] === 'game:getHistory');
+            await getHistoryHandler[1]({ limit: 10 });
+
+            expect(gameHistoryService.getGameHistory).toHaveBeenCalledWith('TEST12', 10);
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:historyResult', expect.objectContaining({
+                history: expect.arrayContaining([expect.objectContaining({ gameId: 'g1' })])
+            }));
+        });
+
+        test('retrieves replay data for a specific game', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Player1'
+            });
+            gameHistoryService.getReplayEvents.mockResolvedValue({
+                gameId: 'g1',
+                events: [{ type: 'reveal', index: 3 }]
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const getReplayHandler = handlers.find(h => h[0] === 'game:getReplay');
+            await getReplayHandler[1]({ gameId: 'g1' });
+
+            expect(gameHistoryService.getReplayEvents).toHaveBeenCalledWith('TEST12', 'g1');
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:replayData', expect.objectContaining({
+                replay: expect.objectContaining({ gameId: 'g1' })
+            }));
+        });
+
+        test('returns error when replay data not found', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Player1'
+            });
+            gameHistoryService.getReplayEvents.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const getReplayHandler = handlers.find(h => h[0] === 'game:getReplay');
+            await getReplayHandler[1]({ gameId: 'nonexistent' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                code: 'GAME_NOT_STARTED'
+            }));
+        });
+    });
+
     describe('game:history edge cases', () => {
         test('handles error getting history', async () => {
             gameService.getGameHistory.mockRejectedValue(new Error('History error'));

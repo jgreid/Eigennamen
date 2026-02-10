@@ -951,6 +951,106 @@ describe('Player Service', () => {
         });
     });
 
+    describe('validateReconnectToken (socket auth)', () => {
+        test('allows connected player without token', async () => {
+            const player = { sessionId: 's1', connected: true };
+            mockRedis.get.mockImplementation((key) => {
+                if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
+                return Promise.resolve(null);
+            });
+
+            const result = await playerService.validateReconnectToken('s1');
+
+            expect(result).toBe(true);
+        });
+
+        test('rejects disconnected player without token', async () => {
+            const player = { sessionId: 's1', connected: false };
+            mockRedis.get.mockImplementation((key) => {
+                if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
+                return Promise.resolve(null);
+            });
+
+            const result = await playerService.validateReconnectToken('s1');
+
+            expect(result).toBe(false);
+            expect(logger.warn).toHaveBeenCalledWith(
+                'Reconnection attempted without token',
+                expect.objectContaining({ sessionId: 's1' })
+            );
+        });
+
+        test('rejects when no player exists and no token', async () => {
+            mockRedis.get.mockResolvedValue(null);
+
+            const result = await playerService.validateReconnectToken('s1');
+
+            expect(result).toBe(false);
+        });
+
+        test('validates correct token with constant-time comparison', async () => {
+            const token = 'a'.repeat(64);
+            mockRedis.get.mockImplementation((key) => {
+                if (key === `reconnect:session:s1`) return Promise.resolve(token);
+                return Promise.resolve(null);
+            });
+
+            const result = await playerService.validateReconnectToken('s1', token);
+
+            expect(result).toBe(true);
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.stringContaining('Reconnection token verified'),
+                expect.objectContaining({ sessionId: 's1' })
+            );
+        });
+
+        test('rejects invalid token', async () => {
+            const storedToken = 'a'.repeat(64);
+            const providedToken = 'b'.repeat(64);
+            mockRedis.get.mockImplementation((key) => {
+                if (key === `reconnect:session:s1`) return Promise.resolve(storedToken);
+                return Promise.resolve(null);
+            });
+
+            const result = await playerService.validateReconnectToken('s1', providedToken);
+
+            expect(result).toBe(false);
+            expect(logger.warn).toHaveBeenCalledWith(
+                'Invalid reconnection token',
+                expect.objectContaining({ sessionId: 's1' })
+            );
+        });
+
+        test('rejects when no stored token exists', async () => {
+            mockRedis.get.mockResolvedValue(null);
+
+            const result = await playerService.validateReconnectToken('s1', 'sometoken');
+
+            expect(result).toBe(false);
+            expect(logger.debug).toHaveBeenCalledWith(
+                'No reconnection token found',
+                expect.objectContaining({ sessionId: 's1' })
+            );
+        });
+
+        test('rejects token with length mismatch', async () => {
+            const storedToken = 'a'.repeat(64);
+            const shortToken = 'a'.repeat(32);
+            mockRedis.get.mockImplementation((key) => {
+                if (key === `reconnect:session:s1`) return Promise.resolve(storedToken);
+                return Promise.resolve(null);
+            });
+
+            const result = await playerService.validateReconnectToken('s1', shortToken);
+
+            expect(result).toBe(false);
+            expect(logger.warn).toHaveBeenCalledWith(
+                'Reconnection token length mismatch',
+                expect.objectContaining({ sessionId: 's1' })
+            );
+        });
+    });
+
     describe('startCleanupTask', () => {
         beforeEach(() => {
             jest.useFakeTimers();
