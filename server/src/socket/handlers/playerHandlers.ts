@@ -5,8 +5,9 @@
  * validation, error handling, and socket room management.
  */
 
-import type { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
+import type { GameSocket, RoomContext } from './types';
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
@@ -18,24 +19,6 @@ const { canChangeTeamOrRole } = require('../playerContext');
 const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
 const { sanitizeHtml } = require('../../utils/sanitize');
 const { safeEmitToRoom } = require('../safeEmit');
-
-/**
- * Extended Socket type with custom properties
- */
-interface GameSocket extends Socket {
-    sessionId: string;
-    roomCode: string | null;
-}
-
-/**
- * Room handler context
- */
-interface RoomContext {
-    sessionId: string;
-    roomCode: string;
-    player: Player;
-    game: GameState | null;
-}
 
 /**
  * Player team input

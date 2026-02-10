@@ -10,7 +10,7 @@ import { updateRoleBanner, updateControls } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
 // PHASE 2 FIX: Import shared constants for validation
-import { VALIDATION, validateNickname, validateRoomCode } from './constants.js';
+import { VALIDATION, UI, validateNickname, validateRoomCode } from './constants.js';
 
 // PHASE 2 FIX: AbortController for request cancellation
 // Allows cancelling in-flight operations when user navigates away
@@ -404,7 +404,7 @@ export function onMultiplayerJoined(result, isHostParam = false) {
         } else {
             showToast('Connected to multiplayer game!', 'success');
         }
-    }, 500);
+    }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }
 
 /**
@@ -504,7 +504,7 @@ export async function copyRoomCode() {
     if (copied) {
         if (feedback) {
             feedback.textContent = 'Room code copied!';
-            setTimeout(() => { feedback.textContent = ''; }, 2000);
+            setTimeout(() => { feedback.textContent = ''; }, UI.COPY_FEEDBACK_MS);
         }
         showToast('Room code copied to clipboard');
     } else {
@@ -618,15 +618,29 @@ export function setupMultiplayerListeners() {
     });
 
     CodenamesClient.on('cardRevealed', (data) => {
-        // Clear reveal-in-progress flag
-        state.isRevealingCard = false;
+        // Clear per-card reveal tracking for the revealed card
+        if (data.index !== undefined) {
+            state.revealingCards.delete(data.index);
+            clearTimeout(state[`_revealTimeout_${data.index}`]);
+        }
+        state.isRevealingCard = state.revealingCards.size > 0;
 
-        // Remove pending visual state from all cards
-        document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+        // Remove pending visual state from the revealed card
+        if (data.index !== undefined) {
+            const card = document.querySelector(`.card[data-index="${data.index}"]`);
+            if (card) card.classList.remove('revealing');
+        }
 
         if (data.index !== undefined) {
             revealCardFromServer(data.index, data);
             playNotificationSound('reveal');
+
+            // Announce card reveal to screen readers
+            const word = data.word || (state.gameState.words && state.gameState.words[data.index]) || '';
+            const type = data.type || '';
+            if (word) {
+                announceToScreenReader(`Card revealed: ${word}. ${type} card.`);
+            }
         }
 
         // Update Duet info if present
@@ -749,6 +763,21 @@ export function setupMultiplayerListeners() {
                 p.sessionId === data.sessionId ? { ...p, ...data.changes } : p
             );
             updateMpIndicator({ code: CodenamesClient.getRoomCode() }, state.multiplayerPlayers);
+
+            // Announce role/team changes to screen readers
+            if (data.changes.role || data.changes.team !== undefined) {
+                const changedPlayer = state.multiplayerPlayers.find(p => p.sessionId === data.sessionId);
+                const name = changedPlayer?.nickname || 'A player';
+                if (data.changes.role) {
+                    announceToScreenReader(`${name} is now ${data.changes.role}.`);
+                }
+                if (data.changes.team !== undefined) {
+                    const teamName = data.changes.team
+                        ? (data.changes.team === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue'))
+                        : 'spectators';
+                    announceToScreenReader(`${name} joined ${teamName}.`);
+                }
+            }
 
             // If this is the current player, update local state variables
             if (data.sessionId === CodenamesClient.player?.sessionId) {
@@ -1050,12 +1079,18 @@ export function setupMultiplayerListeners() {
         // Import dynamically to avoid circular dependency
         import('./history.js').then(({ renderGameHistory }) => {
             renderGameHistory(data.games || []);
+        }).catch(err => {
+            console.error('Failed to load history module:', err);
+            showToast('Could not load game history', 'error');
         });
     });
 
     CodenamesClient.on('replayData', (data) => {
         import('./history.js').then(({ renderReplayData }) => {
             renderReplayData(data);
+        }).catch(err => {
+            console.error('Failed to load history module:', err);
+            showToast('Could not load replay data', 'error');
         });
     });
 
@@ -1070,6 +1105,7 @@ export function setupMultiplayerListeners() {
         }
 
         // Clear any in-progress flags
+        state.revealingCards.clear();
         state.isRevealingCard = false;
         state.isChangingRole = false;
         state.changingTarget = null;
@@ -1153,14 +1189,16 @@ export function setupMultiplayerListeners() {
         }
     });
 
-    // Game mode radio button change handler
+    // Game mode radio button change handler — track for cleanup
     const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
     gameModeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
+        const handler = (e) => {
             if (!CodenamesClient?.player?.isHost) return;
             const gameMode = e.target.value;
             CodenamesClient.updateSettings({ gameMode });
-        });
+        };
+        radio.addEventListener('change', handler);
+        domListenerCleanup.push({ element: radio, event: 'change', handler });
     });
 
     // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
@@ -1236,6 +1274,7 @@ function resetMultiplayerState() {
     state.pendingRoleChange = null;
     state.roleChangeOperationId = null;
     state.roleChangeRevertFn = null;
+    state.revealingCards.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
     state.gameState.currentClue = null;
@@ -1283,6 +1322,13 @@ export function leaveMultiplayerMode() {
 export function syncGameStateFromServer(serverGame) {
     if (!serverGame) return;
 
+    // Bounds validation: reject obviously corrupted server data
+    const MAX_BOARD_SIZE = 100; // Generous upper bound (standard is 25)
+    if (serverGame.words && Array.isArray(serverGame.words) && serverGame.words.length > MAX_BOARD_SIZE) {
+        console.error(`syncGameStateFromServer: rejected oversized words array (${serverGame.words.length})`);
+        return;
+    }
+
     // Server sends arrays: words, types, revealed (not a board object)
     if (serverGame.words && Array.isArray(serverGame.words)) {
         // Check if words have changed - if so, force full board re-render
@@ -1299,17 +1345,17 @@ export function syncGameStateFromServer(serverGame) {
         state.gameState.types = serverGame.types || [];
         state.gameState.revealed = serverGame.revealed || [];
 
-        // Use server-provided scores if available
-        if (typeof serverGame.redScore === 'number') {
+        // Use server-provided scores if available, with range validation
+        if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
             state.gameState.redScore = serverGame.redScore;
         }
-        if (typeof serverGame.blueScore === 'number') {
+        if (typeof serverGame.blueScore === 'number' && serverGame.blueScore >= 0 && serverGame.blueScore <= MAX_BOARD_SIZE) {
             state.gameState.blueScore = serverGame.blueScore;
         }
-        if (typeof serverGame.redTotal === 'number') {
+        if (typeof serverGame.redTotal === 'number' && serverGame.redTotal >= 0 && serverGame.redTotal <= MAX_BOARD_SIZE) {
             state.gameState.redTotal = serverGame.redTotal;
         }
-        if (typeof serverGame.blueTotal === 'number') {
+        if (typeof serverGame.blueTotal === 'number' && serverGame.blueTotal >= 0 && serverGame.blueTotal <= MAX_BOARD_SIZE) {
             state.gameState.blueTotal = serverGame.blueTotal;
         }
     }
@@ -1573,6 +1619,9 @@ export function updateRoomStats(stats) {
 
 // PHASE 4: Handle spectator chat messages
 function handleSpectatorChatMessage(data) {
+    // Validate message data before rendering into DOM
+    if (!data || typeof data.message !== 'string') return;
+
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
 
@@ -1828,7 +1877,6 @@ function detectOfflineChanges(data) {
 
 // Reconnection overlay timeout ID for cleanup
 let reconnectionTimeoutId = null;
-const RECONNECTION_TIMEOUT_MS = 15000; // 15 seconds before showing failure message
 
 /**
  * Show the reconnection overlay banner with a timeout fallback.
@@ -1854,7 +1902,7 @@ export function showReconnectionOverlay() {
             hideReconnectionOverlay();
             showToast('Reconnection failed \u2014 please refresh the page', 'error', 8000);
         }
-    }, RECONNECTION_TIMEOUT_MS);
+    }, UI.RECONNECTION_TIMEOUT_MS);
 }
 
 /**

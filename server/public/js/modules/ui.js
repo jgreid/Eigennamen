@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
+import { UI } from './constants.js';
 
 // ========== SCREEN READER ANNOUNCEMENTS ==========
 export function announceToScreenReader(message) {
@@ -13,7 +14,7 @@ export function announceToScreenReader(message) {
         state.srAnnouncementTimeout = setTimeout(() => {
             announcer.textContent = '';
             state.srAnnouncementTimeout = null;
-        }, 1000);
+        }, UI.SR_ANNOUNCEMENT_MS);
     }
 }
 
@@ -46,8 +47,8 @@ export function showToast(message, type = 'error', duration = 4000) {
         closeBtn.addEventListener('click', () => dismissToast(toast));
     }
 
-    // Auto-dismiss after duration
-    setTimeout(() => {
+    // Auto-dismiss after duration (store ID for cleanup in dismissToast)
+    toast._autoDismissId = setTimeout(() => {
         dismissToast(toast);
     }, duration);
 
@@ -60,8 +61,13 @@ export function showToast(message, type = 'error', duration = 4000) {
 
 export function dismissToast(toast) {
     if (!toast || toast.classList.contains('hiding')) return;
+    // Clear the auto-dismiss timer to prevent double-removal
+    if (toast._autoDismissId) {
+        clearTimeout(toast._autoDismissId);
+        toast._autoDismissId = null;
+    }
     toast.classList.add('hiding');
-    setTimeout(() => {
+    toast._hideTimeoutId = setTimeout(() => {
         if (toast.parentElement) {
             toast.parentElement.removeChild(toast);
         }

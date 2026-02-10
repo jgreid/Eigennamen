@@ -64,7 +64,7 @@ export interface IPlayerService {
   setNickname(sessionId: string, nickname: string): Promise<Player | null>;
   atomicHostTransfer(oldHostId: string, newHostId: string, roomCode: string): Promise<HostTransferResult>;
   generateReconnectionToken(sessionId: string): Promise<string>;
-  validateReconnectionToken(token: string, code: string): Promise<ReconnectionResult>;
+  validateRoomReconnectToken(token: string, code: string): Promise<ReconnectionResult>;
   markDisconnected(sessionId: string): Promise<void>;
   markConnected(sessionId: string): Promise<void>;
 }

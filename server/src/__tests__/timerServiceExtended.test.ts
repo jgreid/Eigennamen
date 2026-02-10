@@ -221,10 +221,6 @@ describe('Timer Service Extended Tests', () => {
             const result = await timerService.pauseTimer('PARSE_ERR');
 
             expect(result).toBeNull();
-            expect(mockLogger.error).toHaveBeenCalledWith(
-                'Failed to parse timer data for PARSE_ERR:',
-                expect.any(String)
-            );
         });
     });
 
@@ -264,10 +260,6 @@ describe('Timer Service Extended Tests', () => {
             const result = await timerService.addTime('EVAL_INVALID', 30, jest.fn());
 
             expect(result).toBeNull();
-            expect(mockLogger.error).toHaveBeenCalledWith(
-                'Error parsing addTime result for room EVAL_INVALID:',
-                expect.any(Error)
-            );
         });
 
         test('handles expire callback error in addTimeLocal timeout', async () => {

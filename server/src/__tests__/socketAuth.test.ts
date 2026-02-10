@@ -24,7 +24,7 @@ jest.mock('../utils/logger', () => ({
 jest.mock('../services/playerService', () => ({
     getPlayer: jest.fn(),
     setSocketMapping: jest.fn(),
-    validateReconnectToken: jest.fn()
+    validateSocketAuthToken: jest.fn()
 }));
 
 jest.mock('../config/jwt', () => ({
@@ -408,7 +408,7 @@ describe('Socket Authentication Middleware', () => {
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
-            playerService.validateReconnectToken.mockResolvedValue(true);
+            playerService.validateSocketAuthToken.mockResolvedValue(true);
             playerService.setSocketMapping.mockResolvedValue(true);
             mockRedis.incr.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
@@ -417,7 +417,7 @@ describe('Socket Authentication Middleware', () => {
             await authenticateSocket(socket, next);
 
             expect(socket.sessionId).toBe(validUuid);
-            expect(playerService.validateReconnectToken).toHaveBeenCalledWith(validUuid, validHexToken);
+            expect(playerService.validateSocketAuthToken).toHaveBeenCalledWith(validUuid, validHexToken);
             expect(next).toHaveBeenCalledWith();
         });
 
@@ -439,7 +439,7 @@ describe('Socket Authentication Middleware', () => {
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
-            playerService.validateReconnectToken.mockResolvedValue(false);
+            playerService.validateSocketAuthToken.mockResolvedValue(false);
             playerService.setSocketMapping.mockResolvedValue(true);
             mockRedis.incr.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
@@ -470,7 +470,7 @@ describe('Socket Authentication Middleware', () => {
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
-            playerService.validateReconnectToken.mockResolvedValue(true);
+            playerService.validateSocketAuthToken.mockResolvedValue(true);
             playerService.setSocketMapping.mockResolvedValue(true);
             mockRedis.incr.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);

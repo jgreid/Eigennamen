@@ -150,7 +150,7 @@ describe('Admin Routes Extended Tests', () => {
             const roomData = JSON.stringify({
                 code: validRoomCode,
                 status: 'waiting',
-                hostId: 'host-session-123',
+                hostSessionId: 'host-session-123',
                 settings: { turnTimer: 60, maxPlayers: 8 },
                 createdAt: Date.now()
             });
@@ -243,7 +243,7 @@ describe('Admin Routes Extended Tests', () => {
             // Setup room
             mockRedisStorage.set(`room:${roomCode.toLowerCase()}`, JSON.stringify({
                 code: roomCode,
-                hostId: hostId,
+                hostSessionId: hostId,
                 status: 'playing'
             }));
 
@@ -340,7 +340,7 @@ describe('Admin Routes Extended Tests', () => {
             // Setup room
             mockRedisStorage.set(`room:${roomCode.toLowerCase()}`, JSON.stringify({
                 code: roomCode,
-                hostId: 'host-123',
+                hostSessionId: 'host-123',
                 status: 'waiting'
             }));
 
@@ -426,7 +426,7 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle Redis errors in player kick', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostId: 'host' }));
+            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host' }));
             mockRedis.sIsMember.mockRejectedValueOnce(new Error('Redis error'));
 
             const response = await request(app)

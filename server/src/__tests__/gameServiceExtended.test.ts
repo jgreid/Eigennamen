@@ -739,8 +739,7 @@ describe('getGame', () => {
 
         expect(result).toBeNull();
         expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Corrupted game data'),
-            expect.any(String)
+            expect.stringContaining('Corrupted game data')
         );
         // Should delete corrupted data
         expect(mockRedis.del).toHaveBeenCalledWith('room:CORRUPT:game');

@@ -5,8 +5,9 @@
  * validation, error handling, and socket room management.
  */
 
-import type { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
+import type { GameSocket, RoomContext, GameContext } from './types';
 
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
@@ -26,32 +27,6 @@ const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { safeEmitToRoom, safeEmitToPlayers } = require('../safeEmit');
-
-/**
- * Extended Socket type with custom properties
- */
-interface GameSocket extends Socket {
-    sessionId: string;
-    roomCode: string | null;
-    clientIP?: string;
-}
-
-/**
- * Room handler context (from createRoomHandler)
- */
-interface RoomContext {
-    sessionId: string;
-    roomCode: string;
-    player: Player;
-    game: GameState | null;
-}
-
-/**
- * Game handler context (from createGameHandler - requires active game)
- */
-interface GameContext extends RoomContext {
-    game: GameState;  // Non-null in game handlers
-}
 
 /**
  * Game start input

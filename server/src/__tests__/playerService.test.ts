@@ -184,9 +184,9 @@ describe('Player Service', () => {
             const player = await playerService.getPlayer('session-123');
 
             expect(player).toBeNull();
-            expect(logger.error).toHaveBeenCalledWith(
-                'Failed to parse player data for session-123:',
-                expect.any(String)
+            // tryParseJSON logs via logger.warn internally
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Failed to parse JSON')
             );
         });
     });
@@ -506,7 +506,8 @@ describe('Player Service', () => {
             const members = await playerService.getTeamMembers('ABC123', 'red');
 
             expect(members).toHaveLength(1);
-            expect(logger.error).toHaveBeenCalled();
+            // tryParseJSON logs via logger.warn internally
+            expect(logger.warn).toHaveBeenCalled();
         });
     });
 
@@ -551,7 +552,8 @@ describe('Player Service', () => {
             const players = await playerService.getPlayersInRoom('ABC123');
 
             expect(players).toHaveLength(1);
-            expect(logger.error).toHaveBeenCalled();
+            // tryParseJSON logs via logger.warn internally
+            expect(logger.warn).toHaveBeenCalled();
         });
 
         test('logs slow queries', async () => {
@@ -628,20 +630,20 @@ describe('Player Service', () => {
         });
     });
 
-    describe('validateReconnectionToken', () => {
+    describe('validateRoomReconnectToken', () => {
         test('validates correct token', async () => {
             const tokenData = { sessionId: 's1', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(tokenData)); // token lookup
             mockRedis.del.mockResolvedValue(1);
 
-            const result = await playerService.validateReconnectionToken('validtoken123', 's1');
+            const result = await playerService.validateRoomReconnectToken('validtoken123', 's1');
 
             expect(result.valid).toBe(true);
             expect(mockRedis.del).toHaveBeenCalledWith('reconnect:token:validtoken123');
         });
 
         test('returns invalid for null token', async () => {
-            const result = await playerService.validateReconnectionToken(null, 's1');
+            const result = await playerService.validateRoomReconnectToken(null, 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('INVALID_TOKEN_FORMAT');
@@ -650,7 +652,7 @@ describe('Player Service', () => {
         test('returns invalid when token not found in Redis', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            const result = await playerService.validateReconnectionToken('sometoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('sometoken', 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('TOKEN_EXPIRED_OR_INVALID');
@@ -660,7 +662,7 @@ describe('Player Service', () => {
             const tokenData = { sessionId: 'other-session', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(tokenData));
 
-            const result = await playerService.validateReconnectionToken('validtoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('validtoken', 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('SESSION_MISMATCH');
@@ -669,7 +671,7 @@ describe('Player Service', () => {
         test('returns invalid for corrupted token data', async () => {
             mockRedis.get.mockResolvedValue('invalid-json');
 
-            const result = await playerService.validateReconnectionToken('validtoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('validtoken', 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('TOKEN_CORRUPTED');
@@ -726,13 +728,13 @@ describe('Player Service', () => {
         });
     });
 
-    describe('validateReconnectionToken', () => {
+    describe('validateRoomReconnectToken', () => {
         test('validates and consumes correct token', async () => {
             const tokenData = { sessionId: 's1', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(tokenData));
             mockRedis.del.mockResolvedValue(1);
 
-            const result = await playerService.validateReconnectionToken('mytoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('mytoken', 's1');
 
             expect(result.valid).toBe(true);
             expect(result.tokenData).toEqual(tokenData);
@@ -741,14 +743,14 @@ describe('Player Service', () => {
         });
 
         test('returns invalid for null token', async () => {
-            const result = await playerService.validateReconnectionToken(null, 's1');
+            const result = await playerService.validateRoomReconnectToken(null, 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('INVALID_TOKEN_FORMAT');
         });
 
         test('returns invalid for non-string token', async () => {
-            const result = await playerService.validateReconnectionToken(12345, 's1');
+            const result = await playerService.validateRoomReconnectToken(12345, 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('INVALID_TOKEN_FORMAT');
@@ -757,7 +759,7 @@ describe('Player Service', () => {
         test('returns invalid for expired/missing token', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            const result = await playerService.validateReconnectionToken('expiredtoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('expiredtoken', 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('TOKEN_EXPIRED_OR_INVALID');
@@ -766,7 +768,7 @@ describe('Player Service', () => {
         test('returns invalid for corrupted token data', async () => {
             mockRedis.get.mockResolvedValue('invalid json');
 
-            const result = await playerService.validateReconnectionToken('mytoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('mytoken', 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('TOKEN_CORRUPTED');
@@ -776,7 +778,7 @@ describe('Player Service', () => {
             const tokenData = { sessionId: 'different-session', roomCode: 'ABC123' };
             mockRedis.get.mockResolvedValue(JSON.stringify(tokenData));
 
-            const result = await playerService.validateReconnectionToken('mytoken', 's1');
+            const result = await playerService.validateRoomReconnectToken('mytoken', 's1');
 
             expect(result.valid).toBe(false);
             expect(result.reason).toBe('SESSION_MISMATCH');
@@ -802,12 +804,12 @@ describe('Player Service', () => {
         });
     });
 
-    describe('invalidateReconnectionToken', () => {
+    describe('invalidateRoomReconnectToken', () => {
         test('invalidates existing token', async () => {
             mockRedis.get.mockResolvedValue('existingtoken');
             mockRedis.del.mockResolvedValue(1);
 
-            await playerService.invalidateReconnectionToken('s1');
+            await playerService.invalidateRoomReconnectToken('s1');
 
             expect(mockRedis.del).toHaveBeenCalledWith('reconnect:token:existingtoken');
             expect(mockRedis.del).toHaveBeenCalledWith('reconnect:session:s1');
@@ -816,7 +818,7 @@ describe('Player Service', () => {
         test('does nothing when no token exists', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            await playerService.invalidateReconnectionToken('s1');
+            await playerService.invalidateRoomReconnectToken('s1');
 
             expect(mockRedis.del).not.toHaveBeenCalled();
         });
@@ -951,7 +953,7 @@ describe('Player Service', () => {
         });
     });
 
-    describe('validateReconnectToken (socket auth)', () => {
+    describe('validateSocketAuthToken (socket auth)', () => {
         test('allows connected player without token', async () => {
             const player = { sessionId: 's1', connected: true };
             mockRedis.get.mockImplementation((key) => {
@@ -959,7 +961,7 @@ describe('Player Service', () => {
                 return Promise.resolve(null);
             });
 
-            const result = await playerService.validateReconnectToken('s1');
+            const result = await playerService.validateSocketAuthToken('s1');
 
             expect(result).toBe(true);
         });
@@ -971,7 +973,7 @@ describe('Player Service', () => {
                 return Promise.resolve(null);
             });
 
-            const result = await playerService.validateReconnectToken('s1');
+            const result = await playerService.validateSocketAuthToken('s1');
 
             expect(result).toBe(false);
             expect(logger.warn).toHaveBeenCalledWith(
@@ -983,7 +985,7 @@ describe('Player Service', () => {
         test('rejects when no player exists and no token', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            const result = await playerService.validateReconnectToken('s1');
+            const result = await playerService.validateSocketAuthToken('s1');
 
             expect(result).toBe(false);
         });
@@ -995,7 +997,7 @@ describe('Player Service', () => {
                 return Promise.resolve(null);
             });
 
-            const result = await playerService.validateReconnectToken('s1', token);
+            const result = await playerService.validateSocketAuthToken('s1', token);
 
             expect(result).toBe(true);
             expect(logger.info).toHaveBeenCalledWith(
@@ -1012,7 +1014,7 @@ describe('Player Service', () => {
                 return Promise.resolve(null);
             });
 
-            const result = await playerService.validateReconnectToken('s1', providedToken);
+            const result = await playerService.validateSocketAuthToken('s1', providedToken);
 
             expect(result).toBe(false);
             expect(logger.warn).toHaveBeenCalledWith(
@@ -1024,7 +1026,7 @@ describe('Player Service', () => {
         test('rejects when no stored token exists', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            const result = await playerService.validateReconnectToken('s1', 'sometoken');
+            const result = await playerService.validateSocketAuthToken('s1', 'sometoken');
 
             expect(result).toBe(false);
             expect(logger.debug).toHaveBeenCalledWith(
@@ -1041,7 +1043,7 @@ describe('Player Service', () => {
                 return Promise.resolve(null);
             });
 
-            const result = await playerService.validateReconnectToken('s1', shortToken);
+            const result = await playerService.validateSocketAuthToken('s1', shortToken);
 
             expect(result).toBe(false);
             expect(logger.warn).toHaveBeenCalledWith(

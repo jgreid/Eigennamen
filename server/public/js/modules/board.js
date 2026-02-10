@@ -107,64 +107,70 @@ export function renderBoard() {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board) return;
 
-    // Update board class
-    let className = 'board';
-    if (state.spymasterTeam || state.gameState.gameOver) className += ' spymaster-mode';
-    if (!canClickCards()) className += ' no-click';
-    board.className = className;
+    try {
+        // Update board class
+        let className = 'board';
+        if (state.spymasterTeam || state.gameState.gameOver) className += ' spymaster-mode';
+        if (!canClickCards()) className += ' no-click';
+        board.className = className;
 
-    // Check if we can do an incremental update
-    if (state.boardInitialized && board.children.length === BOARD_SIZE) {
-        updateBoardIncremental();
-        return;
+        // Check if we can do an incremental update
+        if (state.boardInitialized && board.children.length === BOARD_SIZE) {
+            updateBoardIncremental();
+            return;
+        }
+
+        // Full re-render (only for new games)
+        board.innerHTML = '';
+
+        // Board-level accessibility: grid role and description
+        board.setAttribute('role', 'grid');
+        board.setAttribute('aria-label', 'Codenames game board - 5 by 5 grid of word cards');
+
+        state.gameState.words.forEach((word, index) => {
+            const card = document.createElement('div');
+            const fontClass = getCardFontClass(word);
+            card.className = `card ${fontClass}`;
+            if (word.includes(' ')) {
+                card.classList.add('multi-word');
+            }
+            card.textContent = word;
+            card.setAttribute('data-index', index);
+
+            // Accessibility: make cards focusable and add ARIA attributes
+            const isRevealed = state.gameState.revealed[index];
+            const row = Math.floor(index / 5) + 1;
+            const col = (index % 5) + 1;
+            card.setAttribute('role', 'gridcell');
+            card.setAttribute('tabindex', isRevealed ? '-1' : '0');
+            card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, state.gameState.types[index], row, col));
+            if (isRevealed) {
+                card.setAttribute('aria-disabled', 'true');
+            }
+
+            // Add spymaster hints (show all card types when game is over)
+            if (state.spymasterTeam || state.gameState.gameOver) {
+                card.classList.add(`spy-${state.gameState.types[index]}`);
+            }
+
+            // Show revealed cards
+            if (isRevealed) {
+                card.classList.add('revealed', state.gameState.types[index]);
+            }
+
+            board.appendChild(card);
+        });
+
+        // Shrink font on any single-word cards that overflow their container
+        fitCardText(board);
+
+        state.boardInitialized = true;
+        initBoardEventDelegation();
+    } catch (err) {
+        console.error('renderBoard failed:', err);
+        // Show a minimal fallback so the board area isn't blank
+        board.innerHTML = '<div class="board-error">Board rendering error. Please start a new game.</div>';
     }
-
-    // Full re-render (only for new games)
-    board.innerHTML = '';
-
-    // Board-level accessibility: grid role and description
-    board.setAttribute('role', 'grid');
-    board.setAttribute('aria-label', 'Codenames game board - 5 by 5 grid of word cards');
-
-    state.gameState.words.forEach((word, index) => {
-        const card = document.createElement('div');
-        const fontClass = getCardFontClass(word);
-        card.className = `card ${fontClass}`;
-        if (word.includes(' ')) {
-            card.classList.add('multi-word');
-        }
-        card.textContent = word;
-        card.setAttribute('data-index', index);
-
-        // Accessibility: make cards focusable and add ARIA attributes
-        const isRevealed = state.gameState.revealed[index];
-        const row = Math.floor(index / 5) + 1;
-        const col = (index % 5) + 1;
-        card.setAttribute('role', 'gridcell');
-        card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-        card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, state.gameState.types[index], row, col));
-        if (isRevealed) {
-            card.setAttribute('aria-disabled', 'true');
-        }
-
-        // Add spymaster hints (show all card types when game is over)
-        if (state.spymasterTeam || state.gameState.gameOver) {
-            card.classList.add(`spy-${state.gameState.types[index]}`);
-        }
-
-        // Show revealed cards
-        if (isRevealed) {
-            card.classList.add('revealed', state.gameState.types[index]);
-        }
-
-        board.appendChild(card);
-    });
-
-    // Shrink font on any single-word cards that overflow their container
-    fitCardText(board);
-
-    state.boardInitialized = true;
-    initBoardEventDelegation();
 }
 
 // Incremental update - only update changed cards (much faster)
@@ -172,73 +178,77 @@ export function updateBoardIncremental() {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board) return;
 
-    // Update board class
-    let className = 'board';
-    if (state.spymasterTeam || state.gameState.gameOver) className += ' spymaster-mode';
-    if (!canClickCards()) className += ' no-click';
-    board.className = className;
+    try {
+        // Update board class
+        let className = 'board';
+        if (state.spymasterTeam || state.gameState.gameOver) className += ' spymaster-mode';
+        if (!canClickCards()) className += ' no-click';
+        board.className = className;
 
-    let needsFit = false;
-    const cards = board.children;
-    for (let index = 0; index < cards.length; index++) {
-        const card = cards[index];
-        const isRevealed = state.gameState.revealed[index];
-        const type = state.gameState.types[index];
-        const word = state.gameState.words[index];
+        let needsFit = false;
+        const cards = board.children;
+        for (let index = 0; index < cards.length; index++) {
+            const card = cards[index];
+            const isRevealed = state.gameState.revealed[index];
+            const type = state.gameState.types[index];
+            const word = state.gameState.words[index];
 
-        // Update card text if it changed (safety measure for sync issues)
-        if (card.textContent !== word) {
-            card.textContent = word;
-            // Update font class based on word length
-            card.classList.remove('font-lg', 'font-md', 'font-sm', 'font-xs', 'font-min');
-            card.style.fontSize = ''; // clear any fitCardText override
-            const fontClass = getCardFontClass(word);
-            if (fontClass) card.classList.add(fontClass);
-            // Update multi-word class
-            if (word.includes(' ')) {
-                card.classList.add('multi-word');
-            } else {
-                card.classList.remove('multi-word');
-            }
-            needsFit = true;
-        }
-
-        // Update ARIA
-        const row = Math.floor(index / 5) + 1;
-        const col = (index % 5) + 1;
-        card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-        card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, type, row, col));
-        if (isRevealed) {
-            card.setAttribute('aria-disabled', 'true');
-        } else {
-            card.removeAttribute('aria-disabled');
-        }
-
-        // Handle spymaster mode (show all card types when game is over)
-        if (state.spymasterTeam || state.gameState.gameOver) {
-            card.classList.add(`spy-${type}`);
-        } else {
-            // Remove all spy- classes
-            card.classList.remove('spy-red', 'spy-blue', 'spy-neutral', 'spy-assassin');
-        }
-
-        // Handle reveal state
-        if (isRevealed && !card.classList.contains('revealed')) {
-            card.classList.add('revealed', type);
-
-            // Add animation class for just-revealed card
-            if (index === state.lastRevealedIndex) {
-                if (state.lastRevealedWasCorrect) {
-                    card.classList.add('success-reveal');
+            // Update card text if it changed (safety measure for sync issues)
+            if (card.textContent !== word) {
+                card.textContent = word;
+                // Update font class based on word length
+                card.classList.remove('font-lg', 'font-md', 'font-sm', 'font-xs', 'font-min');
+                card.style.fontSize = ''; // clear any fitCardText override
+                const fontClass = getCardFontClass(word);
+                if (fontClass) card.classList.add(fontClass);
+                // Update multi-word class
+                if (word.includes(' ')) {
+                    card.classList.add('multi-word');
                 } else {
-                    card.classList.add('just-revealed');
+                    card.classList.remove('multi-word');
+                }
+                needsFit = true;
+            }
+
+            // Update ARIA
+            const row = Math.floor(index / 5) + 1;
+            const col = (index % 5) + 1;
+            card.setAttribute('tabindex', isRevealed ? '-1' : '0');
+            card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, type, row, col));
+            if (isRevealed) {
+                card.setAttribute('aria-disabled', 'true');
+            } else {
+                card.removeAttribute('aria-disabled');
+            }
+
+            // Handle spymaster mode (show all card types when game is over)
+            if (state.spymasterTeam || state.gameState.gameOver) {
+                card.classList.add(`spy-${type}`);
+            } else {
+                // Remove all spy- classes
+                card.classList.remove('spy-red', 'spy-blue', 'spy-neutral', 'spy-assassin');
+            }
+
+            // Handle reveal state
+            if (isRevealed && !card.classList.contains('revealed')) {
+                card.classList.add('revealed', type);
+
+                // Add animation class for just-revealed card
+                if (index === state.lastRevealedIndex) {
+                    if (state.lastRevealedWasCorrect) {
+                        card.classList.add('success-reveal');
+                    } else {
+                        card.classList.add('just-revealed');
+                    }
                 }
             }
         }
-    }
 
-    if (needsFit) {
-        fitCardText(board);
+        if (needsFit) {
+            fitCardText(board);
+        }
+    } catch (err) {
+        console.error('updateBoardIncremental failed:', err);
     }
 }
 

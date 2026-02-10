@@ -34,28 +34,37 @@ interface AdminRequest extends Request {
 }
 
 /**
- * Room data from Redis
+ * Room data from Redis — aligned with the canonical Room type in types/room.ts.
+ * Uses the actual field names stored in Redis (hostSessionId, not hostId).
  */
 interface RoomData {
+    id: string;
     code: string;
-    status: string;
-    hostId: string;
-    createdAt?: number;
-    settings?: {
-        teamNames?: { red: string; blue: string };
-        turnTimer?: number;
-        allowSpectators?: boolean;
+    roomId: string;
+    hostSessionId: string;
+    status: 'waiting' | 'playing' | 'finished';
+    createdAt: number;
+    expiresAt: number;
+    settings: {
+        teamNames: { red: string; blue: string };
+        turnTimer: number | null;
+        allowSpectators: boolean;
+        wordListId?: string | null;
+        gameMode?: string;
     };
 }
 
 /**
- * Player data from Redis
+ * Player data from Redis — aligned with the canonical Player type in types/player.ts.
  */
 interface PlayerData {
-    nickname?: string;
-    team?: string | null;
-    role?: string;
-    joinedAt?: number;
+    sessionId: string;
+    nickname: string;
+    team: 'red' | 'blue' | null;
+    role: 'spymaster' | 'clicker' | 'spectator';
+    joinedAt: number;
+    isHost?: boolean;
+    connected?: boolean;
 }
 
 /**
@@ -63,13 +72,13 @@ interface PlayerData {
  */
 interface RoomSummary {
     code: string;
-    status: string;
+    status: 'waiting' | 'playing' | 'finished';
     playerCount: number;
-    createdAt?: number;
+    createdAt: number;
     settings: {
-        teamNames?: { red: string; blue: string };
-        turnTimer?: number;
-        allowSpectators?: boolean;
+        teamNames: { red: string; blue: string };
+        turnTimer: number | null;
+        allowSpectators: boolean;
     };
 }
 
@@ -499,7 +508,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
                         nickname: player.nickname || 'Unknown',
                         team: player.team || null,
                         role: player.role || 'operative',
-                        isHost: room.hostId === playerId,
+                        isHost: room.hostSessionId === playerId,
                         joinedAt: player.joinedAt
                     });
                 }
@@ -518,7 +527,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
         res.json({
             code: room.code,
             status: room.status,
-            hostId: room.hostId,
+            hostId: room.hostSessionId,
             players,
             settings: room.settings,
             createdAt: room.createdAt
@@ -592,7 +601,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         const room: RoomData = JSON.parse(roomData);
 
         // Don't allow kicking the host
-        if (room.hostId === playerId) {
+        if (room.hostSessionId === playerId) {
             res.status(400).json({
                 error: {
                     code: 'CANNOT_KICK_HOST',

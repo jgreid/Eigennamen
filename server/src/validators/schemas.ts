@@ -11,7 +11,7 @@
 import type { z as ZodType } from 'zod';
 
 const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES, TIMER, GAME_MODE_CONFIG } = require('../config/constants');
+const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, TIMER, GAME_MODE_CONFIG } = require('../config/constants');
 const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
 
 // Re-export z for external use
@@ -111,7 +111,7 @@ const roomCreateSchema = z.object({
         turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
-        gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional().default('classic'),
+        gameMode: z.enum(['classic', 'blitz', 'duet']).optional().default('classic'),
         nickname: createNicknameSchema().optional()
     }).superRefine(validateModeTimer).optional().default({})
 });
@@ -128,7 +128,7 @@ const roomSettingsSchema = z.object({
     }).optional(),
     turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
     allowSpectators: z.boolean().optional(),
-    gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional()
+    gameMode: z.enum(['classic', 'blitz', 'duet']).optional()
 }).superRefine(validateModeTimer);
 
 // Reconnection token is 64 hex characters (32 bytes in hex)
