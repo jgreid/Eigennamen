@@ -424,12 +424,31 @@ Before going to production:
 
 - [ ] Set `CORS_ORIGIN` to your domain (not `*`)
 - [ ] Set `JWT_SECRET` for user authentication (if using)
+- [ ] Set `ADMIN_PASSWORD` for admin dashboard access
 - [ ] Enable HTTPS (TLS termination at load balancer)
 - [ ] Configure rate limiting appropriately
 - [ ] Set `NODE_ENV=production`
 - [ ] Review Redis TLS settings (`rediss://` URLs)
 - [ ] Set up monitoring and alerting
 - [ ] Configure backup strategy for Redis/PostgreSQL
+
+### CORS Configuration (Critical)
+
+The server **refuses to start** with `CORS_ORIGIN=*` in production (`NODE_ENV=production`). You must set explicit origins:
+
+```bash
+# Single origin
+CORS_ORIGIN=https://your-app.fly.dev
+
+# Multiple origins (comma-separated)
+CORS_ORIGIN=https://your-app.fly.dev,https://custom-domain.com
+```
+
+**Common mistakes:**
+- Using `*` in production (server will refuse to start)
+- Including trailing slashes (wrong: `https://example.com/`)
+- Missing protocol (wrong: `example.com`, right: `https://example.com`)
+- Not updating CORS when adding a custom domain
 
 ---
 

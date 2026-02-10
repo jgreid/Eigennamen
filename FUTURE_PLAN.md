@@ -339,9 +339,8 @@ model Round {
 ```
 
 ### 4.3 Game Replay System Improvements — Partially Completed
-**Implemented**: Game history service (`gameHistoryService.ts`) with history storage, replay data retrieval, and frontend replay UI (`history.js`, `replay.css`).
+**Implemented**: Game history service (`gameHistoryService.ts`) with history storage, replay data retrieval, and frontend replay UI (`history.js`, `replay.css`). Replay speed control implemented with 4 speeds (0.5x, 1x, 2x, 4x).
 **Remaining enhancements**:
-- Playback speed control
 - Exportable replay links
 - Analysis mode with annotations
 
