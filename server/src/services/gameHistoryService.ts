@@ -8,8 +8,16 @@
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+const { tryParseJSON } = require('../utils/parseJSON');
+const { z } = require('zod');
 
 import type { Team, CardType } from '../types';
+
+// Minimal Zod schema for GameHistoryEntry deserialization validation.
+// Only requires `id` to distinguish valid entries from garbage.
+const gameHistoryEntrySchema = z.object({
+    id: z.string(),
+}).passthrough();
 
 /**
  * Initial board state for replay
@@ -434,32 +442,24 @@ export async function getGameHistory(
         const summaries: (GameHistorySummary | null)[] = gameDataArray
             .map((data, index): GameHistorySummary | null => {
                 if (!data) return null;
-                try {
-                    const game = JSON.parse(data) as GameHistoryEntry;
-                    // Return summary (not full replay data)
-                    const summary: GameHistorySummary = {
-                        id: game.id,
-                        timestamp: game.timestamp,
-                        startedAt: game.startedAt,
-                        endedAt: game.endedAt,
-                        winner: game.finalState?.winner,
-                        redScore: game.finalState?.redScore,
-                        blueScore: game.finalState?.blueScore,
-                        redTotal: game.finalState?.redTotal,
-                        blueTotal: game.finalState?.blueTotal,
-                        teamNames: game.teamNames,
-                        clueCount: game.clues?.length || 0,
-                        moveCount: game.history?.length || 0
-                    };
-                    return summary;
-                } catch (e) {
-                    logger.warn('Failed to parse game history entry', {
-                        roomCode,
-                        gameId: gameIds[index],
-                        error: (e as Error).message
-                    });
-                    return null;
-                }
+                const game = tryParseJSON(data, gameHistoryEntrySchema, `game history ${gameIds[index]}`) as GameHistoryEntry | null;
+                if (!game) return null;
+                // Return summary (not full replay data)
+                const summary: GameHistorySummary = {
+                    id: game.id,
+                    timestamp: game.timestamp,
+                    startedAt: game.startedAt,
+                    endedAt: game.endedAt,
+                    winner: game.finalState?.winner,
+                    redScore: game.finalState?.redScore,
+                    blueScore: game.finalState?.blueScore,
+                    redTotal: game.finalState?.redTotal,
+                    blueTotal: game.finalState?.blueTotal,
+                    teamNames: game.teamNames,
+                    clueCount: game.clues?.length || 0,
+                    moveCount: game.history?.length || 0
+                };
+                return summary;
             });
 
         // Filter out nulls
@@ -501,7 +501,7 @@ export async function getGameById(
             return null;
         }
 
-        const game = JSON.parse(gameData) as GameHistoryEntry;
+        const game = tryParseJSON(gameData, gameHistoryEntrySchema, `game ${roomCode}:${gameId}`) as GameHistoryEntry | null;
         return game;
 
     } catch (error) {
@@ -622,11 +622,14 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
                 };
                 break;
 
-            default:
+            default: {
                 // Log unrecognized entry types so new types are caught early.
-                // Still pass through all data for forward compatibility.
-                logger.warn(`Unrecognized game history entry type: ${(entry as { type?: string }).type}`);
-                event.data = entry as unknown as Record<string, unknown>;
+                // Still pass through all data for forward compatibility via
+                // explicit field extraction (avoids unsafe double-cast).
+                const { action: _action, ...rest } = entry;
+                logger.warn(`Unrecognized game history entry type: ${_action}`);
+                event.data = rest as Record<string, unknown>;
+            }
         }
 
         events.push(event);

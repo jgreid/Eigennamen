@@ -184,9 +184,9 @@ describe('Player Service', () => {
             const player = await playerService.getPlayer('session-123');
 
             expect(player).toBeNull();
-            expect(logger.error).toHaveBeenCalledWith(
-                'Failed to parse player data for session-123:',
-                expect.any(String)
+            // tryParseJSON logs via logger.warn internally
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Failed to parse JSON')
             );
         });
     });
@@ -506,7 +506,8 @@ describe('Player Service', () => {
             const members = await playerService.getTeamMembers('ABC123', 'red');
 
             expect(members).toHaveLength(1);
-            expect(logger.error).toHaveBeenCalled();
+            // tryParseJSON logs via logger.warn internally
+            expect(logger.warn).toHaveBeenCalled();
         });
     });
 
@@ -551,7 +552,8 @@ describe('Player Service', () => {
             const players = await playerService.getPlayersInRoom('ABC123');
 
             expect(players).toHaveLength(1);
-            expect(logger.error).toHaveBeenCalled();
+            // tryParseJSON logs via logger.warn internally
+            expect(logger.warn).toHaveBeenCalled();
         });
 
         test('logs slow queries', async () => {

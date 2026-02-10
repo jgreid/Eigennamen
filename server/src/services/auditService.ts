@@ -8,6 +8,12 @@
 
 const logger = require('../utils/logger');
 const { getRedis, isUsingMemoryMode } = require('../config/redis');
+const { tryParseJSON } = require('../utils/parseJSON');
+const { z } = require('zod');
+
+// Minimal Zod schema for audit log entry validation.
+// Only validates it's a JSON object (not a primitive or array).
+const auditLogEntrySchema = z.record(z.unknown());
 
 /**
  * Severity levels for audit events
@@ -261,13 +267,9 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
         } else {
             const redis: RedisClient = getRedis();
             const logs = await redis.lRange(key, 0, limit - 1);
-            parsed = logs.map(log => {
-                try {
-                    return JSON.parse(log) as AuditLogEntry;
-                } catch {
-                    return null;
-                }
-            }).filter((entry): entry is AuditLogEntry => entry !== null);
+            parsed = logs.map(log =>
+                tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null
+            ).filter((entry): entry is AuditLogEntry => entry !== null);
         }
 
         // Filter by severity if specified

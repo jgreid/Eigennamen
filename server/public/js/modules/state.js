@@ -186,7 +186,8 @@ export const state = {
     lastRevealedIndex: -1,
     lastRevealedWasCorrect: false,
     pendingUIUpdate: false,
-    isRevealingCard: false,
+    isRevealingCard: false,          // legacy boolean kept for backward compat
+    revealingCards: new Set(),        // Per-card reveal tracking (Set of indices)
 
     // Copy button
     copyButtonTimeoutId: null,

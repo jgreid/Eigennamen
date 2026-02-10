@@ -2,6 +2,7 @@
 // Color blind mode, keyboard shortcuts, and screen reader helpers
 
 import { state } from './state.js';
+import { safeGetItem, safeSetItem } from './utils.js';
 
 const CB_STORAGE_KEY = 'codenames-colorblind';
 const KB_STORAGE_KEY = 'codenames-keyboard-shortcuts';
@@ -9,7 +10,7 @@ const KB_STORAGE_KEY = 'codenames-keyboard-shortcuts';
 // ========== COLOR BLIND MODE ==========
 
 export function initColorBlindMode() {
-    const enabled = localStorage.getItem(CB_STORAGE_KEY) === 'true';
+    const enabled = safeGetItem(CB_STORAGE_KEY) === 'true';
     applyColorBlindMode(enabled);
 
     const checkbox = document.getElementById('pref-colorblind');
@@ -17,7 +18,7 @@ export function initColorBlindMode() {
         checkbox.checked = enabled;
         checkbox.addEventListener('change', () => {
             applyColorBlindMode(checkbox.checked);
-            localStorage.setItem(CB_STORAGE_KEY, checkbox.checked.toString());
+            safeSetItem(CB_STORAGE_KEY, checkbox.checked.toString());
         });
     }
 }

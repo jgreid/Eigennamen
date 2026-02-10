@@ -368,21 +368,24 @@ export function revealCard(index) {
 
     // In multiplayer mode, send reveal to server and let it broadcast
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
-        // Prevent double-click while waiting for server response
-        if (state.isRevealingCard) {
+        // Prevent double-click on same card while waiting for server response
+        if (state.revealingCards.has(index)) {
             return;
         }
-        state.isRevealingCard = true;
+        state.revealingCards.add(index);
+        state.isRevealingCard = state.revealingCards.size > 0;
 
-        // Safety timeout: if server doesn't respond within 10s, clear the flag
-        // to prevent permanently stuck UI state
-        clearTimeout(state._revealTimeoutId);
-        state._revealTimeoutId = setTimeout(() => {
-            if (state.isRevealingCard) {
-                state.isRevealingCard = false;
-                document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+        // Per-card safety timeout: if server doesn't respond within 10s,
+        // clear only this card's pending state (not all cards)
+        const timeoutId = setTimeout(() => {
+            if (state.revealingCards.has(index)) {
+                state.revealingCards.delete(index);
+                state.isRevealingCard = state.revealingCards.size > 0;
+                const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
+                if (pendingCard) pendingCard.classList.remove('revealing');
             }
         }, 10000);
+        state[`_revealTimeout_${index}`] = timeoutId;
 
         // Add visual feedback - show card as "pending"
         const card = document.querySelector(`.card[data-index="${index}"]`);
@@ -462,6 +465,11 @@ export function revealCard(index) {
  * @param {Object} serverData - Data from server including currentTurn, scores, etc.
  */
 export function revealCardFromServer(index, serverData = {}) {
+    // Bounds check: reject invalid index to prevent array growth from malformed server data
+    if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
+        console.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
+        return;
+    }
     if (state.gameState.revealed[index]) return; // Already revealed
 
     state.gameState.revealed[index] = true;

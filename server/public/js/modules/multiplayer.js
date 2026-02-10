@@ -618,12 +618,18 @@ export function setupMultiplayerListeners() {
     });
 
     CodenamesClient.on('cardRevealed', (data) => {
-        // Clear reveal-in-progress flag and safety timeout
-        state.isRevealingCard = false;
-        clearTimeout(state._revealTimeoutId);
+        // Clear per-card reveal tracking for the revealed card
+        if (data.index !== undefined) {
+            state.revealingCards.delete(data.index);
+            clearTimeout(state[`_revealTimeout_${data.index}`]);
+        }
+        state.isRevealingCard = state.revealingCards.size > 0;
 
-        // Remove pending visual state from all cards
-        document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+        // Remove pending visual state from the revealed card
+        if (data.index !== undefined) {
+            const card = document.querySelector(`.card[data-index="${data.index}"]`);
+            if (card) card.classList.remove('revealing');
+        }
 
         if (data.index !== undefined) {
             revealCardFromServer(data.index, data);
@@ -1099,6 +1105,7 @@ export function setupMultiplayerListeners() {
         }
 
         // Clear any in-progress flags
+        state.revealingCards.clear();
         state.isRevealingCard = false;
         state.isChangingRole = false;
         state.changingTarget = null;
@@ -1267,6 +1274,7 @@ function resetMultiplayerState() {
     state.pendingRoleChange = null;
     state.roleChangeOperationId = null;
     state.roleChangeRevertFn = null;
+    state.revealingCards.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
     state.gameState.currentClue = null;
@@ -1337,17 +1345,17 @@ export function syncGameStateFromServer(serverGame) {
         state.gameState.types = serverGame.types || [];
         state.gameState.revealed = serverGame.revealed || [];
 
-        // Use server-provided scores if available
-        if (typeof serverGame.redScore === 'number') {
+        // Use server-provided scores if available, with range validation
+        if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
             state.gameState.redScore = serverGame.redScore;
         }
-        if (typeof serverGame.blueScore === 'number') {
+        if (typeof serverGame.blueScore === 'number' && serverGame.blueScore >= 0 && serverGame.blueScore <= MAX_BOARD_SIZE) {
             state.gameState.blueScore = serverGame.blueScore;
         }
-        if (typeof serverGame.redTotal === 'number') {
+        if (typeof serverGame.redTotal === 'number' && serverGame.redTotal >= 0 && serverGame.redTotal <= MAX_BOARD_SIZE) {
             state.gameState.redTotal = serverGame.redTotal;
         }
-        if (typeof serverGame.blueTotal === 'number') {
+        if (typeof serverGame.blueTotal === 'number' && serverGame.blueTotal >= 0 && serverGame.blueTotal <= MAX_BOARD_SIZE) {
             state.gameState.blueTotal = serverGame.blueTotal;
         }
     }
@@ -1611,6 +1619,9 @@ export function updateRoomStats(stats) {
 
 // PHASE 4: Handle spectator chat messages
 function handleSpectatorChatMessage(data) {
+    // Validate message data before rendering into DOM
+    if (!data || typeof data.message !== 'string') return;
+
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
 

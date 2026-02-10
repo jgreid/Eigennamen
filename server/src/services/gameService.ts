@@ -52,6 +52,20 @@ const {
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { toEnglishUpperCase, localeIncludes } = require('../utils/sanitize');
 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
+const { tryParseJSON } = require('../utils/parseJSON');
+const { z } = require('zod');
+
+// Minimal Zod schema for GameState deserialization validation.
+// Only requires `id` to distinguish valid game data from garbage.
+// Uses .passthrough() to tolerate sparse mocks and optional fields.
+const gameStateSchema = z.object({
+    id: z.string(),
+}).passthrough();
+
+// Lightweight schema for duet-mode pre-check (only need gameMode field)
+const gameModePreCheckSchema = z.object({
+    gameMode: z.string().optional(),
+}).passthrough();
 
 // Result types imported from ../types (single source of truth)
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
@@ -546,26 +560,20 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
     const gameData = await redis.get(`room:${roomCode}:game`);
     if (!gameData) return null;
 
-    try {
-        return JSON.parse(gameData) as GameState;
-    } catch (error) {
-        logger.error(`Corrupted game data for room ${roomCode}:`, (error as Error).message);
+    const game = tryParseJSON(gameData, gameStateSchema, `game state for ${roomCode}`) as GameState | null;
+    if (!game) {
+        logger.error(`Corrupted game data for room ${roomCode}`);
         // Delete corrupted data to allow recovery
         await redis.del(`room:${roomCode}:game`);
-        return null;
     }
+    return game;
 }
 
 /**
  * Safely parse game data with error handling
  */
 function safeParseGameData(gameData: string, roomCode: string): GameState | null {
-    try {
-        return JSON.parse(gameData) as GameState;
-    } catch (error) {
-        logger.error(`Corrupted game data for room ${roomCode}:`, (error as Error).message);
-        return null;
-    }
+    return tryParseJSON(gameData, gameStateSchema, `game state for ${roomCode}`) as GameState | null;
 }
 
 /**
@@ -1224,7 +1232,7 @@ export async function giveClue(
 
     // Check if Duet mode - skip Lua for Duet games
     const preCheckData = await redis.get(gameKey);
-    const isDuetGame = preCheckData && preCheckData.includes('"gameMode":"duet"');
+    const isDuetGame = preCheckData ? tryParseJSON(preCheckData, gameModePreCheckSchema, `duet pre-check for ${roomCode}`)?.gameMode === 'duet' : false;
 
     if (!isDuetGame) {
         // Try optimized Lua script first (classic/blitz only)
@@ -1434,7 +1442,7 @@ export async function endTurn(
     const redis: RedisClient = getRedis();
     const gameKey = `room:${roomCode}:game`;
     const preCheckData = await redis.get(gameKey);
-    const isDuetGame = preCheckData && preCheckData.includes('"gameMode":"duet"');
+    const isDuetGame = preCheckData ? tryParseJSON(preCheckData, gameModePreCheckSchema, `duet pre-check for ${roomCode}`)?.gameMode === 'duet' : false;
 
     if (!isDuetGame) {
         // Try optimized Lua script first (classic/blitz only)

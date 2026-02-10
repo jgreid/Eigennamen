@@ -12,6 +12,33 @@ const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } = require('../config/constants');
 const { ServerError, ValidationError } = require('../errors/GameError');
+const { tryParseJSON, parseJSON } = require('../utils/parseJSON');
+const { z } = require('zod');
+
+// Minimal Zod schemas for Redis deserialization validation.
+// All use .passthrough() to tolerate optional/extra fields and sparse test mocks.
+// Only require the minimum fields that distinguish valid data from garbage.
+const playerSchema = z.object({
+    sessionId: z.string(),
+}).passthrough();
+
+const luaResultSchema = z.object({
+    success: z.boolean(),
+}).passthrough();
+
+const cleanupEntrySchema = z.object({
+    sessionId: z.string(),
+    roomCode: z.string(),
+});
+
+const reconnectionTokenSchema = z.object({
+    sessionId: z.string(),
+    roomCode: z.string(),
+}).passthrough();
+
+const hostTransferResultSchema = z.object({
+    success: z.boolean(),
+}).passthrough();
 
 /**
  * Player update data
@@ -172,12 +199,7 @@ export async function getPlayer(sessionId: string): Promise<Player | null> {
     const redis: RedisClient = getRedis();
     const playerData = await redis.get(`player:${sessionId}`);
     if (!playerData) return null;
-    try {
-        return JSON.parse(playerData) as Player;
-    } catch (e) {
-        logger.error(`Failed to parse player data for ${sessionId}:`, (e as Error).message);
-        return null;
-    }
+    return tryParseJSON(playerData, playerSchema, `player ${sessionId}`) as Player | null;
 }
 
 /**
@@ -201,10 +223,8 @@ export async function updatePlayer(
             throw new ServerError('Player not found');
         }
 
-        let player: Player;
-        try {
-            player = JSON.parse(playerData) as Player;
-        } catch {
+        const player = tryParseJSON(playerData, playerSchema, `player ${sessionId}`) as Player | null;
+        if (!player) {
             await redis.unwatch();
             throw new ServerError('Corrupted player data');
         }
@@ -296,7 +316,7 @@ export async function setTeam(
     }
 
     try {
-        const parsed = JSON.parse(result) as { success: boolean; reason?: string; player?: Player };
+        const parsed = parseJSON(result, luaResultSchema, `setTeam lua for ${sessionId}`) as { success: boolean; reason?: string; player?: Player };
 
         if (parsed.success === false) {
             if (parsed.reason === 'TEAM_WOULD_BE_EMPTY') {
@@ -376,7 +396,7 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
     }
 
     try {
-        const parsed = JSON.parse(result) as { success: boolean; reason?: string; existingNickname?: string; player?: Player };
+        const parsed = parseJSON(result, luaResultSchema, `setRole lua for ${sessionId}`) as { success: boolean; reason?: string; existingNickname?: string; player?: Player };
 
         if (parsed.success === false) {
             if (parsed.reason === 'ROLE_TAKEN') {
@@ -440,8 +460,8 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
         const playerData = playerDataArray[i];
         const currentSessionId = sessionIds[i];
         if (playerData && currentSessionId) {
-            try {
-                const player = JSON.parse(playerData) as Player;
+            const player = tryParseJSON(playerData, playerSchema, `player ${currentSessionId}`) as Player | null;
+            if (player) {
                 // Verify player is still on this team (consistency check)
                 if (player.team === team) {
                     players.push(player);
@@ -449,8 +469,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
                     // Player changed teams but set wasn't updated - clean up
                     orphanedIds.push(currentSessionId);
                 }
-            } catch (e) {
-                logger.error(`Failed to parse player data for ${currentSessionId}:`, (e as Error).message);
+            } else {
                 orphanedIds.push(currentSessionId);
             }
         } else if (currentSessionId) {
@@ -511,11 +530,10 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
         const playerData = playerDataArray[i];
         const currentSessionId = sessionIds[i];
         if (playerData && currentSessionId) {
-            try {
-                const player = JSON.parse(playerData) as Player;
+            const player = tryParseJSON(playerData, playerSchema, `player ${currentSessionId}`) as Player | null;
+            if (player) {
                 players.push(player);
-            } catch (e) {
-                logger.error(`Failed to parse player data for ${currentSessionId}:`, (e as Error).message);
+            } else {
                 orphanedSessionIds.push(currentSessionId);
             }
         } else if (currentSessionId) {
@@ -693,7 +711,7 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
         let cleanedUp = 0;
         for (const entry of toCleanup) {
             try {
-                const { sessionId, roomCode } = JSON.parse(entry) as { sessionId: string; roomCode: string };
+                const { sessionId, roomCode } = parseJSON(entry, cleanupEntrySchema, 'cleanup entry');
 
                 // Check if player reconnected
                 const player = await getPlayer(sessionId);
@@ -890,11 +908,8 @@ export async function validateRoomReconnectToken(
         return { valid: false, reason: 'TOKEN_EXPIRED_OR_INVALID' };
     }
 
-    let tokenData: ReconnectionTokenData;
-    try {
-        tokenData = JSON.parse(tokenDataStr) as ReconnectionTokenData;
-    } catch (e) {
-        logger.error('Failed to parse reconnection token data', { sessionId, error: (e as Error).message });
+    const tokenData = tryParseJSON(tokenDataStr, reconnectionTokenSchema, `reconnection token for ${sessionId}`) as ReconnectionTokenData | null;
+    if (!tokenData) {
         return { valid: false, reason: 'TOKEN_CORRUPTED' };
     }
 
@@ -1032,7 +1047,7 @@ export async function atomicHostTransfer(
             return { success: false, reason: 'SCRIPT_FAILED' };
         }
 
-        const parsed = JSON.parse(result) as HostTransferResult;
+        const parsed = parseJSON(result, hostTransferResultSchema, `host transfer in ${roomCode}`) as HostTransferResult;
 
         if (parsed.success) {
             logger.info(`Host transferred from ${oldHostSessionId} to ${newHostSessionId} in room ${roomCode}`);
