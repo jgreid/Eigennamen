@@ -89,6 +89,15 @@ export const CONNECTION = {
 };
 
 /**
+ * Reserved nicknames (case-insensitive) - must match server RESERVED_NAMES
+ */
+export const RESERVED_NAMES = [
+    'admin', 'administrator', 'system', 'host', 'server',
+    'mod', 'moderator', 'bot', 'codenames', 'game',
+    'official', 'support', 'help', 'null', 'undefined'
+];
+
+/**
  * Validate a nickname against constraints
  * @param {string} nickname - Nickname to validate
  * @returns {Object} { valid: boolean, error: string|null }
@@ -106,6 +115,10 @@ export function validateNickname(nickname) {
 
     if (trimmed.length > VALIDATION.NICKNAME_MAX_LENGTH) {
         return { valid: false, error: `Nickname must be ${VALIDATION.NICKNAME_MAX_LENGTH} characters or less` };
+    }
+
+    if (RESERVED_NAMES.includes(trimmed.toLowerCase())) {
+        return { valid: false, error: 'This nickname is reserved' };
     }
 
     return { valid: true, error: null };
