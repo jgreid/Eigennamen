@@ -10,6 +10,29 @@ const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 const { TIMER, REDIS_TTL } = require('../config/constants');
+const { tryParseJSON } = require('../utils/parseJSON');
+const { z } = require('zod');
+
+// Zod schema for runtime validation of timer state from Redis.
+// Uses passthrough() to tolerate additional fields, and makes instanceId
+// optional to handle data from older server versions or tests.
+const timerStateSchema = z.object({
+    roomCode: z.string(),
+    startTime: z.number(),
+    endTime: z.number(),
+    duration: z.number(),
+    instanceId: z.string().optional(),
+    paused: z.boolean().optional(),
+    remainingWhenPaused: z.number().optional(),
+    pausedAt: z.number().optional()
+}).passthrough();
+
+// Zod schema for Lua script addTime result
+const addTimeResultSchema = z.object({
+    endTime: z.number(),
+    duration: z.number(),
+    remainingSeconds: z.number()
+});
 
 /**
  * Timer state stored in Redis
@@ -246,7 +269,8 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
     }
 
     try {
-        const timer = JSON.parse(timerData) as TimerState;
+        const timer = tryParseJSON(timerData, timerStateSchema, `timer status for ${roomCode}`);
+        if (!timer) return null;
         const now = Date.now();
 
         // FIX M9: Account for paused state in timer status
@@ -297,7 +321,8 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
     const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
     if (timerData) {
         try {
-            const timer = JSON.parse(timerData) as TimerState;
+            const timer = tryParseJSON(timerData, timerStateSchema, `timer pause for ${roomCode}`);
+            if (!timer) return null;
             timer.paused = true;
             timer.remainingWhenPaused = remainingSeconds;
             // HARDENING FIX: Store when the timer was paused to detect expiration while paused
@@ -337,7 +362,8 @@ export async function resumeTimer(
     }
 
     try {
-        const timer = JSON.parse(timerData) as TimerState;
+        const timer = tryParseJSON(timerData, timerStateSchema, `timer resume for ${roomCode}`);
+        if (!timer) return null;
         if (!timer.paused) {
             return null;
         }
@@ -434,7 +460,8 @@ async function addTimeLocal(
     }
 
     try {
-        const newTimer = JSON.parse(result) as { endTime: number; duration: number; remainingSeconds: number };
+        const newTimer = tryParseJSON(result, addTimeResultSchema, `addTime result for ${roomCode}`);
+        if (!newTimer) return null;
 
         // Update local timer if we own it
         const localTimer = localTimers.get(roomCode);

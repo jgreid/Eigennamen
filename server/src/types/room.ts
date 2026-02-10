@@ -20,7 +20,7 @@ export interface TeamNames {
 /**
  * Game mode type
  */
-export type GameMode = 'classic' | 'blitz';
+export type GameMode = 'classic' | 'blitz' | 'duet';
 
 /**
  * Room settings that can be configured

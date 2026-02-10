@@ -374,6 +374,16 @@ export function revealCard(index) {
         }
         state.isRevealingCard = true;
 
+        // Safety timeout: if server doesn't respond within 10s, clear the flag
+        // to prevent permanently stuck UI state
+        clearTimeout(state._revealTimeoutId);
+        state._revealTimeoutId = setTimeout(() => {
+            if (state.isRevealingCard) {
+                state.isRevealingCard = false;
+                document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+            }
+        }, 10000);
+
         // Add visual feedback - show card as "pending"
         const card = document.querySelector(`.card[data-index="${index}"]`);
         if (card) {

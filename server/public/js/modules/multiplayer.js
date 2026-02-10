@@ -618,8 +618,9 @@ export function setupMultiplayerListeners() {
     });
 
     CodenamesClient.on('cardRevealed', (data) => {
-        // Clear reveal-in-progress flag
+        // Clear reveal-in-progress flag and safety timeout
         state.isRevealingCard = false;
+        clearTimeout(state._revealTimeoutId);
 
         // Remove pending visual state from all cards
         document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
@@ -1072,12 +1073,18 @@ export function setupMultiplayerListeners() {
         // Import dynamically to avoid circular dependency
         import('./history.js').then(({ renderGameHistory }) => {
             renderGameHistory(data.games || []);
+        }).catch(err => {
+            console.error('Failed to load history module:', err);
+            showToast('Could not load game history', 'error');
         });
     });
 
     CodenamesClient.on('replayData', (data) => {
         import('./history.js').then(({ renderReplayData }) => {
             renderReplayData(data);
+        }).catch(err => {
+            console.error('Failed to load history module:', err);
+            showToast('Could not load replay data', 'error');
         });
     });
 
@@ -1175,14 +1182,16 @@ export function setupMultiplayerListeners() {
         }
     });
 
-    // Game mode radio button change handler
+    // Game mode radio button change handler — track for cleanup
     const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
     gameModeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
+        const handler = (e) => {
             if (!CodenamesClient?.player?.isHost) return;
             const gameMode = e.target.value;
             CodenamesClient.updateSettings({ gameMode });
-        });
+        };
+        radio.addEventListener('change', handler);
+        domListenerCleanup.push({ element: radio, event: 'change', handler });
     });
 
     // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
@@ -1304,6 +1313,13 @@ export function leaveMultiplayerMode() {
  */
 export function syncGameStateFromServer(serverGame) {
     if (!serverGame) return;
+
+    // Bounds validation: reject obviously corrupted server data
+    const MAX_BOARD_SIZE = 100; // Generous upper bound (standard is 25)
+    if (serverGame.words && Array.isArray(serverGame.words) && serverGame.words.length > MAX_BOARD_SIZE) {
+        console.error(`syncGameStateFromServer: rejected oversized words array (${serverGame.words.length})`);
+        return;
+    }
 
     // Server sends arrays: words, types, revealed (not a board object)
     if (serverGame.words && Array.isArray(serverGame.words)) {

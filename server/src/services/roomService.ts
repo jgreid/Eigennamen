@@ -34,6 +34,15 @@ const {
     GAME_MODE_CONFIG
 } = require('../config/constants');
 const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
+const { tryParseJSON } = require('../utils/parseJSON');
+const { z } = require('zod');
+
+// Zod schema for Room data from Redis.
+// Validates minimum structural integrity (must be an object with a code string).
+// Uses passthrough() to preserve all fields — the Room type is enforced at call sites.
+const roomSchema = z.object({
+    code: z.string()
+}).passthrough();
 
 /**
  * Redis client type (simplified for migration)
@@ -235,12 +244,7 @@ export async function getRoom(roomId: string): Promise<Room | null> {
         return null;
     }
 
-    try {
-        return JSON.parse(roomData) as Room;
-    } catch (e) {
-        logger.error(`Failed to parse room data for ${roomId}:`, (e as Error).message);
-        return null;
-    }
+    return tryParseJSON(roomData, roomSchema, `room ${roomId}`) as Room | null;
 }
 
 /**

@@ -623,6 +623,9 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
                 break;
 
             default:
+                // Log unrecognized entry types so new types are caught early.
+                // Still pass through all data for forward compatibility.
+                logger.warn(`Unrecognized game history entry type: ${(entry as { type?: string }).type}`);
                 event.data = entry as unknown as Record<string, unknown>;
         }
 

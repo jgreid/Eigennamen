@@ -91,9 +91,9 @@ function createTimerExpireCallback(
                         // Use centralized lock TTL from config
                         lockValue = `${process.pid}:${Date.now()}`;
                         const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.TIMER_RESTART });
-                        // Redis SET with NX returns 'OK' on success or null on failure
-                        // Some Redis client versions may return boolean, so we check for truthy value
-                        lockAcquired = lockResult === 'OK' || (lockResult as unknown) === true || !!lockResult;
+                        // Redis SET with NX returns 'OK' (node-redis v4) or null on failure.
+                        // MemoryStorage also returns 'OK'. Check for any truthy value for safety.
+                        lockAcquired = lockResult === 'OK' || !!lockResult;
 
                         if (!lockAcquired) {
                             logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`, {
@@ -249,9 +249,9 @@ async function handleDisconnect(
                     // Use centralized lock TTL from config with unique value for owner-verified release
                     hostLockValue = `${socket.sessionId}:${Date.now()}`;
                     const lockResult = await redis.set(lockKey, hostLockValue, { NX: true, EX: LOCKS.HOST_TRANSFER });
-                    // Redis SET with NX returns 'OK' on success or null on failure
-                    // Some Redis client versions may return boolean, so we check for truthy value
-                    hostTransferLockAcquired = lockResult === 'OK' || (lockResult as unknown) === true || !!lockResult;
+                    // Redis SET with NX returns 'OK' (node-redis v4) or null on failure.
+                    // MemoryStorage also returns 'OK'. Check for any truthy value for safety.
+                    hostTransferLockAcquired = lockResult === 'OK' || !!lockResult;
 
                     if (hostTransferLockAcquired) {
                         // HARDENING FIX: Re-check if the disconnected host has reconnected
