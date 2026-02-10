@@ -231,7 +231,8 @@ async function handleJoinGame() {
         } else if (error.code === 'ROOM_FULL') {
             setMpStatus('Room is full', 'error');
         } else if (error.code === 'INVALID_INPUT') {
-            setMpStatus('Invalid Room ID format', 'error');
+            // Show actual server validation message (could be room ID or nickname issue)
+            setMpStatus(error.message || 'Invalid input - check Room ID and nickname', 'error');
         } else if (error.message?.includes('connect')) {
             setMpStatus('Could not connect to server', 'error');
         } else {
@@ -291,9 +292,10 @@ async function handleCreateGame() {
             return;
         }
 
-        // Create room with roomId
+        // Create room with normalized roomId (consistent with join flow and server-side normalization)
+        const normalizedRoomId = roomId.toLowerCase();
         const result = await CodenamesClient.createRoom({
-            roomId: roomId,
+            roomId: normalizedRoomId,
             nickname: nickname
         });
 

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && cp -r src/scripts dist/scripts",
     "build:check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
