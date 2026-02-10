@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.build.json && cp -r src/scripts dist/scripts",
     "build:check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "prebuild": "npm run clean",
+    "prebuild": "npm run clean && npm run typecheck",
     "test": "jest --config jest.config.ts.js",
     "test:watch": "jest --config jest.config.ts.js --watch",
     "test:coverage": "jest --config jest.config.ts.js --coverage",

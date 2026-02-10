@@ -52,6 +52,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
 // HTTP API rate limits
 export const API_RATE_LIMITS = {
     GENERAL: { window: 60000, max: 100 },        // 100 per minute
+    ROOM_EXISTS: { window: 60000, max: 30 },     // 30 per minute (prevents room enumeration)
     WORD_LIST_CREATE: { window: 60000, max: 10 }, // 10 per minute
     ADMIN: { window: 60000, max: 30 }            // 30 per minute for admin endpoints
 } as const;

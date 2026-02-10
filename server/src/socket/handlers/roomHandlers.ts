@@ -247,18 +247,28 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             // FIX: Run stats fetch, token invalidation, and game state computation in parallel
             // to reduce total response time and avoid pushing past the client's timeout
+            let statsUsedFallback = false;
             const [, roomStats, gameState] = await Promise.all([
                 playerService.invalidateReconnectionToken(socket.sessionId).catch((err: Error) => {
                     logger.warn(`Failed to invalidate reconnection token during join: ${err.message}`);
                 }),
                 playerService.getRoomStats(room.code).catch((err: Error) => {
                     logger.warn(`Failed to get room stats during join: ${err.message}`);
+                    statsUsedFallback = true;
                     return { totalPlayers: players.length, spectatorCount: 0, teams: { red: { total: 0, spymaster: null, clicker: null }, blue: { total: 0, spymaster: null, clicker: null } } } as RoomStats;
                 }),
                 Promise.resolve(game ? gameService.getGameStateForPlayer(game, player) : null)
             ]) as [void, RoomStats, PlayerGameState | null];
 
             socket.emit(SOCKET_EVENTS.ROOM_JOINED, { room, players, game: gameState, you: player, stats: roomStats });
+
+            // Notify client if stats used fallback data so it can request resync
+            if (statsUsedFallback) {
+                socket.emit(SOCKET_EVENTS.ROOM_WARNING, {
+                    code: 'STATS_STALE',
+                    message: 'Room stats may be incomplete. Request a resync if data looks wrong.'
+                });
+            }
 
             await Promise.all([
                 sendSpymasterViewIfNeeded(socket, player, game, room.code),

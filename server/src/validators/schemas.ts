@@ -11,7 +11,7 @@
 import type { z as ZodType } from 'zod';
 
 const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES } = require('../config/constants');
+const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES, TIMER } = require('../config/constants');
 const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
 
 // Re-export z for external use
@@ -81,7 +81,7 @@ const roomCreateSchema = z.object({
             red: createTeamNameSchema().default('Red'),
             blue: createTeamNameSchema().default('Blue')
         }).optional(),
-        turnTimer: z.number().int().min(30).max(300).nullable().optional(),
+        turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
         gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional().default('classic'),
@@ -99,7 +99,7 @@ const roomSettingsSchema = z.object({
         red: createTeamNameSchema(),
         blue: createTeamNameSchema()
     }).optional(),
-    turnTimer: z.number().int().min(30).max(300).nullable().optional(),
+    turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
     allowSpectators: z.boolean().optional(),
     gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional()
 });

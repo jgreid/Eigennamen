@@ -2,7 +2,7 @@
 // All multiplayer functionality
 
 import { state } from './state.js';
-import { escapeHTML, safeGetItem, safeSetItem } from './utils.js';
+import { escapeHTML, safeGetItem, safeSetItem, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { revealCardFromServer, showGameOver, updateScoreboard, updateTurnIndicator } from './game.js';
@@ -130,6 +130,8 @@ function setMpError(message) {
 
 export async function handleMpAction() {
     const actionBtn = document.getElementById('btn-mp-action');
+    if (!actionBtn) return;
+
     const originalText = actionBtn.textContent;
     actionBtn.disabled = true;
     actionBtn.textContent = state.currentMpMode === 'join' ? 'Joining...' : 'Creating...';
@@ -145,6 +147,7 @@ export async function handleMpAction() {
         console.error('Multiplayer action failed:', error);
         setMpStatus(error.message || 'Connection failed', 'error');
     } finally {
+        // Always restore button state, even on unexpected errors or early returns
         actionBtn.disabled = false;
         actionBtn.textContent = originalText;
         actionBtn.classList.remove('loading');
@@ -334,6 +337,13 @@ async function handleCreateGame() {
 }
 
 export function onMultiplayerJoined(result, isHostParam = false) {
+    // Detect room change and reset stale state
+    const newRoomCode = result.room?.code;
+    if (state.currentRoomId && newRoomCode && state.currentRoomId !== newRoomCode) {
+        // Switching rooms - clear stale state from previous room
+        resetMultiplayerState();
+    }
+
     state.isMultiplayerMode = true;
     safeSetItem('codenames-nickname', CodenamesClient.player?.nickname || '');
 
@@ -481,41 +491,32 @@ export function updateSharePanelMode(isMultiplayer, roomCode = null) {
 }
 
 // Copy room code to clipboard
-export function copyRoomCode() {
+export async function copyRoomCode() {
     const roomCode = document.getElementById('share-room-code')?.textContent;
     const feedback = document.getElementById('room-code-copy-feedback');
 
     if (!roomCode || roomCode === '----') return;
 
-    navigator.clipboard.writeText(roomCode).then(() => {
+    const copied = await copyToClipboard(roomCode);
+    if (copied) {
         if (feedback) {
             feedback.textContent = 'Room code copied!';
             setTimeout(() => { feedback.textContent = ''; }, 2000);
         }
         showToast('Room code copied to clipboard');
-    }).catch(() => {
-        // Fallback for older browsers
-        const tempInput = document.createElement('input');
-        tempInput.value = roomCode;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempInput);
-        if (feedback) {
-            feedback.textContent = 'Room code copied!';
-            setTimeout(() => { feedback.textContent = ''; }, 2000);
-        }
-        showToast('Room code copied to clipboard');
-    });
+    } else {
+        showToast('Failed to copy - please copy manually', 'warning');
+    }
 }
 
-export function copyRoomId() {
+export async function copyRoomId() {
     if (state.currentRoomId) {
-        navigator.clipboard.writeText(state.currentRoomId).then(() => {
+        const copied = await copyToClipboard(state.currentRoomId);
+        if (copied) {
             showToast('Room ID copied!', 'success', 2000);
-        }).catch(() => {
+        } else {
             showToast('Failed to copy', 'error', 2000);
-        });
+        }
     }
 }
 
@@ -594,6 +595,13 @@ export function initPlayerListUI() {
 export function setupMultiplayerListeners() {
     // Game state updates
     CodenamesClient.on('gameStarted', (data) => {
+        // Clear loading state on new game button
+        const newGameBtn = document.getElementById('btn-new-game');
+        if (newGameBtn) {
+            newGameBtn.disabled = false;
+            newGameBtn.classList.remove('loading');
+        }
+
         // Full sync game state from server for new games
         if (data.game) {
             syncGameStateFromServer(data.game);
@@ -881,6 +889,17 @@ export function setupMultiplayerListeners() {
         showToast('Turn time expired!', 'warning');
     });
 
+    // Room warnings (non-fatal issues like stale stats)
+    CodenamesClient.on('roomWarning', (data) => {
+        if (data.code === 'STATS_STALE') {
+            // Auto-request resync to get fresh data
+            CodenamesClient.requestResync().catch(() => {
+                // Resync failed, stats may remain stale - not critical
+                console.warn('Auto-resync after stale stats warning failed');
+            });
+        }
+    });
+
     // Room resync (state recovery)
     CodenamesClient.on('roomResynced', (data) => {
         // Sync current player's state from server response
@@ -926,6 +945,9 @@ export function setupMultiplayerListeners() {
         // Hide reconnection overlay
         hideReconnectionOverlay();
 
+        // Detect significant state changes during offline
+        const changes = detectOfflineChanges(data);
+
         // Sync current player's state after auto-rejoin
         const currentPlayer = data?.you || CodenamesClient.player;
         if (currentPlayer) {
@@ -948,13 +970,20 @@ export function setupMultiplayerListeners() {
         updateRoleBanner();
         updateForfeitButton();
 
-        showToast('Reconnected!', 'success');
+        if (changes.length > 0) {
+            showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
+        } else {
+            showToast('Reconnected!', 'success');
+        }
     });
 
     // Handle token-based reconnection
     CodenamesClient.on('roomReconnected', (data) => {
         // Hide reconnection overlay
         hideReconnectionOverlay();
+
+        // Detect significant state changes during offline
+        const changes = detectOfflineChanges(data);
 
         // Sync current player's state after token-based reconnection
         const currentPlayer = data?.you || CodenamesClient.player;
@@ -978,7 +1007,11 @@ export function setupMultiplayerListeners() {
         updateRoleBanner();
         updateForfeitButton();
 
-        showToast('Reconnected!', 'success');
+        if (changes.length > 0) {
+            showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
+        } else {
+            showToast('Reconnected!', 'success');
+        }
     });
 
     CodenamesClient.on('rejoinFailed', (data) => {
@@ -1159,7 +1192,7 @@ const multiplayerEventNames = [
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
     'roomReconnected', 'disconnected', 'rejoining', 'rejoined', 'rejoinFailed', 'error',
     'kicked', 'playerKicked', 'settingsUpdated',
-    'hostChanged',  // Added missing event
+    'hostChanged', 'roomWarning',
     'historyResult', 'replayData',
     // PHASE 4 FIX: Add spectator-related events
     'statsUpdated', 'spectatorChatMessage'
@@ -1196,6 +1229,28 @@ export function cleanupMultiplayerListeners() {
     state.multiplayerListenersSetup = false;
 }
 
+/**
+ * Reset all multiplayer-related state (team, role, clicker flags, game state).
+ * Called on room change and disconnect to prevent stale data.
+ */
+function resetMultiplayerState() {
+    state.playerTeam = null;
+    state.spymasterTeam = null;
+    state.clickerTeam = null;
+    state.isHost = false;
+    state.isChangingRole = false;
+    state.changingTarget = null;
+    state.pendingRoleChange = null;
+    state.roleChangeOperationId = null;
+    state.roleChangeRevertFn = null;
+    state.isRevealingCard = false;
+    state.multiplayerPlayers = [];
+    state.gameState.currentClue = null;
+    state.gameState.guessesUsed = 0;
+    state.gameState.guessesAllowed = 0;
+    document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+}
+
 export function leaveMultiplayerMode() {
     // Clean up listeners
     cleanupMultiplayerListeners();
@@ -1215,9 +1270,9 @@ export function leaveMultiplayerMode() {
         CodenamesClient.leaveRoom();
     }
 
-    // Reset state
+    // Reset all multiplayer state (team, role, clicker flags, etc.)
+    resetMultiplayerState();
     state.isMultiplayerMode = false;
-    state.multiplayerPlayers = [];
     state.currentRoomId = null;
 
     // Clear room code from URL
@@ -1701,24 +1756,108 @@ function cancelNicknameEdit() {
     if (editBtn) editBtn.style.display = '';
 }
 
-// ========== RECONNECTION FEEDBACK ==========
+// ========== OFFLINE CHANGE DETECTION ==========
 
 /**
- * Show the reconnection overlay banner
+ * Detect significant state changes that occurred while the player was offline.
+ * Compares server state with local state before syncing.
+ * @param {Object} data - Reconnection data from server
+ * @returns {string[]} Array of change summary strings
+ */
+function detectOfflineChanges(data) {
+    const changes = [];
+
+    if (!data) return changes;
+
+    const serverGame = data.game;
+    const localGame = state.gameState;
+
+    // Game started while offline
+    if (serverGame && serverGame.words?.length > 0 && (!localGame.words || localGame.words.length === 0)) {
+        changes.push('A game was started');
+    }
+
+    // Game ended while offline
+    if (serverGame && serverGame.gameOver && !localGame.gameOver) {
+        const winner = serverGame.winner;
+        if (winner) {
+            const teamName = winner === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue');
+            changes.push(`Game over \u2014 ${teamName} won`);
+        } else {
+            changes.push('Game over');
+        }
+    }
+
+    // Turn changed while offline
+    if (serverGame && serverGame.currentTurn && localGame.currentTurn &&
+        serverGame.currentTurn !== localGame.currentTurn && !serverGame.gameOver) {
+        const teamName = serverGame.currentTurn === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue');
+        changes.push(`Now ${teamName}'s turn`);
+    }
+
+    // Clue given while offline
+    if (serverGame && serverGame.currentClue && !localGame.currentClue) {
+        changes.push(`Clue: ${serverGame.currentClue.word} (${serverGame.currentClue.number})`);
+    }
+
+    // Player count changed
+    if (data.players && state.multiplayerPlayers.length > 0) {
+        const diff = data.players.length - state.multiplayerPlayers.length;
+        if (diff > 0) {
+            changes.push(`${diff} player${diff > 1 ? 's' : ''} joined`);
+        } else if (diff < 0) {
+            changes.push(`${Math.abs(diff)} player${Math.abs(diff) > 1 ? 's' : ''} left`);
+        }
+    }
+
+    return changes;
+}
+
+// ========== RECONNECTION FEEDBACK ==========
+
+// Reconnection overlay timeout ID for cleanup
+let reconnectionTimeoutId = null;
+const RECONNECTION_TIMEOUT_MS = 15000; // 15 seconds before showing failure message
+
+/**
+ * Show the reconnection overlay banner with a timeout fallback.
+ * If reconnection doesn't succeed or explicitly fail within 15 seconds,
+ * the overlay is hidden and a failure toast is shown.
  */
 export function showReconnectionOverlay() {
     const overlay = document.getElementById('reconnection-overlay');
     if (overlay) {
         overlay.style.display = 'block';
     }
+
+    // Clear any existing timeout
+    if (reconnectionTimeoutId) {
+        clearTimeout(reconnectionTimeoutId);
+    }
+
+    // Set a fallback timeout to prevent permanently stuck overlay
+    reconnectionTimeoutId = setTimeout(() => {
+        reconnectionTimeoutId = null;
+        const overlayCheck = document.getElementById('reconnection-overlay');
+        if (overlayCheck && overlayCheck.style.display !== 'none') {
+            hideReconnectionOverlay();
+            showToast('Reconnection failed \u2014 please refresh the page', 'error', 8000);
+        }
+    }, RECONNECTION_TIMEOUT_MS);
 }
 
 /**
- * Hide the reconnection overlay banner
+ * Hide the reconnection overlay banner and clear the timeout fallback
  */
 export function hideReconnectionOverlay() {
     const overlay = document.getElementById('reconnection-overlay');
     if (overlay) {
         overlay.style.display = 'none';
+    }
+
+    // Clear the fallback timeout since reconnection resolved
+    if (reconnectionTimeoutId) {
+        clearTimeout(reconnectionTimeoutId);
+        reconnectionTimeoutId = null;
     }
 }

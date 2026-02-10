@@ -2,7 +2,7 @@
 // Core game logic (reveal, turns, scoring, board setup, URL, QR)
 
 import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, COPY_BUTTON_TEXT } from './state.js';
-import { escapeHTML, hashString, shuffleWithSeed, generateGameSeed, seededRandom, encodeWordsForURL, decodeWordsFromURL } from './utils.js';
+import { escapeHTML, hashString, shuffleWithSeed, generateGameSeed, seededRandom, encodeWordsForURL, decodeWordsFromURL, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader, showErrorModal } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
 import { playNotificationSound } from './notifications.js';
@@ -79,6 +79,17 @@ export function newGame() {
 
     // In multiplayer mode, request new game from server
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+        // Show loading state on new game button
+        const newGameBtn = document.getElementById('btn-new-game');
+        if (newGameBtn) {
+            newGameBtn.disabled = true;
+            newGameBtn.classList.add('loading');
+            // Safety timeout to re-enable button if server doesn't respond
+            setTimeout(() => {
+                newGameBtn.disabled = false;
+                newGameBtn.classList.remove('loading');
+            }, 10000);
+        }
         // Server will generate and broadcast the game to all players
         CodenamesClient.startGame({});
         // Reset local state - will be synced when gameStarted event arrives
@@ -658,13 +669,11 @@ export async function copyLink() {
 
     const urlToCopy = input.value || window.location.href;
 
-    try {
-        await navigator.clipboard.writeText(urlToCopy);
+    const copied = await copyToClipboard(urlToCopy);
+    if (copied) {
         showToast('Link copied to clipboard!', 'success', 3000);
-    } catch (err) {
-        input.select();
-        document.execCommand('copy');
-        showToast('Link copied to clipboard!', 'success', 3000);
+    } else {
+        showToast('Failed to copy - please copy manually', 'warning', 3000);
     }
 
     // Update feedback for both buttons

@@ -1,6 +1,39 @@
 // ========== UTILS MODULE ==========
 // Pure utility functions
 
+/**
+ * Copy text to clipboard using the modern Clipboard API with a
+ * fallback for older browsers or restricted contexts (e.g. HTTP).
+ * @param {string} text - Text to copy
+ * @returns {Promise<boolean>} Resolves true on success
+ */
+export async function copyToClipboard(text) {
+    // Prefer modern Clipboard API (requires HTTPS or localhost)
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            // Fall through to legacy approach
+        }
+    }
+
+    // Legacy fallback using a temporary textarea
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // Sanitize string to prevent XSS when inserting into HTML
 export function escapeHTML(str) {
     const div = document.createElement('div');
@@ -40,10 +73,14 @@ export function shuffleWithSeed(array, seed) {
 }
 
 export function generateGameSeed() {
-    // Use crypto.getRandomValues for better randomness
-    const array = new Uint32Array(2);
-    crypto.getRandomValues(array);
-    return array[0].toString(36) + array[1].toString(36).substring(0, 4);
+    // Feature-detect crypto API with fallback for older browsers / restricted contexts
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const array = new Uint32Array(2);
+        crypto.getRandomValues(array);
+        return array[0].toString(36) + array[1].toString(36).substring(0, 4);
+    }
+    // Fallback: Math.random (less secure but functional)
+    return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
 }
 
 // Compress words for URL (simple encoding)

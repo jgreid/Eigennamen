@@ -35,7 +35,7 @@ export const REDIS_TTL = {
 export const TIMER = {
     DEFAULT_TURN_SECONDS: 120,  // 2 minutes default
     MIN_TURN_SECONDS: 30,
-    MAX_TURN_SECONDS: 300,
+    MAX_TURN_SECONDS: 600,
     WARNING_SECONDS: 30,        // Warn when this many seconds remain
     TIMER_TTL_BUFFER_SECONDS: 60     // Extra TTL buffer for timer keys
 } as const;
@@ -46,7 +46,7 @@ export const TTL = {
     PLAYER_DISCONNECTED: 10 * 60,          // 10 minutes grace period for reconnection
     GAME_STATE: ROOM_TTL_SECONDS,
     EVENT_LOG: 5 * 60,                     // 5 minutes
-    DISTRIBUTED_LOCK: 5,                   // 5 seconds
+    DISTRIBUTED_LOCK: 10,                  // 10 seconds (accounts for high-latency environments)
     SESSION_VALIDATION_WINDOW: 60,         // 1 minute
     PAUSED_TIMER: PAUSED_TIMER_TTL
 } as const;
