@@ -9,7 +9,6 @@
 jest.mock('../services/roomService');
 jest.mock('../services/gameService');
 jest.mock('../services/playerService');
-jest.mock('../services/eventLogService');
 jest.mock('../utils/logger');
 const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
 jest.mock('../socket/rateLimitHandler', () => ({
@@ -43,7 +42,6 @@ jest.mock('../middleware/validation', () => ({
 const roomService = require('../services/roomService');
 const gameService = require('../services/gameService');
 const playerService = require('../services/playerService');
-const eventLogService = require('../services/eventLogService');
 const _logger = require('../utils/logger');
 const { getSocketFunctions } = require('../socket/socketFunctionProvider');
 
@@ -109,14 +107,6 @@ describe('Room Handlers', () => {
             tokenData: { roomCode: 'test-room', sessionId: 'session-1' }
         });
         playerService.updatePlayer.mockResolvedValue();
-
-        eventLogService.logEvent.mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            ROOM_CREATED: 'ROOM_CREATED',
-            PLAYER_JOINED: 'PLAYER_JOINED',
-            PLAYER_LEFT: 'PLAYER_LEFT',
-            SETTINGS_UPDATED: 'SETTINGS_UPDATED'
-        };
 
         // Load handlers
         const roomHandlers = require('../socket/handlers/roomHandlers');

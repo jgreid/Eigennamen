@@ -167,26 +167,6 @@ export interface IGameHistoryService {
 // Event Log Service Types
 // ============================================================================
 
-/**
- * Event log entry
- */
-export interface EventLogEntry {
-  id: string;
-  roomCode: string;
-  eventType: string;
-  payload: Record<string, unknown>;
-  timestamp: number;
-}
-
-/**
- * Event log service interface
- */
-export interface IEventLogService {
-  logEvent(roomCode: string, eventType: string, payload: Record<string, unknown>): Promise<void>;
-  getEvents(roomCode: string, since?: number): Promise<EventLogEntry[]>;
-  clearEvents(roomCode: string): Promise<void>;
-}
-
 // ============================================================================
 // Audit Service Types
 // ============================================================================

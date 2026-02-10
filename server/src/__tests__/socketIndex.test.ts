@@ -74,15 +74,6 @@ jest.mock('../services/playerService', () => ({
     updatePlayer: jest.fn().mockResolvedValue()
 }));
 
-jest.mock('../services/eventLogService', () => ({
-    logEvent: jest.fn().mockResolvedValue(),
-    EVENT_TYPES: {
-        TIMER_EXPIRED: 'TIMER_EXPIRED',
-        PLAYER_DISCONNECTED: 'PLAYER_DISCONNECTED',
-        HOST_CHANGED: 'HOST_CHANGED'
-    }
-}));
-
 // Mock timer service
 jest.mock('../services/timerService', () => ({
     startTimer: jest.fn().mockResolvedValue({

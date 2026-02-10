@@ -12,7 +12,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 // Mock dependencies
 jest.mock('../services/playerService');
 jest.mock('../services/gameService');
-jest.mock('../services/eventLogService');
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -27,8 +26,6 @@ jest.mock('../utils/sanitize', () => ({
 
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
-const eventLogService = require('../services/eventLogService');
-
 describe('Extended Player Handlers Tests', () => {
     let mockSocket;
     let mockIo;
@@ -53,14 +50,6 @@ describe('Extended Player Handlers Tests', () => {
             sockets: {
                 sockets: new Map()
             }
-        };
-
-        eventLogService.logEvent = jest.fn().mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            TEAM_CHANGED: 'TEAM_CHANGED',
-            ROLE_CHANGED: 'ROLE_CHANGED',
-            NICKNAME_CHANGED: 'NICKNAME_CHANGED',
-            PLAYER_LEFT: 'PLAYER_LEFT'
         };
 
         // Default player mock with roomCode for context handler

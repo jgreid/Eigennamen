@@ -2,10 +2,11 @@
  * Logger Configuration Tests
  *
  * Tests meaningful behavior of logger.ts configuration paths:
- * - sanitizeForLog: security-critical input sanitization
  * - level(): environment-based log level selection
  * - loadCorrelationId: graceful fallback when module unavailable
  * - Production mode: file transport error handling
+ *
+ * Note: sanitizeForLog tests are in sanitize.test.ts (the sanitize.ts version)
  */
 
 describe('Logger Configuration', () => {
@@ -14,40 +15,6 @@ describe('Logger Configuration', () => {
     afterEach(() => {
         process.env = { ...originalEnv };
         jest.resetModules();
-    });
-
-    describe('sanitizeForLog', () => {
-        it('should strip control characters from strings', () => {
-            const { sanitizeForLog } = require('../utils/logger');
-            const input = 'hello\x00\x01\x02world\x7F';
-            const result = sanitizeForLog(input);
-            expect(result).toBe('helloworld');
-            expect(result).not.toMatch(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/);
-        });
-
-        it('should escape newlines to prevent log injection', () => {
-            const { sanitizeForLog } = require('../utils/logger');
-            const malicious = 'normal line\nINFO: fake log entry\r\nAnother fake';
-            const result = sanitizeForLog(malicious);
-            expect(result).toBe('normal line\\nINFO: fake log entry\\nAnother fake');
-            expect(result).not.toContain('\n');
-            expect(result).not.toContain('\r');
-        });
-
-        it('should truncate strings longer than 500 characters', () => {
-            const { sanitizeForLog } = require('../utils/logger');
-            const longInput = 'A'.repeat(1000);
-            const result = sanitizeForLog(longInput);
-            expect(result).toHaveLength(500);
-        });
-
-        it('should convert non-string inputs to string representation', () => {
-            const { sanitizeForLog } = require('../utils/logger');
-            expect(sanitizeForLog(42)).toBe('42');
-            expect(sanitizeForLog(null)).toBe('null');
-            expect(sanitizeForLog(undefined)).toBe('undefined');
-            expect(sanitizeForLog({ key: 'val' })).toBe('[object Object]');
-        });
     });
 
     describe('level() - environment-based log level selection', () => {

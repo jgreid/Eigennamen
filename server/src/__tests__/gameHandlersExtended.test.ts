@@ -13,7 +13,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 jest.mock('../services/gameService');
 jest.mock('../services/playerService');
 jest.mock('../services/roomService');
-jest.mock('../services/eventLogService');
 jest.mock('../services/gameHistoryService', () => ({
     saveGameResult: jest.fn().mockResolvedValue({ gameId: 'test-game-id' }),
     getGameHistory: jest.fn().mockResolvedValue([]),
@@ -34,8 +33,6 @@ jest.mock('../utils/logger', () => ({
 const gameService = require('../services/gameService');
 const playerService = require('../services/playerService');
 const roomService = require('../services/roomService');
-const eventLogService = require('../services/eventLogService');
-
 // Mock socketFunctionProvider to provide timer functions
 jest.mock('../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -86,15 +83,6 @@ describe('Extended Game Handlers Tests', () => {
             isHost: false
         });
         gameService.getGame.mockResolvedValue(null);
-
-        eventLogService.logEvent = jest.fn().mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            GAME_STARTED: 'GAME_STARTED',
-            CARD_REVEALED: 'CARD_REVEALED',
-            CLUE_GIVEN: 'CLUE_GIVEN',
-            TURN_ENDED: 'TURN_ENDED',
-            GAME_OVER: 'GAME_OVER'
-        };
 
         gameHandlers = require('../socket/handlers/gameHandlers');
         gameHandlers(mockIo, mockSocket);

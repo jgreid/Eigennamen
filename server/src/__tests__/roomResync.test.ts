@@ -19,7 +19,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 jest.mock('../services/roomService');
 jest.mock('../services/gameService');
 jest.mock('../services/playerService');
-jest.mock('../services/eventLogService');
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -51,7 +50,6 @@ jest.mock('../socket/socketFunctionProvider', () => ({
 const roomService = require('../services/roomService');
 const gameService = require('../services/gameService');
 const playerService = require('../services/playerService');
-const eventLogService = require('../services/eventLogService');
 // Use the mock directly since socketFunctionProvider will use it
 const getTimerStatus = mockGetTimerStatus;
 const { ERROR_CODES } = require('../config/constants');
@@ -80,13 +78,6 @@ describe('Room Resync and Recovery Handlers', () => {
         mockIo = {
             to: jest.fn().mockReturnThis(),
             emit: jest.fn()
-        };
-
-        // Reset eventLogService mock
-        eventLogService.logEvent = jest.fn().mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            PLAYER_JOINED: 'PLAYER_JOINED',
-            ROOM_CREATED: 'ROOM_CREATED'
         };
 
         // Default player mock with roomCode for context handler

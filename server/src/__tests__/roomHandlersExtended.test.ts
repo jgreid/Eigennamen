@@ -14,7 +14,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 jest.mock('../services/roomService');
 jest.mock('../services/playerService');
 jest.mock('../services/gameService');
-jest.mock('../services/eventLogService');
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -52,7 +51,6 @@ jest.mock('../socket/socketFunctionProvider', () => ({
 const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
-const eventLogService = require('../services/eventLogService');
 const { withTimeout: _withTimeout } = require('../utils/timeout');
 
 describe('Extended Room Handlers Tests', () => {
@@ -79,14 +77,6 @@ describe('Extended Room Handlers Tests', () => {
             emit: jest.fn()
         };
 
-        eventLogService.logEvent = jest.fn().mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            ROOM_CREATED: 'ROOM_CREATED',
-            PLAYER_JOINED: 'PLAYER_JOINED',
-            PLAYER_LEFT: 'PLAYER_LEFT',
-            SETTINGS_UPDATED: 'SETTINGS_UPDATED'
-        };
-
         // Default: no player (since mockSocket.roomCode = null by default)
         playerService.getPlayer.mockResolvedValue(null);
         gameService.getGame.mockResolvedValue(null);
@@ -111,21 +101,6 @@ describe('Extended Room Handlers Tests', () => {
             expect(mockSocket.join).toHaveBeenCalledWith('room:my-game');
             expect(mockSocket.emit).toHaveBeenCalledWith('room:created', expect.anything());
             expect(mockSocket.roomCode).toBe('my-game');
-        });
-
-        test('cleans up on error after partial creation', async () => {
-            roomService.createRoom.mockResolvedValue({
-                room: { code: 'test-room', roomId: 'test-room', settings: {} },
-                player: { sessionId: 'session-456' }
-            });
-            eventLogService.logEvent.mockRejectedValue(new Error('Log error'));
-
-            const handlers = mockSocket.on.mock.calls;
-            const createHandler = handlers.find(h => h[0] === 'room:create');
-            await createHandler[1]({ roomId: 'test-room' });
-
-            // Check room was still created even if logging failed
-            expect(mockSocket.join).toHaveBeenCalledWith('room:test-room');
         });
 
         test('handles createRoom error', async () => {

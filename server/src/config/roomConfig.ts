@@ -1,7 +1,7 @@
 /**
  * Room Configuration
  *
- * Room settings, Redis TTLs, turn timer, TTL constants,
+ * Room settings, Redis TTLs, turn timer,
  * and player cleanup configuration.
  *
  * Memory mode adjustments:
@@ -38,17 +38,6 @@ export const TIMER = {
     MAX_TURN_SECONDS: 600,
     WARNING_SECONDS: 30,        // Warn when this many seconds remain
     TIMER_TTL_BUFFER_SECONDS: 60     // Extra TTL buffer for timer keys
-} as const;
-
-// TTL constants (in seconds) - centralized for consistency
-export const TTL = {
-    PLAYER_CONNECTED: ROOM_TTL_SECONDS,
-    PLAYER_DISCONNECTED: 10 * 60,          // 10 minutes grace period for reconnection
-    GAME_STATE: ROOM_TTL_SECONDS,
-    EVENT_LOG: 5 * 60,                     // 5 minutes
-    DISTRIBUTED_LOCK: 10,                  // 10 seconds (accounts for high-latency environments)
-    SESSION_VALIDATION_WINDOW: 60,         // 1 minute
-    PAUSED_TIMER: PAUSED_TIMER_TTL
 } as const;
 
 // Player service internal constants

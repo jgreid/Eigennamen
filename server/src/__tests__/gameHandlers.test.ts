@@ -12,7 +12,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 jest.mock('../services/gameService');
 jest.mock('../services/playerService');
 jest.mock('../services/roomService');
-jest.mock('../services/eventLogService');
 jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
@@ -23,8 +22,6 @@ jest.mock('../utils/logger', () => ({
 const gameService = require('../services/gameService');
 const playerService = require('../services/playerService');
 const roomService = require('../services/roomService');
-const eventLogService = require('../services/eventLogService');
-
 // Mock socket/index to avoid circular dependency issues
 jest.mock('../socket/index', () => ({
     startTurnTimer: jest.fn().mockResolvedValue({}),
@@ -79,16 +76,6 @@ describe('Game Handlers', () => {
             isHost: false
         });
         gameService.getGame.mockResolvedValue(null);
-
-        // Reset eventLogService mock
-        eventLogService.logEvent = jest.fn().mockResolvedValue();
-        eventLogService.EVENT_TYPES = {
-            GAME_STARTED: 'GAME_STARTED',
-            CARD_REVEALED: 'CARD_REVEALED',
-            CLUE_GIVEN: 'CLUE_GIVEN',
-            TURN_ENDED: 'TURN_ENDED',
-            GAME_OVER: 'GAME_OVER'
-        };
 
         // Register handlers
         gameHandlers = require('../socket/handlers/gameHandlers');

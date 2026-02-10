@@ -63,16 +63,6 @@ jest.mock('../services/timerService', () => ({
     stopTimer: jest.fn().mockResolvedValue()
 }));
 
-jest.mock('../services/eventLogService', () => ({
-    logEvent: jest.fn().mockResolvedValue(),
-    EVENT_TYPES: {
-        TIMER_EXPIRED: 'TIMER_EXPIRED',
-        PLAYER_DISCONNECTED: 'PLAYER_DISCONNECTED',
-        HOST_CHANGED: 'HOST_CHANGED',
-        TURN_ENDED: 'TURN_ENDED'
-    }
-}));
-
 jest.mock('../middleware/socketAuth', () => ({
     authenticateSocket: jest.fn((socket, next) => {
         socket.sessionId = socket.handshake?.auth?.sessionId || 'test-session';

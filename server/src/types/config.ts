@@ -85,19 +85,6 @@ export interface RedisTTLConfig {
   SESSION_VALIDATION_WINDOW: number;
 }
 
-/**
- * General TTL values (in seconds)
- */
-export interface TTLConfig {
-  PLAYER_CONNECTED: number;
-  PLAYER_DISCONNECTED: number;
-  GAME_STATE: number;
-  EVENT_LOG: number;
-  DISTRIBUTED_LOCK: number;
-  SESSION_VALIDATION_WINDOW: number;
-  PAUSED_TIMER: number;
-}
-
 // ============================================================================
 // Session Security Configuration
 // ============================================================================
@@ -393,9 +380,6 @@ export interface GameConstants {
 
   // Socket events
   SOCKET_EVENTS: SocketEventNames;
-
-  // TTL
-  TTL: TTLConfig;
 
   // Game internals
   GAME_INTERNALS: GameInternalsConfig;
