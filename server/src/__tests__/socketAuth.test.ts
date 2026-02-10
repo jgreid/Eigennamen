@@ -9,7 +9,8 @@ const {
     authenticateSocket,
     requireAuth,
     getClientIP,
-    validateSession
+    validateSession,
+    validateOrigin
 } = require('../middleware/socketAuth');
 
 // Mock dependencies
@@ -629,6 +630,89 @@ describe('Socket Authentication Middleware', () => {
             requireAuth(socket, next);
 
             expect(next).toHaveBeenCalledWith(expect.any(Error));
+        });
+    });
+
+    describe('validateOrigin', () => {
+        const originalEnv = { ...process.env };
+
+        afterEach(() => {
+            process.env = { ...originalEnv };
+        });
+
+        test('allows all origins in dev with wildcard CORS', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.CORS_ORIGIN = '*';
+            const socket = { id: 's1', handshake: { headers: { origin: 'http://evil.com' }, address: '127.0.0.1' } };
+            expect(validateOrigin(socket).valid).toBe(true);
+        });
+
+        test('allows missing origin in dev', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.CORS_ORIGIN = 'http://example.com';
+            const socket = { id: 's1', handshake: { headers: {}, address: '127.0.0.1' } };
+            expect(validateOrigin(socket).valid).toBe(true);
+        });
+
+        test('warns but allows missing origin in production', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = 'http://example.com';
+            const socket = { id: 's1', handshake: { headers: {}, address: '127.0.0.1' } };
+            const result = validateOrigin(socket);
+            expect(result.valid).toBe(true);
+            expect(logger.warn).toHaveBeenCalledWith(
+                'WebSocket connection without origin header',
+                expect.any(Object)
+            );
+        });
+
+        test('allows exact match origin', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = 'http://example.com';
+            const socket = { id: 's1', handshake: { headers: { origin: 'http://example.com' }, address: '127.0.0.1' } };
+            expect(validateOrigin(socket).valid).toBe(true);
+        });
+
+        test('allows wildcard subdomain match', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = '*.example.com';
+            const socket = { id: 's1', handshake: { headers: { origin: 'http://sub.example.com' }, address: '127.0.0.1' } };
+            expect(validateOrigin(socket).valid).toBe(true);
+        });
+
+        test('rejects disallowed origin', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.CORS_ORIGIN = 'http://example.com';
+            const socket = {
+                id: 's1',
+                handshake: {
+                    headers: { origin: 'http://evil.com' },
+                    address: '127.0.0.1',
+                    auth: { sessionId: 'test-session' }
+                }
+            };
+            const result = validateOrigin(socket);
+            expect(result.valid).toBe(false);
+            expect(result.reason).toContain('not allowed');
+        });
+    });
+
+    describe('authenticateSocket - edge cases', () => {
+        test('handles socket with no auth object gracefully', async () => {
+            isJwtEnabled.mockReturnValue(false);
+            const socket = {
+                id: 'sock-1',
+                handshake: {
+                    headers: {},
+                    address: '1.2.3.4',
+                    auth: {}
+                }
+            };
+            const next = jest.fn();
+            await authenticateSocket(socket, next);
+            // Should succeed with a new session ID assigned
+            expect(next).toHaveBeenCalledWith();
+            expect(socket).toHaveProperty('sessionId');
         });
     });
 
