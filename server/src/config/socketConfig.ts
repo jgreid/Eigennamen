@@ -96,5 +96,13 @@ export const SOCKET_EVENTS = {
     CHAT_SEND: 'chat:send',
     CHAT_ERROR: 'chat:error',
     CHAT_SPECTATOR: 'chat:spectator',
-    CHAT_SPECTATOR_MESSAGE: 'chat:spectatorMessage'
+    CHAT_SPECTATOR_MESSAGE: 'chat:spectatorMessage',
+
+    // Spectator events
+    SPECTATOR_REQUEST_JOIN: 'spectator:requestJoin',
+    SPECTATOR_JOIN_REQUEST: 'spectator:joinRequest',
+    SPECTATOR_APPROVE_JOIN: 'spectator:approveJoin',
+    SPECTATOR_DENY_JOIN: 'spectator:denyJoin',
+    SPECTATOR_JOIN_APPROVED: 'spectator:joinApproved',
+    SPECTATOR_JOIN_DENIED: 'spectator:joinDenied'
 } as const;

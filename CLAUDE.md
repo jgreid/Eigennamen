@@ -168,6 +168,11 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 - `chat:spectator` / `chat:spectatorMessage`
 - `chat:error`
 
+### Spectator Events
+- `spectator:requestJoin` / `spectator:joinRequest`
+- `spectator:approveJoin` / `spectator:joinApproved`
+- `spectator:denyJoin` / `spectator:joinDenied`
+
 ## API Endpoints
 
 ### Health & Metrics
@@ -187,6 +192,7 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 |--------|------|---------|
 | GET | `/api/rooms/:code/exists` | Check if room exists |
 | GET | `/api/rooms/:code` | Get room info |
+| GET | `/api/replays/:roomCode/:gameId` | Get replay data (public, no room membership needed) |
 
 ### Word Lists
 
@@ -210,6 +216,7 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 | DELETE | `/admin/api/rooms/:code` | Force close room |
 | DELETE | `/admin/api/rooms/:code/players/:playerId` | Kick player |
 | GET | `/admin/api/audit` | Get audit logs |
+| GET | `/admin/api/stats/stream` | SSE real-time metrics stream |
 
 ### Documentation
 

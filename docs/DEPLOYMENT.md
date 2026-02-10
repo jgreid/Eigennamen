@@ -474,6 +474,141 @@ CORS_ORIGIN=https://your-app.fly.dev,https://custom-domain.com
 
 ---
 
+## Multi-Instance Scaling
+
+When running multiple server instances behind a load balancer, Socket.io requires the Redis adapter to broadcast events across instances.
+
+### Requirements
+
+1. **Redis**: All instances must connect to the same Redis server via `REDIS_URL`
+2. **Sticky Sessions**: WebSocket connections must be routed to the same instance for the duration of the connection
+3. **Socket.io Redis Adapter**: Automatically configured when `REDIS_URL` is set (not `memory`)
+
+### Sticky Session Configuration
+
+#### Nginx
+
+```nginx
+upstream codenames {
+    ip_hash;  # Sticky sessions based on client IP
+    server 127.0.0.1:3001;
+    server 127.0.0.1:3002;
+    server 127.0.0.1:3003;
+}
+
+server {
+    location / {
+        proxy_pass http://codenames;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;  # 24h for WebSocket
+    }
+}
+```
+
+#### Fly.io
+
+Fly.io handles sticky sessions automatically for WebSocket connections. No additional configuration needed.
+
+#### AWS ALB
+
+```
+# Target group attributes
+stickiness.enabled = true
+stickiness.type = lb_cookie
+stickiness.lb_cookie.duration_seconds = 86400
+```
+
+### Verifying Multi-Instance Setup
+
+To verify events propagate across instances:
+
+1. Start 2+ instances connected to the same Redis
+2. Create a room on instance A
+3. Join the room on instance B (different browser/client)
+4. Send a chat message — it should appear on both instances
+5. Reveal a card — both instances should see the update
+
+### Database Connection Pooling
+
+For high-traffic deployments with PostgreSQL, use PgBouncer to manage connection pooling.
+
+#### PgBouncer Configuration
+
+```ini
+; pgbouncer.ini
+[databases]
+codenames = host=127.0.0.1 port=5432 dbname=codenames
+
+[pgbouncer]
+listen_port = 6432
+listen_addr = 127.0.0.1
+auth_type = md5
+auth_file = /etc/pgbouncer/userlist.txt
+pool_mode = transaction          ; Best for Prisma
+max_client_conn = 200
+default_pool_size = 20
+min_pool_size = 5
+reserve_pool_size = 5
+reserve_pool_timeout = 3
+server_idle_timeout = 600
+```
+
+#### Environment Configuration
+
+```bash
+# Pooled connection (via PgBouncer) for application queries
+DATABASE_URL=postgresql://codenames:pass@localhost:6432/codenames?pgbouncer=true
+
+# Direct connection (bypasses PgBouncer) for migrations
+DATABASE_DIRECT_URL=postgresql://codenames:pass@localhost:5432/codenames
+```
+
+#### Fly.io with Supabase/Neon
+
+External databases like Supabase and Neon provide built-in connection pooling:
+
+```bash
+# Supabase pooled connection (port 6543)
+DATABASE_URL=postgresql://user:pass@db.xxxxx.supabase.co:6543/postgres?pgbouncer=true
+
+# Direct connection (port 5432) for migrations
+DATABASE_DIRECT_URL=postgresql://user:pass@db.xxxxx.supabase.co:5432/postgres
+```
+
+#### Query Performance Monitoring
+
+Enable slow query logging in PostgreSQL:
+
+```sql
+-- postgresql.conf
+ALTER SYSTEM SET log_min_duration_statement = 100;  -- Log queries > 100ms
+ALTER SYSTEM SET log_statement = 'none';             -- Don't log all statements
+SELECT pg_reload_conf();
+```
+
+---
+
+## Load Testing
+
+See `server/loadtest/README.md` for k6 load testing scripts and performance targets.
+
+Quick start:
+```bash
+# Install k6
+brew install k6  # macOS
+
+# Run HTTP API load test
+k6 run server/loadtest/room-flow.js
+
+# Run WebSocket load test
+k6 run server/loadtest/websocket-game.js
+```
+
+---
+
 ## Troubleshooting
 
 ### Common Issues

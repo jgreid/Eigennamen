@@ -10,7 +10,7 @@ import type { Player, GameState, Team, Role } from '../../types';
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
-const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema } = require('../../validators/schemas');
+const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } = require('../../validators/schemas');
 const logger = require('../../utils/logger');
 const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler, createHostHandler } = require('../contextHandler');
@@ -293,6 +293,74 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             logger.info(`Host ${sanitizeHtml(ctx.player.nickname)} kicked player ${sanitizeHtml(targetPlayer.nickname)} from room ${ctx.roomCode}`);
 
         }
+    ));
+
+    // Spectator: Request to join a team
+    socket.on(SOCKET_EVENTS.SPECTATOR_REQUEST_JOIN, createRoomHandler(
+        io, socket, 'spectator:requestJoin',
+        async (ctx: RoomContext, validated: { team: string }) => {
+            // Only spectators can request to join
+            if (ctx.player.team && ctx.player.role !== 'spectator') {
+                throw PlayerError.notAuthorized('Only spectators can request to join a team');
+            }
+
+            // Find the host to notify
+            const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
+            const host = players.find((p: Player) => p.isHost);
+            if (!host) {
+                throw new PlayerError('No host found in room', ERROR_CODES.NOT_HOST);
+            }
+
+            // Emit join request to the host
+            const hostSockets = await io.in(host.sessionId).fetchSockets();
+            if (hostSockets.length > 0) {
+                hostSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
+                    requesterId: ctx.sessionId,
+                    requesterNickname: sanitizeHtml(ctx.player.nickname),
+                    team: validated.team,
+                    timestamp: Date.now()
+                });
+            }
+
+            logger.info(`Spectator ${sanitizeHtml(ctx.player.nickname)} requested to join ${validated.team} team in room ${ctx.roomCode}`);
+        },
+        spectatorJoinRequestSchema
+    ));
+
+    // Host: Approve or deny spectator join request
+    socket.on(SOCKET_EVENTS.SPECTATOR_APPROVE_JOIN, createHostHandler(
+        io, socket, 'spectator:approveJoin',
+        async (ctx: RoomContext, validated: { requesterId: string; approved: boolean }) => {
+            const requester: Player | null = await playerService.getPlayer(validated.requesterId);
+            if (!requester || requester.roomCode !== ctx.roomCode) {
+                throw new PlayerError('Requester not found in room', ERROR_CODES.PLAYER_NOT_FOUND);
+            }
+
+            if (validated.approved) {
+                // Notify the requester they've been approved
+                const requesterSockets = await io.in(validated.requesterId).fetchSockets();
+                if (requesterSockets.length > 0) {
+                    requesterSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
+                        message: 'Your request to join a team has been approved',
+                        timestamp: Date.now()
+                    });
+                }
+
+                logger.info(`Host approved spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`);
+            } else {
+                // Notify the requester they've been denied
+                const requesterSockets = await io.in(validated.requesterId).fetchSockets();
+                if (requesterSockets.length > 0) {
+                    requesterSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
+                        message: 'Your request to join a team was denied',
+                        timestamp: Date.now()
+                    });
+                }
+
+                logger.info(`Host denied spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`);
+            }
+        },
+        spectatorJoinResponseSchema
     ));
 }
 
