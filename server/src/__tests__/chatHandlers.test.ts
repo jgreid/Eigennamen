@@ -420,6 +420,107 @@ describe('Chat Handlers', () => {
         });
     });
 
+    describe('Spectator-Only Message Authorization', () => {
+        test('rejects spectatorOnly message from non-spectator', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Clicker',
+                team: 'red',
+                role: 'clicker'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            await messageHandler[1]({ text: 'Secret spy chat', spectatorOnly: true });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
+                code: 'NOT_AUTHORIZED'
+            }));
+            expect(mockIo.emit).not.toHaveBeenCalled();
+        });
+
+        test('allows spectatorOnly message from spectator', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Watcher',
+                team: null,
+                role: 'spectator'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            await messageHandler[1]({ text: 'Spectator chat', spectatorOnly: true });
+
+            expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
+            expect(mockIo.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
+                text: 'Spectator chat',
+                spectatorOnly: true
+            }));
+        });
+
+        test('spectator-only message does not broadcast to room', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Watcher',
+                team: null,
+                role: 'spectator'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            await messageHandler[1]({ text: 'Private', spectatorOnly: true });
+
+            // Should only go to spectators room, not the general room
+            expect(mockIo.to).not.toHaveBeenCalledWith('room:TEST12');
+            expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
+        });
+    });
+
+    describe('Dedicated Spectator Chat Handler', () => {
+        test('registers chat:spectator handler', () => {
+            const handlers = mockSocket.on.mock.calls;
+            const spectatorHandler = handlers.find(h => h[0] === 'chat:spectator');
+            expect(spectatorHandler).toBeDefined();
+        });
+
+        test('rejects spectator chat from non-spectator role', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Clicker',
+                team: 'red',
+                role: 'clicker'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const spectatorHandler = handlers.find(h => h[0] === 'chat:spectator');
+            await spectatorHandler[1]({ message: 'Sneaky message' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
+                code: 'NOT_AUTHORIZED'
+            }));
+        });
+
+        test('spectator can send through dedicated spectator channel', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                nickname: 'Watcher',
+                team: null,
+                role: 'spectator'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const spectatorHandler = handlers.find(h => h[0] === 'chat:spectator');
+            await spectatorHandler[1]({ message: 'Go red team!' });
+
+            expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
+        });
+    });
+
     describe('Message Structure', () => {
         test('message includes all required fields', async () => {
             playerService.getPlayer.mockResolvedValue({

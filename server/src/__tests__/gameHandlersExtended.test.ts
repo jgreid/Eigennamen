@@ -163,10 +163,114 @@ describe('Extended Game Handlers Tests', () => {
         });
     });
 
-    describe('game:reveal edge cases', () => {
-        // Note: Non-clicker reveal validation tests are covered in integration tests
-        // Complex mocking required for team member state verification
+    describe('game:reveal rule enforcement', () => {
+        test('spymaster cannot reveal cards even when clicker is disconnected', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                team: 'red',
+                nickname: 'Spymaster1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // Clicker is disconnected
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red', role: 'spymaster' },
+                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' }
+            ]);
 
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                message: expect.stringContaining('Spymasters cannot reveal')
+            }));
+            expect(gameService.revealCard).not.toHaveBeenCalled();
+        });
+
+        test('non-clicker team member can reveal when clicker is disconnected', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spectator',
+                team: 'red',
+                nickname: 'TeamMember1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // Clicker is disconnected
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red', role: 'spectator' },
+                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' }
+            ]);
+            gameService.revealCard.mockResolvedValue({
+                index: 5, type: 'red', word: 'TEST',
+                redScore: 1, blueScore: 0, currentTurn: 'red',
+                turnEnded: false, gameOver: false,
+                guessesUsed: 1, guessesAllowed: 3
+            });
+            gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
+            playerService.getPlayersInRoom.mockResolvedValue([
+                { sessionId: 'session-456', team: 'red', role: 'spectator' }
+            ]);
+            roomService.getRoom.mockResolvedValue({ settings: {} });
+
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            expect(gameService.revealCard).toHaveBeenCalledWith('TEST12', 5, 'TeamMember1', 'red');
+        });
+
+        test('non-clicker cannot reveal when clicker is connected', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spectator',
+                team: 'red',
+                nickname: 'TeamMember1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            // Clicker is connected
+            playerService.getTeamMembers.mockResolvedValue([
+                { sessionId: 'session-456', connected: true, team: 'red', role: 'spectator' },
+                { sessionId: 'session-789', connected: true, team: 'red', role: 'clicker' }
+            ]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                message: expect.stringContaining('clicker')
+            }));
+            expect(gameService.revealCard).not.toHaveBeenCalled();
+        });
+
+        test('rejects reveal when getTeamMembers returns invalid data', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                team: 'red',
+                nickname: 'Clicker1'
+            });
+            gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
+            playerService.getTeamMembers.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            await revealHandler[1]({ index: 5 });
+
+            // SERVER_ERROR code is not in the safe error list, so message gets scrubbed
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
+                code: 'SERVER_ERROR'
+            }));
+            expect(gameService.revealCard).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('game:reveal edge cases', () => {
         test('handles turn ending with timer restart', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
