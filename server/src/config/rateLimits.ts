@@ -41,6 +41,10 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     // Chat events
     'chat:message': { window: 5000, max: 10 },    // 10 per 5 seconds
     'chat:spectator': { window: 5000, max: 10 },  // 10 per 5 seconds (spectator-only chat)
+    // Spectator events
+    'spectator:requestJoin': { window: 10000, max: 3 },   // 3 per 10 seconds
+    'spectator:approveJoin': { window: 5000, max: 5 },    // 5 per 5 seconds (host only)
+    'spectator:denyJoin': { window: 5000, max: 5 },       // 5 per 5 seconds (host only)
     // Timer events
     'timer:status': { window: 1000, max: 10 },    // 10 per second
     'timer:pause': { window: 2000, max: 3 },      // 3 per 2 seconds (host only)

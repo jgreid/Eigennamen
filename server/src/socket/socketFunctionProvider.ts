@@ -136,14 +136,6 @@ function getRequiredFunctions(): (keyof SocketFunctions)[] {
     return [...REQUIRED_FUNCTIONS];
 }
 
-module.exports = {
-    registerSocketFunctions,
-    getSocketFunctions,
-    isRegistered,
-    clearSocketFunctions,
-    getRequiredFunctions
-};
-
 export {
     registerSocketFunctions,
     getSocketFunctions,

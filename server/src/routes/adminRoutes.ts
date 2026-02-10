@@ -774,6 +774,65 @@ router.get('/api/audit', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /admin/api/stats/stream - Server-Sent Events for real-time metrics
+ * Streams server stats every 5 seconds without requiring page refresh.
+ */
+router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
+    // Set SSE headers
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'  // Disable nginx buffering
+    });
+
+    const sendStats = async () => {
+        try {
+            const redisHealthy = await isRedisHealthy();
+            const memUsage = process.memoryUsage();
+            const metrics = getAllMetrics();
+
+            const data = {
+                timestamp: Date.now(),
+                memory: {
+                    rss: Math.round(memUsage.rss / 1024 / 1024),
+                    heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+                    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024)
+                },
+                uptime: Math.round(process.uptime()),
+                redis: redisHealthy ? 'connected' : (isUsingMemoryMode() ? 'memory' : 'disconnected'),
+                database: isDatabaseEnabled() ? 'connected' : 'not configured',
+                metrics: {
+                    counters: metrics.counters || {},
+                    gauges: metrics.gauges || {}
+                },
+                alerts: [] as string[]
+            };
+
+            // Check alert thresholds
+            if (data.memory.rss > 480) {
+                data.alerts.push(`High memory usage: ${data.memory.rss}MB`);
+            }
+
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        } catch (error) {
+            logger.error('SSE stats error:', (error as Error).message);
+        }
+    };
+
+    // Send initial data immediately
+    sendStats();
+
+    // Stream updates every 5 seconds
+    const interval = setInterval(sendStats, 5000);
+
+    // Clean up on client disconnect
+    req.on('close', () => {
+        clearInterval(interval);
+    });
+});
+
+/**
  * Format uptime seconds into human-readable string
  */
 function formatUptime(seconds: number): string {

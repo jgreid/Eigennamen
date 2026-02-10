@@ -250,111 +250,52 @@ export const VALIDATION = {
 
 ---
 
-## Phase 3: Testing Improvements (Medium-term)
+## Phase 3: Testing Improvements (Medium-term) — Partially Completed
 
-### 3.1 Create Test Helper Library
-Extract common mocks to reduce duplication:
-```javascript
-// server/src/__tests__/helpers/mockRedis.js
-export function createMockRedis() {
-    return {
-        get: jest.fn(),
-        set: jest.fn(),
-        del: jest.fn(),
-        eval: jest.fn(),
-        // ... common setup
-    };
-}
+> **Status**: Core items (3.1, 3.2, 3.3, 3.4) completed. Test helpers created, middleware and error scenario tests added, database tests added. E2E expansion (3.5) remains as future work.
+> - 3.1: Test helper library created (`__tests__/helpers/mocks.ts`, `socketTestHelper.ts`)
+> - 3.2: All middleware tests created (`contextHandler.test.ts`, `playerContext.test.ts`, `socketFunctionProvider.test.ts`)
+> - 3.3: Error scenario tests added (`errorScenarios.test.ts`, `handlerEdgeCases.test.ts`, `reconnectionEdgeCases.test.ts`)
+> - 3.4: Database integration tests added (`database.test.ts`, `databaseCoverage.test.ts`)
 
-// server/src/__tests__/helpers/mockSocket.js
-export function createMockSocket(overrides = {}) {
-    return {
-        id: 'test-socket-id',
-        join: jest.fn(),
-        leave: jest.fn(),
-        emit: jest.fn(),
-        ...overrides
-    };
-}
-```
+### 3.1 Create Test Helper Library ✅ COMPLETED
+Test helpers extracted to `server/src/__tests__/helpers/`:
+- `mocks.ts` - Common mock utilities for Redis, services, etc.
+- `socketTestHelper.ts` - Socket testing utilities
 
-### 3.2 Add Missing Middleware Tests
-Create new test files:
-- `server/src/__tests__/contextHandler.test.js`
-- `server/src/__tests__/playerContext.test.js`
-- `server/src/__tests__/socketFunctionProvider.test.js`
+### 3.2 Add Missing Middleware Tests ✅ COMPLETED
+All middleware test files created:
+- `server/src/__tests__/contextHandler.test.ts`
+- `server/src/__tests__/playerContext.test.ts`
+- `server/src/__tests__/socketFunctionProvider.test.ts`
 
-### 3.3 Add Error Scenario Tests
-Cover currently untested paths:
-```javascript
-describe('Error Scenarios', () => {
-    test('handles Redis timeout during game reveal', async () => {
-        redis.eval.mockRejectedValue(new Error('Timeout'));
-        await expect(gameService.revealCard(...)).rejects.toThrow('SERVER_ERROR');
-    });
+### 3.3 Add Error Scenario Tests ✅ COMPLETED
+Error scenario coverage added across multiple test files:
+- `errorScenarios.test.ts` - Redis failures, corrupted state
+- `handlerEdgeCases.test.ts` - Handler edge cases
+- `reconnectionEdgeCases.test.ts` - Reconnection failure paths
 
-    test('handles corrupted JSON in game state', async () => {
-        redis.get.mockResolvedValue('{ invalid json }');
-        const game = await gameService.getGame('ROOM1');
-        expect(game).toBeNull();
-    });
-});
-```
-
-### 3.4 Add Database Integration Tests
-```javascript
-// server/src/__tests__/integration/database.test.js
-import { PrismaClient } from '@prisma/client';
-
-describe('Database Integration', () => {
-    let prisma;
-
-    beforeAll(async () => {
-        prisma = new PrismaClient({
-            datasources: { db: { url: process.env.TEST_DATABASE_URL } }
-        });
-    });
-
-    test('creates and retrieves word list', async () => {
-        const list = await prisma.wordList.create({...});
-        const retrieved = await prisma.wordList.findUnique({...});
-        expect(retrieved).toEqual(list);
-    });
-});
-```
+### 3.4 Add Database Integration Tests ✅ COMPLETED
+Database tests added:
+- `database.test.ts` - Database connection and operations
+- `databaseCoverage.test.ts` - Extended database coverage
 
 ### 3.5 Add E2E Tests for Critical Flows
-Expand Playwright tests:
-```typescript
-// tests/e2e/multiplayer.spec.ts
-test('two players can complete a game', async ({ browser }) => {
-    const player1 = await browser.newPage();
-    const player2 = await browser.newPage();
-
-    // Player 1 creates room
-    await player1.goto('/');
-    await player1.click('[data-action="openMultiplayerModal"]');
-    await player1.fill('#new-room-nickname', 'Player1');
-    await player1.click('[data-action="createRoom"]');
-
-    // Get room code and have player 2 join
-    const roomCode = await player1.textContent('#room-code');
-    await player2.goto(`/?room=${roomCode}`);
-    // ... complete game flow
-});
-```
+Remaining: Expand Playwright tests for multiplayer flows (room create -> join -> play -> reconnect).
 
 ---
 
-## Phase 4: Essential New Features (Longer-term)
+## Phase 4: Essential New Features (Longer-term) — Partially Completed
 
-### 4.1 Spectator Mode Enhancements
-**Current**: Spectators can view games but with limited interaction.
-**Proposed Features**:
-- Spectator chat (separate from team chat)
+> **Status**: Spectator chat (4.1 partial), game history/replay (4.3), custom game modes (4.4 partial), and admin dashboard (4.7) are implemented. Tournament mode (4.2), player profiles (4.5), and mobile app (4.6) remain as future work.
+
+### 4.1 Spectator Mode Enhancements — Partially Completed
+**Implemented**:
+- ✅ Spectator chat (separate from team chat) via `chatHandlers.ts`
+- ✅ Spectator count visible to room members
+**Remaining**:
 - Live game statistics overlay
 - Ability to request to join a team
-- Spectator count display
 
 **Implementation**:
 ```javascript
@@ -397,11 +338,9 @@ model Round {
 }
 ```
 
-### 4.3 Game Replay System Improvements
-**Current**: Basic replay from history.
-**Proposed Enhancements**:
-- Playback speed control
-- Step-by-step navigation
+### 4.3 Game Replay System Improvements — Partially Completed
+**Implemented**: Game history service (`gameHistoryService.ts`) with history storage, replay data retrieval, and frontend replay UI (`history.js`, `replay.css`). Replay speed control implemented with 4 speeds (0.5x, 1x, 2x, 4x).
+**Remaining enhancements**:
 - Exportable replay links
 - Analysis mode with annotations
 
@@ -419,12 +358,15 @@ export function createReplayControls() {
 }
 ```
 
-### 4.4 Custom Game Modes
-**Proposed Modes**:
-1. **Duet Mode**: Cooperative 2-player version
-2. **Timed Mode**: Speed round with short timers
-3. **Draft Mode**: Teams draft words before game starts
-4. **Asymmetric Mode**: Different team sizes
+### 4.4 Custom Game Modes — Partially Completed
+**Implemented** (in `server/src/config/gameConfig.ts`):
+1. ✅ **Classic Mode**: Standard Codenames rules
+2. ✅ **Blitz Mode**: 30-second forced timer turns
+3. ✅ **Duet Mode**: Cooperative 2-player version with special board config
+
+**Remaining**:
+4. **Draft Mode**: Teams draft words before game starts
+5. **Asymmetric Mode**: Different team sizes
 
 **Configuration Schema**:
 ```javascript
@@ -506,12 +448,17 @@ self.addEventListener('push', (event) => {
 });
 ```
 
-### 4.7 Admin Dashboard Enhancements
-**Current**: Basic admin routes exist.
-**Proposed Features**:
-- Real-time server metrics visualization
-- Active room monitoring
-- Player ban/kick management
+### 4.7 Admin Dashboard Enhancements — Partially Completed
+**Implemented** (`server/src/routes/adminRoutes.ts`, `server/public/admin.html`):
+- ✅ Server metrics and statistics API
+- ✅ Active room monitoring and details
+- ✅ Player kick management
+- ✅ Force close room capability
+- ✅ Broadcast messaging
+- ✅ Audit log retrieval
+- ✅ HTTP Basic Authentication
+**Remaining**:
+- Real-time metrics visualization (WebSocket-based dashboard updates)
 - Word list moderation queue
 - System health alerts
 

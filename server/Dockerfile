@@ -4,36 +4,34 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files from server directory
+# Copy package files and prisma schema first for better layer caching
+# (dependencies change less frequently than source code)
 COPY server/package*.json ./
+COPY server/prisma ./prisma
 
-# Install all dependencies (including devDependencies for TypeScript build)
-RUN npm ci
+# Install all dependencies and generate Prisma client in single layer
+RUN npm ci && npx prisma generate
 
-# Copy server source code
+# Copy server source code (separate layer — only rebuilt when source changes)
 COPY server/ .
 
 # Copy root index.html (symlinked from server/public/index.html)
 COPY index.html ./public/index.html
 
-# Generate Prisma client (needed before TypeScript compilation)
-RUN npx prisma generate
-
-# Compile TypeScript to JavaScript in dist/
-RUN npm run build
-
-# Copy Lua scripts (non-TS assets referenced at runtime via fs.readFileSync)
-RUN cp -r src/scripts dist/scripts
+# Compile TypeScript and copy Lua scripts in single layer
+RUN npm run build && cp -r src/scripts dist/scripts
 
 # Production stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install curl for healthcheck and openssl for Prisma, create non-root user
+# Install curl for healthcheck and openssl for Prisma, create non-root user,
+# and create logs directory — all in single layer to reduce image size
 RUN apk add --no-cache curl openssl && \
     addgroup -g 1001 -S nodejs && \
-    adduser -S codenames -u 1001
+    adduser -S codenames -u 1001 && \
+    mkdir -p /app/logs && chown codenames:nodejs /app/logs
 
 # Copy package files and prisma schema (needed for generate)
 COPY --chown=codenames:nodejs server/package*.json ./
@@ -49,9 +47,6 @@ COPY --chown=codenames:nodejs --from=builder /app/dist ./dist
 
 # Copy public folder (static assets) from builder
 COPY --chown=codenames:nodejs --from=builder /app/public ./public
-
-# Create logs directory for production logging
-RUN mkdir -p /app/logs && chown codenames:nodejs /app/logs
 
 # Switch to non-root user
 USER codenames

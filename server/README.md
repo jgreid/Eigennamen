@@ -230,8 +230,9 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (2,400+)
+npm test              # Run all backend tests (2,980+)
 npm run test:coverage # Run tests with coverage report
+npm run test:frontend # Run frontend unit tests (300+)
 ```
 
 ## Configuration
@@ -293,15 +294,21 @@ See [SERVER_SPEC.md](../docs/SERVER_SPEC.md) for full API documentation.
 ```
 server/
 ├── src/
-│   ├── index.js          # Entry point
-│   ├── app.js            # Express configuration
-│   ├── config/           # Configuration files
-│   ├── middleware/       # Express & Socket middleware
+│   ├── index.ts          # Entry point
+│   ├── app.ts            # Express configuration
+│   ├── config/           # Configuration files (13 modules)
+│   ├── errors/           # Custom error classes
+│   ├── middleware/        # Express & Socket middleware
 │   ├── routes/           # REST API routes
-│   ├── services/         # Business logic
-│   ├── socket/           # Socket.io handlers
-│   ├── utils/            # Utilities
-│   └── validators/       # Input validation schemas
+│   ├── services/         # Business logic (7 services)
+│   ├── socket/           # Socket.io setup
+│   │   └── handlers/     # Event-specific handlers (5 files)
+│   ├── types/            # TypeScript type definitions
+│   ├── utils/            # Utilities (metrics, logging, locks, etc.)
+│   ├── validators/       # Zod validation schemas
+│   ├── scripts/          # Redis Lua scripts for atomic operations
+│   └── __tests__/        # Jest tests (80+ files)
+├── e2e/                  # Playwright E2E tests
 ├── prisma/
 │   └── schema.prisma     # Database schema
 ├── Dockerfile

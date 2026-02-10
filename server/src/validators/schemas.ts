@@ -131,7 +131,6 @@ const roomSettingsSchema = z.object({
     gameMode: z.enum(GAME_MODES as unknown as [string, ...string[]]).optional()
 }).superRefine(validateModeTimer);
 
-// FIX H10: Add schema for room:reconnect validation
 // Reconnection token is 64 hex characters (32 bytes in hex)
 const reconnectionTokenRegex = /^[0-9a-f]{64}$/i;
 
@@ -295,6 +294,20 @@ export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
 export type PlayerKickInput = ZodType.infer<typeof playerKickSchema>;
 export type TimerAddTimeInput = ZodType.infer<typeof timerAddTimeSchema>;
 
+// Spectator join request schema
+const spectatorJoinRequestSchema = z.object({
+    team: z.enum(['red', 'blue'])
+});
+
+// Spectator join approval/denial schema
+const spectatorJoinResponseSchema = z.object({
+    requesterId: z.string().min(1, 'Requester ID is required').max(100),
+    approved: z.boolean()
+});
+
+export type SpectatorJoinRequestInput = ZodType.infer<typeof spectatorJoinRequestSchema>;
+export type SpectatorJoinResponseInput = ZodType.infer<typeof spectatorJoinResponseSchema>;
+
 module.exports = {
     roomCreateSchema,
     roomJoinSchema,
@@ -315,6 +328,8 @@ module.exports = {
     gameReplaySchema,
     playerKickSchema,
     timerAddTimeSchema,
+    spectatorJoinRequestSchema,
+    spectatorJoinResponseSchema,
     // Export for reuse in custom validation
     createNicknameSchema,
     createSanitizedString,
@@ -341,6 +356,8 @@ export {
     gameReplaySchema,
     playerKickSchema,
     timerAddTimeSchema,
+    spectatorJoinRequestSchema,
+    spectatorJoinResponseSchema,
     createNicknameSchema,
     createSanitizedString,
     createTeamNameSchema,

@@ -19,7 +19,7 @@ import {
     confirmForfeit, closeForfeitConfirm, forfeitGame,
     closeKickConfirm, confirmKickPlayer
 } from './multiplayer.js';
-import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay } from './history.js';
+import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad } from './history.js';
 import {
     openSettings, closeSettings, saveSettings, resetWords, initSettingsNav,
     loadLocalSettings, tryLoadWordlistFile, initSettingsListeners
@@ -253,6 +253,8 @@ async function init() {
         // Initialize accessibility features
         initColorBlindMode();
         initKeyboardShortcuts();
+        // Check URL for shared replay link
+        checkURLForReplayLoad();
     } catch (e) {
         // Show error modal to inform user
         showErrorModal(

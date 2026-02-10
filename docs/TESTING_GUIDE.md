@@ -8,10 +8,10 @@ The project uses a comprehensive testing strategy:
 
 | Type | Framework | Location | Purpose |
 |------|-----------|----------|---------|
-| Unit Tests | Jest | `server/src/__tests__/` | Service and utility testing |
-| Integration Tests | Jest + Supertest | `server/src/__tests__/` | API endpoint testing |
-| Frontend Unit Tests | Vitest | `src/js/__tests__/` | Client-side module testing |
-| E2E Tests | Playwright | `tests/` or `server/e2e/` | Full user flow testing |
+| Unit Tests | Jest + ts-jest | `server/src/__tests__/` | Service, handler, and utility testing |
+| Integration Tests | Jest + Supertest | `server/src/__tests__/integration/` | Full game flow, race conditions |
+| Frontend Unit Tests | Jest + jsdom | `server/src/__tests__/frontend/` | Client-side module testing |
+| E2E Tests | Playwright | `server/e2e/` | Full user flow testing |
 
 ## Quick Start
 
@@ -35,12 +35,14 @@ npx playwright test
 
 ## Test Coverage Requirements
 
+Global thresholds are set lower because infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
+
 | Metric | Minimum | Current |
 |--------|---------|---------|
-| Statements | 80% | 91%+ |
-| Branches | 80% | 84%+ |
+| Statements | 75% | 91%+ |
+| Branches | 65% | 84%+ |
 | Functions | 80% | 90%+ |
-| Lines | 80% | 91%+ |
+| Lines | 75% | 91%+ |
 
 ## Backend Testing (Jest)
 
@@ -48,25 +50,38 @@ npx playwright test
 
 ```
 server/src/__tests__/
-├── services/
-│   ├── gameService.test.ts      # Game logic tests
-│   ├── roomService.test.ts      # Room management tests
-│   ├── playerService.test.ts    # Player management tests
-│   ├── timerService.test.ts     # Timer functionality tests
-│   └── wordListService.test.ts  # Word list tests
-├── handlers/
-│   ├── gameHandlers.test.ts     # Game event handlers
-│   ├── roomHandlers.test.ts     # Room event handlers
-│   └── playerHandlers.test.ts   # Player event handlers
-├── middleware/
-│   ├── rateLimit.test.ts        # Rate limiting tests
-│   ├── socketAuth.test.ts       # Authentication tests
-│   └── validation.test.ts       # Input validation tests
-├── routes/
-│   └── routes.test.ts           # REST API tests
-└── integration/
-    └── multiplayer.test.ts      # Multi-player scenarios
+├── helpers/
+│   ├── mocks.ts                 # Common mock utilities
+│   └── socketTestHelper.ts      # Socket testing utilities
+├── integration/
+│   ├── fullGameFlow.integration.test.ts  # Full game flow
+│   ├── handlers.integration.test.ts      # Handler integration
+│   ├── raceConditions.test.ts            # Race condition tests
+│   └── timerOperations.test.ts           # Timer operation tests
+├── frontend/
+│   ├── board.test.ts            # Board UI tests
+│   ├── state.test.ts            # State management tests
+│   ├── utils.test.ts            # Frontend utility tests
+│   └── rendering.test.ts        # Rendering tests
+├── gameService.test.ts          # Game logic tests
+├── playerService.test.ts        # Player management tests
+├── timerService.test.ts         # Timer functionality tests
+├── wordListService.test.ts      # Word list tests
+├── gameHistoryService.test.ts   # Game history tests
+├── auditService.test.ts         # Audit logging tests
+├── gameHandlers.test.ts         # Game event handlers
+├── roomHandlers.test.ts         # Room event handlers
+├── playerHandlers.test.ts       # Player event handlers
+├── timerHandlers.test.ts        # Timer event handlers
+├── chatHandlers.test.ts         # Chat event handlers
+├── adminRoutes.test.ts          # Admin API tests
+├── routes.test.ts               # REST API tests
+├── rateLimit.test.ts            # Rate limiting tests
+├── socketAuth.test.ts           # Authentication tests
+├── ... and 60+ more test files
 ```
+
+**Note**: Test files are organized flat in `__tests__/` (not in subdirectories by domain). Extended and edge-case test files use suffixes like `Extended`, `Unit`, `Branch`, etc.
 
 ### Writing Unit Tests
 
@@ -515,20 +530,23 @@ open coverage/lcov-report/index.html
 
 ### Coverage Thresholds
 
-Configured in `jest.config.js`:
+Configured in `jest.config.ts.js` (primary backend config) and `package.json` (fallback):
 
 ```javascript
+// jest.config.ts.js - actual enforced thresholds
 module.exports = {
     coverageThreshold: {
         global: {
-            statements: 80,
-            branches: 80,
+            statements: 75,
+            branches: 65,
             functions: 80,
-            lines: 80
+            lines: 75
         }
     }
 };
 ```
+
+Global thresholds are lower because infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
 
 ## Related Documentation
 

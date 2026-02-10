@@ -547,64 +547,7 @@ function formatPrometheusLabels(labels: MetricLabels): string {
     return `{${pairs}}`;
 }
 
-module.exports = {
-    // Core functions
-    incrementCounter,
-    setGauge,
-    incrementGauge,
-    decrementGauge,
-    recordHistogram,
-    startTimer,
-
-    // Wrappers
-    timed,
-    withTiming,
-
-    // Retrieval
-    getHistogramStats,
-    getAllMetrics,
-    resetMetrics,
-
-    // PHASE 5.1: Prometheus export
-    getPrometheusMetrics,
-
-    // PHASE 5.1: System monitoring
-    updateSystemMetrics,
-    startEventLoopMonitoring,
-    stopEventLoopMonitoring,
-
-    // Metric names
-    METRIC_NAMES,
-
-    // Convenience functions
-    trackGameStarted,
-    trackGameCompleted,
-    trackCardRevealed,
-    trackClueGiven,
-    trackRoomCreated,
-    trackRoomJoined,
-    trackError,
-    trackRateLimitHit,
-    setActiveRooms,
-    setActivePlayers,
-    setActiveGames,
-    setSocketConnections,
-    trackOperationLatency,
-    trackRedisLatency,
-    trackSocketEventLatency,
-
-    // PHASE 5.1: Additional tracking functions
-    trackHttpRequest,
-    trackWebsocketEvent,
-    trackReconnection,
-    trackPlayerKick,
-    trackBroadcast,
-    trackHttpRequestDuration,
-    trackWebsocketMessageSize,
-    setSpectatorCount
-};
-
-// ES6 exports for TypeScript imports
+// ES6 exports
 export {
     incrementCounter,
     setGauge,

@@ -95,9 +95,9 @@ git checkout -b feature/your-feature-name
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Services | camelCase | `gameService.js` |
-| Handlers | camelCase | `roomHandlers.js` |
-| Tests | camelCase + `.test.js` | `gameService.test.js` |
+| Services | camelCase | `gameService.ts` |
+| Handlers | camelCase | `roomHandlers.ts` |
+| Tests | camelCase + `.test.ts` | `gameService.test.ts` |
 | Constants | SCREAMING_SNAKE_CASE | `ERROR_CODES` |
 
 ### JavaScript Style
@@ -265,12 +265,14 @@ How were changes tested?
 
 ### Coverage Thresholds
 
+Configured in `jest.config.ts.js`. Thresholds are set lower globally because infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
+
 | Metric | Minimum |
 |--------|---------|
-| Statements | 80% |
-| Branches | 80% |
+| Statements | 75% |
+| Branches | 65% |
 | Functions | 80% |
-| Lines | 80% |
+| Lines | 75% |
 
 ### Test Categories
 

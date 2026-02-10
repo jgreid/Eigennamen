@@ -2,7 +2,7 @@
 
 **Date**: 2026-02-09
 **Scope**: Full codebase review - architecture, code quality, security, testing, infrastructure, and UX
-**Version Reviewed**: v2.4.0 (commit 9a6d456)
+**Version Reviewed**: v2.2.0 (commit 9a6d456)
 **Implementation Status**: Tiers 1-3 completed (see checkmarks below)
 
 ---
@@ -111,10 +111,8 @@ This review identifies **27 actionable improvements** across 6 categories, organ
 - The `removeControlChars()` + `.refine()` + Unicode regex pattern is repeated for nickname, room code, and clue schemas
 - **Recommendation**: Extract a reusable `sanitizedString(maxLength)` Zod schema builder
 
-**C4. eventLogService.ts is a 61-line stub kept only for test compatibility**
-- File: `server/src/services/eventLogService.ts`
-- Service was superseded but kept as dead code
-- **Recommendation**: Remove and update any tests that reference it
+**C4. ~~eventLogService.ts is a 61-line stub kept only for test compatibility~~** ✅ RESOLVED
+- File has been removed. Superseded by `gameHistoryService.ts` and `auditService.ts`.
 
 **C5. Mixed module systems in migration**
 - Some files use `require()` alongside ES6 `import`; `module.exports` alongside `export`

@@ -456,3 +456,48 @@ export function scrollToCurrentEvent() {
         currentEventEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
+
+/**
+ * Check URL for replay parameters and auto-load the replay.
+ * Fetches replay data via REST API (no room membership required).
+ * URL format: ?replay=<gameId>&room=<roomCode>
+ */
+export async function checkURLForReplayLoad() {
+    const params = new URLSearchParams(window.location.search);
+    const replayId = params.get('replay');
+    const roomCode = params.get('room');
+
+    if (!replayId || !roomCode) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                showToast('Replay not found or expired', 'error');
+            } else {
+                showToast('Failed to load replay', 'error');
+            }
+            return false;
+        }
+
+        const data = await response.json();
+        if (data.replay) {
+            renderReplayData(data);
+            showToast('Replay loaded from shared link', 'success');
+
+            // Clean replay params from URL to prevent re-loading on refresh
+            const url = new URL(window.location.href);
+            url.searchParams.delete('replay');
+            url.searchParams.delete('room');
+            window.history.replaceState({}, '', url.toString());
+
+            return true;
+        }
+    } catch (error) {
+        console.error('Failed to load shared replay:', error);
+        showToast('Failed to load shared replay', 'error');
+    }
+    return false;
+}

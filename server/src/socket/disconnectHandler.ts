@@ -19,7 +19,7 @@ import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
 const logger = require('../utils/logger');
-const { SOCKET_EVENTS } = require('../config/constants');
+const { SOCKET_EVENTS, LOCKS } = require('../config/constants');
 const { safeEmitToRoom } = require('./safeEmit');
 
 /**
@@ -88,10 +88,9 @@ function createTimerExpireCallback(
                             return;
                         }
 
-                        // ISSUE #3 FIX: Increase lock TTL to 10s and track acquisition state
-                        // SPRINT-15 FIX: Explicit verification of lock result (Redis returns 'OK' or null)
+                        // Use centralized lock TTL from config
                         lockValue = `${process.pid}:${Date.now()}`;
-                        const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: 10 });
+                        const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.TIMER_RESTART });
                         // Redis SET with NX returns 'OK' on success or null on failure
                         // Some Redis client versions may return boolean, so we check for truthy value
                         lockAcquired = lockResult === 'OK' || (lockResult as unknown) === true || !!lockResult;
@@ -106,7 +105,7 @@ function createTimerExpireCallback(
                         logger.debug(`Timer restart lock acquired for room ${roomCode}`, {
                             lockKey,
                             lockValue,
-                            ttlSeconds: 10
+                            ttlSeconds: LOCKS.TIMER_RESTART
                         });
 
                         const room = await roomService.getRoom(roomCode);
@@ -247,10 +246,9 @@ async function handleDisconnect(
                 let hostLockValue: string | undefined;
 
                 try {
-                    // ISSUE #7 FIX: Increase lock TTL to 10s for slow Redis operations
-                    // Use unique lock value for owner-verified release
+                    // Use centralized lock TTL from config with unique value for owner-verified release
                     hostLockValue = `${socket.sessionId}:${Date.now()}`;
-                    const lockResult = await redis.set(lockKey, hostLockValue, { NX: true, EX: 10 });
+                    const lockResult = await redis.set(lockKey, hostLockValue, { NX: true, EX: LOCKS.HOST_TRANSFER });
                     // Redis SET with NX returns 'OK' on success or null on failure
                     // Some Redis client versions may return boolean, so we check for truthy value
                     hostTransferLockAcquired = lockResult === 'OK' || (lockResult as unknown) === true || !!lockResult;
