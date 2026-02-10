@@ -323,7 +323,7 @@ export class WordListError extends GameError {
  * with a generic message to prevent information disclosure.
  */
 export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
-    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST',
+    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'ROOM_ALREADY_EXISTS', 'NOT_HOST',
     'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED',
     'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
     'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'VALIDATION_ERROR',

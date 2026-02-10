@@ -103,6 +103,7 @@ export type SafeErrorCode =
   | 'RATE_LIMITED'
   | 'ROOM_NOT_FOUND'
   | 'ROOM_FULL'
+  | 'ROOM_ALREADY_EXISTS'
   | 'NOT_HOST'
   | 'NOT_YOUR_TURN'
   | 'GAME_OVER'
