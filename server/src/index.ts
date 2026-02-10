@@ -11,7 +11,7 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./app') as Application & { updateSocketCount: (delta: number) => void };
 const { initializeSocket, cleanupSocketModule } = require('./socket');
-const { connectRedis, disconnectRedis, getRedis } = require('./config/redis');
+const { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } = require('./config/redis');
 const { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } = require('./config/database');
 const { validateEnv, getEnvInt } = require('./config/env');
 const timerService = require('./services/timerService');
@@ -49,6 +49,15 @@ async function startServer(): Promise<void> {
         // Log Fly.io instance info if available
         if (process.env.FLY_ALLOC_ID) {
             logger.info(`Fly.io instance: ${process.env.FLY_ALLOC_ID} in region ${process.env.FLY_REGION}`);
+
+            // Warn at runtime if memory mode is being used on Fly.io
+            // (validateEnv blocks this by default, but the escape hatch
+            // MEMORY_MODE_ALLOW_FLY=true can bypass it)
+            if (isUsingMemoryMode()) {
+                logger.warn('=== SPLIT-BRAIN RISK: Running in-memory storage on Fly.io ===');
+                logger.warn('Rooms created on this instance are invisible to other instances.');
+                logger.warn('Ensure only 1 machine is active: fly scale count 1');
+            }
         }
 
         // Start listening - bind to 0.0.0.0 to accept connections from outside container

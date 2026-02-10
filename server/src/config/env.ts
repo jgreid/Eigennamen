@@ -77,6 +77,30 @@ export function validateEnv(): boolean {
             warnings.push('  - Data will NOT persist across restarts');
             warnings.push('  - Multi-instance scaling is DISABLED');
             warnings.push('  - Set REDIS_URL to a real Redis URL for production: fly secrets set REDIS_URL=rediss://...');
+
+            // Detect multi-instance Fly.io deployment with memory mode
+            // FLY_ALLOC_ID is set by Fly.io on every machine. If present,
+            // we're on Fly.io and memory mode is dangerous with >1 machine
+            // because each machine has its own isolated in-memory state.
+            // Players joining a room may be routed to a different machine
+            // that has no knowledge of the room, causing ROOM_NOT_FOUND errors.
+            if (process.env['FLY_ALLOC_ID']) {
+                const allowFly = process.env['MEMORY_MODE_ALLOW_FLY'] === 'true';
+                if (allowFly) {
+                    // Operator explicitly opted in to memory mode on Fly.io
+                    warnings.push('DANGER: Memory mode forced on Fly.io via MEMORY_MODE_ALLOW_FLY=true');
+                    warnings.push('  - Ensure EXACTLY 1 machine is running: fly scale count 1');
+                    warnings.push('  - Room join failures WILL occur if Fly.io starts a second machine');
+                } else {
+                    errors.push(
+                        'FATAL: In-memory storage mode (REDIS_URL=memory) is not supported on Fly.io. ' +
+                        'Fly.io can route requests to different machines, each with separate in-memory state, ' +
+                        'causing ROOM_NOT_FOUND errors when players try to join rooms. ' +
+                        'Fix: provision Redis with `fly redis create` and set REDIS_URL to the Redis connection string. ' +
+                        'To force single-machine memory mode anyway, set MEMORY_MODE_ALLOW_FLY=true'
+                    );
+                }
+            }
         }
 
         // ISSUE #55 FIX: Make JWT_SECRET warning more prominent in production

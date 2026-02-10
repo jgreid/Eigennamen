@@ -1,9 +1,13 @@
 # Fly.io configuration for Die Eigennamen game server
 # See https://fly.io/docs/reference/configuration/ for details
 #
-# IMPORTANT: This app uses in-memory storage (REDIS_URL=memory) by default.
-# Only 1 machine should be running - multiple machines have separate game state!
-# After first deploy, scale to 1 machine:  fly scale count 1
+# STORAGE: This app defaults to in-memory storage (REDIS_URL=memory).
+# This works but rooms only exist on ONE machine - if Fly routes a player
+# to a different machine, they get "room not found". To fix this:
+#   1. fly redis create
+#   2. fly secrets set REDIS_URL=rediss://...
+#   3. Remove REDIS_URL and MEMORY_MODE_ALLOW_FLY from [env] below
+# Until then, keep exactly 1 machine: fly scale count 1
 
 app = "die-eigennamen"
 primary_region = "iad"
@@ -27,11 +31,12 @@ primary_region = "iad"
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
   CORS_ORIGIN = "https://die-eigennamen.fly.dev"
 
-  # In-memory storage mode - no external dependencies required!
-  # Game data lives in memory (lost on restart, but rooms are temporary anyway)
-  # NOTE: Rooms typically last a few hours, so memory mode is suitable for casual use
-  # For persistence/multi-instance scaling: fly secrets set REDIS_URL=rediss://...
+  # Storage backend for game state (rooms, players, timers).
+  # RECOMMENDED: Provision Redis and move REDIS_URL to a Fly secret:
+  #   fly redis create && fly secrets set REDIS_URL=rediss://...
+  # Then delete these two lines:
   REDIS_URL = "memory"
+  MEMORY_MODE_ALLOW_FLY = "true"
   # DATABASE_URL is NOT required - the game works fully without a database
   # Database only needed for: user accounts, game history, persistent word lists
 
