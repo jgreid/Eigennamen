@@ -1316,10 +1316,13 @@ export class MemoryStorage {
             return newToken;
         }
 
-        logger.debug('Memory storage eval called with unsupported script pattern', {
-            numKeys, numArgs, firstKey
-        });
-        return null;
+        // Fail loudly for unrecognized Lua script patterns to prevent silent data loss.
+        // If a new Lua script is added to production code but not mirrored here,
+        // the operation must fail visibly rather than returning null and proceeding
+        // as if the operation succeeded.
+        const errorMsg = `MemoryStorage: unrecognized Lua script pattern (numKeys=${numKeys}, numArgs=${numArgs}, firstKey=${firstKey})`;
+        logger.error(errorMsg);
+        throw new Error(errorMsg);
     }
 
     async evalSha(_sha: string, options: EvalOptions): Promise<string | number | null> {

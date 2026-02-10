@@ -5,8 +5,9 @@
  * validation, error handling, and socket room management.
  */
 
-import type { Server, Socket } from 'socket.io';
-import type { Player, GameState, Team, Role } from '../../types';
+import type { Server } from 'socket.io';
+import type { Player, Team, Role } from '../../types';
+import type { GameSocket, RoomContext } from './types';
 
 const playerService = require('../../services/playerService');
 const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
@@ -15,24 +16,6 @@ const { SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
 const { PlayerError } = require('../../errors/GameError');
-
-/**
- * Extended Socket type with custom properties
- */
-interface GameSocket extends Socket {
-    sessionId: string;
-    roomCode: string | null;
-}
-
-/**
- * Room handler context
- */
-interface RoomContext {
-    sessionId: string;
-    roomCode: string;
-    player: Player;
-    game: GameState | null;
-}
 
 /**
  * Chat message input

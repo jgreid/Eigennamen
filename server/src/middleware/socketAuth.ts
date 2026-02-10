@@ -403,7 +403,7 @@ function validateOrigin(socket: Socket): OriginValidationResult {
  * Returns true if the token is valid (or absent but accepted by playerService).
  * Returns false if the token has an invalid format or fails validation.
  */
-async function validateReconnectionToken(
+async function validateRoomReconnectToken(
     sessionId: string,
     reconnectToken: string | undefined,
     currentIP: string
@@ -427,7 +427,7 @@ async function validateReconnectionToken(
     }
 
     // Validate token value via playerService
-    const tokenValid: boolean = await playerService.validateReconnectToken(sessionId, reconnectToken);
+    const tokenValid: boolean = await playerService.validateSocketAuthToken(sessionId, reconnectToken);
 
     if (!tokenValid) {
         logger.warn('Reconnection token validation failed', {
@@ -499,7 +499,7 @@ async function resolveSessionId(
     }
 
     // Validate reconnection token (ISSUE #17 FIX)
-    const tokenValid = await validateReconnectionToken(sessionId, auth.reconnectToken, currentIP);
+    const tokenValid = await validateRoomReconnectToken(sessionId, auth.reconnectToken, currentIP);
 
     if (!tokenValid) {
         // Token invalid - generate new session

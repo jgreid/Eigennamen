@@ -8,8 +8,9 @@
  *   createRoomHandler/createHostHandler (require room context)
  */
 
-import type { Server, Socket } from 'socket.io';
+import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
+import type { GameSocket, RoomContext } from './types';
 
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
@@ -25,24 +26,6 @@ const { getSocketFunctions } = require('../socketFunctionProvider');
 const { trackReconnection } = require('../../utils/metrics');
 const { getSocketRateLimiter } = require('../rateLimitHandler');
 const { safeEmitToRoom } = require('../safeEmit');
-
-/**
- * Extended Socket type with custom properties
- */
-interface GameSocket extends Socket {
-    sessionId: string;
-    roomCode: string | null;
-}
-
-/**
- * Room handler context (from createRoomHandler)
- */
-interface RoomContext {
-    sessionId: string;
-    roomCode: string;
-    player: Player;
-    game: GameState | null;
-}
 
 /**
  * Room create input
@@ -249,7 +232,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // to reduce total response time and avoid pushing past the client's timeout
             let statsUsedFallback = false;
             const [, roomStats, gameState] = await Promise.all([
-                playerService.invalidateReconnectionToken(socket.sessionId).catch((err: Error) => {
+                playerService.invalidateRoomReconnectToken(socket.sessionId).catch((err: Error) => {
                     logger.warn(`Failed to invalidate reconnection token during join: ${err.message}`);
                 }),
                 playerService.getRoomStats(room.code).catch((err: Error) => {
@@ -297,7 +280,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
     socket.on(SOCKET_EVENTS.ROOM_LEAVE, createRoomHandler(socket, SOCKET_EVENTS.ROOM_LEAVE, null,
         async (ctx: RoomContext) => {
             // Invalidate reconnection token when explicitly leaving
-            await playerService.invalidateReconnectionToken(ctx.sessionId);
+            await playerService.invalidateRoomReconnectToken(ctx.sessionId);
 
             const result: { newHostId?: string } | null = await roomService.leaveRoom(ctx.roomCode, ctx.sessionId);
 
@@ -424,7 +407,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             const { code, reconnectionToken } = validated;
 
             const reconnectPromise = (async () => {
-                const validation: TokenValidation = await playerService.validateReconnectionToken(reconnectionToken, socket.sessionId);
+                const validation: TokenValidation = await playerService.validateRoomReconnectToken(reconnectionToken, socket.sessionId);
 
                 if (!validation.valid) {
                     throw new PlayerError(ERROR_CODES.NOT_AUTHORIZED, `Invalid reconnection token: ${validation.reason}`);

@@ -171,25 +171,25 @@ describe('Reconnection Edge Cases', () => {
                 expiresAt: Date.now() - 60 * 1000      // Expired 1 minute ago
             };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'Token expired'
             });
 
-            const result = await playerService.validateReconnectionToken('expired-token', 'session-456');
+            const result = await playerService.validateRoomReconnectToken('expired-token', 'session-456');
             expect(result.valid).toBe(false);
             expect(result.reason).toContain('expired');
         });
 
         test('refreshes token on successful reconnection', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { sessionId: 'session-456', roomCode: 'TEST12' }
             });
 
             playerService.generateReconnectionToken.mockResolvedValue('new-token');
 
-            const validation = await playerService.validateReconnectionToken('old-token', 'session-456');
+            const validation = await playerService.validateRoomReconnectToken('old-token', 'session-456');
             expect(validation.valid).toBe(true);
 
             // After reconnection, system should generate new token for next time
@@ -203,7 +203,7 @@ describe('Reconnection Edge Cases', () => {
             const sessionId = 'session-456';
             let reconnectAttempts = 0;
 
-            playerService.validateReconnectionToken.mockImplementation(async () => {
+            playerService.validateRoomReconnectToken.mockImplementation(async () => {
                 reconnectAttempts++;
                 // First attempt wins
                 if (reconnectAttempts === 1) {
@@ -215,9 +215,9 @@ describe('Reconnection Edge Cases', () => {
 
             // Simulate concurrent attempts
             const attempts = await Promise.all([
-                playerService.validateReconnectionToken('token', sessionId),
-                playerService.validateReconnectionToken('token', sessionId),
-                playerService.validateReconnectionToken('token', sessionId)
+                playerService.validateRoomReconnectToken('token', sessionId),
+                playerService.validateRoomReconnectToken('token', sessionId),
+                playerService.validateRoomReconnectToken('token', sessionId)
             ]);
 
             const successfulAttempts = attempts.filter(a => a.valid);
@@ -389,7 +389,7 @@ describe('Reconnection Edge Cases', () => {
 
     describe('IP Address Validation', () => {
         test('warns on IP address change during reconnection', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: {
                     sessionId: 'session-456',
@@ -401,19 +401,19 @@ describe('Reconnection Edge Cases', () => {
                 newIp: '10.0.0.50'
             });
 
-            const validation = await playerService.validateReconnectionToken('token', 'session-456');
+            const validation = await playerService.validateRoomReconnectToken('token', 'session-456');
 
             expect(validation.valid).toBe(true);
             expect(validation.ipChanged).toBe(true);
         });
 
         test('blocks reconnection from drastically different IP', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'IP address mismatch - possible session hijacking'
             });
 
-            const validation = await playerService.validateReconnectionToken('token', 'session-456');
+            const validation = await playerService.validateRoomReconnectToken('token', 'session-456');
 
             expect(validation.valid).toBe(false);
             expect(validation.reason).toContain('IP address');

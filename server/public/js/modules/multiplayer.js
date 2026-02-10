@@ -627,6 +627,13 @@ export function setupMultiplayerListeners() {
         if (data.index !== undefined) {
             revealCardFromServer(data.index, data);
             playNotificationSound('reveal');
+
+            // Announce card reveal to screen readers
+            const word = data.word || (state.gameState.words && state.gameState.words[data.index]) || '';
+            const type = data.type || '';
+            if (word) {
+                announceToScreenReader(`Card revealed: ${word}. ${type} card.`);
+            }
         }
 
         // Update Duet info if present
@@ -749,6 +756,21 @@ export function setupMultiplayerListeners() {
                 p.sessionId === data.sessionId ? { ...p, ...data.changes } : p
             );
             updateMpIndicator({ code: CodenamesClient.getRoomCode() }, state.multiplayerPlayers);
+
+            // Announce role/team changes to screen readers
+            if (data.changes.role || data.changes.team !== undefined) {
+                const changedPlayer = state.multiplayerPlayers.find(p => p.sessionId === data.sessionId);
+                const name = changedPlayer?.nickname || 'A player';
+                if (data.changes.role) {
+                    announceToScreenReader(`${name} is now ${data.changes.role}.`);
+                }
+                if (data.changes.team !== undefined) {
+                    const teamName = data.changes.team
+                        ? (data.changes.team === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue'))
+                        : 'spectators';
+                    announceToScreenReader(`${name} joined ${teamName}.`);
+                }
+            }
 
             // If this is the current player, update local state variables
             if (data.sessionId === CodenamesClient.player?.sessionId) {

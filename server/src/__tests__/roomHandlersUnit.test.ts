@@ -99,10 +99,10 @@ describe('Room Handlers', () => {
         });
         playerService.getPlayersInRoom.mockResolvedValue([]);
         playerService.getRoomStats.mockResolvedValue({});
-        playerService.invalidateReconnectionToken.mockResolvedValue();
+        playerService.invalidateRoomReconnectToken.mockResolvedValue();
         playerService.generateReconnectionToken.mockResolvedValue('token-123');
         playerService.getExistingReconnectionToken.mockResolvedValue(null);
-        playerService.validateReconnectionToken.mockResolvedValue({
+        playerService.validateRoomReconnectToken.mockResolvedValue({
             valid: true,
             tokenData: { roomCode: 'test-room', sessionId: 'session-1' }
         });
@@ -184,7 +184,7 @@ describe('Room Handlers', () => {
         test('invalidates reconnection token on join', async () => {
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
 
-            expect(playerService.invalidateReconnectionToken).toHaveBeenCalledWith('session-1');
+            expect(playerService.invalidateRoomReconnectToken).toHaveBeenCalledWith('session-1');
         });
 
         test('sends spymaster view if player is spymaster with active game', async () => {
@@ -248,7 +248,7 @@ describe('Room Handlers', () => {
                 game: null,
                 player: {}
             });
-            playerService.invalidateReconnectionToken.mockRejectedValue(new Error('Failed'));
+            playerService.invalidateRoomReconnectToken.mockRejectedValue(new Error('Failed'));
 
             await eventHandlers['room:join']({ roomId: 'fail-room', nickname: 'Player1' });
 
@@ -287,7 +287,7 @@ describe('Room Handlers', () => {
         test('invalidates reconnection token on leave', async () => {
             await eventHandlers['room:leave']();
 
-            expect(playerService.invalidateReconnectionToken).toHaveBeenCalledWith('session-1');
+            expect(playerService.invalidateRoomReconnectToken).toHaveBeenCalledWith('session-1');
         });
 
         test('notifies room of player leaving', async () => {
@@ -518,7 +518,7 @@ describe('Room Handlers', () => {
                 reconnectionToken: validToken
             });
 
-            expect(playerService.validateReconnectionToken).toHaveBeenCalledWith(
+            expect(playerService.validateRoomReconnectToken).toHaveBeenCalledWith(
                 validToken,
                 'session-1'
             );
@@ -533,7 +533,7 @@ describe('Room Handlers', () => {
         });
 
         test('throws error when token is invalid', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'Token expired'
             });
@@ -550,7 +550,7 @@ describe('Room Handlers', () => {
         });
 
         test('throws error when room code mismatch', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'other-room', sessionId: 'session-1' }
             });
@@ -623,7 +623,7 @@ describe('Room Handlers', () => {
         test('handles timeout error gracefully', async () => {
             const timeoutError = new Error('Timed out');
             timeoutError.code = 'OPERATION_TIMEOUT';
-            playerService.validateReconnectionToken.mockRejectedValue(timeoutError);
+            playerService.validateRoomReconnectToken.mockRejectedValue(timeoutError);
 
             await eventHandlers['room:reconnect']({
                 code: 'test-room',

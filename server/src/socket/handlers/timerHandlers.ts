@@ -6,8 +6,8 @@
  * validation, error handling, and socket room management.
  */
 
-import type { Server, Socket } from 'socket.io';
-import type { Player, GameState } from '../../types';
+import type { Server } from 'socket.io';
+import type { GameSocket, RoomContext } from './types';
 
 const timerService = require('../../services/timerService');
 const logger = require('../../utils/logger');
@@ -17,24 +17,6 @@ const { getSocketFunctions } = require('../socketFunctionProvider');
 const { timerAddTimeSchema } = require('../../validators/schemas');
 const { GameStateError } = require('../../errors/GameError');
 const { safeEmitToRoom } = require('../safeEmit');
-
-/**
- * Extended Socket type with custom properties
- */
-interface GameSocket extends Socket {
-    sessionId: string;
-    roomCode: string | null;
-}
-
-/**
- * Room handler context
- */
-interface RoomContext {
-    sessionId: string;
-    roomCode: string;
-    player: Player;
-    game: GameState | null;
-}
 
 /**
  * Timer add time input

@@ -367,7 +367,7 @@ describe('Room Resync and Recovery Handlers', () => {
             const mockPlayers = [mockPlayer];
             const mockGame = { currentTurn: 'red', gameOver: false };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test12', sessionId: 'session-456' }
             });
@@ -395,7 +395,7 @@ describe('Room Resync and Recovery Handlers', () => {
             const mockRoom = { code: 'test12' };
             const mockPlayer = { sessionId: 'session-456', nickname: 'Player1', team: 'red' };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test12', sessionId: 'session-456' }
             });
@@ -418,7 +418,7 @@ describe('Room Resync and Recovery Handlers', () => {
             const mockPlayer = { sessionId: 'session-456', nickname: 'Spymaster', role: 'spymaster', team: 'red' };
             const mockGame = { currentTurn: 'red', gameOver: false, types: ['red', 'blue', 'neutral'] };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test12', sessionId: 'session-456' }
             });
@@ -439,7 +439,7 @@ describe('Room Resync and Recovery Handlers', () => {
         });
 
         test('rejects reconnection with invalid token', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'Token expired'
             });
@@ -455,7 +455,7 @@ describe('Room Resync and Recovery Handlers', () => {
         });
 
         test('rejects reconnection when token room code does not match', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'other1', sessionId: 'session-456' }
             });
@@ -471,7 +471,7 @@ describe('Room Resync and Recovery Handlers', () => {
         });
 
         test('rejects reconnection when room no longer exists', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test12', sessionId: 'session-456' }
             });
@@ -510,7 +510,7 @@ describe('Room Resync and Recovery Handlers', () => {
             const mockRoom = { code: 'test12' };
             const mockPlayer = { sessionId: 'session-456', nickname: 'Player1' };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test12', sessionId: 'session-456' }
             });
@@ -537,7 +537,7 @@ describe('Room Resync and Recovery Handlers', () => {
                 isPaused: false
             };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test12', sessionId: 'session-456' }
             });

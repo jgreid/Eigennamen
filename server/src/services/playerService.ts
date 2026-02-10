@@ -116,6 +116,7 @@ interface RedisClient {
     zAdd(key: string, member: { score: number; value: string }): Promise<number>;
     zRem(key: string, member: string): Promise<number>;
     zRangeByScore(key: string, min: number, max: number, options?: { LIMIT?: { offset: number; count: number } }): Promise<string[]>;
+    scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string>;
 }
 
 interface RedisTransaction {
@@ -618,7 +619,7 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
  * Uses the same token storage as generateReconnectionToken() for consistency
  * ISSUE #17 FIX: Require valid token for reconnection to prevent session hijacking
  */
-export async function validateReconnectToken(sessionId: string, token?: string): Promise<boolean> {
+export async function validateSocketAuthToken(sessionId: string, token?: string): Promise<boolean> {
     const redis: RedisClient = getRedis();
 
     // If no token provided, check if player is still connected (fresh connection)
@@ -871,7 +872,7 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
  * Validate and consume a reconnection token
  * ISSUE #17 FIX: Secure reconnection via short-lived tokens
  */
-export async function validateReconnectionToken(
+export async function validateRoomReconnectToken(
     token: string,
     sessionId: string
 ): Promise<TokenValidationResult> {
@@ -930,7 +931,7 @@ export function getExistingReconnectionToken(sessionId: string): Promise<string 
  * Invalidate any existing reconnection token for a session
  * Called when player successfully reconnects or explicitly leaves
  */
-export async function invalidateReconnectionToken(sessionId: string): Promise<void> {
+export async function invalidateRoomReconnectToken(sessionId: string): Promise<void> {
     const redis: RedisClient = getRedis();
 
     const existingToken = await redis.get(`reconnect:session:${sessionId}`);
@@ -955,11 +956,9 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
 
     // Scan for reconnect:session:* keys
     try {
-        // Use scan if available (ioredis/node-redis v4+), else skip
-        const redisAny = redis as unknown as Record<string, unknown>;
-        if (typeof redisAny.scanIterator === 'function') {
-            const scanFn = redisAny.scanIterator as (options: { MATCH: string; COUNT: number }) => AsyncIterable<string>;
-            for await (const key of scanFn({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
+        // Use scanIterator if available (node-redis v4+, MemoryStorage)
+        if (redis.scanIterator) {
+            for await (const key of redis.scanIterator({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
                 const sessionId = key.replace('reconnect:session:', '');
                 // Check if the player session still exists
                 const playerKey = `player:${sessionId}`;
@@ -1153,13 +1152,13 @@ module.exports = {
     startCleanupTask,
     stopCleanupTask,
     // ISSUE #17 FIX: Reconnection token functions
-    // validateReconnectToken - simple tokens for automatic socket auth reconnection
-    validateReconnectToken,
+    // validateSocketAuthToken - simple tokens for automatic socket auth reconnection
+    validateSocketAuthToken,
     // Complex token functions for explicit room:reconnect flow
     generateReconnectionToken,
-    validateReconnectionToken,
+    validateRoomReconnectToken,
     getExistingReconnectionToken,
-    invalidateReconnectionToken,
+    invalidateRoomReconnectToken,
     cleanupOrphanedReconnectionTokens,
     // US-16.1: Spectator mode enhancements
     getSpectators,

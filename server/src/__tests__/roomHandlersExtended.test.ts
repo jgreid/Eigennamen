@@ -138,7 +138,7 @@ describe('Extended Room Handlers Tests', () => {
                 game: null,
                 player: { sessionId: 'session-456', nickname: 'Player1' }
             });
-            playerService.invalidateReconnectionToken.mockResolvedValue();
+            playerService.invalidateRoomReconnectToken.mockResolvedValue();
 
             const handlers = mockSocket.on.mock.calls;
             const joinHandler = handlers.find(h => h[0] === 'room:join');
@@ -166,7 +166,7 @@ describe('Extended Room Handlers Tests', () => {
             mockSocket.roomCode = 'test-room';
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             roomService.leaveRoom.mockResolvedValue({ newHostId: 'new-host-123' });
-            playerService.invalidateReconnectionToken.mockResolvedValue();
+            playerService.invalidateRoomReconnectToken.mockResolvedValue();
 
             const handlers = mockSocket.on.mock.calls;
             const leaveHandler = handlers.find(h => h[0] === 'room:leave');
@@ -184,7 +184,7 @@ describe('Extended Room Handlers Tests', () => {
             mockSocket.roomCode = 'test-room';
             playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'test-room' });
             roomService.leaveRoom.mockRejectedValue(new Error('Leave failed'));
-            playerService.invalidateReconnectionToken.mockResolvedValue();
+            playerService.invalidateRoomReconnectToken.mockResolvedValue();
 
             const handlers = mockSocket.on.mock.calls;
             const leaveHandler = handlers.find(h => h[0] === 'room:leave');
@@ -363,7 +363,7 @@ describe('Extended Room Handlers Tests', () => {
     describe('room:reconnect edge cases', () => {
         test('reconnects with valid token', async () => {
             const mockPlayer = { sessionId: 'session-456', nickname: 'Player1', team: 'red', role: 'clicker' };
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test-room', sessionId: 'session-456' }
             });
@@ -382,7 +382,7 @@ describe('Extended Room Handlers Tests', () => {
         });
 
         test('rejects invalid token', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
                 reason: 'Token expired'
             });
@@ -398,7 +398,7 @@ describe('Extended Room Handlers Tests', () => {
         });
 
         test('rejects token for wrong room', async () => {
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'different-room', sessionId: 'session-456' }
             });
@@ -436,7 +436,7 @@ describe('Extended Room Handlers Tests', () => {
             const mockPlayer = { sessionId: 'session-456', nickname: 'Spymaster1', team: 'red', role: 'spymaster' };
             const mockGame = { id: 'game-1', types: ['red', 'blue'], gameOver: false };
 
-            playerService.validateReconnectionToken.mockResolvedValue({
+            playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
                 tokenData: { roomCode: 'test-room', sessionId: 'session-456' }
             });
