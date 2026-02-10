@@ -203,11 +203,12 @@ export async function createRoom(
         );
     }
 
-    // Create host player with provided nickname or default to 'Host'
+    // Create host player with provided nickname or default to 'Player'
+    // Note: 'Host' was a reserved name causing validation failures when no nickname provided
     // HARDENING FIX: Wrap player creation in try-catch to rollback room creation on failure
     let player: Player;
     try {
-        player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Host', true);
+        player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Player', true);
     } catch (playerError) {
         // Rollback: delete the room we just created
         logger.warn(`Player creation failed for room "${roomId}", rolling back room creation`);

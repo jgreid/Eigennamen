@@ -225,9 +225,11 @@ async function handleJoinGame() {
             return;
         }
 
-        console.error('Join failed:', error);
+        console.error('Join failed for room "' + roomId + '":', error);
         if (error.code === 'ROOM_NOT_FOUND') {
-            setMpStatus('Room not found - check the Room ID', 'error');
+            setMpStatus(`Room "${roomId}" not found - check the Room ID`, 'error');
+            // Clear stale URL room code to prevent repeated failures
+            clearRoomCodeFromURL();
         } else if (error.code === 'ROOM_FULL') {
             setMpStatus('Room is full', 'error');
         } else if (error.code === 'INVALID_INPUT') {

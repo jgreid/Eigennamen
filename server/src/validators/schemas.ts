@@ -12,7 +12,7 @@ import type { z as ZodType } from 'zod';
 
 const { z } = require('zod');
 const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, GAME_MODES } = require('../config/constants');
-const { removeControlChars, isReservedName } = require('../utils/sanitize');
+const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
 
 // Re-export z for external use
 export { z };
@@ -48,12 +48,15 @@ const createTeamNameSchema = () =>
 
 /**
  * Create a room ID schema with consistent validation and lowercase normalization.
+ * Uses toEnglishLowerCase() for locale-independent normalization, matching the
+ * service layer (roomService.ts) and HTTP routes (roomRoutes.ts).
  */
 const createRoomIdSchema = () =>
     z.string()
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
-        .transform((val: string) => removeControlChars(val).trim().toLowerCase())
+        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim()))
+        .refine((val: string) => val.length >= 3, 'Room ID must be at least 3 characters')
         .refine((val: string) => roomIdRegex.test(val), 'Room ID contains invalid characters');
 
 /**
@@ -109,7 +112,7 @@ const roomReconnectSchema = z.object({
     code: z.string()
         .min(3, 'Room code must be at least 3 characters')
         .max(20, 'Room code must be at most 20 characters')
-        .transform((val: string) => removeControlChars(val).trim().toLowerCase()),
+        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim())),
     reconnectionToken: z.string()
         .length(64, 'Invalid reconnection token format')
         .refine((val: string) => reconnectionTokenRegex.test(val), 'Invalid reconnection token format')
@@ -120,7 +123,7 @@ const roomCodeSchema = z.object({
     code: z.string()
         .min(3, 'Room code must be at least 3 characters')
         .max(20, 'Room code must be at most 20 characters')
-        .transform((val: string) => removeControlChars(val).trim().toLowerCase())
+        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim()))
 });
 
 // HTTP route validation schema for word list ID parameter
