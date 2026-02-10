@@ -424,7 +424,7 @@ describe('roomCreateSchema', () => {
         const result = roomCreateSchema.safeParse({
             roomId: 'my-game',
             settings: {
-                turnTimer: 600
+                turnTimer: 601
             }
         });
         expect(result.success).toBe(false);

@@ -778,6 +778,11 @@ export function startCleanupTask(): void {
         } catch (error) {
             logger.error('Error in cleanup task:', (error as Error).message);
         }
+        try {
+            await cleanupOrphanedReconnectionTokens();
+        } catch (error) {
+            logger.error('Error in reconnection token cleanup:', (error as Error).message);
+        }
     }, PLAYER_CLEANUP.INTERVAL_MS);
 
     logger.info('Player cleanup task started');
@@ -934,6 +939,53 @@ export async function invalidateReconnectionToken(sessionId: string): Promise<vo
         await redis.del(`reconnect:session:${sessionId}`);
         logger.debug(`Invalidated reconnection token for session ${sessionId}`);
     }
+}
+
+/**
+ * Clean up orphaned reconnection tokens.
+ * Reconnection tokens reference a session ID. If the session no longer
+ * exists in Redis (player was cleaned up), the token is orphaned and
+ * should be deleted to prevent unbounded key growth.
+ *
+ * Uses SCAN to avoid blocking Redis on large datasets.
+ */
+export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
+    const redis: RedisClient = getRedis();
+    let cleaned = 0;
+
+    // Scan for reconnect:session:* keys
+    try {
+        // Use scan if available (ioredis/node-redis v4+), else skip
+        const redisAny = redis as unknown as Record<string, unknown>;
+        if (typeof redisAny.scanIterator === 'function') {
+            const scanFn = redisAny.scanIterator as (options: { MATCH: string; COUNT: number }) => AsyncIterable<string>;
+            for await (const key of scanFn({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
+                const sessionId = key.replace('reconnect:session:', '');
+                // Check if the player session still exists
+                const playerKey = `player:${sessionId}`;
+                const exists = await redis.get(playerKey);
+                if (!exists) {
+                    // Orphaned - clean up both token and session mapping
+                    const tokenId = await redis.get(key);
+                    if (tokenId) {
+                        await redis.del(`reconnect:token:${tokenId}`);
+                    }
+                    await redis.del(key);
+                    cleaned++;
+                }
+                // Limit batch size to avoid long-running operations
+                if (cleaned >= PLAYER_CLEANUP.BATCH_SIZE) break;
+            }
+        }
+    } catch (error) {
+        // Non-critical - memory storage may not support scan
+        logger.debug('Reconnection token cleanup skipped:', (error as Error).message);
+    }
+
+    if (cleaned > 0) {
+        logger.info(`Cleaned up ${cleaned} orphaned reconnection token(s)`);
+    }
+    return cleaned;
 }
 
 /**
@@ -1108,6 +1160,7 @@ module.exports = {
     validateReconnectionToken,
     getExistingReconnectionToken,
     invalidateReconnectionToken,
+    cleanupOrphanedReconnectionTokens,
     // US-16.1: Spectator mode enhancements
     getSpectators,
     getSpectatorCount,

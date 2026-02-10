@@ -68,7 +68,7 @@ Risley-Codenames/
 ## Technology Stack
 
 ### Frontend
-- Vanilla HTML/CSS/JavaScript (single-file SPA)
+- Vanilla HTML/CSS/JavaScript (modular ES6 in `server/public/js/modules/`)
 - Socket.io client for real-time communication
 - Glassmorphism UI design
 - URL-based state encoding for standalone mode
@@ -159,7 +159,7 @@ npm run test:watch       # Watch mode
 npm run test:coverage    # With coverage report
 ```
 
-**Coverage requirements**: 80% minimum for branches, functions, lines, and statements
+**Coverage requirements**: Global thresholds: 65% branches, 80% functions, 75% lines/statements (infrastructure modules require integration tests; business logic exceeds 80%)
 
 **Test files location**: `server/src/__tests__/`
 - `gameService.test.ts` - PRNG, board generation
@@ -266,7 +266,7 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 |------|----------------|
 | `index.html` | Frontend entry point |
 | `server/public/js/modules/` | ES6 modular frontend code |
-| `server/src/config/constants.ts` | Game rules, rate limits, error codes |
+| `server/src/config/constants.ts` | Re-exports all config (game, rate limits, errors, room, security) |
 | `server/src/services/gameService.ts` | Core game logic and PRNG |
 | `server/src/socket/index.ts` | Socket.io setup and event registration |
 | `server/prisma/schema.prisma` | Database schema definition |

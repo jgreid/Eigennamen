@@ -14,14 +14,18 @@ export const VALIDATION = {
     // Room ID constraints
     ROOM_CODE_MIN_LENGTH: 3,
     ROOM_CODE_MAX_LENGTH: 20,
-    ROOM_CODE_PATTERN: /^[a-zA-Z0-9\-_]+$/,
+    ROOM_CODE_PATTERN: /^[\p{L}\p{N}\-_]+$/u,
 
     // Clue constraints
     CLUE_MIN_LENGTH: 1,
     CLUE_MAX_LENGTH: 50,
 
     // Chat message constraints
-    CHAT_MESSAGE_MAX_LENGTH: 500
+    CHAT_MESSAGE_MAX_LENGTH: 500,
+
+    // Clue word regex - must match server's clueWordRegex in schemas.ts
+    // Unicode letters with optional single spaces/hyphens/apostrophes between words (max 10 parts)
+    CLUE_WORD_PATTERN: /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u
 };
 
 /**
@@ -129,6 +133,33 @@ export function validateNickname(nickname) {
  * @param {string} roomCode - Room code to validate
  * @returns {Object} { valid: boolean, error: string|null }
  */
+/**
+ * Validate a clue word against constraints (matches server's clueWordRegex)
+ * @param {string} word - Clue word to validate
+ * @returns {Object} { valid: boolean, error: string|null }
+ */
+export function validateClueWord(word) {
+    if (!word || typeof word !== 'string') {
+        return { valid: false, error: 'Clue word is required' };
+    }
+
+    const trimmed = word.trim().replace(/\s+/g, ' ');
+
+    if (trimmed.length < VALIDATION.CLUE_MIN_LENGTH) {
+        return { valid: false, error: 'Clue word is required' };
+    }
+
+    if (trimmed.length > VALIDATION.CLUE_MAX_LENGTH) {
+        return { valid: false, error: `Clue must be ${VALIDATION.CLUE_MAX_LENGTH} characters or less` };
+    }
+
+    if (!VALIDATION.CLUE_WORD_PATTERN.test(trimmed)) {
+        return { valid: false, error: 'Clue must be words separated by spaces, hyphens, or apostrophes' };
+    }
+
+    return { valid: true, error: null };
+}
+
 export function validateRoomCode(roomCode) {
     if (!roomCode || typeof roomCode !== 'string') {
         return { valid: false, error: 'Room ID is required' };

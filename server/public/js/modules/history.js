@@ -2,7 +2,7 @@
 // Game history and replay
 
 import { state } from './state.js';
-import { escapeHTML, formatGameTimestamp, formatDuration } from './utils.js';
+import { escapeHTML, formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 
 // PHASE 4: Replay speed options (in milliseconds between moves)
@@ -424,7 +424,7 @@ export function cycleReplaySpeed() {
 }
 
 // PHASE 4: Copy shareable replay link to clipboard
-export function copyReplayLink() {
+export async function copyReplayLink() {
     if (!state.currentReplayData?.id) {
         showToast('No replay data available', 'error');
         return;
@@ -440,25 +440,13 @@ export function copyReplayLink() {
         url.searchParams.set('room', roomCode);
     }
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(url.toString())
-        .then(() => {
-            showToast('Replay link copied to clipboard!', 'success');
-        })
-        .catch(() => {
-            // Fallback for browsers without clipboard API
-            const textArea = document.createElement('textarea');
-            textArea.value = url.toString();
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showToast('Replay link copied!', 'success');
-            } catch (err) {
-                showToast('Could not copy link', 'error');
-            }
-            document.body.removeChild(textArea);
-        });
+    // Copy to clipboard using shared utility
+    const copied = await copyToClipboard(url.toString());
+    if (copied) {
+        showToast('Replay link copied to clipboard!', 'success');
+    } else {
+        showToast('Could not copy link', 'error');
+    }
 }
 
 export function scrollToCurrentEvent() {

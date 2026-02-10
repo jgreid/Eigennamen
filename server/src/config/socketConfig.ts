@@ -42,6 +42,7 @@ export const SOCKET_EVENTS = {
     ROOM_KICKED: 'room:kicked',
     ROOM_STATS_UPDATED: 'room:statsUpdated',
     ROOM_HOST_CHANGED: 'room:hostChanged',
+    ROOM_WARNING: 'room:warning',
     ROOM_ERROR: 'room:error',
 
     // Game events

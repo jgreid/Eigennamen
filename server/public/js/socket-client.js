@@ -23,6 +23,8 @@
         joinInProgress: false,      // Prevent double-join race condition
         createInProgress: false,    // Prevent double-create race condition
         _socketListeners: [],       // Track socket.io listeners for cleanup
+        _offlineQueue: [],          // Queue for events sent while disconnected
+        _offlineQueueMaxSize: 20,   // Max queued events to prevent memory growth
 
         /**
          * Connect to the server
@@ -124,6 +126,8 @@
                 const result = await this.joinRoom(storedRoomCode, nickname);
                 console.log('Successfully rejoined room:', storedRoomCode);
                 this._emit('rejoined', result);
+                // Replay any queued offline events
+                this._flushOfflineQueue();
             } catch (error) {
                 console.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
@@ -212,6 +216,11 @@
 
             this._registerSocketListener('room:error', (error) => {
                 this._emit('error', { type: 'room', ...error });
+            });
+
+            // Handle room:warning (non-fatal issues like stale stats)
+            this._registerSocketListener('room:warning', (data) => {
+                this._emit('roomWarning', data);
             });
 
             // Handle room:resynced (response to requestResync)
@@ -423,6 +432,48 @@
                 });
             }
             this._socketListeners = [];
+        },
+
+        /**
+         * Queue a socket event to send when reconnected, or emit immediately if connected.
+         * Only queues safe-to-replay events (chat messages, non-state-changing actions).
+         * @param {string} event - Socket event name
+         * @param {Object} data - Event data
+         */
+        _queueOrEmit(event, data) {
+            if (this.isConnected()) {
+                this.socket.emit(event, data);
+            } else {
+                // Only queue certain safe events (chat messages)
+                const queueableEvents = ['chat:message', 'chat:spectator'];
+                if (queueableEvents.includes(event) && this._offlineQueue.length < this._offlineQueueMaxSize) {
+                    this._offlineQueue.push({ event, data, timestamp: Date.now() });
+                }
+            }
+        },
+
+        /**
+         * Flush queued offline events after reconnection.
+         * Only replays events less than 2 minutes old.
+         */
+        _flushOfflineQueue() {
+            if (this._offlineQueue.length === 0) return;
+
+            const maxAge = 2 * 60 * 1000; // 2 minutes
+            const now = Date.now();
+            let replayed = 0;
+
+            for (const item of this._offlineQueue) {
+                if (now - item.timestamp < maxAge && this.isConnected()) {
+                    this.socket.emit(item.event, item.data);
+                    replayed++;
+                }
+            }
+
+            if (replayed > 0) {
+                console.log(`Replayed ${replayed} queued event(s) after reconnection`);
+            }
+            this._offlineQueue = [];
         },
 
         /**
@@ -765,7 +816,18 @@
          * @param {number} number - Number of related cards
          */
         giveClue(word, number) {
-            this.socket.emit('game:clue', { word, number });
+            // Client-side validation matching server's clueWordRegex
+            const clueWordRegex = /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u;
+            const trimmed = (word || '').trim().replace(/\s+/g, ' ');
+            if (!trimmed || trimmed.length > 50 || !clueWordRegex.test(trimmed)) {
+                this._emit('error', {
+                    type: 'game',
+                    code: 'INVALID_INPUT',
+                    message: 'Clue must be words separated by spaces, hyphens, or apostrophes'
+                });
+                return;
+            }
+            this.socket.emit('game:clue', { word: trimmed, number });
         },
 
         /**
@@ -815,7 +877,7 @@
          * @param {boolean} teamOnly - Send to team only
          */
         sendMessage(text, teamOnly = false) {
-            this.socket.emit('chat:message', { text, teamOnly });
+            this._queueOrEmit('chat:message', { text, teamOnly });
         },
 
         /**
@@ -823,8 +885,8 @@
          * @param {string} message - Message text
          */
         sendSpectatorChat(message) {
-            if (!this.socket || !message?.trim()) return;
-            this.socket.emit('chat:spectator', { message: message.trim() });
+            if (!message?.trim()) return;
+            this._queueOrEmit('chat:spectator', { message: message.trim() });
         },
 
         // =====================
@@ -847,6 +909,7 @@
             this.player = null;
             this.joinInProgress = false;
             this.createInProgress = false;
+            this._offlineQueue = [];
         },
 
         /**

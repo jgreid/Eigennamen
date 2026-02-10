@@ -7,6 +7,24 @@ import { getCardFontClass, fitCardText } from './utils.js';
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler = null;
 
+/**
+ * Build a descriptive ARIA label for a card (WCAG 2.1 AA).
+ * @param {string} word - Card word
+ * @param {boolean} isRevealed - Whether card is revealed
+ * @param {string} type - Card type (red, blue, neutral, assassin)
+ * @param {number} row - Grid row (1-indexed)
+ * @param {number} col - Grid column (1-indexed)
+ * @returns {string} Descriptive ARIA label
+ */
+function buildCardAriaLabel(word, isRevealed, type, row, col) {
+    const position = `Row ${row}, column ${col}`;
+    if (isRevealed) {
+        const typeLabel = type === 'assassin' ? 'assassin card' : `${type} team card`;
+        return `${word}, revealed as ${typeLabel}. ${position}`;
+    }
+    return `${word}, unrevealed card. ${position}. Press Enter to reveal.`;
+}
+
 // Re-fit card text on resize (debounced)
 let resizeTimer = null;
 window.addEventListener('resize', () => {
@@ -76,7 +94,7 @@ export function initBoardEventDelegation() {
             if (!card.classList.contains('revealed')) {
                 if (cardClickHandler) cardClickHandler(index);
             }
-        } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
             e.preventDefault();
             navigateCards(index, e.key);
         }
@@ -104,6 +122,10 @@ export function renderBoard() {
     // Full re-render (only for new games)
     board.innerHTML = '';
 
+    // Board-level accessibility: grid role and description
+    board.setAttribute('role', 'grid');
+    board.setAttribute('aria-label', 'Codenames game board - 5 by 5 grid of word cards');
+
     state.gameState.words.forEach((word, index) => {
         const card = document.createElement('div');
         const fontClass = getCardFontClass(word);
@@ -116,9 +138,14 @@ export function renderBoard() {
 
         // Accessibility: make cards focusable and add ARIA attributes
         const isRevealed = state.gameState.revealed[index];
+        const row = Math.floor(index / 5) + 1;
+        const col = (index % 5) + 1;
         card.setAttribute('role', 'gridcell');
         card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-        card.setAttribute('aria-label', `${word}${isRevealed ? ', revealed as ' + state.gameState.types[index] : ''}`);
+        card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, state.gameState.types[index], row, col));
+        if (isRevealed) {
+            card.setAttribute('aria-disabled', 'true');
+        }
 
         // Add spymaster hints (show all card types when game is over)
         if (state.spymasterTeam || state.gameState.gameOver) {
@@ -177,8 +204,15 @@ export function updateBoardIncremental() {
         }
 
         // Update ARIA
+        const row = Math.floor(index / 5) + 1;
+        const col = (index % 5) + 1;
         card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-        card.setAttribute('aria-label', `${word}${isRevealed ? ', revealed as ' + type : ''}`);
+        card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, type, row, col));
+        if (isRevealed) {
+            card.setAttribute('aria-disabled', 'true');
+        } else {
+            card.removeAttribute('aria-disabled');
+        }
 
         // Handle spymaster mode (show all card types when game is over)
         if (state.spymasterTeam || state.gameState.gameOver) {
@@ -232,6 +266,7 @@ export function updateSingleCard(index) {
 export function navigateCards(currentIndex, key) {
     const COLS = 5;
     const ROWS = 5;
+    const TOTAL = COLS * ROWS;
     const row = Math.floor(currentIndex / COLS);
     const col = currentIndex % COLS;
 
@@ -239,20 +274,32 @@ export function navigateCards(currentIndex, key) {
 
     switch (key) {
         case 'ArrowUp':
-            newIndex = row > 0 ? currentIndex - COLS : currentIndex;
+            // Wrap to bottom of same column if at top
+            newIndex = row > 0 ? currentIndex - COLS : (ROWS - 1) * COLS + col;
             break;
         case 'ArrowDown':
-            newIndex = row < ROWS - 1 ? currentIndex + COLS : currentIndex;
+            // Wrap to top of same column if at bottom
+            newIndex = row < ROWS - 1 ? currentIndex + COLS : col;
             break;
         case 'ArrowLeft':
-            newIndex = col > 0 ? currentIndex - 1 : currentIndex;
+            // Wrap to end of previous row if at start
+            newIndex = currentIndex > 0 ? currentIndex - 1 : TOTAL - 1;
             break;
         case 'ArrowRight':
-            newIndex = col < COLS - 1 ? currentIndex + 1 : currentIndex;
+            // Wrap to start of next row if at end
+            newIndex = currentIndex < TOTAL - 1 ? currentIndex + 1 : 0;
+            break;
+        case 'Home':
+            // Go to first card in current row
+            newIndex = row * COLS;
+            break;
+        case 'End':
+            // Go to last card in current row
+            newIndex = row * COLS + (COLS - 1);
             break;
     }
 
-    if (newIndex !== currentIndex) {
+    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < TOTAL) {
         const board = state.cachedElements.board || document.getElementById('board');
         if (board && board.children[newIndex]) {
             board.children[newIndex].focus();

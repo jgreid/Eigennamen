@@ -6,13 +6,32 @@ import type { Request, Response, NextFunction, Router as ExpressRouter } from 'e
 import type { Room, Player } from '../types';
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
 const { validateParams } = require('../middleware/validation');
 const { toEnglishLowerCase } = require('../utils/sanitize');
+const { API_RATE_LIMITS } = require('../config/constants');
 const { z } = require('zod');
 
 const router: ExpressRouter = express.Router();
+
+// Rate limiter for room existence checks to prevent room code enumeration
+const roomExistsLimiter = rateLimit({
+    windowMs: API_RATE_LIMITS.ROOM_EXISTS.window,
+    max: API_RATE_LIMITS.ROOM_EXISTS.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === 'test',
+    handler: (_req: Request, res: Response) => {
+        res.status(429).json({
+            error: {
+                code: 'RATE_LIMITED',
+                message: 'Too many requests. Please try again later.'
+            }
+        });
+    }
+});
 
 // Schema for room code param - aligned with socket schema (3-20 chars, Unicode)
 const roomCodeSchema = z.object({
@@ -32,7 +51,7 @@ interface RoomRequest extends Request {
  * Check if room exists
  * GET /api/rooms/:code/exists
  */
-router.get('/:code/exists', validateParams(roomCodeSchema), async (req: RoomRequest, res: Response, next: NextFunction) => {
+router.get('/:code/exists', roomExistsLimiter, validateParams(roomCodeSchema), async (req: RoomRequest, res: Response, next: NextFunction) => {
     try {
         const exists: boolean = await roomService.roomExists(req.params.code);
         res.json({ exists });
