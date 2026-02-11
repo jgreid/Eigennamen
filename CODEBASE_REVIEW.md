@@ -25,7 +25,7 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 | Code Organization | 9/10 | Domain-split config, extracted handlers, modular CSS |
 | Infrastructure | 9/10 | Multi-env Docker, Fly.io, CI/CD with 6 quality gates |
 | Accessibility | 9/10 | WCAG 2.1 AA: colorblind mode, keyboard nav, ARIA, focus traps |
-| Documentation | 8/10 | 15+ docs, 5 ADRs; some directory name inconsistencies and stale counts |
+| Documentation | 9/10 | 15+ docs, 5 ADRs; directory references fixed, metrics current |
 
 ---
 
@@ -56,11 +56,10 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 
 ### 1.2 Remaining Issues
 
-**A1. `gameService.ts` Zod schemas use `.passthrough()` reducing type safety**
-- File: `server/src/services/gameService.ts`
-- The `gameStateSchema` validates presence of `id` but allows any other fields through
-- Risk: Corrupted or incomplete game state from Redis could cause runtime errors during operations
-- **Recommendation**: Replace `.passthrough()` with explicit field validation for critical game state properties
+**A1. ~~`gameService.ts` Zod schemas use `.passthrough()` reducing type safety~~ ✅ FIXED**
+- File: `server/src/services/gameService.ts` (and 4 other services)
+- All `.passthrough()` calls replaced with explicit field definitions across `gameService`, `playerService`, `roomService`, `timerService`, `gameHistoryService`
+- Unknown keys are now silently stripped, preventing corrupted data from leaking through
 
 **A2. `multiplayer.js` is 1,922 lines handling too many concerns**
 - File: `server/public/js/modules/multiplayer.js`
@@ -88,10 +87,9 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 
 ### 2.2 Issues
 
-**C1. No timeout wrappers on some Redis Lua script executions**
-- Some service calls to Redis Lua scripts lack timeout protection
-- A slow or unresponsive Redis could cause indefinite hangs
-- **Recommendation**: Wrap all Redis Lua calls with `withTimeout()` utility
+**C1. ~~No timeout wrappers on some Redis Lua script executions~~ ✅ FIXED**
+- All Redis Lua script executions now wrapped with `withTimeout()` utility
+- Covers: lock release in gameService, playerService reconnection token creation, disconnectHandler lock releases
 
 **C2. Session token not rotated on use**
 - Reconnection tokens have a 5-minute TTL (good), but are not rotated when used
@@ -132,9 +130,9 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 - `admin.html` lacks skip link and some color contrast in badge elements
 - **Recommendation**: Add skip link and review contrast ratios
 
-**S3. IP validation disabled by default**
-- `ALLOW_IP_MISMATCH` defaults to true, weakening session security
-- **Recommendation**: Document security implications; consider defaulting to false in production
+**S3. ~~IP validation disabled by default~~ ✅ DOCUMENTED**
+- `ALLOW_IP_MISMATCH` defaults to true (necessary for mobile/VPN users)
+- Security implications documented in `server/.env.example` with production recommendation
 
 ---
 
@@ -148,7 +146,7 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 | Total Tests | 2,308 passing |
 | Frontend Suites | 4 passing |
 | Frontend Tests | 303 passing |
-| E2E Tests | 53 (7 spec files) |
+| E2E Tests | 64+ (8 spec files) |
 | Execution Time | ~55 seconds (backend) |
 
 **Strengths:**
@@ -161,10 +159,9 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 
 ### 4.2 Issues
 
-**T1. No multiplayer E2E tests**
-- E2E suite covers standalone game flow, accessibility, and timer
-- Missing: room create → join → play → reconnect flow
-- **Recommendation**: Add Playwright multiplayer E2E tests using dual browser contexts
+**T1. ~~No multiplayer E2E tests~~ ✅ FIXED**
+- Added 11 comprehensive multiplayer E2E tests in `server/e2e/multiplayer-lifecycle.spec.js`
+- Covers: room creation, joining, team sync, 3-player rooms, player leaving, join errors, reconnection, mode switching, game board sync
 
 **T2. No chaos/resilience testing**
 - No tests for deliberate Redis/network failures during operations
@@ -243,10 +240,8 @@ This fresh review identifies **19 actionable improvements** organized into 3 pri
 - ROADMAP.md partially serves this purpose
 - **Recommendation**: Add CHANGELOG.md following Keep a Changelog format
 
-**I3. Documentation references stale directory name "Risley-Codenames"**
-- Several docs reference `Risley-Codenames/` as the root directory name
-- Actual repository is `Eigennamen`
-- **Recommendation**: Update all directory references to match actual repo name
+**I3. ~~Documentation references stale directory name "Risley-Codenames"~~ ✅ FIXED**
+- Updated all directory references from "Risley-Codenames" to "Eigennamen" across 8 documentation files
 
 ---
 
@@ -284,25 +279,25 @@ All items from the previous Tier 3 remain completed and verified:
 - Database backup strategy documented ✅
 - Docker image optimized ✅
 
-### New Tier A: High Priority Improvements
+### New Tier A: High Priority Improvements ✅ COMPLETED (2026-02-11)
 
-| ID | Task | Description | Effort |
+| ID | Task | Description | Status |
 |----|------|-------------|--------|
-| A1 | Harden game state validation | Replace `.passthrough()` with explicit Zod fields in gameService | Low |
-| C1 | Add timeout wrappers for Lua calls | Wrap all Redis Lua script executions with `withTimeout()` | Low |
-| S3 | Document IP validation defaults | Document `ALLOW_IP_MISMATCH` security implications | Low |
-| I3 | Fix documentation directory references | Update all "Risley-Codenames" → "Eigennamen" references | Low |
+| A1 | Harden game state validation | Replaced `.passthrough()` with explicit Zod fields in all 5 services | ✅ Done |
+| C1 | Add timeout wrappers for Lua calls | Wrapped all Redis Lua script executions with `withTimeout()` | ✅ Done |
+| S3 | Document IP validation defaults | Documented `ALLOW_IP_MISMATCH` security implications in `.env.example` | ✅ Done |
+| I3 | Fix documentation directory references | Updated all "Risley-Codenames" → "Eigennamen" across 8 files | ✅ Done |
 
-### New Tier B: Medium Priority Improvements
+### New Tier B: Medium Priority Improvements (Partially Completed)
 
-| ID | Task | Description | Effort |
+| ID | Task | Description | Status |
 |----|------|-------------|--------|
-| T1 | Add multiplayer E2E tests | Playwright tests for room create → join → play → reconnect | Medium |
-| F1 | Implement chat UI | Frontend chat panel with team/spectator tabs | Medium |
-| F2 | Complete i18n markup | Audit and mark all hardcoded English strings | Medium |
-| C2 | Implement token rotation on use | Rotate reconnection tokens after successful reconnection | Low |
-| C3 | Gate frontend debug logging | Make state.js debug logging conditional on config | Low |
-| I2 | Add CHANGELOG.md | Structured changelog following Keep a Changelog format | Low |
+| T1 | Add multiplayer E2E tests | 11 Playwright tests covering full multiplayer lifecycle | ✅ Done |
+| F1 | Implement chat UI | Frontend chat panel with team/spectator tabs | Pending |
+| F2 | Complete i18n markup | Audit and mark all hardcoded English strings | Pending |
+| C2 | Implement token rotation on use | Rotate reconnection tokens after successful reconnection | Pending |
+| C3 | Gate frontend debug logging | Make state.js debug logging conditional on config | Pending |
+| I2 | Add CHANGELOG.md | Structured changelog following Keep a Changelog format | Pending |
 
 ### New Tier C: Lower Priority / Future Work
 
@@ -346,9 +341,9 @@ Files over 500 lines (current state after all refactoring):
 ```
 Backend:  77 suites passing | 2,308 tests passing
 Frontend: 4 suites passing  | 303 tests passing
-E2E:      7 spec files | 53+ tests (Playwright + Chromium)
+E2E:      8 spec files | 64+ tests (Playwright + Chromium)
 
-Total:    ~2,664 tests passing
+Total:    ~2,675 tests passing
 
 Known issues:
 - timing.test.ts: 3 flaky memory monitoring tests (pass in isolation)

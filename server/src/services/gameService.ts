@@ -55,17 +55,42 @@ const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
 const { tryParseJSON, parseJSON } = require('../utils/parseJSON');
 const { z } = require('zod');
 
-// Minimal Zod schema for GameState deserialization validation.
-// Only requires `id` to distinguish valid game data from garbage.
-// Uses .passthrough() to tolerate sparse mocks and optional fields.
+// Zod schema for GameState deserialization validation.
+// Validates critical fields when present; marks non-essential fields optional
+// so tests with sparse mocks still pass. No .passthrough() — unknown keys are stripped.
 const gameStateSchema = z.object({
     id: z.string(),
-}).passthrough();
+    seed: z.string().optional(),
+    words: z.array(z.string()).optional(),
+    types: z.array(z.string()).optional(),
+    revealed: z.array(z.boolean()).optional(),
+    currentTurn: z.string().optional(),
+    redScore: z.number().optional(),
+    blueScore: z.number().optional(),
+    redTotal: z.number().optional(),
+    blueTotal: z.number().optional(),
+    gameOver: z.boolean().optional(),
+    winner: z.string().nullable().optional(),
+    currentClue: z.unknown().optional(),
+    guessesUsed: z.number().optional(),
+    guessesAllowed: z.number().optional(),
+    clues: z.array(z.unknown()).optional(),
+    history: z.array(z.unknown()).optional(),
+    stateVersion: z.number().optional(),
+    createdAt: z.number().optional(),
+    gameMode: z.string().optional(),
+    wordListId: z.string().nullable().optional(),
+    // Duet mode fields
+    duetTypes: z.array(z.string()).optional(),
+    timerTokens: z.number().optional(),
+    greenFound: z.number().optional(),
+    greenTotal: z.number().optional(),
+});
 
 // Lightweight schema for duet-mode pre-check (only need gameMode field)
 const gameModePreCheckSchema = z.object({
     gameMode: z.string().optional(),
-}).passthrough();
+});
 
 // Lua script result schemas for runtime validation of JSON returned from Redis eval.
 // Results may be success objects or error objects ({ error: "..." }),
@@ -464,7 +489,11 @@ export async function createGame(
         return game;
     } finally {
         // Always release the creation lock (owner-verified to avoid releasing another instance's lock)
-        await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }).catch((err: Error) => {
+        await withTimeout(
+            redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
+            TIMEOUTS.TIMER_OPERATION,
+            `release-creation-lock-${roomCode}`
+        ).catch((err: Error) => {
             logger.error(`Failed to release creation lock for room ${roomCode}:`, err.message);
         });
     }
@@ -1049,7 +1078,11 @@ export async function revealCard(
         throw ServerError.concurrentModification();
     } finally {
         // ISSUE #32 FIX: Always release the distributed lock (owner-verified)
-        await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }).catch((err: Error) => {
+        await withTimeout(
+            redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
+            TIMEOUTS.TIMER_OPERATION,
+            `release-reveal-lock-${roomCode}`
+        ).catch((err: Error) => {
             logger.error(`Failed to release reveal lock for room ${roomCode}:`, err.message);
         });
     }

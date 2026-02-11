@@ -77,7 +77,7 @@ Eigennamen/
     │   ├── utils/          # Utility modules (8 files)
     │   ├── validators/     # Zod validation schemas
     │   ├── scripts/        # Redis Lua scripts for atomic operations
-    │   └── __tests__/      # Jest tests (80+ test files)
+    │   └── __tests__/      # Jest tests (77 suites, 2,308 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
@@ -262,7 +262,7 @@ npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
 
-**Test suite**: 80+ backend test files, 300+ frontend tests, 50+ E2E tests
+**Test suite**: 77 backend suites (2,308 tests), 4 frontend suites (303 tests), 8 E2E spec files (64+ tests)
 
 **Coverage thresholds** (from `jest.config.ts.js`): 65% branches, 80% functions, 75% lines/statements. Infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage; business logic modules individually exceed 80%.
 
@@ -296,6 +296,9 @@ CORS_ORIGIN=http://localhost:3000
 
 # Admin dashboard
 ADMIN_PASSWORD=your-secure-admin-password
+
+# Session security
+# ALLOW_IP_MISMATCH=true  # Allow reconnection from different IP (default: false)
 
 # Rate limiting
 RATE_LIMIT_WINDOW_MS=60000

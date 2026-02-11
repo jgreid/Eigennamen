@@ -14,8 +14,7 @@ const { tryParseJSON } = require('../utils/parseJSON');
 const { z } = require('zod');
 
 // Zod schema for runtime validation of timer state from Redis.
-// Uses passthrough() to tolerate additional fields, and makes instanceId
-// optional to handle data from older server versions or tests.
+// Makes instanceId optional to handle data from older server versions or tests.
 const timerStateSchema = z.object({
     roomCode: z.string(),
     startTime: z.number(),
@@ -25,7 +24,7 @@ const timerStateSchema = z.object({
     paused: z.boolean().optional(),
     remainingWhenPaused: z.number().optional(),
     pausedAt: z.number().optional()
-}).passthrough();
+});
 
 // Zod schema for Lua script addTime result
 const addTimeResultSchema = z.object({

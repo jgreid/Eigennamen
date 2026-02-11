@@ -14,7 +14,7 @@ The codebase is **production-ready** with strong defensive programming patterns 
 | Backend Services | Excellent — all hardening complete | Maintenance |
 | WebSocket Layer | Excellent — safeEmit, rate limiting, auth | Maintenance |
 | Frontend | Good — chat UI and i18n markup gaps remain | Medium |
-| Testing | Strong — 2,664 total tests; E2E multiplayer gap | Medium |
+| Testing | Strong — 2,675 total tests; multiplayer E2E added | Maintenance |
 | Security | Excellent — defense-in-depth implemented | Low (minor items) |
 | Infrastructure | Excellent — CI/CD, Docker, Fly.io, staging | Maintenance |
 
@@ -55,15 +55,15 @@ The codebase is **production-ready** with strong defensive programming patterns 
 
 ---
 
-## Phase 3: Testing Improvements — Mostly Completed
+## Phase 3: Testing Improvements ✅ COMPLETED
 
-> Core items (3.1-3.4) completed. E2E expansion (3.5) remains.
+> All items implemented and verified.
 
 - 3.1: Test helper library (`mocks.ts`, `socketTestHelper.ts`) ✅
 - 3.2: Middleware tests (`contextHandler`, `playerContext`, `socketFunctionProvider`) ✅
 - 3.3: Error scenario tests (`errorScenarios`, `handlerEdgeCases`, `reconnectionEdgeCases`) ✅
 - 3.4: Database integration tests (`database.test.ts`, `databaseCoverage.test.ts`) ✅
-- 3.5: **Multiplayer E2E tests** — Remaining (room create → join → play → reconnect)
+- 3.5: Multiplayer E2E tests (11 tests in `multiplayer-lifecycle.spec.js`) ✅
 
 ---
 
@@ -179,11 +179,11 @@ Four complete language files (EN, DE, ES, FR) with localized word lists exist. G
 
 ## Conclusion
 
-The codebase has completed three major hardening phases and is production-ready. The remaining work is primarily:
+The codebase has completed three major hardening phases plus Tier A improvements and is production-ready. The remaining work is primarily:
 
 1. **Frontend polish**: Chat UI, i18n completeness
-2. **Testing expansion**: Multiplayer E2E, resilience testing
-3. **Documentation accuracy**: Directory references, CHANGELOG
+2. **Testing expansion**: Resilience/chaos testing
+3. **Documentation**: CHANGELOG.md
 4. **Future features**: Player profiles, tournament mode, AI spymaster
 
 The architecture supports all planned features without requiring structural changes. The service layer, atomic operations, and graceful degradation patterns provide a solid foundation for continued development.

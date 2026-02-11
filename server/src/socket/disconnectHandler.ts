@@ -21,6 +21,7 @@ import type { TimerInfo } from './socketFunctionProvider';
 const logger = require('../utils/logger');
 const { SOCKET_EVENTS, LOCKS } = require('../config/constants');
 const { safeEmitToRoom } = require('./safeEmit');
+const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 
 /**
  * Redis client interface for socket operations
@@ -137,7 +138,11 @@ function createTimerExpireCallback(
                         if (lockAcquired && lockValue) {
                             try {
                                 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
-                                await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] });
+                                await withTimeout(
+                                    redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
+                                    TIMEOUTS.TIMER_OPERATION,
+                                    `release-timer-restart-lock-${roomCode}`
+                                );
                             } catch (delErr) {
                                 logger.error(`Failed to release timer restart lock for ${roomCode}: ${(delErr as Error).message}`);
                             }
@@ -306,7 +311,11 @@ async function handleDisconnect(
                     if (hostTransferLockAcquired && hostLockValue) {
                         try {
                             const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
-                            await redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] });
+                            await withTimeout(
+                                redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] }),
+                                TIMEOUTS.TIMER_OPERATION,
+                                `release-host-transfer-lock-${roomCode}`
+                            );
                         } catch (delErr) {
                             logger.error(`Failed to release host transfer lock for ${roomCode}: ${(delErr as Error).message}`);
                         }

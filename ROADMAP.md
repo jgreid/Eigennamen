@@ -11,8 +11,8 @@
 |--------|-------|
 | Backend Tests | 2,308 passing (77 suites) |
 | Frontend Tests | 303 passing (4 suites) |
-| E2E Tests | 53+ passing (7 spec files) |
-| Total Tests | ~2,664 |
+| E2E Tests | 64+ passing (8 spec files) |
+| Total Tests | ~2,675 |
 | Backend Coverage | 94%+ |
 | Critical Issues | 0 |
 | Code Quality | Production-ready |
@@ -47,26 +47,26 @@
 
 ## Remaining Work
 
-### High Priority
+### High Priority ✅ ALL COMPLETED (2026-02-11)
 
-| Task | Category | Notes |
-|------|----------|-------|
-| Harden game state Zod validation | Code Quality | Replace `.passthrough()` with explicit fields in gameService |
-| Add timeout wrappers for Redis Lua calls | Code Quality | Prevent indefinite hangs on slow Redis |
-| Fix documentation directory references | Docs | Update "Risley-Codenames" → "Eigennamen" throughout |
-| Document IP validation security defaults | Security | Clarify `ALLOW_IP_MISMATCH` implications |
+| Task | Category | Status |
+|------|----------|--------|
+| Harden game state Zod validation | Code Quality | ✅ Explicit fields in all 5 services |
+| Add timeout wrappers for Redis Lua calls | Code Quality | ✅ All Lua calls wrapped with `withTimeout()` |
+| Fix documentation directory references | Docs | ✅ Updated across 8 files |
+| Document IP validation security defaults | Security | ✅ Documented in `.env.example` |
 
-### Medium Priority
+### Medium Priority (Partially Completed)
 
-| Task | Category | Notes |
-|------|----------|-------|
-| Add multiplayer E2E tests | Testing | Room create → join → play → reconnect flow |
-| Implement chat UI | Frontend | Panel with team/spectator tabs (backend ready) |
-| Complete i18n markup | Frontend | Audit hardcoded English strings in HTML |
-| Implement token rotation on reconnection | Security | Rotate tokens after successful use |
-| Gate frontend debug logging | Performance | Make state.js logging conditional |
-| Add CHANGELOG.md | Docs | Structured changelog following Keep a Changelog |
-| Complete ES module migration | Code Quality | Remove remaining `require()`/`module.exports` |
+| Task | Category | Status |
+|------|----------|--------|
+| Add multiplayer E2E tests | Testing | ✅ 11 tests in `multiplayer-lifecycle.spec.js` |
+| Implement chat UI | Frontend | Pending — backend ready |
+| Complete i18n markup | Frontend | Pending — audit hardcoded English strings |
+| Implement token rotation on reconnection | Security | Pending — rotate tokens after use |
+| Gate frontend debug logging | Performance | Pending — conditional logging |
+| Add CHANGELOG.md | Docs | Pending |
+| Complete ES module migration | Code Quality | Pending — remove `require()`/`module.exports` |
 
 ### Lower Priority
 
@@ -120,7 +120,7 @@
 | Issue | Current State | Target |
 |-------|---------------|--------|
 | Mixed module systems | Some `require()` alongside ES6 `import` | Full ES module migration |
-| Zod `.passthrough()` usage | gameService game state schema | Explicit field validation |
+| ~~Zod `.passthrough()` usage~~ | ~~All 5 service schemas~~ | ✅ Fixed — explicit fields |
 | multiplayer.js size | 1,922 lines | Split into focused submodules |
 | Frontend debug logging | Always-on console.log | Conditional on config flag |
 
@@ -152,8 +152,8 @@
 
 ```
         ┌─────────┐
-        │  E2E    │  53+ tests (Playwright)
-        │  Tests  │  Game flow, multiplayer, a11y, timer
+        │  E2E    │  64+ tests (Playwright)
+        │  Tests  │  Game flow, multiplayer lifecycle, a11y, timer
        ┌┴─────────┴┐
        │ Integration │  4 test files
        │   Tests     │  Full game flow, race conditions
