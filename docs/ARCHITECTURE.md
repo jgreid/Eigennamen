@@ -88,11 +88,14 @@ This document describes the high-level architecture of Codenames Online, a real-
 | Helmet | v7+ | Security headers (CSP, etc.) |
 | Winston | v3+ | Structured logging |
 
-**Key Services:**
-- `gameService.js` - Core game logic, PRNG, board generation
-- `roomService.js` - Room lifecycle, settings
-- `playerService.js` - Player management, team assignment
-- `timerService.js` - Turn timers with Redis backing
+**Key Services (7 total):**
+- `gameService.ts` - Core game logic, PRNG, board generation
+- `roomService.ts` - Room lifecycle, settings
+- `playerService.ts` - Player management, team assignment, reconnection
+- `timerService.ts` - Turn timers with Redis backing
+- `wordListService.ts` - Custom word list CRUD with DB persistence
+- `gameHistoryService.ts` - Game history storage, replay data
+- `auditService.ts` - Security audit logging with severity levels
 
 ### Data Layer
 
@@ -238,50 +241,58 @@ docker-compose.yml
 
 ```
 Eigennamen/
-├── index.html              # Frontend entry point (modular)
-├── server/
-│   ├── public/
-│   │   ├── js/
-│   │   │   ├── modules/    # ES6 modules (modular frontend)
-│   │   │   │   ├── app.js          # Entry point
-│   │   │   │   ├── state.js        # State management
-│   │   │   │   ├── ui.js           # UI utilities
-│   │   │   │   ├── board.js        # Board rendering
-│   │   │   │   ├── game.js         # Game logic
-│   │   │   │   ├── roles.js        # Role management
-│   │   │   │   ├── multiplayer.js  # Multiplayer logic
-│   │   │   │   └── ...
-│   │   │   └── socket-client.js    # WebSocket client wrapper
-│   │   └── css/            # Modular stylesheets
-│   │       ├── variables.css
-│   │       ├── layout.css
-│   │       ├── components.css
-│   │       └── ...
-│   ├── src/
-│   │   ├── index.ts        # Server entry point
-│   │   ├── app.ts          # Express configuration
-│   │   ├── config/         # Configuration modules
-│   │   │   ├── constants.ts
-│   │   │   ├── redis.ts
-│   │   │   └── database.ts
-│   │   ├── services/       # Business logic
-│   │   │   ├── gameService.ts
-│   │   │   ├── roomService.ts
-│   │   │   ├── playerService.ts
-│   │   │   └── timerService.ts
-│   │   ├── socket/         # WebSocket handlers
-│   │   │   ├── index.ts
-│   │   │   └── handlers/
-│   │   ├── middleware/     # Express middleware
-│   │   ├── routes/         # REST API routes
-│   │   ├── validators/     # Zod schemas
-│   │   └── __tests__/      # Jest tests
-│   └── prisma/
-│       └── schema.prisma   # Database schema
+├── index.html              # Frontend entry point (standalone SPA)
+├── wordlist.txt            # Default word list
+├── docker-compose.yml      # Multi-service Docker setup
+├── fly.toml                # Fly.io deployment config
+├── scripts/                # Shell utilities (dev-setup, health-check, etc.)
 ├── docs/                   # Documentation
-│   ├── adr/               # Architecture Decision Records
-│   └── archive/           # Historical documents
-└── tests/                  # E2E tests (Playwright)
+│   └── adr/               # Architecture Decision Records (5 ADRs)
+└── server/                 # Node.js backend
+    ├── public/
+    │   ├── js/
+    │   │   ├── modules/    # ES6 modules (15 frontend modules)
+    │   │   │   ├── app.js          # Entry point, initialization
+    │   │   │   ├── state.js        # State management
+    │   │   │   ├── ui.js           # UI rendering utilities
+    │   │   │   ├── board.js        # Board rendering
+    │   │   │   ├── game.js         # Game logic
+    │   │   │   ├── roles.js        # Role management
+    │   │   │   ├── multiplayer.js  # Multiplayer logic (1,922 lines)
+    │   │   │   ├── history.js      # Game history and replay
+    │   │   │   ├── timer.js        # Turn timer
+    │   │   │   ├── settings.js     # Settings management
+    │   │   │   ├── i18n.js         # Internationalization
+    │   │   │   ├── accessibility.js # Keyboard nav, colorblind mode
+    │   │   │   ├── notifications.js # Audio notifications
+    │   │   │   ├── constants.js    # Shared constants
+    │   │   │   └── utils.js        # Utility functions
+    │   │   └── socket-client.js    # WebSocket client wrapper
+    │   ├── css/            # Modular stylesheets (8 files)
+    │   ├── locales/        # i18n translations (en, de, es, fr)
+    │   ├── admin.html      # Admin dashboard UI
+    │   └── manifest.json   # PWA manifest
+    ├── src/
+    │   ├── index.ts        # Server entry point
+    │   ├── app.ts          # Express configuration + Swagger
+    │   ├── config/         # Configuration modules (13 files)
+    │   ├── errors/         # Custom error classes (GameError hierarchy)
+    │   ├── middleware/      # Express middleware (6 files)
+    │   ├── routes/         # REST API routes (6 files)
+    │   ├── services/       # Business logic (7 service files)
+    │   ├── socket/         # WebSocket setup and utilities
+    │   │   └── handlers/   # Event-specific handlers (5 + types)
+    │   ├── types/          # TypeScript type definitions (9 files)
+    │   ├── utils/          # Utility modules (9 files)
+    │   ├── validators/     # Zod validation schemas
+    │   ├── scripts/        # Redis Lua scripts (6 atomic operations)
+    │   └── __tests__/      # Jest tests (73+ test files)
+    │       ├── helpers/    # Test utilities and mocks
+    │       ├── integration/ # Integration tests
+    │       └── frontend/   # Frontend unit tests
+    ├── e2e/                # Playwright E2E tests (8 spec files)
+    └── prisma/
+        └── schema.prisma   # Database schema
 ```
 
 ## Technology Choices

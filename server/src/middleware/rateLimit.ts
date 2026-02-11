@@ -156,8 +156,9 @@ const LRU_EVICTION_PERCENTAGE = 0.1; // Evict 10% when limit reached
 function filterTimestampsInPlace(timestamps: number[], windowStart: number): number {
     let writeIndex = 0;
     for (let i = 0; i < timestamps.length; i++) {
-        if (timestamps[i]! > windowStart) {
-            timestamps[writeIndex++] = timestamps[i]!;
+        const ts = timestamps[i];
+        if (ts !== undefined && ts > windowStart) {
+            timestamps[writeIndex++] = ts;
         }
     }
     timestamps.length = writeIndex;
@@ -231,7 +232,8 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 if (!socketKeyIndex.has(socket.id)) {
                     socketKeyIndex.set(socket.id, new Set());
                 }
-                socketKeyIndex.get(socket.id)!.add(socketKey);
+                // Safe to cast: we just ensured the key exists above
+                (socketKeyIndex.get(socket.id) as Set<string>).add(socketKey);
             }
             const socketCount = filterTimestampsInPlace(socketTimestamps, windowStart);
 
@@ -301,12 +303,14 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         const allEntries: LRUEntry[] = [];
 
         for (const [key, timestamps] of socketRequests.entries()) {
-            const lastActivity = timestamps.length > 0 ? timestamps[timestamps.length - 1]! : 0;
+            const lastTs = timestamps[timestamps.length - 1];
+            const lastActivity = timestamps.length > 0 && lastTs !== undefined ? lastTs : 0;
             allEntries.push({ key, map: 'socket', lastActivity });
         }
 
         for (const [key, timestamps] of ipRequests.entries()) {
-            const lastActivity = timestamps.length > 0 ? timestamps[timestamps.length - 1]! : 0;
+            const lastTs = timestamps[timestamps.length - 1];
+            const lastActivity = timestamps.length > 0 && lastTs !== undefined ? lastTs : 0;
             allEntries.push({ key, map: 'ip', lastActivity });
         }
 
@@ -315,7 +319,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
 
         // Remove the oldest entries
         for (let i = 0; i < entriesToRemove && i < allEntries.length; i++) {
-            const entry = allEntries[i]!;
+            const entry = allEntries[i] as LRUEntry;
             if (entry.map === 'socket') {
                 socketRequests.delete(entry.key);
             } else {

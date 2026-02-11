@@ -227,14 +227,17 @@ class DistributedLock {
     async withLock<T>(lockKey: string, fn: () => Promise<T>, options: LockOptions = {}): Promise<T> {
         const lockResult = await this.acquire(lockKey, options);
 
-        if (!lockResult.acquired) {
+        if (!lockResult.acquired || !lockResult.release) {
             throw new Error(`Failed to acquire lock: ${lockKey}`);
         }
+
+        // Capture release function after the guard above ensures it exists
+        const releaseFn = lockResult.release;
 
         try {
             return await fn();
         } finally {
-            await lockResult.release!();
+            await releaseFn();
         }
     }
 
@@ -250,15 +253,19 @@ class DistributedLock {
         const config = { ...this.config, ...options };
         const lockResult = await this.acquire(lockKey, options);
 
-        if (!lockResult.acquired) {
+        if (!lockResult.acquired || !lockResult.extend || !lockResult.release) {
             throw new Error(`Failed to acquire lock: ${lockKey}`);
         }
+
+        // Capture functions after the guard above ensures they exist
+        const extendFn = lockResult.extend;
+        const releaseFn = lockResult.release;
 
         // Set up auto-extension with tracking to avoid race conditions
         const extendInterval = config.lockTimeout * config.extendThreshold;
         let pendingExtension: Promise<boolean> | null = null;
         const extensionTimer = setInterval(() => {
-            pendingExtension = lockResult.extend!(config.lockTimeout).then(extended => {
+            pendingExtension = extendFn(config.lockTimeout).then(extended => {
                 if (!extended) {
                     logger.warn('Auto-extension failed, lock may have been lost', { lockKey });
                 }
@@ -278,7 +285,7 @@ class DistributedLock {
             if (pending) {
                 await (pending as Promise<boolean>).catch(() => {});
             }
-            await lockResult.release!();
+            await releaseFn();
         }
     }
 

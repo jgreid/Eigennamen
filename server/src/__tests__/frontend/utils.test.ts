@@ -386,7 +386,7 @@ describe('encodeWordsForURL / decodeWordsFromURL', () => {
     it('produces URL-safe output (no +, /, or = characters)', () => {
         // Use a word list that would produce these characters in standard base64
         const words = ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'ELDERBERRY',
-                       'FIG', 'GRAPE', 'HONEYDEW', 'KIWI', 'LEMON'];
+            'FIG', 'GRAPE', 'HONEYDEW', 'KIWI', 'LEMON'];
         const encoded = encodeWordsForURL(words);
         expect(encoded).not.toContain('+');
         expect(encoded).not.toContain('/');

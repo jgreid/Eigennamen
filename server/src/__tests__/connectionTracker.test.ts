@@ -4,6 +4,8 @@
  * Tests for the DoS protection connection tracking module.
  */
 
+import type * as ConnectionTracker from '../socket/connectionTracker';
+
 jest.mock('../utils/logger', () => ({
     info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
 }));
@@ -16,7 +18,7 @@ jest.mock('../config/constants', () => ({
 }));
 
 describe('Connection Tracker', () => {
-    let tracker: typeof import('../socket/connectionTracker');
+    let tracker: typeof ConnectionTracker;
 
     beforeEach(() => {
         jest.resetModules();

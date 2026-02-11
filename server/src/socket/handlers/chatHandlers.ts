@@ -16,6 +16,7 @@ const { SOCKET_EVENTS } = require('../../config/constants');
 const { createRoomHandler } = require('../contextHandler');
 const { sanitizeHtml } = require('../../utils/sanitize');
 const { PlayerError } = require('../../errors/GameError');
+const { safeEmitToRoom, safeEmitToPlayer } = require('../safeEmit');
 
 /**
  * Chat message input
@@ -91,18 +92,10 @@ function chatHandlers(io: Server, socket: GameSocket): void {
                 }
 
                 for (const teammate of teammates) {
-                    try {
-                        io.to(`player:${teammate.sessionId}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
-                    } catch (emitError) {
-                        logger.error(`Failed to emit chat:message to ${teammate.sessionId}:`, emitError);
-                    }
+                    safeEmitToPlayer(io, teammate.sessionId, SOCKET_EVENTS.CHAT_MESSAGE, message);
                 }
             } else {
-                try {
-                    io.to(`room:${ctx.roomCode}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
-                } catch (emitError) {
-                    logger.error(`Failed to emit chat:message to room ${ctx.roomCode}:`, emitError);
-                }
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.CHAT_MESSAGE, message);
             }
         }
     ));
@@ -131,7 +124,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
             try {
                 io.to(`spectators:${ctx.roomCode}`).emit(SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, message);
             } catch (emitError) {
-                logger.error(`Failed to emit ${SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE} to spectators in room ${ctx.roomCode}:`, emitError);
+                logger.error(`Failed to emit ${SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE} to spectators:`, emitError);
             }
         }
     ));

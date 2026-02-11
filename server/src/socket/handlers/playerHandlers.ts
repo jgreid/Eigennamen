@@ -299,7 +299,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             // Emit join request to the host (io captured from outer closure)
             const hostSockets = await io.in(host.sessionId).fetchSockets();
             if (hostSockets.length > 0) {
-                hostSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
+                // Safe to cast: we just verified length > 0
+                const hostSocket = hostSockets[0] as (typeof hostSockets)[number];
+                hostSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
                     requesterId: ctx.sessionId,
                     requesterNickname: sanitizeHtml(ctx.player.nickname),
                     team: validated.team,
@@ -323,7 +325,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 // Notify the requester they've been approved (io captured from outer closure)
                 const requesterSockets = await io.in(validated.requesterId).fetchSockets();
                 if (requesterSockets.length > 0) {
-                    requesterSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
+                    // Safe to cast: we just verified length > 0
+                    const requesterSocket = requesterSockets[0] as (typeof requesterSockets)[number];
+                    requesterSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
                         message: 'Your request to join a team has been approved',
                         timestamp: Date.now()
                     });
@@ -334,7 +338,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 // Notify the requester they've been denied (io captured from outer closure)
                 const requesterSockets = await io.in(validated.requesterId).fetchSockets();
                 if (requesterSockets.length > 0) {
-                    requesterSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
+                    // Safe to cast: we just verified length > 0
+                    const deniedSocket = requesterSockets[0] as (typeof requesterSockets)[number];
+                    deniedSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
                         message: 'Your request to join a team was denied',
                         timestamp: Date.now()
                     });

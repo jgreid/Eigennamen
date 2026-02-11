@@ -63,7 +63,7 @@ export class GameError extends Error {
         message: string;
         details: GameErrorDetails | null;
         timestamp: number;
-    } {
+        } {
         return {
             name: this.name,
             code: this.code,

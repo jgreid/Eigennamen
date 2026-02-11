@@ -216,12 +216,14 @@ router.post('/', requireAuth, validateBody(createWordListSchema), async (req: Au
     try {
         const { name, description, words, isPublic } = req.body;
 
+        // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
+        const user = req.user as JwtUser;
         const wordList = await wordListService.createWordList({
             name,
             description,
             words,
             isPublic,
-            ownerId: req.user!.id
+            ownerId: user.id
         });
 
         res.status(201).json({ wordList });
@@ -239,10 +241,12 @@ router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(u
     try {
         const { name, description, words, isPublic } = req.body;
 
+        // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
+        const user = req.user as JwtUser;
         const wordList = await wordListService.updateWordList(
             req.params.id,
             { name, description, words, isPublic },
-            req.user!.id
+            user.id
         );
 
         res.json({ wordList });
@@ -258,7 +262,9 @@ router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(u
  */
 router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-        await wordListService.deleteWordList(req.params.id, req.user!.id);
+        // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
+        const user = req.user as JwtUser;
+        await wordListService.deleteWordList(req.params.id, user.id);
         res.json({ success: true });
     } catch (error) {
         next(error);

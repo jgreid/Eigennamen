@@ -4,6 +4,9 @@
  * Types for room management, settings, and state.
  */
 
+import type { Player } from './player';
+import type { PlayerGameState } from './game';
+
 /**
  * Room status states
  */
@@ -75,7 +78,7 @@ export interface CreateRoomResult {
   /** The created room */
   room: Room;
   /** The host player */
-  player: import('./player').Player;
+  player: Player;
 }
 
 /**
@@ -85,11 +88,11 @@ export interface JoinRoomResult {
   /** The room joined */
   room: Room;
   /** All players in the room */
-  players: import('./player').Player[];
+  players: Player[];
   /** Current game state (if any) */
-  game: import('./game').PlayerGameState | null;
+  game: PlayerGameState | null;
   /** The joining player */
-  player: import('./player').Player;
+  player: Player;
   /** Whether this was a reconnection */
   isReconnecting: boolean;
 }

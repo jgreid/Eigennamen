@@ -8,6 +8,13 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
     environment:
       # Use development for local Docker environment
       # Production settings are configured in fly.toml for Fly.io deployment
@@ -41,6 +48,13 @@ services:
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
     environment:
       - POSTGRES_USER=codenames
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -59,6 +73,13 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     volumes:
       - redis_data:/data

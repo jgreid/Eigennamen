@@ -5,9 +5,9 @@
  * Validates that mode-specific settings, timers, and constraints work correctly.
  */
 
-const { createMockRedis, createMockRoom, createMockGame, createMockPlayer } = require('./helpers/mocks');
+const { createMockRedis, createMockRoom, createMockPlayer } = require('./helpers/mocks');
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type AnyRecord = Record<string, any>;
 
 // Mock Redis
@@ -127,11 +127,6 @@ describe('Game Modes', () => {
                 .mockResolvedValue(createMockPlayer({ sessionId: hostSessionId, isHost: true }));
 
             const result = await roomService.createRoom('testroom', hostSessionId, {});
-            const storedRoom = JSON.parse(mockRedis.eval.mock.calls[0][0] ?
-                // New-style eval call - get from the arguments
-                (mockRedis._storage.get('room:testroom') || '{}') :
-                '{}'
-            );
 
             // The room object passed to redis.eval should have gameMode: 'classic'
             expect(result.room.settings.gameMode).toBe('classic');

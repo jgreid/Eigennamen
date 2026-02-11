@@ -92,7 +92,7 @@ async function withTimeout<T>(
     timeoutMs: number,
     operation: string
 ): Promise<T> {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
             reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
@@ -101,10 +101,10 @@ async function withTimeout<T>(
 
     try {
         const result = await Promise.race([promise, timeoutPromise]);
-        clearTimeout(timeoutId!);
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
         return result;
     } catch (error) {
-        clearTimeout(timeoutId!);
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
         throw error;
     }
 }

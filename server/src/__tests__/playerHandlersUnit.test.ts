@@ -15,7 +15,6 @@ jest.mock('../socket/rateLimitHandler', () => ({
 
 const playerService = require('../services/playerService');
 const gameService = require('../services/gameService');
-const logger = require('../utils/logger');
 
 describe('Player Handlers', () => {
     let mockIo;

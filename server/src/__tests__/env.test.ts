@@ -176,16 +176,12 @@ describe('Environment Configuration', () => {
             );
         });
 
-        it('should warn about short JWT_SECRET in production', () => {
+        it('should throw for short JWT_SECRET in production', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
             process.env.JWT_SECRET = 'short'; // Less than 32 chars
 
-            validateEnv();
-
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('JWT_SECRET is too short')
-            );
+            expect(() => validateEnv()).toThrow('JWT_SECRET must be at least 32 characters');
         });
 
         it('should warn about wildcard CORS in production', () => {

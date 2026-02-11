@@ -278,7 +278,8 @@ async function handleDisconnect(
 
                                 if (connectedPlayers.length > 0) {
                                     // Transfer host to first connected player
-                                    const newHost = connectedPlayers[0]!;
+                                    // Safe to cast: we just verified length > 0
+                                    const newHost = connectedPlayers[0] as Player;
 
                                     // SECURITY FIX: Use atomic host transfer to prevent race conditions
                                     // This atomically updates old host, new host, and room in a single Lua script

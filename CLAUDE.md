@@ -262,9 +262,11 @@ npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
 
-**Test suite**: 77 backend suites (2,308 tests), 4 frontend suites (303 tests), 8 E2E spec files (64+ tests)
+**Test suite**: 77 backend suites (2,308 tests), 4 frontend suites (303 tests), 8 E2E spec files (64+ tests). Total: ~2,675 tests.
 
-**Coverage thresholds** (from `jest.config.ts.js`): 65% branches, 80% functions, 75% lines/statements. Infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage; business logic modules individually exceed 80%.
+**Code quality**: ESLint reports 0 errors, 0 warnings. TypeScript compiles with 0 errors.
+
+**Coverage thresholds** (from `jest.config.ts.js`): 65% branches, 80% functions, 75% lines/statements. Note: `package.json` has a separate fallback config at 80% all metrics — `jest.config.ts.js` takes precedence when running `npm test`. Infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage; business logic modules individually exceed 80%. Current actual coverage: 94%+ lines/statements.
 
 **Test file locations**:
 - `server/src/__tests__/` - Backend unit tests (services, handlers, middleware, routes, config, utils)
@@ -303,6 +305,15 @@ ADMIN_PASSWORD=your-secure-admin-password
 # Rate limiting
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=100
+
+# Timeout overrides (optional, in milliseconds)
+# TIMEOUT_SOCKET_HANDLER=30000
+# TIMEOUT_REDIS_OPERATION=10000
+# TIMEOUT_GAME_ACTION=15000
+# TIMEOUT_ROOM_ACTION=10000
+# TIMEOUT_PLAYER_ACTION=10000
+# TIMEOUT_TIMER_ACTION=5000
+# TIMEOUT_ADMIN_ACTION=30000
 ```
 
 ## Deployment

@@ -130,6 +130,10 @@ export const RESERVED_NAMES = [
  * @param {string} nickname - Nickname to validate
  * @returns {Object} { valid: boolean, error: string|null }
  */
+// Nickname regex — matches server-side nicknameRegex in validators/schemas.ts
+// Unicode letters/numbers, spaces, hyphens, underscores
+const NICKNAME_REGEX = /^[\p{L}\p{N}\s\-_]+$/u;
+
 export function validateNickname(nickname) {
     if (!nickname || typeof nickname !== 'string') {
         return { valid: false, error: 'Nickname is required' };
@@ -143,6 +147,10 @@ export function validateNickname(nickname) {
 
     if (trimmed.length > VALIDATION.NICKNAME_MAX_LENGTH) {
         return { valid: false, error: `Nickname must be ${VALIDATION.NICKNAME_MAX_LENGTH} characters or less` };
+    }
+
+    if (!NICKNAME_REGEX.test(trimmed)) {
+        return { valid: false, error: 'Nickname contains invalid characters' };
     }
 
     if (RESERVED_NAMES.includes(trimmed.toLowerCase())) {

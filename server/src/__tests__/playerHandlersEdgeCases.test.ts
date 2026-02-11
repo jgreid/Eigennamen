@@ -208,34 +208,6 @@ describe('Player Handlers Edge Cases', () => {
         });
     }
 
-    // Wait for either success or error event
-    function waitForEventOrError(client, successEvent, errorEvent, timeout = 5000) {
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => {
-                reject(new Error(`Timeout waiting for ${successEvent} or ${errorEvent}`));
-            }, timeout);
-
-            const cleanup = () => {
-                clearTimeout(timer);
-                client.off(successEvent, successHandler);
-                client.off(errorEvent, errorHandler);
-            };
-
-            const successHandler = (data) => {
-                cleanup();
-                resolve({ success: true, data });
-            };
-
-            const errorHandler = (data) => {
-                cleanup();
-                resolve({ success: false, error: data });
-            };
-
-            client.on(successEvent, successHandler);
-            client.on(errorEvent, errorHandler);
-        });
-    }
-
     beforeAll((done) => {
         httpServer = http.createServer();
         io = new Server(httpServer, {

@@ -48,7 +48,7 @@ const {
     clearMemoryLogs
 } = require('../services/auditService');
 const logger = require('../utils/logger');
-const { isUsingMemoryMode } = require('../config/redis');
+require('../config/redis');
 
 describe('Audit Service', () => {
     beforeEach(() => {

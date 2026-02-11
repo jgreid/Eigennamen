@@ -4,7 +4,7 @@
  * Types for service layer interfaces and return types.
  */
 
-import type { Team, GameState, PlayerGameState, CreateGameOptions, RevealResult, ClueWithGuesses, EndTurnResult, ForfeitResult } from './game';
+import type { Team, GameState, PlayerGameState, CreateGameOptions, RevealResult, ClueWithGuesses, EndTurnResult, ForfeitResult, GameHistoryEntry, Role } from './game';
 import type { Room, CreateRoomSettings, CreateRoomResult, JoinRoomResult, LeaveRoomResult, RoomSettings } from './room';
 import type { Player, PlayerUpdate, ReconnectionResult, HostTransferResult } from './player';
 
@@ -23,7 +23,7 @@ export interface IGameService {
   giveClue(roomCode: string, team: Team, word: string, number: number, spymasterNickname?: string): Promise<ClueWithGuesses>;
   endTurn(roomCode: string, playerNickname?: string, expectedTeam?: string): Promise<EndTurnResult>;
   forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult>;
-  getGameHistory(roomCode: string): Promise<import('./game').GameHistoryEntry[]>;
+  getGameHistory(roomCode: string): Promise<GameHistoryEntry[]>;
   cleanupGame(roomCode: string): Promise<void>;
 }
 
@@ -60,7 +60,7 @@ export interface IPlayerService {
   removePlayer(sessionId: string): Promise<void>;
   getPlayersInRoom(roomCode: string): Promise<Player[]>;
   setTeam(sessionId: string, team: Team | null): Promise<Player | null>;
-  setRole(sessionId: string, role: import('./game').Role): Promise<Player | null>;
+  setRole(sessionId: string, role: Role): Promise<Player | null>;
   setNickname(sessionId: string, nickname: string): Promise<Player | null>;
   atomicHostTransfer(oldHostId: string, newHostId: string, roomCode: string): Promise<HostTransferResult>;
   generateReconnectionToken(sessionId: string): Promise<string>;

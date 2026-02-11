@@ -129,7 +129,8 @@ module.exports = [
             'require-await': 'off',
             'no-await-in-loop': 'off',
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-            '@typescript-eslint/no-explicit-any': 'off'
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-non-null-assertion': 'off'
         }
     }
 ];

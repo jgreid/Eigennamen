@@ -275,12 +275,16 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 throw PlayerError.notSpymaster();
             }
 
-            const clue: ClueWithGuesses = await gameService.giveClue(
-                ctx.roomCode,
-                ctx.player.team,
-                validated.word,
-                validated.number,
-                ctx.player.nickname
+            const clue: ClueWithGuesses = await withTimeout(
+                gameService.giveClue(
+                    ctx.roomCode,
+                    ctx.player.team,
+                    validated.word,
+                    validated.number,
+                    ctx.player.nickname
+                ),
+                TIMEOUTS.GAME_ACTION,
+                `game:clue in ${ctx.roomCode}`
             );
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CLUE_GIVEN, {

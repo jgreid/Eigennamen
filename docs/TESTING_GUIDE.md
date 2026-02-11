@@ -44,14 +44,14 @@ Global thresholds are set lower because infrastructure modules (redis.ts, memory
 | Functions | 80% | 90%+ |
 | Lines | 75% | 94%+ |
 
-### Current Test Counts (as of Feb 2026)
+### Current Test Counts (as of Feb 11, 2026)
 
 | Category | Suites | Tests |
 |----------|--------|-------|
 | Backend Unit | 77 | 2,308 |
 | Frontend Unit | 4 | 303 |
-| E2E (Playwright) | 7 | 53+ |
-| **Total** | **88** | **~2,664** |
+| E2E (Playwright) | 8 | 64+ |
+| **Total** | **89** | **~2,675** |
 
 ## Backend Testing (Jest)
 
@@ -505,25 +505,18 @@ npx playwright show-trace trace.zip
 
 ## Continuous Integration
 
-Tests run automatically on:
-- Pull request creation
-- Push to main branch
+Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 6 quality gates:
 
-```yaml
-# .github/workflows/test.yml (example)
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: cd server && npm ci
-      - run: cd server && npm test -- --coverage
-      - run: npx playwright install --with-deps
-      - run: npx playwright test
-```
+| Job | Description |
+|-----|-------------|
+| **Test** | Jest with coverage (Node 20 + 22 matrix) |
+| **Typecheck** | `tsc --noEmit` |
+| **Lint** | ESLint with `--max-warnings 0` |
+| **Security** | `npm audit` (fails on critical vulnerabilities) |
+| **Docker** | Build image and verify health endpoint starts |
+| **E2E** | Playwright tests against a running server (Chromium) |
+
+Additionally, **CodeQL** runs weekly for automated security scanning (`.github/workflows/codeql.yml`).
 
 ## Coverage Reports
 
