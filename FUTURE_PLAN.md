@@ -1,21 +1,21 @@
 # Die Eigennamen — Future Development Plan
 
-**Last Updated:** February 11, 2026
+**Last Updated:** February 11, 2026 (Deep Review)
 **Version:** v2.2.0
 
-This document outlines the development plan for hardening existing functionality and introducing new features, based on comprehensive codebase reviews conducted in February 2026.
+This document outlines the development plan for hardening existing functionality and introducing new features, based on comprehensive line-by-line codebase reviews conducted in February 2026.
 
 ## Executive Summary
 
-The codebase is **production-ready** with strong defensive programming patterns including Lua script atomicity, comprehensive error handling, race condition prevention, and defense-in-depth security. Phases 1-3 are fully completed. Remaining work focuses on frontend feature completion, testing expansion, and infrastructure maturation.
+The codebase is **production-ready** with strong defensive programming patterns including Lua script atomicity, comprehensive error handling, race condition prevention, and defense-in-depth security. Phases 1-3 plus Tier A are fully completed. A deep review identified 2 critical bugs and 8 high-priority issues requiring targeted fixes before production hardening is complete.
 
 | Area | Status | Priority |
 |------|--------|----------|
-| Backend Services | Excellent — all hardening complete | Maintenance |
-| WebSocket Layer | Excellent — safeEmit, rate limiting, auth | Maintenance |
-| Frontend | Good — chat UI and i18n markup gaps remain | Medium |
+| Backend Services | Strong — 2 critical + 8 high bugs found in deep review | High (targeted fixes) |
+| WebSocket Layer | Strong — spectator handler signatures broken (CRIT-1) | High (critical fix) |
+| Frontend | Good — i18n dead code, listener leaks, a11y gaps | Medium |
 | Testing | Strong — 2,675 total tests; multiplayer E2E added | Maintenance |
-| Security | Excellent — defense-in-depth implemented | Low (minor items) |
+| Security | Strong — token invalidation gap + IP map DoS found | Medium (targeted fixes) |
 | Infrastructure | Excellent — CI/CD, Docker, Fly.io, staging | Maintenance |
 
 ---
@@ -67,6 +67,31 @@ The codebase is **production-ready** with strong defensive programming patterns 
 
 ---
 
+## Phase 3.5: Deep Review Critical Fixes — NEW
+
+> 2 critical + 8 high priority issues identified in deep line-by-line review.
+
+### 3.5.1 Critical Fixes (Must Fix)
+- CRIT-1: Fix spectator handler signatures in `playerHandlers.ts` — `spectator:requestJoin`/`approveJoin` pass `io` as first param instead of `socket`; handlers are completely non-functional
+- CRIT-2: Add max word count validation (server Zod schema + frontend settings.js) — no upper limit allows DoS via memory exhaustion
+
+### 3.5.2 High Priority Fixes
+- HIGH-1: Invalidate reconnection token when player is kicked (security: kicked players can rejoin)
+- HIGH-2: Verify/fix `cleanupOldHistory` zRange index direction (data loss risk)
+- HIGH-3: Wire `state.localizedDefaultWords` into game.js word selection (localized words loaded but never used)
+- HIGH-4: Fix `escapeHTML()` misuse in CSS className context in history.js
+- HIGH-5: Fix event listener accumulation in replay controls (memory leak)
+- HIGH-6: Wrap `refreshRoomTTL` callers in try-catch (room expiration during active game)
+- HIGH-7: Fix accessibility keyboard overlay listener leak
+- HIGH-8: Cap `connectionsPerIP` Map size to prevent memory DoS under IP spoofing
+
+### 3.5.3 Security Fixes
+- SEC-3: Session age validation uses `connectedAt` fallback — frequent reconnectors bypass 8h limit
+- SEC-4: JWT secret length only warned in production, not enforced
+- SEC-5: `connectionsPerIP` map unbounded (= HIGH-8)
+
+---
+
 ## Phase 4: Feature Completion — Active
 
 ### 4.1 Chat UI Implementation (NEW)
@@ -82,11 +107,12 @@ The backend fully supports team and spectator chat via `chatHandlers.ts`. The `s
 - Mobile-responsive layout
 
 ### 4.2 i18n Completion
-**Status**: 90% complete
+**Status**: 85% complete (deep review found additional gap)
 **Priority**: Medium
 
 Four complete language files (EN, DE, ES, FR) with localized word lists exist. Gaps:
-- Some hardcoded English strings in HTML without `data-i18n` attributes
+- **Localized word lists loaded but never used** (HIGH-3): `i18n.js` populates `state.localizedDefaultWords` but `game.js` ignores it — non-English users always get English words
+- Some hardcoded English strings in HTML without `data-i18n` attributes (game.js, roles.js, multiplayer.js)
 - No plural form support in the translation system
 - Date/time formatting uses browser locale (acceptable)
 
@@ -157,6 +183,9 @@ Four complete language files (EN, DE, ES, FR) with localized word lists exist. G
 | WebSocket scaling issues | Low | High | Redis Pub/Sub verified; load test multi-instance |
 | Dependency vulnerabilities | Medium | Medium | npm audit in CI, CodeQL scanning |
 | Frontend/server PRNG desync | Low | High | Shared test suite validates both implementations |
+| Spectator flow broken | Confirmed | Medium | CRIT-1: Handler signatures wrong, needs fix |
+| Word list DoS | Medium | High | CRIT-2: No max word count validation |
+| Memory DoS via IP spoofing | Medium | Medium | HIGH-8: connectionsPerIP map unbounded |
 
 ---
 
@@ -164,7 +193,7 @@ Four complete language files (EN, DE, ES, FR) with localized word lists exist. G
 
 ### Current Achievement
 - Zero race condition bugs in production ✅
-- All critical security issues resolved ✅
+- Critical security issues resolved ✅ (2 new critical bugs found in deep review)
 - Test coverage > 85% ✅ (94%+)
 - WebSocket connection success rate > 99% ✅
 
@@ -179,11 +208,12 @@ Four complete language files (EN, DE, ES, FR) with localized word lists exist. G
 
 ## Conclusion
 
-The codebase has completed three major hardening phases plus Tier A improvements and is production-ready. The remaining work is primarily:
+The codebase has completed three major hardening phases plus Tier A improvements and is fundamentally production-ready. A deep line-by-line review identified targeted issues requiring attention:
 
-1. **Frontend polish**: Chat UI, i18n completeness
-2. **Testing expansion**: Resilience/chaos testing
-3. **Documentation**: CHANGELOG.md
-4. **Future features**: Player profiles, tournament mode, AI spymaster
+1. **Critical fixes** (Phase 3.5): Spectator handler signatures, word list DoS validation
+2. **High priority fixes**: Token invalidation on kick, localized words wiring, listener leaks, TTL error handling, IP map capping
+3. **Frontend polish**: Chat UI, i18n completeness, replay accessibility
+4. **Testing expansion**: Resilience/chaos testing, spectator flow tests
+5. **Future features**: Player profiles, tournament mode, AI spymaster
 
-The architecture supports all planned features without requiring structural changes. The service layer, atomic operations, and graceful degradation patterns provide a solid foundation for continued development.
+The architecture supports all planned features without requiring structural changes. The service layer, atomic operations, and graceful degradation patterns provide a solid foundation for continued development. The critical and high-priority fixes are all low-effort (most are 1-10 line changes) and should be addressed before next production deployment.

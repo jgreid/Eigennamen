@@ -1,6 +1,6 @@
 # Roadmap — Die Eigennamen (Codenames Online)
 
-**Last Updated:** February 11, 2026
+**Last Updated:** February 11, 2026 (Deep Review)
 **Project Version:** v2.2.0
 
 ---
@@ -14,8 +14,9 @@
 | E2E Tests | 64+ passing (8 spec files) |
 | Total Tests | ~2,675 |
 | Backend Coverage | 94%+ |
-| Critical Issues | 0 |
-| Code Quality | Production-ready |
+| Critical Issues | 2 (identified in deep review) |
+| High Priority Issues | 8 |
+| Code Quality | Production-ready (with targeted fixes needed) |
 
 ### Completed Features
 
@@ -45,41 +46,79 @@
 
 ---
 
-## Remaining Work
+## Previous Improvements — All Completed
 
-### High Priority ✅ ALL COMPLETED (2026-02-11)
+### Tier 1-3 (Feb 9, 2026) ✅
+Magic numbers, safe JSON, Zod builders, domain split, auth refactor, connection tracker,
+frontend tests, focus trap, state docs, staging docs, Docker optimization — all done.
 
-| Task | Category | Status |
-|------|----------|--------|
-| Harden game state Zod validation | Code Quality | ✅ Explicit fields in all 5 services |
-| Add timeout wrappers for Redis Lua calls | Code Quality | ✅ All Lua calls wrapped with `withTimeout()` |
-| Fix documentation directory references | Docs | ✅ Updated across 8 files |
-| Document IP validation security defaults | Security | ✅ Documented in `.env.example` |
+### Tier A (Feb 11, 2026) ✅
+Zod `.passthrough()` removal, timeout wrappers, IP validation docs, directory references,
+multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
 
-### Medium Priority (Partially Completed)
+---
 
-| Task | Category | Status |
-|------|----------|--------|
-| Add multiplayer E2E tests | Testing | ✅ 11 tests in `multiplayer-lifecycle.spec.js` |
-| Implement chat UI | Frontend | Pending — backend ready |
-| Complete i18n markup | Frontend | Pending — audit hardcoded English strings |
-| Implement token rotation on reconnection | Security | Pending — rotate tokens after use |
-| Gate frontend debug logging | Performance | Pending — conditional logging |
-| Add CHANGELOG.md | Docs | Pending |
-| Complete ES module migration | Code Quality | Pending — remove `require()`/`module.exports` |
+## Remaining Work (Deep Review Findings)
 
-### Lower Priority
+### Critical — Must Fix
 
-| Task | Category | Notes |
-|------|----------|-------|
-| Split multiplayer.js | Architecture | Decompose 1,922-line file into submodules |
-| Migrate all transactions to Lua | Performance | Replace watch/unwatch patterns |
-| Add chaos/resilience testing | Testing | Simulate Redis failures during operations |
-| Add SRI for vendored JS | Security | Integrity hashes for socket.io, qrcode |
-| Improve admin dashboard a11y | Accessibility | Skip link, contrast review |
-| Add i18n plural support | Frontend | Plural form handling in i18n.js |
-| Automated perf regression tests | CI/CD | Schedule k6 load tests |
-| Board ARIA grid role attributes | Accessibility | `aria-rowindex`/`aria-colindex` |
+| ID | Task | Category | Description |
+|----|------|----------|-------------|
+| CRIT-1 | Fix spectator handler signatures | Bug | `spectator:requestJoin`/`approveJoin` pass wrong params — handlers non-functional |
+| CRIT-2 | Add max word count validation | Security | No upper limit on word lists — DoS vector via memory exhaustion |
+
+### High Priority — Should Fix
+
+| ID | Task | Category | Description |
+|----|------|----------|-------------|
+| HIGH-1 | Invalidate token on player kick | Security | Kicked players retain reconnection tokens |
+| HIGH-2 | Verify history cleanup index | Data | `cleanupOldHistory` zRange params need verification |
+| HIGH-3 | Wire localized words into game | Bug | Localized word lists loaded but never used by game logic |
+| HIGH-4 | Fix className escapeHTML misuse | Bug | `escapeHTML()` wrong for CSS class context in history.js |
+| HIGH-5 | Fix replay event listener leak | Memory | Listener accumulation on repeated replay opens |
+| HIGH-6 | Handle refreshRoomTTL failures | Resilience | TTL refresh failure propagates and fails room join |
+| HIGH-7 | Fix accessibility listener leak | Memory | Keyboard overlay listener persists on click-close |
+| HIGH-8 | Cap connectionsPerIP map size | Security | Unbounded map growth under IP spoofing attack |
+
+### Medium Priority
+
+| ID | Task | Category | Description |
+|----|------|----------|-------------|
+| C-1 | Use safeEmit in chat handlers | Consistency | Chat uses raw emit instead of safeEmit pattern |
+| C-2 | Add timeout to game:clue handler | Resilience | giveClue service call has no timeout wrapper |
+| C-3 | Fix session age validation | Security | `connectedAt` fallback lets frequent reconnectors bypass 8h limit |
+| C-4 | Enforce JWT secret length | Security | Short secrets only warned, not rejected in production |
+| C-5 | Add word uniqueness validation | Validation | Zod schema allows duplicate words |
+| C-6 | Replay board keyboard navigation | Accessibility | No ARIA roles or tabindex on replay cards |
+| C-7 | Batch role reset for new games | Performance | N individual Redis ops instead of pipeline/Lua |
+| C-8 | Unify nickname validation regex | Consistency | multiplayer.js differs from constants.js |
+| C-9 | Fix fitCardText layout thrashing | Performance | Read/write loop per card causes reflows |
+| C-10 | Guard replay interval creation | Bug | Rapid toggle can create duplicate intervals |
+| C-11 | Expire memory-mode audit logs | Memory | Audit logs grow unbounded in memory mode |
+| C-12 | Make timeouts configurable | Operations | Timeout values hardcoded, not env-configurable |
+| C-13 | Add Docker Compose resource limits | Infrastructure | No memory/CPU caps on containers |
+| C-14 | Validate settings values | Validation | Team names in updateSettings not validated |
+| C-15 | Implement token rotation on use | Security | Reconnection tokens not rotated after successful use |
+
+### Lower Priority / Future
+
+| ID | Task | Category | Description |
+|----|------|----------|-------------|
+| D-1 | Implement chat UI | Frontend | Panel with team/spectator tabs (backend ready) |
+| D-2 | Complete i18n markup | Frontend | Audit hardcoded English strings |
+| D-3 | Gate frontend debug logging | Performance | Conditional state.js logging |
+| D-4 | Add CHANGELOG.md | Docs | Structured changelog |
+| D-5 | Split multiplayer.js | Architecture | Decompose 1,922-line file |
+| D-6 | Migrate all transactions to Lua | Performance | Replace watch/unwatch patterns |
+| D-7 | Add chaos/resilience testing | Testing | Simulate Redis failures |
+| D-8 | Add SRI for vendored JS | Security | Integrity hashes |
+| D-9 | Improve admin dashboard a11y | Accessibility | Skip link, contrast review |
+| D-10 | Add i18n plural support | Frontend | Plural form handling |
+| D-11 | Automated perf regression tests | CI/CD | Schedule k6 in CI |
+| D-12 | Add .dockerignore | Infrastructure | Exclude build artifacts from context |
+| D-13 | Add SECURITY.md | Docs | Vulnerability disclosure policy |
+| D-14 | Add Dependabot config | CI/CD | Automated dependency updates |
+| D-15 | Add ReDoS regression tests | Testing | Test regex against pathological inputs |
 
 ---
 
@@ -121,8 +160,10 @@
 |-------|---------------|--------|
 | Mixed module systems | Some `require()` alongside ES6 `import` | Full ES module migration |
 | ~~Zod `.passthrough()` usage~~ | ~~All 5 service schemas~~ | ✅ Fixed — explicit fields |
+| Spectator handler signatures | Broken — wrong factory params | Fix with correct 4-param pattern |
 | multiplayer.js size | 1,922 lines | Split into focused submodules |
 | Frontend debug logging | Always-on console.log | Conditional on config flag |
+| Localized words unused | Loaded but ignored by game.js | Wire into word selection |
 
 ### Performance Targets
 
@@ -165,6 +206,14 @@
      │      Tests          │  Services, handlers, middleware, config
      └─────────────────────┘
 ```
+
+### Testing Gaps (from Deep Review)
+
+- No tests for spectator join flow (broken handlers — CRIT-1)
+- No ReDoS regression tests for clue word regex
+- No history cleanup index correctness tests
+- No malformed WebSocket message tests
+- E2E selectors fragile (class-based instead of data-testid)
 
 ---
 
