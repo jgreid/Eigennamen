@@ -5,7 +5,7 @@ import { updateCharCounter } from './utils.js';
 import { showErrorModal, closeError, closeModal, registerModalCloseHandler } from './ui.js';
 import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.js';
 import { setCardClickHandler, renderBoard } from './board.js';
-import { confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm, endTurn, copyLink, loadGameFromURL, updateQRCode, closeGameOver, revealCard, setRoleCallbacks } from './game.js';
+import { confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm, endTurn, copyLink, loadGameFromURL, updateQRCode, closeGameOver, revealCard } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import { openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI, copyRoomCode, updateRoomInfoDisplay, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad } from './history.js';
@@ -14,8 +14,6 @@ import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
-// Wire up the role callbacks (game -> roles callback injection to break circular dependency)
-setRoleCallbacks(updateRoleBanner, updateControls);
 // Register all modal close handlers
 registerModalCloseHandler('settings-modal', closeSettings);
 registerModalCloseHandler('confirm-modal', closeConfirm);
@@ -43,16 +41,16 @@ function setupEventListeners() {
                 confirmNewGame();
                 break;
             case 'set-team':
-                setTeam(team);
+                setTeam(team ?? null);
                 break;
             case 'set-spymaster':
-                setSpymaster(team);
+                setSpymaster(team || '');
                 break;
             case 'set-spymaster-current':
                 setSpymasterCurrent();
                 break;
             case 'set-clicker':
-                setClicker(team);
+                setClicker(team || '');
                 break;
             case 'set-clicker-current':
                 setClickerCurrent();
@@ -227,8 +225,9 @@ async function init() {
         checkURLForReplayLoad();
     }
     catch (e) {
+        const message = e instanceof Error ? e.message : 'Unknown error';
         // Show error modal to inform user
-        showErrorModal('Failed to load the game. This might be due to corrupted data or a browser issue.', e.message || 'Unknown error');
+        showErrorModal('Failed to load the game. This might be due to corrupted data or a browser issue.', message);
     }
 }
 // ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
@@ -239,14 +238,5 @@ if (document.readyState === 'loading') {
 else {
     // DOM already loaded (e.g., script loaded asynchronously)
     init();
-}
-// Service Worker Registration for offline standalone mode
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-            .catch((error) => {
-            console.log('ServiceWorker registration failed:', error);
-        });
-    });
 }
 //# sourceMappingURL=app.js.map

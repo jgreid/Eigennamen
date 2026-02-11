@@ -4,7 +4,9 @@ import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, 
 import { hashString, shuffleWithSeed, generateGameSeed, seededRandom, encodeWordsForURL, decodeWordsFromURL, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
+import { updateRoleBanner, updateControls } from './roles.js';
 import { UI } from './constants.js';
+import { logger } from './logger.js';
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed) {
     // Randomly decide who goes first (gets more cards)
@@ -255,7 +257,7 @@ export function updateQRCode(url) {
     }
     // Check if qrcode-generator library is loaded
     if (typeof qrcode !== 'function') {
-        console.warn('QR code library not loaded, hiding QR section');
+        logger.debug('QR code library not loaded, hiding QR section');
         if (qrSection)
             qrSection.style.display = 'none';
         return;
@@ -299,7 +301,7 @@ export function updateQRCode(url) {
             qrSection.style.display = '';
     }
     catch (e) {
-        console.error('QR code generation failed:', e);
+        logger.error('QR code generation failed:', e);
         // Hide QR section if URL is too long or other error
         if (qrSection)
             qrSection.style.display = 'none';
@@ -355,7 +357,7 @@ export function revealCard(index) {
                     pendingCard.classList.remove('revealing');
             }
         }, UI.CARD_REVEAL_TIMEOUT_MS);
-        state[`_revealTimeout_${index}`] = timeoutId;
+        state.revealTimeouts.set(index, timeoutId);
         // Add visual feedback - show card as "pending"
         const card = document.querySelector(`.card[data-index="${index}"]`);
         if (card) {
@@ -424,7 +426,7 @@ export function revealCard(index) {
 export function revealCardFromServer(index, serverData = {}) {
     // Bounds check: reject invalid index to prevent array growth from malformed server data
     if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
-        console.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
+        logger.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
         return;
     }
     if (state.gameState.revealed[index])
@@ -662,20 +664,7 @@ export async function copyLink() {
         state.copyButtonTimeoutId = null;
     }, 3000);
 }
-// These are imported by roles.js — re-export updateRoleBanner and updateControls
-// They are actually defined in roles.js but called from game.js.
-// To break the circular dependency, game.js imports them lazily.
-// We use a registry pattern: app.js sets these after importing both modules.
-let _updateRoleBanner = () => { };
-let _updateControls = () => { };
-export function setRoleCallbacks(updateRoleBannerFn, updateControlsFn) {
-    _updateRoleBanner = updateRoleBannerFn;
-    _updateControls = updateControlsFn;
-}
-function updateRoleBanner() {
-    _updateRoleBanner();
-}
-function updateControls() {
-    _updateControls();
-}
+// updateRoleBanner and updateControls are imported directly from roles.ts.
+// No circular dependency exists: roles.ts imports from state, utils, ui, board
+// but does NOT import from game.ts.
 //# sourceMappingURL=game.js.map

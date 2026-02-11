@@ -3,6 +3,8 @@
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { UI } from './constants.js';
+// Store timer IDs for toast auto-dismiss without extending HTMLDivElement
+const toastTimers = new WeakMap();
 // ========== SCREEN READER ANNOUNCEMENTS ==========
 export function announceToScreenReader(message) {
     const announcer = state.cachedElements.srAnnouncements;
@@ -41,9 +43,8 @@ export function showToast(message, type = 'error', duration = 4000) {
         closeBtn.addEventListener('click', () => dismissToast(toast));
     }
     // Auto-dismiss after duration (store ID for cleanup in dismissToast)
-    toast._autoDismissId = setTimeout(() => {
-        dismissToast(toast);
-    }, duration);
+    const timers = { autoDismiss: setTimeout(() => { dismissToast(toast); }, duration) };
+    toastTimers.set(toast, timers);
     // Announce to screen readers with message type for context
     const typeLabel = type === 'error' ? 'Error: ' : type === 'warning' ? 'Warning: ' : '';
     announceToScreenReader(typeLabel + message);
@@ -53,16 +54,24 @@ export function dismissToast(toast) {
     if (!toast || toast.classList.contains('hiding'))
         return;
     // Clear the auto-dismiss timer to prevent double-removal
-    if (toast._autoDismissId) {
-        clearTimeout(toast._autoDismissId);
-        toast._autoDismissId = null;
+    const timers = toastTimers.get(toast);
+    if (timers?.autoDismiss) {
+        clearTimeout(timers.autoDismiss);
+        timers.autoDismiss = undefined;
     }
     toast.classList.add('hiding');
-    toast._hideTimeoutId = setTimeout(() => {
+    const hideTimeout = setTimeout(() => {
         if (toast.parentElement) {
             toast.parentElement.removeChild(toast);
         }
+        toastTimers.delete(toast);
     }, 300);
+    if (timers) {
+        timers.hide = hideTimeout;
+    }
+    else {
+        toastTimers.set(toast, { hide: hideTimeout });
+    }
 }
 // ========== ERROR MODAL ==========
 export function showErrorModal(message, details = null) {

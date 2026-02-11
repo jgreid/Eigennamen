@@ -54,11 +54,11 @@
             </header>
 
             <!-- Multiplayer Status Indicator -->
-            <div class="multiplayer-indicator" id="mp-indicator">
+            <div class="multiplayer-indicator" id="mp-indicator" data-testid="mp-indicator">
                 <span class="status-dot"></span>
-                <span>Room: <span class="room-code" id="mp-room-code">----</span></span>
+                <span>Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></span>
                 <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players">
-                    <span id="mp-player-count">0 players</span>
+                    <span id="mp-player-count" data-testid="player-count">0 players</span>
                     <span class="expand-icon">▾</span>
                 </button>
                 <div class="mp-spectator-inline" id="mp-spectator-inline" style="display: none;">
@@ -66,7 +66,7 @@
                     <span><span id="mp-spectator-count">0</span> watching</span>
                 </div>
                 <!-- Player list (expandable) -->
-                <div class="mp-player-list" id="mp-player-list" style="display: none;">
+                <div class="mp-player-list" id="mp-player-list" data-testid="player-list" style="display: none;">
                     <ul id="mp-players-ul"></ul>
                     <div class="nickname-edit" id="nickname-edit">
                         <button type="button" class="btn-edit-nickname" id="btn-edit-nickname" title="Change your nickname">Edit Nickname</button>
@@ -79,19 +79,19 @@
                 </div>
             </div>
 
-            <div class="role-banner" id="role-banner" role="status" aria-live="polite">
+            <div class="role-banner" id="role-banner" data-testid="role-banner" role="status" aria-live="polite">
                 <!-- Filled by JS -->
             </div>
 
             <!-- Scoreboard with clickable team names for team selection -->
             <div class="scoreboard" role="group" aria-label="Team scores">
-                <button type="button" class="score red" id="btn-team-red" data-action="set-team" data-team="red" title="Click to join Red team">
+                <button type="button" class="score red" id="btn-team-red" data-testid="team-red-btn" data-action="set-team" data-team="red" title="Click to join Red team">
                     <span id="red-team-name" class="team-name">Red</span>
-                    <span class="count"><span id="red-remaining">9</span> left</span>
+                    <span class="count"><span id="red-remaining" data-testid="red-remaining">9</span> left</span>
                 </button>
-                <button type="button" class="score blue" id="btn-team-blue" data-action="set-team" data-team="blue" title="Click to join Blue team">
+                <button type="button" class="score blue" id="btn-team-blue" data-testid="team-blue-btn" data-action="set-team" data-team="blue" title="Click to join Blue team">
                     <span id="blue-team-name" class="team-name">Blue</span>
-                    <span class="count"><span id="blue-remaining">8</span> left</span>
+                    <span class="count"><span id="blue-remaining" data-testid="blue-remaining">8</span> left</span>
                 </button>
             </div>
 
@@ -101,9 +101,9 @@
                 <span class="duet-tokens"><span id="duet-timer-tokens">9</span> tokens left</span>
             </div>
 
-            <div class="turn-indicator" id="turn-indicator" role="status" aria-live="polite" aria-atomic="true">
+            <div class="turn-indicator" id="turn-indicator" data-testid="turn-indicator" role="status" aria-live="polite" aria-atomic="true">
                 <span class="turn-text">Red Team's Turn</span>
-                <span class="timer-inline" id="timer-display" role="timer">
+                <span class="timer-inline" id="timer-display" data-testid="timer-display" role="timer">
                     <span class="timer-icon" aria-hidden="true">⏱️</span>
                     <span class="timer-value" id="timer-value" aria-live="polite" aria-atomic="true">--:--</span>
                 </span>
@@ -112,32 +112,32 @@
             <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
                 <div class="role-controls" id="role-controls">
                     <div class="role-buttons-row">
-                        <button type="button" class="btn-spymaster" id="btn-spymaster" data-action="set-spymaster-current" data-i18n="roles.spymaster">Spymaster</button>
-                        <button type="button" class="btn-clicker" id="btn-clicker" data-action="set-clicker-current" data-i18n="roles.clicker">Clicker</button>
+                        <button type="button" class="btn-spymaster" id="btn-spymaster" data-testid="spymaster-btn" data-action="set-spymaster-current" data-i18n="roles.spymaster">Spymaster</button>
+                        <button type="button" class="btn-clicker" id="btn-clicker" data-testid="clicker-btn" data-action="set-clicker-current" data-i18n="roles.clicker">Clicker</button>
                     </div>
                 </div>
 
                 <div class="action-buttons-row">
-                    <button type="button" class="btn-end-turn" id="btn-end-turn" data-action="confirm-end-turn" data-i18n="game.endTurn">End Turn</button>
-                    <button type="button" class="btn-new-game" data-action="confirm-new-game" data-i18n="game.newGame">New Game</button>
+                    <button type="button" class="btn-end-turn" id="btn-end-turn" data-testid="end-turn-btn" data-action="confirm-end-turn" data-i18n="game.endTurn">End Turn</button>
+                    <button type="button" class="btn-new-game" data-testid="new-game-btn" data-action="confirm-new-game" data-i18n="game.newGame">New Game</button>
                 </div>
 
                 <div class="utility-buttons-row">
-                    <button type="button" class="btn-spectate" id="btn-spectate" data-action="spectate" data-i18n="roles.spectator">Spectator</button>
-                    <button type="button" class="btn-settings" data-action="open-settings" data-i18n="nav.settings">Settings</button>
-                    <button type="button" class="btn-settings" id="btn-multiplayer" data-action="open-multiplayer" data-i18n="nav.playOnline">Play Online</button>
+                    <button type="button" class="btn-spectate" id="btn-spectate" data-testid="spectator-btn" data-action="spectate" data-i18n="roles.spectator">Spectator</button>
+                    <button type="button" class="btn-settings" data-testid="settings-btn" data-action="open-settings" data-i18n="nav.settings">Settings</button>
+                    <button type="button" class="btn-settings" id="btn-multiplayer" data-testid="multiplayer-btn" data-action="open-multiplayer" data-i18n="nav.playOnline">Play Online</button>
                 </div>
 
                 <div class="utility-buttons-row mp-only" id="mp-extra-buttons-row" style="display: none;">
-                    <button type="button" class="btn-settings" id="btn-history" data-action="open-history" data-i18n="nav.history">Game History</button>
-                    <button type="button" class="btn-forfeit" id="btn-forfeit" data-action="confirm-forfeit" title="Forfeit the current game (host only)">Forfeit</button>
+                    <button type="button" class="btn-settings" id="btn-history" data-testid="history-btn" data-action="open-history" data-i18n="nav.history">Game History</button>
+                    <button type="button" class="btn-forfeit" id="btn-forfeit" data-testid="forfeit-btn" data-action="confirm-forfeit" title="Forfeit the current game (host only)">Forfeit</button>
                 </div>
             </div>
 
             <!-- Share section -->
             <div class="share-section">
                 <div class="share-input-group">
-                    <input type="text" id="share-link" readonly placeholder="Game link..." aria-label="Share game link">
+                    <input type="text" id="share-link" data-testid="share-link" readonly placeholder="Game link..." aria-label="Share game link">
                     <button type="button" class="btn-copy" data-action="copy-link">Copy</button>
                 </div>
             </div>
@@ -146,13 +146,13 @@
         <!-- RIGHT MAIN AREA - Game Board -->
         <main class="main-content" id="main-content">
             <div class="board-container">
-                <div class="board" id="board" role="grid" aria-label="Codenames game board"></div>
+                <div class="board" id="board" data-testid="game-board" role="grid" aria-label="Codenames game board"></div>
             </div>
         </main>
     </div>
 
     <!-- Settings Modal -->
-    <div class="modal-overlay" id="settings-modal">
+    <div class="modal-overlay" id="settings-modal" data-testid="settings-modal">
         <div class="modal">
             <div class="settings-layout">
                 <!-- Sidebar Navigation -->
@@ -338,7 +338,7 @@
 
                             <div class="pref-group">
                                 <h3 data-i18n="settings.language">Language</h3>
-                                <select id="language-select" class="language-select">
+                                <select id="language-select" data-testid="language-select" class="language-select">
                                     <option value="en">English</option>
                                     <option value="de">Deutsch</option>
                                     <option value="es">Español</option>
@@ -349,7 +349,7 @@
                             <div class="pref-group">
                                 <h3 data-i18n="settings.accessibility">Accessibility</h3>
                                 <label class="toggle-label">
-                                    <input type="checkbox" id="pref-colorblind" class="toggle-checkbox">
+                                    <input type="checkbox" id="pref-colorblind" data-testid="colorblind-toggle" class="toggle-checkbox">
                                     <span class="toggle-switch"></span>
                                     <span class="toggle-text" data-i18n="settings.colorBlindMode">Color blind friendly mode (orange/blue with labels)</span>
                                 </label>
@@ -483,10 +483,10 @@
     </div>
 
     <!-- Game Over Modal -->
-    <div class="modal-overlay" id="game-over-modal">
+    <div class="modal-overlay" id="game-over-modal" data-testid="game-over-modal">
         <div class="modal game-over-content">
             <h2>Game Over!</h2>
-            <div class="winner" id="winner-display" role="alert" aria-live="assertive"></div>
+            <div class="winner" id="winner-display" data-testid="winner-display" role="alert" aria-live="assertive"></div>
             <div class="rotation-reminder">
                 <h4>Time to Rotate Roles!</h4>
                 <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
@@ -514,18 +514,18 @@
     </div>
 
     <!-- Multiplayer Modal -->
-    <div class="modal-overlay" id="multiplayer-modal">
+    <div class="modal-overlay" id="multiplayer-modal" data-testid="multiplayer-modal">
         <div class="modal multiplayer-modal">
             <h2 data-i18n="nav.playOnline">Play Online</h2>
             <p class="subtitle" data-i18n="multiplayer.subtitle">Play with friends in real-time</p>
 
             <div class="mode-buttons">
-                <button type="button" class="mode-btn active" data-mode="join">
+                <button type="button" class="mode-btn active" data-mode="join" data-testid="mode-join-btn">
                     <span class="mode-icon">🎮</span>
                     <span class="mode-title" data-i18n="multiplayer.joinGame">Join Game</span>
                     <span class="mode-desc" data-i18n="multiplayer.enterRoomIdShort">Enter a Room ID</span>
                 </button>
-                <button type="button" class="mode-btn" data-mode="create">
+                <button type="button" class="mode-btn" data-mode="create" data-testid="mode-create-btn">
                     <span class="mode-icon">🏠</span>
                     <span class="mode-title" data-i18n="multiplayer.hostGame">Host Game</span>
                     <span class="mode-desc" data-i18n="multiplayer.createRoomShort">Create a new room</span>
@@ -536,12 +536,12 @@
             <div class="join-form active" id="join-form">
                 <div class="form-group">
                     <label for="join-nickname" data-i18n="multiplayer.nickname">Your Nickname</label>
-                    <input type="text" id="join-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+" title="Letters, numbers, spaces, hyphens and underscores only">
+                    <input type="text" id="join-nickname" data-testid="join-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+" title="Letters, numbers, spaces, hyphens and underscores only">
                     <span class="error-text" id="join-nickname-error"></span>
                 </div>
                 <div class="form-group">
                     <label for="join-room-id" data-i18n="multiplayer.roomId">Room ID</label>
-                    <input type="text" id="join-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
+                    <input type="text" id="join-room-id" data-testid="join-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
                     <span class="input-hint">Enter the Room ID shared by the host</span>
                     <span class="error-text" id="join-error"></span>
                 </div>
@@ -551,21 +551,21 @@
             <div class="create-form" id="create-form">
                 <div class="form-group">
                     <label for="create-nickname" data-i18n="multiplayer.nickname">Your Nickname</label>
-                    <input type="text" id="create-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+" title="Letters, numbers, spaces, hyphens and underscores only">
+                    <input type="text" id="create-nickname" data-testid="create-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off" pattern="[a-zA-Z0-9\s\-_]+" title="Letters, numbers, spaces, hyphens and underscores only">
                     <span class="error-text" id="create-nickname-error"></span>
                 </div>
                 <div class="form-group">
                     <label for="create-room-id" data-i18n="multiplayer.roomId">Room ID</label>
-                    <input type="text" id="create-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
+                    <input type="text" id="create-room-id" data-testid="create-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
                     <span class="input-hint">Share this Room ID with friends to let them join</span>
                     <span class="error-text" id="create-error"></span>
                 </div>
             </div>
 
-            <div class="connection-status" id="mp-status"></div>
+            <div class="connection-status" id="mp-status" data-testid="mp-status"></div>
 
             <div class="modal-buttons">
-                <button type="button" class="btn-primary" id="btn-mp-action">Join Game</button>
+                <button type="button" class="btn-primary" id="btn-mp-action" data-testid="mp-action-btn">Join Game</button>
                 <button type="button" class="btn-secondary" data-action="close-multiplayer">Cancel</button>
             </div>
 

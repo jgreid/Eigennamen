@@ -43,9 +43,13 @@ export function startTimerCountdown() {
     state.timerState.countdownStartTime = performance.now();
     state.timerState.intervalId = setInterval(() => {
         // Calculate elapsed time since countdown started (monotonic, no clock skew)
+        if (state.timerState.countdownStartTime === null)
+            return;
         const elapsedMs = performance.now() - state.timerState.countdownStartTime;
         const elapsedSeconds = elapsedMs / 1000;
         // Remaining = server's remaining - elapsed since we received it
+        if (state.timerState.serverRemainingSeconds === null)
+            return;
         const remaining = Math.max(0, Math.ceil(state.timerState.serverRemainingSeconds - elapsedSeconds));
         state.timerState.remainingSeconds = remaining;
         updateTimerDisplay();
@@ -64,8 +68,8 @@ export function stopTimerCountdown() {
 // Handle timer started event
 export function handleTimerStarted(data) {
     state.timerState.active = true;
-    state.timerState.endTime = data.endTime;
-    state.timerState.duration = data.duration || data.durationSeconds;
+    state.timerState.endTime = data.endTime ?? null;
+    state.timerState.duration = data.duration || data.durationSeconds ?? null;
     // Use server's remaining seconds as authoritative source
     state.timerState.serverRemainingSeconds = data.remainingSeconds || state.timerState.duration;
     state.timerState.remainingSeconds = state.timerState.serverRemainingSeconds;
@@ -85,12 +89,12 @@ export function handleTimerStopped() {
 // Handle timer status on join/reconnect
 // Uses server's remaining seconds to avoid clock skew issues
 export function handleTimerStatus(data) {
-    if (data && (data.active || data.remainingSeconds > 0)) {
+    if (data && (data.active || (data.remainingSeconds ?? 0) > 0)) {
         state.timerState.active = true;
-        state.timerState.endTime = data.endTime;
-        state.timerState.duration = data.duration;
+        state.timerState.endTime = data.endTime ?? null;
+        state.timerState.duration = data.duration ?? null;
         // Use server's remaining seconds as authoritative source
-        state.timerState.serverRemainingSeconds = data.remainingSeconds || data.remaining;
+        state.timerState.serverRemainingSeconds = data.remainingSeconds ?? data.remaining ?? null;
         state.timerState.remainingSeconds = state.timerState.serverRemainingSeconds;
         updateTimerDisplay();
         startTimerCountdown();
