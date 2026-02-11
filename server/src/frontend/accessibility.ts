@@ -1,14 +1,19 @@
 // ========== ACCESSIBILITY MODULE ==========
 // Color blind mode, keyboard shortcuts, and screen reader helpers
+
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
+
 const CB_STORAGE_KEY = 'codenames-colorblind';
 const KB_STORAGE_KEY = 'codenames-keyboard-shortcuts';
+
 // ========== COLOR BLIND MODE ==========
-export function initColorBlindMode() {
+
+export function initColorBlindMode(): void {
     const enabled = safeGetItem(CB_STORAGE_KEY) === 'true';
     applyColorBlindMode(enabled);
-    const checkbox = document.getElementById('pref-colorblind');
+
+    const checkbox = document.getElementById('pref-colorblind') as HTMLInputElement | null;
     if (checkbox) {
         checkbox.checked = enabled;
         checkbox.addEventListener('change', () => {
@@ -17,12 +22,15 @@ export function initColorBlindMode() {
         });
     }
 }
-function applyColorBlindMode(enabled) {
+
+function applyColorBlindMode(enabled: boolean): void {
     document.body.classList.toggle('colorblind-mode', enabled);
     state.colorBlindMode = enabled;
 }
+
 // ========== KEYBOARD SHORTCUTS ==========
-const SHORTCUTS = {
+
+const SHORTCUTS: Record<string, { action: string; description: string }> = {
     'n': { action: 'confirm-new-game', description: 'New Game' },
     'e': { action: 'confirm-end-turn', description: 'End Turn' },
     's': { action: 'open-settings', description: 'Settings' },
@@ -30,48 +38,60 @@ const SHORTCUTS = {
     'h': { action: 'open-history', description: 'Game History' },
     '?': { action: 'show-shortcuts', description: 'Show Shortcuts' }
 };
+
 let shortcutsEnabled = true;
-export function initKeyboardShortcuts() {
+
+export function initKeyboardShortcuts(): void {
     document.addEventListener('keydown', handleKeyboardShortcut);
 }
-function handleKeyboardShortcut(e) {
+
+function handleKeyboardShortcut(e: KeyboardEvent): void {
     // Don't trigger when typing in inputs, textareas, or selects
-    const target = e.target;
+    const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
         return;
     }
+
     // Don't trigger when a modal is open (except Escape to close)
     if (state.activeModal && e.key !== 'Escape') {
         return;
     }
+
     // Escape closes active modal
     if (e.key === 'Escape' && state.activeModal) {
         return; // Already handled by modal system
     }
+
     // Don't trigger with modifier keys (allow Ctrl+C etc.)
     if (e.ctrlKey || e.metaKey || e.altKey) {
         return;
     }
+
     const key = e.key.toLowerCase();
     const shortcut = SHORTCUTS[key] || SHORTCUTS[e.key]; // e.key for '?' which needs shift
-    if (!shortcut || !shortcutsEnabled)
-        return;
+
+    if (!shortcut || !shortcutsEnabled) return;
+
     if (shortcut.action === 'show-shortcuts') {
         e.preventDefault();
         toggleShortcutOverlay();
         return;
     }
+
     // Find the button with the matching data-action and click it
-    const button = document.querySelector(`[data-action="${shortcut.action}"]`);
+    const button = document.querySelector(`[data-action="${shortcut.action}"]`) as HTMLButtonElement | null;
     if (button && !button.disabled && button.offsetParent !== null) {
         e.preventDefault();
         button.click();
     }
 }
+
 // ========== SHORTCUT HELP OVERLAY ==========
-let overlayElement = null;
-let overlayEscListener = null;
-function closeOverlay() {
+
+let overlayElement: HTMLElement | null = null;
+let overlayEscListener: ((e: KeyboardEvent) => void) | null = null;
+
+function closeOverlay(): void {
     if (overlayElement) {
         overlayElement.remove();
         overlayElement = null;
@@ -81,20 +101,25 @@ function closeOverlay() {
         overlayEscListener = null;
     }
 }
-function toggleShortcutOverlay() {
+
+function toggleShortcutOverlay(): void {
     if (overlayElement) {
         closeOverlay();
         return;
     }
+
     overlayElement = document.createElement('div');
     overlayElement.className = 'keyboard-shortcuts-overlay';
     overlayElement.setAttribute('role', 'dialog');
     overlayElement.setAttribute('aria-label', 'Keyboard shortcuts');
+
     const panel = document.createElement('div');
     panel.className = 'shortcuts-panel';
+
     const heading = document.createElement('h3');
     heading.textContent = 'Keyboard Shortcuts';
     panel.appendChild(heading);
+
     // Dynamic shortcuts from SHORTCUTS config
     for (const [key, { description }] of Object.entries(SHORTCUTS)) {
         const row = document.createElement('div');
@@ -107,8 +132,9 @@ function toggleShortcutOverlay() {
         row.appendChild(span);
         panel.appendChild(row);
     }
+
     // Static shortcut entries
-    const staticShortcuts = [
+    const staticShortcuts: [string, string][] = [
         ['ESC', 'Close modal / this overlay'],
         ['↑↓←→', 'Navigate board cards'],
         ['ENTER', 'Reveal selected card']
@@ -124,6 +150,7 @@ function toggleShortcutOverlay() {
         row.appendChild(span);
         panel.appendChild(row);
     }
+
     const hint = document.createElement('p');
     hint.className = 'shortcuts-hint';
     hint.textContent = 'Press ';
@@ -132,25 +159,31 @@ function toggleShortcutOverlay() {
     hint.appendChild(hintKbd);
     hint.append(' to toggle this overlay');
     panel.appendChild(hint);
+
     overlayElement.appendChild(panel);
-    overlayElement.addEventListener('click', (e) => {
+
+    overlayElement.addEventListener('click', (e: MouseEvent) => {
         if (e.target === overlayElement) {
             closeOverlay();
         }
     });
-    overlayEscListener = function (e) {
+
+    overlayEscListener = function(e: KeyboardEvent) {
         if (e.key === 'Escape') {
             closeOverlay();
         }
     };
     document.addEventListener('keydown', overlayEscListener);
+
     document.body.appendChild(overlayElement);
 }
+
 // ========== SCREEN READER HELPERS ==========
-export function announceToScreenReader(message, priority = 'polite') {
+
+export function announceToScreenReader(message: string, priority: string = 'polite'): void {
     const el = document.getElementById('sr-announcements');
-    if (!el)
-        return;
+    if (!el) return;
+
     el.setAttribute('aria-live', priority);
     // Clear and re-set to force announcement
     el.textContent = '';
@@ -158,4 +191,3 @@ export function announceToScreenReader(message, priority = 'polite') {
         el.textContent = message;
     });
 }
-//# sourceMappingURL=accessibility.js.map

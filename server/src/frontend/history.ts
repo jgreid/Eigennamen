@@ -1,51 +1,65 @@
 // ========== HISTORY MODULE ==========
 // Game history and replay
+
 import { state } from './state.js';
-import { formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
+import { escapeHTML, formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
+
 // PHASE 4: Replay speed options (in milliseconds between moves)
-const REPLAY_SPEEDS = {
-    '0.5x': 3000, // Slow
-    '1x': 1500, // Normal (default)
-    '2x': 750, // Fast
-    '4x': 375 // Very fast
+const REPLAY_SPEEDS: Record<string, number> = {
+    '0.5x': 3000,  // Slow
+    '1x': 1500,    // Normal (default)
+    '2x': 750,     // Fast
+    '4x': 375      // Very fast
 };
 let currentReplaySpeed = '1x';
-export function openGameHistory() {
+
+export function openGameHistory(): void {
     if (!state.isMultiplayerMode || !CodenamesClient.isConnected()) {
         showToast('Game history is only available in multiplayer mode', 'info');
         return;
     }
+
     // Show loading state
     document.getElementById('history-loading').style.display = 'flex';
     document.getElementById('history-empty').style.display = 'none';
     document.getElementById('history-list').style.display = 'none';
+
     openModal('history-modal');
+
     // Request game history from server
     CodenamesClient.getGameHistory(10);
 }
-export function closeGameHistory() {
+
+export function closeGameHistory(): void {
     closeModal('history-modal');
 }
-export function renderGameHistory(games) {
+
+export function renderGameHistory(games: any[]): void {
     const loadingEl = document.getElementById('history-loading');
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
+
     loadingEl.style.display = 'none';
+
     if (!games || games.length === 0) {
         emptyEl.style.display = 'block';
         listEl.style.display = 'none';
         return;
     }
+
     emptyEl.style.display = 'none';
     listEl.style.display = 'flex';
+
     listEl.innerHTML = '';
     for (const game of games) {
         const dateStr = formatGameTimestamp(game.timestamp);
         const winnerName = game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue');
+
         const item = document.createElement('div');
         item.className = 'history-item';
         item.dataset.gameId = game.id;
+
         const info = document.createElement('div');
         info.className = 'history-item-info';
         const winnerDiv = document.createElement('div');
@@ -57,6 +71,7 @@ export function renderGameHistory(games) {
         dateDiv.className = 'history-item-date';
         dateDiv.textContent = dateStr;
         info.appendChild(dateDiv);
+
         const stats = document.createElement('div');
         stats.className = 'history-item-stats';
         const scoreDiv = document.createElement('div');
@@ -75,42 +90,50 @@ export function renderGameHistory(games) {
         movesDiv.className = 'history-item-moves';
         movesDiv.textContent = `${game.moveCount || 0} moves, ${game.clueCount || 0} clues`;
         stats.appendChild(movesDiv);
+
         item.appendChild(info);
         item.appendChild(stats);
         listEl.appendChild(item);
     }
+
     // Event delegation is set up once via setupHistoryEventDelegation()
     // No need to add listeners per item - prevents memory leaks
 }
+
 // Use event delegation for history items to prevent memory leaks
 // Only set up once during initialization
-export function setupHistoryEventDelegation() {
-    if (state.historyDelegationSetup)
-        return;
+export function setupHistoryEventDelegation(): void {
+    if (state.historyDelegationSetup) return;
     state.historyDelegationSetup = true;
+
     const listEl = document.getElementById('history-list');
     if (listEl) {
-        listEl.addEventListener('click', (event) => {
+        listEl.addEventListener('click', (event: MouseEvent) => {
             // Find the closest history-item ancestor
-            const historyItem = event.target.closest('.history-item');
+            const historyItem = (event.target as HTMLElement).closest('.history-item') as HTMLElement | null;
             if (historyItem && historyItem.dataset.gameId) {
                 openReplay(historyItem.dataset.gameId);
             }
         });
     }
 }
-export function openReplay(gameId) {
+
+export function openReplay(gameId: string): void {
     closeGameHistory();
+
     // Show loading in replay modal
     document.getElementById('replay-info').innerHTML = '<p>Loading replay...</p>';
     document.getElementById('replay-board').innerHTML = '';
     document.getElementById('replay-event-log').innerHTML = '';
     document.getElementById('replay-progress').textContent = 'Loading...';
+
     openModal('replay-modal');
+
     // Request replay data
     CodenamesClient.getReplay(gameId);
 }
-export function closeReplay() {
+
+export function closeReplay(): void {
     // Stop any playing replay
     if (state.replayInterval) {
         clearInterval(state.replayInterval);
@@ -121,14 +144,17 @@ export function closeReplay() {
     state.currentReplayIndex = -1;
     closeModal('replay-modal');
 }
-export function renderReplayData(data) {
+
+export function renderReplayData(data: any): void {
     state.currentReplayData = data;
     state.currentReplayIndex = -1;
     state.replayPlaying = false;
+
     if (!data) {
         document.getElementById('replay-info').innerHTML = '<p>Could not load replay data.</p>';
         return;
     }
+
     // Render replay info using DOM APIs to prevent XSS
     const replayInfo = document.getElementById('replay-info');
     replayInfo.innerHTML = '';
@@ -140,22 +166,29 @@ export function renderReplayData(data) {
     const durationSpan = document.createElement('span');
     durationSpan.textContent = `Duration: ${formatDuration(data.duration || 0)} | ${data.totalMoves || 0} moves`;
     replayInfo.appendChild(durationSpan);
+
     // Initialize board with words (all hidden)
     renderReplayBoard();
+
     // Render event log
     renderReplayEventLog();
+
     // Update controls
     updateReplayControls();
+
     // Set up control buttons
     setupReplayControls();
 }
-export function renderReplayBoard() {
+
+export function renderReplayBoard(): void {
     const board = document.getElementById('replay-board');
     const words = state.currentReplayData?.initialBoard?.words || [];
+
     board.innerHTML = '';
     board.setAttribute('role', 'grid');
     board.setAttribute('aria-label', 'Replay game board');
-    words.forEach((word, index) => {
+
+    words.forEach((word: string, index: number) => {
         const card = document.createElement('div');
         card.className = 'replay-card';
         card.dataset.index = String(index);
@@ -165,30 +198,22 @@ export function renderReplayBoard() {
         card.setAttribute('aria-label', `Card ${index + 1}: ${word}`);
         board.appendChild(card);
     });
+
     // Arrow-key navigation within replay board
-    board.addEventListener('keydown', (e) => {
-        const focused = document.activeElement;
-        if (!focused || !focused.classList.contains('replay-card'))
-            return;
+    board.addEventListener('keydown', (e: KeyboardEvent) => {
+        const focused = document.activeElement as HTMLElement | null;
+        if (!focused || !focused.classList.contains('replay-card')) return;
         const idx = Number(focused.dataset.index);
         const cols = 5; // 5x5 board
         let next = -1;
         switch (e.key) {
-            case 'ArrowRight':
-                next = idx + 1;
-                break;
-            case 'ArrowLeft':
-                next = idx - 1;
-                break;
-            case 'ArrowDown':
-                next = idx + cols;
-                break;
-            case 'ArrowUp':
-                next = idx - cols;
-                break;
+            case 'ArrowRight': next = idx + 1; break;
+            case 'ArrowLeft':  next = idx - 1; break;
+            case 'ArrowDown':  next = idx + cols; break;
+            case 'ArrowUp':    next = idx - cols; break;
             default: return;
         }
-        const target = board.querySelector(`[data-index="${next}"]`);
+        const target = board.querySelector(`[data-index="${next}"]`) as HTMLElement | null;
         if (target) {
             e.preventDefault();
             target.setAttribute('tabindex', '0');
@@ -196,19 +221,23 @@ export function renderReplayBoard() {
             target.focus();
         }
     });
+
     // Apply revealed state up to current index
     applyReplayState();
 }
-export function applyReplayState() {
-    if (!state.currentReplayData)
-        return;
+
+export function applyReplayState(): void {
+    if (!state.currentReplayData) return;
+
     const types = state.currentReplayData.initialBoard?.types || [];
     const events = state.currentReplayData.events || [];
     const cards = document.querySelectorAll('.replay-card');
+
     // Reset all cards
     cards.forEach((card, index) => {
         card.className = 'replay-card';
     });
+
     // Apply reveals up to current index
     for (let i = 0; i <= state.currentReplayIndex; i++) {
         const event = events[i];
@@ -225,18 +254,22 @@ export function applyReplayState() {
         }
     }
 }
-export function renderReplayEventLog() {
+
+export function renderReplayEventLog(): void {
     const logEl = document.getElementById('replay-event-log');
     const events = state.currentReplayData?.events || [];
+
     if (events.length === 0) {
         logEl.innerHTML = '<p style="opacity: 0.5;">No events recorded.</p>';
         return;
     }
+
     logEl.innerHTML = '';
-    events.forEach((event, index) => {
+    events.forEach((event: any, index: number) => {
         let actionText = '';
         let detailText = '';
         const team = event.data?.team || '';
+
         switch (event.type) {
             case 'clue':
                 actionText = 'gave clue';
@@ -256,52 +289,61 @@ export function renderReplayEventLog() {
             default:
                 actionText = event.type || '';
         }
+
         const row = document.createElement('div');
         row.className = `replay-event${index === state.currentReplayIndex ? ' current' : ''}`;
         row.dataset.eventIndex = String(index);
+
         const teamSpan = document.createElement('span');
         const eventTeamClass = team === 'red' ? 'red' : (team === 'blue' ? 'blue' : '');
         teamSpan.className = `event-team ${eventTeamClass}`;
         teamSpan.textContent = team.toUpperCase();
         row.appendChild(teamSpan);
+
         const actionSpan = document.createElement('span');
         actionSpan.className = 'event-action';
         actionSpan.textContent = actionText;
         row.appendChild(actionSpan);
+
         if (detailText) {
             const detailSpan = document.createElement('span');
             detailSpan.className = 'event-detail';
             detailSpan.textContent = detailText;
             row.appendChild(detailSpan);
         }
+
         logEl.appendChild(row);
     });
 }
-export function updateReplayControls() {
+
+export function updateReplayControls(): void {
     const events = state.currentReplayData?.events || [];
-    const prevBtn = document.getElementById('replay-prev');
-    const nextBtn = document.getElementById('replay-next');
+    const prevBtn = document.getElementById('replay-prev') as HTMLButtonElement;
+    const nextBtn = document.getElementById('replay-next') as HTMLButtonElement;
     const playBtn = document.getElementById('replay-play');
     const progressEl = document.getElementById('replay-progress');
+
     prevBtn.disabled = state.currentReplayIndex < 0;
     nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
     playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
     progressEl.textContent = `Move ${state.currentReplayIndex + 1} / ${events.length}`;
 }
+
 // Use event delegation on the replay controls to avoid listener accumulation.
 // Set up once; each render just updates button state via updateReplayControls().
 let replayControlsDelegated = false;
-export function setupReplayControls() {
-    if (replayControlsDelegated)
-        return;
+
+export function setupReplayControls(): void {
+    if (replayControlsDelegated) return;
     replayControlsDelegated = true;
+
     const controls = document.querySelector('.replay-controls');
-    if (!controls)
-        return;
-    controls.addEventListener('click', (e) => {
-        const target = e.target.closest('button');
-        if (!target)
-            return;
+    if (!controls) return;
+
+    controls.addEventListener('click', (e: Event) => {
+        const target = (e.target as HTMLElement).closest('button');
+        if (!target) return;
+
         switch (target.id) {
             case 'replay-prev':
                 if (state.currentReplayIndex >= 0) {
@@ -334,13 +376,15 @@ export function setupReplayControls() {
                 break;
         }
     });
+
     // Initialize speed button text
     const speedBtn = document.getElementById('replay-speed');
-    if (speedBtn)
-        speedBtn.textContent = currentReplaySpeed;
+    if (speedBtn) speedBtn.textContent = currentReplaySpeed;
 }
-export function toggleReplayPlayback() {
+
+export function toggleReplayPlayback(): void {
     state.replayPlaying = !state.replayPlaying;
+
     if (state.replayPlaying) {
         // Guard: clear any leftover interval to prevent duplicates on rapid toggle
         if (state.replayInterval) {
@@ -357,8 +401,7 @@ export function toggleReplayPlayback() {
                 renderReplayEventLog();
                 updateReplayControls();
                 scrollToCurrentEvent();
-            }
-            else {
+            } else {
                 // Reached the end
                 state.replayPlaying = false;
                 clearInterval(state.replayInterval);
@@ -366,26 +409,29 @@ export function toggleReplayPlayback() {
                 updateReplayControls();
             }
         }, speedMs);
-    }
-    else {
+    } else {
         if (state.replayInterval) {
             clearInterval(state.replayInterval);
             state.replayInterval = null;
         }
     }
+
     updateReplayControls();
 }
+
 // PHASE 4: Cycle through replay speed options
-export function cycleReplaySpeed() {
+export function cycleReplaySpeed(): void {
     const speedKeys = Object.keys(REPLAY_SPEEDS);
     const currentIndex = speedKeys.indexOf(currentReplaySpeed);
     const nextIndex = (currentIndex + 1) % speedKeys.length;
     currentReplaySpeed = speedKeys[nextIndex];
+
     // Update button text
     const speedBtn = document.getElementById('replay-speed');
     if (speedBtn) {
         speedBtn.textContent = currentReplaySpeed;
     }
+
     // If currently playing, restart with new speed
     if (state.replayPlaying) {
         clearInterval(state.replayInterval);
@@ -398,8 +444,7 @@ export function cycleReplaySpeed() {
                 renderReplayEventLog();
                 updateReplayControls();
                 scrollToCurrentEvent();
-            }
-            else {
+            } else {
                 state.replayPlaying = false;
                 clearInterval(state.replayInterval);
                 state.replayInterval = null;
@@ -407,77 +452,85 @@ export function cycleReplaySpeed() {
             }
         }, speedMs);
     }
+
     showToast(`Playback speed: ${currentReplaySpeed}`, 'info');
 }
+
 // PHASE 4: Copy shareable replay link to clipboard
-export async function copyReplayLink() {
+export async function copyReplayLink(): Promise<void> {
     if (!state.currentReplayData?.id) {
         showToast('No replay data available', 'error');
         return;
     }
+
     const roomCode = CodenamesClient?.getRoomCode() || state.currentRoomId;
     const gameId = state.currentReplayData.id;
+
     // Create shareable URL with replay parameters
     const url = new URL(window.location.href);
     url.searchParams.set('replay', gameId);
     if (roomCode) {
         url.searchParams.set('room', roomCode);
     }
+
     // Copy to clipboard using shared utility
     const copied = await copyToClipboard(url.toString());
     if (copied) {
         showToast('Replay link copied to clipboard!', 'success');
-    }
-    else {
+    } else {
         showToast('Could not copy link', 'error');
     }
 }
-export function scrollToCurrentEvent() {
+
+export function scrollToCurrentEvent(): void {
     const logEl = document.getElementById('replay-event-log');
     const currentEventEl = logEl.querySelector('.replay-event.current');
     if (currentEventEl) {
         currentEventEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
+
 /**
  * Check URL for replay parameters and auto-load the replay.
  * Fetches replay data via REST API (no room membership required).
  * URL format: ?replay=<gameId>&room=<roomCode>
  */
-export async function checkURLForReplayLoad() {
+export async function checkURLForReplayLoad(): Promise<boolean> {
     const params = new URLSearchParams(window.location.search);
     const replayId = params.get('replay');
     const roomCode = params.get('room');
+
     if (!replayId || !roomCode) {
         return false;
     }
+
     try {
         const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`);
         if (!response.ok) {
             if (response.status === 404) {
                 showToast('Replay not found or expired', 'error');
-            }
-            else {
+            } else {
                 showToast('Failed to load replay', 'error');
             }
             return false;
         }
+
         const data = await response.json();
         if (data.replay) {
             renderReplayData(data);
             showToast('Replay loaded from shared link', 'success');
+
             // Clean replay params from URL to prevent re-loading on refresh
             const url = new URL(window.location.href);
             url.searchParams.delete('replay');
             url.searchParams.delete('room');
             window.history.replaceState({}, '', url.toString());
+
             return true;
         }
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Failed to load shared replay:', error);
         showToast('Failed to load shared replay', 'error');
     }
     return false;
 }
-//# sourceMappingURL=history.js.map
