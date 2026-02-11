@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
+import type { GameHistoryEntry, ReplayData, ReplayEvent } from './multiplayerTypes.js';
 
 // PHASE 4: Replay speed options (in milliseconds between moves)
 const REPLAY_SPEEDS: Record<string, number> = {
@@ -38,7 +39,7 @@ export function closeGameHistory(): void {
     closeModal('history-modal');
 }
 
-export function renderGameHistory(games: any[]): void {
+export function renderGameHistory(games: GameHistoryEntry[]): void {
     const loadingEl = document.getElementById('history-loading');
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
@@ -57,8 +58,9 @@ export function renderGameHistory(games: any[]): void {
     if (!listEl) return;
     listEl.innerHTML = '';
     for (const game of games) {
-        const dateStr = formatGameTimestamp(game.timestamp);
-        const winnerName = game.teamNames?.[game.winner] || (game.winner === 'red' ? 'Red' : 'Blue');
+        const dateStr = formatGameTimestamp(game.timestamp || 0);
+        const winner = game.winner || '';
+        const winnerName = (game.teamNames && winner ? game.teamNames[winner] : undefined) || (winner === 'red' ? 'Red' : 'Blue');
 
         const item = document.createElement('div');
         item.className = 'history-item';
@@ -153,7 +155,7 @@ export function closeReplay(): void {
     closeModal('replay-modal');
 }
 
-export function renderReplayData(data: any): void {
+export function renderReplayData(data: ReplayData): void {
     state.currentReplayData = data;
     state.currentReplayIndex = -1;
     state.replayPlaying = false;
@@ -171,7 +173,8 @@ export function renderReplayData(data: any): void {
         const winnerBadge = document.createElement('span');
         const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
         winnerBadge.className = `winner-badge ${replayWinnerClass}`;
-        winnerBadge.textContent = `${data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown'} Team Wins!`;
+        const finalWinner = data.finalState?.winner || '';
+        winnerBadge.textContent = `${(data.teamNames && finalWinner ? data.teamNames[finalWinner] : undefined) || finalWinner || 'Unknown'} Team Wins!`;
         replayInfo.appendChild(winnerBadge);
         const durationSpan = document.createElement('span');
         durationSpan.textContent = `Duration: ${formatDuration(data.duration || 0)} | ${data.totalMoves || 0} moves`;
@@ -257,7 +260,7 @@ export function applyReplayState(): void {
             const cardIndex = event.data?.index;
             const cardType = event.data?.type;
             if (cardIndex !== undefined && cards[cardIndex]) {
-                cards[cardIndex].classList.add('revealed', cardType);
+                cards[cardIndex].classList.add('revealed', cardType || '');
                 // Highlight current move
                 if (i === state.currentReplayIndex) {
                     cards[cardIndex].classList.add('current-move');
@@ -278,7 +281,7 @@ export function renderReplayEventLog(): void {
     }
 
     logEl.innerHTML = '';
-    events.forEach((event: any, index: number) => {
+    events.forEach((event: ReplayEvent, index: number) => {
         let actionText = '';
         let detailText = '';
         const team = event.data?.team || '';

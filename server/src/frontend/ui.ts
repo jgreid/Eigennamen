@@ -5,6 +5,9 @@ import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { UI } from './constants.js';
 
+// Store timer IDs for toast auto-dismiss without extending HTMLDivElement
+const toastTimers = new WeakMap<HTMLDivElement, { autoDismiss?: ReturnType<typeof setTimeout>; hide?: ReturnType<typeof setTimeout> }>();
+
 // ========== SCREEN READER ANNOUNCEMENTS ==========
 export function announceToScreenReader(message: string): void {
     const announcer = state.cachedElements.srAnnouncements;
@@ -48,9 +51,8 @@ export function showToast(message: string, type: string = 'error', duration: num
     }
 
     // Auto-dismiss after duration (store ID for cleanup in dismissToast)
-    (toast as any)._autoDismissId = setTimeout(() => {
-        dismissToast(toast);
-    }, duration);
+    const timers = { autoDismiss: setTimeout(() => { dismissToast(toast); }, duration) };
+    toastTimers.set(toast, timers);
 
     // Announce to screen readers with message type for context
     const typeLabel = type === 'error' ? 'Error: ' : type === 'warning' ? 'Warning: ' : '';
@@ -62,16 +64,23 @@ export function showToast(message: string, type: string = 'error', duration: num
 export function dismissToast(toast: HTMLDivElement): void {
     if (!toast || toast.classList.contains('hiding')) return;
     // Clear the auto-dismiss timer to prevent double-removal
-    if ((toast as any)._autoDismissId) {
-        clearTimeout((toast as any)._autoDismissId);
-        (toast as any)._autoDismissId = null;
+    const timers = toastTimers.get(toast);
+    if (timers?.autoDismiss) {
+        clearTimeout(timers.autoDismiss);
+        timers.autoDismiss = undefined;
     }
     toast.classList.add('hiding');
-    (toast as any)._hideTimeoutId = setTimeout(() => {
+    const hideTimeout = setTimeout(() => {
         if (toast.parentElement) {
             toast.parentElement.removeChild(toast);
         }
+        toastTimers.delete(toast);
     }, 300);
+    if (timers) {
+        timers.hide = hideTimeout;
+    } else {
+        toastTimers.set(toast, { hide: hideTimeout });
+    }
 }
 
 // ========== ERROR MODAL ==========

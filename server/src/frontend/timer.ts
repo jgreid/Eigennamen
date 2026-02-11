@@ -98,13 +98,13 @@ export function handleTimerStopped(): void {
 
 // Handle timer status on join/reconnect
 // Uses server's remaining seconds to avoid clock skew issues
-export function handleTimerStatus(data: any): void {
-    if (data && (data.active || data.remainingSeconds > 0)) {
+export function handleTimerStatus(data: { active?: boolean; remainingSeconds?: number; remaining?: number; endTime?: number; duration?: number }): void {
+    if (data && (data.active || (data.remainingSeconds ?? 0) > 0)) {
         state.timerState.active = true;
-        state.timerState.endTime = data.endTime;
-        state.timerState.duration = data.duration;
+        state.timerState.endTime = data.endTime ?? null;
+        state.timerState.duration = data.duration ?? null;
         // Use server's remaining seconds as authoritative source
-        state.timerState.serverRemainingSeconds = data.remainingSeconds || data.remaining;
+        state.timerState.serverRemainingSeconds = data.remainingSeconds ?? data.remaining ?? null;
         state.timerState.remainingSeconds = state.timerState.serverRemainingSeconds;
         updateTimerDisplay();
         startTimerCountdown();

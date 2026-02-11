@@ -281,11 +281,13 @@ export async function tryLoadWordlistFile(): Promise<void> {
             }
         }
         // 404 is expected when file doesn't exist - no need to log
-    } catch (e: any) {
+    } catch (e: unknown) {
         // Log unexpected errors (network issues, CORS, etc.) in development
         // TypeError is expected for network errors when file doesn't exist
-        if (e.name !== 'TypeError' && window.location.hostname === 'localhost') {
-            console.warn('Unexpected error loading wordlist.txt:', e.message);
+        const isTypeError = e instanceof Error && e.name === 'TypeError';
+        if (!isTypeError && window.location.hostname === 'localhost') {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.warn('Unexpected error loading wordlist.txt:', msg);
         }
     }
 }
