@@ -1,13 +1,15 @@
 // ========== STATE MODULE ==========
 // All mutable shared state in a single object for ES module compatibility.
 // Other modules import `state` and read/write properties on it.
+
 // Game constants (never change)
 export const BOARD_SIZE = 25;
 export const FIRST_TEAM_CARDS = 9;
 export const SECOND_TEAM_CARDS = 8;
 export const NEUTRAL_CARDS = 7;
 export const ASSASSIN_CARDS = 1;
-export const DEFAULT_WORDS = [
+
+export const DEFAULT_WORDS: string[] = [
     "AFRICA", "AGENT", "AIR", "ALIEN", "ALPS", "AMAZON", "AMBULANCE", "AMERICA",
     "ANGEL", "ANTARCTICA", "APPLE", "ARM", "ATLANTIS", "AUSTRALIA", "AZTEC",
     "BACK", "BALL", "BAND", "BANK", "BAR", "BARK", "BAT", "BATTERY", "BEACH",
@@ -60,15 +62,175 @@ export const DEFAULT_WORDS = [
     "WASHINGTON", "WATCH", "WATER", "WAVE", "WEB", "WELL", "WHALE", "WHIP",
     "WIND", "WITCH", "WORM", "YARD"
 ];
+
 export const COPY_BUTTON_TEXT = 'Copy';
+
 // Role banner configuration - maps role/team to CSS class and label
-export const ROLE_BANNER_CONFIG = {
+export const ROLE_BANNER_CONFIG: Record<string, { red: string; blue: string; label: string }> = {
     spymaster: { red: 'spymaster-red', blue: 'spymaster-blue', label: 'Spymaster' },
     clicker: { red: 'clicker-red', blue: 'clicker-blue', label: 'Clicker' },
     spectator: { red: 'spectator-red', blue: 'spectator-blue', label: 'Team' }
 };
+
+// ========== INTERFACES ==========
+
+export interface CachedElements {
+    board: HTMLElement | null;
+    roleBanner: HTMLElement | null;
+    turnIndicator: HTMLElement | null;
+    endTurnBtn: HTMLElement | null;
+    spymasterBtn: HTMLElement | null;
+    clickerBtn: HTMLElement | null;
+    redTeamBtn: HTMLElement | null;
+    blueTeamBtn: HTMLElement | null;
+    spectateBtn: HTMLElement | null;
+    redRemaining: HTMLElement | null;
+    blueRemaining: HTMLElement | null;
+    redTeamName: HTMLElement | null;
+    blueTeamName: HTMLElement | null;
+    shareLink: HTMLElement | null;
+    srAnnouncements: HTMLElement | null;
+    timerDisplay: HTMLElement | null;
+    timerValue: HTMLElement | null;
+}
+
+export interface GameState {
+    words: string[];
+    types: string[];
+    revealed: boolean[];
+    currentTurn: string;
+    redScore: number;
+    blueScore: number;
+    redTotal: number;
+    blueTotal: number;
+    gameOver: boolean;
+    winner: string | null;
+    seed: number | null;
+    customWords: boolean;
+    currentClue: any;
+    guessesUsed: number;
+    // Multiplayer sync properties
+    guessesAllowed: number;
+    status: string;
+    // Duet mode properties
+    duetTypes: string[];
+    timerTokens: number;
+    greenFound: number;
+    greenTotal: number;
+    // Allow dynamic properties from server sync
+    [key: string]: any;
+}
+
+export interface TimerState {
+    active: boolean;
+    endTime: number | null;
+    duration: number | null;
+    remainingSeconds: number | null;
+    intervalId: ReturnType<typeof setInterval> | null;
+    serverRemainingSeconds: number | null;
+    countdownStartTime: number | null;
+}
+
+export interface NotificationPrefs {
+    soundEnabled: boolean;
+    tabNotificationEnabled: boolean;
+}
+
+export interface TeamNames {
+    red: string;
+    blue: string;
+}
+
+export interface AppState {
+    // Cached DOM elements
+    cachedElements: CachedElements;
+
+    // Screen reader
+    srAnnouncementTimeout: ReturnType<typeof setTimeout> | null;
+
+    // Board
+    boardInitialized: boolean;
+
+    // Multiplayer
+    isMultiplayerMode: boolean;
+    multiplayerPlayers: any[];
+    currentMpMode: string;
+    multiplayerListenersSetup: boolean;
+    currentRoomId: string | null;
+
+    // History / Replay
+    currentReplayData: any;
+    currentReplayIndex: number;
+    replayPlaying: boolean;
+    replayInterval: ReturnType<typeof setInterval> | null;
+    historyDelegationSetup: boolean;
+
+    // Modal
+    activeModal: HTMLElement | null;
+    previouslyFocusedElement: HTMLElement | null;
+    modalListenersActive: boolean;
+
+    // Words
+    activeWords: string[];
+    wordSource: string;
+    wordListMode: string;
+    teamNames: TeamNames;
+
+    // Roles
+    isHost: boolean;
+    spymasterTeam: string | null;
+    clickerTeam: string | null;
+    playerTeam: string | null;
+    isChangingRole: boolean;
+    changingTarget: string | null;
+    pendingRoleChange: string | null;
+    roleChangeOperationId: string | null;
+    roleChangeRevertFn: (() => void) | null;
+
+    // Game state
+    gameState: GameState;
+
+    // Timer state
+    timerState: TimerState;
+
+    // Notifications
+    notificationPrefs: NotificationPrefs;
+    originalDocumentTitle: string;
+    audioContext: AudioContext | null;
+
+    // Debounce
+    newGameDebounce: boolean;
+
+    // Card reveal tracking
+    lastRevealedIndex: number;
+    lastRevealedWasCorrect: boolean;
+    pendingUIUpdate: boolean;
+    isRevealingCard: boolean;
+    revealingCards: Set<number>;
+
+    // Copy button
+    copyButtonTimeoutId: ReturnType<typeof setTimeout> | null;
+
+    // i18n
+    language: string;
+    localizedDefaultWords: string[] | null;
+
+    // Accessibility
+    colorBlindMode: boolean;
+
+    // Game mode
+    gameMode: string;
+
+    // Spectator/room stats (set dynamically by multiplayer sync)
+    spectatorCount: number;
+    roomStats: any;
+
+    // Allow dynamic properties from server sync
+    [key: string]: any;
+}
+
 // The single shared state object
-export const state = {
+export const state: AppState = {
     // Cached DOM elements
     cachedElements: {
         board: null,
@@ -89,26 +251,32 @@ export const state = {
         timerDisplay: null,
         timerValue: null
     },
+
     // Screen reader
     srAnnouncementTimeout: null,
+
     // Board
     boardInitialized: false,
+
     // Multiplayer
     isMultiplayerMode: false,
     multiplayerPlayers: [],
     currentMpMode: 'join',
     multiplayerListenersSetup: false,
     currentRoomId: null,
+
     // History / Replay
     currentReplayData: null,
     currentReplayIndex: -1,
     replayPlaying: false,
     replayInterval: null,
     historyDelegationSetup: false,
+
     // Modal
     activeModal: null,
     previouslyFocusedElement: null,
     modalListenersActive: false,
+
     // Words
     activeWords: [...DEFAULT_WORDS],
     wordSource: 'default',
@@ -117,6 +285,7 @@ export const state = {
         red: 'Red',
         blue: 'Blue'
     },
+
     // Roles
     isHost: false,
     spymasterTeam: null,
@@ -129,6 +298,7 @@ export const state = {
     roleChangeOperationId: null,
     // Bug #1 fix: Store revert function for the current operation
     roleChangeRevertFn: null,
+
     // Game state
     gameState: {
         words: [],
@@ -152,6 +322,7 @@ export const state = {
         greenFound: 0,
         greenTotal: 0
     },
+
     // Timer state
     timerState: {
         active: false,
@@ -162,6 +333,7 @@ export const state = {
         serverRemainingSeconds: null,
         countdownStartTime: null
     },
+
     // Notifications
     notificationPrefs: {
         soundEnabled: false,
@@ -169,40 +341,59 @@ export const state = {
     },
     originalDocumentTitle: document.title,
     audioContext: null,
+
     // Debounce
     newGameDebounce: false,
+
     // Card reveal tracking
     lastRevealedIndex: -1,
     lastRevealedWasCorrect: false,
     pendingUIUpdate: false,
-    isRevealingCard: false, // legacy boolean kept for backward compat
-    revealingCards: new Set(), // Per-card reveal tracking (Set of indices)
+    isRevealingCard: false,          // legacy boolean kept for backward compat
+    revealingCards: new Set(),        // Per-card reveal tracking (Set of indices)
+
     // Copy button
     copyButtonTimeoutId: null,
+
     // i18n
     language: 'en',
     localizedDefaultWords: null,
+
     // Accessibility
     colorBlindMode: false,
+
     // Game mode
     gameMode: 'classic',
+
     // Spectator/room stats
     spectatorCount: 0,
     roomStats: null
 };
+
 // ========== DEBUGGING UTILITIES ==========
 // Enable debug mode by setting localStorage.debug = 'codenames'
 const DEBUG_KEY = 'codenames';
-const debugEnabled = () => {
+const debugEnabled = (): boolean => {
     try {
         return localStorage.getItem('debug') === DEBUG_KEY;
-    }
-    catch {
+    } catch {
         return false;
     }
 };
-const stateHistory = [];
+
+// State change history for debugging
+interface StateHistoryEntry {
+    timestamp: string;
+    property: string;
+    oldValue: unknown;
+    newValue: unknown;
+    source: string;
+    stack: string | undefined;
+}
+
+const stateHistory: StateHistoryEntry[] = [];
 const MAX_HISTORY = 100;
+
 /**
  * Log a state change with context
  * @param property - State property being changed
@@ -210,10 +401,10 @@ const MAX_HISTORY = 100;
  * @param newValue - New value
  * @param source - What triggered the change
  */
-export function logStateChange(property, oldValue, newValue, source = 'unknown') {
-    if (!debugEnabled())
-        return;
-    const entry = {
+export function logStateChange(property: string, oldValue: unknown, newValue: unknown, source: string = 'unknown'): void {
+    if (!debugEnabled()) return;
+
+    const entry: StateHistoryEntry = {
         timestamp: new Date().toISOString(),
         property,
         oldValue: safeClone(oldValue),
@@ -221,35 +412,42 @@ export function logStateChange(property, oldValue, newValue, source = 'unknown')
         source,
         stack: new Error().stack?.split('\n').slice(2, 5).join('\n')
     };
+
     stateHistory.push(entry);
     if (stateHistory.length > MAX_HISTORY) {
         stateHistory.shift();
     }
-    console.log(`%c[State] ${property}`, 'color: #4a9eff; font-weight: bold', '\nFrom:', oldValue, '\nTo:', newValue, '\nSource:', source);
+
+    console.log(`%c[State] ${property}`, 'color: #4a9eff; font-weight: bold',
+        '\nFrom:', oldValue,
+        '\nTo:', newValue,
+        '\nSource:', source
+    );
 }
+
 /**
  * Safe deep clone for logging (handles circular refs)
  */
-function safeClone(obj) {
-    if (obj === null || typeof obj !== 'object')
-        return obj;
+function safeClone(obj: unknown): unknown {
+    if (obj === null || typeof obj !== 'object') return obj;
     try {
         return JSON.parse(JSON.stringify(obj));
-    }
-    catch {
+    } catch {
         return '[Circular or non-serializable]';
     }
 }
+
 /**
  * Update a state property with logging
  * @param property - Property path (e.g., 'gameState.currentTurn')
  * @param value - New value
  * @param source - What triggered the change
  */
-export function setState(property, value, source = 'unknown') {
+export function setState(property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
-    let target = state;
-    let oldValue;
+    let target: any = state;
+    let oldValue: unknown;
+
     // Navigate to the parent of the target property
     for (let i = 0; i < parts.length - 1; i++) {
         target = target[parts[i]];
@@ -258,38 +456,44 @@ export function setState(property, value, source = 'unknown') {
             return;
         }
     }
+
     const lastPart = parts[parts.length - 1];
     oldValue = target[lastPart];
     target[lastPart] = value;
+
     logStateChange(property, oldValue, value, source);
 }
+
 /**
  * Get state change history
  * @param property - Optional filter by property
  * @returns State change history
  */
-export function getStateHistory(property = null) {
+export function getStateHistory(property: string | null = null): StateHistoryEntry[] {
     if (property) {
         return stateHistory.filter(entry => entry.property === property);
     }
     return [...stateHistory];
 }
+
 /**
  * Clear state history
  */
-export function clearStateHistory() {
+export function clearStateHistory(): void {
     stateHistory.length = 0;
 }
+
 /**
  * Get current state snapshot (for debugging)
  */
-export function getStateSnapshot() {
+export function getStateSnapshot(): unknown {
     return safeClone(state);
 }
+
 /**
  * Dump state to console (for debugging)
  */
-export function dumpState() {
+export function dumpState(): void {
     console.group('%c[State Dump]', 'color: #4a9eff; font-weight: bold');
     console.log('isMultiplayerMode:', state.isMultiplayerMode);
     console.log('currentRoomId:', state.currentRoomId);
@@ -302,23 +506,32 @@ export function dumpState() {
     console.log('multiplayerPlayers:', state.multiplayerPlayers.length, 'players');
     console.groupEnd();
 }
-const watchers = new Map();
-export function watchState(property, callback) {
+
+/**
+ * Watch for changes to a state property (debugging)
+ * @param property - Property to watch
+ * @param callback - Called on change with (oldValue, newValue)
+ */
+type WatcherCallback = (oldValue: unknown, newValue: unknown) => void;
+
+const watchers: Map<string, WatcherCallback[]> = new Map();
+export function watchState(property: string, callback: WatcherCallback): () => void {
     if (!watchers.has(property)) {
         watchers.set(property, []);
     }
-    watchers.get(property).push(callback);
+    watchers.get(property)!.push(callback);
+
     // Return unwatch function
     return () => {
-        const list = watchers.get(property);
+        const list = watchers.get(property)!;
         const idx = list.indexOf(callback);
-        if (idx >= 0)
-            list.splice(idx, 1);
+        if (idx >= 0) list.splice(idx, 1);
     };
 }
+
 // Expose debugging utilities globally for console access
 if (typeof window !== 'undefined') {
-    window.__codenamesDebug = {
+    (window as Window).__codenamesDebug = {
         getState: getStateSnapshot,
         getHistory: getStateHistory,
         clearHistory: clearStateHistory,
@@ -333,12 +546,15 @@ if (typeof window !== 'undefined') {
             console.log('%c[Debug] Disabled', 'color: #ff0000');
         }
     };
+
     if (debugEnabled()) {
-        console.log('%c[Codenames Debug Mode Active]', 'color: #4a9eff; font-weight: bold', '\nUse window.__codenamesDebug for debugging utilities');
+        console.log('%c[Codenames Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
+            '\nUse window.__codenamesDebug for debugging utilities');
     }
 }
+
 // Initialize cached elements (called once on page load)
-export function initCachedElements() {
+export function initCachedElements(): void {
     state.cachedElements.board = document.getElementById('board');
     state.cachedElements.roleBanner = document.getElementById('role-banner');
     state.cachedElements.turnIndicator = document.getElementById('turn-indicator');
@@ -357,4 +573,3 @@ export function initCachedElements() {
     state.cachedElements.timerDisplay = document.getElementById('timer-display');
     state.cachedElements.timerValue = document.getElementById('timer-value');
 }
-//# sourceMappingURL=state.js.map

@@ -82,6 +82,43 @@ module.exports = [
         }
     },
     {
+        // Frontend TypeScript modules (browser environment, not Node)
+        files: ['src/frontend/**/*.ts'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+            globals: {
+                ...globals.browser,
+                ...globals.es2021,
+                CodenamesClient: 'readonly',
+                qrcode: 'readonly',
+                io: 'readonly'
+            },
+            parser: require('@typescript-eslint/parser'),
+            parserOptions: {
+                ecmaVersion: 'latest',
+                sourceType: 'module'
+            }
+        },
+        plugins: {
+            '@typescript-eslint': require('@typescript-eslint/eslint-plugin')
+        },
+        rules: {
+            ...baseRules,
+            'no-unused-vars': 'off',
+            'no-undef': 'off', // TypeScript handles this via globals.d.ts
+            'require-await': 'off',
+            'no-return-await': 'off',
+            'no-console': 'off', // Console is fine for frontend debugging
+            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            '@typescript-eslint/explicit-function-return-type': 'off',
+            '@typescript-eslint/explicit-module-boundary-types': 'off',
+            '@typescript-eslint/no-explicit-any': 'off', // Relaxed for frontend migration
+            '@typescript-eslint/no-non-null-assertion': 'off',
+            '@typescript-eslint/consistent-type-imports': 'off' // Not useful for browser ES modules
+        }
+    },
+    {
         // Memory storage implements Redis-compatible async interface with sync ops
         files: ['src/config/memoryStorage.ts'],
         rules: {

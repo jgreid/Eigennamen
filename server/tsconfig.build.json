@@ -13,6 +13,7 @@
     "dist",
     "coverage",
     "src/__tests__",
+    "src/frontend",
     "**/*.test.ts",
     "**/*.spec.ts"
   ]

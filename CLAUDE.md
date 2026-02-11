@@ -57,7 +57,7 @@ Eigennamen/
 └── server/                 # Node.js backend
     ├── public/
     │   ├── js/
-    │   │   ├── modules/    # ES6 modular frontend (15 modules)
+    │   │   ├── modules/    # Compiled frontend JS (built from src/frontend/)
     │   │   └── socket-client.js
     │   ├── css/            # Modular stylesheets (8 files)
     │   ├── locales/        # i18n translations (en, de, es, fr)
@@ -73,6 +73,7 @@ Eigennamen/
     │   ├── services/       # Business logic (7 service files)
     │   ├── socket/         # WebSocket setup and utilities
     │   │   └── handlers/   # Event-specific handlers (5 files)
+    │   ├── frontend/       # Frontend TypeScript source (15 modules + globals.d.ts)
     │   ├── types/          # TypeScript type definitions (9 files)
     │   ├── utils/          # Utility modules (8 files)
     │   ├── validators/     # Zod validation schemas
@@ -89,7 +90,7 @@ Eigennamen/
 ## Technology Stack
 
 ### Frontend
-- Vanilla HTML/CSS/JavaScript (modular ES6 in `server/public/js/modules/`)
+- TypeScript source in `server/src/frontend/` (compiled to `server/public/js/modules/`)
 - Socket.io client for real-time communication
 - Glassmorphism UI design
 - URL-based state encoding for standalone mode
@@ -257,7 +258,8 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 npm test                  # Run all backend tests
 npm run test:watch       # Watch mode
 npm run test:coverage    # With coverage report
-npm run test:frontend    # Frontend unit tests (Jest + jsdom)
+npm run test:frontend    # Frontend unit tests (Jest + jsdom, via --selectProjects)
+npm run test:backend     # Backend tests only (via --selectProjects)
 npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
@@ -409,7 +411,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 | File | Why It Matters |
 |------|----------------|
 | `index.html` | Frontend entry point (SPA) |
-| `server/public/js/modules/` | ES6 modular frontend code (15 modules) |
+| `server/src/frontend/` | TypeScript frontend source (15 modules) |
 | `server/src/config/constants.ts` | Re-exports all config (game, rate limits, errors, room, security, socket) |
 | `server/src/config/gameConfig.ts` | Game modes, board layout, PRNG constants |
 | `server/src/config/socketConfig.ts` | Socket.io settings and all event name constants |

@@ -1,14 +1,15 @@
 // ========== UI MODULE ==========
 // Toast, screen reader, error modal, modal system with registry pattern
+
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { UI } from './constants.js';
+
 // ========== SCREEN READER ANNOUNCEMENTS ==========
-export function announceToScreenReader(message) {
+export function announceToScreenReader(message: string): void {
     const announcer = state.cachedElements.srAnnouncements;
     if (announcer) {
-        if (state.srAnnouncementTimeout)
-            clearTimeout(state.srAnnouncementTimeout);
+        if (state.srAnnouncementTimeout) clearTimeout(state.srAnnouncementTimeout);
         announcer.textContent = message;
         state.srAnnouncementTimeout = setTimeout(() => {
             announcer.textContent = '';
@@ -16,128 +17,158 @@ export function announceToScreenReader(message) {
         }, UI.SR_ANNOUNCEMENT_MS);
     }
 }
+
 // ========== TOAST NOTIFICATION SYSTEM ==========
-export function showToast(message, type = 'error', duration = 4000) {
+export function showToast(message: string, type: string = 'error', duration: number = 4000): HTMLDivElement {
     const container = document.getElementById('toast-container');
-    if (!container)
-        return undefined;
+    if (!container) return undefined as unknown as HTMLDivElement;
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icons = {
+
+    const icons: Record<string, string> = {
         error: '&#10060;',
         success: '&#10004;',
         warning: '&#9888;',
         info: '&#8505;'
     };
+
     toast.innerHTML = `
         <span class="toast-icon">${icons[type] || icons.error}</span>
         <span class="toast-message">${escapeHTML(message)}</span>
         <button type="button" class="toast-close" data-action="dismiss-toast" aria-label="Dismiss notification">&times;</button>
     `;
+
     container.appendChild(toast);
+
     // Add event listener for toast close button
     const closeBtn = toast.querySelector('[data-action="dismiss-toast"]');
     if (closeBtn) {
         closeBtn.addEventListener('click', () => dismissToast(toast));
     }
+
     // Auto-dismiss after duration (store ID for cleanup in dismissToast)
-    toast._autoDismissId = setTimeout(() => {
+    (toast as any)._autoDismissId = setTimeout(() => {
         dismissToast(toast);
     }, duration);
+
     // Announce to screen readers with message type for context
     const typeLabel = type === 'error' ? 'Error: ' : type === 'warning' ? 'Warning: ' : '';
     announceToScreenReader(typeLabel + message);
+
     return toast;
 }
-export function dismissToast(toast) {
-    if (!toast || toast.classList.contains('hiding'))
-        return;
+
+export function dismissToast(toast: HTMLDivElement): void {
+    if (!toast || toast.classList.contains('hiding')) return;
     // Clear the auto-dismiss timer to prevent double-removal
-    if (toast._autoDismissId) {
-        clearTimeout(toast._autoDismissId);
-        toast._autoDismissId = null;
+    if ((toast as any)._autoDismissId) {
+        clearTimeout((toast as any)._autoDismissId);
+        (toast as any)._autoDismissId = null;
     }
     toast.classList.add('hiding');
-    toast._hideTimeoutId = setTimeout(() => {
+    (toast as any)._hideTimeoutId = setTimeout(() => {
         if (toast.parentElement) {
             toast.parentElement.removeChild(toast);
         }
     }, 300);
 }
+
 // ========== ERROR MODAL ==========
-export function showErrorModal(message, details = null) {
+export function showErrorModal(message: string, details: string | null = null): void {
     const msgEl = document.getElementById('error-message');
     const detailsEl = document.getElementById('error-details');
-    if (msgEl)
-        msgEl.textContent = message;
+
+    if (msgEl) msgEl.textContent = message;
     if (detailsEl) {
         if (details) {
             detailsEl.textContent = details;
-            detailsEl.style.display = 'block';
-        }
-        else {
-            detailsEl.style.display = 'none';
+            (detailsEl as HTMLElement).style.display = 'block';
+        } else {
+            (detailsEl as HTMLElement).style.display = 'none';
         }
     }
+
     openModal('error-modal');
 }
-export function closeError() {
+
+export function closeError(): void {
     closeModal('error-modal');
 }
+
 // ========== MODAL REGISTRY ==========
 // Maps modal IDs to their close handler functions
-const modalCloseHandlers = new Map();
-export function registerModalCloseHandler(modalId, closeFn) {
+const modalCloseHandlers: Map<string, () => void> = new Map();
+
+export function registerModalCloseHandler(modalId: string, closeFn: () => void): void {
     modalCloseHandlers.set(modalId, closeFn);
 }
-function getModalCloseHandler(modalId) {
+
+function getModalCloseHandler(modalId: string): (() => void) | undefined {
     return modalCloseHandlers.get(modalId);
 }
-const modalStack = [];
+
+// ========== MODAL STACK ==========
+// PHASE 2 FIX: Implement modal stack for proper focus management when stacking modals
+// Each entry contains: { modal, previousFocus }
+interface ModalStackEntry {
+    modal: HTMLElement;
+    previousFocus: Element | null;
+}
+
+const modalStack: ModalStackEntry[] = [];
+
 // ========== MODAL MANAGEMENT ==========
-export function openModal(modalId) {
+export function openModal(modalId: string): void {
     const modal = document.getElementById(modalId);
-    if (!modal)
-        return;
+    if (!modal) return;
+
     // PHASE 2 FIX: Push current state onto modal stack before opening new modal
     // This preserves focus context when multiple modals are opened
     modalStack.push({
         modal: modal,
         previousFocus: document.activeElement
     });
+
     state.activeModal = modal;
     modal.classList.add('active');
+
     // Add event listeners only when first modal is open (performance optimization)
     if (!state.modalListenersActive) {
         document.addEventListener('keydown', handleModalKeydown);
         document.addEventListener('click', handleOverlayClick);
         state.modalListenersActive = true;
     }
+
     // Focus first focusable element in modal
     const focusableElements = modal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
     if (focusableElements.length > 0) {
-        setTimeout(() => focusableElements[0].focus(), 50);
+        setTimeout(() => (focusableElements[0] as HTMLElement).focus(), 50);
     }
 }
-export function closeModal(modalId) {
+
+export function closeModal(modalId: string): void {
     const modal = document.getElementById(modalId);
-    if (!modal)
-        return;
+    if (!modal) return;
+
     modal.classList.remove('active');
+
     // PHASE 2 FIX: Pop modal from stack and restore previous focus
     // Find and remove this modal from the stack (it might not be at the top if closed out of order)
     const stackIndex = modalStack.findIndex(entry => entry.modal === modal);
-    let previousFocus = null;
+    let previousFocus: Element | null = null;
+
     if (stackIndex !== -1) {
         const entry = modalStack.splice(stackIndex, 1)[0];
         previousFocus = entry.previousFocus;
     }
+
     // Update activeModal to the next modal in stack (if any)
     if (modalStack.length > 0) {
         state.activeModal = modalStack[modalStack.length - 1].modal;
-    }
-    else {
+    } else {
         state.activeModal = null;
+
         // Remove event listeners when no modal is open (performance optimization)
         if (state.modalListenersActive) {
             document.removeEventListener('keydown', handleModalKeydown);
@@ -145,42 +176,44 @@ export function closeModal(modalId) {
             state.modalListenersActive = false;
         }
     }
+
     // Restore focus to previously focused element
-    if (previousFocus && typeof previousFocus.focus === 'function') {
+    if (previousFocus && typeof (previousFocus as HTMLElement).focus === 'function') {
         // If the previous focus element is inside another modal that's still open, focus it
         // Otherwise, only focus if no other modal is active
         const isInActiveModal = state.activeModal && state.activeModal.contains(previousFocus);
         if (isInActiveModal || !state.activeModal) {
-            previousFocus.focus();
-        }
-        else if (state.activeModal) {
+            (previousFocus as HTMLElement).focus();
+        } else if (state.activeModal) {
             // Focus first focusable element in the now-active modal
             const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
             if (focusableElements.length > 0) {
-                focusableElements[0].focus();
+                (focusableElements[0] as HTMLElement).focus();
             }
         }
     }
 }
+
 // Focus trap handler
-export function handleModalKeydown(e) {
-    if (!state.activeModal)
-        return;
+export function handleModalKeydown(e: KeyboardEvent): void {
+    if (!state.activeModal) return;
+
     // Escape key closes modal via registry lookup
     if (e.key === 'Escape') {
         e.preventDefault();
         const closeHandler = getModalCloseHandler(state.activeModal.id);
-        if (closeHandler)
-            closeHandler();
+        if (closeHandler) closeHandler();
         return;
     }
+
     // Tab key focus trapping
     if (e.key === 'Tab') {
         const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
-        if (focusableElements.length === 0)
-            return;
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
         // If focus has escaped the modal, bring it back
         const focusInModal = state.activeModal.contains(document.activeElement);
         if (!focusInModal) {
@@ -188,23 +221,22 @@ export function handleModalKeydown(e) {
             firstElement.focus();
             return;
         }
+
         if (e.shiftKey && document.activeElement === firstElement) {
             e.preventDefault();
             lastElement.focus();
-        }
-        else if (!e.shiftKey && document.activeElement === lastElement) {
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
             e.preventDefault();
             firstElement.focus();
         }
     }
 }
+
 // Click outside modal to close (on overlay) via registry lookup
-export function handleOverlayClick(e) {
-    const target = e.target;
+export function handleOverlayClick(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
     if (target.classList.contains('modal-overlay') && target.classList.contains('active')) {
         const closeHandler = getModalCloseHandler(target.id);
-        if (closeHandler)
-            closeHandler();
+        if (closeHandler) closeHandler();
     }
 }
-//# sourceMappingURL=ui.js.map
