@@ -667,7 +667,7 @@
             if (!chartEl) return;
 
             chartEl.innerHTML = metricsHistory.memory.map((mem, i) => {
-                const conn = metricsHistory.connections[i] || 0;
+                const conn = parseInt(metricsHistory.connections[i], 10) || 0;
                 const memHeight = Math.max(2, (mem / maxMemory) * 100);
                 const connHeight = Math.max(2, (conn / Math.max(maxConnections, 1)) * 100);
 
@@ -805,7 +805,7 @@
                                 const isExpanded = expandedRooms.has(room.code);
 
                                 return `
-                                <tr class="room-row" data-code="${safeCode}" onclick="toggleRoomDetails('${safeCode}')">
+                                <tr class="room-row" data-code="${safeCode}" data-action="toggle-room">
                                     <td style="width: 30px; text-align: center;">${isExpanded ? '▼' : '▶'}</td>
                                     <td><strong>${safeCode}</strong></td>
                                     <td><span class="room-status ${safeStatus}">${escapeHTML(safeStatus)}</span></td>
@@ -813,7 +813,7 @@
                                     <td>${safeTurnTimer}</td>
                                     <td>${safeCreatedAt}</td>
                                     <td>
-                                        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); closeRoom('${safeCode}')">Close</button>
+                                        <button class="btn btn-danger btn-sm" data-action="close-room" data-room-code="${safeCode}">Close</button>
                                     </td>
                                 </tr>
                                 <tr>
@@ -902,7 +902,7 @@
                                 ${isHost ? '<span class="player-role host">Host</span>' : ''}
                                 ${isSpymaster ? '<span class="player-role spymaster">Spymaster</span>' : ''}
                             </div>
-                            ${!isHost ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); kickPlayer('${escapeHTML(code)}', '${safeId}')">Kick</button>` : ''}
+                            ${!isHost ? `<button class="btn btn-danger btn-sm" data-action="kick-player" data-room-code="${escapeHTML(code)}" data-player-id="${safeId}">Kick</button>` : ''}
                         </div>
                     `;
                 }).join('');
@@ -1006,6 +1006,42 @@
             } catch (error) {
                 console.error('Error sending broadcast:', error);
                 showToast(error.message, 'error');
+            }
+        });
+
+        // CRITICAL FIX: Delegated event handler for rooms container.
+        // Replaces inline onclick handlers to prevent XSS via template literals.
+        document.getElementById('rooms-container').addEventListener('click', function(e) {
+            const target = e.target;
+
+            // Handle close-room button
+            if (target.dataset && target.dataset.action === 'close-room') {
+                e.stopPropagation();
+                const code = target.dataset.roomCode;
+                if (code && isValidRoomCode(code)) {
+                    closeRoom(code);
+                }
+                return;
+            }
+
+            // Handle kick-player button
+            if (target.dataset && target.dataset.action === 'kick-player') {
+                e.stopPropagation();
+                const code = target.dataset.roomCode;
+                const playerId = target.dataset.playerId;
+                if (code && playerId && isValidRoomCode(code)) {
+                    kickPlayer(code, playerId);
+                }
+                return;
+            }
+
+            // Handle room row toggle (click on <tr> or child)
+            const row = target.closest('tr[data-action="toggle-room"]');
+            if (row && row.dataset.code) {
+                const code = row.dataset.code;
+                if (isValidRoomCode(code)) {
+                    toggleRoomDetails(code);
+                }
             }
         });
 

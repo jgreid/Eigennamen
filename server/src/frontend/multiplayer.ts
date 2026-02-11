@@ -183,10 +183,6 @@ async function handleJoinGame(): Promise<void> {
         setFieldError(nicknameValidation.error ?? '', 'join-nickname-error');
         return;
     }
-    if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
-        setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'join-nickname-error');
-        return;
-    }
 
     // Use user input if provided, otherwise fall back to URL room code
     const roomId = roomIdInput || urlRoomCode;
@@ -254,10 +250,6 @@ async function handleCreateGame(): Promise<void> {
     const nicknameValidation = validateNickname(nickname);
     if (!nicknameValidation.valid) {
         setFieldError(nicknameValidation.error ?? '', 'create-nickname-error');
-        return;
-    }
-    if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
-        setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'create-nickname-error');
         return;
     }
 

@@ -47,7 +47,8 @@ export interface RedisClient {
     mGet(keys: string[]): Promise<(string | null)[]>;
 
     // ── Set commands ─────────────────────────────────────────────────
-    sAdd(key: string, member: string): Promise<number>;
+    // CRITICAL FIX: Accept variadic members to match actual usage across services
+    sAdd(key: string, ...members: string[]): Promise<number>;
     sRem(key: string, ...members: string[]): Promise<number>;
     sMembers(key: string): Promise<string[]>;
     sCard(key: string): Promise<number>;
@@ -76,6 +77,7 @@ export interface RedisClient {
     eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
 
     // ── Scan ─────────────────────────────────────────────────────────
-    scan?(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
+    // CRITICAL FIX: cursor return type is string (matching Redis protocol and MemoryStorage)
+    scan?(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: string; keys: string[] }>;
     scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string>;
 }

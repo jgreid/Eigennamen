@@ -26,8 +26,12 @@ export function showToast(message: string, type: string = 'error', duration: num
     const container = document.getElementById('toast-container');
     if (!container) return undefined as unknown as HTMLDivElement;
 
+    // HIGH FIX: Validate type against allowed values to prevent arbitrary class/key injection
+    const validTypes = ['error', 'success', 'warning', 'info'];
+    const safeType = validTypes.includes(type) ? type : 'error';
+
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    toast.className = `toast ${safeType}`;
 
     const icons: Record<string, string> = {
         error: '&#10060;',
@@ -37,7 +41,7 @@ export function showToast(message: string, type: string = 'error', duration: num
     };
 
     toast.innerHTML = `
-        <span class="toast-icon">${icons[type] || icons.error}</span>
+        <span class="toast-icon">${icons[safeType]}</span>
         <span class="toast-message">${escapeHTML(message)}</span>
         <button type="button" class="toast-close" data-action="dismiss-toast" aria-label="Dismiss notification">&times;</button>
     `;
@@ -55,7 +59,7 @@ export function showToast(message: string, type: string = 'error', duration: num
     toastTimers.set(toast, timers);
 
     // Announce to screen readers with message type for context
-    const typeLabel = type === 'error' ? 'Error: ' : type === 'warning' ? 'Warning: ' : '';
+    const typeLabel = safeType === 'error' ? 'Error: ' : safeType === 'warning' ? 'Warning: ' : '';
     announceToScreenReader(typeLabel + message);
 
     return toast;
