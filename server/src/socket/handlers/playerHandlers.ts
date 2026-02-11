@@ -8,6 +8,7 @@
 import type { Server } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';
+import type { RoomStats } from '../../services/playerService';
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
@@ -46,18 +47,6 @@ interface PlayerNicknameInput {
  */
 interface PlayerKickInput {
     targetSessionId: string;
-}
-
-/**
- * Room stats
- */
-interface RoomStats {
-    totalPlayers: number;
-    spectatorCount: number;
-    teams: {
-        red: { total: number; spymaster: string | null; clicker: string | null };
-        blue: { total: number; spymaster: string | null; clicker: string | null };
-    };
 }
 
 /**

@@ -5,17 +5,12 @@
 const {
     getContext,
     getCorrelationId,
-    getSessionId,
-    getRoomCode,
     getContextFields,
     withContext,
-    withNewCorrelation,
-    createChildContext,
     createContextFromSocket,
     createContextFromRequest,
     correlationMiddleware,
     socketCorrelationMiddleware,
-    wrapHandler,
     CORRELATION_HEADER
 } = require('../utils/correlationId');
 
@@ -41,30 +36,6 @@ describe('Correlation ID Utility', () => {
         test('returns correlationId from context', () => {
             withContext({ correlationId: 'test-456' }, () => {
                 expect(getCorrelationId()).toBe('test-456');
-            });
-        });
-    });
-
-    describe('getSessionId', () => {
-        test('returns null when no context', () => {
-            expect(getSessionId()).toBeNull();
-        });
-
-        test('returns sessionId from context', () => {
-            withContext({ sessionId: 'session-789' }, () => {
-                expect(getSessionId()).toBe('session-789');
-            });
-        });
-    });
-
-    describe('getRoomCode', () => {
-        test('returns null when no context', () => {
-            expect(getRoomCode()).toBeNull();
-        });
-
-        test('returns roomCode from context', () => {
-            withContext({ roomCode: 'ROOM12' }, () => {
-                expect(getRoomCode()).toBe('ROOM12');
             });
         });
     });
@@ -111,24 +82,6 @@ describe('Correlation ID Utility', () => {
 
                 expect(getCorrelationId()).toBe('outer');
             });
-        });
-    });
-
-    describe('withNewCorrelation', () => {
-        test('creates new correlation ID', () => {
-            let capturedId;
-            withNewCorrelation(() => {
-                capturedId = getCorrelationId();
-            });
-            expect(capturedId).toBeDefined();
-            expect(typeof capturedId).toBe('string');
-            expect(capturedId.length).toBeGreaterThan(0);
-        });
-
-        test('accepts additional context', () => {
-            withNewCorrelation(() => {
-                expect(getSessionId()).toBe('my-session');
-            }, { sessionId: 'my-session' });
         });
     });
 
@@ -266,65 +219,6 @@ describe('Correlation ID Utility', () => {
             expect(socket.correlationContext.correlationId).toBe('socket-corr');
             expect(socket.correlationId).toBe('socket-corr');
             expect(next).toHaveBeenCalled();
-        });
-    });
-
-    describe('wrapHandler', () => {
-        test('wraps handler with correlation context', async () => {
-            const socket = {
-                correlationContext: { correlationId: 'handler-corr' }
-            };
-
-            const handler = jest.fn(async (_s) => {
-                return getCorrelationId();
-            });
-
-            const wrapped = wrapHandler(handler);
-            const result = await wrapped(socket);
-
-            expect(result).toBe('handler-corr');
-            expect(handler).toHaveBeenCalledWith(socket);
-        });
-
-        test('creates new correlation ID if no context', async () => {
-            const handler = jest.fn(async () => {
-                return getCorrelationId();
-            });
-
-            const wrapped = wrapHandler(handler);
-            const result = await wrapped({});
-
-            expect(result).toBeDefined();
-            expect(typeof result).toBe('string');
-        });
-    });
-
-    describe('createChildContext', () => {
-        test('creates child context with parent fields', () => {
-            withContext({ correlationId: 'parent-123', sessionId: 'sess' }, () => {
-                const child = createChildContext({ roomCode: 'ROOM01' });
-
-                expect(child.parentCorrelationId).toBe('parent-123');
-                expect(child.sessionId).toBe('sess');
-                expect(child.roomCode).toBe('ROOM01');
-                expect(child.correlationId).toBeDefined();
-            });
-        });
-
-        test('uses provided correlation ID if given', () => {
-            withContext({ correlationId: 'parent-456' }, () => {
-                const child = createChildContext({ correlationId: 'child-789' });
-
-                expect(child.correlationId).toBe('child-789');
-                expect(child.parentCorrelationId).toBe('parent-456');
-            });
-        });
-
-        test('works without parent context', () => {
-            const child = createChildContext({ roomCode: 'ROOM02' });
-
-            expect(child.roomCode).toBe('ROOM02');
-            expect(child.correlationId).toBeDefined();
         });
     });
 

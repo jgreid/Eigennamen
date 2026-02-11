@@ -12,7 +12,7 @@ const {
     determineRevealOutcome,
     switchTurn,
     buildRevealResult
-} = require('../services/gameService');
+} = require('../services/game/revealEngine');
 
 const { ERROR_CODES } = require('../config/constants');
 

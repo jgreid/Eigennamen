@@ -8,7 +8,7 @@
 const { getDatabase, isDatabaseEnabled } = require('../config/database');
 const logger = require('../utils/logger');
 const { BOARD_SIZE } = require('../config/constants');
-const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
+const { ServerError, ValidationError, WordListError } = require('../errors/GameError');
 const { toEnglishUpperCase } = require('../utils/sanitize');
 
 const MAX_WORD_LIST_SIZE = 10000;
@@ -295,7 +295,7 @@ export async function updateWordList(
 
     // Anonymous word lists (no owner) are immutable
     if (!existing.ownerId) {
-        throw PlayerError.notAuthorized();
+        throw WordListError.notAuthorized(id);
     }
 
     // Check if requester is the owner
@@ -373,7 +373,7 @@ export async function deleteWordList(
 
     // Anonymous word lists (no owner) cannot be deleted via API
     if (!existing.ownerId) {
-        throw PlayerError.notAuthorized();
+        throw WordListError.notAuthorized(id);
     }
 
     // Check if requester is the owner

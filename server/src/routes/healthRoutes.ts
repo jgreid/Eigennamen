@@ -13,6 +13,7 @@ const pubSubHealth = require('../utils/pubSubHealth');
 const logger = require('../utils/logger');
 // PHASE 5.1: Import Prometheus metrics export
 const { getPrometheusMetrics, updateSystemMetrics } = require('../utils/metrics');
+const { withTimeout } = require('../utils/timeout');
 
 const router: ExpressRouter = express.Router();
 
@@ -82,31 +83,6 @@ interface MetricsResponse {
         message: string;
         details: Record<string, unknown>;
     }>;
-}
-
-/**
- * Wrap a promise with a timeout
- */
-async function withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    operation: string
-): Promise<T> {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => {
-            reject(new Error(`${operation} timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
-    });
-
-    try {
-        const result = await Promise.race([promise, timeoutPromise]);
-        if (timeoutId !== undefined) clearTimeout(timeoutId);
-        return result;
-    } catch (error) {
-        if (timeoutId !== undefined) clearTimeout(timeoutId);
-        throw error;
-    }
 }
 
 /**

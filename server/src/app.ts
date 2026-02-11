@@ -19,7 +19,7 @@ const routes = require('./routes');
 const adminRoutes = require('./routes/adminRoutes');
 const logger = require('./utils/logger');
 const { setupSwagger } = require('./config/swagger');
-const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
+const { getAllMetrics, setGauge, METRIC_NAMES } = require('./utils/metrics');
 const { SOCKET } = require('./config/constants');
 
 /**
@@ -80,7 +80,7 @@ async function getCachedSocketCount(io: SocketServer, forceRefresh = false): Pro
 
         cachedSocketCount = await Promise.race([socketCountPromise, timeoutPromise]);
         lastSocketCountUpdate = now;
-        setSocketConnections(cachedSocketCount);
+        setGauge(METRIC_NAMES.SOCKET_CONNECTIONS, cachedSocketCount);
         return { count: cachedSocketCount, cached: false };
     } catch {
         // Return stale cache on error
@@ -99,7 +99,7 @@ async function getCachedSocketCount(io: SocketServer, forceRefresh = false): Pro
 function updateSocketCount(delta: number): void {
     cachedSocketCount = Math.max(0, cachedSocketCount + delta);
     lastSocketCountUpdate = Date.now();
-    setSocketConnections(cachedSocketCount);
+    setGauge(METRIC_NAMES.SOCKET_CONNECTIONS, cachedSocketCount);
 }
 
 // Export for socket module to use

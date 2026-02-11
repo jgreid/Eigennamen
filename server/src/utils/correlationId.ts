@@ -81,24 +81,6 @@ function getCorrelationId(): string | null {
 }
 
 /**
- * Get current session ID from context
- * @returns Current session ID or null
- */
-function getSessionId(): string | null {
-    const context = getContext();
-    return context?.sessionId || null;
-}
-
-/**
- * Get current room code from context
- * @returns Current room code or null
- */
-function getRoomCode(): string | null {
-    const context = getContext();
-    return context?.roomCode || null;
-}
-
-/**
  * Get all context fields for logging
  * @returns Context fields
  */
@@ -122,20 +104,6 @@ function getContextFields(): ContextFields {
  */
 function withContext<T>(context: CorrelationContext, fn: () => T): T {
     return asyncLocalStorage.run(context, fn);
-}
-
-/**
- * Run a function with a new correlation ID
- * @param fn - Function to run
- * @param additionalContext - Additional context fields
- * @returns Result of the function
- */
-function withNewCorrelation<T>(fn: () => T, additionalContext: Partial<CorrelationContext> = {}): T {
-    const context: CorrelationContext = {
-        correlationId: uuidv4(),
-        ...additionalContext
-    };
-    return withContext(context, fn);
 }
 
 /**
@@ -202,74 +170,22 @@ function socketCorrelationMiddleware(socket: CorrelationSocket, next: (err?: Err
     next();
 }
 
-/**
- * Handler function type
- */
-type HandlerFunction<T extends unknown[], R> = (...args: T) => R;
-
-/**
- * Object with correlation context
- */
-interface WithCorrelationContext {
-    correlationContext?: CorrelationContext;
-}
-
-/**
- * Wrap an async handler to run within correlation context
- * @param handler - Async handler function
- * @returns Wrapped handler
- */
-function wrapHandler<T extends unknown[], R>(handler: HandlerFunction<T, R>): HandlerFunction<T, R> {
-    return function(...args: T): R {
-        // Get socket from first argument if it has correlation context
-        const socketOrReq = args[0] as WithCorrelationContext | undefined;
-        const context: CorrelationContext = socketOrReq?.correlationContext || getContext() || {
-            correlationId: uuidv4()
-        };
-
-        return withContext(context, () => handler(...args));
-    };
-}
-
-/**
- * Create a child context with additional fields
- * Useful for sub-operations within a request
- * @param additionalFields - Additional context fields
- * @returns New context with merged fields
- */
-function createChildContext(additionalFields: Partial<CorrelationContext> = {}): CorrelationContext {
-    const parentContext = getContext();
-    return {
-        ...(parentContext || {}),
-        ...additionalFields,
-        parentCorrelationId: parentContext?.correlationId,
-        correlationId: additionalFields.correlationId || uuidv4()
-    };
-}
-
 module.exports = {
     // Core functions
     getContext,
     getCorrelationId,
-    getSessionId,
-    getRoomCode,
     getContextFields,
 
     // Context management
     withContext,
-    withNewCorrelation,
-    createChildContext,
 
-    // Context creation
+    // Context factories
     createContextFromSocket,
     createContextFromRequest,
 
     // Middleware
     correlationMiddleware,
     socketCorrelationMiddleware,
-
-    // Handler wrapper
-    wrapHandler,
 
     // Constants
     CORRELATION_HEADER
@@ -279,17 +195,12 @@ module.exports = {
 export {
     getContext,
     getCorrelationId,
-    getSessionId,
-    getRoomCode,
     getContextFields,
     withContext,
-    withNewCorrelation,
-    createChildContext,
     createContextFromSocket,
     createContextFromRequest,
     correlationMiddleware,
     socketCorrelationMiddleware,
-    wrapHandler,
     CORRELATION_HEADER
 };
 
@@ -297,7 +208,5 @@ export type {
     CorrelationContext,
     ContextFields,
     CorrelationSocket,
-    CorrelationRequest,
-    HandlerFunction,
-    WithCorrelationContext
+    CorrelationRequest
 };

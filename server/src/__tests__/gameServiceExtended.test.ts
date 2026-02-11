@@ -63,7 +63,7 @@ jest.mock('../utils/logger', () => mockLogger);
 // Instead, we test generateSeed by verifying it produces valid output in both success cases
 // The fallback path (lines 223-224) is tested by verifying the function handles errors gracefully
 
-// Now require the gameService
+// Now require the focused modules and gameService
 const {
     validateCardIndex,
     validateRevealPreconditions,
@@ -71,11 +71,13 @@ const {
     determineRevealOutcome,
     switchTurn,
     buildRevealResult,
-    validateClueWord,
-    generateSeed,
+    getGameStateForPlayer
+} = require('../services/game/revealEngine');
+const { validateClueWord } = require('../services/game/clueValidator');
+const { generateSeed } = require('../services/game/boardGenerator');
+const {
     createGame,
     getGame,
-    getGameStateForPlayer,
     revealCard,
     giveClue,
     endTurn,
