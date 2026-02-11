@@ -94,7 +94,6 @@ describe('Socket Connection Lifecycle', () => {
     let testPort;
 
     beforeEach((done) => {
-        jest.clearAllMocks();
         mockRedisStorage = {};
 
         httpServer = http.createServer();
@@ -351,7 +350,6 @@ describe('Socket Connection Lifecycle', () => {
 describe('Socket Module Functions', () => {
     beforeEach(() => {
         jest.resetModules();
-        jest.clearAllMocks();
         mockRedisStorage = {};
     });
 
@@ -397,7 +395,6 @@ describe('Socket Module Functions', () => {
 
 describe('Timer Expire Callback Behavior', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedisStorage = {};
     });
 
@@ -471,7 +468,6 @@ describe('Timer Expire Callback Behavior', () => {
 
 describe('Disconnect Handler Behavior', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedisStorage = {};
     });
 

@@ -124,7 +124,6 @@ describe('Socket Index Module', () => {
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedisStorage = {};
     });
 
@@ -409,10 +408,6 @@ describe('Socket Connection Handling', () => {
 });
 
 describe('Timer Expire Callback', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
-
     test('handles timer expiration when game exists and is active', async () => {
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
@@ -465,10 +460,6 @@ describe('Timer Expire Callback', () => {
 });
 
 describe('Disconnect Handling', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
-
     test('notifies room when player disconnects', async () => {
         const playerService = require('../services/playerService');
 

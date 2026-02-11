@@ -288,7 +288,6 @@ describe('Full Game Flow Integration Tests', () => {
         mockRedisStorage.clear();
         mockRedisSets.clear();
         mockRedisSortedSets.clear();
-        jest.clearAllMocks();
     });
 
     describe('Complete Game Lifecycle', () => {
@@ -382,7 +381,11 @@ describe('Full Game Flow Integration Tests', () => {
                     turnTimer: 90
                 });
 
-                const [hostResult, playerResult] = await Promise.all([hostUpdatePromise, playerUpdatePromise]);
+                const settledResults = await Promise.allSettled([hostUpdatePromise, playerUpdatePromise]);
+                const [hostResult, playerResult] = settledResults.map(r => {
+                    if (r.status === 'rejected') throw r.reason;
+                    return r.value;
+                });
 
                 // Both should receive the update
                 expect(hostResult.settings.teamNames.red).toBe('Fire');

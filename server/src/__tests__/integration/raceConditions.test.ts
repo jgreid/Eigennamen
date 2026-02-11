@@ -268,7 +268,6 @@ describe('Race Condition Tests', () => {
     beforeEach(() => {
         mockRedisStorage.clear();
         mockRedisSets.clear();
-        jest.clearAllMocks();
     });
 
     describe('Room Creation Atomicity', () => {
@@ -301,7 +300,11 @@ describe('Race Condition Tests', () => {
                     client.emit('room:create', { roomId: 'race-test' });
                 }
 
-                const results = await Promise.all(createPromises);
+                const settledResults = await Promise.allSettled(createPromises);
+                const results = settledResults.map(r => {
+                    if (r.status === 'rejected') throw r.reason;
+                    return r.value;
+                });
                 const successful = results.filter(r => r.success);
                 const failed = results.filter(r => !r.success && r.data?.code === 'ROOM_ALREADY_EXISTS');
 

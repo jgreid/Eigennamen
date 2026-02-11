@@ -337,7 +337,6 @@ describe('WordList Routes', () => {
     beforeEach(() => {
         app = createTestApp();
         mockWordLists.clear();
-        jest.clearAllMocks();
     });
 
     describe('GET /api/wordlists', () => {
@@ -743,7 +742,6 @@ describe('Health Routes (/api/health)', () => {
 
     beforeEach(() => {
         app = createTestApp();
-        jest.clearAllMocks();
     });
 
     describe('GET /api/health', () => {

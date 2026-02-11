@@ -434,123 +434,16 @@ class MockRedis {
     }
 }
 
-/**
- * Create mock player data
- */
-function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
-    return {
-        sessionId: uuidv4(),
-        nickname: `Player${Math.floor(Math.random() * 1000)}`,
-        team: null,
-        role: 'spectator',
-        isHost: false,
-        connected: true,
-        roomCode: null,
-        createdAt: Date.now(),
-        lastSeen: Date.now(),
-        ...overrides
-    };
-}
-
-/**
- * Create mock room data
- */
-function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
-    const code = overrides.code || generateRoomCode();
-    return {
-        code,
-        hostSessionId: overrides.hostSessionId || uuidv4(),
-        settings: {
-            redTeamName: 'Red Team',
-            blueTeamName: 'Blue Team',
-            turnTimer: null,
-            ...overrides.settings
-        },
-        status: 'waiting',
-        createdAt: Date.now(),
-        ...overrides
-    };
-}
-
-/**
- * Create mock game data
- */
-function createMockGame(overrides: AnyRecord = {}): AnyRecord {
-    const words = overrides.words || Array.from({ length: 25 }, (_, i) => `WORD${i + 1}`);
-    const types = overrides.types || [
-        ...Array(9).fill('red'),
-        ...Array(8).fill('blue'),
-        ...Array(7).fill('neutral'),
-        'assassin'
-    ];
-
-    return {
-        id: uuidv4(),
-        seed: 'test-seed',
-        words,
-        types,
-        revealed: Array(25).fill(false),
-        currentTurn: 'red',
-        redScore: 0,
-        blueScore: 0,
-        redTotal: 9,
-        blueTotal: 8,
-        gameOver: false,
-        winner: null,
-        currentClue: null,
-        guessesUsed: 0,
-        guessesAllowed: 0,
-        clues: [],
-        history: [],
-        createdAt: Date.now(),
-        ...overrides
-    };
-}
-
-/**
- * Generate a random room code
- */
-function generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return code;
-}
-
-/**
- * Wait for a specified time
- */
-function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Flush all pending promises
- */
-function flushPromises(): Promise<void> {
-    return new Promise(resolve => setImmediate(resolve));
-}
-
-/**
- * Assert that an async function throws an error with specific properties
- */
-async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: string): Promise<Error> {
-    try {
-        await fn();
-        throw new Error('Expected function to throw');
-    } catch (error: unknown) {
-        const err = error as Error & { code?: string };
-        if (err.message === 'Expected function to throw') {
-            throw err;
-        }
-        if (expectedCode && err.code !== expectedCode) {
-            throw new Error(`Expected error code ${expectedCode}, got ${err.code}`);
-        }
-        return err;
-    }
-}
+// F-5: Import shared utilities from mocks.ts instead of duplicating them
+const {
+    createMockPlayer,
+    createMockRoom,
+    createMockGame,
+    generateRoomCode,
+    sleep,
+    flushPromises,
+    expectAsyncError
+} = require('./mocks');
 
 module.exports = {
     SocketTestServer,

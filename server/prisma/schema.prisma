@@ -134,5 +134,8 @@ model GameParticipant {
   @@index([team])
   @@index([role])
   @@index([sessionId])
+  // Composite indexes for common query patterns
+  @@index([gameId, team])
+  @@index([gameId, sessionId])
   @@map("game_participants")
 }

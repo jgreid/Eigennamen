@@ -35,8 +35,7 @@ jest.mock('../config/redis', () => {
 const timerService = require('../services/timerService');
 const { getRedis } = require('../config/redis');
 
-// Use fake timers
-jest.useFakeTimers();
+// Fake timers are enabled/disabled per-test to avoid leaking across suites
 
 /**
  * Helper to flush multiple microtasks and promises
@@ -54,6 +53,7 @@ describe('Timer Service', () => {
     let mockRedis;
 
     beforeEach(() => {
+        jest.useFakeTimers();
         mockRedis = getRedis();
         // Reset mocks
         jest.clearAllMocks();
@@ -112,6 +112,7 @@ describe('Timer Service', () => {
         // Clean up all timers after each test
         await timerService.cleanupAllTimers();
         jest.clearAllTimers();
+        jest.useRealTimers();
         mockRedis._storage = {};
     });
 

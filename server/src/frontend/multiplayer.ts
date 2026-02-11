@@ -8,6 +8,7 @@ import { showToast, openModal, closeModal } from './ui.js';
 import { updateRoleBanner, updateControls } from './roles.js';
 import { VALIDATION, UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 import {
     updateMpIndicator, updateRoomSettingsNavVisibility, updateRoomInfoDisplay,
     updateForfeitButton, copyRoomId
@@ -105,7 +106,7 @@ export function setMpMode(mode: string): void {
 
     // Update action button text
     const actionBtn = document.getElementById('btn-mp-action');
-    if (actionBtn) actionBtn.textContent = mode === 'join' ? 'Join Game' : 'Create Game';
+    if (actionBtn) actionBtn.textContent = mode === 'join' ? t('multiplayer.joinGame') : t('multiplayer.createGame');
 }
 
 export function setMpStatus(message: string, type: string): void {
@@ -150,7 +151,7 @@ export async function handleMpAction(): Promise<void> {
 
     const originalText = actionBtn.textContent;
     actionBtn.disabled = true;
-    actionBtn.textContent = state.currentMpMode === 'join' ? 'Joining...' : 'Creating...';
+    actionBtn.textContent = state.currentMpMode === 'join' ? t('multiplayer.joining') : t('multiplayer.creating');
     actionBtn.classList.add('loading');
 
     try {
@@ -200,7 +201,7 @@ async function handleJoinGame(): Promise<void> {
     if (joinBtn) joinBtn.disabled = true;
 
     try {
-        setMpStatus('Connecting...', 'connecting');
+        setMpStatus(t('multiplayer.connecting'), 'connecting');
 
         if (!CodenamesClient.isConnected()) {
             await CodenamesClient.connect();
@@ -208,7 +209,7 @@ async function handleJoinGame(): Promise<void> {
 
         if (signal.aborted) return;
 
-        setMpStatus('Joining game...', 'connecting');
+        setMpStatus(t('multiplayer.joiningGame'), 'connecting');
         const normalizedRoomId = roomId!.toLowerCase();
         const result: JoinCreateResult = await CodenamesClient.joinRoom(normalizedRoomId, nickname);
 
@@ -223,16 +224,16 @@ async function handleJoinGame(): Promise<void> {
 
         logger.error(`Join failed for room "${roomId}":`, error);
         if (err.code === 'ROOM_NOT_FOUND') {
-            setMpStatus(`Room "${roomId}" not found - check the Room ID`, 'error');
+            setMpStatus(t('multiplayer.roomNotFoundDetail', { roomId: roomId || '' }), 'error');
             clearRoomCodeFromURL();
         } else if (err.code === 'ROOM_FULL') {
-            setMpStatus('Room is full', 'error');
+            setMpStatus(t('errors.roomFull'), 'error');
         } else if (err.code === 'INVALID_INPUT') {
-            setMpStatus(err.message || 'Invalid input - check Room ID and nickname', 'error');
+            setMpStatus(err.message || t('multiplayer.invalidInputDetail'), 'error');
         } else if (err.message?.includes('connect')) {
-            setMpStatus('Could not connect to server - check your connection and try again', 'error');
+            setMpStatus(t('multiplayer.connectionFailedDetail'), 'error');
         } else {
-            setMpStatus(err.message || 'Failed to join game - please try again', 'error');
+            setMpStatus(err.message || t('multiplayer.joinFailed'), 'error');
         }
     } finally {
         if (joinBtn) joinBtn.disabled = false;
@@ -266,7 +267,7 @@ async function handleCreateGame(): Promise<void> {
     if (createBtn) createBtn.disabled = true;
 
     try {
-        setMpStatus('Creating game...', 'connecting');
+        setMpStatus(t('multiplayer.creatingGame'), 'connecting');
 
         if (!CodenamesClient.isConnected()) {
             await CodenamesClient.connect();
@@ -291,11 +292,11 @@ async function handleCreateGame(): Promise<void> {
 
         logger.error('Create failed:', error);
         if (err.code === 'ROOM_ALREADY_EXISTS') {
-            setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
+            setMpStatus(t('multiplayer.roomAlreadyExists'), 'error');
         } else if (err.message?.includes('connect')) {
-            setMpStatus('Could not connect to server - check your connection and try again', 'error');
+            setMpStatus(t('multiplayer.connectionFailedDetail'), 'error');
         } else {
-            setMpStatus(err.message || 'Failed to create game - please try again', 'error');
+            setMpStatus(err.message || t('multiplayer.createFailed'), 'error');
         }
     } finally {
         if (createBtn) createBtn.disabled = false;
@@ -345,7 +346,7 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     }
 
     // Update UI
-    setMpStatus('Connected!', 'success');
+    setMpStatus(t('multiplayer.connected'), 'success');
     updateMpIndicator(result.room || null, state.multiplayerPlayers);
     updateRoomSettingsNavVisibility();
     updateRoomInfoDisplay();
@@ -357,9 +358,9 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     setTimeout(() => {
         closeMultiplayer();
         if (state.isHost && state.currentRoomId) {
-            showToast(`Game created! Share Room ID: ${state.currentRoomId}`, 'success', 8000);
+            showToast(t('multiplayer.gameCreatedShare', { roomId: state.currentRoomId }), 'success', 8000);
         } else {
-            showToast('Connected to multiplayer game!', 'success');
+            showToast(t('multiplayer.connectedToGame'), 'success');
         }
     }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }

@@ -22,6 +22,7 @@ const logger = require('../utils/logger');
 const { SOCKET_EVENTS, LOCKS } = require('../config/constants');
 const { safeEmitToRoom } = require('./safeEmit');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
+const { withLock } = require('../utils/distributedLock');
 
 // RedisClient imported from '../types' (shared across all services)
 
@@ -43,18 +44,35 @@ function createTimerExpireCallback(
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
         try {
-            // Check if game is still active before ending turn (prevents race condition)
-            const game: GameState | null = await gameService.getGame(roomCode);
-            if (!game) {
-                logger.debug(`Timer expired for room ${roomCode} but no game found`);
-                return;
-            }
-            if (game.gameOver) {
-                logger.debug(`Timer expired for room ${roomCode} but game already over`);
+            // E-5 FIX: Use distributed lock to prevent race conditions when
+            // multiple instances fire timer expiration for the same room.
+            // Without this lock, concurrent endTurn calls could double-flip the turn.
+            let result: { currentTurn: string; previousTurn: string } | null = null;
+            try {
+                result = await withLock(`timer-expire:${roomCode}`, async () => {
+                    // Check if game is still active before ending turn (prevents race condition)
+                    const game: GameState | null = await gameService.getGame(roomCode);
+                    if (!game) {
+                        logger.debug(`Timer expired for room ${roomCode} but no game found`);
+                        return null;
+                    }
+                    if (game.gameOver) {
+                        logger.debug(`Timer expired for room ${roomCode} but game already over`);
+                        return null;
+                    }
+
+                    return await gameService.endTurn(roomCode, 'Timer');
+                }, { lockTimeout: 5000, maxRetries: 3 });
+            } catch (lockError) {
+                // If lock acquisition fails, another instance is handling this expiration
+                logger.debug(`Timer expiration lock not acquired for room ${roomCode}, skipping: ${(lockError as Error).message}`);
                 return;
             }
 
-            const result = await gameService.endTurn(roomCode, 'Timer');
+            if (!result) {
+                return;
+            }
+
             emitToRoom(roomCode, SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn,

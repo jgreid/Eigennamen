@@ -18,7 +18,15 @@
   "roles": {
     "spymaster": "Maître-espion",
     "clicker": "Agent de terrain",
-    "spectator": "Spectateur"
+    "spectator": "Spectateur",
+    "endTurnTitle": "Terminer le tour de votre équipe",
+    "onlyClickerCanEndTurn": "Seul l'Agent de terrain peut terminer le tour",
+    "waitForYourTurn": "Attendez le tour de votre équipe",
+    "gameIsOver": "La partie est terminée",
+    "selectTeamFirst": "Sélectionnez une équipe ci-dessus pour choisir un rôle",
+    "clickerOfflineCanClick": "Agent de terrain hors ligne – vous pouvez révéler des cartes",
+    "chooseRole": "Choisissez Maître-espion ou Agent de terrain",
+    "joinTeamFirst": "Veuillez d'abord rejoindre une équipe en cliquant sur le score d'une équipe"
   },
   "game": {
     "redTurn": "Tour de l'Équipe Rouge",
@@ -40,12 +48,31 @@
     "youAreClicker": "Vous êtes un Agent de terrain",
     "youAreSpectator": "Vous êtes Spectateur",
     "waitingForClue": "En attente d'un indice...",
-    "guessesRemaining": "{{count}} essais restants"
+    "guessesRemaining": "{{count}} essais restants",
+    "duetVictory": "VICTOIRE ! Tous les agents trouvés !",
+    "duetGameOverAssassin": "PARTIE TERMINÉE – Assassin révélé !",
+    "duetGameOverTimeout": "PARTIE TERMINÉE – Temps écoulé !",
+    "winnerAssassin": "{{team}} GAGNE ! (Assassin)",
+    "winner": "{{team}} GAGNE !",
+    "yourTurnGo": "Tour de {{team}} – C'est parti !",
+    "teamsTurn": "Tour de {{team}}",
+    "spymasterCannotReveal": "Les Maîtres-espions ne peuvent pas révéler de cartes",
+    "notYourTurn": "C'est le tour de {{team}}",
+    "joinTeamToClick": "Rejoignez une équipe et devenez agent de terrain pour révéler des cartes",
+    "onlyClickerCanReveal": "Seul l'agent de terrain peut révéler des cartes",
+    "onlyClickerCanEndTurn": "Seuls les agents de terrain peuvent terminer le tour",
+    "gameOverStartNew": "La partie est terminée – lancez une nouvelle partie pour continuer"
   },
   "board": {
     "clickToReveal": "Cliquer pour révéler",
     "revealed": "Révélée",
-    "assassin": "Assassin"
+    "assassin": "Assassin",
+    "gridPosition": "Ligne {{row}}, colonne {{col}}",
+    "assassinCard": "carte assassin",
+    "teamCard": "carte de l'équipe {{type}}",
+    "revealedCardLabel": "{{word}}, révélée comme {{typeLabel}}. {{position}}",
+    "unrevealedCardLabel": "{{word}}, carte non révélée. {{position}}. Appuyez sur Entrée pour révéler.",
+    "boardAriaLabel": "Plateau de jeu Codenames – grille de 5 par 5 avec des cartes de mots"
   },
   "timer": {
     "remaining": "restant",
@@ -76,7 +103,27 @@
     "joinGame": "Rejoindre une partie",
     "hostGame": "Créer une partie",
     "enterRoomIdShort": "Entrez un ID de salon",
-    "createRoomShort": "Créer un nouveau salon"
+    "createRoomShort": "Créer un nouveau salon",
+    "createGame": "Créer une partie",
+    "joining": "Connexion...",
+    "creating": "Création...",
+    "connecting": "Connexion...",
+    "joiningGame": "Connexion à la partie...",
+    "creatingGame": "Création de la partie...",
+    "roomNotFoundDetail": "Salon \"{{roomId}}\" introuvable – vérifiez l'ID du salon",
+    "invalidInputDetail": "Entrée invalide – vérifiez l'ID du salon et le pseudonyme",
+    "connectionFailedDetail": "Impossible de se connecter au serveur – vérifiez votre connexion et réessayez",
+    "joinFailed": "Échec de la connexion à la partie – veuillez réessayer",
+    "roomAlreadyExists": "Un salon avec cet ID existe déjà. Essayez un autre ID de salon.",
+    "createFailed": "Échec de la création de la partie – veuillez réessayer",
+    "gameCreatedShare": "Partie créée ! Partagez l'ID du salon : {{roomId}}",
+    "connectedToGame": "Connecté à la partie multijoueur !",
+    "reconnectionFailed": "Échec de la reconnexion – veuillez rafraîchir la page",
+    "nicknameUpdated": "Pseudonyme mis à jour !",
+    "offline": "hors ligne",
+    "you": "vous",
+    "kick": "Expulser",
+    "kickPlayer": "Expulser le joueur"
   },
   "settings": {
     "title": "Paramètres",

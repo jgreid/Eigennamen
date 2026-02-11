@@ -254,7 +254,6 @@ describe('Socket Handler Integration Tests', () => {
         // Clear mock storage before each test
         mockRedisStorage.clear();
         mockRedisSets.clear();
-        jest.clearAllMocks();
     });
 
     describe('Room Handlers', () => {
@@ -481,7 +480,11 @@ describe('Socket Handler Integration Tests', () => {
 
             playerClient.emit('room:join', { roomId: room.code, nickname: 'Player1' });
 
-            const [joinResponse, notification] = await Promise.all([joinPromise, hostNotifyPromise]);
+            const settledResults = await Promise.allSettled([joinPromise, hostNotifyPromise]);
+            const [joinResponse, notification] = settledResults.map(r => {
+                if (r.status === 'rejected') throw r.reason;
+                return r.value;
+            });
 
             expect(joinResponse.you.nickname).toBe('Player1');
             expect(notification.player.nickname).toBe('Player1');
@@ -616,7 +619,6 @@ describe('Chat Handlers', () => {
     beforeEach(() => {
         mockRedisStorage.clear();
         mockRedisSets.clear();
-        jest.clearAllMocks();
     });
 
     async function createChatClient(sessionId = uuidv4()) {

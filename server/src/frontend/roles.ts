@@ -5,6 +5,8 @@ import { state, ROLE_BANNER_CONFIG } from './state.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
+import { t } from './i18n.js';
+import { logger } from './logger.js';
 import type { ServerPlayerData } from './multiplayerTypes.js';
 
 // ---- Role-change state machine helpers ----
@@ -105,13 +107,13 @@ export function updateControls(): void {
 
         // Update tooltip/title based on state
         if (state.gameState.gameOver) {
-            endTurnBtn.title = 'Game is over';
+            endTurnBtn.title = t('roles.gameIsOver');
         } else if (isActiveClicker || clickerFallback) {
-            endTurnBtn.title = 'End your team\'s turn';
+            endTurnBtn.title = t('roles.endTurnTitle');
         } else if (state.playerTeam === state.gameState.currentTurn) {
-            endTurnBtn.title = 'Only the Clicker can end the turn';
+            endTurnBtn.title = t('roles.onlyClickerCanEndTurn');
         } else {
-            endTurnBtn.title = 'Wait for your team\'s turn';
+            endTurnBtn.title = t('roles.waitForYourTurn');
         }
     }
 
@@ -166,7 +168,7 @@ export function updateControls(): void {
     // Update role hint - only show when helpful (hide when role is in banner)
     if (roleHint) {
         if (!state.playerTeam) {
-            roleHint.textContent = 'Select a team above to choose a role';
+            roleHint.textContent = t('roles.selectTeamFirst');
             roleHint.classList.remove('hidden');
         } else if (isSpy || isClicker) {
             // Role already displayed in banner - hide redundant hint
@@ -184,10 +186,10 @@ export function updateControls(): void {
                 })();
 
             if (canClickDueToDisconnect) {
-                roleHint.textContent = 'Clicker offline - you can reveal cards';
+                roleHint.textContent = t('roles.clickerOfflineCanClick');
                 roleHint.classList.remove('hidden');
             } else {
-                roleHint.textContent = 'Choose Spymaster or Clicker';
+                roleHint.textContent = t('roles.chooseRole');
                 roleHint.classList.remove('hidden');
             }
         }
@@ -199,16 +201,16 @@ export function setTeam(team: string | null): void {
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         // ISSUE FIX: Must be in a room before setting team
         if (!CodenamesClient.isInRoom()) {
-            console.warn('setTeam: Not in a room yet, ignoring');
+            logger.warn('setTeam: Not in a room yet, ignoring');
             showToast('Please wait - joining room...', 'info');
             return;
         }
         // Prevent double-click while request in progress
         if (isChangingRole()) {
-            console.log('setTeam: blocked - role change in progress');
+            logger.debug('setTeam: blocked - role change in progress');
             return;
         }
-        console.log('setTeam: setting team to', team);
+        logger.debug('setTeam: setting team to', team);
 
         const operationId = generateOperationId();
         const target = team || 'spectate';
@@ -242,7 +244,7 @@ export function setTeam(team: string | null): void {
 
         CodenamesClient.setTeam(team, (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                console.warn('setTeam: server ack error, reverting optimistic update');
+                logger.warn('setTeam: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
             }
         });
@@ -250,7 +252,7 @@ export function setTeam(team: string | null): void {
         // Safety timeout in case ack is lost
         setTimeout(() => {
             if (state.roleChange.phase === 'changing_team' && state.roleChange.operationId === operationId) {
-                console.warn('setTeam: Safety timeout - clearing role change state');
+                logger.warn('setTeam: Safety timeout - clearing role change state');
                 clearRoleChange();
                 updateControls();
             }
@@ -285,16 +287,16 @@ export function setSpymaster(team: string): void {
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         // ISSUE FIX: Must be in a room before setting role
         if (!CodenamesClient.isInRoom()) {
-            console.warn('setSpymaster: Not in a room yet, ignoring');
+            logger.warn('setSpymaster: Not in a room yet, ignoring');
             showToast('Please wait - joining room...', 'info');
             return;
         }
         // Prevent double-click while request in progress
         if (isChangingRole()) {
-            console.log('setSpymaster: blocked - role change in progress');
+            logger.debug('setSpymaster: blocked - role change in progress');
             return;
         }
-        console.log('setSpymaster: setting spymaster for team', team, 'current playerTeam:', state.playerTeam);
+        logger.debug('setSpymaster: setting spymaster for team', team, 'current playerTeam:', state.playerTeam);
 
         const operationId = generateOperationId();
 
@@ -322,7 +324,7 @@ export function setSpymaster(team: string): void {
 
         const ackHandler = (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                console.warn('setSpymaster: server ack error, reverting optimistic update');
+                logger.warn('setSpymaster: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
             }
         };
@@ -347,7 +349,7 @@ export function setSpymaster(team: string): void {
         // Safety timeout in case ack is lost
         setTimeout(() => {
             if (state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                console.warn('setSpymaster: Safety timeout - clearing role change state');
+                logger.warn('setSpymaster: Safety timeout - clearing role change state');
                 clearRoleChange();
                 updateControls();
             }
@@ -374,16 +376,16 @@ export function setClicker(team: string): void {
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         // ISSUE FIX: Must be in a room before setting role
         if (!CodenamesClient.isInRoom()) {
-            console.warn('setClicker: Not in a room yet, ignoring');
+            logger.warn('setClicker: Not in a room yet, ignoring');
             showToast('Please wait - joining room...', 'info');
             return;
         }
         // Prevent double-click while request in progress
         if (isChangingRole()) {
-            console.log('setClicker: blocked - role change in progress');
+            logger.debug('setClicker: blocked - role change in progress');
             return;
         }
-        console.log('setClicker: setting clicker for team', team, 'current playerTeam:', state.playerTeam);
+        logger.debug('setClicker: setting clicker for team', team, 'current playerTeam:', state.playerTeam);
 
         const operationId = generateOperationId();
 
@@ -411,7 +413,7 @@ export function setClicker(team: string): void {
 
         const ackHandler = (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                console.warn('setClicker: server ack error, reverting optimistic update');
+                logger.warn('setClicker: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
             }
         };
@@ -436,7 +438,7 @@ export function setClicker(team: string): void {
         // Safety timeout in case ack is lost
         setTimeout(() => {
             if (state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                console.warn('setClicker: Safety timeout - clearing role change state');
+                logger.warn('setClicker: Safety timeout - clearing role change state');
                 clearRoleChange();
                 updateControls();
             }
@@ -461,7 +463,7 @@ export function setClicker(team: string): void {
 // Set spymaster for current team (used by unified role button)
 export function setSpymasterCurrent(): void {
     if (!state.playerTeam) {
-        showToast('Please join a team first by clicking on a team score', 'warning');
+        showToast(t('roles.joinTeamFirst'), 'warning');
         return;
     }
     setSpymaster(state.playerTeam);
@@ -470,7 +472,7 @@ export function setSpymasterCurrent(): void {
 // Set clicker for current team (used by unified role button)
 export function setClickerCurrent(): void {
     if (!state.playerTeam) {
-        showToast('Please join a team first by clicking on a team score', 'warning');
+        showToast(t('roles.joinTeamFirst'), 'warning');
         return;
     }
     setClicker(state.playerTeam);
