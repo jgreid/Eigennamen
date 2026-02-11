@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 
-// PHASE 4: Replay speed options (in milliseconds between moves)
+// Replay speed options (in milliseconds between moves)
 const REPLAY_SPEEDS: Record<string, number> = {
     '0.5x': 3000,  // Slow
     '1x': 1500,    // Normal (default)
@@ -391,7 +391,7 @@ export function toggleReplayPlayback(): void {
             clearInterval(state.replayInterval);
             state.replayInterval = null;
         }
-        // PHASE 4: Use selected replay speed
+        // Use selected replay speed
         const speedMs = REPLAY_SPEEDS[currentReplaySpeed] || 1500;
         state.replayInterval = setInterval(() => {
             const events = state.currentReplayData?.events || [];
@@ -419,7 +419,7 @@ export function toggleReplayPlayback(): void {
     updateReplayControls();
 }
 
-// PHASE 4: Cycle through replay speed options
+// Cycle through replay speed options
 export function cycleReplaySpeed(): void {
     const speedKeys = Object.keys(REPLAY_SPEEDS);
     const currentIndex = speedKeys.indexOf(currentReplaySpeed);
@@ -456,7 +456,7 @@ export function cycleReplaySpeed(): void {
     showToast(`Playback speed: ${currentReplaySpeed}`, 'info');
 }
 
-// PHASE 4: Copy shareable replay link to clipboard
+// Copy shareable replay link to clipboard
 export async function copyReplayLink(): Promise<void> {
     if (!state.currentReplayData?.id) {
         showToast('No replay data available', 'error');

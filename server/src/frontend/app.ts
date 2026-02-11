@@ -264,7 +264,7 @@ async function init(): Promise<void> {
     }
 }
 
-// ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
+// Use addEventListener instead of window.onload to avoid
 // overwriting existing handlers and follow modern best practices
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

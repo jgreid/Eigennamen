@@ -9,10 +9,9 @@ import { revealCardFromServer, showGameOver, updateScoreboard, updateTurnIndicat
 import { updateRoleBanner, updateControls, clearRoleChange, revertAndClearRoleChange } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
-// PHASE 2 FIX: Import shared constants for validation
 import { VALIDATION, UI, validateNickname, validateRoomCode } from './constants.js';
 
-// PHASE 2 FIX: AbortController for request cancellation
+// AbortController for request cancellation
 // Allows cancelling in-flight operations when user navigates away
 let joinAbortController: AbortController | null = null;
 let createAbortController: AbortController | null = null;
@@ -67,7 +66,7 @@ export function openMultiplayer(): void {
 }
 
 export function closeMultiplayer(): void {
-    // PHASE 2 FIX: Cancel any in-progress operations when modal closes
+    // Cancel any in-progress operations when modal closes
     cancelAllOperations();
     clearFormErrors();
     closeModal('multiplayer-modal');
@@ -165,7 +164,6 @@ async function handleJoinGame(): Promise<void> {
     const urlRoomCode = getRoomCodeFromURL();
     const joinBtn = document.getElementById('btn-mp-action') as HTMLButtonElement;
 
-    // PHASE 2 FIX: Use shared validation functions from constants.js
     const nicknameValidation = validateNickname(nickname);
     if (!nicknameValidation.valid) {
         setFieldError(nicknameValidation.error, 'join-nickname-error');
@@ -179,14 +177,13 @@ async function handleJoinGame(): Promise<void> {
     // Use user input if provided, otherwise fall back to URL room code
     const roomId = roomIdInput || urlRoomCode;
 
-    // PHASE 2 FIX: Use shared validation functions from constants.js
     const roomValidation = validateRoomCode(roomId);
     if (!roomValidation.valid) {
         setFieldError(roomValidation.error, 'join-error');
         return;
     }
 
-    // PHASE 2 FIX: Cancel any previous join operation and create new AbortController
+    // Cancel any previous join operation and create new AbortController
     cancelJoinOperation();
     joinAbortController = new AbortController();
     const signal = joinAbortController.signal;
@@ -261,7 +258,6 @@ async function handleCreateGame(): Promise<void> {
     const roomId = (document.getElementById('create-room-id') as HTMLInputElement).value.trim();
     const createBtn = document.getElementById('btn-mp-action') as HTMLButtonElement;
 
-    // PHASE 2 FIX: Use shared validation functions from constants.js
     const nicknameValidation = validateNickname(nickname);
     if (!nicknameValidation.valid) {
         setFieldError(nicknameValidation.error, 'create-nickname-error');
@@ -272,14 +268,13 @@ async function handleCreateGame(): Promise<void> {
         return;
     }
 
-    // PHASE 2 FIX: Use shared validation functions from constants.js
     const roomValidation = validateRoomCode(roomId);
     if (!roomValidation.valid) {
         setFieldError(roomValidation.error, 'create-error');
         return;
     }
 
-    // PHASE 2 FIX: Cancel any previous create operation and create new AbortController
+    // Cancel any previous create operation and create new AbortController
     cancelCreateOperation();
     createAbortController = new AbortController();
     const signal = createAbortController.signal;
@@ -367,7 +362,7 @@ export function onMultiplayerJoined(result: any, isHostParam: boolean = false): 
         syncLocalPlayerState(currentPlayer);
     }
 
-    // ISSUE FIX: Update global isHost from player data or parameter
+    // Update global isHost from player data or parameter
     // The parameter isHostParam indicates if this was a room creation
     // Also check CodenamesClient.player.isHost for reconnection cases
     state.isHost = isHostParam || CodenamesClient.player?.isHost || false;
@@ -1183,7 +1178,7 @@ export function setupMultiplayerListeners(): void {
         domListenerCleanup.push({ element: radio, event: 'change', handler });
     });
 
-    // PHASE 4 FIX: Handle room stats updates (spectator count, team counts)
+    // Handle room stats updates (spectator count, team counts)
     CodenamesClient.on('statsUpdated', (data: any) => {
         if (data.stats) {
             updateSpectatorCount(data.stats.spectatorCount || 0);
@@ -1191,7 +1186,7 @@ export function setupMultiplayerListeners(): void {
         }
     });
 
-    // PHASE 4 FIX: Handle spectator chat messages
+    // Handle spectator chat messages
     CodenamesClient.on('spectatorChatMessage', (data: any) => {
         handleSpectatorChatMessage(data);
     });
@@ -1207,7 +1202,6 @@ const multiplayerEventNames: string[] = [
     'kicked', 'playerKicked', 'settingsUpdated',
     'hostChanged', 'roomWarning',
     'historyResult', 'replayData',
-    // PHASE 4 FIX: Add spectator-related events
     'statsUpdated', 'spectatorChatMessage'
 ];
 
@@ -1439,7 +1433,6 @@ export function clearRoomCodeFromURL(): void {
  */
 export function checkURLForRoomJoin(): void {
     const roomCode = getRoomCodeFromURL();
-    // PHASE 2 FIX: Use shared validation from constants.js
     const roomValidation = validateRoomCode(roomCode);
     if (roomCode && roomValidation.valid) {
         // Pre-fill nickname from storage
@@ -1543,7 +1536,7 @@ export function updateDuetInfoBar(greenFound: number, timerTokens: number): void
     if (tokensEl && timerTokens !== undefined) tokensEl.textContent = String(timerTokens);
 }
 
-// PHASE 4: Update spectator count display
+// Update spectator count display
 export function updateSpectatorCount(count: number): void {
     // Update inline spectator count in multiplayer indicator
     const mpSpectatorCount = document.getElementById('mp-spectator-count');
@@ -1571,7 +1564,7 @@ export function updateSpectatorCount(count: number): void {
     state.spectatorCount = count;
 }
 
-// PHASE 4: Update room stats (team counts, spectator count, etc.)
+// Update room stats (team counts, spectator count, etc.)
 export function updateRoomStats(stats: any): void {
     if (!stats) return;
 
@@ -1595,7 +1588,7 @@ export function updateRoomStats(stats: any): void {
     state.roomStats = stats;
 }
 
-// PHASE 4: Handle spectator chat messages
+// Handle spectator chat messages
 function handleSpectatorChatMessage(data: any): void {
     // Validate message data before rendering into DOM
     if (!data || typeof data.message !== 'string') return;
@@ -1628,7 +1621,7 @@ function handleSpectatorChatMessage(data: any): void {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// PHASE 4: Send a spectator chat message
+// Send a spectator chat message
 export function sendSpectatorChat(message: string): void {
     if (!message?.trim()) return;
     if (!CodenamesClient?.isConnected()) return;

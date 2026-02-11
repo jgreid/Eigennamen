@@ -109,7 +109,7 @@ function getModalCloseHandler(modalId: string): (() => void) | undefined {
 }
 
 // ========== MODAL STACK ==========
-// PHASE 2 FIX: Implement modal stack for proper focus management when stacking modals
+// Modal stack for proper focus management when stacking modals
 // Each entry contains: { modal, previousFocus }
 interface ModalStackEntry {
     modal: HTMLElement;
@@ -123,7 +123,7 @@ export function openModal(modalId: string): void {
     const modal = document.getElementById(modalId);
     if (!modal) return;
 
-    // PHASE 2 FIX: Push current state onto modal stack before opening new modal
+    // Push current state onto modal stack before opening new modal
     // This preserves focus context when multiple modals are opened
     modalStack.push({
         modal: modal,
@@ -153,7 +153,7 @@ export function closeModal(modalId: string): void {
 
     modal.classList.remove('active');
 
-    // PHASE 2 FIX: Pop modal from stack and restore previous focus
+    // Pop modal from stack and restore previous focus
     // Find and remove this modal from the stack (it might not be at the top if closed out of order)
     const stackIndex = modalStack.findIndex(entry => entry.modal === modal);
     let previousFocus: Element | null = null;

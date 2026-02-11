@@ -219,7 +219,7 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
 /**
  * Optimized card reveal using Lua script
  */
-export async function revealCardOptimized(
+async function revealCardOptimized(
     roomCode: string,
     index: number,
     playerNickname: string = 'Unknown',
@@ -390,7 +390,7 @@ async function revealCardFallback(
 /**
  * Optimized clue giving using Lua script
  */
-export async function giveClueOptimized(
+async function giveClueOptimized(
     roomCode: string,
     team: Team,
     word: string,
@@ -583,7 +583,7 @@ async function giveClueTransactional(
 /**
  * Optimized end turn using Lua script
  */
-export async function endTurnOptimized(
+async function endTurnOptimized(
     roomCode: string,
     playerNickname: string = 'Unknown',
     expectedTeam: string = ''

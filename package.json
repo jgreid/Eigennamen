@@ -1,33 +1,14 @@
 {
-  "name": "risley-codenames",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "A web-based implementation of the popular board game Codenames, optimized for remote play over Zoom or other video conferencing platforms.",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "name": "codenames-online",
+  "version": "2.2.0",
+  "description": "A web-based multiplayer implementation of the board game Codenames",
+  "private": true,
+  "license": "GPL-3.0",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
-  },
-  "repository": {
-    "type": "git",
-    "url": "http://local_proxy@127.0.0.1:24705/git/jgreid/Risley-Codenames"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@types/node": "^25.0.10",
-    "jsdom": "^26.1.0",
-    "vite": "^6.3.0"
+    "dev": "cd server && npm run dev",
+    "test": "cd server && npm test",
+    "build": "cd server && npm run build",
+    "lint": "cd server && npm run lint",
+    "typecheck": "cd server && npm run typecheck"
   }
 }

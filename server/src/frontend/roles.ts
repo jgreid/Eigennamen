@@ -196,7 +196,7 @@ export function updateControls(): void {
 export function setTeam(team: string | null): void {
     // In multiplayer mode, send to server and let server response update state
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
-        // ISSUE FIX: Must be in a room before setting team
+        // Must be in a room before setting team
         if (!CodenamesClient.isInRoom()) {
             console.warn('setTeam: Not in a room yet, ignoring');
             showToast('Please wait - joining room...', 'info');
@@ -282,7 +282,7 @@ export function setTeam(team: string | null): void {
 export function setSpymaster(team: string): void {
     // In multiplayer mode, send to server and let server response update state
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
-        // ISSUE FIX: Must be in a room before setting role
+        // Must be in a room before setting role
         if (!CodenamesClient.isInRoom()) {
             console.warn('setSpymaster: Not in a room yet, ignoring');
             showToast('Please wait - joining room...', 'info');
@@ -371,7 +371,7 @@ export function setSpymaster(team: string): void {
 export function setClicker(team: string): void {
     // In multiplayer mode, send to server and let server response update state
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
-        // ISSUE FIX: Must be in a room before setting role
+        // Must be in a room before setting role
         if (!CodenamesClient.isInRoom()) {
             console.warn('setClicker: Not in a room yet, ignoring');
             showToast('Please wait - joining room...', 'info');

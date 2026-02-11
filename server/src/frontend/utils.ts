@@ -197,7 +197,7 @@ export function fitCardText(board: HTMLElement): void {
         const cards = board.querySelectorAll('.card:not(.multi-word)');
         const MIN_FONT_SIZE = 8; // px
 
-        // Phase 1: batch-read all measurements to avoid layout thrashing
+        // Batch-read all measurements to avoid layout thrashing
         const measurements: { card: HTMLElement; fontSize: number; scrollWidth: number; clientWidth: number }[] = [];
         for (const card of cards) {
             measurements.push({
@@ -208,7 +208,7 @@ export function fitCardText(board: HTMLElement): void {
             });
         }
 
-        // Phase 2: batch-write only the cards that need shrinking
+        // Batch-write only the cards that need shrinking
         for (const m of measurements) {
             if (m.scrollWidth > m.clientWidth) {
                 let fs = m.fontSize;

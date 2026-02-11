@@ -239,7 +239,7 @@ export class MemoryStorage {
         const toEvict = Math.max(Math.floor(total * 0.1), total - MAX_TOTAL_KEYS);
         let evicted = 0;
 
-        // Phase 1: evict expired keys (should already be cleaned but check anyway)
+        // Evict expired keys (should already be cleaned but check anyway)
         const now = Date.now();
         for (const [key, expiry] of this.expiries.entries()) {
             if (evicted >= toEvict) break;
@@ -250,7 +250,7 @@ export class MemoryStorage {
         }
         if (evicted >= toEvict) return evicted;
 
-        // Phase 2: evict keys with soonest TTL (volatile-ttl strategy)
+        // Evict keys with soonest TTL (volatile-ttl strategy)
         const ttlEntries: Array<{ key: string; expiry: number }> = [];
         for (const [key, expiry] of this.expiries.entries()) {
             ttlEntries.push({ key, expiry });

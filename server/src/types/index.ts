@@ -24,5 +24,3 @@ export * from './services';
 // Configuration types
 export * from './config';
 
-// Utility types
-export * from './utils';
