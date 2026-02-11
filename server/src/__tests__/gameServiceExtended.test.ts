@@ -824,7 +824,7 @@ describe('revealCardOptimized', () => {
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GAME' }));
 
         await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.ROOM_NOT_FOUND,
+            code: ERROR_CODES.GAME_NOT_STARTED,
             message: 'No active game'
         });
     });
@@ -982,7 +982,7 @@ describe('revealCard', () => {
         mockRedis.get.mockResolvedValue(null);
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.ROOM_NOT_FOUND,
+            code: ERROR_CODES.GAME_NOT_STARTED,
             message: 'No active game'
         });
     });
@@ -1174,7 +1174,7 @@ describe('giveClue', () => {
 
         await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
             .rejects.toMatchObject({
-                code: ERROR_CODES.ROOM_NOT_FOUND
+                code: ERROR_CODES.GAME_NOT_STARTED
             });
     });
 
@@ -1364,7 +1364,7 @@ describe('endTurn', () => {
 
         await expect(endTurn('TEST01'))
             .rejects.toMatchObject({
-                code: ERROR_CODES.ROOM_NOT_FOUND
+                code: ERROR_CODES.GAME_NOT_STARTED
             });
     });
 
@@ -1473,7 +1473,7 @@ describe('forfeitGame', () => {
 
         await expect(forfeitGame('TEST01'))
             .rejects.toMatchObject({
-                code: ERROR_CODES.ROOM_NOT_FOUND
+                code: ERROR_CODES.GAME_NOT_STARTED
             });
     });
 

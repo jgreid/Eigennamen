@@ -198,7 +198,7 @@ export class GameStateError extends GameError {
 
     static noActiveGame(): GameStateError {
         return new GameStateError(
-            ERROR_CODES.ROOM_NOT_FOUND,
+            ERROR_CODES.GAME_NOT_STARTED,
             'No active game'
         );
     }

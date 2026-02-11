@@ -1,19 +1,21 @@
 /**
  * Frontend Rendering Security Tests
  *
- * Verifies that all DOM rendering functions are safe from XSS attacks.
- * Tests the functions that build HTML from server-provided data.
+ * Verifies that DOM rendering patterns used throughout the frontend are
+ * safe from XSS attacks. Tests the functions that build HTML from
+ * server-provided data.
+ *
+ * escapeHTML is imported from the real utils module.
+ * updatePlayerList and renderGameHistoryItem are local reimplementations
+ * that mirror the production code patterns (in multiplayer.ts and history.ts
+ * respectively). They are tested here as DOM security pattern tests because
+ * the production versions depend on CodenamesClient and specific DOM elements
+ * that would require complex mocking.
  */
 
-// jsdom provides document, Element, etc. via jest.config.frontend.js
+import { escapeHTML } from '../../frontend/utils';
 
 // ==================== escapeHTML ====================
-// Re-implement the frontend escapeHTML for testing (uses DOM textContent)
-function escapeHTML(str: string): string {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
 
 describe('escapeHTML', () => {
     it('escapes < and > characters', () => {
@@ -51,8 +53,9 @@ describe('escapeHTML', () => {
     });
 });
 
-// ==================== updatePlayerList (DOM-based) ====================
-// Re-implement the fixed updatePlayerList to test its DOM output
+// ==================== updatePlayerList (DOM pattern test) ====================
+// Mirrors the production updatePlayerList from multiplayer.ts
+// but takes explicit params instead of reading from CodenamesClient.
 interface MockPlayer {
     sessionId: string;
     nickname: string;
@@ -219,7 +222,9 @@ describe('updatePlayerList', () => {
     });
 });
 
-// ==================== renderGameHistory (DOM-based) ====================
+// ==================== renderGameHistory (DOM pattern test) ====================
+// Mirrors the production renderGameHistory from history.ts
+// but operates on a passed-in element instead of reading from document.getElementById.
 interface MockGame {
     id: string;
     timestamp: number;
@@ -327,158 +332,5 @@ describe('renderGameHistory', () => {
         const blueScore = listEl.querySelector('.blue-score');
         expect(redScore!.textContent).toBe('9');
         expect(blueScore!.textContent).toBe('8');
-    });
-});
-
-// ==================== URL encoding/decoding ====================
-// Re-implement the frontend URL functions for testing
-
-function escapeWordDelimiter(word: string): string {
-    return word.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
-}
-
-function unescapeWordDelimiter(word: string): string {
-    return word.replace(/\\\|/g, '|').replace(/\\\\/g, '\\');
-}
-
-function encodeWordsForURL(words: string[]): string {
-    return btoa(words.map(escapeWordDelimiter).join('|')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function decodeWordsFromURL(encoded: string): string[] | null {
-    try {
-        const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
-        const decoded = atob(padded);
-        const parts: string[] = [];
-        let current = '';
-        let i = 0;
-        while (i < decoded.length) {
-            if (decoded[i] === '\\' && i + 1 < decoded.length) {
-                current += decoded[i] + decoded[i + 1];
-                i += 2;
-            } else if (decoded[i] === '|') {
-                parts.push(current);
-                current = '';
-                i++;
-            } else {
-                current += decoded[i];
-                i++;
-            }
-        }
-        parts.push(current);
-        return parts.map(unescapeWordDelimiter).filter(w => w.length > 0);
-    } catch {
-        return null;
-    }
-}
-
-describe('URL word encoding/decoding', () => {
-    it('round-trips a basic word list', () => {
-        const words = ['APPLE', 'BANANA', 'CHERRY'];
-        const encoded = encodeWordsForURL(words);
-        const decoded = decodeWordsFromURL(encoded);
-        expect(decoded).toEqual(words);
-    });
-
-    it('handles words containing pipe characters', () => {
-        const words = ['A|B', 'C|D'];
-        const encoded = encodeWordsForURL(words);
-        const decoded = decodeWordsFromURL(encoded);
-        expect(decoded).toEqual(words);
-    });
-
-    it('handles words containing backslashes', () => {
-        const words = ['A\\B', 'C\\D'];
-        const encoded = encodeWordsForURL(words);
-        const decoded = decodeWordsFromURL(encoded);
-        expect(decoded).toEqual(words);
-    });
-
-    it('handles empty word list', () => {
-        const encoded = encodeWordsForURL([]);
-        const decoded = decodeWordsFromURL(encoded);
-        expect(decoded).toEqual([]);
-    });
-
-    it('returns null for invalid base64', () => {
-        const result = decodeWordsFromURL('!!!invalid!!!');
-        expect(result).toBeNull();
-    });
-
-    it('handles words with special HTML characters safely', () => {
-        const words = ['<script>alert(1)</script>', 'WORD&AMP'];
-        const encoded = encodeWordsForURL(words);
-        const decoded = decodeWordsFromURL(encoded);
-        expect(decoded).toEqual(words);
-    });
-
-    it('round-trips 25 words (full board)', () => {
-        const words = Array.from({ length: 25 }, (_, i) => `WORD_${i}`);
-        const encoded = encodeWordsForURL(words);
-        const decoded = decodeWordsFromURL(encoded);
-        expect(decoded).toEqual(words);
-    });
-});
-
-// ==================== formatDuration ====================
-function formatDuration(ms: number): string {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-describe('formatDuration', () => {
-    it('formats zero', () => {
-        expect(formatDuration(0)).toBe('0:00');
-    });
-
-    it('formats seconds only', () => {
-        expect(formatDuration(45000)).toBe('0:45');
-    });
-
-    it('formats minutes and seconds', () => {
-        expect(formatDuration(125000)).toBe('2:05');
-    });
-
-    it('pads single-digit seconds', () => {
-        expect(formatDuration(61000)).toBe('1:01');
-    });
-});
-
-// ==================== getCardFontClass ====================
-function getCardFontClass(word: string): string {
-    const len = word.length;
-    if (len <= 8) return 'font-lg';
-    if (len <= 11) return 'font-md';
-    if (len <= 14) return 'font-sm';
-    if (len <= 17) return 'font-xs';
-    return 'font-min';
-}
-
-describe('getCardFontClass', () => {
-    it('returns font-lg for short words', () => {
-        expect(getCardFontClass('HELLO')).toBe('font-lg');
-    });
-
-    it('returns font-md for medium words', () => {
-        expect(getCardFontClass('BASKETBALL')).toBe('font-md');
-    });
-
-    it('returns font-sm for long words', () => {
-        expect(getCardFontClass('INTERNATIONAL')).toBe('font-sm');
-    });
-
-    it('returns font-xs for very long words', () => {
-        expect(getCardFontClass('EXTRAORDINARILY')).toBe('font-xs');
-    });
-
-    it('returns font-min for extremely long words', () => {
-        expect(getCardFontClass('SUPERCALIFRAGILISTIC')).toBe('font-min');
-    });
-
-    it('handles boundary at 8 characters', () => {
-        expect(getCardFontClass('12345678')).toBe('font-lg');
-        expect(getCardFontClass('123456789')).toBe('font-md');
     });
 });
