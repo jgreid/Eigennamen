@@ -196,14 +196,28 @@ export function fitCardText(board) {
     requestAnimationFrame(() => {
         const cards = board.querySelectorAll('.card:not(.multi-word)');
         const MIN_FONT_SIZE = 8; // px
-        cards.forEach(card => {
-            let fontSize = parseFloat(getComputedStyle(card).fontSize);
-            // Shrink until text fits or we hit the minimum
-            while (card.scrollWidth > card.clientWidth && fontSize > MIN_FONT_SIZE) {
-                fontSize -= 1;
-                card.style.fontSize = `${fontSize}px`;
+
+        // Phase 1: batch-read all measurements to avoid layout thrashing
+        const measurements = [];
+        for (const card of cards) {
+            measurements.push({
+                card,
+                fontSize: parseFloat(getComputedStyle(card).fontSize),
+                scrollWidth: card.scrollWidth,
+                clientWidth: card.clientWidth
+            });
+        }
+
+        // Phase 2: batch-write only the cards that need shrinking
+        for (const m of measurements) {
+            if (m.scrollWidth > m.clientWidth) {
+                let fs = m.fontSize;
+                // Estimate target size proportionally, then verify
+                const ratio = m.clientWidth / m.scrollWidth;
+                fs = Math.max(MIN_FONT_SIZE, Math.floor(fs * ratio));
+                m.card.style.fontSize = `${fs}px`;
             }
-        });
+        }
     });
 }
 

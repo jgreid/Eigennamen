@@ -185,12 +185,41 @@ export function renderReplayBoard() {
     const words = state.currentReplayData?.initialBoard?.words || [];
 
     board.innerHTML = '';
+    board.setAttribute('role', 'grid');
+    board.setAttribute('aria-label', 'Replay game board');
+
     words.forEach((word, index) => {
         const card = document.createElement('div');
         card.className = 'replay-card';
         card.dataset.index = String(index);
         card.textContent = word;
+        card.setAttribute('role', 'gridcell');
+        card.setAttribute('tabindex', index === 0 ? '0' : '-1');
+        card.setAttribute('aria-label', `Card ${index + 1}: ${word}`);
         board.appendChild(card);
+    });
+
+    // Arrow-key navigation within replay board
+    board.addEventListener('keydown', (e) => {
+        const focused = document.activeElement;
+        if (!focused || !focused.classList.contains('replay-card')) return;
+        const idx = Number(focused.dataset.index);
+        const cols = 5; // 5x5 board
+        let next = -1;
+        switch (e.key) {
+            case 'ArrowRight': next = idx + 1; break;
+            case 'ArrowLeft':  next = idx - 1; break;
+            case 'ArrowDown':  next = idx + cols; break;
+            case 'ArrowUp':    next = idx - cols; break;
+            default: return;
+        }
+        const target = board.querySelector(`[data-index="${next}"]`);
+        if (target) {
+            e.preventDefault();
+            target.setAttribute('tabindex', '0');
+            focused.setAttribute('tabindex', '-1');
+            target.focus();
+        }
     });
 
     // Apply revealed state up to current index
@@ -357,6 +386,11 @@ export function toggleReplayPlayback() {
     state.replayPlaying = !state.replayPlaying;
 
     if (state.replayPlaying) {
+        // Guard: clear any leftover interval to prevent duplicates on rapid toggle
+        if (state.replayInterval) {
+            clearInterval(state.replayInterval);
+            state.replayInterval = null;
+        }
         // PHASE 4: Use selected replay speed
         const speedMs = REPLAY_SPEEDS[currentReplaySpeed] || 1500;
         state.replayInterval = setInterval(() => {

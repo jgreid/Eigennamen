@@ -410,7 +410,7 @@ export async function resumeTimer(
 /**
  * Add time to an active timer (atomic operation)
  */
-// eslint-disable-next-line require-await -- callers await this; delegates to async addTimeLocal
+
 export async function addTime(
     roomCode: string,
     secondsToAdd: number,

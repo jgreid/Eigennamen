@@ -9,7 +9,7 @@ const gameService = require('../services/gameService');
 const roomService = require('../services/roomService');
 const playerService = require('../services/playerService');
 const timerService = require('../services/timerService');
-const { createMockRedis, createMockLogger, createMockGame, createMockRoom, createMockPlayer } = require('./helpers/mocks');
+const { createMockRedis, createMockLogger, createMockRoom, createMockGame } = require('./helpers/mocks');
 
 // Mock dependencies
 jest.mock('../config/redis', () => ({
@@ -39,11 +39,10 @@ const { getRedis } = require('../config/redis');
 
 describe('Error Scenarios', () => {
     let mockRedis;
-    let mockLogger;
 
     beforeEach(() => {
         mockRedis = createMockRedis();
-        mockLogger = createMockLogger();
+        createMockLogger();
         getRedis.mockReturnValue(mockRedis);
         jest.clearAllMocks();
     });

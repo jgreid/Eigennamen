@@ -115,7 +115,7 @@ export function validateEnv(): boolean {
             warnings.push('SECURITY WARNING: JWT_SECRET not set - user authentication is disabled');
             warnings.push('  - Set JWT_SECRET to enable authenticated sessions: fly secrets set JWT_SECRET=$(openssl rand -hex 32)');
         } else if (process.env['JWT_SECRET'].length < 32) {
-            warnings.push('SECURITY WARNING: JWT_SECRET is too short (should be at least 32 characters)');
+            errors.push('JWT_SECRET must be at least 32 characters in production. Generate one with: openssl rand -hex 32');
         }
         if (process.env['CORS_ORIGIN'] === '*') {
             warnings.push('CORS_ORIGIN is set to "*" in production - consider restricting');

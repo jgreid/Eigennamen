@@ -1,7 +1,7 @@
 # Roadmap — Die Eigennamen (Codenames Online)
 
-**Last Updated:** February 11, 2026 (Comprehensive Review)
-**Project Version:** v2.2.0
+**Last Updated:** February 11, 2026 (Tier C Implementation)
+**Project Version:** v2.3.0
 
 ---
 
@@ -15,9 +15,10 @@
 | Total Tests | ~2,675 |
 | Backend Coverage | 94%+ lines/statements |
 | TypeScript | Clean (0 errors) |
-| ESLint | 8 errors (unused vars in tests), 117 warnings |
+| ESLint | Clean (0 errors, 0 warnings) |
 | npm audit | 0 vulnerabilities |
 | Critical/High Issues | 0 open (all 10 fixed) |
+| Medium Issues (Tier C) | 0 open (all 15 completed) |
 | Code Quality | Production-ready |
 
 ### Completed Features
@@ -42,7 +43,7 @@
 - Audio notifications (Web Audio API)
 - Distributed locks for concurrent operations
 - 6 Redis Lua scripts for atomic game operations
-- Multi-stage Docker build with non-root user
+- Multi-stage Docker build with non-root user and resource limits
 - CI/CD pipeline: 6 quality gates (test, typecheck, lint, security, Docker, E2E)
 - CodeQL weekly security scanning
 
@@ -72,31 +73,39 @@
 | HIGH-7 | Fix accessibility listener leak | Memory |
 | HIGH-8 | Cap connectionsPerIP map size | Security |
 
+### Tier C: Medium Priority Improvements (Feb 11, 2026) — All Done
+
+| ID | Task | Category | Notes |
+|----|------|----------|-------|
+| C-1 | Use safeEmit in chat handlers | Consistency | Replaced raw `io.to().emit()` with `safeEmitToRoom`/`safeEmitToPlayer` |
+| C-2 | Add timeout to game:clue handler | Resilience | Wrapped `giveClue` with `withTimeout(TIMEOUTS.GAME_ACTION)` |
+| C-3 | Fix session age validation | Security | Removed `connectedAt` fallback — always uses `createdAt` |
+| C-4 | Enforce JWT secret length in production | Security | Short JWT secret now throws error (not just warning) |
+| C-5 | Add word uniqueness validation | Validation | Zod `.refine()` checks case-insensitive uniqueness |
+| C-6 | Replay board keyboard navigation | Accessibility | ARIA roles, tabindex, arrow-key grid navigation |
+| C-7 | Batch role reset for new games | Performance | `Promise.all()` instead of sequential updates |
+| C-8 | Unify nickname validation regex | Consistency | Shared Unicode-aware regex in `constants.js` |
+| C-9 | Fix fitCardText layout thrashing | Performance | Batch-read then batch-write DOM pattern |
+| C-10 | Guard replay interval creation | Bug | `clearInterval` before creating new interval |
+| C-11 | Expire memory-mode audit logs | Memory | Already implemented via ring buffer (MAX_LOGS_PER_CATEGORY=10000) |
+| C-12 | Make timeouts configurable via env vars | Operations | `TIMEOUT_*` env var overrides for all timeout values |
+| C-13 | Add Docker Compose resource limits | Infrastructure | Memory/CPU caps: api 512M/1cpu, db 256M/0.5cpu, redis 128M/0.5cpu |
+| C-14 | Validate settings values | Validation | Already handled by Zod `roomSettingsSchema` |
+| C-15 | Token rotation on use | Security | Already implemented in `roomHandlers.ts` via `ROTATE_SESSION_ON_RECONNECT` |
+
+### ESLint Cleanup (Feb 11, 2026) — All Done
+
+- Fixed 8 ESLint errors (unused variables in test files)
+- Fixed 117 ESLint warnings (non-null assertions, consistent-type-imports, indentation)
+- Added test file override to allow non-null assertions in tests
+- Converted `import()` type annotations to proper `import type` statements
+- Replaced all source-file non-null assertions with proper null checks
+
 ---
 
 ## Remaining Work
 
-### Tier C: Medium Priority (15 items)
-
-| ID | Task | Category | Effort |
-|----|------|----------|--------|
-| C-1 | Use safeEmit in chat handlers | Consistency | Low |
-| C-2 | Add timeout to game:clue handler | Resilience | Low |
-| C-3 | Fix session age validation (`connectedAt` fallback bypasses 8h limit) | Security | Low |
-| C-4 | Enforce JWT secret length in production (throw, not warn) | Security | Low |
-| C-5 | Add word uniqueness validation in Zod schema | Validation | Low |
-| C-6 | Replay board keyboard navigation (ARIA roles, tabindex) | Accessibility | Medium |
-| C-7 | Batch role reset for new games (pipeline/Lua instead of N ops) | Performance | Medium |
-| C-8 | Unify nickname validation regex (multiplayer.js vs constants.js) | Consistency | Low |
-| C-9 | Fix fitCardText layout thrashing (batch reads/writes) | Performance | Low |
-| C-10 | Guard replay interval creation (prevent duplicates on rapid toggle) | Bug | Low |
-| C-11 | Expire memory-mode audit logs (TTL or max entries) | Memory | Low |
-| C-12 | Make timeouts configurable via env vars | Operations | Low |
-| C-13 | Add Docker Compose resource limits | Infrastructure | Low |
-| C-14 | Validate settings values (team names in updateSettings) | Validation | Low |
-| C-15 | Implement token rotation on use | Security | Medium |
-
-### Tier D: Lower Priority / Future (15 items)
+### Tier D: Lower Priority / Future (14 items)
 
 | ID | Task | Category | Effort |
 |----|------|----------|--------|
@@ -114,7 +123,6 @@
 | D-12 | Add `SECURITY.md` vulnerability disclosure policy | Docs | Low |
 | D-13 | Add Dependabot config for automated dependency updates | CI/CD | Low |
 | D-14 | Add ReDoS regression tests for clue regex | Testing | Low |
-| D-15 | Fix ESLint errors (8 unused vars in test files) | Code Quality | Low |
 
 ---
 
@@ -155,7 +163,6 @@
 | multiplayer.js size | 1,922 lines | Medium — split into submodules |
 | Frontend debug logging | Always-on console.log | Low — gate behind config |
 | Mixed module exports | Some handlers dual-export CJS + ESM | Low — standardize |
-| ESLint warnings | 117 non-null assertions in tests | Low |
 | Coverage threshold mismatch | package.json (80%) vs jest.config.ts.js (65/80/75/75) | Low — align |
 
 ### Performance Targets

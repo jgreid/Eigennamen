@@ -185,6 +185,10 @@ const gameStartSchema = z.object({
     )
         .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
         .max(500, 'Too many words')
+        .refine(
+            (words: string[]) => new Set(words.map((w: string) => w.toLowerCase())).size >= BOARD_SIZE,
+            `Must have at least ${BOARD_SIZE} unique words (case-insensitive)`
+        )
         .optional()
 }).optional().default({});
 

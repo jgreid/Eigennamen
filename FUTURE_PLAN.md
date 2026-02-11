@@ -1,22 +1,23 @@
 # Die Eigennamen — Future Development Plan
 
-**Last Updated:** February 11, 2026 (Comprehensive Review)
-**Version:** v2.2.0
+**Last Updated:** February 11, 2026 (Tier C Implementation)
+**Version:** v2.3.0
 
 This document outlines the development plan for hardening existing functionality and introducing new features, based on comprehensive codebase reviews conducted in February 2026.
 
 ## Executive Summary
 
-The codebase is **production-ready** with strong defensive programming patterns including Lua script atomicity, comprehensive error handling, race condition prevention, and defense-in-depth security. All critical and high-priority issues identified during deep review have been fixed. 30 medium/lower-priority improvements remain as the focus of ongoing development.
+The codebase is **production-ready** with strong defensive programming patterns including Lua script atomicity, comprehensive error handling, race condition prevention, and defense-in-depth security. All critical, high, and medium-priority (Tier C) issues have been fixed. ESLint reports 0 errors and 0 warnings. Only lower-priority Tier D items remain.
 
 | Area | Status | Priority |
 |------|--------|----------|
-| Backend Services | Strong — all critical/high bugs fixed | Maintenance |
-| WebSocket Layer | Strong — spectator handler fix verified | Maintenance |
-| Frontend | Good — i18n gap fixed; chat UI still missing | Medium |
+| Backend Services | Excellent — all critical/high/medium bugs fixed | Maintenance |
+| WebSocket Layer | Excellent — safeEmit consistency, timeouts on all handlers | Maintenance |
+| Frontend | Good — accessibility, perf, validation improved; chat UI still missing | Medium |
 | Testing | Strong — 2,675 total tests; multiplayer E2E added | Maintenance |
-| Security | Strong — token invalidation + IP map cap fixes deployed | Low (targeted) |
-| Infrastructure | Excellent — CI/CD, Docker, Fly.io | Maintenance |
+| Security | Excellent — session age fix, JWT enforcement, token rotation verified | Maintenance |
+| Infrastructure | Excellent — CI/CD, Docker with resource limits, Fly.io | Maintenance |
+| Code Quality | Excellent — 0 ESLint errors/warnings, 0 TypeScript errors | Maintenance |
 
 ---
 
@@ -85,9 +86,38 @@ The codebase is **production-ready** with strong defensive programming patterns 
 - HIGH-7: Accessibility keyboard listener leak fixed via shared closeOverlay()
 - HIGH-8: connectionsPerIP map capped at MAX_TRACKED_IPS=10000
 
-### Remaining Security Items (Medium)
-- SEC-3: Session age validation uses `connectedAt` fallback — frequent reconnectors bypass 8h limit
-- SEC-4: JWT secret length only warned in production, not enforced
+### Remaining Security Items (Medium) — All Fixed in Tier C
+- SEC-3: ✅ Session age validation — `connectedAt` fallback removed, always uses `createdAt` (C-3)
+- SEC-4: ✅ JWT secret length — now throws error in production if < 32 chars (C-4)
+
+---
+
+## Phase 3.6: Tier C Medium Priority Improvements — COMPLETED
+
+> All 15 items completed (12 implemented, 3 verified already done).
+
+### Code Changes
+- C-1: `safeEmitToRoom`/`safeEmitToPlayer` in chat handlers (consistency)
+- C-2: `withTimeout()` wrapper on `game:clue` handler (resilience)
+- C-3: Removed `connectedAt` fallback in session age validation (security)
+- C-4: JWT secret < 32 chars now throws in production (security)
+- C-5: Zod `.refine()` for case-insensitive word uniqueness (validation)
+- C-6: ARIA roles, tabindex, arrow-key navigation on replay board (accessibility)
+- C-7: `Promise.all()` for batched role reset (performance)
+- C-8: Shared Unicode-aware `NICKNAME_REGEX` in constants.js (consistency)
+- C-9: Batch-read then batch-write DOM pattern in fitCardText (performance)
+- C-10: `clearInterval` guard before creating new replay interval (bug fix)
+- C-12: `TIMEOUT_*` env var overrides for all timeout values (operations)
+- C-13: Docker Compose resource limits: api 512M/1cpu, db 256M/0.5cpu, redis 128M/0.5cpu
+
+### Already Implemented (Verified)
+- C-11: Memory audit log expiration — ring buffer with MAX_LOGS_PER_CATEGORY=10000
+- C-14: Settings value validation — handled by Zod `roomSettingsSchema`
+- C-15: Token rotation — implemented in roomHandlers via `ROTATE_SESSION_ON_RECONNECT`
+
+### ESLint Cleanup
+- 8 errors → 0 errors (unused variables removed from test files)
+- 117 warnings → 0 warnings (non-null assertions, type imports, indentation fixed)
 
 ---
 
@@ -113,7 +143,7 @@ Four complete language files (EN, DE, ES, FR) with localized word lists. Remaini
 **Implemented**: History service, replay UI with 4 speed levels, replay data API
 **Remaining**:
 - Exportable/shareable replay links (API endpoint exists at `/api/replays/:roomCode/:gameId`)
-- Replay board keyboard navigation (ARIA roles, tabindex)
+- ~~Replay board keyboard navigation~~ (✅ done in C-6)
 - Analysis mode with annotations (future)
 
 ### 4.4 Custom Game Modes
@@ -180,7 +210,7 @@ Four complete language files (EN, DE, ES, FR) with localized word lists. Remaini
 | WebSocket scaling issues | Low | High | Redis Pub/Sub verified; load test multi-instance |
 | Dependency vulnerabilities | Medium | Medium | npm audit in CI, CodeQL scanning |
 | Frontend/server PRNG desync | Low | High | Shared test suite validates both implementations |
-| Memory growth in memory mode | Medium | Medium | Audit log expiration not implemented (C-11) |
+| Memory growth in memory mode | Low | Medium | Audit log expiration implemented via ring buffer (C-11 ✅) |
 
 ---
 
@@ -188,11 +218,12 @@ Four complete language files (EN, DE, ES, FR) with localized word lists. Remaini
 
 ### Current Achievement
 - Zero race condition bugs in production
-- All critical + high security issues resolved (10/10)
+- All critical + high + medium security issues resolved (25/25)
 - Test coverage > 85% (94%+ lines/statements)
 - WebSocket connection success rate > 99%
 - 0 npm audit vulnerabilities
 - TypeScript compiles clean (0 errors)
+- ESLint clean (0 errors, 0 warnings)
 
 ### Ongoing Targets
 - Time to First Byte < 200ms
@@ -205,10 +236,10 @@ Four complete language files (EN, DE, ES, FR) with localized word lists. Remaini
 
 ## Conclusion
 
-The codebase has completed four major hardening phases and is production-ready with zero open critical or high-priority issues. Remaining work focuses on:
+The codebase has completed five major hardening phases (including all Tier C improvements and full ESLint cleanup) and is production-ready with zero open critical, high, or medium-priority issues. Remaining work focuses on:
 
-1. **Medium priority fixes** (Tier C): 15 items covering consistency, validation, accessibility, and security hardening
-2. **Frontend features**: Chat UI, i18n completeness, replay accessibility
+1. **Lower priority items** (Tier D): 14 items covering frontend features, testing expansion, and infrastructure
+2. **Frontend features**: Chat UI, i18n completeness
 3. **Testing expansion**: Resilience/chaos testing, ReDoS regression tests, multi-browser E2E
 4. **Infrastructure**: Observability, Dependabot, `.dockerignore`, `SECURITY.md`
 5. **Future features**: Player profiles, tournament mode, AI spymaster

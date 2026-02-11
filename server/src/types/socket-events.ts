@@ -6,13 +6,13 @@
  */
 
 import type {
-  Team,
-  Role,
-  CardType,
-  PlayerGameState,
-  RevealResult,
-  ClueWithGuesses,
-  GameHistoryEntry
+    Team,
+    Role,
+    CardType,
+    PlayerGameState,
+    RevealResult,
+    ClueWithGuesses,
+    GameHistoryEntry
 } from './game';
 import type { Room, RoomSettings, TeamNames } from './room';
 import type { Player, PlayerInfo } from './player';

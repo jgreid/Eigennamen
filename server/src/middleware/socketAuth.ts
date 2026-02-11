@@ -235,10 +235,14 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
  * Validate session age
  */
 function validateSessionAge(player: Player): SessionAgeResult {
-    const createdAt = player.createdAt || player.connectedAt;
+    // Use only createdAt for session age. connectedAt is updated on every
+    // reconnection, so using it as fallback would allow frequent reconnectors
+    // to bypass the session age limit indefinitely.
+    const createdAt = player.createdAt;
     if (!createdAt) {
-        // No creation time - allow but log
-        logger.debug('Session has no creation timestamp');
+        // No creation timestamp — likely a legacy session created before
+        // createdAt was tracked. Allow but log for visibility.
+        logger.debug('Session has no createdAt timestamp', { sessionId: player.sessionId });
         return { valid: true };
     }
 

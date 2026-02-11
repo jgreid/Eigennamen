@@ -34,7 +34,6 @@ jest.mock('../errors/GameError', () => {
 const { getPlayerContext, syncSocketRooms } = require('../socket/playerContext');
 const { createRateLimitedHandler } = require('../socket/rateLimitHandler');
 const { validateInput } = require('../middleware/validation');
-const { sanitizeErrorForClient } = require('../errors/GameError');
 const {
     createContextHandler,
     createRoomHandler,

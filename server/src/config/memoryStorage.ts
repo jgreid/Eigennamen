@@ -167,12 +167,13 @@ export class MemoryStorage {
         initializeSharedStorage();
 
         // All instances share the same data (simulates Redis behavior)
-        this.data = sharedData!;
-        this.expiries = sharedExpiries!;
-        this.sets = sharedSets!;
-        this.lists = sharedLists!;
-        this.sortedSets = sharedSortedSets!;
-        this.pubsubChannels = sharedPubsubChannels!;
+        // Safe to cast: initializeSharedStorage() above guarantees these are non-null
+        this.data = sharedData as Map<string, string>;
+        this.expiries = sharedExpiries as Map<string, number>;
+        this.sets = sharedSets as Map<string, Set<string>>;
+        this.lists = sharedLists as Map<string, string[]>;
+        this.sortedSets = sharedSortedSets as Map<string, Map<string, number>>;
+        this.pubsubChannels = sharedPubsubChannels as Map<string, Set<PubSubCallback>>;
         this.isOpen = true;
         this._isClone = isClone;
         this._watchedKeys = new Map();
@@ -441,7 +442,8 @@ export class MemoryStorage {
         if (!this.sets.has(key)) {
             this.sets.set(key, new Set());
         }
-        const set = this.sets.get(key)!;
+        // Safe to cast: we just called this.sets.set(key, ...) above if not present
+        const set = this.sets.get(key) as Set<string>;
         let added = 0;
         for (const member of members) {
             if (!set.has(member)) {
@@ -514,7 +516,8 @@ export class MemoryStorage {
         if (!this.lists.has(key)) {
             this.lists.set(key, []);
         }
-        const list = this.lists.get(key)!;
+        // Safe to cast: we just called this.lists.set(key, []) above if not present
+        const list = this.lists.get(key) as string[];
         // lPush adds to the head (beginning) of the list
         // Redis LPUSH pushes elements one by one in order given,
         // so 'LPUSH key a b c' results in [c, b, a] (c at head)
@@ -590,7 +593,8 @@ export class MemoryStorage {
         if (!this.sortedSets.has(key)) {
             this.sortedSets.set(key, new Map());
         }
-        const zset = this.sortedSets.get(key)!;
+        // Safe to cast: we just called this.sortedSets.set(key, ...) above if not present
+        const zset = this.sortedSets.get(key) as Map<string, number>;
         let added = 0;
 
         for (const item of items) {
@@ -755,7 +759,8 @@ export class MemoryStorage {
         if (!this.pubsubChannels.has(channel)) {
             this.pubsubChannels.set(channel, new Set());
         }
-        this.pubsubChannels.get(channel)!.add(callback);
+        // Safe to cast: we just ensured the channel exists above
+        (this.pubsubChannels.get(channel) as Set<PubSubCallback>).add(callback);
     }
 
     async unsubscribe(channel: string): Promise<void> {
@@ -846,7 +851,8 @@ export class MemoryStorage {
             const ownerTTL = parseInt(args[1] as string, 10);
 
             try {
-                const timerData = JSON.parse(this.data.get(timerKey)!) as { ownerId?: string };
+                // Safe to cast: we checked this.data.has(timerKey) above
+                const timerData = JSON.parse(this.data.get(timerKey) as string) as { ownerId?: string };
 
                 if (!timerData.ownerId || timerData.ownerId !== instanceId) {
                     timerData.ownerId = instanceId;
@@ -869,7 +875,8 @@ export class MemoryStorage {
             const ttlBuffer = parseInt(args[3] as string, 10);
 
             try {
-                const timerData = JSON.parse(this.data.get(timerKey)!) as {
+                // Safe to cast: we checked this.data.has(timerKey) above
+                const timerData = JSON.parse(this.data.get(timerKey) as string) as {
                     paused?: boolean;
                     endTime: number;
                     duration: number;
@@ -908,7 +915,8 @@ export class MemoryStorage {
             const secondsToAdd = parseInt(args[0] as string, 10);
 
             try {
-                const timerData = JSON.parse(this.data.get(timerKey)!) as {
+                // Safe to cast: we checked this.data.has(timerKey) above
+                const timerData = JSON.parse(this.data.get(timerKey) as string) as {
                     endTime: number;
                     duration: number;
                     remainingSeconds?: number;
@@ -1013,7 +1021,8 @@ export class MemoryStorage {
             if (!this.sets.has(playersKey)) {
                 this.sets.set(playersKey, new Set());
             }
-            this.sets.get(playersKey)!.add(sessionId);
+            // Safe to cast: we just ensured the key exists above
+            (this.sets.get(playersKey) as Set<string>).add(sessionId);
             return 1;
         }
 
@@ -1033,7 +1042,8 @@ export class MemoryStorage {
             }
 
             try {
-                const player = JSON.parse(this.data.get(playerKey)!) as {
+                // Safe to cast: we checked this.data.has(playerKey) above
+                const player = JSON.parse(this.data.get(playerKey) as string) as {
                     team: string | null;
                     role: string;
                     lastSeen: number;
@@ -1072,7 +1082,8 @@ export class MemoryStorage {
                     if (!this.sets.has(newTeamKey)) {
                         this.sets.set(newTeamKey, new Set());
                     }
-                    this.sets.get(newTeamKey)!.add(sessionId);
+                    // Safe to cast: we just ensured the key exists above
+                    (this.sets.get(newTeamKey) as Set<string>).add(sessionId);
                     this.expiries.set(newTeamKey, Date.now() + (ttl * 1000));
                 }
 
@@ -1100,7 +1111,8 @@ export class MemoryStorage {
             }
 
             try {
-                const player = JSON.parse(this.data.get(playerKey)!) as {
+                // Safe to cast: we checked this.data.has(playerKey) above
+                const player = JSON.parse(this.data.get(playerKey) as string) as {
                     team: string | null;
                     role: string;
                     lastSeen: number;
@@ -1119,7 +1131,8 @@ export class MemoryStorage {
                             if (memberId !== sessionId) {
                                 const mKey = `player:${memberId}`;
                                 if (!this._isExpired(mKey) && this.data.has(mKey)) {
-                                    const member = JSON.parse(this.data.get(mKey)!) as { connected?: boolean };
+                                    // Safe to cast: we just checked this.data.has(mKey) above
+                                    const member = JSON.parse(this.data.get(mKey) as string) as { connected?: boolean };
                                     if (member.connected) {
                                         otherConnected++;
                                     }
@@ -1163,7 +1176,8 @@ export class MemoryStorage {
                     if (!this.sets.has(newTeamKey)) {
                         this.sets.set(newTeamKey, new Set());
                     }
-                    this.sets.get(newTeamKey)!.add(sessionId);
+                    // Safe to cast: we just ensured the key exists above
+                    (this.sets.get(newTeamKey) as Set<string>).add(sessionId);
                     this.expiries.set(newTeamKey, Date.now() + (ttl * 1000));
                 }
 
@@ -1189,7 +1203,8 @@ export class MemoryStorage {
             }
 
             try {
-                const player = JSON.parse(this.data.get(playerKey)!) as {
+                // Safe to cast: we checked this.data.has(playerKey) above
+                const player = JSON.parse(this.data.get(playerKey) as string) as {
                     team: string | null;
                     role: string;
                     lastSeen: number;
@@ -1208,7 +1223,8 @@ export class MemoryStorage {
                             if (memberId !== sessionId) {
                                 const mKey = `player:${memberId}`;
                                 if (!this._isExpired(mKey) && this.data.has(mKey)) {
-                                    const member = JSON.parse(this.data.get(mKey)!) as {
+                                    // Safe to cast: we just checked this.data.has(mKey) above
+                                    const member = JSON.parse(this.data.get(mKey) as string) as {
                                         team: string | null;
                                         role: string;
                                         nickname?: string;
@@ -1261,15 +1277,16 @@ export class MemoryStorage {
                     return JSON.stringify({ success: false, reason: 'ROOM_NOT_FOUND' });
                 }
 
-                const oldHost = JSON.parse(this.data.get(oldHostKey)!) as {
+                // Safe to cast: we checked this.data.has() for all three keys above
+                const oldHost = JSON.parse(this.data.get(oldHostKey) as string) as {
                     isHost: boolean;
                     lastSeen: number;
                 };
-                const newHost = JSON.parse(this.data.get(newHostKey)!) as {
+                const newHost = JSON.parse(this.data.get(newHostKey) as string) as {
                     isHost: boolean;
                     lastSeen: number;
                 };
-                const room = JSON.parse(this.data.get(roomKey)!) as {
+                const room = JSON.parse(this.data.get(roomKey) as string) as {
                     hostSessionId: string;
                 };
 
@@ -1351,11 +1368,13 @@ export class MemoryStorage {
         if (this.data.has(key)) {
             watchValue = JSON.stringify(this.data.get(key));
         } else if (this.sets.has(key)) {
-            watchValue = JSON.stringify([...this.sets.get(key)!].sort());
+            // Safe to cast: we just checked this.sets.has(key) above
+            watchValue = JSON.stringify([...(this.sets.get(key) as Set<string>)].sort());
         } else if (this.lists.has(key)) {
             watchValue = JSON.stringify(this.lists.get(key));
         } else if (this.sortedSets.has(key)) {
-            const zset = this.sortedSets.get(key)!;
+            // Safe to cast: we just checked this.sortedSets.has(key) above
+            const zset = this.sortedSets.get(key) as Map<string, number>;
             watchValue = JSON.stringify([...zset.entries()].sort());
         }
         this._watchedKeys.set(key, watchValue);
@@ -1382,7 +1401,7 @@ export class MemoryStorage {
             items?: ZAddItem[];
         }
         const commands: Command[] = [];
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
+
         const storage = this;
 
         const txn: TransactionBuilder = {
@@ -1439,11 +1458,13 @@ export class MemoryStorage {
                     if (storage.data.has(key)) {
                         currentJson = JSON.stringify(storage.data.get(key));
                     } else if (storage.sets.has(key)) {
-                        currentJson = JSON.stringify([...storage.sets.get(key)!].sort());
+                        // Safe to cast: we just checked storage.sets.has(key) above
+                        currentJson = JSON.stringify([...(storage.sets.get(key) as Set<string>)].sort());
                     } else if (storage.lists.has(key)) {
                         currentJson = JSON.stringify(storage.lists.get(key));
                     } else if (storage.sortedSets.has(key)) {
-                        const zset = storage.sortedSets.get(key)!;
+                        // Safe to cast: we just checked storage.sortedSets.has(key) above
+                        const zset = storage.sortedSets.get(key) as Map<string, number>;
                         currentJson = JSON.stringify([...zset.entries()].sort());
                     }
                     if (currentJson !== originalValue) {
@@ -1463,7 +1484,8 @@ export class MemoryStorage {
                                 storage.sets.delete(cmd.key);
                                 storage.lists.delete(cmd.key);
                                 storage.sortedSets.delete(cmd.key);
-                                storage.data.set(cmd.key, cmd.value!);
+                                // Safe to cast: set command always provides a value
+                                storage.data.set(cmd.key, cmd.value as string);
                                 // Handle TTL options (EX = seconds, PX = milliseconds)
                                 if (cmd.options && cmd.options.EX) {
                                     storage.expiries.set(cmd.key, Date.now() + (cmd.options.EX * 1000));
@@ -1505,9 +1527,11 @@ export class MemoryStorage {
                                     storage.sets.set(cmd.key, new Set());
                                 }
                                 let added = 0;
-                                for (const m of cmd.members!) {
-                                    if (!storage.sets.get(cmd.key)!.has(m)) {
-                                        storage.sets.get(cmd.key)!.add(m);
+                                // Safe to cast: sAdd command always provides members, and we ensured the set exists above
+                                const sAddSet = storage.sets.get(cmd.key) as Set<string>;
+                                for (const m of cmd.members as string[]) {
+                                    if (!sAddSet.has(m)) {
+                                        sAddSet.add(m);
                                         added++;
                                     }
                                 }
@@ -1522,7 +1546,8 @@ export class MemoryStorage {
                                 const set = storage.sets.get(cmd.key);
                                 let removed = 0;
                                 if (set) {
-                                    for (const m of cmd.members!) {
+                                    // Safe to cast: sRem command always provides members
+                                    for (const m of cmd.members as string[]) {
                                         if (set.delete(m)) removed++;
                                     }
                                 }
@@ -1536,7 +1561,8 @@ export class MemoryStorage {
                                 }
                                 if (storage.data.has(cmd.key) || storage.sets.has(cmd.key) ||
                                     storage.lists.has(cmd.key) || storage.sortedSets.has(cmd.key)) {
-                                    storage.expiries.set(cmd.key, Date.now() + (cmd.seconds! * 1000));
+                                    // Safe to cast: expire command always provides seconds
+                                    storage.expiries.set(cmd.key, Date.now() + ((cmd.seconds as number) * 1000));
                                     results.push(1);
                                 } else {
                                     results.push(0);
@@ -1554,11 +1580,13 @@ export class MemoryStorage {
                                 if (!storage.lists.has(cmd.key)) {
                                     storage.lists.set(cmd.key, []);
                                 }
-                                const list = storage.lists.get(cmd.key)!;
+                                // Safe to cast: we just ensured the key exists above
+                                const list = storage.lists.get(cmd.key) as string[];
                                 // lPush adds to the head (beginning) of the list
                                 // Redis LPUSH pushes elements one by one in order given
                                 // Use a single unshift with reversed values for O(n) instead of O(n*k)
-                                const txReversed = [...cmd.values!].reverse();
+                                // Safe to cast: lPush command always provides values
+                                const txReversed = [...(cmd.values as string[])].reverse();
                                 list.unshift(...txReversed);
                                 results.push(list.length);
                                 break;
@@ -1573,8 +1601,11 @@ export class MemoryStorage {
                                     break;
                                 }
                                 const trimLen = trimList.length;
-                                const trimStart = cmd.start! < 0 ? Math.max(trimLen + cmd.start!, 0) : Math.min(cmd.start!, trimLen);
-                                const trimStop = cmd.stop! < 0 ? trimLen + cmd.stop! : Math.min(cmd.stop!, trimLen - 1);
+                                // Safe to cast: lTrim command always provides start and stop
+                                const cmdStart = cmd.start as number;
+                                const cmdStop = cmd.stop as number;
+                                const trimStart = cmdStart < 0 ? Math.max(trimLen + cmdStart, 0) : Math.min(cmdStart, trimLen);
+                                const trimStop = cmdStop < 0 ? trimLen + cmdStop : Math.min(cmdStop, trimLen - 1);
                                 if (trimStart > trimStop) {
                                     storage.lists.set(cmd.key, []);
                                 } else {
@@ -1594,9 +1625,11 @@ export class MemoryStorage {
                                 if (!storage.sortedSets.has(cmd.key)) {
                                     storage.sortedSets.set(cmd.key, new Map());
                                 }
-                                const zset = storage.sortedSets.get(cmd.key)!;
+                                // Safe to cast: we just ensured the key exists above
+                                const zset = storage.sortedSets.get(cmd.key) as Map<string, number>;
                                 let zAdded = 0;
-                                for (const item of cmd.items!) {
+                                // Safe to cast: zAdd command always provides items
+                                for (const item of cmd.items as ZAddItem[]) {
                                     const { score, value } = item;
                                     if (!zset.has(value)) {
                                         zAdded++;
@@ -1620,8 +1653,11 @@ export class MemoryStorage {
                                     .map(([value, score]) => ({ value, score }))
                                     .sort((a, b) => a.score - b.score);
                                 const zLen = zEntries.length;
-                                const zStart = cmd.start! < 0 ? Math.max(zLen + cmd.start!, 0) : Math.min(cmd.start!, zLen);
-                                const zStop = cmd.stop! < 0 ? zLen + cmd.stop! : Math.min(cmd.stop!, zLen - 1);
+                                // Safe to cast: zRemRangeByRank command always provides start and stop
+                                const zCmdStart = cmd.start as number;
+                                const zCmdStop = cmd.stop as number;
+                                const zStart = zCmdStart < 0 ? Math.max(zLen + zCmdStart, 0) : Math.min(zCmdStart, zLen);
+                                const zStop = zCmdStop < 0 ? zLen + zCmdStop : Math.min(zCmdStop, zLen - 1);
                                 if (zStart > zStop) {
                                     results.push(0);
                                     break;
@@ -1769,7 +1805,8 @@ export class MemoryStorage {
         if (!this._eventHandlers.has(event)) {
             this._eventHandlers.set(event, []);
         }
-        this._eventHandlers.get(event)!.push(callback);
+        // Safe to cast: we just ensured the event exists above
+        (this._eventHandlers.get(event) as EventCallback[]).push(callback);
 
         // Immediately call 'ready' callback
         if (event === 'ready') {

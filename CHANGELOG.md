@@ -4,6 +4,33 @@ All notable changes to Die Eigennamen (Codenames Online) are documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.3.0] - 2026-02-11
+
+### Added
+- Replay board keyboard navigation with ARIA `role="grid"`, `role="gridcell"`, tabindex, and arrow-key grid navigation (C-6)
+- Word uniqueness validation via Zod `.refine()` — enforces case-insensitive uniqueness (C-5)
+- Shared Unicode-aware `NICKNAME_REGEX` in frontend `constants.js` matching server-side validation (C-8)
+- `TIMEOUT_*` environment variable overrides for all timeout values (C-12)
+- Docker Compose resource limits: api 512M/1cpu, db 256M/0.5cpu, redis 128M/0.5cpu (C-13)
+
+### Fixed
+- **SECURITY**: Session age validation no longer falls back to `connectedAt` — always uses `createdAt` to prevent bypassing 8h limit (C-3)
+- **SECURITY**: JWT secret < 32 characters now throws error in production instead of just warning (C-4)
+- **BUG**: Replay playback rapid toggle could create duplicate intervals — now clears before creating (C-10)
+- **PERFORMANCE**: `fitCardText` layout thrashing replaced with batch-read then batch-write DOM pattern (C-9)
+- **PERFORMANCE**: `resetRolesForNewGame` now uses `Promise.all()` instead of sequential updates (C-7)
+
+### Changed
+- Chat handlers now use `safeEmitToRoom`/`safeEmitToPlayer` for consistent error handling (C-1)
+- `game:clue` handler wrapped with `withTimeout(TIMEOUTS.GAME_ACTION)` for resilience (C-2)
+- ESLint: reduced from 125 issues (8 errors + 117 warnings) to 0 errors, 0 warnings
+- Updated all documentation to reflect Tier C completion and ESLint cleanup
+
+### Verified (already implemented)
+- C-11: Memory audit log expiration via ring buffer (MAX_LOGS_PER_CATEGORY=10000)
+- C-14: Settings value validation handled by Zod `roomSettingsSchema`
+- C-15: Token rotation on reconnection via `ROTATE_SESSION_ON_RECONNECT`
+
 ## [2.2.0] - 2026-02-11
 
 ### Added

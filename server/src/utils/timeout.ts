@@ -32,7 +32,7 @@ async function withTimeout<T>(
     timeoutMs: number,
     operationName: string = 'operation'
 ): Promise<T> {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
@@ -47,24 +47,35 @@ async function withTimeout<T>(
 
     try {
         const result = await Promise.race([promise, timeoutPromise]);
-        clearTimeout(timeoutId!);
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
         return result;
     } catch (error) {
-        clearTimeout(timeoutId!);
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
         throw error;
     }
 }
 
 /**
- * Default timeout values for different operation types
+ * Parse an integer env var, returning the default if unset or invalid.
+ */
+function envInt(name: string, defaultValue: number): number {
+    const raw = process.env[name];
+    if (!raw) return defaultValue;
+    const parsed = parseInt(raw, 10);
+    return isNaN(parsed) || parsed <= 0 ? defaultValue : parsed;
+}
+
+/**
+ * Timeout values for different operation types.
+ * Configurable via environment variables; falls back to defaults.
  */
 const TIMEOUTS = {
-    SOCKET_HANDLER: 30000,      // 30 seconds for general socket operations
-    REDIS_OPERATION: 10000,     // 10 seconds for Redis operations
-    JOIN_ROOM: 15000,           // 15 seconds for room join (includes multiple DB operations)
-    RECONNECT: 15000,           // 15 seconds for reconnection
-    GAME_ACTION: 10000,         // 10 seconds for game actions
-    TIMER_OPERATION: 5000       // 5 seconds for timer operations
+    SOCKET_HANDLER:  envInt('TIMEOUT_SOCKET_HANDLER',  30000),
+    REDIS_OPERATION: envInt('TIMEOUT_REDIS_OPERATION',  10000),
+    JOIN_ROOM:       envInt('TIMEOUT_JOIN_ROOM',        15000),
+    RECONNECT:       envInt('TIMEOUT_RECONNECT',        15000),
+    GAME_ACTION:     envInt('TIMEOUT_GAME_ACTION',      10000),
+    TIMER_OPERATION: envInt('TIMEOUT_TIMER_OPERATION',    5000)
 } as const;
 
 type TimeoutType = keyof typeof TIMEOUTS;

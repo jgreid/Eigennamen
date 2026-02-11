@@ -7,11 +7,11 @@
 
 import http from 'http';
 import { Server } from 'socket.io';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const Client = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type AnyRecord = Record<string, any>;
 
 // Default test configuration
@@ -367,7 +367,7 @@ class MockRedis {
 
     multi(): AnyRecord {
         const commands: Array<{ cmd: string; args: unknown[] }> = [];
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
+
         const self = this;
 
         return {
