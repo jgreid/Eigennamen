@@ -6,6 +6,8 @@
  * - Local timeouts handle expiration
  */
 
+import type { RedisClient } from '../types';
+
 const { getRedis } = require('../config/redis');
 const logger = require('../utils/logger');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
@@ -89,15 +91,7 @@ export interface PauseResult {
  */
 export type TimerExpireCallback = (roomCode: string) => void | Promise<void>;
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
-    del(key: string): Promise<number>;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-}
+// RedisClient imported from '../types' (shared across all services)
 
 // Local timers for this instance
 const localTimers = new Map<string, LocalTimerData>();

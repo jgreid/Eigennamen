@@ -26,3 +26,6 @@ export * from './config';
 
 // Utility types
 export * from './utils';
+
+// Redis types
+export * from './redis';

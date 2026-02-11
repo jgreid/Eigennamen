@@ -245,8 +245,8 @@ export interface AppState {
     roomStats: any;
 }
 
-// The single shared state object
-export const state: AppState = {
+// The raw state object (wrapped with a debug proxy below)
+const _rawState: AppState = {
     // Cached DOM elements
     cachedElements: {
         board: null,
@@ -381,6 +381,71 @@ export const state: AppState = {
     roomStats: null
 };
 
+// Watcher type and map — declared early so the state proxy can invoke watchers
+type WatcherCallback = (oldValue: unknown, newValue: unknown) => void;
+const watchers: Map<string, WatcherCallback[]> = new Map();
+
+// ========== STATE PROXY ==========
+// When debug mode is enabled, wraps the state in a Proxy that automatically
+// logs all mutations and invokes watchers. In production, this is a no-op —
+// the raw state object is exported directly.
+
+/**
+ * Create a recursive Proxy that logs property mutations.
+ * Sub-objects are wrapped lazily on access so the overhead is minimal.
+ */
+function createStateProxy<T extends object>(target: T, path: string = 'state'): T {
+    const subProxies = new WeakMap<object, object>();
+
+    return new Proxy(target, {
+        get(obj: T, prop: string | symbol): unknown {
+            const value = Reflect.get(obj, prop);
+            // Wrap sub-objects so nested mutations are also tracked
+            if (value !== null && typeof value === 'object' && typeof prop === 'string') {
+                if (!subProxies.has(value as object)) {
+                    subProxies.set(value as object, createStateProxy(value as object, `${path}.${prop}`));
+                }
+                return subProxies.get(value as object);
+            }
+            return value;
+        },
+        set(obj: T, prop: string | symbol, value: unknown): boolean {
+            const oldValue = Reflect.get(obj, prop);
+            const result = Reflect.set(obj, prop, value);
+            if (typeof prop === 'string' && oldValue !== value) {
+                const fullPath = `${path}.${prop}`;
+                // Invalidate sub-proxy cache when a sub-object is replaced
+                if (oldValue !== null && typeof oldValue === 'object') {
+                    subProxies.delete(oldValue as object);
+                }
+                logStateChange(fullPath, oldValue, value, 'proxy');
+                // Invoke watchers registered via watchState()
+                const watcherList = watchers.get(fullPath);
+                if (watcherList) {
+                    for (const cb of watcherList) {
+                        try { cb(oldValue, value); } catch { /* watcher errors are non-fatal */ }
+                    }
+                }
+            }
+            return result;
+        }
+    });
+}
+
+/**
+ * Exported state object.
+ * In debug mode this is a Proxy that logs mutations automatically.
+ * Otherwise it's the plain object (zero overhead).
+ */
+export const state: AppState = (() => {
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage.getItem('debug') === 'codenames') {
+            return createStateProxy(_rawState);
+        }
+    } catch { /* SSR / test environments without localStorage */ }
+    return _rawState;
+})();
+
 // ========== DEBUGGING UTILITIES ==========
 // Enable debug mode by setting localStorage.debug = 'codenames'
 const DEBUG_KEY = 'codenames';
@@ -498,7 +563,7 @@ export function clearStateHistory(): void {
  * Get current state snapshot (for debugging)
  */
 export function getStateSnapshot(): unknown {
-    return safeClone(state);
+    return safeClone(_rawState);
 }
 
 /**
@@ -523,9 +588,6 @@ export function dumpState(): void {
  * @param property - Property to watch
  * @param callback - Called on change with (oldValue, newValue)
  */
-type WatcherCallback = (oldValue: unknown, newValue: unknown) => void;
-
-const watchers: Map<string, WatcherCallback[]> = new Map();
 export function watchState(property: string, callback: WatcherCallback): () => void {
     if (!watchers.has(property)) {
         watchers.set(property, []);

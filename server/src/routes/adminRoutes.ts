@@ -7,6 +7,7 @@
 
 import type { Request, Response, NextFunction, Router as ExpressRouter, Application } from 'express';
 import type { Server } from 'socket.io';
+import type { RedisClient } from '../types';
 
 const express = require('express');
 const path = require('path');
@@ -82,17 +83,7 @@ interface RoomSummary {
     };
 }
 
-/**
- * Redis client type
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    del(key: string): Promise<number>;
-    scan(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
-    sMembers(key: string): Promise<string[]>;
-    sIsMember(key: string, value: string): Promise<boolean>;
-    sRem(key: string, ...values: string[]): Promise<number>;
-}
+// RedisClient imported from '../types' (shared across all services)
 
 /**
  * Basic Authentication Middleware

@@ -89,6 +89,7 @@ const {
     isDuetMode,
     incrementVersion,
     executeLuaScript: _executeLuaScript,
+    withLuaFallback,
     executeGameTransaction
 } = require('./game/luaGameOps');
 
@@ -266,53 +267,6 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
 // ─── Card Reveal ────────────────────────────────────────────────────
 
 /**
- * Optimized card reveal using Lua script
- */
-export async function revealCardOptimized(
-    roomCode: string,
-    index: number,
-    playerNickname: string = 'Unknown',
-    playerTeam: string = ''
-): Promise<RevealResult> {
-    const gameKey = `room:${roomCode}:game`;
-
-    validateCardIndex(index);
-
-    const errorMap: Record<string, { code: string; message: string }> = {
-        'NO_GAME': { code: ERROR_CODES.GAME_NOT_STARTED, message: 'No active game' },
-        'GAME_OVER': { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' },
-        'NO_GUESSES': { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' },
-        'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' },
-        'NOT_YOUR_TURN': { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" },
-        'NO_CLUE': { code: ERROR_CODES.NO_CLUE, message: 'Spymaster must give a clue before revealing cards' },
-        'INVALID_INDEX': { code: ERROR_CODES.INVALID_INPUT, message: 'Invalid card index' }
-    };
-
-    try {
-        const result = await executeLuaScript<RevealResult>(
-            OPTIMIZED_REVEAL_SCRIPT,
-            gameKey,
-            [
-                index.toString(),
-                Date.now().toString(),
-                playerNickname,
-                MAX_HISTORY_ENTRIES.toString(),
-                playerTeam || ''
-            ],
-            errorMap,
-            `revealCard-${roomCode}`
-        );
-
-        logger.debug(`Optimized reveal completed for card ${index} in room ${roomCode}`);
-        return result;
-    } catch (error) {
-        if ((error as { code?: string }).code) throw error;
-        logger.error('Optimized reveal failed', { roomCode, error: (error as Error).message });
-        throw new ServerError('Failed to reveal card');
-    }
-}
-
-/**
  * Reveal a card with distributed lock and Lua optimization + fallback
  */
 export async function revealCard(
@@ -334,22 +288,30 @@ export async function revealCard(
     }
 
     try {
-        // Check if Duet — skip Lua for Duet games
-        const duetGame = await isDuetMode(gameKey);
+        const errorMap: Record<string, { code: string; message: string }> = {
+            'NO_GAME': { code: ERROR_CODES.GAME_NOT_STARTED, message: 'No active game' },
+            'GAME_OVER': { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' },
+            'NO_GUESSES': { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' },
+            'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' },
+            'NOT_YOUR_TURN': { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" },
+            'NO_CLUE': { code: ERROR_CODES.NO_CLUE, message: 'Spymaster must give a clue before revealing cards' },
+            'INVALID_INDEX': { code: ERROR_CODES.INVALID_INPUT, message: 'Invalid card index' }
+        };
 
-        if (!duetGame) {
-            try {
-                return await revealCardOptimized(roomCode, index, playerNickname, playerTeam);
-            } catch (luaError) {
-                if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-                    throw luaError;
-                }
-                logger.warn(`Lua reveal failed, falling back to standard reveal for room ${roomCode}: ${(luaError as Error).message}`);
-            }
-        }
-
-        // TypeScript fallback / Duet mode
-        return await revealCardFallback(roomCode, gameKey, index, playerNickname);
+        return await withLuaFallback<RevealResult>(
+            gameKey,
+            OPTIMIZED_REVEAL_SCRIPT,
+            [
+                index.toString(),
+                Date.now().toString(),
+                playerNickname,
+                MAX_HISTORY_ENTRIES.toString(),
+                playerTeam || ''
+            ],
+            errorMap,
+            () => revealCardFallback(roomCode, gameKey, index, playerNickname),
+            `revealCard-${roomCode}`
+        );
     } finally {
         await withTimeout(
             redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
@@ -437,52 +399,6 @@ async function revealCardFallback(
 // ─── Clue Giving ────────────────────────────────────────────────────
 
 /**
- * Optimized clue giving using Lua script
- */
-export async function giveClueOptimized(
-    roomCode: string,
-    team: Team,
-    word: string,
-    number: number,
-    spymasterNickname: string
-): Promise<ClueWithGuesses> {
-    const gameKey = `room:${roomCode}:game`;
-    const normalizedWord = toEnglishUpperCase(String(word).normalize('NFKC').trim());
-
-    const errorMap: Record<string, Error> = {
-        'NO_GAME': GameStateError.noActiveGame(),
-        'GAME_OVER': GameStateError.gameOver(),
-        'NOT_YOUR_TURN': PlayerError.notYourTurn(team),
-        'CLUE_ALREADY_GIVEN': ValidationError.clueAlreadyGiven(),
-        'INVALID_NUMBER': new ValidationError(`Clue number must be 0-${BOARD_SIZE}`),
-        'WORD_ON_BOARD': ValidationError.invalidClue(`"${word}" is a word on the board`),
-    };
-
-    // These need the result.word value, but executeLuaScript handles error mapping
-    // before we can access it. For CONTAINS_BOARD_WORD and BOARD_CONTAINS_CLUE,
-    // we use the word from the Lua result as a fallback message.
-    const result = await executeLuaScript<ClueWithGuesses & { word?: string }>(
-        OPTIMIZED_GIVE_CLUE_SCRIPT,
-        gameKey,
-        [
-            team,
-            normalizedWord,
-            number.toString(),
-            spymasterNickname || 'Unknown',
-            Date.now().toString(),
-            MAX_HISTORY_ENTRIES.toString(),
-            BOARD_SIZE.toString(),
-            MAX_CLUES.toString()
-        ],
-        errorMap,
-        `giveClue-${roomCode}`
-    );
-
-    logger.debug(`Optimized giveClue completed for room ${roomCode}`);
-    return result;
-}
-
-/**
  * Give a clue with validation — Lua with TypeScript fallback
  */
 export async function giveClue(
@@ -502,22 +418,34 @@ export async function giveClue(
         throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
     }
 
-    // Check if Duet mode
-    const duetGame = await isDuetMode(gameKey);
+    const normalizedWord = toEnglishUpperCase(String(word).normalize('NFKC').trim());
 
-    if (!duetGame) {
-        try {
-            return await giveClueOptimized(roomCode, team, word, number, spymasterNickname);
-        } catch (luaError) {
-            if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-                throw luaError;
-            }
-            logger.warn(`Lua giveClue failed, falling back to standard for room ${roomCode}: ${(luaError as Error).message}`);
-        }
-    }
+    const luaErrorMap: Record<string, Error> = {
+        'NO_GAME': GameStateError.noActiveGame(),
+        'GAME_OVER': GameStateError.gameOver(),
+        'NOT_YOUR_TURN': PlayerError.notYourTurn(team),
+        'CLUE_ALREADY_GIVEN': ValidationError.clueAlreadyGiven(),
+        'INVALID_NUMBER': new ValidationError(`Clue number must be 0-${BOARD_SIZE}`),
+        'WORD_ON_BOARD': ValidationError.invalidClue(`"${word}" is a word on the board`),
+    };
 
-    // TypeScript fallback / Duet mode
-    return giveClueTransactional(roomCode, gameKey, team, word, number, spymasterNickname);
+    return withLuaFallback<ClueWithGuesses>(
+        gameKey,
+        OPTIMIZED_GIVE_CLUE_SCRIPT,
+        [
+            team,
+            normalizedWord,
+            number.toString(),
+            spymasterNickname || 'Unknown',
+            Date.now().toString(),
+            MAX_HISTORY_ENTRIES.toString(),
+            BOARD_SIZE.toString(),
+            MAX_CLUES.toString()
+        ],
+        luaErrorMap,
+        () => giveClueTransactional(roomCode, gameKey, team, word, number, spymasterNickname),
+        `giveClue-${roomCode}`
+    );
 }
 
 /**
@@ -630,34 +558,6 @@ async function giveClueTransactional(
 // ─── End Turn ───────────────────────────────────────────────────────
 
 /**
- * Optimized end turn using Lua script
- */
-export async function endTurnOptimized(
-    roomCode: string,
-    playerNickname: string = 'Unknown',
-    expectedTeam: string = ''
-): Promise<EndTurnResult> {
-    const gameKey = `room:${roomCode}:game`;
-
-    const errorMap: Record<string, Error> = {
-        'NO_GAME': GameStateError.noActiveGame(),
-        'GAME_OVER': GameStateError.gameOver(),
-        'NOT_YOUR_TURN': PlayerError.notYourTurn(expectedTeam as Team)
-    };
-
-    const result = await executeLuaScript<EndTurnResult>(
-        OPTIMIZED_END_TURN_SCRIPT,
-        gameKey,
-        [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
-        errorMap,
-        `endTurn-${roomCode}`
-    );
-
-    logger.debug(`Optimized endTurn completed for room ${roomCode}`);
-    return result;
-}
-
-/**
  * End the current turn — Lua with TypeScript fallback
  */
 export async function endTurn(
@@ -667,44 +567,44 @@ export async function endTurn(
 ): Promise<EndTurnResult> {
     const gameKey = `room:${roomCode}:game`;
 
-    const duetGame = await isDuetMode(gameKey);
+    const luaErrorMap: Record<string, Error> = {
+        'NO_GAME': GameStateError.noActiveGame(),
+        'GAME_OVER': GameStateError.gameOver(),
+        'NOT_YOUR_TURN': PlayerError.notYourTurn(expectedTeam as Team)
+    };
 
-    if (!duetGame) {
-        try {
-            return await endTurnOptimized(roomCode, playerNickname, expectedTeam);
-        } catch (luaError) {
-            if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-                throw luaError;
+    return withLuaFallback<EndTurnResult>(
+        gameKey,
+        OPTIMIZED_END_TURN_SCRIPT,
+        [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
+        luaErrorMap,
+        () => executeGameTransaction(gameKey, (game: GameState) => {
+            if (game.gameOver) {
+                throw GameStateError.gameOver();
             }
-            logger.warn(`Lua endTurn failed, falling back to standard for room ${roomCode}: ${(luaError as Error).message}`);
-        }
-    }
 
-    return executeGameTransaction(gameKey, (game: GameState) => {
-        if (game.gameOver) {
-            throw GameStateError.gameOver();
-        }
+            if (expectedTeam && game.currentTurn !== expectedTeam) {
+                throw PlayerError.notYourTurn(expectedTeam as Team);
+            }
 
-        if (expectedTeam && game.currentTurn !== expectedTeam) {
-            throw PlayerError.notYourTurn(expectedTeam as Team);
-        }
+            const previousTurn = game.currentTurn;
+            game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
+            game.currentClue = null;
+            game.guessesUsed = 0;
+            game.guessesAllowed = 0;
 
-        const previousTurn = game.currentTurn;
-        game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
-        game.currentClue = null;
-        game.guessesUsed = 0;
-        game.guessesAllowed = 0;
+            addToHistory(game, {
+                action: 'endTurn',
+                fromTeam: previousTurn,
+                toTeam: game.currentTurn,
+                player: playerNickname,
+                timestamp: Date.now()
+            });
 
-        addToHistory(game, {
-            action: 'endTurn',
-            fromTeam: previousTurn,
-            toTeam: game.currentTurn,
-            player: playerNickname,
-            timestamp: Date.now()
-        });
-
-        return { currentTurn: game.currentTurn, previousTurn };
-    }, 'endTurn');
+            return { currentTurn: game.currentTurn, previousTurn };
+        }, 'endTurn'),
+        `endTurn-${roomCode}`
+    );
 }
 
 // ─── Forfeit / History / Cleanup ────────────────────────────────────
@@ -774,11 +674,8 @@ module.exports = {
 
     // Game actions
     revealCard,
-    revealCardOptimized,
     giveClue,
-    giveClueOptimized,
     endTurn,
-    endTurnOptimized,
     forfeitGame,
     getGameHistory,
 

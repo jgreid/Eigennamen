@@ -50,9 +50,11 @@ export function cancelAllOperations(): void {
 
 export function openMultiplayer(): void {
     // Pre-fill nickname from storage
-    const storedNickname = safeGetItem('codenames-nickname', '');
-    (document.getElementById('join-nickname') as HTMLInputElement).value = storedNickname;
-    (document.getElementById('create-nickname') as HTMLInputElement).value = storedNickname;
+    const storedNickname = safeGetItem('codenames-nickname', '') ?? '';
+    const joinNicknameEl = document.getElementById('join-nickname') as HTMLInputElement | null;
+    if (joinNicknameEl) joinNicknameEl.value = storedNickname;
+    const createNicknameEl = document.getElementById('create-nickname') as HTMLInputElement | null;
+    if (createNicknameEl) createNicknameEl.value = storedNickname;
 
     // Reset forms
     (document.getElementById('join-room-id') as HTMLInputElement).value = '';
@@ -168,7 +170,7 @@ async function handleJoinGame(): Promise<void> {
     // PHASE 2 FIX: Use shared validation functions from constants.js
     const nicknameValidation = validateNickname(nickname);
     if (!nicknameValidation.valid) {
-        setFieldError(nicknameValidation.error, 'join-nickname-error');
+        setFieldError(nicknameValidation.error ?? '', 'join-nickname-error');
         return;
     }
     if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
@@ -180,9 +182,9 @@ async function handleJoinGame(): Promise<void> {
     const roomId = roomIdInput || urlRoomCode;
 
     // PHASE 2 FIX: Use shared validation functions from constants.js
-    const roomValidation = validateRoomCode(roomId);
+    const roomValidation = validateRoomCode(roomId ?? '');
     if (!roomValidation.valid) {
-        setFieldError(roomValidation.error, 'join-error');
+        setFieldError(roomValidation.error ?? '', 'join-error');
         return;
     }
 
@@ -264,7 +266,7 @@ async function handleCreateGame(): Promise<void> {
     // PHASE 2 FIX: Use shared validation functions from constants.js
     const nicknameValidation = validateNickname(nickname);
     if (!nicknameValidation.valid) {
-        setFieldError(nicknameValidation.error, 'create-nickname-error');
+        setFieldError(nicknameValidation.error ?? '', 'create-nickname-error');
         return;
     }
     if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
@@ -275,7 +277,7 @@ async function handleCreateGame(): Promise<void> {
     // PHASE 2 FIX: Use shared validation functions from constants.js
     const roomValidation = validateRoomCode(roomId);
     if (!roomValidation.valid) {
-        setFieldError(roomValidation.error, 'create-error');
+        setFieldError(roomValidation.error ?? '', 'create-error');
         return;
     }
 
@@ -1397,7 +1399,7 @@ export function syncGameStateFromServer(serverGame: any): void {
     updateDuetUI(serverGame);
 
     // Update tab notification based on current turn
-    const isYourTurn = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver;
+    const isYourTurn = Boolean(state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver);
     setTabNotification(isYourTurn);
 }
 
@@ -1440,14 +1442,16 @@ export function clearRoomCodeFromURL(): void {
 export function checkURLForRoomJoin(): void {
     const roomCode = getRoomCodeFromURL();
     // PHASE 2 FIX: Use shared validation from constants.js
-    const roomValidation = validateRoomCode(roomCode);
+    const roomValidation = validateRoomCode(roomCode ?? '');
     if (roomCode && roomValidation.valid) {
         // Pre-fill nickname from storage
-        const storedNickname = safeGetItem('codenames-nickname', '');
-        (document.getElementById('join-nickname') as HTMLInputElement).value = storedNickname;
+        const storedNickname = safeGetItem('codenames-nickname', '') ?? '';
+        const joinNicknameInput = document.getElementById('join-nickname') as HTMLInputElement | null;
+        if (joinNicknameInput) joinNicknameInput.value = storedNickname;
 
         // Pre-fill room ID from URL
-        (document.getElementById('join-room-id') as HTMLInputElement).value = roomCode;
+        const joinRoomInput = document.getElementById('join-room-id') as HTMLInputElement | null;
+        if (joinRoomInput) joinRoomInput.value = roomCode;
 
         // Show multiplayer modal in join mode
         setMpMode('join');

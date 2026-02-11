@@ -6,6 +6,8 @@
  * Falls back to in-memory ring buffers when Redis is unavailable.
  */
 
+import type { RedisClient } from '../types';
+
 const logger = require('../utils/logger');
 const { getRedis, isUsingMemoryMode } = require('../config/redis');
 const { tryParseJSON } = require('../utils/parseJSON');
@@ -68,16 +70,7 @@ export interface AuditSummary {
     error?: string;
 }
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    lPush(key: string, value: string): Promise<number>;
-    lTrim(key: string, start: number, stop: number): Promise<string>;
-    lRange(key: string, start: number, stop: number): Promise<string[]>;
-    lLen(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-}
+// RedisClient imported from '../types' (shared across all services)
 
 // Audit event types
 export const AUDIT_EVENTS = {

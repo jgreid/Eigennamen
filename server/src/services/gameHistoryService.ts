@@ -11,7 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 const { tryParseJSON } = require('../utils/parseJSON');
 const { z } = require('zod');
 
-import type { Team, CardType } from '../types';
+import type { Team, CardType, RedisClient, RedisMulti } from '../types';
 
 // Zod schema for GameHistoryEntry deserialization validation.
 // Validates critical fields when present; non-essential fields are optional.
@@ -197,30 +197,7 @@ export interface HistoryStats {
     error?: string;
 }
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
-    del(keys: string | string[]): Promise<number>;
-    mGet(keys: string[]): Promise<(string | null)[]>;
-    multi(): RedisPipeline;
-    zAdd(key: string, member: { score: number; value: string }): Promise<number>;
-    zRange(key: string, start: number, stop: number, options?: { REV?: boolean; WITHSCORES?: boolean }): Promise<string[] | Array<{ value: string; score: number }>>;
-    zRem(key: string, members: string | string[]): Promise<number>;
-    zRemRangeByRank(key: string, start: number, stop: number): Promise<number>;
-    zCard(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-}
-
-interface RedisPipeline {
-    set(key: string, value: string, options?: { EX?: number }): RedisPipeline;
-    zAdd(key: string, member: { score: number; value: string }): RedisPipeline;
-    zRemRangeByRank(key: string, start: number, stop: number): RedisPipeline;
-    expire(key: string, seconds: number): RedisPipeline;
-    exec(): Promise<unknown[]>;
-}
+// RedisClient and RedisMulti imported from '../types' (shared across all services)
 
 // Configuration
 export const GAME_HISTORY_TTL = 30 * 24 * 60 * 60; // 30 days in seconds

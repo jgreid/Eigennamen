@@ -14,7 +14,7 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { Player, GameState, TimerCallback, RedisSetOptions, LuaEvalOptions } from '../types';
+import type { Player, GameState, TimerCallback, RedisSetOptions, LuaEvalOptions, RedisClient } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
@@ -23,14 +23,7 @@ const { SOCKET_EVENTS, LOCKS } = require('../config/constants');
 const { safeEmitToRoom } = require('./safeEmit');
 const { withTimeout, TIMEOUTS } = require('../utils/timeout');
 
-/**
- * Redis client interface for socket operations
- */
-interface RedisClient {
-    set: (key: string, value: string, options?: RedisSetOptions) => Promise<string | null>;
-    del: (key: string) => Promise<number>;
-    eval: (script: string, options: LuaEvalOptions) => Promise<unknown>;
-}
+// RedisClient imported from '../types' (shared across all services)
 
 /**
  * Create the callback for timer expiration.

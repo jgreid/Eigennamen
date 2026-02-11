@@ -5,7 +5,7 @@
  * copy-pasted across revealCard, giveClue, and endTurn.
  */
 
-import type { GameState } from '../../types';
+import type { GameState, RedisClient as SharedRedisClient, RedisMulti } from '../../types';
 
 const fs = require('fs');
 const path = require('path');
@@ -74,20 +74,8 @@ export const MAX_HISTORY_ENTRIES: number = GAME_HISTORY.MAX_ENTRIES;
 export const MAX_CLUES: number = GAME_HISTORY.MAX_CLUES;
 const MAX_TRANSACTION_RETRIES: number = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 
-/**
- * Redis client type (simplified for migration)
- */
-export interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<string | null>;
-    del(key: string): Promise<number>;
-    ttl(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-    watch(key: string): Promise<string>;
-    unwatch(): Promise<string>;
-    multi(): RedisTransaction;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-}
+// RedisClient imported from '../../types' (shared across all services)
+export type { SharedRedisClient as RedisClient };
 
 /** Type signature for executeLuaScript (used by gameService's require()-based import). */
 export type ExecuteLuaScript = <T>(
@@ -97,11 +85,6 @@ export type ExecuteLuaScript = <T>(
     errorMap: Record<string, Error | { code: string; message: string }>,
     operationName: string
 ) => Promise<T>;
-
-interface RedisTransaction {
-    set(key: string, value: string, options?: { EX?: number }): RedisTransaction;
-    exec(): Promise<unknown[] | null>;
-}
 
 /**
  * Safely parse game data from Redis

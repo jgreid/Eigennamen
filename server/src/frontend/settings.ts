@@ -72,7 +72,7 @@ export function initSettingsNav(): void {
     const navItems = document.querySelectorAll('.settings-nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            switchSettingsPanel((item as HTMLElement).dataset.panel);
+            switchSettingsPanel((item as HTMLElement).dataset.panel || '');
         });
     });
 }
@@ -228,7 +228,7 @@ export function resetWords(): void {
 
 export function loadLocalSettings(): void {
     // Load word list mode
-    state.wordListMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    state.wordListMode = safeGetItem('codenames-wordlist-mode', 'combined') || '';
 
     // Load custom words
     const customWordsText = safeGetItem('codenames-custom-words');
