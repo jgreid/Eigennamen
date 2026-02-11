@@ -70,10 +70,10 @@ jest.mock('../middleware/socketAuth', () => ({
     })
 }));
 
-jest.mock('../socket/handlers/roomHandlers', () => jest.fn());
-jest.mock('../socket/handlers/gameHandlers', () => jest.fn());
-jest.mock('../socket/handlers/playerHandlers', () => jest.fn());
-jest.mock('../socket/handlers/chatHandlers', () => jest.fn());
+jest.mock('../socket/handlers/roomHandlers', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../socket/handlers/gameHandlers', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../socket/handlers/playerHandlers', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../socket/handlers/chatHandlers', () => ({ __esModule: true, default: jest.fn() }));
 
 jest.mock('../socket/rateLimitHandler', () => ({
     socketRateLimiter: { cleanupSocket: jest.fn() },

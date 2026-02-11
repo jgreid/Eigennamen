@@ -720,4 +720,4 @@ export async function cleanupGame(roomCode: string): Promise<void> {
 export { getGameStateForPlayer } from './game/revealEngine';
 export { seededRandom, hashString, shuffleWithSeed, generateSeed, generateDuetBoard } from './game/boardGenerator';
 export { validateClueWord } from './game/clueValidator';
-export { validateCardIndex, validateRevealPreconditions, executeCardReveal, determineRevealOutcome, buildRevealResult } from './game/revealEngine';
+export { validateCardIndex, validateRevealPreconditions, executeCardReveal, determineRevealOutcome, buildRevealResult, switchTurn } from './game/revealEngine';

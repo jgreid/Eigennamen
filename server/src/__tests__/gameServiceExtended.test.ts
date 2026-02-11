@@ -7,7 +7,7 @@
  * Also includes comprehensive tests for async functions:
  * - createGame with custom word lists and database word lists
  * - getGame with corrupted data handling
- * - revealCard and revealCardOptimized with all outcomes
+ * - revealCard with all outcomes (including Lua script path)
  * - giveClue validation flows
  * - endTurn complete flow
  * - forfeitGame complete flow
@@ -77,7 +77,6 @@ const {
     getGame,
     getGameStateForPlayer,
     revealCard,
-    revealCardOptimized,
     giveClue,
     endTurn,
     forfeitGame,
@@ -788,98 +787,6 @@ describe('getGameStateForPlayer', () => {
         const state = getGameStateForPlayer(game, player);
 
         expect(state.types).toEqual(mockGame.types);
-    });
-});
-
-describe('revealCardOptimized', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
-
-    test('successfully reveals card via Lua script', async () => {
-        const luaResult = {
-            success: true,
-            index: 5,
-            type: 'red',
-            word: 'APPLE',
-            redScore: 1,
-            blueScore: 0,
-            currentTurn: 'red',
-            guessesUsed: 1,
-            guessesAllowed: 3,
-            turnEnded: false,
-            gameOver: false,
-            winner: null,
-            endReason: null
-        };
-        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
-
-        const result = await revealCardOptimized('TEST01', 5, 'Player1');
-
-        expect(result).toEqual(luaResult);
-        expect(mockRedis.eval).toHaveBeenCalled();
-    });
-
-    test('handles NO_GAME error from Lua script', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GAME' }));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.GAME_NOT_STARTED,
-            message: 'No active game'
-        });
-    });
-
-    test('handles GAME_OVER error from Lua script', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.GAME_OVER,
-            message: 'Game is already over'
-        });
-    });
-
-    test('handles NO_GUESSES error from Lua script', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GUESSES' }));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.INVALID_INPUT,
-            message: 'No guesses remaining this turn'
-        });
-    });
-
-    test('handles ALREADY_REVEALED error from Lua script', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'ALREADY_REVEALED' }));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.CARD_ALREADY_REVEALED,
-            message: 'Card already revealed'
-        });
-    });
-
-    test('handles unknown error from Lua script', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'UNKNOWN_ERROR' }));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.SERVER_ERROR,
-            message: 'UNKNOWN_ERROR'
-        });
-    });
-
-    test('handles Redis eval failure', async () => {
-        mockRedis.eval.mockRejectedValue(new Error('Redis connection lost'));
-
-        await expect(revealCardOptimized('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.SERVER_ERROR,
-            message: 'Failed to reveal card'
-        });
-    });
-
-    test('rejects invalid card index before calling Redis', async () => {
-        await expect(revealCardOptimized('TEST01', -1)).rejects.toMatchObject({
-            code: ERROR_CODES.INVALID_INPUT
-        });
-
-        expect(mockRedis.eval).not.toHaveBeenCalled();
     });
 });
 

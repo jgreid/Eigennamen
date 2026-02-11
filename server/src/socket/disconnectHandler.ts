@@ -69,7 +69,7 @@ function createTimerExpireCallback(
             // SPRINT-15 FIX: Wrap in IIFE with .catch() to prevent unhandled promise rejections
             setImmediate(() => {
                 (async () => {
-                    const { getRedis, isRedisHealthy } = require('../config/redis');
+                    const { getRedis, isRedisHealthy } = require('../infrastructure/redis');
                     const redis = getRedis();
                     const lockKey = `lock:timer-restart:${roomCode}`;
                     let lockAcquired = false;
@@ -171,7 +171,7 @@ async function handleDisconnect(
     abortSignal?: AbortSignal
 ): Promise<void> {
     const playerService = require('../services/playerService');
-    const { getRedis } = require('../config/redis');
+    const { getRedis } = require('../infrastructure/redis');
 
     try {
         const player: Player | null = await playerService.getPlayer(socket.sessionId);

@@ -82,7 +82,7 @@ describe('Extended Room Handlers Tests', () => {
         gameService.getGame.mockResolvedValue(null);
         playerService.getRoomStats.mockResolvedValue({});
 
-        roomHandlers = require('../socket/handlers/roomHandlers');
+        roomHandlers = require('../socket/handlers/roomHandlers').default;
         roomHandlers(mockIo, mockSocket);
     });
 

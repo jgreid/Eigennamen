@@ -186,9 +186,9 @@ jest.mock('../../services/timerService', () => ({
 
 const { createSocketRateLimiter } = require('../../middleware/rateLimit');
 const { RATE_LIMITS, ERROR_CODES } = require('../../config/constants');
-const roomHandlers = require('../../socket/handlers/roomHandlers');
-const gameHandlers = require('../../socket/handlers/gameHandlers');
-const playerHandlers = require('../../socket/handlers/playerHandlers');
+const roomHandlers = require('../../socket/handlers/roomHandlers').default;
+const gameHandlers = require('../../socket/handlers/gameHandlers').default;
+const playerHandlers = require('../../socket/handlers/playerHandlers').default;
 
 describe('Race Condition Tests', () => {
     let httpServer;

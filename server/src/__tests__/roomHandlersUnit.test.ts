@@ -109,7 +109,7 @@ describe('Room Handlers', () => {
         playerService.updatePlayer.mockResolvedValue();
 
         // Load handlers
-        const roomHandlers = require('../socket/handlers/roomHandlers');
+        const roomHandlers = require('../socket/handlers/roomHandlers').default;
         roomHandlers(mockIo, mockSocket);
     });
 

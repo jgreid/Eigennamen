@@ -109,7 +109,7 @@ jest.mock('../services/roomService', () => ({
 }));
 
 // Import after mocks
-const adminRoutes = require('../routes/adminRoutes');
+const adminRoutes = require('../routes/adminRoutes').default;
 const { errorHandler } = require('../middleware/errorHandler');
 const { isRedisHealthy } = require('../infrastructure/redis');
 

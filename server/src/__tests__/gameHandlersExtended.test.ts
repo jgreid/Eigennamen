@@ -84,7 +84,7 @@ describe('Extended Game Handlers Tests', () => {
         });
         gameService.getGame.mockResolvedValue(null);
 
-        gameHandlers = require('../socket/handlers/gameHandlers');
+        gameHandlers = require('../socket/handlers/gameHandlers').default;
         gameHandlers(mockIo, mockSocket);
     });
 

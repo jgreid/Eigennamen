@@ -85,7 +85,7 @@ describe('Player Handlers', () => {
         gameService.getGame.mockResolvedValue(null);
 
         // Load handlers
-        const playerHandlers = require('../socket/handlers/playerHandlers');
+        const playerHandlers = require('../socket/handlers/playerHandlers').default;
         playerHandlers(mockIo, mockSocket);
     });
 

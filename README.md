@@ -216,10 +216,9 @@ Works in all modern browsers:
 | Document | Purpose |
 |----------|---------|
 | [QUICKSTART.md](QUICKSTART.md) | Getting started guide with first game walkthrough |
-| [ROADMAP.md](ROADMAP.md) | Development roadmap, remaining work, test metrics |
+| [ROADMAP.md](ROADMAP.md) | Development roadmap and remaining work |
+| [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | Structural review with prioritized improvements |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contributor guidelines, code standards, PR process |
-| [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) | Comprehensive code review with development plan |
-| [FUTURE_PLAN.md](FUTURE_PLAN.md) | Future development phases and feature plans |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture diagrams and decisions |
 | [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) | API specification (REST + WebSocket) |
 | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Testing documentation and patterns |

@@ -431,9 +431,8 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 - [README.md](README.md) - Project overview and gameplay instructions
 - [QUICKSTART.md](QUICKSTART.md) - Getting started guide
 - [ROADMAP.md](ROADMAP.md) - Development roadmap and remaining work
+- [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) - Structural review with prioritized improvements
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contributor guidelines
-- [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) - Code review findings and development plan
-- [FUTURE_PLAN.md](FUTURE_PLAN.md) - Future development phases
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
 - [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) - Technical specification
 - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - Testing documentation

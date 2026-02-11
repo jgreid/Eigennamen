@@ -78,7 +78,7 @@ describe('Game Handlers', () => {
         gameService.getGame.mockResolvedValue(null);
 
         // Register handlers
-        gameHandlers = require('../socket/handlers/gameHandlers');
+        gameHandlers = require('../socket/handlers/gameHandlers').default;
         gameHandlers(mockIo, mockSocket);
     });
 

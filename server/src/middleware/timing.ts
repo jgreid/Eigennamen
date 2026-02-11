@@ -173,7 +173,7 @@ function startMemoryMonitoring(): void {
             logger.error('Critical memory usage - forcing cleanup', logData);
             // Trigger emergency cleanup in MemoryStorage
             try {
-                const { isMemoryMode, getMemoryStorage } = require('../config/memoryStorage');
+                const { isMemoryMode, getMemoryStorage } = require('../infrastructure/memoryStorage');
                 if (isMemoryMode()) {
                     const storage = getMemoryStorage();
                     const cleaned = storage.forceCleanup();

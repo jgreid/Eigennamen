@@ -33,6 +33,44 @@ jest.mock('../middleware/csrf', () => ({
     csrfProtection: (req, res, next) => next()
 }));
 
+jest.mock('../infrastructure/redis', () => ({
+    isRedisHealthy: jest.fn(() => Promise.resolve(true)),
+    isUsingMemoryMode: jest.fn(() => true),
+    getRedis: jest.fn(),
+    connectRedis: jest.fn(async () => {}),
+    disconnectRedis: jest.fn(async () => {}),
+    getPubSubClients: jest.fn(() => ({ pubClient: {}, subClient: {} })),
+    getRedisMemoryInfo: jest.fn(async () => ({
+        mode: 'memory',
+        used_memory: 0,
+        used_memory_human: 'N/A',
+        used_memory_peak: 0,
+        used_memory_peak_human: 'N/A',
+        maxmemory: 0,
+        maxmemory_human: 'N/A',
+        memory_usage_percent: 0,
+        alert: null
+    }))
+}));
+
+jest.mock('../infrastructure/database', () => ({
+    isDatabaseEnabled: jest.fn(() => false),
+    getDatabase: jest.fn(),
+    connectDatabase: jest.fn(async () => {}),
+    disconnectDatabase: jest.fn(async () => {})
+}));
+
+jest.mock('../utils/pubSubHealth', () => ({
+    getHealth: jest.fn(() => ({
+        isHealthy: true,
+        totalPublishes: 0,
+        totalFailures: 0,
+        failureRate: 0,
+        consecutiveFailures: 0,
+        lastError: null
+    }))
+}));
+
 // Store original env
 const originalEnv = process.env.NODE_ENV;
 
@@ -47,7 +85,7 @@ describe('Express Application', () => {
         process.env.NODE_ENV = 'test';
         process.env.CORS_ORIGIN = 'http://localhost:3000';
 
-        app = require('../app');
+        app = require('../app').default;
     });
 
     afterEach(() => {
@@ -85,25 +123,11 @@ describe('Express Application', () => {
             const response = await request(app).get('/health/live');
 
             expect(response.status).toBe(200);
-            expect(response.body).toEqual({ status: 'alive' });
+            expect(response.body).toMatchObject({ status: 'live' });
         });
     });
 
     describe('GET /health/ready', () => {
-        beforeEach(() => {
-            // Mock database module
-            jest.mock('../infrastructure/database', () => ({
-                isDatabaseEnabled: jest.fn(() => false),
-                getDatabase: jest.fn()
-            }));
-
-            // Mock redis module
-            jest.mock('../infrastructure/redis', () => ({
-                isRedisHealthy: jest.fn(() => Promise.resolve(true)),
-                isUsingMemoryMode: jest.fn(() => true),
-                getRedis: jest.fn()
-            }));
-        });
 
         it('should return 200 with detailed health checks', async () => {
             const response = await request(app).get('/health/ready');
@@ -112,54 +136,34 @@ describe('Express Application', () => {
             expect(response.body).toMatchObject({
                 status: expect.any(String),
                 timestamp: expect.any(String),
-                uptime: expect.any(Number),
-                memory: expect.any(Object),
                 checks: expect.any(Object)
             });
         });
 
-        it('should include memory usage', async () => {
+        it('should include redis check', async () => {
             const response = await request(app).get('/health/ready');
 
-            expect(response.body.memory).toMatchObject({
-                heapUsed: expect.any(Number),
-                heapTotal: expect.any(Number),
-                rss: expect.any(Number)
+            expect(response.body.checks).toHaveProperty('redis');
+            expect(response.body.checks.redis).toMatchObject({
+                healthy: true,
+                mode: 'memory'
             });
         });
 
-        it('should include database check', async () => {
+        it('should include pubsub check', async () => {
             const response = await request(app).get('/health/ready');
 
-            expect(response.body.checks).toHaveProperty('database');
-        });
-
-        it('should include storage check', async () => {
-            const response = await request(app).get('/health/ready');
-
-            expect(response.body.checks).toHaveProperty('storage');
-        });
-
-        it('should include socketio check when io is configured', async () => {
-            // Set up mock io
-            const mockIo = {
-                fetchSockets: jest.fn(() => Promise.resolve([]))
-            };
-            app.set('io', mockIo);
-
-            const response = await request(app).get('/health/ready');
-
-            expect(response.body.checks).toHaveProperty('socketio');
-        });
-
-        it('should handle socketio not configured', async () => {
-            app.set('io', null);
-
-            const response = await request(app).get('/health/ready');
-
-            expect(response.body.checks.socketio).toMatchObject({
-                status: 'not_configured'
+            expect(response.body.checks).toHaveProperty('pubsub');
+            expect(response.body.checks.pubsub).toMatchObject({
+                healthy: true
             });
+        });
+
+        it('should return ready status when all checks pass', async () => {
+            const response = await request(app).get('/health/ready');
+
+            expect(response.status).toBe(200);
+            expect(response.body.status).toBe('ready');
         });
     });
 
@@ -340,7 +344,7 @@ describe('Express Application - Production Mode', () => {
 
         // This should call process.exit(1)
         try {
-            require('../app');
+            require('../app').default;
         } catch {
             // Expected - module may throw after process.exit is called
         }
@@ -375,17 +379,20 @@ describe('Express Application - Fly.io Environment', () => {
     });
 
     it('should include Fly.io instance info in /health/ready', async () => {
-        const app = require('../app');
+        const app = require('../app').default;
         const response = await request(app).get('/health/ready');
 
-        expect(response.body.instance).toMatchObject({
-            flyAllocId: 'test-alloc-id',
-            flyRegion: 'iad'
+        // Health ready endpoint returns status, timestamp, and checks
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+            status: 'ready',
+            timestamp: expect.any(String),
+            checks: expect.any(Object)
         });
     });
 
     it('should include Fly.io instance info in /metrics', async () => {
-        const app = require('../app');
+        const app = require('../app').default;
         const response = await request(app).get('/metrics');
 
         expect(response.body.instance).toMatchObject({

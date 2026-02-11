@@ -87,10 +87,10 @@ jest.mock('../services/timerService', () => ({
 }));
 
 // Mock handlers
-jest.mock('../socket/handlers/roomHandlers', () => jest.fn());
-jest.mock('../socket/handlers/gameHandlers', () => jest.fn());
-jest.mock('../socket/handlers/playerHandlers', () => jest.fn());
-jest.mock('../socket/handlers/chatHandlers', () => jest.fn());
+jest.mock('../socket/handlers/roomHandlers', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../socket/handlers/gameHandlers', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../socket/handlers/playerHandlers', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../socket/handlers/chatHandlers', () => ({ __esModule: true, default: jest.fn() }));
 
 // Mock rate limiter
 jest.mock('../socket/rateLimitHandler', () => ({

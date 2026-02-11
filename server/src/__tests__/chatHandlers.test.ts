@@ -65,7 +65,7 @@ describe('Chat Handlers', () => {
         gameService.getGame.mockResolvedValue(null);
 
         // Register handlers
-        chatHandlers = require('../socket/handlers/chatHandlers');
+        chatHandlers = require('../socket/handlers/chatHandlers').default;
         chatHandlers(mockIo, mockSocket);
     });
 

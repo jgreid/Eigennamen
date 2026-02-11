@@ -20,7 +20,7 @@ const _roomService = require('../services/roomService');
 const timerService = require('../services/timerService');
 const gameService = require('../services/gameService');
 const { getSocketFunctions } = require('../socket/socketFunctionProvider');
-const timerHandlers = require('../socket/handlers/timerHandlers');
+const timerHandlers = require('../socket/handlers/timerHandlers').default;
 const { ERROR_CODES } = require('../config/constants');
 
 describe('Timer Handlers', () => {

@@ -5,7 +5,7 @@
  * Reduces boilerplate and ensures consistency across tests.
  */
 
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 
 type AnyRecord = Record<string, any>;
@@ -13,7 +13,7 @@ type AnyRecord = Record<string, any>;
 /**
  * Create a mock Redis client with all common operations
  */
-function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
+export function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
     const storage = new Map<string, string>();
     const sets = new Map<string, Set<string>>();
     const sortedSets = new Map<string, Array<{ score: number; value: string }>>();
@@ -287,7 +287,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
 /**
  * Create a mock player object
  */
-function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
+export function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
     return {
         sessionId: uuidv4(),
         roomCode: 'TESTXX',
@@ -305,7 +305,7 @@ function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
 /**
  * Create a mock room object
  */
-function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
+export function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
     const code = overrides.code || generateRoomCode();
     return {
         code,
@@ -325,7 +325,7 @@ function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
 /**
  * Create a mock game object
  */
-function createMockGame(overrides: AnyRecord = {}): AnyRecord {
+export function createMockGame(overrides: AnyRecord = {}): AnyRecord {
     const words = overrides.words || Array.from({ length: 25 }, (_, i) => `WORD${i + 1}`);
     const types = overrides.types || [
         ...Array(9).fill('red'),
@@ -362,7 +362,7 @@ function createMockGame(overrides: AnyRecord = {}): AnyRecord {
 /**
  * Create a mock socket object
  */
-function createMockSocket(overrides: AnyRecord = {}): AnyRecord {
+export function createMockSocket(overrides: AnyRecord = {}): AnyRecord {
     const sessionId = overrides.sessionId || uuidv4();
     const socketId = overrides.id || `socket-${uuidv4()}`;
 
@@ -391,7 +391,7 @@ function createMockSocket(overrides: AnyRecord = {}): AnyRecord {
 /**
  * Create a mock Socket.io server
  */
-function createMockIO(overrides: AnyRecord = {}): AnyRecord {
+export function createMockIO(overrides: AnyRecord = {}): AnyRecord {
     return {
         to: jest.fn(() => ({
             emit: jest.fn()
@@ -409,7 +409,7 @@ function createMockIO(overrides: AnyRecord = {}): AnyRecord {
 /**
  * Create a mock logger
  */
-function createMockLogger(): AnyRecord {
+export function createMockLogger(): AnyRecord {
     return {
         debug: jest.fn(),
         info: jest.fn(),
@@ -422,7 +422,7 @@ function createMockLogger(): AnyRecord {
 /**
  * Generate a random room code
  */
-function generateRoomCode(): string {
+export function generateRoomCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 6; i++) {
@@ -434,7 +434,7 @@ function generateRoomCode(): string {
 /**
  * Create mock services bundle
  */
-function createMockServices(): AnyRecord {
+export function createMockServices(): AnyRecord {
     return {
         gameService: {
             createGame: jest.fn(async () => createMockGame()),
@@ -479,21 +479,21 @@ function createMockServices(): AnyRecord {
 /**
  * Wait for a specified time
  */
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Flush all pending promises
  */
-function flushPromises(): Promise<void> {
+export function flushPromises(): Promise<void> {
     return new Promise(resolve => setImmediate(resolve));
 }
 
 /**
  * Assert that an async function throws an error with specific properties
  */
-async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: string): Promise<Error> {
+export async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: string): Promise<Error> {
     try {
         await fn();
         throw new Error('Expected function to throw');

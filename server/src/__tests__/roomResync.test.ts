@@ -92,7 +92,7 @@ describe('Room Resync and Recovery Handlers', () => {
         playerService.getRoomStats.mockResolvedValue({});
 
         // Register handlers
-        roomHandlers = require('../socket/handlers/roomHandlers');
+        roomHandlers = require('../socket/handlers/roomHandlers').default;
         roomHandlers(mockIo, mockSocket);
     });
 

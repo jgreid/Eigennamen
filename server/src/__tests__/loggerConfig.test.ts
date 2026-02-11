@@ -31,7 +31,7 @@ describe('Logger Configuration', () => {
             const winston = require('winston');
             const createLoggerSpy = jest.spyOn(winston, 'createLogger');
 
-            require('../utils/logger');
+            require('../utils/logger').default;
 
             const config = createLoggerSpy.mock.calls[0][0];
             expect(config.level).toBe('warn');
@@ -45,7 +45,7 @@ describe('Logger Configuration', () => {
             const winston = require('winston');
             const createLoggerSpy = jest.spyOn(winston, 'createLogger');
 
-            require('../utils/logger');
+            require('../utils/logger').default;
 
             const config = createLoggerSpy.mock.calls[0][0];
             expect(config.level).toBe('error');
@@ -59,7 +59,7 @@ describe('Logger Configuration', () => {
             const winston = require('winston');
             const createLoggerSpy = jest.spyOn(winston, 'createLogger');
 
-            require('../utils/logger');
+            require('../utils/logger').default;
 
             const config = createLoggerSpy.mock.calls[0][0];
             expect(config.level).toBe('debug');
@@ -78,7 +78,7 @@ describe('Logger Configuration', () => {
             const winston = require('winston');
             const createLoggerSpy = jest.spyOn(winston, 'createLogger');
 
-            require('../utils/logger');
+            require('../utils/logger').default;
 
             const config = createLoggerSpy.mock.calls[0][0];
             expect(config.level).toBe('debug');
@@ -93,7 +93,7 @@ describe('Logger Configuration', () => {
                 throw new Error('Module not available');
             });
 
-            const logger = require('../utils/logger');
+            const logger = require('../utils/logger').default;
 
             // _buildMeta should still work - returning empty context fields
             const meta = logger._buildMeta({ custom: 'field' });
@@ -115,7 +115,7 @@ describe('Logger Configuration', () => {
                 mkdirSync: jest.fn(() => { throw new Error('Read-only filesystem'); })
             }));
 
-            const logger = require('../utils/logger');
+            const logger = require('../utils/logger').default;
 
             // Verify console.warn was called with the error message
             expect(consoleSpy).toHaveBeenCalledWith(
@@ -132,7 +132,7 @@ describe('Logger Configuration', () => {
 
     describe('_buildMeta with Error objects', () => {
         it('should extract message, code, and stack from Error objects', () => {
-            const logger = require('../utils/logger');
+            const logger = require('../utils/logger').default;
             const err = new Error('Something failed');
             (err as Error & { code?: string }).code = 'ERR_CUSTOM';
 
@@ -147,7 +147,7 @@ describe('Logger Configuration', () => {
 
     describe('child logger', () => {
         it('should merge default metadata into all log calls', () => {
-            const logger = require('../utils/logger');
+            const logger = require('../utils/logger').default;
             const child = logger.child({ roomCode: 'TEST01', sessionId: 'abc123' });
 
             // Child logger methods should exist and be callable

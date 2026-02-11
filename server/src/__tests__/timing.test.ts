@@ -3,9 +3,18 @@
  * Tests for request timing, socket event timing, and memory monitoring
  */
 
-jest.mock('../utils/logger');
+jest.mock('../utils/logger', () => ({
+    __esModule: true,
+    default: {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+        http: jest.fn()
+    }
+}));
 
-const logger = require('../utils/logger');
+const logger = require('../utils/logger').default;
 const {
     requestTiming,
     socketEventTiming,

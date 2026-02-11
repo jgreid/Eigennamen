@@ -25,7 +25,7 @@ describe('Logger Configuration', () => {
     describe('Log Level Selection', () => {
         it('should use LOG_LEVEL when explicitly set', () => {
             process.env.LOG_LEVEL = 'debug';
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             // Logger should be created with debug level
             expect(logger).toBeDefined();
@@ -34,7 +34,7 @@ describe('Logger Configuration', () => {
         it('should default to error level in test environment', () => {
             process.env.NODE_ENV = 'test';
             delete process.env.LOG_LEVEL;
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -43,7 +43,7 @@ describe('Logger Configuration', () => {
             process.env.NODE_ENV = 'production';
             delete process.env.LOG_LEVEL;
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -52,7 +52,7 @@ describe('Logger Configuration', () => {
             process.env.NODE_ENV = 'development';
             delete process.env.LOG_LEVEL;
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -61,7 +61,7 @@ describe('Logger Configuration', () => {
             process.env.LOG_LEVEL = 'invalid-level';
             process.env.NODE_ENV = 'development';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             // Should fall back to NODE_ENV-based level
             expect(logger).toBeDefined();
@@ -72,7 +72,7 @@ describe('Logger Configuration', () => {
         beforeEach(() => {
             process.env.LOG_LEVEL = 'debug';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
         });
 
         it('should have all log level methods', () => {
@@ -120,7 +120,7 @@ describe('Logger Configuration', () => {
         beforeEach(() => {
             process.env.LOG_LEVEL = 'debug';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
         });
 
         it('should create child logger with default metadata', () => {
@@ -156,7 +156,7 @@ describe('Logger Configuration', () => {
         beforeEach(() => {
             process.env.LOG_LEVEL = 'debug';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
         });
 
         it('should handle missing correlation module gracefully', () => {
@@ -170,7 +170,7 @@ describe('Logger Configuration', () => {
         it('should use FLY_ALLOC_ID when available', () => {
             process.env.FLY_ALLOC_ID = 'fly-instance-abc123';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -179,7 +179,7 @@ describe('Logger Configuration', () => {
             delete process.env.FLY_ALLOC_ID;
             process.env.INSTANCE_ID = 'custom-instance-123';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -188,7 +188,7 @@ describe('Logger Configuration', () => {
             delete process.env.FLY_ALLOC_ID;
             delete process.env.INSTANCE_ID;
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -198,7 +198,7 @@ describe('Logger Configuration', () => {
         it('should use JSON format in production', () => {
             process.env.NODE_ENV = 'production';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -207,7 +207,7 @@ describe('Logger Configuration', () => {
             process.env.LOG_FORMAT = 'json';
             process.env.NODE_ENV = 'development';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -216,7 +216,7 @@ describe('Logger Configuration', () => {
             process.env.NODE_ENV = 'development';
             delete process.env.LOG_FORMAT;
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
 
             expect(logger).toBeDefined();
         });
@@ -226,7 +226,7 @@ describe('Logger Configuration', () => {
         beforeEach(() => {
             process.env.LOG_LEVEL = 'debug';
             jest.resetModules();
-            logger = require('../utils/logger');
+            logger = require('../utils/logger').default;
         });
 
         it('should handle Error objects with stack trace', () => {

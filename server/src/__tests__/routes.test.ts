@@ -174,9 +174,9 @@ jest.mock('../services/wordListService', () => ({
 }));
 
 // Import routes after mocks
-const roomRoutes = require('../routes/roomRoutes');
-const wordListRoutes = require('../routes/wordListRoutes');
-const healthRoutes = require('../routes/healthRoutes');
+const roomRoutes = require('../routes/roomRoutes').default;
+const wordListRoutes = require('../routes/wordListRoutes').default;
+const healthRoutes = require('../routes/healthRoutes').default;
 const { errorHandler } = require('../middleware/errorHandler');
 
 // Create test app
