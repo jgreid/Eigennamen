@@ -1,31 +1,31 @@
 # Codebase Review & Development Plan
 
-**Date**: 2026-02-09
-**Scope**: Full codebase review - architecture, code quality, security, testing, infrastructure, and UX
-**Version Reviewed**: v2.2.0 (commit 9a6d456)
-**Implementation Status**: Tiers 1-3 completed (see checkmarks below)
+**Date**: 2026-02-11
+**Scope**: Full codebase review — architecture, code quality, security, testing, frontend, infrastructure, and UX
+**Version Reviewed**: v2.2.0 (commit 07d06bd)
+**Previous Review**: 2026-02-09 (Tiers 1-3 completed)
 
 ---
 
 ## Executive Summary
 
-Codenames Online is a **mature, production-ready** multiplayer web application with strong engineering fundamentals. The review found zero critical vulnerabilities, 2,980 passing backend tests (94%+ coverage), and well-structured TypeScript with zero `any` types. The codebase has already undergone multiple hardening rounds (documented in `HARDENING_PLAN.md` and `FUTURE_PLAN.md`).
+Codenames Online (Die Eigennamen) is a **mature, production-ready** multiplayer web application with strong engineering fundamentals. This review — conducted after multiple hardening rounds — confirms zero critical vulnerabilities, 2,308 passing backend tests, 303 frontend tests, 53 E2E tests, and well-structured TypeScript with strict compilation.
 
-This review identifies **27 actionable improvements** across 6 categories, organized into 4 priority tiers. The improvements focus on code maintainability, frontend test coverage, developer experience, and architectural refinements that will support the feature roadmap outlined in `ROADMAP.md`.
+This fresh review identifies **19 actionable improvements** organized into 3 priority tiers, focused on: type safety hardening, frontend modularity, testing completeness, performance optimization, and documentation accuracy.
 
 ### Scorecard
 
-| Category | Score | After | Notes |
-|----------|-------|-------|-------|
-| Type Safety | 10/10 | 10/10 | Zero `any` types, comprehensive interfaces |
-| Security | 9/10 | 9/10 | Defense-in-depth, all OWASP top 10 addressed |
-| Backend Testing | 9/10 | 9/10 | 2,980 tests, 94%+ coverage, timer leak fixed |
-| Architecture | 8/10 | 9/10 | constants.ts split, socketAuth refactored, socket/index.ts extracted |
-| Frontend Testing | 4/10 | 7/10 | 303 tests (up from 36); utils, state, board covered |
-| Code Organization | 7/10 | 9/10 | Large files split, schema builders, domain separation |
-| Infrastructure | 8/10 | 9/10 | Docker optimized, staging + backup docs added |
-| Accessibility | 8/10 | 9/10 | Focus trap strengthened, loading states added |
-| Documentation | 8/10 | 9/10 | Staging, backup strategy, deployment guide enhanced |
+| Category | Score | Notes |
+|----------|-------|-------|
+| Type Safety | 10/10 | Zero `any` types, strict TS compilation, comprehensive Zod schemas |
+| Security | 9/10 | Defense-in-depth: CSRF, rate limiting, Zod validation, Helmet, audit logging |
+| Backend Testing | 9/10 | 2,308 tests across 77 suites, 94%+ coverage |
+| Architecture | 9/10 | Clean service layer, atomic Lua ops, handler pattern, graceful degradation |
+| Frontend Testing | 7/10 | 303 tests covering utils, state, board, rendering |
+| Code Organization | 9/10 | Domain-split config, extracted handlers, modular CSS |
+| Infrastructure | 9/10 | Multi-env Docker, Fly.io, CI/CD with 6 quality gates |
+| Accessibility | 9/10 | WCAG 2.1 AA: colorblind mode, keyboard nav, ARIA, focus traps |
+| Documentation | 8/10 | 15+ docs, 5 ADRs; some directory name inconsistencies and stale counts |
 
 ---
 
@@ -46,35 +46,31 @@ This review identifies **27 actionable improvements** across 6 categories, organ
 ### 1.1 Strengths
 
 - **Service layer isolation**: All business logic in `/server/src/services/`, handlers only delegate
-- **Context handler pattern**: `contextHandler.ts` provides consistent validation, rate limiting, and player context resolution across all socket handlers - eliminates boilerplate
+- **Context handler pattern**: `contextHandler.ts` provides consistent validation, rate limiting, and player context resolution across all socket handlers
 - **Graceful degradation**: PostgreSQL and Redis are both optional; the app falls back cleanly to in-memory storage
-- **Typed error hierarchy**: `GameError` base class with specialized `RoomError`, `GameStateError`, `PlayerError`, `ValidationError`, `ServerError` - each with static factory methods
-- **Atomic operations**: Redis Lua scripts for critical paths (team switching, reconnection tokens, card reveals)
+- **Typed error hierarchy**: `GameError` base class with specialized `RoomError`, `GameStateError`, `PlayerError`, `ValidationError`, `ServerError` — each with static factory methods
+- **Atomic operations**: 6 Redis Lua scripts for critical paths (card reveal, clue giving, turn end, role setting, team switch, host transfer)
 - **Safe emission**: `safeEmit.ts` wraps all Socket.io emissions with error handling and metrics
+- **Domain-split configuration**: `constants.ts` reduced to a re-export hub; logic split across `gameConfig.ts`, `rateLimits.ts`, `socketConfig.ts`, `errorCodes.ts`, `securityConfig.ts`, `roomConfig.ts`
+- **Extracted socket utilities**: `connectionTracker.ts`, `disconnectHandler.ts`, `playerContext.ts` extracted from monolithic socket/index.ts
 
-### 1.2 Issues
+### 1.2 Remaining Issues
 
-**A1. `constants.ts` has grown to 19KB and mixes unrelated domains**
-- File: `server/src/config/constants.ts`
-- Contains board config, rate limits, socket timeouts, game modes, duet rules, error codes, and room settings all in one file
-- Navigating and maintaining this file is increasingly difficult
-- **Recommendation**: Split into domain-specific files: `gameConfig.ts`, `rateLimits.ts`, `socketConfig.ts`, `errorCodes.ts`
+**A1. `gameService.ts` Zod schemas use `.passthrough()` reducing type safety**
+- File: `server/src/services/gameService.ts`
+- The `gameStateSchema` validates presence of `id` but allows any other fields through
+- Risk: Corrupted or incomplete game state from Redis could cause runtime errors during operations
+- **Recommendation**: Replace `.passthrough()` with explicit field validation for critical game state properties
 
-**A2. `socketAuth.ts` authenticateSocket() is 169 lines with 5+ nesting levels**
-- File: `server/src/middleware/socketAuth.ts:416-585`
-- Performs session validation, reconnection token verification, JWT validation, IP checking, and origin validation in one function
-- **Recommendation**: Extract into composable middleware: `validateSession()`, `validateReconnectionToken()`, `validateOrigin()`, `validateJwt()`
+**A2. `multiplayer.js` is 1,922 lines handling too many concerns**
+- File: `server/public/js/modules/multiplayer.js`
+- Handles: room creation/joining, player list management, nickname editing, forfeit confirmation, spectator join requests
+- **Recommendation**: Split into focused submodules (rooms.js, playerList.js, spectators.js)
 
-**A3. `socket/index.ts` is 743 lines mixing setup, lifecycle, and cleanup**
-- File: `server/src/socket/index.ts`
-- Handles initialization, connection tracking, IP limiting, disconnect grace periods, host transfer, and shutdown - all in one file
-- **Recommendation**: Extract `connectionTracker.ts` and `disconnectHandler.ts`
-
-**A4. Magic numbers scattered outside constants**
-- `30000` ms timeout in `socket/index.ts` disconnect handler
-- `60000` ms cleanup interval in `socketAuth.ts`
-- `5000` ms socket count cache in `app.ts`
-- **Recommendation**: Move all to `constants.ts` (or the new split files)
+**A3. Redis transaction pattern in gameService uses watch/unwatch instead of Lua**
+- The optimistic locking pattern with watch/unwatch requires multiple Redis round trips
+- Other critical operations (card reveal, clue) already use Lua scripts
+- **Recommendation**: Migrate remaining watch/unwatch patterns to Lua scripts for consistency and performance
 
 ---
 
@@ -85,66 +81,60 @@ This review identifies **27 actionable improvements** across 6 categories, organ
 - Zero `any` types across the entire TypeScript codebase
 - Consistent use of Zod schemas for input validation at all entry points
 - Clean error code system with `SCREAMING_SNAKE_CASE` conventions
-- Good use of TypeScript interfaces exported from `/types/`
-- ESLint configured with strict rules, CI enforces zero warnings
+- ESLint 9 flat config with zero warnings enforced in CI
+- TypeScript strict mode with `noUncheckedIndexedAccess`, `noImplicitReturns`, `useUnknownCatchVariables`
+- Domain-separated constants with clean re-export pattern
+- Reusable Zod schema builders (`createSanitizedString`, `createTeamNameSchema`)
 
 ### 2.2 Issues
 
-**C1. JSON.stringify/parse used 9+ times in gameService.ts without error handling**
-- File: `server/src/services/gameService.ts`
-- Corrupted Redis data would cause unhandled JSON parse errors
-- **Recommendation**: Create `safeJsonParse()` utility that returns `null` on failure (pattern already used in some places)
+**C1. No timeout wrappers on some Redis Lua script executions**
+- Some service calls to Redis Lua scripts lack timeout protection
+- A slow or unresponsive Redis could cause indefinite hangs
+- **Recommendation**: Wrap all Redis Lua calls with `withTimeout()` utility
 
-**C2. Redis key prefix strings duplicated across services**
-- Pattern `room:${roomCode}:game`, `player:${sessionId}`, etc. scattered through multiple service files
-- **Recommendation**: Centralize in a `redisKeys.ts` utility module:
-  ```typescript
-  export const redisKeys = {
-    game: (roomCode: string) => `room:${roomCode}:game`,
-    player: (sessionId: string) => `player:${sessionId}`,
-    // ...
-  };
-  ```
+**C2. Session token not rotated on use**
+- Reconnection tokens have a 5-minute TTL (good), but are not rotated when used
+- Token remains valid for the full TTL window regardless of usage
+- **Recommendation**: Rotate tokens on successful reconnection to minimize hijacking window
 
-**C3. Team name validation logic duplicated in Zod schemas**
-- File: `server/src/validators/schemas.ts`
-- The `removeControlChars()` + `.refine()` + Unicode regex pattern is repeated for nickname, room code, and clue schemas
-- **Recommendation**: Extract a reusable `sanitizedString(maxLength)` Zod schema builder
-
-**C4. ~~eventLogService.ts is a 61-line stub kept only for test compatibility~~** ✅ RESOLVED
-- File has been removed. Superseded by `gameHistoryService.ts` and `auditService.ts`.
-
-**C5. Mixed module systems in migration**
-- Some files use `require()` alongside ES6 `import`; `module.exports` alongside `export`
-- **Recommendation**: Complete the ES module migration in a dedicated pass
+**C3. State debug logging in frontend impacts performance**
+- `state.js` emits `console.log('%c[State]')` on every state mutation
+- Could cause performance degradation with frequent state updates
+- **Recommendation**: Gate debug logging behind a `DEBUG` flag or localStorage setting
 
 ---
 
 ## 3. Security Findings
 
-### 3.1 Strengths (Maintain These)
+### 3.1 Strengths (All Maintained)
 
 - Input validation via Zod at all socket and REST entry points with Unicode-aware regex
-- Rate limiting per-event with LRU eviction and in-memory fallback when Redis unavailable
+- Rate limiting per-event with LRU eviction and in-memory fallback
 - CSRF protection via `X-Requested-With` header + origin validation; violations audit-logged
-- Session security: age limits (8h), IP consistency enforcement (default deny), atomic token rotation
-- JWT hardening: production rejects dev secrets, enforces minimum secret length, validates claims
-- Helmet.js with enhanced CSP, HSTS, X-Frame-Options
-- Spymaster data protection: `getGameStateForPlayer()` strips card types for non-spymaster players
-- DOM-based rendering (no innerHTML) after H1 hardening
+- Session security: 8h age limits, IP consistency enforcement, atomic token rotation
+- JWT hardening: production rejects dev secrets, enforces minimum secret length
+- Helmet.js with enhanced CSP, HSTS, X-Frame-Options, Referrer-Policy
+- Spymaster data protection: `getGameStateForPlayer()` strips card types
+- NFKC Unicode normalization for clue validation
+- Distributed locks for concurrent operations
+- Audit logging with severity levels and in-memory fallback
+- Non-root Docker user
 
 ### 3.2 Remaining Items
 
-**S1. Reconnection token format validation order**
-- File: `server/src/middleware/socketAuth.ts`
-- Regex `/^[0-9a-f]+$/i` validates format but doesn't check length first
-- A very long string passes the regex but wastes processing time
-- **Recommendation**: Check `token.length === 64` before regex validation
-
-**S2. No Subresource Integrity (SRI) for vendored JS**
+**S1. No Subresource Integrity (SRI) for vendored JS**
 - Files: `server/public/js/socket.io.min.js`, `server/public/js/qrcode.min.js`
-- These are vendored copies without integrity hashes
-- **Recommendation**: Add SRI hashes in `index.html` script tags (low priority, already noted in ROADMAP)
+- Vendored copies without integrity hashes
+- **Recommendation**: Add SRI hashes in script tags (low priority)
+
+**S2. Admin dashboard has minimal frontend accessibility**
+- `admin.html` lacks skip link and some color contrast in badge elements
+- **Recommendation**: Add skip link and review contrast ratios
+
+**S3. IP validation disabled by default**
+- `ALLOW_IP_MISMATCH` defaults to true, weakening session security
+- **Recommendation**: Document security implications; consider defaulting to false in production
 
 ---
 
@@ -154,73 +144,37 @@ This review identifies **27 actionable improvements** across 6 categories, organ
 
 | Metric | Value |
 |--------|-------|
-| Test Suites | 91 passing, 1 skipped |
-| Total Tests | 2,980 passing, 14 skipped |
-| Coverage | 94%+ |
-| Execution Time | ~85 seconds |
+| Test Suites | 77 passing |
+| Total Tests | 2,308 passing |
+| Frontend Suites | 4 passing |
+| Frontend Tests | 303 passing |
+| E2E Tests | 53 (7 spec files) |
+| Execution Time | ~55 seconds (backend) |
 
 **Strengths:**
 - Comprehensive service and handler test coverage
 - Integration tests for full game flow, race conditions, timer operations
-- Good mocking patterns with `jest.mock()`
+- Good mocking patterns with reusable helpers (`mocks.ts`, `socketTestHelper.ts`)
 - Edge cases covered: Unicode clues, concurrent modifications, Redis failures
+- Extended test files for branch and edge-case coverage
+- Frontend tests cover state management, board rendering, utilities, and rendering logic
 
-**Issues:**
+### 4.2 Issues
 
-**T1. 3 test timeouts in socketIndexComprehensive.test.ts**
-- File: `server/src/__tests__/socketIndexComprehensive.test.ts:561, 584, 600`
-- Root cause: `setInterval` at `socket/index.ts:287` (connections cleanup) not cleared in test teardown
-- Tests pass individually but timeout in full suite due to leaked intervals
-- **Recommendation**: Export a `cleanup()` function from socket/index.ts and call it in test `afterAll`
+**T1. No multiplayer E2E tests**
+- E2E suite covers standalone game flow, accessibility, and timer
+- Missing: room create → join → play → reconnect flow
+- **Recommendation**: Add Playwright multiplayer E2E tests using dual browser contexts
 
-**T2. ts-jest deprecation warning**
-- Jest config uses `isolatedModules: true` in ts-jest transform options
-- Warning suggests moving to `tsconfig.json`
-- **Recommendation**: Move `isolatedModules` config to tsconfig.json per ts-jest migration guide
+**T2. No chaos/resilience testing**
+- No tests for deliberate Redis/network failures during operations
+- Graceful degradation is coded but not systematically tested
+- **Recommendation**: Add resilience tests that simulate Redis disconnection mid-operation
 
-**T3. memoryStorageEviction.test.ts permanently skipped**
-- Timer cleanup issue in eviction tests; doesn't affect production
-- **Recommendation**: Fix or remove to keep test suite clean
-
-### 4.2 Frontend Testing (Critical Gap)
-
-| Metric | Value |
-|--------|-------|
-| Test Suites | 1 (rendering.test.ts) |
-| Total Tests | 36 |
-| Coverage | Minimal - only escapeHTML, rendering XSS, URL encoding |
-
-**T4. 15 frontend modules with ~4,800 lines have near-zero test coverage:**
-
-| Module | Lines | Test Coverage | Risk |
-|--------|-------|---------------|------|
-| `state.js` | ~397 | None | High - central state management |
-| `game.js` | ~300+ | None | High - game flow logic |
-| `board.js` | ~200+ | None | High - rendering, keyboard nav |
-| `multiplayer.js` | ~200+ | None | High - socket integration |
-| `ui.js` | ~150+ | Partial (escapeHTML only) | Medium |
-| `utils.js` | ~150+ | Partial (URL encoding only) | **Critical** - seeded PRNG must match server |
-| `timer.js` | ~100+ | None | Medium |
-| `accessibility.js` | ~100+ | None | Medium |
-| `settings.js` | ~100+ | None | Low |
-| `roles.js` | ~100+ | None | Medium |
-| `chat.js` | ~100+ | None | Low |
-| `notifications.js` | ~100+ | None | Low |
-| `history.js` | ~100+ | None | Medium |
-| `i18n.js` | ~100+ | None | Low |
-| `constants.js` | ~50 | None | Low |
-
-**Highest risk untested code:**
-1. **Seeded PRNG** (`utils.js`) - Must produce identical output to server's Mulberry32; any divergence breaks standalone mode
-2. **State management** (`state.js`) - All modules depend on state correctness
-3. **Game flow** (`game.js`) - Core card reveal logic, turn management
-4. **Board rendering** (`board.js`) - DOM construction, keyboard navigation
-
-### 4.3 E2E Testing
-
-- 53 Playwright E2E tests passing
-- CI runs E2E on every PR with Chromium
-- **Gap**: No E2E tests for multiplayer flows (room create -> join -> play -> reconnect)
+**T3. Frontend tests use re-implementations instead of module imports**
+- Frontend test files re-implement source functions rather than importing ES modules
+- Increases maintenance burden if source changes
+- **Recommendation**: Consider using module bundler for test imports or add sync verification
 
 ---
 
@@ -230,38 +184,36 @@ This review identifies **27 actionable improvements** across 6 categories, organ
 
 - **Modular ES6 architecture**: 15 well-separated modules with clear responsibilities
 - **Event delegation**: Centralized `data-action` pattern in `app.js` (no inline handlers)
-- **Accessibility**: Skip link, ARIA live regions, keyboard shortcuts, colorblind patterns with SVG, screen reader announcements
-- **Semantic HTML**: Proper `<main>`, `<aside>`, `<header>`, `role="grid"`, `role="gridcell"`
-- **PWA support**: Manifest, apple-touch-icon, mobile web app meta tags
-- **CSS architecture**: Design tokens in `variables.css`, modular stylesheets, WCAG AA contrast targets
+- **Accessibility**: Skip link, ARIA live regions, keyboard shortcuts (n/e/s/m/h/?), colorblind SVG patterns, screen reader announcements
+- **Semantic HTML**: Proper landmarks (`<main>`, `<aside>`, `<header>`), grid roles
+- **PWA support**: Manifest, service worker, mobile web app meta tags
+- **CSS architecture**: Design tokens in `variables.css`, 8 modular stylesheets, WCAG AA contrast
+- **Glassmorphism design**: Backdrop-filter with proper webkit prefix and fallback
+- **Responsive design**: Mobile-first with breakpoints at 1024px, 768px, 480px
+- **i18n**: 4 complete languages (EN, DE, ES, FR) with localized word lists
 
 ### 5.2 Issues
 
-**F1. State object is a large mutable singleton without change tracking**
-- File: `server/public/js/modules/state.js`
-- Direct mutation throughout codebase: `state.gameState.currentTurn = value`
-- `setState()` helper exists but isn't consistently used
-- **Recommendation**: Enforce `setState()` usage for all mutations to enable debugging and future reactivity
+**F1. Chat UI not implemented on frontend**
+- Backend supports team chat and spectator chat via `chatHandlers.ts`
+- `socket-client.js` has event listeners for `chat:message` and `chat:spectatorMessage`
+- No visible chat UI in the frontend
+- **Recommendation**: Implement chat panel with team/spectator tabs
 
-**F2. Error recovery is limited to showing error messages**
-- Most errors show a toast or modal and require manual refresh
-- Network reconnection exists but game state errors have no retry mechanism
-- **Recommendation**: Add retry logic for transient errors (socket reconnection already handles network; extend to game state re-sync)
+**F2. Incomplete i18n markup in HTML**
+- Some user-facing strings are hardcoded English without `data-i18n` attributes
+- Examples: some modal titles, "Share Game" panel heading
+- **Recommendation**: Audit all hardcoded English strings and mark with `data-i18n`
 
-**F3. Focus management gaps in modal stack**
-- File: `server/public/js/modules/ui.js`
-- Modal stack exists (Phase 2 hardening), but focus trapping within modals is basic
-- Tab can escape the modal to background elements
-- **Recommendation**: Implement proper focus trap (first/last focusable element cycling)
+**F3. No plural form support in i18n system**
+- Translation system supports `{{variable}}` interpolation
+- Missing plural rules (e.g., "1 card" vs "2 cards")
+- **Recommendation**: Add basic plural support to `i18n.js` (low priority)
 
-**F4. Board re-renders full DOM on each card reveal**
-- File: `server/public/js/modules/board.js`
-- Incremental update system exists but the full render path is still used in some flows
-- **Recommendation**: Audit all render paths to ensure incremental updates are used consistently
-
-**F5. No loading/skeleton states**
-- Room join, game start, and reconnection have no visual feedback beyond the reconnection overlay
-- **Recommendation**: Add loading indicators for async operations (room join, word list loading)
+**F4. Admin dashboard uses inline CSS/JS**
+- `admin.html` has all styles and scripts inline
+- Harder to maintain and test
+- **Recommendation**: Extract to separate files if admin dashboard grows (low priority)
 
 ---
 
@@ -269,138 +221,153 @@ This review identifies **27 actionable improvements** across 6 categories, organ
 
 ### 6.1 Strengths
 
-- **CI/CD**: GitHub Actions with Node 20/22 matrix, lint (zero warnings), security audit, Docker build verification, E2E tests
-- **Docker**: 3-service compose (API, PostgreSQL, Redis) with health checks and dependency ordering
-- **Deployment**: Fly.io with WebSocket-aware config, force HTTPS, health checks, auto-scaling
-- **Database**: Clean Prisma schema with 5 models, proper indexes, cascade deletes, direct URL for migrations
-- **Scripts**: dev-setup.sh, health-check.sh, pre-deploy-check.sh, redis-inspect.sh
+- **CI/CD**: GitHub Actions with 6 quality gates: test (Node 20/22 matrix), typecheck, lint (zero warnings), security audit, Docker build verification, E2E tests
+- **CodeQL**: Weekly security scanning with extended rule set
+- **Docker**: Multi-stage build, non-root user, health checks, optimized layer caching
+- **Docker Compose**: 3-service stack (API, PostgreSQL 15, Redis 7) with health checks and dependency ordering
+- **Deployment**: Fly.io with WebSocket-aware config, force HTTPS, auto-scaling, graceful stop
+- **Scripts**: `dev-setup.sh`, `health-check.sh`, `pre-deploy-check.sh`, `redis-inspect.sh`
+- **Load testing**: k6 scripts for HTTP API and WebSocket load testing
+- **Staging environment**: Documented in DEPLOYMENT.md
+- **Database backups**: Documented strategy for PostgreSQL and Redis
 
 ### 6.2 Issues
 
-**I1. No staging environment documented**
-- Deployment goes directly from local Docker to production Fly.io
-- Database migrations not tested in staging first
-- **Recommendation**: Document staging deployment process (or add Fly.io staging app)
+**I1. No automated performance regression testing in CI**
+- Performance targets exist (1,000 rooms, 5,000 connections, <40ms reveal)
+- k6 scripts exist but not integrated into CI
+- **Recommendation**: Add scheduled CI job running k6 tests against staging
 
-**I2. No automated performance regression testing**
-- Performance targets exist in ROADMAP.md (1,000 rooms, 5,000 connections, <40ms reveal)
-- No automated tests validate these targets
-- **Recommendation**: Add k6 or Artillery load tests to CI (can run on schedule, not every PR)
+**I2. No CHANGELOG.md**
+- Project has 200+ commits but no structured changelog
+- ROADMAP.md partially serves this purpose
+- **Recommendation**: Add CHANGELOG.md following Keep a Changelog format
 
-**I3. No database backup strategy documented**
-- PostgreSQL is used for word lists and optional user data
-- No backup/restore procedures documented
-- **Recommendation**: Document backup strategy (even if simple: `pg_dump` cron or Fly.io managed backups)
-
-**I4. Docker image could be optimized**
-- No evidence of multi-stage build to reduce image size
-- **Recommendation**: Use multi-stage Dockerfile (build stage with dev deps, production stage with only runtime)
+**I3. Documentation references stale directory name "Risley-Codenames"**
+- Several docs reference `Risley-Codenames/` as the root directory name
+- Actual repository is `Eigennamen`
+- **Recommendation**: Update all directory references to match actual repo name
 
 ---
 
 ## 7. Development Plan
 
-### Tier 1: Quick Wins - COMPLETED
+### Tier 1: Quick Wins (Previously Completed — Maintained)
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| A4 | Move magic numbers to constants | :white_check_mark: Done | Added DISCONNECT_TIMEOUT_MS, CONNECTIONS_CLEANUP_INTERVAL_MS |
-| C1 | Create `safeJsonParse()` utility | :white_check_mark: Already existed | `serializer.ts:safeParse` already handles this |
-| C2 | Centralize Redis key patterns | :white_check_mark: Already existed | `utils/redisKeys.ts` already centralized |
-| C3 | Extract reusable Zod schema builders | :white_check_mark: Done | `createSanitizedString`, `createTeamNameSchema`, `createRoomIdSchema` |
-| S1 | Add length check before token regex | :white_check_mark: Already existed | Length check already implemented in socketAuth.ts |
-| T1 | Fix socket test interval leak | :white_check_mark: Done | Added afterEach cleanup in socketIndexComprehensive.test.ts |
-| T2 | Fix ts-jest deprecation warning | :white_check_mark: Done | Moved isolatedModules to tsconfig.json |
-| T3 | Fix or remove skipped eviction test | :white_check_mark: Already passing | Tests pass correctly |
+All 8 items from the previous Tier 1 remain completed and verified:
+- Magic numbers moved to constants ✅
+- Safe JSON parsing utility (already existed) ✅
+- Redis key centralization (already existed) ✅
+- Reusable Zod schema builders ✅
+- Token length validation (already existed) ✅
+- Socket test interval leak fix ✅
+- ts-jest deprecation fix ✅
+- Skipped eviction test fix ✅
 
-### Tier 2: Important Improvements - COMPLETED
+### Tier 2: Previously Completed — Maintained
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| A1 | Split `constants.ts` into domain files | :white_check_mark: Done | 6 files: gameConfig, rateLimits, socketConfig, errorCodes, securityConfig, roomConfig |
-| A2 | Refactor `authenticateSocket()` | :white_check_mark: Done | 169 lines → 45-line orchestrator + 3 helpers |
-| A3 | Extract connection tracker + disconnect handler | :white_check_mark: Done | socket/index.ts: 743 → 411 lines |
-| T4 | Add frontend unit tests | :white_check_mark: Done | 36 → 303 tests (8.4x increase): utils (93), state (99), board (75) |
-| F3 | Strengthen focus trap in modals | :white_check_mark: Done | Focus recovery, expanded focusable selectors |
-| F4 | Audit board render paths | :white_check_mark: Already correct | Incremental updates working properly |
+All 6 items from the previous Tier 2 remain completed and verified:
+- constants.ts domain split ✅
+- authenticateSocket() refactored ✅
+- Connection tracker + disconnect handler extracted ✅
+- Frontend unit tests (303 tests) ✅
+- Focus trap strengthened ✅
+- Board render paths audited ✅
 
-### Tier 3: Architectural Improvements - COMPLETED
+### Tier 3: Previously Completed — Maintained
 
-| ID | Task | Status | Notes |
-|----|------|--------|-------|
-| F1 | Enforce `setState()` usage | :white_check_mark: Documented | 640+ direct mutations; documented as gradual migration convention |
-| F2 | Add retry logic for transient errors | :white_check_mark: Already robust | Reconnection already has AbortControllers + overlay |
-| F5 | Add loading states for async operations | :white_check_mark: Done | Joining.../Creating... button states + loading CSS |
-| I1 | Document staging environment | :white_check_mark: Done | Added to docs/DEPLOYMENT.md |
-| I3 | Document database backup strategy | :white_check_mark: Done | Added to docs/DEPLOYMENT.md |
-| I4 | Optimize Docker image | :white_check_mark: Done | COPY --chown eliminates expensive chown -R layer |
+All items from the previous Tier 3 remain completed and verified:
+- setState() documented ✅
+- Retry logic (already robust) ✅
+- Loading states added ✅
+- Staging environment documented ✅
+- Database backup strategy documented ✅
+- Docker image optimized ✅
 
-### Tier 3: Remaining (Future Work)
+### New Tier A: High Priority Improvements
 
 | ID | Task | Description | Effort |
 |----|------|-------------|--------|
-| C5 | Complete ES module migration | Remove all `require()`/`module.exports` | 2 days |
-| E2E | Add multiplayer E2E tests | `tests/e2e/multiplayer.spec.ts` | 3 days |
+| A1 | Harden game state validation | Replace `.passthrough()` with explicit Zod fields in gameService | Low |
+| C1 | Add timeout wrappers for Lua calls | Wrap all Redis Lua script executions with `withTimeout()` | Low |
+| S3 | Document IP validation defaults | Document `ALLOW_IP_MISMATCH` security implications | Low |
+| I3 | Fix documentation directory references | Update all "Risley-Codenames" → "Eigennamen" references | Low |
 
-### Tier 4: Future Enhancements (Aligns with ROADMAP.md)
+### New Tier B: Medium Priority Improvements
 
-These are the larger feature initiatives already tracked in `ROADMAP.md` and `FUTURE_PLAN.md`, with additional context from this review.
+| ID | Task | Description | Effort |
+|----|------|-------------|--------|
+| T1 | Add multiplayer E2E tests | Playwright tests for room create → join → play → reconnect | Medium |
+| F1 | Implement chat UI | Frontend chat panel with team/spectator tabs | Medium |
+| F2 | Complete i18n markup | Audit and mark all hardcoded English strings | Medium |
+| C2 | Implement token rotation on use | Rotate reconnection tokens after successful reconnection | Low |
+| C3 | Gate frontend debug logging | Make state.js debug logging conditional on config | Low |
+| I2 | Add CHANGELOG.md | Structured changelog following Keep a Changelog format | Low |
 
-| Feature | Review Notes | Pre-requisites |
-|---------|-------------|----------------|
-| **Internationalization** (ROADMAP Phase 1) | i18n.js module exists with EN/DE/ES/FR setup; needs localized word lists and full UI string extraction | Tier 2 frontend tests for regression safety |
-| **WCAG 2.1 AA Compliance** (ROADMAP Phase 3) | Good foundation (colorblind mode, ARIA, keyboard nav); gaps in focus trapping (F3) and contrast audit | Fix F3 first |
-| **Game Modes** (ROADMAP Phase 4) | Duet mode config exists in constants.ts; blitz and 3-team modes need new game flow logic | Tier 2 frontend tests, A1 constants split |
-| **Performance testing** (ROADMAP) | No automated load tests; targets defined but unvalidated | I2 load test framework |
-| **Observability** (FUTURE Phase 5) | Winston logging in place; no distributed tracing | OpenTelemetry integration |
-| **Horizontal scaling** (FUTURE Phase 5) | Redis Pub/Sub adapter configured; untested multi-instance | I2 load tests, staging environment |
+### New Tier C: Lower Priority / Future Work
+
+| ID | Task | Description | Effort |
+|----|------|-------------|--------|
+| A2 | Split multiplayer.js | Decompose 1,922-line file into focused submodules | Medium |
+| A3 | Migrate to Lua for all transactions | Replace watch/unwatch patterns with Lua scripts | Medium |
+| T2 | Add chaos/resilience testing | Simulate Redis failures during operations | Medium |
+| T3 | Improve frontend test imports | Use module bundler for ES module imports in tests | Low |
+| S1 | Add SRI hashes for vendored JS | Subresource Integrity for socket.io and qrcode libs | Low |
+| S2 | Improve admin dashboard a11y | Add skip link, review contrast ratios | Low |
+| F3 | Add i18n plural support | Basic plural form handling in i18n.js | Low |
+| F4 | Extract admin inline CSS/JS | Separate admin dashboard styles and scripts | Low |
+| I1 | Automated perf regression tests | Schedule k6 load tests in CI | Medium |
 
 ---
 
 ## Appendix A: File Size Inventory
 
-Files over 500 lines (updated after refactoring):
+Files over 500 lines (current state after all refactoring):
 
 | File | Lines | Status |
 |------|-------|--------|
-| `server/src/services/gameService.ts` | 1,573 | Acceptable - core domain logic |
-| `server/src/services/playerService.ts` | 1,119 | Acceptable - consider future split |
-| `server/src/services/gameHistoryService.ts` | 739 | Acceptable - single responsibility |
-| `index.html` | 625 | Acceptable - SPA entry point |
-| `server/src/middleware/socketAuth.ts` | 593 | :white_check_mark: authenticateSocket() refactored to composable functions |
-| `server/src/services/roomService.ts` | 534 | Acceptable - clean service |
-| `server/src/services/timerService.ts` | 503 | Acceptable - clean service |
-| `server/src/socket/index.ts` | 411 | :white_check_mark: Reduced from 743 (extracted connectionTracker + disconnectHandler) |
-| `server/src/config/constants.ts` | ~50 | :white_check_mark: Reduced from 19KB (re-export hub for 6 domain files) |
+| `server/public/js/modules/multiplayer.js` | 1,922 | Consider splitting (Tier C) |
+| `server/src/services/gameService.ts` | 1,573 | Acceptable — core domain logic |
+| `server/src/services/playerService.ts` | 1,119 | Acceptable — consider future split |
+| `server/public/js/socket-client.js` | 1,019 | Acceptable — WebSocket communication |
+| `server/src/services/gameHistoryService.ts` | 739 | Acceptable — single responsibility |
+| `server/public/js/modules/game.js` | 736 | Acceptable — game logic |
+| `server/public/js/modules/app.js` | 644 | Acceptable — app orchestration |
+| `index.html` | ~625 | Acceptable — SPA entry point |
+| `server/src/middleware/socketAuth.ts` | 593 | Refactored — composable functions |
+| `server/src/services/roomService.ts` | 534 | Acceptable — clean service |
+| `server/public/js/modules/ui.js` | 534 | Acceptable — UI rendering |
+| `server/src/services/timerService.ts` | 503 | Acceptable — clean service |
+| `server/public/js/modules/history.js` | 503 | Acceptable — replay system |
+| `server/public/js/modules/roles.js` | 499 | Acceptable — role management |
 
 ## Appendix B: Test Suite Health
 
 ```
-Backend:  91/92 suites passing | 2,977/2,994 tests passing | 14 skipped
-Frontend: 4/4 suites passing   | 303/303 tests passing
-E2E:      53 passing (Playwright + Chromium)
+Backend:  77 suites passing | 2,308 tests passing
+Frontend: 4 suites passing  | 303 tests passing
+E2E:      7 spec files | 53+ tests (Playwright + Chromium)
 
-Fixed issues:
-- socketIndexComprehensive.test.ts: Interval leak fixed with afterEach cleanup
-- ts-jest deprecation: isolatedModules moved to tsconfig.json
+Total:    ~2,664 tests passing
 
-Remaining known issues:
-- timing.test.ts: 3 flaky memory monitoring tests (pre-existing, pass in isolation)
-- memoryStorageEviction.test.ts: 1 suite skipped (timer cleanup issue)
+Known issues:
+- timing.test.ts: 3 flaky memory monitoring tests (pass in isolation)
 ```
 
 ## Appendix C: Dependency Audit
 
 Key dependencies and their status:
 
-| Package | Version | Latest | Notes |
-|---------|---------|--------|-------|
-| express | 4.18.2 | Check for 5.x | Major version may have breaking changes |
-| socket.io | 4.7.2 | Check for updates | WebSocket transport core |
-| typescript | 5.3.3 | 5.7+ available | Consider upgrading for performance |
-| @prisma/client | 5.6.0 | Check for updates | ORM |
-| zod | 3.22.4 | 3.24+ available | Schema validation |
-| jest | 29.7.0 | Current | Test framework |
-| helmet | 7.1.0 | Current | Security headers |
+| Package | Version | Notes |
+|---------|---------|-------|
+| express | 4.18.2 | Stable; Express 5.x available for future upgrade |
+| socket.io | 4.7.2 | Current stable WebSocket transport |
+| typescript | 5.3.3 | 5.7+ available; consider upgrading |
+| @prisma/client | 5.6.0 | Stable ORM |
+| zod | 3.22.4 | 3.24+ available; minor improvements |
+| jest | 29.7.0 | Current stable |
+| helmet | 7.1.0 | Current stable |
+| playwright | 1.58+ | Current stable for E2E |
+| eslint | 9.x | Flat config migration complete |
 
 **Recommendation**: Run `npm outdated` periodically and upgrade minor/patch versions. Major upgrades (especially Express 5.x) should be done in a dedicated branch with full test validation.

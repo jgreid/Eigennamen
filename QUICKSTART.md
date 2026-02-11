@@ -54,8 +54,8 @@ Run a real-time multiplayer server locally. All players connect to the same serv
 
 1. **Clone the repository** (if you haven't already)
    ```bash
-   git clone https://github.com/jgreid/Risley-Codenames.git
-   cd Risley-Codenames
+   git clone https://github.com/jgreid/Eigennamen.git
+   cd Eigennamen
    ```
 
 2. **Start the server**

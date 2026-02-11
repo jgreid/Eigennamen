@@ -1,6 +1,6 @@
-# Roadmap - Codenames Online
+# Roadmap — Die Eigennamen (Codenames Online)
 
-**Last Updated:** February 10, 2026
+**Last Updated:** February 11, 2026
 **Project Version:** v2.2.0
 
 ---
@@ -9,62 +9,77 @@
 
 | Metric | Value |
 |--------|-------|
-| Backend Test Coverage | 94%+ |
-| Backend Tests | 2,980+ passing |
-| Frontend Tests | 303 passing |
-| E2E Tests | 53 passing |
+| Backend Tests | 2,308 passing (77 suites) |
+| Frontend Tests | 303 passing (4 suites) |
+| E2E Tests | 53+ passing (7 spec files) |
+| Total Tests | ~2,664 |
+| Backend Coverage | 94%+ |
 | Critical Issues | 0 |
 | Code Quality | Production-ready |
 
 ### Completed Features
-- Real-time multiplayer via Socket.io
+
+- Real-time multiplayer via Socket.io with Redis Pub/Sub adapter
 - Standalone URL-based mode (no server required)
 - Custom word lists with database persistence
-- Turn timer with pause/resume/add-time
-- Team chat with filtering
-- Spectator mode with chat and role selection
+- Turn timer with pause/resume/add-time (Redis-backed)
+- Team chat with filtering (backend)
+- Spectator mode with join requests and role selection
 - QR code room sharing
-- Reconnection with token-based authentication
-- Full state recovery on reconnect
-- Comprehensive security hardening (JWT, rate limiting, CSRF, XSS prevention)
-- Performance monitoring (request timing, memory alerts, metrics collection)
-- Modular ES6 frontend (`server/public/js/modules/`)
+- Reconnection with token-based authentication and full state recovery
+- Comprehensive security hardening (JWT, rate limiting, CSRF, XSS prevention, Helmet, audit logging)
+- Performance monitoring (request timing, memory alerts, metrics collection, Prometheus endpoint)
+- Modular ES6 frontend (15 modules in `server/public/js/modules/`)
 - Internationalization (English, German, Spanish, French with localized word lists)
-- Accessibility (colorblind mode, keyboard navigation, screen reader support, ARIA)
+- Accessibility (colorblind SVG patterns, keyboard navigation, screen reader support, ARIA, focus traps)
 - Game modes: Classic, Blitz (30s turns), Duet (cooperative 2-player)
-- Game history and replay system
-- Admin dashboard with room management, audit logs, and metrics
-- Audit logging for security events
-- Swagger/OpenAPI documentation
+- Game history and replay system with speed control (0.5x, 1x, 2x, 4x)
+- Admin dashboard with room management, audit logs, metrics, SSE streaming, broadcast messaging
+- Swagger/OpenAPI interactive documentation
 - Audio notifications (Web Audio API)
+- Distributed locks for concurrent operations
+- 6 Redis Lua scripts for atomic game operations
+- Multi-stage Docker build with non-root user
+- CI/CD pipeline: 6 quality gates (test, typecheck, lint, security, Docker, E2E)
+- CodeQL weekly security scanning
 
 ---
 
 ## Remaining Work
 
-### Testing Improvements
+### High Priority
 
-| Task | Priority |
-|------|----------|
-| Complete ES module migration (remove mixed require/import) | Medium |
-| Add multiplayer E2E tests (room create -> join -> play -> reconnect) | Medium |
-| Automated performance regression testing | Low |
+| Task | Category | Notes |
+|------|----------|-------|
+| Harden game state Zod validation | Code Quality | Replace `.passthrough()` with explicit fields in gameService |
+| Add timeout wrappers for Redis Lua calls | Code Quality | Prevent indefinite hangs on slow Redis |
+| Fix documentation directory references | Docs | Update "Risley-Codenames" → "Eigennamen" throughout |
+| Document IP validation security defaults | Security | Clarify `ALLOW_IP_MISMATCH` implications |
 
-### UX & Accessibility (WCAG 2.1 AA)
+### Medium Priority
 
-| Task | Priority |
-|------|----------|
-| Board ARIA grid role attributes (`aria-rowindex`/`aria-colindex`) | Medium |
-| Improve keyboard navigation between cards | Medium |
-| Replace deprecated `document.execCommand('copy')` fallback | Low |
+| Task | Category | Notes |
+|------|----------|-------|
+| Add multiplayer E2E tests | Testing | Room create → join → play → reconnect flow |
+| Implement chat UI | Frontend | Panel with team/spectator tabs (backend ready) |
+| Complete i18n markup | Frontend | Audit hardcoded English strings in HTML |
+| Implement token rotation on reconnection | Security | Rotate tokens after successful use |
+| Gate frontend debug logging | Performance | Make state.js logging conditional |
+| Add CHANGELOG.md | Docs | Structured changelog following Keep a Changelog |
+| Complete ES module migration | Code Quality | Remove remaining `require()`/`module.exports` |
 
-### Security Enhancements (Low Priority)
+### Lower Priority
 
-| Task | Priority |
-|------|----------|
-| WebAuthn support for persistent accounts | Low |
-| Subresource Integrity (SRI) for vendored JS | Low |
-| Rate limit room existence HTTP endpoint | Low |
+| Task | Category | Notes |
+|------|----------|-------|
+| Split multiplayer.js | Architecture | Decompose 1,922-line file into submodules |
+| Migrate all transactions to Lua | Performance | Replace watch/unwatch patterns |
+| Add chaos/resilience testing | Testing | Simulate Redis failures during operations |
+| Add SRI for vendored JS | Security | Integrity hashes for socket.io, qrcode |
+| Improve admin dashboard a11y | Accessibility | Skip link, contrast review |
+| Add i18n plural support | Frontend | Plural form handling in i18n.js |
+| Automated perf regression tests | CI/CD | Schedule k6 load tests |
+| Board ARIA grid role attributes | Accessibility | `aria-rowindex`/`aria-colindex` |
 
 ---
 
@@ -74,24 +89,27 @@
 
 | Feature | Notes |
 |---------|-------|
-| Player profiles | Optional persistent identity with stats |
-| Tournament mode | Bracket management, scheduling |
+| Player profiles | Optional persistent identity with stats tracking |
+| Tournament mode | Bracket management, scheduling, score tracking |
+| Chat UI (in-game) | Team and spectator chat with the existing backend |
 
 ### Tier 2: Medium Value
 
 | Feature | Notes |
 |---------|-------|
-| Room invites | Direct player invitations |
-| Replay sharing | Shareable replay links (replay system exists) |
-| Admin dashboard enhancements | Real-time metrics visualization, system health alerts |
+| Room invites | Direct player invitations via link or notification |
+| Replay sharing | Shareable public replay links (replay system exists) |
+| Admin dashboard enhancements | Real-time WebSocket metrics, word list moderation |
+| Draft mode | Teams draft words before game starts |
 
 ### Tier 3: Ambitious Projects
 
 | Feature | Notes |
 |---------|-------|
 | AI Spymaster | Word embedding model for clue generation |
-| Mobile native app | React Native / Capacitor if demand exists |
-| Voice chat | WebRTC integration |
+| Mobile native app | Capacitor wrapper or React Native (PWA works currently) |
+| Voice chat | WebRTC integration for in-game voice |
+| Observability platform | OpenTelemetry, Grafana dashboards, alerting rules |
 
 ---
 
@@ -102,9 +120,11 @@
 | Issue | Current State | Target |
 |-------|---------------|--------|
 | Mixed module systems | Some `require()` alongside ES6 `import` | Full ES module migration |
-| Full board re-render | Some paths still use complete DOM replacement | Consistent incremental updates |
+| Zod `.passthrough()` usage | gameService game state schema | Explicit field validation |
+| multiplayer.js size | 1,922 lines | Split into focused submodules |
+| Frontend debug logging | Always-on console.log | Conditional on config flag |
 
-### Performance Optimizations
+### Performance Targets
 
 | Metric | Target |
 |--------|--------|
@@ -119,13 +139,32 @@
 
 ### Coverage Targets
 
-| Component | Target |
-|-----------|--------|
-| Services | 90%+ |
-| Handlers | 85%+ |
-| Validators | 95%+ |
-| Utilities | 80%+ |
-| Middleware | 85%+ |
+| Component | Target | Current |
+|-----------|--------|---------|
+| Services | 90%+ | Met |
+| Handlers | 85%+ | Met |
+| Validators | 95%+ | Met |
+| Utilities | 80%+ | Met |
+| Middleware | 85%+ | Met |
+| Frontend (unit) | 70%+ | Growing |
+
+### Test Pyramid
+
+```
+        ┌─────────┐
+        │  E2E    │  53+ tests (Playwright)
+        │  Tests  │  Game flow, multiplayer, a11y, timer
+       ┌┴─────────┴┐
+       │ Integration │  4 test files
+       │   Tests     │  Full game flow, race conditions
+      ┌┴─────────────┴┐
+      │  Frontend Unit  │  303 tests (4 suites)
+      │     Tests       │  State, board, utils, rendering
+     ┌┴─────────────────┴┐
+     │   Backend Unit      │  2,308 tests (77 suites)
+     │      Tests          │  Services, handlers, middleware, config
+     └─────────────────────┘
+```
 
 ---
 
@@ -142,11 +181,18 @@ npm run typecheck                  # Type check
 
 # E2E Testing
 npm run test:e2e                   # Run E2E tests
+npm run test:e2e:headed            # E2E in headed browser
 
 # Docker
 docker compose up -d --build       # Full stack
+docker compose down                # Stop stack
+
+# Database
+npm run db:migrate                 # Run migrations
+npm run db:generate                # Generate Prisma client
+npm run db:studio                  # Visual database editor
 ```
 
 ---
 
-*This roadmap is updated with each sprint completion.*
+*This roadmap is updated with each sprint completion and codebase review.*

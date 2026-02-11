@@ -46,7 +46,7 @@ cd server && npm run db:studio     # Visual database editor
 ## Directory Structure
 
 ```
-Risley-Codenames/
+Eigennamen/
 ├── index.html              # Frontend entry point (loads modular JS)
 ├── wordlist.txt            # Default word list
 ├── docker-compose.yml      # Multi-service Docker setup

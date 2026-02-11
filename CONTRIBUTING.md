@@ -33,8 +33,8 @@ Thank you for your interest in contributing to Codenames Online! This document p
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/jgreid/Risley-Codenames.git
-   cd Risley-Codenames
+   git clone https://github.com/jgreid/Eigennamen.git
+   cd Eigennamen
    ```
 
 2. **Install dependencies**

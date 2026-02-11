@@ -23,25 +23,25 @@ First, we need to get the game files onto your computer.
 ### Step 1: Open the Download Page
 
 1. Open your web browser (Chrome, Edge, Firefox - any will work)
-2. Go to: **https://github.com/jgreid/Risley-Codenames**
+2. Go to: **https://github.com/jgreid/Eigennamen**
 
 ### Step 2: Download the Files
 
 1. Look for a green button that says **"Code"** - it's near the top right of the page
 2. Click on it
 3. A small menu will appear - click **"Download ZIP"**
-4. Your browser will download a file called something like `Risley-Codenames-main.zip`
+4. Your browser will download a file called something like `Eigennamen-main.zip`
 5. Wait for the download to finish (you'll see it in the bottom of your browser or in your Downloads folder)
 
 ### Step 3: Extract (Unzip) the Files
 
 1. Open **File Explorer** (the folder icon on your taskbar, or press the Windows key and type "File Explorer")
 2. Go to your **Downloads** folder (look in the left sidebar)
-3. Find the file called `Risley-Codenames-main.zip`
+3. Find the file called `Eigennamen-main.zip`
 4. **Right-click** on it
 5. Click **"Extract All..."**
 6. A window will pop up asking where to extract - just click **"Extract"** (the default location is fine)
-7. A new folder will appear called `Risley-Codenames-main`
+7. A new folder will appear called `Eigennamen-main`
 
 **Keep this File Explorer window open - you'll need it later!**
 
@@ -96,7 +96,7 @@ Now we'll start the actual game server. You have two options: the easy way (reco
 We've included a script that does everything for you automatically!
 
 1. Go back to your **File Explorer** window where you extracted the game files
-2. Open the folder `Risley-Codenames-main` by double-clicking it
+2. Open the folder `Eigennamen-main` by double-clicking it
 3. Inside that folder, open the folder called `server` by double-clicking it
 4. Find the file called **`start-server.bat`** and **double-click** it
 
@@ -127,11 +127,11 @@ If you prefer to run commands manually, follow these steps:
 Now you need to tell the computer where the game files are. Remember the folder you extracted earlier? We need to go there.
 
 1. Go back to your **File Explorer** window where you extracted the game files
-2. Open the folder `Risley-Codenames-main` by double-clicking it
+2. Open the folder `Eigennamen-main` by double-clicking it
 3. Inside that folder, open the folder called `server` by double-clicking it
 4. Now, **click once in the address bar** at the top of the File Explorer window (where it shows the folder path)
 5. The address bar will highlight and show something like:
-   `C:\Users\YourName\Downloads\Risley-Codenames-main\server`
+   `C:\Users\YourName\Downloads\Eigennamen-main\server`
 6. Press **Ctrl+C** to copy this path
 
 Now go back to the Command Prompt:
@@ -142,12 +142,12 @@ Now go back to the Command Prompt:
 
 The command should look something like this:
 ```
-cd C:\Users\YourName\Downloads\Risley-Codenames-main\server
+cd C:\Users\YourName\Downloads\Eigennamen-main\server
 ```
 
 If it worked, you'll see the path appear before the cursor, like:
 ```
-C:\Users\YourName\Downloads\Risley-Codenames-main\server>
+C:\Users\YourName\Downloads\Eigennamen-main\server>
 ```
 
 #### Step 3: Start the Server
@@ -302,5 +302,5 @@ Once you're comfortable with the setup, here's a quick reference:
 
 If you're still having trouble, you can:
 - Ask a family member who's good with computers to help
-- Check the [main project page](https://github.com/jgreid/Risley-Codenames) for more information
+- Check the [main project page](https://github.com/jgreid/Eigennamen) for more information
 - The game also works without a server! Just open the `index.html` file directly in your browser for a simpler version

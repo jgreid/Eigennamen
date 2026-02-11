@@ -27,7 +27,7 @@ npm run test:coverage
 npm run test:watch
 
 # Run frontend tests
-npm run test:unit
+npm run test:frontend
 
 # Run E2E tests
 npx playwright test
@@ -39,10 +39,19 @@ Global thresholds are set lower because infrastructure modules (redis.ts, memory
 
 | Metric | Minimum | Current |
 |--------|---------|---------|
-| Statements | 75% | 91%+ |
+| Statements | 75% | 94%+ |
 | Branches | 65% | 84%+ |
 | Functions | 80% | 90%+ |
-| Lines | 75% | 91%+ |
+| Lines | 75% | 94%+ |
+
+### Current Test Counts (as of Feb 2026)
+
+| Category | Suites | Tests |
+|----------|--------|-------|
+| Backend Unit | 77 | 2,308 |
+| Frontend Unit | 4 | 303 |
+| E2E (Playwright) | 7 | 53+ |
+| **Total** | **88** | **~2,664** |
 
 ## Backend Testing (Jest)
 

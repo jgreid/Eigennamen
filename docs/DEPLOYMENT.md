@@ -20,8 +20,8 @@ The simplest deployment uses in-memory storage. Data is lost on restart.
 
 ```bash
 # Clone and install
-git clone https://github.com/jgreid/Risley-Codenames.git
-cd Risley-Codenames/server
+git clone https://github.com/jgreid/Eigennamen.git
+cd Eigennamen/server
 npm install
 
 # Run with memory storage
@@ -47,8 +47,8 @@ Full stack with Redis and optional PostgreSQL.
 
 ```bash
 # Clone repository
-git clone https://github.com/jgreid/Risley-Codenames.git
-cd Risley-Codenames
+git clone https://github.com/jgreid/Eigennamen.git
+cd Eigennamen
 
 # Start services
 docker compose up -d
@@ -115,7 +115,7 @@ Fly.io provides global edge deployment with managed Redis.
 ### Initial Deployment
 
 ```bash
-cd Risley-Codenames
+cd Eigennamen
 
 # Login to Fly
 fly auth login
@@ -188,7 +188,7 @@ fly status
 ### Deployment
 
 ```bash
-cd Risley-Codenames
+cd Eigennamen
 
 # Login
 heroku login

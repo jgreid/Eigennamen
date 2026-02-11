@@ -1,17 +1,26 @@
-# Codenames Online
+# Die Eigennamen — Codenames Online
 
-A web-based implementation of the popular board game Codenames, optimized for remote play over Zoom or other video conferencing platforms.
+A web-based implementation of the popular board game Codenames, optimized for remote play over video conferencing or direct online multiplayer.
+
+**Version:** v2.2.0 | **License:** GPL v3.0 | **Tests:** 2,664+
 
 ## Features
 
-- **Standalone or multiplayer** - Works offline with URL-based state or with optional real-time server
-- **URL-based game sharing** - All game state is encoded in the URL for easy sharing
-- **Real-time multiplayer** - Optional server provides synchronized game state across all players
-- **Role system** - Support for Host, Spymaster, and Viewer roles
-- **Custom word lists** - Use your own themed word lists
-- **Responsive design** - Works on desktop and mobile devices
-- **Keyboard accessible** - Full keyboard navigation support
-- **Color-blind friendly** - Optional mode adds shapes to distinguish card types
+- **Standalone or multiplayer** — Works offline with URL-based state or with real-time server
+- **Three game modes** — Classic, Blitz (30s turns), Duet (cooperative 2-player)
+- **Real-time multiplayer** — Synchronized game state via Socket.io with reconnection support
+- **URL-based game sharing** — All game state encoded in the URL for easy sharing
+- **Custom word lists** — Use your own themed word lists (with optional database persistence)
+- **Internationalization** — English, German, Spanish, French with localized word lists
+- **Game history & replay** — Watch previous games with speed control (0.5x–4x)
+- **Turn timer** — Configurable timer with pause, resume, and add-time
+- **Spectator mode** — Watch games with join requests and team switching
+- **Admin dashboard** — Room management, audit logs, metrics, broadcast messaging
+- **Responsive design** — Works on desktop and mobile devices
+- **Keyboard accessible** — Full keyboard navigation with shortcuts (n/e/s/m/h/?)
+- **Color-blind friendly** — SVG patterns distinguish card types
+- **QR code sharing** — Share room codes via QR code
+- **PWA support** — Installable as a Progressive Web App
 
 ## Quick Start
 
@@ -44,19 +53,24 @@ Then open `http://localhost:8000` in your browser.
 
 Upload `index.html` (and optionally `wordlist.txt`) to any web hosting service like GitHub Pages, Netlify, or your own server.
 
-### Option 4: Real-time multiplayer server (Advanced)
+### Option 4: Real-time multiplayer server
 
-For true real-time synchronization without URL sharing, use the optional multiplayer server:
+For true real-time synchronization without URL sharing, use the multiplayer server:
 
 ```bash
-docker-compose up -d
+# With Docker (recommended)
+docker compose up -d --build
+
+# Without Docker (uses in-memory storage)
+cd server && npm install && REDIS_URL=memory npm run dev
 ```
 
 Then open `http://localhost:3000` in your browser. All players connect to the same server and see updates instantly.
 
 **Setup Guides:**
-- [Server README](server/README.md) - Detailed setup instructions
-- [Windows Setup Guide](docs/WINDOWS_SETUP.md) - Step-by-step guide for Windows users
+- [Server README](server/README.md) — Detailed setup instructions
+- [Windows Setup Guide](docs/WINDOWS_SETUP.md) — Step-by-step guide for Windows users
+- [Deployment Guide](docs/DEPLOYMENT.md) — Production deployment options
 
 ## How to Play
 
@@ -72,8 +86,8 @@ Then open `http://localhost:3000` in your browser. All players connect to the sa
 Players first join a team, then pick a role:
 
 **Team Affiliation:**
-- **Red Team** or **Blue Team** - Join a team to participate in discussions
-- **Unaffiliated** - Watch the game without being on a team
+- **Red Team** or **Blue Team** — Join a team to participate in discussions
+- **Unaffiliated** — Watch the game without being on a team
 
 **Roles (one per team):**
 
@@ -92,10 +106,10 @@ Players first join a team, then pick a role:
 3. The number indicates how many words on the board relate to the clue
 4. **Team members** discuss and agree on guesses
 5. The **Clicker** clicks the guessed card to reveal it:
-   - **Team's color** - Correct! Keep guessing (up to the number given + 1)
-   - **Neutral (beige)** - Turn ends
-   - **Opponent's color** - Turn ends, opponent gets a point
-   - **Assassin (black)** - Game over! The team that picked it loses instantly
+   - **Team's color** — Correct! Keep guessing (up to the number given + 1)
+   - **Neutral (beige)** — Turn ends
+   - **Opponent's color** — Turn ends, opponent gets a point
+   - **Assassin (black)** — Game over! The team that picked it loses instantly
 6. The **Clicker** clicks **"End Turn"** when their team is done guessing
 7. First team to find all their words wins!
 
@@ -113,14 +127,14 @@ Players first join a team, then pick a role:
 1. Click **Settings** in the game
 2. Enter your custom words (one per line) in the text area
 3. Click **Save & Apply**
-4. Start a **New Game** - your custom words will be included in the game link
+4. Start a **New Game** — your custom words will be included in the game link
 
 ### Using a wordlist.txt File
 
 1. Create a file named `wordlist.txt` in the same folder as `index.html`
 2. Add your words, one per line
 3. Lines starting with `#` are treated as comments
-4. Refresh the page - your word list will be loaded automatically
+4. Refresh the page — your word list will be loaded automatically
 
 Example `wordlist.txt`:
 ```
@@ -149,14 +163,14 @@ FROZEN
 
 ### Color-Blind Mode
 
-For players with color vision deficiency, the game offers a color-blind friendly mode that adds shapes to cards:
+For players with color vision deficiency, the game offers a color-blind friendly mode that adds SVG patterns to cards:
 
-| Color | Shape |
-|-------|-------|
-| Red | ■ Square |
-| Blue | ● Circle |
-| Neutral | ─ Line |
-| Assassin | ✕ X |
+| Color | Pattern |
+|-------|---------|
+| Red | Diagonal lines |
+| Blue | Dot pattern |
+| Neutral | No pattern |
+| Assassin | Cross pattern |
 
 To enable:
 1. Click **Settings**
@@ -167,9 +181,18 @@ This setting is saved locally and persists across sessions.
 
 ### Keyboard Navigation
 
-All cards can be navigated and selected using the keyboard:
-- **Tab** - Move between cards
-- **Enter** or **Space** - Reveal the focused card (clicker only, during their team's turn)
+| Key | Action |
+|-----|--------|
+| **Tab** | Move between UI elements |
+| **Arrow keys** | Navigate between cards on the board |
+| **Enter/Space** | Reveal the focused card (clicker only) |
+| **n** | New Game |
+| **e** | End Turn |
+| **s** | Settings |
+| **m** | Multiplayer |
+| **h** | Game History |
+| **?** | Show keyboard shortcuts |
+| **Escape** | Close modal |
 
 ## Troubleshooting
 
@@ -185,8 +208,23 @@ All cards can be navigated and selected using the keyboard:
 Works in all modern browsers:
 - Chrome / Edge (Chromium)
 - Firefox
-- Safari
+- Safari 15+
 - Mobile browsers (iOS Safari, Chrome for Android)
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [QUICKSTART.md](QUICKSTART.md) | Getting started guide with first game walkthrough |
+| [ROADMAP.md](ROADMAP.md) | Development roadmap, remaining work, test metrics |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributor guidelines, code standards, PR process |
+| [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) | Comprehensive code review with development plan |
+| [FUTURE_PLAN.md](FUTURE_PLAN.md) | Future development phases and feature plans |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture diagrams and decisions |
+| [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) | API specification (REST + WebSocket) |
+| [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Testing documentation and patterns |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide (Docker, Fly.io, Heroku, K8s) |
+| [server/README.md](server/README.md) | Server setup and configuration |
 
 ## License
 
@@ -194,7 +232,7 @@ This project is licensed under the GNU General Public License v3.0. See the [LIC
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code standards, testing requirements, and the pull request process.
 
 ---
 

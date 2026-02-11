@@ -237,7 +237,7 @@ docker-compose.yml
 ## Directory Structure
 
 ```
-Risley-Codenames/
+Eigennamen/
 ├── index.html              # Frontend entry point (modular)
 ├── server/
 │   ├── public/
