@@ -21,7 +21,7 @@ const optionalVars: Record<string, string | null> = {
     REDIS_URL: 'redis://localhost:6379',
     DATABASE_URL: null,  // Optional - game works without database
     JWT_SECRET: null,    // Optional for anonymous play
-    CORS_ORIGIN: '*',
+    CORS_ORIGIN: null,  // Must be explicitly configured; defaults to self-origin in CSRF middleware
     LOG_LEVEL: 'info'
 };
 

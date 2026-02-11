@@ -131,11 +131,13 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
  * Get list of allowed origins from configuration
  */
 function getAllowedOrigins(): string[] | null {
-    const corsOrigin = process.env.CORS_ORIGIN || '*';
+    const corsOrigin = process.env.CORS_ORIGIN;
 
-    if (corsOrigin === '*') {
-        // If CORS allows all origins, we can't enforce origin checking
-        // Return null to indicate "allow all"
+    if (!corsOrigin || corsOrigin === '*') {
+        // CORS not configured or wildcard — rely on X-Requested-With header only.
+        if (process.env.NODE_ENV === 'production' && (!corsOrigin || corsOrigin === '*')) {
+            logger.warn('CSRF: CORS_ORIGIN not configured or set to wildcard — origin validation disabled. Set CORS_ORIGIN to your domain.');
+        }
         return null;
     }
 

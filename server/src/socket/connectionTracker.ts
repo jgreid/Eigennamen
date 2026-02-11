@@ -17,24 +17,73 @@ const { SOCKET } = require('../config/constants');
 // Track connections per IP for DoS protection
 const connectionsPerIP = new Map<string, number>();
 
-// Maximum distinct IPs to track before rejecting new connections
+// Track last-seen time per IP for LRU eviction
+const ipLastSeen = new Map<string, number>();
+
+// Maximum distinct IPs to track before triggering LRU eviction
 const MAX_TRACKED_IPS = 10000;
+
+// Number of stale entries to evict when map is full
+const LRU_EVICTION_BATCH = 1000;
 
 // Periodic cleanup interval handle
 let connectionsCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /**
- * Increment the connection count for a given IP address
+ * Evict the oldest IPs with zero active connections when the map is full.
+ * Falls back to evicting the oldest IPs regardless of count if needed.
+ */
+function evictStaleEntries(): void {
+    // First pass: remove IPs with zero connections (stale entries)
+    const zeroCountIPs: Array<[string, number]> = [];
+    for (const [ip, lastSeen] of ipLastSeen) {
+        if ((connectionsPerIP.get(ip) || 0) === 0) {
+            zeroCountIPs.push([ip, lastSeen]);
+        }
+    }
+    zeroCountIPs.sort((a, b) => a[1] - b[1]); // oldest first
+
+    let evicted = 0;
+    for (const [ip] of zeroCountIPs) {
+        connectionsPerIP.delete(ip);
+        ipLastSeen.delete(ip);
+        evicted++;
+        if (evicted >= LRU_EVICTION_BATCH) break;
+    }
+
+    // If we still need space, evict oldest regardless of count
+    if (connectionsPerIP.size >= MAX_TRACKED_IPS) {
+        const allIPs: Array<[string, number]> = Array.from(ipLastSeen.entries());
+        allIPs.sort((a, b) => a[1] - b[1]);
+        for (const [ip] of allIPs) {
+            if (connectionsPerIP.size < MAX_TRACKED_IPS - LRU_EVICTION_BATCH) break;
+            connectionsPerIP.delete(ip);
+            ipLastSeen.delete(ip);
+        }
+    }
+
+    if (evicted > 0) {
+        logger.info(`Connection tracker: evicted ${evicted} stale IP entries, map size now ${connectionsPerIP.size}`);
+    }
+}
+
+/**
+ * Increment the connection count for a given IP address.
+ * Uses LRU eviction when the map is full instead of rejecting new IPs.
  * @param ip - Client IP address
  */
 function incrementConnectionCount(ip: string): void {
     const currentCount = connectionsPerIP.get(ip) || 0;
-    // If this is a new IP and we've hit the cap, reject to prevent memory DoS
+    // If this is a new IP and we've hit the cap, evict stale entries first
     if (currentCount === 0 && connectionsPerIP.size >= MAX_TRACKED_IPS) {
-        logger.warn('Connection tracker IP map at capacity, rejecting new IP', { ip, mapSize: connectionsPerIP.size });
-        return;
+        evictStaleEntries();
+        // If still at capacity after eviction, log warning but allow the connection
+        if (connectionsPerIP.size >= MAX_TRACKED_IPS) {
+            logger.warn('Connection tracker IP map at capacity after eviction, allowing new IP', { ip, mapSize: connectionsPerIP.size });
+        }
     }
     connectionsPerIP.set(ip, currentCount + 1);
+    ipLastSeen.set(ip, Date.now());
 }
 
 /**
@@ -46,8 +95,10 @@ function decrementConnectionCount(ip: string): void {
     const currentCount = connectionsPerIP.get(ip) || 1;
     if (currentCount <= 1) {
         connectionsPerIP.delete(ip);
+        ipLastSeen.delete(ip);
     } else {
         connectionsPerIP.set(ip, currentCount - 1);
+        ipLastSeen.set(ip, Date.now());
     }
 }
 
@@ -58,10 +109,7 @@ function decrementConnectionCount(ip: string): void {
  */
 function isConnectionLimitReached(ip: string): boolean {
     const currentCount = connectionsPerIP.get(ip) || 0;
-    if (currentCount >= SOCKET.MAX_CONNECTIONS_PER_IP) return true;
-    // Reject new IPs when map is at capacity to prevent memory DoS
-    if (currentCount === 0 && connectionsPerIP.size >= MAX_TRACKED_IPS) return true;
-    return false;
+    return currentCount >= SOCKET.MAX_CONNECTIONS_PER_IP;
 }
 
 /**
@@ -99,8 +147,11 @@ function startConnectionsCleanup(io: SocketIOServer): void {
             }
             // Reset to actual counts
             connectionsPerIP.clear();
+            ipLastSeen.clear();
+            const now = Date.now();
             for (const [ip, count] of actualCounts) {
                 connectionsPerIP.set(ip, count);
+                ipLastSeen.set(ip, now);
             }
         } catch (error) {
             logger.error('Error during connectionsPerIP cleanup:', error);

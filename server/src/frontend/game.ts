@@ -346,6 +346,11 @@ export function updateQRCode(url?: string): void {
 }
 
 export function revealCard(index: number): void {
+    // Bounds check: prevent out-of-bounds array access
+    if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
+        logger.error(`revealCard: invalid index ${index}`);
+        return;
+    }
     // Provide specific feedback for why card click is blocked
     if (state.gameState.gameOver) {
         showToast('Game is over - start a new game to continue', 'warning');
@@ -480,7 +485,9 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
     if (state.gameState.revealed[index]) return; // Already revealed
 
     state.gameState.revealed[index] = true;
-    const type = serverData.type || state.gameState.types[index];
+    // Use server-provided type; fall back to local only if non-null (spymasters have types,
+    // non-spymasters have null for unrevealed cards — using null causes wrong scoring)
+    const type = serverData.type || state.gameState.types[index] || 'neutral';
 
     // Bug fix: Update the types array with the revealed type from server
     // This is critical for non-spymasters who have null for unrevealed cards

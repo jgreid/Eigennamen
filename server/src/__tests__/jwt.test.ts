@@ -39,13 +39,13 @@ describe('JWT Configuration', () => {
             expect(secret).toBe('a-valid-secret-that-is-long-enough-32chars');
         });
 
-        it('should return development fallback when no secret in non-production', () => {
+        it('should return null when no secret in non-production', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'development';
             jwtModule = require('../config/jwt');
 
             const secret = jwtModule.getJwtSecret();
-            expect(secret).toBe('development-secret-do-not-use-in-production');
+            expect(secret).toBeNull();
         });
 
         it('should warn about short secrets in development', () => {

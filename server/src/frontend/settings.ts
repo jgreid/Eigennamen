@@ -67,8 +67,14 @@ export function switchSettingsPanel(panelId: string): void {
     }
 }
 
-// Initialize settings nav listeners
+// Guard: prevent duplicate registration of settings nav listeners
+let settingsNavInitialized = false;
+
+// Initialize settings nav listeners (idempotent — safe to call multiple times)
 export function initSettingsNav(): void {
+    if (settingsNavInitialized) return;
+    settingsNavInitialized = true;
+
     const navItems = document.querySelectorAll('.settings-nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', () => {

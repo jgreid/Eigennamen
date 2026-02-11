@@ -206,12 +206,22 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
     const key = `session:validation:${clientIP}`;
 
     try {
-        const attempts: number = await redis.incr(key);
-
-        // Set expiry on first attempt
-        if (attempts === 1) {
-            await redis.expire(key, REDIS_TTL.SESSION_VALIDATION_WINDOW);
-        }
+        // Atomic incr + expire using Lua to prevent race condition where
+        // the key is incremented but never gets an expiry set (if Redis
+        // crashes between incr and expire, or concurrent requests interleave)
+        const ATOMIC_RATE_LIMIT_SCRIPT = `
+            local key = KEYS[1]
+            local ttl = tonumber(ARGV[1])
+            local count = redis.call('INCR', key)
+            if count == 1 then
+                redis.call('EXPIRE', key, ttl)
+            end
+            return count
+        `;
+        const attempts = await redis.eval(ATOMIC_RATE_LIMIT_SCRIPT, {
+            keys: [key],
+            arguments: [REDIS_TTL.SESSION_VALIDATION_WINDOW.toString()]
+        }) as number;
 
         const maxAttempts = SESSION_SECURITY.MAX_VALIDATION_ATTEMPTS_PER_IP;
         if (attempts > maxAttempts) {

@@ -50,14 +50,36 @@ end
 
 -- Store previous state
 local previousTurn = game.currentTurn
-local cardType = game.types[luaIndex]
+local isDuet = game.gameMode == 'duet'
+
+-- Determine card type (Duet mode uses perspective-based types)
+local cardType
+if isDuet and previousTurn == 'blue' and game.duetTypes then
+    cardType = game.duetTypes[luaIndex]
+else
+    cardType = game.types[luaIndex]
+end
 
 -- Execute reveal
 game.revealed[luaIndex] = true
-if cardType == 'red' then
-    game.redScore = game.redScore + 1
-elseif cardType == 'blue' then
-    game.blueScore = game.blueScore + 1
+
+if isDuet then
+    -- Duet mode: team-colored cards increment greenFound
+    if cardType == 'red' or cardType == 'blue' then
+        game.greenFound = (game.greenFound or 0) + 1
+        if previousTurn == 'red' then
+            game.redScore = game.redScore + 1
+        else
+            game.blueScore = game.blueScore + 1
+        end
+    end
+else
+    -- Classic/Blitz mode scoring
+    if cardType == 'red' then
+        game.redScore = game.redScore + 1
+    elseif cardType == 'blue' then
+        game.blueScore = game.blueScore + 1
+    end
 end
 game.guessesUsed = (game.guessesUsed or 0) + 1
 
@@ -65,50 +87,92 @@ game.guessesUsed = (game.guessesUsed or 0) + 1
 local turnEnded = false
 local endReason = cjson.null
 
--- Check assassin
-if cardType == 'assassin' then
-    game.gameOver = true
-    if previousTurn == 'red' then
-        game.winner = 'blue'
-    else
+if isDuet then
+    -- Duet mode outcome logic
+    if cardType == 'assassin' then
+        game.gameOver = true
+        game.winner = cjson.null  -- No winner in duet (cooperative loss)
+        endReason = 'assassin'
+        turnEnded = true
+    elseif (game.greenFound or 0) >= (game.greenTotal or 15) then
+        game.gameOver = true
+        game.winner = 'red'  -- Cooperative win
+        endReason = 'completed'
+        turnEnded = true
+    elseif cardType == 'neutral' then
+        game.timerTokens = (game.timerTokens or 0) - 1
+        if (game.timerTokens or 0) <= 0 then
+            game.gameOver = true
+            game.winner = cjson.null
+            endReason = 'timerTokens'
+            turnEnded = true
+        else
+            -- Switch turn on neutral
+            if previousTurn == 'red' then
+                game.currentTurn = 'blue'
+            else
+                game.currentTurn = 'red'
+            end
+            game.currentClue = cjson.null
+            game.guessesUsed = 0
+            game.guessesAllowed = 0
+            turnEnded = true
+        end
+    elseif game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
+        if previousTurn == 'red' then
+            game.currentTurn = 'blue'
+        else
+            game.currentTurn = 'red'
+        end
+        game.currentClue = cjson.null
+        game.guessesUsed = 0
+        game.guessesAllowed = 0
+        turnEnded = true
+        endReason = 'maxGuesses'
+    end
+else
+    -- Classic/Blitz mode outcome logic
+    if cardType == 'assassin' then
+        game.gameOver = true
+        if previousTurn == 'red' then
+            game.winner = 'blue'
+        else
+            game.winner = 'red'
+        end
+        endReason = 'assassin'
+        turnEnded = true
+    elseif game.redScore >= game.redTotal then
+        game.gameOver = true
         game.winner = 'red'
+        endReason = 'completed'
+        turnEnded = true
+    elseif game.blueScore >= game.blueTotal then
+        game.gameOver = true
+        game.winner = 'blue'
+        endReason = 'completed'
+        turnEnded = true
+    elseif cardType ~= previousTurn then
+        if previousTurn == 'red' then
+            game.currentTurn = 'blue'
+        else
+            game.currentTurn = 'red'
+        end
+        game.currentClue = cjson.null
+        game.guessesUsed = 0
+        game.guessesAllowed = 0
+        turnEnded = true
+    elseif game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
+        if previousTurn == 'red' then
+            game.currentTurn = 'blue'
+        else
+            game.currentTurn = 'red'
+        end
+        game.currentClue = cjson.null
+        game.guessesUsed = 0
+        game.guessesAllowed = 0
+        turnEnded = true
+        endReason = 'maxGuesses'
     end
-    endReason = 'assassin'
-    turnEnded = true
--- Check win conditions
-elseif game.redScore >= game.redTotal then
-    game.gameOver = true
-    game.winner = 'red'
-    endReason = 'completed'
-    turnEnded = true
-elseif game.blueScore >= game.blueTotal then
-    game.gameOver = true
-    game.winner = 'blue'
-    endReason = 'completed'
-    turnEnded = true
--- Wrong guess
-elseif cardType ~= previousTurn then
-    if previousTurn == 'red' then
-        game.currentTurn = 'blue'
-    else
-        game.currentTurn = 'red'
-    end
-    game.currentClue = cjson.null
-    game.guessesUsed = 0
-    game.guessesAllowed = 0
-    turnEnded = true
--- Max guesses reached
-elseif game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
-    if previousTurn == 'red' then
-        game.currentTurn = 'blue'
-    else
-        game.currentTurn = 'red'
-    end
-    game.currentClue = cjson.null
-    game.guessesUsed = 0
-    game.guessesAllowed = 0
-    turnEnded = true
-    endReason = 'maxGuesses'
 end
 
 -- Add to history (with cap)
@@ -163,6 +227,15 @@ local result = {
 
 if game.gameOver then
     result.allTypes = game.types
+end
+
+-- Include duet-specific fields
+if isDuet then
+    result.timerTokens = game.timerTokens
+    result.greenFound = game.greenFound
+    if game.gameOver and game.duetTypes then
+        result.allDuetTypes = game.duetTypes
+    end
 end
 
 return cjson.encode(result)
