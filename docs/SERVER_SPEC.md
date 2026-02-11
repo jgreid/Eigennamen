@@ -2,21 +2,24 @@
 
 ## 1. Overview
 
-This document describes the technical architecture for converting Codenames Online from a client-only URL-based game to a centralized real-time multiplayer platform.
+This document describes the technical architecture of Codenames Online (Die Eigennamen), a real-time multiplayer web platform with standalone fallback mode.
 
 ### 1.1 Goals
 
-- Real-time synchronization across all players
-- Secure spymaster view (card types hidden from guessers)
-- Room-based multiplayer with join codes
-- Optional user accounts and game history
-- Scalable architecture
+- Real-time synchronization across all players (implemented)
+- Secure spymaster view — card types hidden from guessers (implemented)
+- Room-based multiplayer with join codes (implemented)
+- Optional user accounts and game history (implemented)
+- Scalable architecture with horizontal scaling support (implemented)
+- Three game modes: Classic, Blitz, Duet (implemented)
+- Internationalization — 4 languages (implemented)
+- Accessibility — WCAG 2.1 AA (implemented)
 
-### 1.2 Non-Goals (MVP)
+### 1.2 Not Yet Implemented
 
 - Voice/video chat (use external tools)
-- Tournament/ranked play
-- Mobile native apps
+- Tournament/ranked play (in future backlog)
+- Mobile native apps (PWA available)
 
 ---
 

@@ -1,31 +1,29 @@
 # Codebase Review & Development Plan
 
-**Date**: 2026-02-11 (Deep Review)
+**Date**: 2026-02-11 (Comprehensive Review — updated)
 **Scope**: Line-by-line review of all services, socket handlers, frontend modules, configuration, middleware, types, validators, infrastructure, and tests
-**Version Reviewed**: v2.2.0 (commit f3da83e, post-Tier A hardening)
-**Previous Reviews**: 2026-02-09 (Tiers 1-3), 2026-02-11 (Tier A completed)
+**Version Reviewed**: v2.2.0 (commit 66e66dc, all critical/high fixes applied)
+**Previous Reviews**: 2026-02-09 (Tiers 1-3), 2026-02-11 (Tier A, deep review, all critical+high fixes)
 
 ---
 
 ## Executive Summary
 
-Codenames Online (Die Eigennamen) is a **mature, production-ready** multiplayer web application. After completing Tiers 1-3 plus Tier A hardening (Zod schema hardening, timeout wrappers, documentation fixes), this deep line-by-line review examined every source file across all layers.
+Codenames Online (Die Eigennamen) is a **mature, production-ready** multiplayer web application. After completing Tiers 1-3 plus Tier A hardening, a deep line-by-line review identified **2 critical bugs** and **8 high-priority issues** — **all now fixed**. **25+ medium-priority improvements** remain across backend services, socket handlers, frontend modules, and infrastructure.
 
-The codebase demonstrates **excellent engineering fundamentals**: strict TypeScript, comprehensive Zod validation, atomic Lua operations, defense-in-depth security, and 2,675+ tests. This review identified **2 critical bugs** and **8 high-priority issues** — **all now fixed**. **25+ medium-priority improvements** remain across backend services, socket handlers, frontend modules, and infrastructure.
-
-### Scorecard
+### Scorecard (Post-Fix)
 
 | Category | Score | Notes |
 |----------|-------|-------|
 | Type Safety | 10/10 | Zero `any` types, strict TS compilation, explicit Zod schemas |
-| Security | 8/10 | Defense-in-depth strong; spectator handler bug + token invalidation gap found |
+| Security | 9/10 | All critical/high issues fixed; 2 medium security items remain (SEC-3, SEC-4) |
 | Backend Testing | 9/10 | 2,308 tests across 77 suites, 94%+ coverage |
 | Architecture | 9/10 | Clean service layer, atomic Lua ops, handler pattern, graceful degradation |
-| Frontend Code | 8/10 | Good patterns; event listener leaks, i18n dead code, className misuse |
+| Frontend Code | 8/10 | Listener leaks and className misuse fixed; chat UI still missing |
 | Code Organization | 9/10 | Domain-split config, extracted handlers, modular CSS |
 | Infrastructure | 9/10 | Multi-env Docker, Fly.io, CI/CD with 6 quality gates |
 | Accessibility | 8/10 | WCAG 2.1 AA mostly; replay keyboard nav missing, focus gaps |
-| Documentation | 9/10 | 15+ docs, 5 ADRs; directory references fixed, metrics current |
+| Documentation | 9/10 | 15+ docs, 5 ADRs; all references current |
 
 ---
 
@@ -522,9 +520,12 @@ E2E:      8 spec files | 64+ tests (Playwright + Chromium)
 
 Total:    ~2,675 tests passing
 
+TypeScript: 0 errors (clean compile)
+ESLint:     8 errors (unused vars in tests), 117 warnings (non-null assertions)
+npm audit:  0 vulnerabilities
+
 Known issues:
 - timing.test.ts: 3 flaky memory monitoring tests (pass in isolation)
-- Spectator join flow untestable (CRIT-1: handler signatures wrong)
 ```
 
 ## Appendix D: Dependency Audit

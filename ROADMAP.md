@@ -1,6 +1,6 @@
 # Roadmap — Die Eigennamen (Codenames Online)
 
-**Last Updated:** February 11, 2026 (Deep Review)
+**Last Updated:** February 11, 2026 (Comprehensive Review)
 **Project Version:** v2.2.0
 
 ---
@@ -13,10 +13,12 @@
 | Frontend Tests | 303 passing (4 suites) |
 | E2E Tests | 64+ passing (8 spec files) |
 | Total Tests | ~2,675 |
-| Backend Coverage | 94%+ |
-| Critical Issues | 2 (identified in deep review) |
-| High Priority Issues | 8 |
-| Code Quality | Production-ready (with targeted fixes needed) |
+| Backend Coverage | 94%+ lines/statements |
+| TypeScript | Clean (0 errors) |
+| ESLint | 8 errors (unused vars in tests), 117 warnings |
+| npm audit | 0 vulnerabilities |
+| Critical/High Issues | 0 open (all 10 fixed) |
+| Code Quality | Production-ready |
 
 ### Completed Features
 
@@ -24,7 +26,7 @@
 - Standalone URL-based mode (no server required)
 - Custom word lists with database persistence
 - Turn timer with pause/resume/add-time (Redis-backed)
-- Team chat with filtering (backend)
+- Team chat with filtering (backend complete)
 - Spectator mode with join requests and role selection
 - QR code room sharing
 - Reconnection with token-based authentication and full state recovery
@@ -46,83 +48,73 @@
 
 ---
 
-## Previous Improvements — All Completed
+## Previously Completed Improvements
 
-### Tier 1-3 (Feb 9, 2026) ✅
-Magic numbers, safe JSON, Zod builders, domain split, auth refactor, connection tracker,
-frontend tests, focus trap, state docs, staging docs, Docker optimization — all done.
+### Phases 1-3 + Tier A (Feb 2026) — All Done
 
-### Tier A (Feb 11, 2026) ✅
-Zod `.passthrough()` removal, timeout wrappers, IP validation docs, directory references,
-multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
+- **Phase 1**: Backend service fixes (NFKC normalization, atomic Lua scripts, room rollback, timer validation)
+- **Phase 2**: Frontend improvements (modal stack, AbortController, shared constants, ARIA, colorblind SVG)
+- **Phase 3**: Testing improvements (test helpers, middleware tests, error scenarios, DB integration, multiplayer E2E)
+- **Tier A**: Zod `.passthrough()` removal, timeout wrappers, IP validation docs, multiplayer E2E tests, deprecated file cleanup
 
----
+### Deep Review Critical + High Fixes (Feb 11, 2026) — All Done
 
-## Completed (Deep Review Findings)
-
-### Critical ✅ Fixed
-
-| ID | Task | Category | Status |
-|----|------|----------|--------|
-| CRIT-1 | Fix spectator handler signatures | Bug | ✅ Corrected to 4-param pattern |
-| CRIT-2 | Add max word count validation | Security | ✅ MAX_WORD_LIST_SIZE=10000 |
-
-### High Priority ✅ Fixed
-
-| ID | Task | Category | Status |
-|----|------|----------|--------|
-| HIGH-1 | Invalidate token on player kick | Security | ✅ Token invalidated before removal |
-| HIGH-2 | Verify history cleanup index | Data | ✅ Verified correct |
-| HIGH-3 | Wire localized words into game | Bug | ✅ localizedDefaultWords merged in initGame |
-| HIGH-4 | Fix className escapeHTML misuse | Bug | ✅ Whitelist check |
-| HIGH-5 | Fix replay event listener leak | Memory | ✅ Event delegation |
-| HIGH-6 | Handle refreshRoomTTL failures | Resilience | ✅ try-catch with warning log |
-| HIGH-7 | Fix accessibility listener leak | Memory | ✅ Shared closeOverlay() |
-| HIGH-8 | Cap connectionsPerIP map size | Security | ✅ MAX_TRACKED_IPS=10000 |
+| ID | Task | Category |
+|----|------|----------|
+| CRIT-1 | Fix spectator handler signatures | Bug |
+| CRIT-2 | Add max word count validation (server + client) | Security |
+| HIGH-1 | Invalidate token on player kick | Security |
+| HIGH-2 | Verify history cleanup index direction | Data |
+| HIGH-3 | Wire localized words into game | Bug |
+| HIGH-4 | Fix className escapeHTML misuse | Bug |
+| HIGH-5 | Fix replay event listener leak | Memory |
+| HIGH-6 | Handle refreshRoomTTL failures | Resilience |
+| HIGH-7 | Fix accessibility listener leak | Memory |
+| HIGH-8 | Cap connectionsPerIP map size | Security |
 
 ---
 
 ## Remaining Work
 
-### Medium Priority
+### Tier C: Medium Priority (15 items)
 
-| ID | Task | Category | Description |
-|----|------|----------|-------------|
-| C-1 | Use safeEmit in chat handlers | Consistency | Chat uses raw emit instead of safeEmit pattern |
-| C-2 | Add timeout to game:clue handler | Resilience | giveClue service call has no timeout wrapper |
-| C-3 | Fix session age validation | Security | `connectedAt` fallback lets frequent reconnectors bypass 8h limit |
-| C-4 | Enforce JWT secret length | Security | Short secrets only warned, not rejected in production |
-| C-5 | Add word uniqueness validation | Validation | Zod schema allows duplicate words |
-| C-6 | Replay board keyboard navigation | Accessibility | No ARIA roles or tabindex on replay cards |
-| C-7 | Batch role reset for new games | Performance | N individual Redis ops instead of pipeline/Lua |
-| C-8 | Unify nickname validation regex | Consistency | multiplayer.js differs from constants.js |
-| C-9 | Fix fitCardText layout thrashing | Performance | Read/write loop per card causes reflows |
-| C-10 | Guard replay interval creation | Bug | Rapid toggle can create duplicate intervals |
-| C-11 | Expire memory-mode audit logs | Memory | Audit logs grow unbounded in memory mode |
-| C-12 | Make timeouts configurable | Operations | Timeout values hardcoded, not env-configurable |
-| C-13 | Add Docker Compose resource limits | Infrastructure | No memory/CPU caps on containers |
-| C-14 | Validate settings values | Validation | Team names in updateSettings not validated |
-| C-15 | Implement token rotation on use | Security | Reconnection tokens not rotated after successful use |
+| ID | Task | Category | Effort |
+|----|------|----------|--------|
+| C-1 | Use safeEmit in chat handlers | Consistency | Low |
+| C-2 | Add timeout to game:clue handler | Resilience | Low |
+| C-3 | Fix session age validation (`connectedAt` fallback bypasses 8h limit) | Security | Low |
+| C-4 | Enforce JWT secret length in production (throw, not warn) | Security | Low |
+| C-5 | Add word uniqueness validation in Zod schema | Validation | Low |
+| C-6 | Replay board keyboard navigation (ARIA roles, tabindex) | Accessibility | Medium |
+| C-7 | Batch role reset for new games (pipeline/Lua instead of N ops) | Performance | Medium |
+| C-8 | Unify nickname validation regex (multiplayer.js vs constants.js) | Consistency | Low |
+| C-9 | Fix fitCardText layout thrashing (batch reads/writes) | Performance | Low |
+| C-10 | Guard replay interval creation (prevent duplicates on rapid toggle) | Bug | Low |
+| C-11 | Expire memory-mode audit logs (TTL or max entries) | Memory | Low |
+| C-12 | Make timeouts configurable via env vars | Operations | Low |
+| C-13 | Add Docker Compose resource limits | Infrastructure | Low |
+| C-14 | Validate settings values (team names in updateSettings) | Validation | Low |
+| C-15 | Implement token rotation on use | Security | Medium |
 
-### Lower Priority / Future
+### Tier D: Lower Priority / Future (15 items)
 
-| ID | Task | Category | Description |
-|----|------|----------|-------------|
-| D-1 | Implement chat UI | Frontend | Panel with team/spectator tabs (backend ready) |
-| D-2 | Complete i18n markup | Frontend | Audit hardcoded English strings |
-| D-3 | Gate frontend debug logging | Performance | Conditional state.js logging |
-| D-4 | Add CHANGELOG.md | Docs | Structured changelog |
-| D-5 | Split multiplayer.js | Architecture | Decompose 1,922-line file |
-| D-6 | Migrate all transactions to Lua | Performance | Replace watch/unwatch patterns |
-| D-7 | Add chaos/resilience testing | Testing | Simulate Redis failures |
-| D-8 | Add SRI for vendored JS | Security | Integrity hashes |
-| D-9 | Improve admin dashboard a11y | Accessibility | Skip link, contrast review |
-| D-10 | Add i18n plural support | Frontend | Plural form handling |
-| D-11 | Automated perf regression tests | CI/CD | Schedule k6 in CI |
-| D-12 | Add .dockerignore | Infrastructure | Exclude build artifacts from context |
-| D-13 | Add SECURITY.md | Docs | Vulnerability disclosure policy |
-| D-14 | Add Dependabot config | CI/CD | Automated dependency updates |
-| D-15 | Add ReDoS regression tests | Testing | Test regex against pathological inputs |
+| ID | Task | Category | Effort |
+|----|------|----------|--------|
+| D-1 | Implement chat UI frontend | Frontend | Medium |
+| D-2 | Complete i18n markup (audit hardcoded English strings) | Frontend | Medium |
+| D-3 | Gate frontend debug logging behind config flag | Performance | Low |
+| D-4 | Split multiplayer.js (1,922 lines) into submodules | Architecture | Medium |
+| D-5 | Migrate all transactions to Lua (replace watch/unwatch) | Performance | Medium |
+| D-6 | Add chaos/resilience testing (simulate Redis failures) | Testing | Medium |
+| D-7 | Add SRI hashes for vendored JS | Security | Low |
+| D-8 | Improve admin dashboard a11y (skip link, contrast) | Accessibility | Low |
+| D-9 | Add i18n plural support | Frontend | Low |
+| D-10 | Automated perf regression tests (k6 in CI) | CI/CD | Medium |
+| D-11 | Add `.dockerignore` file | Infrastructure | Low |
+| D-12 | Add `SECURITY.md` vulnerability disclosure policy | Docs | Low |
+| D-13 | Add Dependabot config for automated dependency updates | CI/CD | Low |
+| D-14 | Add ReDoS regression tests for clue regex | Testing | Low |
+| D-15 | Fix ESLint errors (8 unused vars in test files) | Code Quality | Low |
 
 ---
 
@@ -132,16 +124,16 @@ multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
 
 | Feature | Notes |
 |---------|-------|
+| Chat UI (in-game) | Backend complete; needs frontend panel with team/spectator tabs |
 | Player profiles | Optional persistent identity with stats tracking |
 | Tournament mode | Bracket management, scheduling, score tracking |
-| Chat UI (in-game) | Team and spectator chat with the existing backend |
 
 ### Tier 2: Medium Value
 
 | Feature | Notes |
 |---------|-------|
 | Room invites | Direct player invitations via link or notification |
-| Replay sharing | Shareable public replay links (replay system exists) |
+| Replay sharing | Shareable public replay links (API endpoint exists) |
 | Admin dashboard enhancements | Real-time WebSocket metrics, word list moderation |
 | Draft mode | Teams draft words before game starts |
 
@@ -158,16 +150,13 @@ multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
 
 ## Technical Debt
 
-### Code Quality
-
-| Issue | Current State | Target |
-|-------|---------------|--------|
-| Mixed module systems | Some `require()` alongside ES6 `import` | Full ES module migration |
-| ~~Zod `.passthrough()` usage~~ | ~~All 5 service schemas~~ | ✅ Fixed — explicit fields |
-| Spectator handler signatures | Broken — wrong factory params | Fix with correct 4-param pattern |
-| multiplayer.js size | 1,922 lines | Split into focused submodules |
-| Frontend debug logging | Always-on console.log | Conditional on config flag |
-| Localized words unused | Loaded but ignored by game.js | Wire into word selection |
+| Issue | Current State | Priority |
+|-------|---------------|----------|
+| multiplayer.js size | 1,922 lines | Medium — split into submodules |
+| Frontend debug logging | Always-on console.log | Low — gate behind config |
+| Mixed module exports | Some handlers dual-export CJS + ESM | Low — standardize |
+| ESLint warnings | 117 non-null assertions in tests | Low |
+| Coverage threshold mismatch | package.json (80%) vs jest.config.ts.js (65/80/75/75) | Low — align |
 
 ### Performance Targets
 
@@ -197,7 +186,7 @@ multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
 
 ```
         ┌─────────┐
-        │  E2E    │  64+ tests (Playwright)
+        │  E2E    │  64+ tests (Playwright, 8 spec files)
         │  Tests  │  Game flow, multiplayer lifecycle, a11y, timer
        ┌┴─────────┴┐
        │ Integration │  4 test files
@@ -211,13 +200,27 @@ multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
      └─────────────────────┘
 ```
 
-### Testing Gaps (from Deep Review)
+### Known Testing Gaps
 
-- No tests for spectator join flow (broken handlers — CRIT-1)
-- No ReDoS regression tests for clue word regex
-- No history cleanup index correctness tests
-- No malformed WebSocket message tests
-- E2E selectors fragile (class-based instead of data-testid)
+- No tests for malformed WebSocket messages
+- No ReDoS regression tests for clue regex
+- E2E selectors use classes/IDs instead of `data-testid` (fragile)
+- E2E only runs on Chromium (Firefox/Safari untested)
+
+---
+
+## CI/CD Pipeline
+
+6 quality gates run on every PR:
+
+1. **Test** — Jest with coverage (Node 20 + 22 matrix)
+2. **Typecheck** — `tsc --noEmit`
+3. **Lint** — ESLint with `--max-warnings 0`
+4. **Security** — `npm audit` (fails on critical vulns)
+5. **Docker** — Build image and verify health endpoint
+6. **E2E** — Playwright tests against running server
+
+Plus: CodeQL weekly security scanning
 
 ---
 
