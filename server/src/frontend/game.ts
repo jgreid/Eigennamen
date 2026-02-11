@@ -6,7 +6,9 @@ import { escapeHTML, hashString, shuffleWithSeed, generateGameSeed, seededRandom
 import { showToast, openModal, closeModal, announceToScreenReader, showErrorModal } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
 import { playNotificationSound } from './notifications.js';
+import { updateRoleBanner, updateControls } from './roles.js';
 import { UI } from './constants.js';
+import { logger } from './logger.js';
 
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed: number): void {
@@ -43,7 +45,7 @@ export function initGameWithWords(seed: string, boardWords: string[]): boolean {
         return false;
     }
 
-    (state.gameState as any).seed = seed;
+    state.gameState.seed = seed;
     state.gameState.words = boardWords;
     state.gameState.customWords = true;
 
@@ -64,7 +66,7 @@ export function initGame(seed: string, wordList?: string[]): boolean {
         return false;
     }
 
-    (state.gameState as any).seed = seed;
+    state.gameState.seed = seed;
     state.gameState.customWords = (words !== DEFAULT_WORDS && state.wordSource !== 'default');
     const numericSeed = hashString(seed);
 
@@ -285,7 +287,7 @@ export function updateQRCode(url?: string): void {
 
     // Check if qrcode-generator library is loaded
     if (typeof qrcode !== 'function') {
-        console.warn('QR code library not loaded, hiding QR section');
+        logger.debug('QR code library not loaded, hiding QR section');
         if (qrSection) qrSection.style.display = 'none';
         return;
     }
@@ -337,7 +339,7 @@ export function updateQRCode(url?: string): void {
         // Show QR section on success
         if (qrSection) qrSection.style.display = '';
     } catch (e) {
-        console.error('QR code generation failed:', e);
+        logger.error('QR code generation failed:', e);
         // Hide QR section if URL is too long or other error
         if (qrSection) qrSection.style.display = 'none';
     }
@@ -472,7 +474,7 @@ export function revealCard(index: number): void {
 export function revealCardFromServer(index: number, serverData: Record<string, any> = {}): void {
     // Bounds check: reject invalid index to prevent array growth from malformed server data
     if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
-        console.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
+        logger.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
         return;
     }
     if (state.gameState.revealed[index]) return; // Already revealed
@@ -530,7 +532,7 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
         state.gameState.guessesUsed = serverData.guessesUsed;
     }
     if (typeof serverData.guessesAllowed === 'number') {
-        (state.gameState as any).guessesAllowed = serverData.guessesAllowed;
+        state.gameState.guessesAllowed = serverData.guessesAllowed;
     }
 
     // Clear clue state when a reveal causes the turn to end (wrong guess, max guesses)
@@ -718,23 +720,6 @@ export async function copyLink(): Promise<void> {
     }, 3000);
 }
 
-// These are imported by roles.js — re-export updateRoleBanner and updateControls
-// They are actually defined in roles.js but called from game.js.
-// To break the circular dependency, game.js imports them lazily.
-// We use a registry pattern: app.js sets these after importing both modules.
-
-let _updateRoleBanner: () => void = () => {};
-let _updateControls: () => void = () => {};
-
-export function setRoleCallbacks(updateRoleBannerFn: () => void, updateControlsFn: () => void): void {
-    _updateRoleBanner = updateRoleBannerFn;
-    _updateControls = updateControlsFn;
-}
-
-function updateRoleBanner(): void {
-    _updateRoleBanner();
-}
-
-function updateControls(): void {
-    _updateControls();
-}
+// updateRoleBanner and updateControls are imported directly from roles.ts.
+// No circular dependency exists: roles.ts imports from state, utils, ui, board
+// but does NOT import from game.ts.

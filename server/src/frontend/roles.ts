@@ -5,6 +5,7 @@ import { state, ROLE_BANNER_CONFIG } from './state.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
+import type { ServerPlayerData } from './multiplayerTypes.js';
 
 // ---- Role-change state machine helpers ----
 
@@ -93,7 +94,7 @@ export function updateControls(): void {
         && state.playerTeam === state.gameState.currentTurn
         && (() => {
             const teamClicker = state.multiplayerPlayers.find(
-                (p: any) => p.team === state.gameState.currentTurn && p.role === 'clicker'
+                (p: ServerPlayerData) => p.team === state.gameState.currentTurn && p.role === 'clicker'
             );
             return !teamClicker || !teamClicker.connected;
         })();
@@ -177,7 +178,7 @@ export function updateControls(): void {
                 !state.gameState.gameOver &&
                 (() => {
                     const teamClicker = state.multiplayerPlayers.find(
-                        (p: any) => p.team === state.gameState.currentTurn && p.role === 'clicker'
+                        (p: ServerPlayerData) => p.team === state.gameState.currentTurn && p.role === 'clicker'
                     );
                     return !teamClicker || !teamClicker.connected;
                 })();
@@ -239,7 +240,7 @@ export function setTeam(team: string | null): void {
         updateControls();
         renderBoard();
 
-        CodenamesClient.setTeam(team, (ack: any) => {
+        CodenamesClient.setTeam(team, (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 console.warn('setTeam: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
@@ -319,7 +320,7 @@ export function setSpymaster(team: string): void {
             state.clickerTeam = null;
         }
 
-        const ackHandler = (ack: any) => {
+        const ackHandler = (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 console.warn('setSpymaster: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
@@ -408,7 +409,7 @@ export function setClicker(team: string): void {
             state.spymasterTeam = null;
         }
 
-        const ackHandler = (ack: any) => {
+        const ackHandler = (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 console.warn('setClicker: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();

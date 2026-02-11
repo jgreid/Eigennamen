@@ -16,6 +16,10 @@ interface CodenamesPlayer {
     connected: boolean;
 }
 
+interface AckResult {
+    error?: { code?: string; message?: string };
+}
+
 interface CodenamesClientAPI {
     socket: unknown;
     sessionId: string | null;
@@ -29,11 +33,11 @@ interface CodenamesClientAPI {
     connect(url?: string, options?: Record<string, unknown>): Promise<void>;
 
     // Room management
-    joinRoom(roomId: string, nickname: string): Promise<any>;
-    createRoom(options: { roomId: string; nickname: string }): Promise<any>;
+    joinRoom(roomId: string, nickname: string): Promise<import('./multiplayerTypes.js').JoinCreateResult>;
+    createRoom(options: { roomId: string; nickname: string }): Promise<import('./multiplayerTypes.js').JoinCreateResult>;
     leaveRoom(): void;
     getRoomCode(): string | null;
-    requestResync(): Promise<any>;
+    requestResync(): Promise<void>;
 
     // Game actions
     startGame(options: Record<string, unknown>): void;
@@ -42,8 +46,8 @@ interface CodenamesClientAPI {
     forfeit(): void;
 
     // Player actions
-    setTeam(team: string | null, ack?: (result: any) => void): void;
-    setRole(role: string, ack?: (result: any) => void): void;
+    setTeam(team: string | null, ack?: (result: AckResult) => void): void;
+    setRole(role: string, ack?: (result: AckResult) => void): void;
     setNickname(nickname: string): void;
     kickPlayer(sessionId: string): void;
 
@@ -57,8 +61,8 @@ interface CodenamesClientAPI {
     // Chat
     sendSpectatorChat(message: string): void;
 
-    // Event emitter
-    on(event: string, callback: (...args: any[]) => void): void;
+    // Event emitter (callback uses any[] due to event emitter pattern)
+    on(event: string, callback: (...args: never[]) => void): void;
     off(event: string): void;
 }
 

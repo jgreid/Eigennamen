@@ -227,8 +227,9 @@ export function safeGetItem(key: string, defaultValue: string | null = null): st
     try {
         const value = localStorage.getItem(key);
         return value !== null ? value : defaultValue;
-    } catch (e: any) {
-        console.warn('localStorage.getItem failed:', e.message);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('localStorage.getItem failed:', msg);
         return defaultValue;
     }
 }
@@ -237,8 +238,9 @@ export function safeSetItem(key: string, value: string): boolean {
     try {
         localStorage.setItem(key, value);
         return true;
-    } catch (e: any) {
-        console.warn('localStorage.setItem failed:', e.message);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('localStorage.setItem failed:', msg);
         return false;
     }
 }
@@ -247,8 +249,9 @@ export function safeRemoveItem(key: string): boolean {
     try {
         localStorage.removeItem(key);
         return true;
-    } catch (e: any) {
-        console.warn('localStorage.removeItem failed:', e.message);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn('localStorage.removeItem failed:', msg);
         return false;
     }
 }

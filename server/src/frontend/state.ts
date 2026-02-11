@@ -2,6 +2,11 @@
 // All mutable shared state in a single object for ES module compatibility.
 // Other modules import `state` and read/write properties on it.
 
+import type { ClueData, ServerPlayerData, RoomStats, ReplayData } from './multiplayerTypes.js';
+
+// Re-export types used by other modules
+export type { ClueData, ServerPlayerData, RoomStats, ReplayData };
+
 // Game constants (never change)
 export const BOARD_SIZE = 25;
 export const FIRST_TEAM_CARDS = 9;
@@ -127,9 +132,8 @@ export interface GameState {
     blueTotal: number;
     gameOver: boolean;
     winner: string | null;
-    seed: number | null;
     customWords: boolean;
-    currentClue: any;
+    currentClue: ClueData | null;
     guessesUsed: number;
     // Multiplayer sync properties
     guessesAllowed: number;
@@ -139,8 +143,7 @@ export interface GameState {
     timerTokens: number;
     greenFound: number;
     greenTotal: number;
-    // Allow dynamic properties from server sync
-    [key: string]: any;
+    seed: string | number | null;
 }
 
 export interface TimerState {
@@ -175,13 +178,13 @@ export interface AppState {
 
     // Multiplayer
     isMultiplayerMode: boolean;
-    multiplayerPlayers: any[];
+    multiplayerPlayers: ServerPlayerData[];
     currentMpMode: string;
     multiplayerListenersSetup: boolean;
     currentRoomId: string | null;
 
     // History / Replay
-    currentReplayData: any;
+    currentReplayData: ReplayData | null;
     currentReplayIndex: number;
     replayPlaying: boolean;
     replayInterval: ReturnType<typeof setInterval> | null;
@@ -242,7 +245,7 @@ export interface AppState {
 
     // Spectator/room stats (set dynamically by multiplayer sync)
     spectatorCount: number;
-    roomStats: any;
+    roomStats: RoomStats | null;
 }
 
 // The raw state object (wrapped with a debug proxy below)
@@ -521,12 +524,12 @@ function safeClone(obj: unknown): unknown {
  */
 export function setState(property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
-    let target: any = state;
+    let target: Record<string, unknown> = state as unknown as Record<string, unknown>;
     let oldValue: unknown;
 
     // Navigate to the parent of the target property
     for (let i = 0; i < parts.length - 1; i++) {
-        target = target[parts[i]];
+        target = target[parts[i]] as Record<string, unknown>;
         if (target === undefined) {
             console.error(`[State] Invalid property path: ${property}`);
             return;

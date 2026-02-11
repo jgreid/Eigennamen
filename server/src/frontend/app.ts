@@ -9,8 +9,7 @@ import { setCardClickHandler, renderBoard } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
     endTurn, copyLink, loadGameFromURL, updateQRCode,
-    closeGameOver, revealCard,
-    setRoleCallbacks
+    closeGameOver, revealCard
 } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
@@ -29,9 +28,6 @@ import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
-
-// Wire up the role callbacks (game -> roles callback injection to break circular dependency)
-setRoleCallbacks(updateRoleBanner, updateControls);
 
 // Register all modal close handlers
 registerModalCloseHandler('settings-modal', closeSettings);
@@ -255,11 +251,12 @@ async function init(): Promise<void> {
         initKeyboardShortcuts();
         // Check URL for shared replay link
         checkURLForReplayLoad();
-    } catch (e: any) {
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Unknown error';
         // Show error modal to inform user
         showErrorModal(
             'Failed to load the game. This might be due to corrupted data or a browser issue.',
-            e.message || 'Unknown error'
+            message
         );
     }
 }
@@ -271,14 +268,4 @@ if (document.readyState === 'loading') {
 } else {
     // DOM already loaded (e.g., script loaded asynchronously)
     init();
-}
-
-// Service Worker Registration for offline standalone mode
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-            .catch((error) => {
-                console.log('ServiceWorker registration failed:', error);
-            });
-    });
 }

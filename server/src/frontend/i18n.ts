@@ -184,7 +184,8 @@ export async function getLocalizedWordList(lang: string = currentLanguage): Prom
  * @param obj
  * @param path - e.g., 'game.turn.red'
  */
-function getNestedValue(obj: any, path: string): any {
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
     if (!obj || !path) return undefined;
-    return path.split('.').reduce((curr: any, key: string) => curr?.[key], obj);
+    return path.split('.').reduce((curr: Record<string, unknown> | undefined, key: string) =>
+        (curr && typeof curr === 'object') ? (curr[key] as Record<string, unknown> | undefined) : undefined, obj as Record<string, unknown> | undefined);
 }
