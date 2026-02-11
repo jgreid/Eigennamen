@@ -21,9 +21,12 @@ export function openGameHistory(): void {
     }
 
     // Show loading state
-    document.getElementById('history-loading').style.display = 'flex';
-    document.getElementById('history-empty').style.display = 'none';
-    document.getElementById('history-list').style.display = 'none';
+    const loadingEl = document.getElementById('history-loading');
+    const emptyEl = document.getElementById('history-empty');
+    const listEl = document.getElementById('history-list');
+    if (loadingEl) loadingEl.style.display = 'flex';
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (listEl) listEl.style.display = 'none';
 
     openModal('history-modal');
 
@@ -40,17 +43,18 @@ export function renderGameHistory(games: any[]): void {
     const emptyEl = document.getElementById('history-empty');
     const listEl = document.getElementById('history-list');
 
-    loadingEl.style.display = 'none';
+    if (loadingEl) loadingEl.style.display = 'none';
 
     if (!games || games.length === 0) {
-        emptyEl.style.display = 'block';
-        listEl.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (listEl) listEl.style.display = 'none';
         return;
     }
 
-    emptyEl.style.display = 'none';
-    listEl.style.display = 'flex';
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (listEl) listEl.style.display = 'flex';
 
+    if (!listEl) return;
     listEl.innerHTML = '';
     for (const game of games) {
         const dateStr = formatGameTimestamp(game.timestamp);
@@ -122,10 +126,14 @@ export function openReplay(gameId: string): void {
     closeGameHistory();
 
     // Show loading in replay modal
-    document.getElementById('replay-info').innerHTML = '<p>Loading replay...</p>';
-    document.getElementById('replay-board').innerHTML = '';
-    document.getElementById('replay-event-log').innerHTML = '';
-    document.getElementById('replay-progress').textContent = 'Loading...';
+    const replayInfoEl = document.getElementById('replay-info');
+    const replayBoardEl = document.getElementById('replay-board');
+    const replayEventLogEl = document.getElementById('replay-event-log');
+    const replayProgressEl = document.getElementById('replay-progress');
+    if (replayInfoEl) replayInfoEl.innerHTML = '<p>Loading replay...</p>';
+    if (replayBoardEl) replayBoardEl.innerHTML = '';
+    if (replayEventLogEl) replayEventLogEl.innerHTML = '';
+    if (replayProgressEl) replayProgressEl.textContent = 'Loading...';
 
     openModal('replay-modal');
 
@@ -151,21 +159,24 @@ export function renderReplayData(data: any): void {
     state.replayPlaying = false;
 
     if (!data) {
-        document.getElementById('replay-info').innerHTML = '<p>Could not load replay data.</p>';
+        const infoEl = document.getElementById('replay-info');
+        if (infoEl) infoEl.innerHTML = '<p>Could not load replay data.</p>';
         return;
     }
 
     // Render replay info using DOM APIs to prevent XSS
     const replayInfo = document.getElementById('replay-info');
-    replayInfo.innerHTML = '';
-    const winnerBadge = document.createElement('span');
-    const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
-    winnerBadge.className = `winner-badge ${replayWinnerClass}`;
-    winnerBadge.textContent = `${data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown'} Team Wins!`;
-    replayInfo.appendChild(winnerBadge);
-    const durationSpan = document.createElement('span');
-    durationSpan.textContent = `Duration: ${formatDuration(data.duration || 0)} | ${data.totalMoves || 0} moves`;
-    replayInfo.appendChild(durationSpan);
+    if (replayInfo) {
+        replayInfo.innerHTML = '';
+        const winnerBadge = document.createElement('span');
+        const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
+        winnerBadge.className = `winner-badge ${replayWinnerClass}`;
+        winnerBadge.textContent = `${data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown'} Team Wins!`;
+        replayInfo.appendChild(winnerBadge);
+        const durationSpan = document.createElement('span');
+        durationSpan.textContent = `Duration: ${formatDuration(data.duration || 0)} | ${data.totalMoves || 0} moves`;
+        replayInfo.appendChild(durationSpan);
+    }
 
     // Initialize board with words (all hidden)
     renderReplayBoard();
@@ -182,6 +193,7 @@ export function renderReplayData(data: any): void {
 
 export function renderReplayBoard(): void {
     const board = document.getElementById('replay-board');
+    if (!board) return;
     const words = state.currentReplayData?.initialBoard?.words || [];
 
     board.innerHTML = '';
@@ -257,6 +269,7 @@ export function applyReplayState(): void {
 
 export function renderReplayEventLog(): void {
     const logEl = document.getElementById('replay-event-log');
+    if (!logEl) return;
     const events = state.currentReplayData?.events || [];
 
     if (events.length === 0) {
@@ -318,15 +331,15 @@ export function renderReplayEventLog(): void {
 
 export function updateReplayControls(): void {
     const events = state.currentReplayData?.events || [];
-    const prevBtn = document.getElementById('replay-prev') as HTMLButtonElement;
-    const nextBtn = document.getElementById('replay-next') as HTMLButtonElement;
+    const prevBtn = document.getElementById('replay-prev') as HTMLButtonElement | null;
+    const nextBtn = document.getElementById('replay-next') as HTMLButtonElement | null;
     const playBtn = document.getElementById('replay-play');
     const progressEl = document.getElementById('replay-progress');
 
-    prevBtn.disabled = state.currentReplayIndex < 0;
-    nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
-    playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
-    progressEl.textContent = `Move ${state.currentReplayIndex + 1} / ${events.length}`;
+    if (prevBtn) prevBtn.disabled = state.currentReplayIndex < 0;
+    if (nextBtn) nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
+    if (playBtn) playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
+    if (progressEl) progressEl.textContent = `Move ${state.currentReplayIndex + 1} / ${events.length}`;
 }
 
 // Use event delegation on the replay controls to avoid listener accumulation.
@@ -404,7 +417,7 @@ export function toggleReplayPlayback(): void {
             } else {
                 // Reached the end
                 state.replayPlaying = false;
-                clearInterval(state.replayInterval);
+                clearInterval(state.replayInterval ?? undefined);
                 state.replayInterval = null;
                 updateReplayControls();
             }
@@ -434,7 +447,7 @@ export function cycleReplaySpeed(): void {
 
     // If currently playing, restart with new speed
     if (state.replayPlaying) {
-        clearInterval(state.replayInterval);
+        clearInterval(state.replayInterval ?? undefined);
         const speedMs = REPLAY_SPEEDS[currentReplaySpeed];
         state.replayInterval = setInterval(() => {
             const events = state.currentReplayData?.events || [];
@@ -446,7 +459,7 @@ export function cycleReplaySpeed(): void {
                 scrollToCurrentEvent();
             } else {
                 state.replayPlaying = false;
-                clearInterval(state.replayInterval);
+                clearInterval(state.replayInterval ?? undefined);
                 state.replayInterval = null;
                 updateReplayControls();
             }
@@ -484,6 +497,7 @@ export async function copyReplayLink(): Promise<void> {
 
 export function scrollToCurrentEvent(): void {
     const logEl = document.getElementById('replay-event-log');
+    if (!logEl) return;
     const currentEventEl = logEl.querySelector('.replay-event.current');
     if (currentEventEl) {
         currentEventEl.scrollIntoView({ behavior: 'smooth', block: 'center' });

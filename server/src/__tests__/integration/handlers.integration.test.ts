@@ -10,10 +10,9 @@ const { Server } = require('socket.io');
 const Client = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
 
-// Test configuration - use random port offset to avoid conflicts
-const TEST_PORT_BASE = 3097;
-const TEST_PORT = TEST_PORT_BASE + Math.floor(Math.random() * 50);
-const SOCKET_URL = `http://localhost:${TEST_PORT}`;
+// Test configuration — use port 0 for OS-assigned dynamic port to avoid conflicts
+let SOCKET_URL = '';
+let CHAT_SOCKET_URL = '';
 const CONNECTION_TIMEOUT = 5000;
 
 // Mock Redis storage
@@ -239,7 +238,11 @@ describe('Socket Handler Integration Tests', () => {
             });
         });
 
-        httpServer.listen(TEST_PORT, done);
+        httpServer.listen(0, () => {
+            const addr = httpServer.address();
+            SOCKET_URL = `http://localhost:${addr.port}`;
+            done();
+        });
     });
 
     afterAll((done) => {
@@ -487,6 +490,90 @@ describe('Socket Handler Integration Tests', () => {
             playerClient.disconnect();
         });
     });
+
+    describe('Spectator Flow', () => {
+        test('player can set team to null to become spectator', async () => {
+            const hostClient = await createClient();
+            const createPromise = waitForEvent(hostClient, 'room:created');
+            hostClient.emit('room:create', { roomId: 'spectator-test', nickname: 'Host' });
+            await createPromise;
+
+            // Set team first, then set to null (spectate)
+            const teamResult = await new Promise((resolve) => {
+                hostClient.emit('player:setTeam', { team: 'red' }, resolve);
+            });
+            expect(teamResult).toBeDefined();
+
+            // Set team to null (spectate)
+            const spectateResult = await new Promise((resolve) => {
+                hostClient.emit('player:setTeam', { team: null }, resolve);
+            });
+            expect(spectateResult).toBeDefined();
+
+            hostClient.disconnect();
+        });
+
+        test('player can join a room and set team via ack callback', async () => {
+            const hostClient = await createClient();
+            const createPromise = waitForEvent(hostClient, 'room:created');
+            hostClient.emit('room:create', { roomId: 'spectator-update', nickname: 'Host' });
+            const { room } = await createPromise;
+
+            // Join second player
+            const playerClient = await createClient();
+            const joinPromise = waitForEvent(playerClient, 'room:joined');
+            playerClient.emit('room:join', { roomId: room.code, nickname: 'Watcher' });
+            await joinPromise;
+
+            // Player sets team — verify via ack callback
+            const ackResult = await new Promise((resolve) => {
+                playerClient.emit('player:setTeam', { team: 'blue' }, resolve);
+            });
+
+            expect(ackResult).toBeDefined();
+
+            hostClient.disconnect();
+            playerClient.disconnect();
+        });
+    });
+
+    describe('Malformed Messages', () => {
+        test('handles missing data gracefully', async () => {
+            const client = await createClient();
+            const createPromise = waitForEvent(client, 'room:created');
+            client.emit('room:create', { roomId: 'malformed-test', nickname: 'Host' });
+            await createPromise;
+
+            // Emit with missing required fields — should get an error, not crash
+            const errorPromise = waitForEvent(client, 'game:error', 3000).catch(() => null);
+            client.emit('game:reveal', {});
+            // The server should respond with an error, or simply ignore.
+            // The key assertion: the connection should NOT be dropped.
+            await new Promise(resolve => setTimeout(resolve, 500));
+            expect(client.connected).toBe(true);
+
+            client.disconnect();
+        });
+
+        test('handles invalid event data types gracefully', async () => {
+            const client = await createClient();
+            const createPromise = waitForEvent(client, 'room:created');
+            client.emit('room:create', { roomId: 'type-test', nickname: 'Host' });
+            await createPromise;
+
+            // Send a string where object is expected
+            client.emit('game:clue', 'not-an-object');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            expect(client.connected).toBe(true);
+
+            // Send numbers where strings are expected
+            client.emit('room:join', { roomId: 12345, nickname: false });
+            await new Promise(resolve => setTimeout(resolve, 500));
+            expect(client.connected).toBe(true);
+
+            client.disconnect();
+        });
+    });
 });
 
 describe('Chat Handlers', () => {
@@ -514,7 +601,11 @@ describe('Chat Handlers', () => {
             });
         });
 
-        httpServer.listen(TEST_PORT + 1, done);
+        httpServer.listen(0, () => {
+            const addr = httpServer.address();
+            CHAT_SOCKET_URL = `http://localhost:${addr.port}`;
+            done();
+        });
     });
 
     afterAll((done) => {
@@ -530,7 +621,7 @@ describe('Chat Handlers', () => {
 
     async function createChatClient(sessionId = uuidv4()) {
         return new Promise((resolve, reject) => {
-            const client = Client(`http://localhost:${TEST_PORT + 1}`, {
+            const client = Client(CHAT_SOCKET_URL, {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: false,

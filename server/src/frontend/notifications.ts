@@ -109,8 +109,8 @@ export function setTabNotification(isYourTurn: boolean): void {
 // Check and notify if it's the player's turn
 export function checkAndNotifyTurn(newTurn: string, previousTurn: string): void {
     // Check if it became our turn
-    const isYourTurn = state.clickerTeam && state.clickerTeam === newTurn;
-    const wasYourTurn = state.clickerTeam && state.clickerTeam === previousTurn;
+    const isYourTurn = !!(state.clickerTeam && state.clickerTeam === newTurn);
+    const wasYourTurn = !!(state.clickerTeam && state.clickerTeam === previousTurn);
 
     if (isYourTurn && !wasYourTurn) {
         // It just became our turn

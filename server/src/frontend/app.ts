@@ -62,16 +62,16 @@ function setupEventListeners(): void {
                 confirmNewGame();
                 break;
             case 'set-team':
-                setTeam(team);
+                setTeam(team ?? null);
                 break;
             case 'set-spymaster':
-                setSpymaster(team);
+                setSpymaster(team || '');
                 break;
             case 'set-spymaster-current':
                 setSpymasterCurrent();
                 break;
             case 'set-clicker':
-                setClicker(team);
+                setClicker(team || '');
                 break;
             case 'set-clicker-current':
                 setClickerCurrent();

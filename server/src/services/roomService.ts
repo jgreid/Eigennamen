@@ -15,7 +15,7 @@ import type {
     LeaveRoomResult,
     RoomSettings
 } from '../types/room';
-import type { Player, PlayerGameState } from '../types';
+import type { Player, PlayerGameState, RedisClient } from '../types';
 
 // Using require for CommonJS modules during migration
 const { getRedis } = require('../config/redis');
@@ -51,20 +51,7 @@ const roomSchema = z.object({
     expiresAt: z.number().optional(),
 });
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
-    del(keys: string | string[]): Promise<number>;
-    exists(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-    sMembers(key: string): Promise<string[]>;
-    sRem(key: string, member: string): Promise<number>;
-    mGet(keys: string[]): Promise<(string | null)[]>;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-}
+// RedisClient imported from '../types' (shared across all services)
 
 /**
  * Lua script for atomic room creation

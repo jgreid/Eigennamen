@@ -10,9 +10,8 @@ const { Server } = require('socket.io');
 const Client = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
 
-// Test configuration
-const TEST_PORT = 3100;
-const SOCKET_URL = `http://localhost:${TEST_PORT}`;
+// Test configuration — use port 0 for OS-assigned dynamic port to avoid conflicts
+let SOCKET_URL = '';
 const CONNECTION_TIMEOUT = 5000;
 
 // Mock Redis storage
@@ -273,7 +272,11 @@ describe('Full Game Flow Integration Tests', () => {
             });
         });
 
-        httpServer.listen(TEST_PORT, done);
+        httpServer.listen(0, () => {
+            const addr = httpServer.address();
+            SOCKET_URL = `http://localhost:${addr.port}`;
+            done();
+        });
     });
 
     afterAll((done) => {

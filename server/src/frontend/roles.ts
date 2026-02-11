@@ -274,7 +274,7 @@ export function setTeam(team: string | null): void {
     // Announce role change to screen reader if role was cleared
     if (hadRole && oldRole) {
         // Use nullish coalescing for safe team name access
-        const teamName = (team && state.teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : 'Spectator');
+        const teamName = (team && state.teamNames[team as keyof typeof state.teamNames]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : 'Spectator');
         announceToScreenReader(`${oldRole} role cleared. Now on ${teamName} team.`);
     }
 }

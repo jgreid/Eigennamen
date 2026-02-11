@@ -2,7 +2,7 @@
  * Player Service - Player management logic
  */
 
-import type { Team, Role, Player } from '../types';
+import type { Team, Role, Player, RedisClient, RedisMulti } from '../types';
 
 const fs = require('fs');
 const path = require('path');
@@ -146,33 +146,7 @@ export interface RoomStats {
     };
 }
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<string | null>;
-    del(keys: string | string[]): Promise<number>;
-    sAdd(key: string, member: string): Promise<number>;
-    sRem(key: string, ...members: string[]): Promise<number>;
-    sMembers(key: string): Promise<string[]>;
-    sCard(key: string): Promise<number>;
-    mGet(keys: string[]): Promise<(string | null)[]>;
-    expire(key: string, seconds: number): Promise<number>;
-    watch(key: string): Promise<string>;
-    unwatch(): Promise<string>;
-    multi(): RedisTransaction;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-    zAdd(key: string, member: { score: number; value: string }): Promise<number>;
-    zRem(key: string, member: string): Promise<number>;
-    zRangeByScore(key: string, min: number, max: number, options?: { LIMIT?: { offset: number; count: number } }): Promise<string[]>;
-    scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string>;
-}
-
-interface RedisTransaction {
-    set(key: string, value: string, options?: { EX?: number }): RedisTransaction;
-    exec(): Promise<unknown[] | null>;
-}
+// RedisClient imported from '../types' (shared across all services)
 
 /**
  * Create a new player
