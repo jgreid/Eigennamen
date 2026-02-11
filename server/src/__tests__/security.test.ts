@@ -19,7 +19,7 @@ const {
     verifyToken: _verifyToken,
     decodeToken,
     generateSessionToken: _generateSessionToken
-} = require('../config/jwt');
+} = require('../infrastructure/jwt');
 
 const { RESERVED_NAMES } = require('../config/constants');
 
@@ -61,7 +61,7 @@ describe('JWT Configuration', () => {
             process.env.JWT_SECRET = 'a'.repeat(32);
             // Re-import to pick up new env
             jest.resetModules();
-            const jwt = require('../config/jwt');
+            const jwt = require('../infrastructure/jwt');
 
             const payload = { userId: '123', sessionId: 'abc' };
             const token = jwt.signToken(payload);
@@ -76,7 +76,7 @@ describe('JWT Configuration', () => {
         test('returns null for invalid token', () => {
             process.env.JWT_SECRET = 'a'.repeat(32);
             jest.resetModules();
-            const jwt = require('../config/jwt');
+            const jwt = require('../infrastructure/jwt');
 
             const decoded = jwt.verifyToken('invalid-token');
             expect(decoded).toBeNull();
@@ -87,7 +87,7 @@ describe('JWT Configuration', () => {
         test('decodes without verification', () => {
             process.env.JWT_SECRET = 'a'.repeat(32);
             jest.resetModules();
-            const jwt = require('../config/jwt');
+            const jwt = require('../infrastructure/jwt');
 
             const token = jwt.signToken({ userId: '123' });
             const decoded = jwt.decodeToken(token);
@@ -105,7 +105,7 @@ describe('JWT Configuration', () => {
         test('creates token with session info', () => {
             process.env.JWT_SECRET = 'a'.repeat(32);
             jest.resetModules();
-            const jwt = require('../config/jwt');
+            const jwt = require('../infrastructure/jwt');
 
             const token = jwt.generateSessionToken('user123', 'session456');
             const decoded = jwt.verifyToken(token);
@@ -118,7 +118,7 @@ describe('JWT Configuration', () => {
         test('includes additional claims', () => {
             process.env.JWT_SECRET = 'a'.repeat(32);
             jest.resetModules();
-            const jwt = require('../config/jwt');
+            const jwt = require('../infrastructure/jwt');
 
             const token = jwt.generateSessionToken('user123', 'session456', { nickname: 'Player1' });
             const decoded = jwt.verifyToken(token);

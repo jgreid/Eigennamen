@@ -7,8 +7,7 @@
 
 import type { ClueValidationResult } from '../../types';
 
-const { toEnglishUpperCase, localeIncludes } = require('../../utils/sanitize');
-
+import { toEnglishUpperCase, localeIncludes } from '../../utils/sanitize';
 /**
  * Validate that a clue word is not on the board
  *
@@ -52,5 +51,3 @@ export function validateClueWord(clueWord: string, boardWords: string[]): ClueVa
 
     return { valid: true };
 }
-
-module.exports = { validateClueWord };

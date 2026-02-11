@@ -36,7 +36,7 @@ const mockRedis = {
     scanIterator: jest.fn(function* () { /* empty iterator */ })
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis,
     getPubSubClients: () => ({ pubClient: mockPubClient, subClient: mockSubClient }),
     isUsingMemoryMode: jest.fn().mockReturnValue(false)
@@ -140,7 +140,7 @@ describe('Socket Index Module', () => {
 
         test('uses memory adapter when in memory mode', () => {
             jest.resetModules();
-            const { isUsingMemoryMode } = require('../config/redis');
+            const { isUsingMemoryMode } = require('../infrastructure/redis');
             isUsingMemoryMode.mockReturnValue(true);
 
             const socketMod = require('../socket/index');

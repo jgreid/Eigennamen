@@ -53,7 +53,7 @@ const mockRedis = {
     eval: jest.fn().mockResolvedValue(1)
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis
 }));
 
@@ -98,7 +98,7 @@ jest.mock('../services/playerService', () => ({
         delete mockPlayerStorage[sessionId];
     }),
     handleDisconnect: jest.fn().mockResolvedValue(),
-    // FIX: Add atomicHostTransfer for H4 fix
+    // Add atomicHostTransfer for H4 fix
     atomicHostTransfer: jest.fn().mockResolvedValue({ success: true })
 }));
 
@@ -303,7 +303,7 @@ describe('Room Service', () => {
             const result = await roomService.leaveRoom('leave-room', 'host-1');
 
             expect(result.newHostId).toBe('player-1');
-            // FIX: atomicHostTransfer is called instead of updatePlayer
+            // atomicHostTransfer is called instead of updatePlayer
             expect(playerService.atomicHostTransfer).toHaveBeenCalledWith('host-1', 'player-1', 'leave-room');
         });
 

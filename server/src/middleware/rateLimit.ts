@@ -4,9 +4,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-const rateLimit = require('express-rate-limit');
-const logger = require('../utils/logger');
-
+import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
 /**
  * Rate limit configuration
  */
@@ -538,15 +537,6 @@ function resetHttpRateLimitMetrics(): void {
     httpUniqueIPs.clear();
     httpBlockedIPs.clear();
 }
-
-module.exports = {
-    apiLimiter,
-    strictLimiter,
-    createSocketRateLimiter,
-    getHttpRateLimitMetrics,
-    resetHttpRateLimitMetrics
-};
-
 export {
     apiLimiter,
     strictLimiter,

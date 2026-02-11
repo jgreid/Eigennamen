@@ -6,13 +6,12 @@
  * - Local timeouts handle expiration
  */
 
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { TIMER, REDIS_TTL } = require('../config/constants');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
-
+import { getRedis } from '../infrastructure/redis';
+import logger from '../utils/logger';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { TIMER, REDIS_TTL } from '../config/constants';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 // Zod schema for runtime validation of timer state from Redis.
 // Makes instanceId optional to handle data from older server versions or tests.
 const timerStateSchema = z.object({
@@ -92,12 +91,6 @@ export type TimerExpireCallback = (roomCode: string) => void | Promise<void>;
 /**
  * Redis client type (simplified for migration)
  */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
-    del(key: string): Promise<number>;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-}
 
 // Local timers for this instance
 const localTimers = new Map<string, LocalTimerData>();
@@ -162,7 +155,7 @@ function createTimerExpirationCallback(
 ): () => Promise<void> {
     return async (): Promise<void> => {
         try {
-            const redis: RedisClient = getRedis();
+            const redis = getRedis();
             logger.info(`Timer expired for room ${roomCode}`);
             localTimers.delete(roomCode);
 
@@ -191,7 +184,7 @@ export async function startTimer(
     durationSeconds: number,
     onExpire?: TimerExpireCallback
 ): Promise<TimerInfo> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Clear any existing timer
     await stopTimer(roomCode);
@@ -240,7 +233,7 @@ export async function startTimer(
  * Stop timer for a room
  */
 export async function stopTimer(roomCode: string): Promise<void> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Clear local timer
     const timer = localTimers.get(roomCode);
@@ -259,7 +252,7 @@ export async function stopTimer(roomCode: string): Promise<void> {
  * Get remaining time for a room's timer
  */
 export async function getTimerStatus(roomCode: string): Promise<TimerStatus | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Check Redis for timer state
     const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
@@ -316,7 +309,7 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
     const remainingSeconds = status.remainingSeconds;
 
     // Stop the timer but remember the remaining time
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
     if (timerData) {
         try {
@@ -352,7 +345,7 @@ export async function resumeTimer(
     roomCode: string,
     onExpire?: TimerExpireCallback
 ): Promise<TimerInfo | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
 
@@ -439,7 +432,7 @@ async function addTimeLocal(
     secondsToAdd: number,
     onExpire?: TimerExpireCallback
 ): Promise<TimerInfo | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Atomically add time to prevent race conditions
     const result = await withTimeout(
@@ -515,15 +508,3 @@ export function cleanupAllTimers(): void {
 
     logger.info('All local timers cleaned up');
 }
-
-// CommonJS exports for compatibility
-module.exports = {
-    startTimer,
-    stopTimer,
-    getTimerStatus,
-    pauseTimer,
-    resumeTimer,
-    addTime,
-    hasActiveTimer,
-    cleanupAllTimers
-};

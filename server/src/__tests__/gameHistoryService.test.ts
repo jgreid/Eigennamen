@@ -5,7 +5,7 @@
  */
 
 // Mock Redis before requiring the service
-jest.mock('../config/redis', () => {
+jest.mock('../infrastructure/redis', () => {
     const mockRedis = {
         set: jest.fn().mockResolvedValue('OK'),
         get: jest.fn().mockResolvedValue(null),
@@ -44,7 +44,7 @@ jest.mock('../utils/logger', () => ({
 }));
 
 const gameHistoryService = require('../services/gameHistoryService');
-const { getRedis } = require('../config/redis');
+const { getRedis } = require('../infrastructure/redis');
 
 describe('Game History Service', () => {
     let mockRedis;

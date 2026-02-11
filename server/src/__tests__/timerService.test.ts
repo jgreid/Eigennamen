@@ -6,7 +6,7 @@
  */
 
 // Mock Redis before requiring the service
-jest.mock('../config/redis', () => {
+jest.mock('../infrastructure/redis', () => {
     const mockRedis = {
         set: jest.fn().mockResolvedValue('OK'),
         get: jest.fn().mockResolvedValue(null),
@@ -33,7 +33,7 @@ jest.mock('../config/redis', () => {
 });
 
 const timerService = require('../services/timerService');
-const { getRedis } = require('../config/redis');
+const { getRedis } = require('../infrastructure/redis');
 
 // Use fake timers
 jest.useFakeTimers();

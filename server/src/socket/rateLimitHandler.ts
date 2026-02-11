@@ -5,11 +5,10 @@
 
 import type { Socket } from 'socket.io';
 
-const { createSocketRateLimiter } = require('../middleware/rateLimit');
-const { RATE_LIMITS, ERROR_CODES } = require('../config/constants');
-const logger = require('../utils/logger');
-const { sanitizeErrorForClient } = require('../errors/GameError');
-
+import { createSocketRateLimiter } from '../middleware/rateLimit';
+import { RATE_LIMITS, ERROR_CODES } from '../config/constants';
+import logger from '../utils/logger';
+import { sanitizeErrorForClient } from '../errors/GameError';
 /**
  * Extended Socket type with game-specific properties
  */
@@ -165,15 +164,6 @@ function createRateLimitedHandler(
 function getSocketRateLimiter(): SocketRateLimiter {
     return socketRateLimiter;
 }
-
-module.exports = {
-    socketRateLimiter,
-    createRateLimitedHandler,
-    getSocketRateLimiter,
-    startRateLimitCleanup,
-    stopRateLimitCleanup
-};
-
 export {
     socketRateLimiter,
     createRateLimitedHandler,

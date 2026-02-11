@@ -9,25 +9,19 @@ import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';
 
-const gameService = require('../../services/gameService');
-const playerService = require('../../services/playerService');
-const roomService = require('../../services/roomService');
-const gameHistoryService = require('../../services/gameHistoryService');
-const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
-const { createHostHandler, createRoomHandler, createGameHandler } = require('../contextHandler');
-const {
-    PlayerError,
-    GameStateError,
-    ValidationError,
-    RoomError
-} = require('../../errors/GameError');
-const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
-const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-const { getSocketFunctions } = require('../socketFunctionProvider');
-const { safeEmitToRoom, safeEmitToPlayers } = require('../safeEmit');
-
+import * as gameService from '../../services/gameService';
+import * as playerService from '../../services/playerService';
+import * as roomService from '../../services/roomService';
+import * as gameHistoryService from '../../services/gameHistoryService';
+import { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
+import { createHostHandler, createRoomHandler, createGameHandler } from '../contextHandler';
+import { PlayerError, GameStateError, ValidationError, RoomError } from '../../errors/GameError';
+import { auditGameStarted, auditGameEnded } from '../../utils/audit';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
+import { getSocketFunctions } from '../socketFunctionProvider';
+import { safeEmitToRoom, safeEmitToPlayers } from '../safeEmit';
 /**
  * Game start input
  */
@@ -68,13 +62,9 @@ interface GameReplayInput {
 // Result types (RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses) imported from ../../types
 
 /**
- * History entry
+ * History entry - use any[] for compatibility with gameService's HistoryEntry union type
  */
-interface HistoryEntry {
-    action: string;
-    timestamp: number;
-    [key: string]: unknown;
-}
+type HistoryEntry = any;
 
 /**
  * Replay data
@@ -92,7 +82,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     /**
      * Start a new game (host only)
      */
-    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, SOCKET_EVENTS.GAME_START, gameStartSchema,
+    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, SOCKET_EVENTS.GAME_START, gameStartSchema as any,
         async (ctx: RoomContext, validated: GameStartInput) => {
             // Stop any existing timer
             await getSocketFunctions().stopTurnTimer(ctx.roomCode);
@@ -254,12 +244,12 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                         ...completedGame,
                         teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
                     };
-                    await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
+                    await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames as any);
                 }
 
                 // Audit log game end
                 const clientIpEnd = socket.clientIP || socket.handshake.address;
-                auditGameEnded(ctx.roomCode, ctx.sessionId, clientIpEnd, result.winner, result.endReason, null);
+                auditGameEnded(ctx.roomCode, ctx.sessionId, clientIpEnd, result.winner!, result.endReason!, undefined);
             }
 
             logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
@@ -278,7 +268,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             const clue: ClueWithGuesses = await withTimeout(
                 gameService.giveClue(
                     ctx.roomCode,
-                    ctx.player.team,
+                    ctx.player.team!,
                     validated.word,
                     validated.number,
                     ctx.player.nickname
@@ -385,12 +375,12 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     ...completedGame,
                     teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
                 };
-                await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
+                await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames as any);
             }
 
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
-            auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner, 'forfeit', null);
+            auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner!, 'forfeit', undefined);
 
             logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
         }
@@ -434,5 +424,4 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = gameHandlers;
 export default gameHandlers;

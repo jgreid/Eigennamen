@@ -15,12 +15,11 @@
 import type { Player, GameState, Team, Role } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 
-const playerService = require('../services/playerService');
-const gameService = require('../services/gameService');
-const logger = require('../utils/logger');
-const { RoomError, PlayerError } = require('../errors/GameError');
-const { ERROR_CODES } = require('../config/constants');
-
+import * as playerService from '../services/playerService';
+import * as gameService from '../services/gameService';
+import logger from '../utils/logger';
+import { RoomError, PlayerError } from '../errors/GameError';
+import { ERROR_CODES } from '../config/constants';
 /**
  * Options for building player context
  */
@@ -44,7 +43,7 @@ export interface PlayerContextResult {
     /** Session ID */
     sessionId: string;
     /** Room code (null if not in room) */
-    roomCode: string | null;
+    roomCode: string | null | undefined;
     /** Player data from Redis */
     player: Player | null;
     /** Game state (null if no active game) */
@@ -176,7 +175,7 @@ async function getPlayerContext(
         throw new RoomError(
             ERROR_CODES.GAME_NOT_STARTED,
             'No active game in this room',
-            { roomCode }
+            { roomCode: roomCode || undefined }
         );
     }
 
@@ -286,13 +285,6 @@ function syncSocketRooms(
         socket.join(`spectators:${roomCode}`);
     }
 }
-
-module.exports = {
-    getPlayerContext,
-    canChangeTeamOrRole,
-    syncSocketRooms
-};
-
 export {
     getPlayerContext,
     canChangeTeamOrRole,

@@ -13,7 +13,7 @@ const mockRedis = {
     expire: jest.fn().mockResolvedValue(1),
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis,
     isRedisHealthy: jest.fn().mockResolvedValue(true),
 }));

@@ -23,28 +23,28 @@ describe('Database Configuration', () => {
     describe('isDatabaseConfigured', () => {
         it('should return falsy when DATABASE_URL is not set', () => {
             delete process.env.DATABASE_URL;
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.isDatabaseConfigured()).toBeFalsy();
         });
 
         it('should return falsy when DATABASE_URL is empty', () => {
             process.env.DATABASE_URL = '';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.isDatabaseConfigured()).toBeFalsy();
         });
 
         it('should return falsy when DATABASE_URL contains "skip"', () => {
             process.env.DATABASE_URL = 'skip';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.isDatabaseConfigured()).toBeFalsy();
         });
 
         it('should return true when DATABASE_URL is valid', () => {
             process.env.DATABASE_URL = 'postgresql://localhost:5432/codenames';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.isDatabaseConfigured()).toBe(true);
         });
@@ -53,14 +53,14 @@ describe('Database Configuration', () => {
     describe('isDatabaseEnabled', () => {
         it('should return false when database is not configured', () => {
             delete process.env.DATABASE_URL;
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.isDatabaseEnabled()).toBe(false);
         });
 
         it('should return false when database is not connected', () => {
             process.env.DATABASE_URL = 'postgresql://localhost:5432/codenames';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             // Before connecting, should be false
             expect(dbModule.isDatabaseEnabled()).toBe(false);
@@ -70,14 +70,14 @@ describe('Database Configuration', () => {
     describe('getDatabase', () => {
         it('should return null when database is not configured', () => {
             delete process.env.DATABASE_URL;
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.getDatabase()).toBeNull();
         });
 
         it('should return null when database is not connected', () => {
             process.env.DATABASE_URL = 'postgresql://localhost:5432/codenames';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             expect(dbModule.getDatabase()).toBeNull();
         });
@@ -86,7 +86,7 @@ describe('Database Configuration', () => {
     describe('connectDatabase', () => {
         it('should skip connection when DATABASE_URL is not set', async () => {
             delete process.env.DATABASE_URL;
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             const result = await dbModule.connectDatabase();
 
@@ -96,7 +96,7 @@ describe('Database Configuration', () => {
 
         it('should skip connection when DATABASE_URL is empty', async () => {
             process.env.DATABASE_URL = '';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             const result = await dbModule.connectDatabase();
 
@@ -106,7 +106,7 @@ describe('Database Configuration', () => {
 
         it('should skip connection when DATABASE_URL contains skip', async () => {
             process.env.DATABASE_URL = 'skip-database';
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             const result = await dbModule.connectDatabase();
 
@@ -118,7 +118,7 @@ describe('Database Configuration', () => {
     describe('disconnectDatabase', () => {
         it('should do nothing when database is not connected', async () => {
             delete process.env.DATABASE_URL;
-            dbModule = require('../config/database');
+            dbModule = require('../infrastructure/database');
 
             // Should not throw
             await expect(dbModule.disconnectDatabase()).resolves.toBeUndefined();

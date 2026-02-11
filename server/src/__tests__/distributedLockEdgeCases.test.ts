@@ -27,7 +27,7 @@ const mockRedis = {
     eval: jest.fn()
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis
 }));
 

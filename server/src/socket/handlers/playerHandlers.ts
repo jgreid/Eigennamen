@@ -9,17 +9,16 @@ import type { Server } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 
-const playerService = require('../../services/playerService');
-const gameService = require('../../services/gameService');
-const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
-const { createRoomHandler, createHostHandler } = require('../contextHandler');
-const { canChangeTeamOrRole } = require('../playerContext');
-const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
-const { sanitizeHtml } = require('../../utils/sanitize');
-const { safeEmitToRoom } = require('../safeEmit');
-
+import * as playerService from '../../services/playerService';
+import * as gameService from '../../services/gameService';
+import { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
+import { createRoomHandler, createHostHandler } from '../contextHandler';
+import { canChangeTeamOrRole } from '../playerContext';
+import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
+import { sanitizeHtml } from '../../utils/sanitize';
+import { safeEmitToRoom } from '../safeEmit';
 /**
  * Player team input
  */
@@ -109,10 +108,10 @@ function playerHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx: RoomContext, validated: PlayerTeamInput) => {
-            const canChange: ChangePermission = canChangeTeamOrRole(ctx, { isTeamChange: true });
+            const canChange: ChangePermission = canChangeTeamOrRole(ctx as any, { isTeamChange: true });
             if (!canChange.allowed) {
-                const errorCode = canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN;
-                throw new GameStateError(errorCode, canChange.reason);
+                const errorCode = (canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN) as any;
+                throw new GameStateError(errorCode, canChange.reason!);
             }
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
@@ -156,9 +155,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: PlayerRoleInput) => {
             // Skip validation if player already has the requested role (idempotent)
             if (ctx.player.role !== validated.role) {
-                const canChange: ChangePermission = canChangeTeamOrRole(ctx, { targetRole: validated.role });
+                const canChange: ChangePermission = canChangeTeamOrRole(ctx as any, { targetRole: validated.role });
                 if (!canChange.allowed) {
-                    throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
+                    throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason!);
                 }
             }
 
@@ -199,7 +198,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
     /**
      * Update nickname
      */
-    socket.on(SOCKET_EVENTS.PLAYER_SET_NICKNAME, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_NICKNAME, playerNicknameSchema,
+    socket.on(SOCKET_EVENTS.PLAYER_SET_NICKNAME, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_NICKNAME, playerNicknameSchema as any,
         async (ctx: RoomContext, validated: PlayerNicknameInput) => {
             const player: Player | null = await playerService.setNickname(ctx.sessionId, validated.nickname);
 
@@ -286,14 +285,14 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: { team: string }) => {
             // Only spectators can request to join
             if (ctx.player.team && ctx.player.role !== 'spectator') {
-                throw PlayerError.notAuthorized('Only spectators can request to join a team');
+                throw PlayerError.notAuthorized();
             }
 
             // Find the host to notify
             const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
             const host = players.find((p: Player) => p.isHost);
             if (!host) {
-                throw new PlayerError('No host found in room', ERROR_CODES.NOT_HOST);
+                throw new PlayerError(ERROR_CODES.NOT_HOST, 'No host found in room');
             }
 
             // Emit join request to the host (io captured from outer closure)
@@ -318,7 +317,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: { requesterId: string; approved: boolean }) => {
             const requester: Player | null = await playerService.getPlayer(validated.requesterId);
             if (!requester || requester.roomCode !== ctx.roomCode) {
-                throw new PlayerError('Requester not found in room', ERROR_CODES.PLAYER_NOT_FOUND);
+                throw new PlayerError(ERROR_CODES.PLAYER_NOT_FOUND, 'Requester not found in room');
             }
 
             if (validated.approved) {
@@ -352,5 +351,4 @@ function playerHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = playerHandlers;
 export default playerHandlers;

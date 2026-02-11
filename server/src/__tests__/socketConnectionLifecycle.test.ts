@@ -40,7 +40,7 @@ const mockRedis = {
 };
 
 // Mock modules
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis,
     getPubSubClients: () => ({ pubClient: mockPubClient, subClient: mockSubClient }),
     isUsingMemoryMode: jest.fn().mockReturnValue(true)

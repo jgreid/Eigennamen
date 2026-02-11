@@ -11,18 +11,13 @@
 import type { Socket } from 'socket.io';
 import type { Player } from '../types';
 
-const { v4: uuidv4, validate: isValidUuid } = require('uuid');
-const logger = require('../utils/logger');
-const playerService = require('../services/playerService');
-const { verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../config/jwt');
-const { getRedis } = require('../config/redis');
-const {
-    SESSION_SECURITY,
-    REDIS_TTL,
-    ERROR_CODES
-} = require('../config/constants');
-const { audit } = require('../services/auditService');
-
+import { v4 as uuidv4, validate as isValidUuid } from 'uuid';
+import logger from '../utils/logger';
+import * as playerService from '../services/playerService';
+import { verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } from '../infrastructure/jwt';
+import { getRedis } from '../infrastructure/redis';
+import { SESSION_SECURITY, REDIS_TTL, ERROR_CODES } from '../config/constants';
+import { audit } from '../services/auditService';
 /**
  * Extended socket with custom properties
  */
@@ -544,7 +539,7 @@ function handleJwtVerification(
         expectedClaims.userId = sessionValidation.player.userId;
     }
 
-    const tokenResult: TokenVerificationResult = verifyTokenWithClaims(token, expectedClaims);
+    const tokenResult = verifyTokenWithClaims(token, expectedClaims) as unknown as TokenVerificationResult;
 
     if (tokenResult.valid && tokenResult.decoded) {
         authSocket.userId = tokenResult.decoded.userId;
@@ -638,15 +633,6 @@ function requireAuth(socket: Socket, next: (err?: Error) => void): void {
     }
     next();
 }
-
-module.exports = {
-    authenticateSocket,
-    requireAuth,
-    getClientIP,
-    validateSession,
-    validateOrigin
-};
-
 export {
     authenticateSocket,
     requireAuth,

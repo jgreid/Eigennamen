@@ -8,8 +8,7 @@
 
 import type { ZodSchema, ZodError } from 'zod';
 
-const logger = require('./logger');
-
+import logger from './logger';
 /**
  * Parse a JSON string and validate against a Zod schema.
  * Throws if the JSON is malformed or fails validation.
@@ -57,5 +56,3 @@ export function tryParseJSON<T>(data: string, schema: ZodSchema<T>, context?: st
         return null;
     }
 }
-
-module.exports = { parseJSON, tryParseJSON };

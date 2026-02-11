@@ -5,85 +5,31 @@
  * Access documentation at /api-docs when server is running.
  */
 
-// Use require for CommonJS compatibility during migration
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
-
-// Import types
+// @ts-expect-error no type declarations available
+import swaggerJsdoc from 'swagger-jsdoc';
+// @ts-expect-error no type declarations available
+import swaggerUi from 'swagger-ui-express';
 import type { Express, Request, Response } from 'express';
+
+
+/** Minimal OpenAPI schema type for component definitions */
+type OpenAPISchema = Record<string, unknown>;
+
+/** Minimal OpenAPI operation type for spec definitions */
+interface OpenAPIOperation {
+    tags: string[];
+    summary: string;
+    description?: string;
+    operationId?: string;
+    parameters?: Array<Record<string, unknown>>;
+    requestBody?: Record<string, unknown>;
+    responses: Record<string, Record<string, unknown>>;
+    security?: Array<Record<string, string[]>>;
+}
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * OpenAPI schema object
- */
-interface OpenAPISchema {
-    type?: string;
-    properties?: Record<string, OpenAPISchema>;
-    items?: OpenAPISchema;
-    enum?: string[];
-    format?: string;
-    description?: string;
-    $ref?: string;
-    pattern?: string;
-    minLength?: number;
-    maxLength?: number;
-    minimum?: number;
-    maximum?: number;
-    minItems?: number;
-    default?: unknown;
-    required?: string[];
-}
-
-/**
- * OpenAPI response object
- */
-interface OpenAPIResponse {
-    description: string;
-    content?: {
-        'application/json': {
-            schema: OpenAPISchema;
-        };
-    };
-}
-
-/**
- * OpenAPI parameter object
- */
-interface OpenAPIParameter {
-    name: string;
-    in: 'path' | 'query' | 'header' | 'cookie';
-    required?: boolean;
-    schema: OpenAPISchema;
-    description?: string;
-}
-
-/**
- * OpenAPI request body object
- */
-interface OpenAPIRequestBody {
-    required?: boolean;
-    content: {
-        'application/json': {
-            schema: OpenAPISchema;
-        };
-    };
-}
-
-/**
- * OpenAPI operation object
- */
-interface OpenAPIOperation {
-    tags: string[];
-    summary: string;
-    description: string;
-    parameters?: OpenAPIParameter[];
-    requestBody?: OpenAPIRequestBody;
-    responses: Record<string, OpenAPIResponse>;
-    security?: Array<Record<string, string[]>>;
-}
 
 /**
  * OpenAPI path item object
@@ -877,6 +823,3 @@ export function setupSwagger(app: Express): void {
 
 // Export swagger spec for external use
 export { swaggerSpec };
-
-// CommonJS export for backward compatibility
-module.exports = { setupSwagger, swaggerSpec };

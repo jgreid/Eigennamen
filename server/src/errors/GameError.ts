@@ -8,8 +8,7 @@
 import type { ErrorCode, SafeErrorCode } from '../types/errors';
 
 // Import error codes from constants (will be typed when constants.ts is converted)
-const { ERROR_CODES } = require('../config/constants');
-
+import { ERROR_CODES } from '../config/constants';
 /**
  * Error details that can be attached to game errors
  */
@@ -364,17 +363,3 @@ export function sanitizeErrorForClient(error: unknown): SanitizedError {
         message: isSafe ? (errorObj.message || 'An unexpected error occurred') : 'An unexpected error occurred'
     };
 }
-
-// Default export for CommonJS compatibility
-module.exports = {
-    GameError,
-    RoomError,
-    PlayerError,
-    GameStateError,
-    ValidationError,
-    RateLimitError,
-    ServerError,
-    WordListError,
-    SAFE_ERROR_CODES,
-    sanitizeErrorForClient
-};

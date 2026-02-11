@@ -1,12 +1,11 @@
 /**
  * Performance Timing Middleware
- * Sprint 19: Adds request timing and logging for monitoring
+ * Adds request timing and logging for monitoring
  */
 
 import type { Request, Response, NextFunction } from 'express';
 
-const logger = require('../utils/logger');
-
+import logger from '../utils/logger';
 /**
  * Extended request with timing properties
  */
@@ -208,14 +207,6 @@ function stopMemoryMonitoring(): void {
 function generateRequestId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
 }
-
-module.exports = {
-    requestTiming,
-    socketEventTiming,
-    startMemoryMonitoring,
-    stopMemoryMonitoring
-};
-
 export {
     requestTiming,
     socketEventTiming,

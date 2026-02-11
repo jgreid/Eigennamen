@@ -10,8 +10,7 @@
  * - Suitable for development, testing, or single-instance production
  */
 
-const logger = require('../utils/logger');
-
+import logger from '../utils/logger';
 // ============================================================================
 // Types
 // ============================================================================
@@ -327,7 +326,7 @@ export class MemoryStorage {
                 return null; // Key exists, NX fails
             }
         }
-        // FIX: Remove from all type-specific maps on type change (set -> string)
+        // Remove from all type-specific maps on type change (set -> string)
         this.sets.delete(key);
         this.lists.delete(key);
         this.sortedSets.delete(key);
@@ -394,12 +393,12 @@ export class MemoryStorage {
             this.data.set(key, '1');
             return 1;
         }
-        // FIX: Check for type conflicts - Redis INCR fails on Sets/Lists/Sorted Sets
+        // Check for type conflicts - Redis INCR fails on Sets/Lists/Sorted Sets
         if (this.sets.has(key) || this.lists.has(key) || this.sortedSets.has(key)) {
             throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
         }
         const current = parseInt(this.data.get(key) || '0', 10);
-        // FIX: Validate parsed value is a number to prevent NaN corruption
+        // Validate parsed value is a number to prevent NaN corruption
         if (isNaN(current)) {
             throw new Error('ERR value is not an integer or out of range');
         }
@@ -413,12 +412,12 @@ export class MemoryStorage {
             this.data.set(key, '-1');
             return -1;
         }
-        // FIX: Check for type conflicts - Redis DECR fails on Sets/Lists/Sorted Sets
+        // Check for type conflicts - Redis DECR fails on Sets/Lists/Sorted Sets
         if (this.sets.has(key) || this.lists.has(key) || this.sortedSets.has(key)) {
             throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
         }
         const current = parseInt(this.data.get(key) || '0', 10);
-        // FIX: Validate parsed value is a number to prevent NaN corruption
+        // Validate parsed value is a number to prevent NaN corruption
         if (isNaN(current)) {
             throw new Error('ERR value is not an integer or out of range');
         }
@@ -435,7 +434,7 @@ export class MemoryStorage {
         if (this._isExpired(key)) {
             this.sets.set(key, new Set());
         }
-        // FIX: Remove from all incompatible data structures (type change: string/list/zset -> set)
+        // Remove from all incompatible data structures (type change: string/list/zset -> set)
         this.data.delete(key);
         this.lists.delete(key);
         this.sortedSets.delete(key);
@@ -1362,7 +1361,7 @@ export class MemoryStorage {
             this._watchedKeys.set(key, null);
             return 'OK';
         }
-        // FIX: Check all data structures, not just data map
+        // Check all data structures, not just data map
         // This allows watching Sets, Lists, and Sorted Sets correctly
         let watchValue: string | null = null;
         if (this.data.has(key)) {
@@ -1453,7 +1452,7 @@ export class MemoryStorage {
                         }
                         continue; // Both null, key still non-existent
                     }
-                    // FIX: Check all data structures when validating watched keys
+                    // Check all data structures when validating watched keys
                     let currentJson: string | null = null;
                     if (storage.data.has(key)) {
                         currentJson = JSON.stringify(storage.data.get(key));
@@ -1480,7 +1479,7 @@ export class MemoryStorage {
                     try {
                         switch (cmd.cmd) {
                             case 'set':
-                                // FIX: Remove from all type-specific maps (type change)
+                                // Remove from all type-specific maps (type change)
                                 storage.sets.delete(cmd.key);
                                 storage.lists.delete(cmd.key);
                                 storage.sortedSets.delete(cmd.key);
@@ -1519,7 +1518,7 @@ export class MemoryStorage {
                                 if (storage._isExpired(cmd.key)) {
                                     storage.sets.set(cmd.key, new Set());
                                 }
-                                // FIX: Remove from all incompatible data structures (type change)
+                                // Remove from all incompatible data structures (type change)
                                 storage.data.delete(cmd.key);
                                 storage.lists.delete(cmd.key);
                                 storage.sortedSets.delete(cmd.key);
@@ -1787,7 +1786,7 @@ export class MemoryStorage {
         this.cleanupInterval = null;
         // SPRINT-15 FIX: Clean up event handlers to prevent memory leaks
         this._eventHandlers.clear();
-        // FIX: Do NOT clear shared pubsubChannels here - it would break pub/sub
+        // Do NOT clear shared pubsubChannels here - it would break pub/sub
         // for other instances (e.g., main client when pubClient calls quit())
         // pubsubChannels is intentionally shared across all MemoryStorage instances
         return 'OK';
@@ -1873,11 +1872,3 @@ export function isMemoryMode(): boolean {
     const redisUrl = process.env['REDIS_URL'] || '';
     return redisUrl === 'memory' || redisUrl === 'memory://';
 }
-
-// CommonJS export for backward compatibility
-module.exports = {
-    MemoryStorage,
-    getMemoryStorage,
-    isMemoryMode,
-    MAX_TOTAL_KEYS,
-};

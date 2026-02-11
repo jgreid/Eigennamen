@@ -7,14 +7,13 @@
 
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
-const express = require('express');
-const rateLimit = require('express-rate-limit');
-const gameHistoryService = require('../services/gameHistoryService');
-const { toEnglishLowerCase } = require('../utils/sanitize');
-const { API_RATE_LIMITS } = require('../config/constants');
-const { z } = require('zod');
-const logger = require('../utils/logger');
-
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import * as gameHistoryService from '../services/gameHistoryService';
+import { toEnglishLowerCase } from '../utils/sanitize';
+import { API_RATE_LIMITS } from '../config/constants';
+import { z } from 'zod';
+import logger from '../utils/logger';
 const router: ExpressRouter = express.Router();
 
 // Rate limiter for replay requests to prevent enumeration
@@ -78,5 +77,4 @@ router.get('/:roomCode/:gameId', replayLimiter, async (req: Request, res: Respon
     }
 });
 
-module.exports = router;
 export default router;

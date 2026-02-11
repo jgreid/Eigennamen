@@ -92,13 +92,13 @@ describe('Express Application', () => {
     describe('GET /health/ready', () => {
         beforeEach(() => {
             // Mock database module
-            jest.mock('../config/database', () => ({
+            jest.mock('../infrastructure/database', () => ({
                 isDatabaseEnabled: jest.fn(() => false),
                 getDatabase: jest.fn()
             }));
 
             // Mock redis module
-            jest.mock('../config/redis', () => ({
+            jest.mock('../infrastructure/redis', () => ({
                 isRedisHealthy: jest.fn(() => Promise.resolve(true)),
                 isUsingMemoryMode: jest.fn(() => true),
                 getRedis: jest.fn()

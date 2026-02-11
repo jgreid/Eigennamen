@@ -5,17 +5,12 @@
  * Also supports in-memory mode for single-instance deployments
  */
 
-// Use require for CommonJS compatibility during migration
-const { createClient } = require('redis');
-
-const logger = require('../utils/logger');
-
-// Import types
+import { createClient } from 'redis';
+import logger from '../utils/logger';
 import type { RedisClientType } from 'redis';
 
 // Import memory storage functions
-const { getMemoryStorage, isMemoryMode } = require('./memoryStorage');
-
+import { getMemoryStorage, isMemoryMode } from './memoryStorage';
 // ============================================================================
 // Types
 // ============================================================================
@@ -98,6 +93,10 @@ interface MemoryStorageClient {
 // Module State
 // ============================================================================
 
+/** Union type for Redis or memory storage client, used throughout services */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyRedisClient = any;
+
 let redisClient: RedisClientType | MemoryStorageClient | null = null;
 let pubClient: RedisClientType | MemoryStorageClient | null = null;
 let subClient: RedisClientType | MemoryStorageClient | null = null;
@@ -153,7 +152,7 @@ function createClientOptions(redisUrl: string): RedisClientOptions {
     // Handle TLS for rediss:// URLs (Fly.io Upstash Redis)
     if (redisUrl.startsWith('rediss://')) {
         options.socket.tls = true;
-        // ISSUE #54 FIX: Only allow disabling TLS validation in development mode
+        // Only allow disabling TLS validation in development mode
         // In production, TLS certificate validation is always enabled for security
         const isProduction = process.env['NODE_ENV'] === 'production';
         const wantToDisable = process.env['REDIS_TLS_REJECT_UNAUTHORIZED'] === 'false';
@@ -281,11 +280,11 @@ async function cleanupPartialConnections(): Promise<void> {
  * Get the main Redis client
  * @throws Error if Redis not initialized
  */
-export function getRedis(): RedisClientType | MemoryStorageClient {
+export function getRedis(): AnyRedisClient {
     if (!redisClient) {
         throw new Error('Redis not initialized. Call connectRedis() first.');
     }
-    return redisClient as RedisClientType | MemoryStorageClient;
+    return redisClient;
 }
 
 /**
@@ -444,14 +443,3 @@ export async function disconnectRedis(): Promise<void> {
 export function isUsingMemoryMode(): boolean {
     return usingMemoryMode;
 }
-
-// CommonJS export for backward compatibility
-module.exports = {
-    connectRedis,
-    getRedis,
-    getPubSubClients,
-    isRedisHealthy,
-    getRedisMemoryInfo,
-    disconnectRedis,
-    isUsingMemoryMode
-};

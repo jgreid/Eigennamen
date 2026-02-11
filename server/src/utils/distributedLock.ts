@@ -5,11 +5,10 @@
  * automatic extension, and deadlock prevention.
  */
 
-const { getRedis } = require('../config/redis');
-const logger = require('./logger');
-const { v4: uuidv4 } = require('uuid');
-const { withTimeout } = require('./timeout');
-
+import { getRedis } from '../infrastructure/redis';
+import logger from './logger';
+import { v4 as uuidv4 } from 'uuid';
+import { withTimeout } from './timeout';
 // Timeout for individual lock Redis operations (release, extend)
 const LOCK_OPERATION_TIMEOUT = 5000;
 
@@ -360,20 +359,6 @@ const getLockOwner = (lockKey: string): Promise<string | null> =>
 
 const forceRelease = (lockKey: string): Promise<boolean> =>
     defaultLock.forceRelease(lockKey);
-
-module.exports = {
-    DistributedLock,
-    acquire,
-    withLock,
-    withAutoExtend,
-    isLocked,
-    getLockOwner,
-    forceRelease,
-    // For testing
-    RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT
-};
-
 // ES6 exports for TypeScript imports
 export {
     DistributedLock,

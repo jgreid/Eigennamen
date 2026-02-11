@@ -22,7 +22,7 @@ jest.mock('../utils/logger', () => mockLogger);
 // Create controllable mock implementations
 let mockRedis;
 
-jest.mock('../config/redis', () => {
+jest.mock('../infrastructure/redis', () => {
     // Initialize mocks
     mockRedis = {
         set: jest.fn().mockResolvedValue('OK'),
@@ -43,7 +43,7 @@ jest.mock('../config/redis', () => {
 // Now require the service
 const timerService = require('../services/timerService');
 // This import verifies the mock is working but isn't directly used in tests
-const { getRedis: _getRedis } = require('../config/redis');
+const { getRedis: _getRedis } = require('../infrastructure/redis');
 
 // Use fake timers
 jest.useFakeTimers();

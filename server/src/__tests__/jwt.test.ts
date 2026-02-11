@@ -33,7 +33,7 @@ describe('JWT Configuration', () => {
     describe('getJwtSecret', () => {
         it('should return secret when configured in non-production', () => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const secret = jwtModule.getJwtSecret();
             expect(secret).toBe('a-valid-secret-that-is-long-enough-32chars');
@@ -42,7 +42,7 @@ describe('JWT Configuration', () => {
         it('should return development fallback when no secret in non-production', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'development';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const secret = jwtModule.getJwtSecret();
             expect(secret).toBe('development-secret-do-not-use-in-production');
@@ -51,7 +51,7 @@ describe('JWT Configuration', () => {
         it('should warn about short secrets in development', () => {
             process.env.JWT_SECRET = 'short';
             process.env.NODE_ENV = 'development';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const secret = jwtModule.getJwtSecret();
             expect(secret).toBe('short');
@@ -61,7 +61,7 @@ describe('JWT Configuration', () => {
         it('should return null in production without secret', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const secret = jwtModule.getJwtSecret();
             expect(secret).toBeNull();
@@ -71,7 +71,7 @@ describe('JWT Configuration', () => {
         it('should throw error in production with short secret', () => {
             process.env.JWT_SECRET = 'short';
             process.env.NODE_ENV = 'production';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             expect(() => jwtModule.getJwtSecret()).toThrow(
                 'JWT_SECRET must be at least 32 characters in production'
@@ -81,7 +81,7 @@ describe('JWT Configuration', () => {
         it('should return secret in production when properly configured', () => {
             process.env.JWT_SECRET = 'a-valid-production-secret-that-is-at-least-32-chars';
             process.env.NODE_ENV = 'production';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const secret = jwtModule.getJwtSecret();
             expect(secret).toBe('a-valid-production-secret-that-is-at-least-32-chars');
@@ -91,7 +91,7 @@ describe('JWT Configuration', () => {
     describe('isJwtEnabled', () => {
         it('should return true when JWT is configured', () => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             expect(jwtModule.isJwtEnabled()).toBe(true);
         });
@@ -99,7 +99,7 @@ describe('JWT Configuration', () => {
         it('should return false in production without secret', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             expect(jwtModule.isJwtEnabled()).toBe(false);
         });
@@ -107,7 +107,7 @@ describe('JWT Configuration', () => {
         it('should return false when getJwtSecret throws', () => {
             process.env.JWT_SECRET = 'short';
             process.env.NODE_ENV = 'production';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             expect(jwtModule.isJwtEnabled()).toBe(false);
         });
@@ -116,7 +116,7 @@ describe('JWT Configuration', () => {
     describe('signToken', () => {
         beforeEach(() => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
         });
 
         it('should sign a token with default options', () => {
@@ -134,7 +134,7 @@ describe('JWT Configuration', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jest.resetModules();
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const token = jwtModule.signToken({ userId: 'test-user' });
             expect(token).toBeNull();
@@ -144,7 +144,7 @@ describe('JWT Configuration', () => {
     describe('verifyToken', () => {
         beforeEach(() => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
         });
 
         it('should verify a valid token', () => {
@@ -179,7 +179,7 @@ describe('JWT Configuration', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jest.resetModules();
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const decoded = jwtModule.verifyToken('any-token');
             expect(decoded).toBeNull();
@@ -202,7 +202,7 @@ describe('JWT Configuration', () => {
     describe('decodeToken', () => {
         beforeEach(() => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
         });
 
         it('should decode a valid token without verification', () => {
@@ -228,7 +228,7 @@ describe('JWT Configuration', () => {
     describe('generateSessionToken', () => {
         beforeEach(() => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
         });
 
         it('should generate a session token with userId and sessionId', () => {
@@ -255,7 +255,7 @@ describe('JWT Configuration', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jest.resetModules();
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             const token = jwtModule.generateSessionToken('user-123', 'session-456');
             expect(token).toBeNull();
@@ -265,7 +265,7 @@ describe('JWT Configuration', () => {
     describe('JWT_CONFIG exports', () => {
         it('should export JWT configuration constants', () => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             expect(jwtModule.JWT_CONFIG).toBeDefined();
             expect(jwtModule.JWT_CONFIG.algorithm).toBe('HS256');
@@ -277,7 +277,7 @@ describe('JWT Configuration', () => {
     describe('JWT_ERROR_CODES', () => {
         it('should export error codes for JWT validation', () => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
 
             expect(jwtModule.JWT_ERROR_CODES).toBeDefined();
             expect(jwtModule.JWT_ERROR_CODES.TOKEN_EXPIRED).toBe('TOKEN_EXPIRED');
@@ -291,7 +291,7 @@ describe('JWT Configuration', () => {
     describe('verifyToken with returnError option', () => {
         beforeEach(() => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
         });
 
         it('should return error object for expired token when returnError is true', () => {
@@ -324,7 +324,7 @@ describe('JWT Configuration', () => {
     describe('verifyTokenWithClaims', () => {
         beforeEach(() => {
             process.env.JWT_SECRET = 'a-valid-secret-that-is-long-enough-32chars';
-            jwtModule = require('../config/jwt');
+            jwtModule = require('../infrastructure/jwt');
         });
 
         it('should return valid:true for token with matching claims', () => {

@@ -9,15 +9,14 @@ import type { Server } from 'socket.io';
 import type { Player, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 
-const playerService = require('../../services/playerService');
-const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { SOCKET_EVENTS } = require('../../config/constants');
-const { createRoomHandler } = require('../contextHandler');
-const { sanitizeHtml } = require('../../utils/sanitize');
-const { PlayerError } = require('../../errors/GameError');
-const { safeEmitToRoom, safeEmitToPlayer } = require('../safeEmit');
-
+import * as playerService from '../../services/playerService';
+import { chatMessageSchema, spectatorChatSchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { SOCKET_EVENTS } from '../../config/constants';
+import { createRoomHandler } from '../contextHandler';
+import { sanitizeHtml } from '../../utils/sanitize';
+import { PlayerError } from '../../errors/GameError';
+import { safeEmitToRoom, safeEmitToPlayer } from '../safeEmit';
 /**
  * Chat message input
  */
@@ -104,7 +103,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
      * Send a spectator-only chat message
      */
     socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
-        (ctx: RoomContext, validated: SpectatorChatInput) => {
+        async (ctx: RoomContext, validated: SpectatorChatInput) => {
             // Only allow spectators to send spectator-only messages
             if (ctx.player.role !== 'spectator') {
                 throw PlayerError.notAuthorized();
@@ -130,5 +129,4 @@ function chatHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = chatHandlers;
 export default chatHandlers;

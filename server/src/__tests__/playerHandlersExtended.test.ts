@@ -20,8 +20,8 @@ jest.mock('../utils/logger', () => ({
 }));
 jest.mock('../utils/sanitize', () => ({
     sanitizeHtml: jest.fn((str) => str),
-    removeControlChars: jest.fn((str) => str),  // FIX: Include for Zod schema validation
-    isReservedName: jest.fn(() => false)        // FIX: Include for nickname validation
+    removeControlChars: jest.fn((str) => str),  // Include for Zod schema validation
+    isReservedName: jest.fn(() => false)        // Include for nickname validation
 }));
 
 const playerService = require('../services/playerService');
@@ -316,7 +316,7 @@ describe('Extended Player Handlers Tests', () => {
             const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
             await setRoleHandler[1]({ role: 'clicker' });
 
-            // FIX: Updated to expect PLAYER_NOT_FOUND - more accurate error code
+            // Updated to expect PLAYER_NOT_FOUND - more accurate error code
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
                 code: 'PLAYER_NOT_FOUND'
             }));
@@ -355,7 +355,7 @@ describe('Extended Player Handlers Tests', () => {
                 if (sessionId === 'session-456') {
                     return {
                         sessionId: 'session-456',
-                        roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                        roomCode: 'TEST12',  // Include roomCode to pass validation
                         isHost: true,
                         nickname: 'Host'
                     };
@@ -385,7 +385,7 @@ describe('Extended Player Handlers Tests', () => {
                 if (sessionId === 'session-456') {
                     return {
                         sessionId: 'session-456',
-                        roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                        roomCode: 'TEST12',  // Include roomCode to pass validation
                         isHost: true,
                         nickname: 'Host'
                     };
@@ -414,7 +414,7 @@ describe('Extended Player Handlers Tests', () => {
                 if (sessionId === 'session-456') {
                     return {
                         sessionId: 'session-456',
-                        roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                        roomCode: 'TEST12',  // Include roomCode to pass validation
                         isHost: true,
                         nickname: 'Host'
                     };
@@ -443,7 +443,7 @@ describe('Extended Player Handlers Tests', () => {
             const kickHandler = handlers.find(h => h[0] === 'player:kick');
             await kickHandler[1]({});
 
-            // FIX: Use flexible matcher for Zod validation messages
+            // Use flexible matcher for Zod validation messages
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
                 code: 'INVALID_INPUT',
                 message: expect.stringMatching(/required|targetSessionId/i)
@@ -455,7 +455,7 @@ describe('Extended Player Handlers Tests', () => {
             const kickHandler = handlers.find(h => h[0] === 'player:kick');
             await kickHandler[1](null);
 
-            // FIX: Use flexible matcher for Zod validation messages
+            // Use flexible matcher for Zod validation messages
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
                 code: 'INVALID_INPUT',
                 message: expect.stringMatching(/required|targetSessionId/i)
@@ -465,7 +465,7 @@ describe('Extended Player Handlers Tests', () => {
         test('prevents kicking yourself', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
-                roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                roomCode: 'TEST12',  // Include roomCode to pass validation
                 isHost: true,
                 nickname: 'Host'
             });
@@ -482,7 +482,7 @@ describe('Extended Player Handlers Tests', () => {
         test('rejects non-host kicking', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
-                roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                roomCode: 'TEST12',  // Include roomCode to pass validation
                 isHost: false,
                 nickname: 'Player'
             });

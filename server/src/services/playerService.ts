@@ -4,17 +4,16 @@
 
 import type { Team, Role, Player } from '../types';
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } = require('../config/constants');
-const { ServerError, ValidationError } = require('../errors/GameError');
-const { tryParseJSON, parseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
-
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { getRedis } from '../infrastructure/redis';
+import logger from '../utils/logger';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } from '../config/constants';
+import { ServerError, ValidationError } from '../errors/GameError';
+import { tryParseJSON, parseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 // Zod schemas for Redis deserialization validation.
 // Validates critical fields when present; non-essential fields are optional
 // so tests with sparse mocks still pass. No .passthrough() — unknown keys are stripped.
@@ -146,33 +145,6 @@ export interface RoomStats {
     };
 }
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<string | null>;
-    del(keys: string | string[]): Promise<number>;
-    sAdd(key: string, member: string): Promise<number>;
-    sRem(key: string, ...members: string[]): Promise<number>;
-    sMembers(key: string): Promise<string[]>;
-    sCard(key: string): Promise<number>;
-    mGet(keys: string[]): Promise<(string | null)[]>;
-    expire(key: string, seconds: number): Promise<number>;
-    watch(key: string): Promise<string>;
-    unwatch(): Promise<string>;
-    multi(): RedisTransaction;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-    zAdd(key: string, member: { score: number; value: string }): Promise<number>;
-    zRem(key: string, member: string): Promise<number>;
-    zRangeByScore(key: string, min: number, max: number, options?: { LIMIT?: { offset: number; count: number } }): Promise<string[]>;
-    scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string>;
-}
-
-interface RedisTransaction {
-    set(key: string, value: string, options?: { EX?: number }): RedisTransaction;
-    exec(): Promise<unknown[] | null>;
-}
 
 /**
  * Create a new player
@@ -184,7 +156,7 @@ export async function createPlayer(
     isHost: boolean = false,
     addToSet: boolean = true
 ): Promise<Player> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     const player: Player = {
         sessionId,
@@ -219,7 +191,7 @@ export async function createPlayer(
  * Get player by session ID
  */
 export async function getPlayer(sessionId: string): Promise<Player | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const playerData = await redis.get(`player:${sessionId}`);
     if (!playerData) return null;
     return tryParseJSON(playerData, playerSchema, `player ${sessionId}`) as Player | null;
@@ -233,7 +205,7 @@ export async function updatePlayer(
     sessionId: string,
     updates: PlayerUpdateData
 ): Promise<Player> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const playerKey = `player:${sessionId}`;
     const maxRetries = 3;
 
@@ -298,7 +270,7 @@ export async function setTeam(
     team: Team | null,
     checkEmpty: boolean = false
 ): Promise<Player> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Get player to determine room code and old team for the Lua script
     const existingPlayer = await getPlayer(sessionId);
@@ -380,7 +352,7 @@ const ATOMIC_SET_ROLE_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../
  * Enforces one spymaster and one clicker per team
  */
 export async function setRole(sessionId: string, role: Role): Promise<Player> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     const player = await getPlayer(sessionId);
     if (!player) {
@@ -462,7 +434,7 @@ export function setNickname(sessionId: string, nickname: string): Promise<Player
  * Uses pipeline for batch fetching player data
  */
 export async function getTeamMembers(roomCode: string, team: Team): Promise<Player[]> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const teamKey = `room:${roomCode}:team:${team}`;
 
     // Get session IDs from team set
@@ -473,7 +445,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
     }
 
     // Batch fetch all player data
-    const playerKeys = sessionIds.map(id => `player:${id}`);
+    const playerKeys = sessionIds.map((id: string) => `player:${id}`);
     const playerDataArray = await redis.mGet(playerKeys);
 
     const players: Player[] = [];
@@ -501,7 +473,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
         }
     }
 
-    // ISSUE #12 FIX: Clean up orphaned entries and their lingering data
+    // Clean up orphaned entries and their lingering data
     if (orphanedIds.length > 0) {
         // Performance fix: Batch DEL operations into single Redis call
         const playerKeysToDelete = orphanedIds.map(id => `player:${id}`);
@@ -511,7 +483,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
         ]);
         logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey}`);
 
-        // ISSUE #13 FIX: If team set is now empty, delete it
+        // If team set is now empty, delete it
         const remainingCount = await redis.sCard(teamKey);
         if (remainingCount === 0) {
             await redis.del(teamKey);
@@ -529,7 +501,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
  */
 export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
     const startTime = Date.now();
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const sessionIds = await redis.sMembers(`room:${roomCode}:players`);
 
     if (sessionIds.length === 0) {
@@ -537,7 +509,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
     }
 
     // Use MGET to fetch all players in a single Redis call (much faster than N individual GETs)
-    const playerKeys = sessionIds.map(sessionId => `player:${sessionId}`);
+    const playerKeys = sessionIds.map((sessionId: string) => `player:${sessionId}`);
     const playerDataArray = await redis.mGet(playerKeys);
 
     // Log slow queries for debugging
@@ -565,7 +537,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
         }
     }
 
-    // ISSUE #12 FIX: Clean up all orphaned data atomically
+    // Clean up all orphaned data atomically
     if (orphanedSessionIds.length > 0) {
         // Remove from players set
         await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
@@ -602,7 +574,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
  * Also removes from team set if player was on a team
  */
 export async function removePlayer(sessionId: string): Promise<void> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (player) {
@@ -628,7 +600,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
  * ISSUE #57 FIX: Schedule player cleanup after grace period
  */
 export async function handleDisconnect(sessionId: string): Promise<Player | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (!player) {
@@ -640,7 +612,7 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
 
     logger.info(`Player ${sessionId} disconnected from room ${player.roomCode}`);
 
-    // ISSUE #57 FIX: Schedule removal after grace period using sorted set
+    // Schedule removal after grace period using sorted set
     const cleanupTime = Date.now() + (REDIS_TTL.DISCONNECTED_PLAYER * 1000);
     await redis.zAdd('scheduled:player:cleanup', {
         score: cleanupTime,
@@ -661,7 +633,7 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
  * ISSUE #17 FIX: Require valid token for reconnection to prevent session hijacking
  */
 export async function validateSocketAuthToken(sessionId: string, token?: string): Promise<boolean> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // If no token provided, check if player is still connected (fresh connection)
     if (!token) {
@@ -684,7 +656,7 @@ export async function validateSocketAuthToken(sessionId: string, token?: string)
         return false;
     }
 
-    // FIX: Validate lengths match before constant-time comparison
+    // Validate lengths match before constant-time comparison
     // timingSafeEqual throws if buffer lengths differ, which would crash the server
     if (storedToken.length !== token.length) {
         logger.warn('Reconnection token length mismatch', { sessionId });
@@ -715,7 +687,7 @@ export async function validateSocketAuthToken(sessionId: string, token?: string)
  * ISSUE #57 FIX: Run this periodically to clean up disconnected players
  */
 export async function processScheduledCleanups(limit: number = 50): Promise<number> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const now = Date.now();
 
     try {
@@ -774,7 +746,7 @@ export async function setSocketMapping(
     socketId: string,
     clientIP: string | null = null
 ): Promise<boolean> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // First verify player exists to prevent orphaned socket mappings
     const player = await getPlayer(sessionId);
@@ -798,7 +770,7 @@ export async function setSocketMapping(
  * Get socket ID for a session
  */
 export function getSocketId(sessionId: string): Promise<string | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     return redis.get(`session:${sessionId}:socket`);
 }
 
@@ -846,7 +818,7 @@ export function stopCleanupTask(): void {
  * ISSUE #17 FIX: Secure reconnection via short-lived tokens
  */
 export async function generateReconnectionToken(sessionId: string): Promise<string | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const player = await getPlayer(sessionId);
 
     if (!player) {
@@ -921,7 +893,7 @@ export async function validateRoomReconnectToken(
     token: string,
     sessionId: string
 ): Promise<TokenValidationResult> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     if (!token || typeof token !== 'string') {
         return { valid: false, reason: 'INVALID_TOKEN_FORMAT' };
@@ -967,7 +939,7 @@ export async function validateRoomReconnectToken(
  * Used to avoid generating multiple tokens for the same session
  */
 export function getExistingReconnectionToken(sessionId: string): Promise<string | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     return redis.get(`reconnect:session:${sessionId}`);
 }
 
@@ -976,7 +948,7 @@ export function getExistingReconnectionToken(sessionId: string): Promise<string 
  * Called when player successfully reconnects or explicitly leaves
  */
 export async function invalidateRoomReconnectToken(sessionId: string): Promise<void> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     const existingToken = await redis.get(`reconnect:session:${sessionId}`);
     if (existingToken) {
@@ -995,7 +967,7 @@ export async function invalidateRoomReconnectToken(sessionId: string): Promise<v
  * Uses SCAN to avoid blocking Redis on large datasets.
  */
 export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     let cleaned = 0;
 
     // Scan for reconnect:session:* keys
@@ -1048,7 +1020,7 @@ export async function atomicHostTransfer(
     newHostSessionId: string,
     roomCode: string
 ): Promise<HostTransferResult> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     try {
         // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
@@ -1176,40 +1148,3 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
 
     return results;
 }
-
-// CommonJS exports for compatibility
-module.exports = {
-    createPlayer,
-    getPlayer,
-    updatePlayer,
-    setTeam,
-    setRole,
-    setNickname,
-    getTeamMembers,
-    getPlayersInRoom,
-    removePlayer,
-    handleDisconnect,
-    setSocketMapping,
-    getSocketId,
-    // ISSUE #57 FIX: Export cleanup functions
-    processScheduledCleanups,
-    startCleanupTask,
-    stopCleanupTask,
-    // ISSUE #17 FIX: Reconnection token functions
-    // validateSocketAuthToken - simple tokens for automatic socket auth reconnection
-    validateSocketAuthToken,
-    // Complex token functions for explicit room:reconnect flow
-    generateReconnectionToken,
-    validateRoomReconnectToken,
-    getExistingReconnectionToken,
-    invalidateRoomReconnectToken,
-    cleanupOrphanedReconnectionTokens,
-    // US-16.1: Spectator mode enhancements
-    getSpectators,
-    getSpectatorCount,
-    getRoomStats,
-    // SECURITY FIX: Atomic host transfer
-    atomicHostTransfer,
-    // Reset roles for new game
-    resetRolesForNewGame
-};

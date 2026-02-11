@@ -10,42 +10,24 @@ import type { TimerCallback } from '../types';
 import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
-const { Server } = require('socket.io');
-const { createAdapter } = require('@socket.io/redis-adapter');
-const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
-const logger = require('../utils/logger');
-const { authenticateSocket, getClientIP } = require('../middleware/socketAuth');
-const timerService = require('../services/timerService');
-const { SOCKET, SOCKET_EVENTS } = require('../config/constants');
-const {
-    socketRateLimiter,
-    createRateLimitedHandler,
-    getSocketRateLimiter,
-    startRateLimitCleanup,
-    stopRateLimitCleanup
-} = require('./rateLimitHandler');
-const { registerSocketFunctions } = require('./socketFunctionProvider');
-const { safeEmitToRoom } = require('./safeEmit');
-const {
-    incrementConnectionCount,
-    decrementConnectionCount,
-    isConnectionLimitReached,
-    getConnectionCount,
-    startConnectionsCleanup,
-    stopConnectionsCleanup
-} = require('./connectionTracker');
-const {
-    handleDisconnect,
-    createTimerExpireCallback: createTimerExpireCallbackImpl
-} = require('./disconnectHandler');
-
+import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { getPubSubClients, isUsingMemoryMode } from '../infrastructure/redis';
+import logger from '../utils/logger';
+import { authenticateSocket, getClientIP } from '../middleware/socketAuth';
+import * as timerService from '../services/timerService';
+import { SOCKET, SOCKET_EVENTS } from '../config/constants';
+import { socketRateLimiter, createRateLimitedHandler, getSocketRateLimiter, startRateLimitCleanup, stopRateLimitCleanup } from './rateLimitHandler';
+import { registerSocketFunctions } from './socketFunctionProvider';
+import { safeEmitToRoom } from './safeEmit';
+import { incrementConnectionCount, decrementConnectionCount, isConnectionLimitReached, getConnectionCount, startConnectionsCleanup, stopConnectionsCleanup } from './connectionTracker';
+import { handleDisconnect, createTimerExpireCallback as _createTimerExpireCallback } from './disconnectHandler';
 // Import handlers AFTER rate limiter is set up to avoid circular dependency issues
-const roomHandlers = require('./handlers/roomHandlers');
-const gameHandlers = require('./handlers/gameHandlers');
-const playerHandlers = require('./handlers/playerHandlers');
-const chatHandlers = require('./handlers/chatHandlers');
-const timerHandlers = require('./handlers/timerHandlers');
-
+import roomHandlers from './handlers/roomHandlers';
+import gameHandlers from './handlers/gameHandlers';
+import playerHandlers from './handlers/playerHandlers';
+import chatHandlers from './handlers/chatHandlers';
+import timerHandlers from './handlers/timerHandlers';
 /**
  * Express app with socket count update function
  */
@@ -64,7 +46,7 @@ let shuttingDown = false;
  * socketFunctionProvider and callers.
  */
 function createTimerExpireCallback(): TimerCallback {
-    return createTimerExpireCallbackImpl(emitToRoom, startTurnTimer);
+    return _createTimerExpireCallback(emitToRoom, startTurnTimer);
 }
 
 /**
@@ -205,7 +187,7 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
         timerHandlers(socketServer, gameSocket);
 
         // Handle disconnection
-        // ISSUE #9 FIX: Wrap disconnect handler in timeout to prevent hangs
+        // Wrap disconnect handler in timeout to prevent hangs
         socket.on('disconnect', async (reason: string) => {
             logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
 
@@ -287,7 +269,7 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
         emitToPlayer,
         startTurnTimer,
         stopTurnTimer,
-        getTimerStatus,
+        getTimerStatus: getTimerStatus as any,
         getIO,
         createTimerExpireCallback
     });
@@ -349,7 +331,7 @@ async function stopTurnTimer(roomCode: string): Promise<void> {
 /**
  * Get timer status for a room (async)
  */
-function getTimerStatus(roomCode: string): Promise<unknown> {
+function getTimerStatus(roomCode: string) {
     return timerService.getTimerStatus(roomCode);
 }
 
@@ -378,22 +360,6 @@ function cleanupSocketModule(): void {
 }
 
 // Export internal functions for testing (prefixed with _ to indicate internal use)
-module.exports = {
-    initializeSocket,
-    getIO,
-    emitToRoom,
-    emitToPlayer,
-    startTurnTimer,
-    stopTurnTimer,
-    getTimerStatus,
-    getSocketRateLimiter,
-    createRateLimitedHandler,
-    cleanupSocketModule,
-    // Exported for testing only - do not use directly in production code
-    _handleDisconnect: handleDisconnect,
-    _createTimerExpireCallback: createTimerExpireCallback
-};
-
 export {
     initializeSocket,
     getIO,

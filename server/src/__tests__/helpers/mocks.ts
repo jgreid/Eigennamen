@@ -508,18 +508,3 @@ async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: strin
         return err;
     }
 }
-
-module.exports = {
-    createMockRedis,
-    createMockPlayer,
-    createMockRoom,
-    createMockGame,
-    createMockSocket,
-    createMockIO,
-    createMockLogger,
-    createMockServices,
-    generateRoomCode,
-    sleep,
-    flushPromises,
-    expectAsyncError
-};

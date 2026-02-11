@@ -34,7 +34,7 @@ const mockRedis = {
 
 // Use mockUsingMemoryMode (prefixed with mock for Jest)
 let mockUsingMemoryMode = false;
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: jest.fn(() => mockRedis),
     isUsingMemoryMode: jest.fn(() => mockUsingMemoryMode)
 }));
@@ -48,7 +48,7 @@ const {
     clearMemoryLogs
 } = require('../services/auditService');
 const logger = require('../utils/logger');
-require('../config/redis');
+require('../infrastructure/redis');
 
 describe('Audit Service', () => {
     beforeEach(() => {

@@ -6,11 +6,10 @@
  * Falls back to in-memory ring buffers when Redis is unavailable.
  */
 
-const logger = require('../utils/logger');
-const { getRedis, isUsingMemoryMode } = require('../config/redis');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
-
+import logger from '../utils/logger';
+import { getRedis, isUsingMemoryMode } from '../infrastructure/redis';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 // Minimal Zod schema for audit log entry validation.
 // Only validates it's a JSON object (not a primitive or array).
 const auditLogEntrySchema = z.record(z.unknown());
@@ -71,13 +70,6 @@ export interface AuditSummary {
 /**
  * Redis client type (simplified for migration)
  */
-interface RedisClient {
-    lPush(key: string, value: string): Promise<number>;
-    lTrim(key: string, start: number, stop: number): Promise<string>;
-    lRange(key: string, start: number, stop: number): Promise<string[]>;
-    lLen(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-}
 
 // Audit event types
 export const AUDIT_EVENTS = {
@@ -223,7 +215,7 @@ export async function logAuditEvent(
                 memoryPush(AUDIT_LOG_KEY, logEntry);
             }
         } else {
-            const redis: RedisClient = getRedis();
+            const redis = getRedis();
             const logJson = JSON.stringify(logEntry);
 
             // Store in appropriate lists based on event type
@@ -265,11 +257,11 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
             const list = memoryLogs.get(key) || [];
             parsed = list.slice(0, limit);
         } else {
-            const redis: RedisClient = getRedis();
+            const redis = getRedis();
             const logs = await redis.lRange(key, 0, limit - 1);
-            parsed = logs.map(log =>
+            parsed = logs.map((log: string) =>
                 tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null
-            ).filter((entry): entry is AuditLogEntry => entry !== null);
+            ).filter((entry: AuditLogEntry | null): entry is AuditLogEntry => entry !== null);
         }
 
         // Filter by severity if specified
@@ -298,7 +290,7 @@ export async function getAuditSummary(): Promise<AuditSummary> {
             admin = (memoryLogs.get(AUDIT_ADMIN_KEY) || []).length;
             security = (memoryLogs.get(AUDIT_SECURITY_KEY) || []).length;
         } else {
-            const redis: RedisClient = getRedis();
+            const redis = getRedis();
             [total, admin, security] = await Promise.all([
                 redis.lLen(AUDIT_LOG_KEY),
                 redis.lLen(AUDIT_ADMIN_KEY),
@@ -467,13 +459,3 @@ export function clearMemoryLogs(): void {
         memoryLogs.set(key, []);
     }
 }
-
-// CommonJS exports for compatibility
-module.exports = {
-    AUDIT_EVENTS,
-    logAuditEvent,
-    getAuditLogs,
-    getAuditSummary,
-    audit,
-    clearMemoryLogs
-};

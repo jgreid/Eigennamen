@@ -11,9 +11,8 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import type { GameSocket } from './rateLimitHandler';
 
-const logger = require('../utils/logger');
-const { SOCKET } = require('../config/constants');
-
+import logger from '../utils/logger';
+import { SOCKET } from '../config/constants';
 // Track connections per IP for DoS protection
 const connectionsPerIP = new Map<string, number>();
 
@@ -118,17 +117,6 @@ function stopConnectionsCleanup(): void {
         connectionsCleanupInterval = null;
     }
 }
-
-module.exports = {
-    incrementConnectionCount,
-    decrementConnectionCount,
-    isConnectionLimitReached,
-    getConnectionCount,
-    getConnectionsMap,
-    startConnectionsCleanup,
-    stopConnectionsCleanup
-};
-
 export {
     incrementConnectionCount,
     decrementConnectionCount,

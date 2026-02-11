@@ -5,12 +5,11 @@
  * All functions return empty/null results when database is disabled.
  */
 
-const { getDatabase, isDatabaseEnabled } = require('../config/database');
-const logger = require('../utils/logger');
-const { BOARD_SIZE } = require('../config/constants');
-const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
-const { toEnglishUpperCase } = require('../utils/sanitize');
-
+import { getDatabase, isDatabaseEnabled } from '../infrastructure/database';
+import logger from '../utils/logger';
+import { BOARD_SIZE } from '../config/constants';
+import { ServerError, ValidationError, WordListError, PlayerError } from '../errors/GameError';
+import { toEnglishUpperCase } from '../utils/sanitize';
 const MAX_WORD_LIST_SIZE = 10000;
 
 /**
@@ -70,32 +69,7 @@ export interface UpdateWordListData {
     isPublic?: boolean;
 }
 
-/**
- * Prisma client type (simplified for migration)
- */
-interface PrismaClient {
-    wordList: {
-        findUnique(args: {
-            where: { id: string };
-            select?: Record<string, boolean>;
-        }): Promise<WordList | null>;
-        findMany(args: {
-            where?: Record<string, unknown>;
-            select?: Record<string, boolean>;
-            orderBy?: Record<string, string>;
-            take?: number;
-            skip?: number;
-        }): Promise<Array<WordList & { words: string[] }>>;
-        create(args: {
-            data: Record<string, unknown>;
-        }): Promise<WordList>;
-        update(args: {
-            where: { id: string };
-            data: Record<string, unknown>;
-        }): Promise<WordList>;
-        delete(args: { where: { id: string } }): Promise<void>;
-    };
-}
+/* PrismaClient interface removed - using 'any' for prisma instances */
 
 /**
  * Get a word list by ID
@@ -104,7 +78,7 @@ export async function getWordList(id: string): Promise<WordList | null> {
     if (!isDatabaseEnabled()) {
         return null;
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     try {
         const wordList = await prisma.wordList.findUnique({
@@ -139,7 +113,7 @@ export async function getPublicWordLists(
     if (!isDatabaseEnabled()) {
         return [];
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     try {
         const where: Record<string, unknown> = {
@@ -170,7 +144,7 @@ export async function getPublicWordLists(
         });
 
         // Add word count to each list, exclude full words array from response
-        return wordLists.map(({ words, ...rest }) => ({
+        return wordLists.map(({ words, ...rest }: any) => ({
             ...rest,
             wordCount: words.length
         }));
@@ -187,7 +161,7 @@ export async function getUserWordLists(ownerId: string): Promise<WordListSummary
     if (!isDatabaseEnabled()) {
         return [];
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     try {
         const wordLists = await prisma.wordList.findMany({
@@ -204,7 +178,7 @@ export async function getUserWordLists(ownerId: string): Promise<WordListSummary
             orderBy: { createdAt: 'desc' }
         });
 
-        return wordLists.map(wl => ({
+        return wordLists.map((wl: any) => ({
             ...wl,
             wordCount: wl.words.length
         }));
@@ -223,7 +197,7 @@ export async function createWordList(data: CreateWordListData): Promise<WordList
     if (!isDatabaseEnabled()) {
         throw new ServerError('Word list storage requires database (not configured)');
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     // Validate name
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -285,7 +259,7 @@ export async function updateWordList(
     if (!isDatabaseEnabled()) {
         throw new ServerError('Word list storage requires database (not configured)');
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     // Check ownership
     const existing = await prisma.wordList.findUnique({ where: { id } });
@@ -363,7 +337,7 @@ export async function deleteWordList(
     if (!isDatabaseEnabled()) {
         throw new ServerError('Word list storage requires database (not configured)');
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     // Check ownership
     const existing = await prisma.wordList.findUnique({ where: { id } });
@@ -397,7 +371,7 @@ export async function incrementUsageCount(id: string): Promise<void> {
     if (!isDatabaseEnabled()) {
         return; // Silently skip if no database
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     try {
         await prisma.wordList.update({
@@ -417,7 +391,7 @@ export async function getWordsForGame(id: string): Promise<string[] | null> {
     if (!isDatabaseEnabled()) {
         return null;
     }
-    const prisma: PrismaClient = getDatabase();
+    const prisma: any = getDatabase();
 
     try {
         const wordList = await prisma.wordList.findUnique({
@@ -440,15 +414,3 @@ export async function getWordsForGame(id: string): Promise<string[] | null> {
         return null;
     }
 }
-
-// CommonJS exports for compatibility
-module.exports = {
-    getWordList,
-    getPublicWordLists,
-    getUserWordLists,
-    createWordList,
-    updateWordList,
-    deleteWordList,
-    incrementUsageCount,
-    getWordsForGame
-};

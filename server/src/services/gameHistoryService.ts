@@ -5,12 +5,11 @@
  * Uses Redis with 30-day TTL for game history storage.
  */
 
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
-
+import { getRedis } from '../infrastructure/redis';
+import logger from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 import type { Team, CardType } from '../types';
 
 // Zod schema for GameHistoryEntry deserialization validation.
@@ -197,30 +196,6 @@ export interface HistoryStats {
     error?: string;
 }
 
-/**
- * Redis client type (simplified for migration)
- */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
-    del(keys: string | string[]): Promise<number>;
-    mGet(keys: string[]): Promise<(string | null)[]>;
-    multi(): RedisPipeline;
-    zAdd(key: string, member: { score: number; value: string }): Promise<number>;
-    zRange(key: string, start: number, stop: number, options?: { REV?: boolean; WITHSCORES?: boolean }): Promise<string[] | Array<{ value: string; score: number }>>;
-    zRem(key: string, members: string | string[]): Promise<number>;
-    zRemRangeByRank(key: string, start: number, stop: number): Promise<number>;
-    zCard(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-}
-
-interface RedisPipeline {
-    set(key: string, value: string, options?: { EX?: number }): RedisPipeline;
-    zAdd(key: string, member: { score: number; value: string }): RedisPipeline;
-    zRemRangeByRank(key: string, start: number, stop: number): RedisPipeline;
-    expire(key: string, seconds: number): RedisPipeline;
-    exec(): Promise<unknown[]>;
-}
 
 // Configuration
 export const GAME_HISTORY_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
@@ -311,7 +286,7 @@ export async function saveGameResult(
     roomCode: string,
     gameData: GameDataInput
 ): Promise<GameHistoryEntry | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     if (!roomCode || !gameData) {
         logger.warn('saveGameResult called with missing parameters', { roomCode, hasGameData: !!gameData });
@@ -432,7 +407,7 @@ export async function getGameHistory(
     roomCode: string,
     limit: number = 10
 ): Promise<GameHistorySummary[]> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     if (!roomCode) {
         return [];
@@ -454,7 +429,7 @@ export async function getGameHistory(
 
         // Parse and create summaries
         const summaries: (GameHistorySummary | null)[] = gameDataArray
-            .map((data, index): GameHistorySummary | null => {
+            .map((data: string | null, index: number): GameHistorySummary | null => {
                 if (!data) return null;
                 const game = tryParseJSON(data, gameHistoryEntrySchema, `game history ${gameIds[index]}`) as GameHistoryEntry | null;
                 if (!game) return null;
@@ -500,7 +475,7 @@ export async function getGameById(
     roomCode: string,
     gameId: string
 ): Promise<GameHistoryEntry | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     if (!roomCode || !gameId) {
         return null;
@@ -659,7 +634,7 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
  * Delete old game history for a room (cleanup function)
  */
 export async function cleanupOldHistory(roomCode: string): Promise<number> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     if (!roomCode) {
         return 0;
@@ -702,7 +677,7 @@ export async function cleanupOldHistory(roomCode: string): Promise<number> {
  * Get statistics for game history
  */
 export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     if (!roomCode) {
         return { count: 0, oldest: null, newest: null };
@@ -742,18 +717,3 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
         return { count: 0, oldest: null, newest: null, error: (error as Error).message };
     }
 }
-
-// CommonJS exports for compatibility
-module.exports = {
-    saveGameResult,
-    getGameHistory,
-    getGameById,
-    getReplayEvents,
-    cleanupOldHistory,
-    getHistoryStats,
-    // HARDENING FIX: Export validation function for testing
-    validateGameData,
-    // Constants for testing
-    GAME_HISTORY_TTL,
-    MAX_HISTORY_PER_ROOM
-};

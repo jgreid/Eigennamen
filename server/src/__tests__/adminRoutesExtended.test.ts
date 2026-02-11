@@ -77,7 +77,7 @@ const mockRedis = {
     }))
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: jest.fn(() => mockRedis),
     isUsingMemoryMode: jest.fn(() => true),
     isRedisHealthy: jest.fn(async () => true)

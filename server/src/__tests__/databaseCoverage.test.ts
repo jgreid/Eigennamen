@@ -45,7 +45,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: jest.fn(() => mockPrismaInstance)
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             const result = await db.connectDatabase();
 
             expect(result).toBe(mockPrismaInstance);
@@ -65,7 +65,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: jest.fn(() => mockPrismaInstance)
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             const first = await db.connectDatabase();
             const second = await db.connectDatabase();
 
@@ -87,7 +87,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: jest.fn(() => mockPrismaInstance)
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             const result = await db.connectDatabase();
 
             expect(result).toBe(mockPrismaInstance);
@@ -113,7 +113,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: jest.fn(() => mockPrismaInstance)
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
 
             // Run connectDatabase and advance timers for each sleep
             const connectPromise = db.connectDatabase();
@@ -140,7 +140,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 throw new Error('Cannot find module @prisma/client');
             });
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             const result = await db.connectDatabase();
 
             expect(result).toBeNull();
@@ -163,7 +163,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: PrismaClientMock
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             await db.connectDatabase();
 
             expect(PrismaClientMock).toHaveBeenCalledWith(
@@ -186,7 +186,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: PrismaClientMock
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             await db.connectDatabase();
 
             expect(PrismaClientMock).toHaveBeenCalledWith(
@@ -210,7 +210,7 @@ describe('Database Configuration - Extended Coverage', () => {
                 PrismaClient: jest.fn(() => mockPrismaInstance)
             }));
 
-            const db = require('../config/database');
+            const db = require('../infrastructure/database');
             await db.connectDatabase();
             expect(db.isDatabaseEnabled()).toBe(true);
 

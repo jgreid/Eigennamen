@@ -8,19 +8,18 @@
 import type { Request, Response, NextFunction, Router as ExpressRouter, Application } from 'express';
 import type { Server } from 'socket.io';
 
-const express = require('express');
-const path = require('path');
-const crypto = require('crypto');
-const rateLimit = require('express-rate-limit');
-const logger = require('../utils/logger');
-const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
-const { isDatabaseEnabled } = require('../config/database');
-// PHASE 5.1: Import additional metrics tracking functions
-const { getAllMetrics, trackPlayerKick, trackBroadcast } = require('../utils/metrics');
-const { API_RATE_LIMITS } = require('../config/constants');
-const { toEnglishLowerCase } = require('../utils/sanitize');
-const { audit, getAuditLogs, getAuditSummary } = require('../services/auditService');
-
+import express from 'express';
+import path from 'path';
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
+import { getRedis, isRedisHealthy, isUsingMemoryMode } from '../infrastructure/redis';
+import { isDatabaseEnabled } from '../infrastructure/database';
+// Import additional metrics tracking functions
+import { getAllMetrics, trackPlayerKick, trackBroadcast } from '../utils/metrics';
+import { API_RATE_LIMITS } from '../config/constants';
+import { toEnglishLowerCase } from '../utils/sanitize';
+import { audit, getAuditLogs, getAuditSummary } from '../services/auditService';
 const router: ExpressRouter = express.Router();
 
 /**
@@ -85,14 +84,6 @@ interface RoomSummary {
 /**
  * Redis client type
  */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    del(key: string): Promise<number>;
-    scan(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
-    sMembers(key: string): Promise<string[]>;
-    sIsMember(key: string, value: string): Promise<boolean>;
-    sRem(key: string, ...values: string[]): Promise<number>;
-}
 
 /**
  * Basic Authentication Middleware
@@ -139,7 +130,7 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login
-                audit.adminLogin(req.ip, true);
+                audit.adminLogin(req.ip || 'unknown', true);
                 return next();
             }
         }
@@ -148,7 +139,7 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
     }
 
     // Audit failed login
-    audit.adminLogin(req.ip, false);
+    audit.adminLogin(req.ip || 'unknown', false);
 
     res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
     return res.status(401).json({
@@ -236,13 +227,13 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
         // Get room count using SCAN to avoid blocking Redis
         let roomCount = 0;
         try {
-            const redis: RedisClient = getRedis();
+            const redis = getRedis();
             let cursor = '0';
             do {
                 const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
                 cursor = result.cursor.toString();
                 // Filter to only room codes (excluding sub-keys like room:abc:players)
-                roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
+                roomCount += result.keys.filter((key: string) => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
             } while (cursor !== '0');
         } catch (error) {
             logger.warn('Failed to count rooms', { error: (error as Error).message });
@@ -299,7 +290,7 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
  */
 router.get('/api/rooms', async (_req: Request, res: Response) => {
     try {
-        const redis: RedisClient = getRedis();
+        const redis = getRedis();
         // Use SCAN to avoid blocking Redis
         const validRoomKeys: string[] = [];
         let cursor = '0';
@@ -424,7 +415,7 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
             from: req.adminUsername
         });
 
-        // PHASE 5.1: Track broadcast metrics
+        // Track broadcast metrics
         trackBroadcast(type);
 
         res.json({
@@ -443,11 +434,11 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
 });
 
 /**
- * PHASE 4.7: GET /admin/api/rooms/:code/details - Get detailed room info with players
+ * GET /admin/api/rooms/:code/details - Get detailed room info with players
  */
 router.get('/api/rooms/:code/details', async (req: Request, res: Response): Promise<void> => {
     try {
-        const code = req.params.code;
+        const code = req.params.code!;
         if (!code) {
             res.status(400).json({
                 error: {
@@ -470,7 +461,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
         }
 
         const normalizedCode = toEnglishLowerCase(code);
-        const redis: RedisClient = getRedis();
+        const redis = getRedis();
 
         // Get room data
         const roomData = await redis.get(`room:${normalizedCode}`);
@@ -533,7 +524,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             createdAt: room.createdAt
         });
     } catch (error) {
-        logger.error('Failed to fetch room details', { error: (error as Error).message, code: req.params.code });
+        logger.error('Failed to fetch room details', { error: (error as Error).message, code: req.params.code! });
         res.status(500).json({
             error: {
                 code: 'ROOM_DETAILS_ERROR',
@@ -544,11 +535,11 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
 });
 
 /**
- * PHASE 4.7: DELETE /admin/api/rooms/:code/players/:playerId - Kick a player from room
+ * DELETE /admin/api/rooms/:code/players/:playerId - Kick a player from room
  */
 router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, res: Response): Promise<void> => {
     try {
-        const code = req.params.code;
+        const code = req.params.code!;
         const playerId = req.params.playerId;
 
         if (!code) {
@@ -584,7 +575,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         }
 
         const normalizedCode = toEnglishLowerCase(code);
-        const redis: RedisClient = getRedis();
+        const redis = getRedis();
 
         // Check if room exists
         const roomData = await redis.get(`room:${normalizedCode}`);
@@ -648,18 +639,18 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             admin: req.adminUsername
         });
 
-        // PHASE 5.1: Track player kick metrics
+        // Track player kick metrics
         trackPlayerKick(normalizedCode, 'admin');
 
         // Audit the player kick action
-        audit.adminKickPlayer(normalizedCode, playerId, req.ip, 'Admin action');
+        audit.adminKickPlayer(normalizedCode, playerId, req.ip!, 'Admin action');
 
         res.json({
             success: true,
             message: 'Player has been kicked'
         });
     } catch (error) {
-        logger.error('Failed to kick player', { error: (error as Error).message, code: req.params.code, playerId: req.params.playerId });
+        logger.error('Failed to kick player', { error: (error as Error).message, code: req.params.code!, playerId: req.params.playerId });
         res.status(500).json({
             error: {
                 code: 'KICK_ERROR',
@@ -674,7 +665,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
  */
 router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Promise<void> => {
     try {
-        const code = req.params.code;
+        const code = req.params.code!;
 
         if (!code) {
             res.status(400).json({
@@ -698,7 +689,7 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         }
 
         const normalizedCode = toEnglishLowerCase(code);
-        const redis: RedisClient = getRedis();
+        const redis = getRedis();
 
         // Check if room exists
         const roomData = await redis.get(`room:${normalizedCode}`);
@@ -731,14 +722,14 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         });
 
         // Audit the room deletion
-        audit.adminDeleteRoom(normalizedCode, req.ip, 'Admin action');
+        audit.adminDeleteRoom(normalizedCode, req.ip!, 'Admin action');
 
         res.json({
             success: true,
             message: `Room ${normalizedCode} has been closed`
         });
     } catch (error) {
-        logger.error('Failed to close room', { error: (error as Error).message, code: req.params.code });
+        logger.error('Failed to close room', { error: (error as Error).message, code: req.params.code! });
         res.status(500).json({
             error: {
                 code: 'ROOM_CLOSE_ERROR',
@@ -760,9 +751,9 @@ router.get('/api/audit', async (req: Request, res: Response) => {
         };
 
         const logs = await getAuditLogs({
-            category,
+            category: category as any,
             limit: Math.min(parseInt(limit, 10) || 100, 1000),
-            severity
+            severity: severity as any
         });
 
         const summary = await getAuditSummary();
@@ -859,5 +850,4 @@ function formatUptime(seconds: number): string {
     return parts.join(' ');
 }
 
-module.exports = router;
 export default router;

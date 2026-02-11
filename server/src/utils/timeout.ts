@@ -3,8 +3,7 @@
  * Prevents socket handlers from hanging indefinitely when Redis/DB operations stall
  */
 
-const logger = require('./logger');
-
+import logger from './logger';
 /**
  * Custom error class for timeout errors
  */
@@ -102,14 +101,6 @@ function createTimeoutHandler<T extends unknown[], R>(
         return withTimeout(handler(...args), timeoutMs, operationName);
     };
 }
-
-module.exports = {
-    withTimeout,
-    createTimeoutHandler,
-    TimeoutError,
-    TIMEOUTS
-};
-
 // ES6 exports for TypeScript imports
 export {
     withTimeout,

@@ -27,74 +27,25 @@ import type {
     ClueValidationResult
 } from '../types';
 
-const { v4: uuidv4 } = require('uuid');
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const wordListService = require('./wordListService');
-const {
-    BOARD_SIZE,
-    DEFAULT_WORDS,
-    REDIS_TTL,
-    ERROR_CODES,
-    LOCKS,
-    RETRY_CONFIG,
-    GAME_INTERNALS,
-    DUET_BOARD_CONFIG
-} = require('../config/constants');
-const {
-    GameStateError,
-    ValidationError,
-    PlayerError,
-    ServerError,
-    RoomError
-} = require('../errors/GameError');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { toEnglishUpperCase } = require('../utils/sanitize');
-const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
-const { tryParseJSON } = require('../utils/parseJSON');
-
+import { v4 as uuidv4 } from 'uuid';
+import { getRedis } from '../infrastructure/redis';
+import logger from '../utils/logger';
+import * as wordListService from './wordListService';
+import { BOARD_SIZE, DEFAULT_WORDS, REDIS_TTL, ERROR_CODES, LOCKS, RETRY_CONFIG, GAME_INTERNALS, DUET_BOARD_CONFIG } from '../config/constants';
+import { GameStateError, ValidationError, PlayerError, ServerError, RoomError } from '../errors/GameError';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { toEnglishUpperCase } from '../utils/sanitize';
+import { RELEASE_LOCK_SCRIPT } from '../utils/distributedLock';
+import { tryParseJSON } from '../utils/parseJSON';
 // Focused modules
-const {
-    seededRandom,
-    hashString,
-    shuffleWithSeed,
-    generateSeed,
-    generateDuetBoard,
-    generateBoardLayout,
-    selectBoardWords
-} = require('./game/boardGenerator');
-
-const { validateClueWord } = require('./game/clueValidator');
-
-const {
-    validateCardIndex,
-    validateRevealPreconditions,
-    executeCardReveal,
-    switchTurn,
-    determineRevealOutcome,
-    buildRevealResult,
-    getGameStateForPlayer
-} = require('./game/revealEngine');
-
+import { generateBoardLayout, selectBoardWords, generateSeed, hashString } from './game/boardGenerator';
+import { validateClueWord } from './game/clueValidator';
+import { validateCardIndex, validateRevealPreconditions, executeCardReveal, determineRevealOutcome, buildRevealResult } from './game/revealEngine';
 import type { RedisClient, ExecuteLuaScript } from './game/luaGameOps';
 
-const {
-    OPTIMIZED_REVEAL_SCRIPT,
-    OPTIMIZED_GIVE_CLUE_SCRIPT,
-    OPTIMIZED_END_TURN_SCRIPT,
-    gameStateSchema,
-    MAX_HISTORY_ENTRIES,
-    MAX_CLUES,
-    safeParseGameData,
-    isDuetMode,
-    incrementVersion,
-    executeLuaScript: _executeLuaScript,
-    executeGameTransaction
-} = require('./game/luaGameOps');
-
+import { OPTIMIZED_REVEAL_SCRIPT, OPTIMIZED_GIVE_CLUE_SCRIPT, OPTIMIZED_END_TURN_SCRIPT, gameStateSchema, MAX_HISTORY_ENTRIES, MAX_CLUES, safeParseGameData, isDuetMode, incrementVersion, executeLuaScript as _executeLuaScript, executeGameTransaction } from './game/luaGameOps';
 const executeLuaScript: ExecuteLuaScript = _executeLuaScript;
 
-// Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
 
 /**
@@ -765,36 +716,8 @@ export async function cleanupGame(roomCode: string): Promise<void> {
 // ─── Exports ────────────────────────────────────────────────────────
 // All functions are re-exported so existing `require('./gameService')` continues to work.
 
-module.exports = {
-    // Game lifecycle
-    createGame,
-    getGame,
-    getGameStateForPlayer,
-    cleanupGame,
-
-    // Game actions
-    revealCard,
-    revealCardOptimized,
-    giveClue,
-    giveClueOptimized,
-    endTurn,
-    endTurnOptimized,
-    forfeitGame,
-    getGameHistory,
-
-    // Pure functions (re-exported from focused modules for backward compat)
-    seededRandom,
-    hashString,
-    shuffleWithSeed,
-    generateSeed,
-    validateClueWord,
-    generateDuetBoard,
-
-    // Decomposed reveal functions
-    validateCardIndex,
-    validateRevealPreconditions,
-    executeCardReveal,
-    determineRevealOutcome,
-    switchTurn,
-    buildRevealResult
-};
+// Re-export sub-module functions for consumers
+export { getGameStateForPlayer } from './game/revealEngine';
+export { seededRandom, hashString, shuffleWithSeed, generateSeed, generateDuetBoard } from './game/boardGenerator';
+export { validateClueWord } from './game/clueValidator';
+export { validateCardIndex, validateRevealPreconditions, executeCardReveal, determineRevealOutcome, buildRevealResult } from './game/revealEngine';

@@ -38,7 +38,7 @@ const mockRedis = {
     ttl: jest.fn().mockResolvedValue(86400)
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis
 }));
 
@@ -554,7 +554,7 @@ describe('createGame', () => {
         jest.clearAllMocks();
         mockRedis.set.mockResolvedValue('OK');
         mockRedis.eval.mockResolvedValue(1);
-        // FIX: createGame now verifies room exists before creating game
+        // createGame now verifies room exists before creating game
         // First call: game existence check (null = no game), second call: room check (room data)
         const defaultRoomData = JSON.stringify({ code: 'TEST', status: 'waiting' });
         mockRedis.get.mockImplementation((key) => {
@@ -662,7 +662,7 @@ describe('createGame', () => {
 
     test('updates room status when room data exists', async () => {
         const roomData = JSON.stringify({ code: 'TEST09', status: 'waiting', players: [] });
-        // FIX: Updated for new room check at game creation
+        // Updated for new room check at game creation
         // Order: getGame (null), preCheckRoomData (room exists), final room update
         mockRedis.get.mockImplementation((key) => {
             if (key.includes(':game')) return Promise.resolve(null); // No existing game
@@ -677,7 +677,7 @@ describe('createGame', () => {
     });
 
     test('handles corrupted room data gracefully', async () => {
-        // FIX: When room data is corrupted at the verification stage, it should fail
+        // When room data is corrupted at the verification stage, it should fail
         // This is actually the correct behavior - we shouldn't create games for non-existent/corrupted rooms
         const roomData = JSON.stringify({ code: 'TEST10', status: 'waiting' });
         const corruptedRoomData = 'invalid-json';
@@ -706,7 +706,7 @@ describe('createGame', () => {
 describe('getGame', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        // FIX: Reset the mock implementation to avoid leaking from createGame tests
+        // Reset the mock implementation to avoid leaking from createGame tests
         mockRedis.get.mockReset();
     });
 

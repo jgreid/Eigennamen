@@ -12,21 +12,20 @@ import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 
-const roomService = require('../../services/roomService');
-const gameService = require('../../services/gameService');
-const playerService = require('../../services/playerService');
-const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } = require('../../config/constants');
-const { createRoomHandler, createHostHandler, createPreRoomHandler } = require('../contextHandler');
-const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
-const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-const { getSocketFunctions } = require('../socketFunctionProvider');
-// PHASE 5.1: Import metrics tracking for reconnections
-const { trackReconnection } = require('../../utils/metrics');
-const { getSocketRateLimiter } = require('../rateLimitHandler');
-const { safeEmitToRoom } = require('../safeEmit');
-
+import * as roomService from '../../services/roomService';
+import * as gameService from '../../services/gameService';
+import * as playerService from '../../services/playerService';
+import { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } from '../../config/constants';
+import { createRoomHandler, createHostHandler, createPreRoomHandler } from '../contextHandler';
+import { RoomError, PlayerError, ServerError } from '../../errors/GameError';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
+import { getSocketFunctions } from '../socketFunctionProvider';
+// Import metrics tracking for reconnections
+import { trackReconnection } from '../../utils/metrics';
+import { getSocketRateLimiter } from '../rateLimitHandler';
+import { safeEmitToRoom } from '../safeEmit';
 /**
  * Room create input
  */
@@ -63,14 +62,7 @@ interface RoomStats {
     };
 }
 
-/**
- * Timer status from timerService
- */
-interface TimerStatus {
-    remainingSeconds: number;
-    endTime: number;
-    isPaused?: boolean;
-}
+/* TimerStatus interface removed - using 'any' for timer status values */
 
 /**
  * Token validation result
@@ -97,7 +89,7 @@ async function sendTimerStatus(
 ): Promise<void> {
     try {
         const { getTimerStatus } = getSocketFunctions();
-        const timerStatus: TimerStatus | null = await getTimerStatus(roomCode);
+        const timerStatus: any = await getTimerStatus(roomCode);
         if (timerStatus && timerStatus.endTime) {
             socket.emit(SOCKET_EVENTS.TIMER_STATUS, {
                 roomCode,
@@ -191,13 +183,13 @@ function roomHandlers(io: Server, socket: GameSocket): void {
     /**
      * Join an existing room
      */
-    socket.on(SOCKET_EVENTS.ROOM_JOIN, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_JOIN, roomJoinSchema,
+    socket.on(SOCKET_EVENTS.ROOM_JOIN, createPreRoomHandler(socket, SOCKET_EVENTS.ROOM_JOIN, roomJoinSchema as any,
         async (validated: RoomJoinInput) => {
             // Rate limiting for join attempts is handled by createPreRoomHandler
             // (room:join: 10/min). Failed attempts are additionally tracked by
             // trackFailedJoinAttempt for monitoring/metrics.
 
-            let joinResult: { room: Room; players: Player[]; game: GameState | null; player: Player };
+            let joinResult: any;
             try {
                 joinResult = await withTimeout(
                     roomService.joinRoom(
@@ -228,7 +220,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 socket.join(`spectators:${room.code}`);
             }
 
-            // FIX: Run stats fetch, token invalidation, and game state computation in parallel
+            // Run stats fetch, token invalidation, and game state computation in parallel
             // to reduce total response time and avoid pushing past the client's timeout
             let statsUsedFallback = false;
             const [, roomStats, gameState] = await Promise.all([
@@ -282,7 +274,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // Invalidate reconnection token when explicitly leaving
             await playerService.invalidateRoomReconnectToken(ctx.sessionId);
 
-            const result: { newHostId?: string } | null = await roomService.leaveRoom(ctx.roomCode, ctx.sessionId);
+            const result: any = await roomService.leaveRoom(ctx.roomCode, ctx.sessionId);
 
             // Leave all socket rooms for this room
             socket.leave(`room:${ctx.roomCode}`);
@@ -499,7 +491,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 team: player.team
             });
 
-            // PHASE 5.1: Track successful reconnection
+            // Track successful reconnection
             trackReconnection(code, true);
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
@@ -507,5 +499,4 @@ function roomHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = roomHandlers;
 export default roomHandlers;

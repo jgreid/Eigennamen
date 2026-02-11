@@ -26,10 +26,9 @@ import type { Player } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { PlayerContextOptions, PlayerContextResult } from './playerContext';
 
-const { getPlayerContext, syncSocketRooms } = require('./playerContext');
-const { createRateLimitedHandler } = require('./rateLimitHandler');
-const { validateInput } = require('../middleware/validation');
-
+import { getPlayerContext, syncSocketRooms } from './playerContext';
+import { createRateLimitedHandler } from './rateLimitHandler';
+import { validateInput } from '../middleware/validation';
 /**
  * Handler result that may include updated player for room syncing
  */
@@ -39,10 +38,13 @@ export interface HandlerResult {
 }
 
 /**
- * Context handler function type
+ * Context handler function type.
+ * The context parameter is typed as PlayerContextResult but handlers may
+ * narrow it to RoomContext/GameContext since the wrapper validates non-null fields.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ContextHandlerFn<T = unknown> = (
-    ctx: PlayerContextResult,
+    ctx: any,
     validated: T
 ) => Promise<HandlerResult | void>;
 
@@ -80,7 +82,7 @@ function createContextHandler<T = unknown>(
     contextOptions: PlayerContextOptions,
     handler: ContextHandlerFn<T>
 ): RateLimitedHandler {
-    return createRateLimitedHandler(socket, eventName, async (data: unknown) => {
+    return createRateLimitedHandler(socket, eventName, (async (data: unknown) => {
         const validated = schema ? validateInput(schema, data) as T : (data || {}) as T;
         const ctx: PlayerContextResult = await getPlayerContext(socket, contextOptions);
 
@@ -98,7 +100,7 @@ function createContextHandler<T = unknown>(
         // Bug #11 fix: Errors are no longer caught here - they propagate to rateLimitHandler
         // which emits the error event and sends ACK with { error: true }
         // Previously errors were caught and error event emitted, but ACK returned { ok: true }
-    });
+    }) as any);
 }
 
 /**
@@ -160,15 +162,6 @@ function createPreRoomHandler<T = unknown>(
         // Bug #11 fix: Errors propagate to rateLimitHandler for consistent error handling
     });
 }
-
-module.exports = {
-    createContextHandler,
-    createRoomHandler,
-    createHostHandler,
-    createGameHandler,
-    createPreRoomHandler
-};
-
 export {
     createContextHandler,
     createRoomHandler,

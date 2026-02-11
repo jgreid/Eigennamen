@@ -7,13 +7,12 @@
 
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
-const express = require('express');
-const { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } = require('../config/redis');
-const pubSubHealth = require('../utils/pubSubHealth');
-const logger = require('../utils/logger');
-// PHASE 5.1: Import Prometheus metrics export
-const { getPrometheusMetrics, updateSystemMetrics } = require('../utils/metrics');
-
+import express from 'express';
+import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo, type RedisMemoryInfo } from '../infrastructure/redis';
+import * as pubSubHealth from '../utils/pubSubHealth';
+import logger from '../utils/logger';
+// Import Prometheus metrics export
+import { getPrometheusMetrics, updateSystemMetrics } from '../utils/metrics';
 const router: ExpressRouter = express.Router();
 
 // Track server start time for uptime calculation
@@ -22,15 +21,7 @@ const serverStartTime: number = Date.now();
 // Health check timeout (prevents hanging if Redis is slow)
 const HEALTH_CHECK_TIMEOUT_MS = 3000;
 
-/**
- * Redis memory info
- */
-interface RedisMemoryInfo {
-    used_memory_human?: string;
-    maxmemory_human?: string;
-    memory_usage_percent?: number;
-    alert?: string;
-}
+// Uses RedisMemoryInfo from infrastructure/redis (imported via getRedisMemoryInfo)
 
 /**
  * Health check result
@@ -40,7 +31,7 @@ interface HealthCheck {
     mode?: string;
     status?: string;
     consecutiveFailures?: number;
-    lastError?: string | null;
+    lastError?: unknown;
     error?: string;
 }
 
@@ -68,7 +59,7 @@ interface MetricsResponse {
         healthy: boolean;
         totalPublishes: number;
         totalFailures: number;
-        failureRate: number;
+        failureRate: number | string;
         consecutiveFailures: number;
     };
     process: {
@@ -260,7 +251,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
 });
 
 /**
- * PHASE 5.1: Prometheus-compatible metrics endpoint
+ * Prometheus-compatible metrics endpoint
  * Returns metrics in Prometheus text exposition format
  */
 router.get('/metrics/prometheus', (_req: Request, res: Response) => {
@@ -277,5 +268,4 @@ router.get('/metrics/prometheus', (_req: Request, res: Response) => {
     }
 });
 
-module.exports = router;
 export default router;

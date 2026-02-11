@@ -10,10 +10,9 @@
  * - Persistent custom word lists
  */
 
-const logger = require('../utils/logger');
-
+import logger from '../utils/logger';
 // Type for Prisma client (dynamic import)
-interface PrismaClientType {
+export interface PrismaClientType {
     $connect(): Promise<void>;
     $disconnect(): Promise<void>;
 }
@@ -111,15 +110,6 @@ async function disconnectDatabase(): Promise<void> {
         logger.info('PostgreSQL disconnected');
     }
 }
-
-module.exports = {
-    connectDatabase,
-    getDatabase,
-    isDatabaseEnabled,
-    isDatabaseConfigured,
-    disconnectDatabase
-};
-
 export {
     connectDatabase,
     getDatabase,

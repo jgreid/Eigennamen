@@ -86,7 +86,7 @@ export const GAME_HISTORY = {
 } as const;
 
 // Default word list (same as client)
-export const DEFAULT_WORDS = [
+export const DEFAULT_WORDS: string[] = [
     'AFRICA', 'AGENT', 'AIR', 'ALIEN', 'ALPS', 'AMAZON', 'AMBULANCE', 'AMERICA',
     'ANGEL', 'ANTARCTICA', 'APPLE', 'ARM', 'ATLANTIS', 'AUSTRALIA', 'AZTEC',
     'BACK', 'BALL', 'BAND', 'BANK', 'BAR', 'BARK', 'BAT', 'BATTERY', 'BEACH',

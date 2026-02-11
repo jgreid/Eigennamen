@@ -489,7 +489,7 @@ describe('Room Resync and Recovery Handlers', () => {
             const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
             await reconnectHandler[1]({});
 
-            // FIX: Zod validation now produces different error messages
+            // Zod validation now produces different error messages
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
                 code: ERROR_CODES.INVALID_INPUT
                 // Message varies based on Zod validation

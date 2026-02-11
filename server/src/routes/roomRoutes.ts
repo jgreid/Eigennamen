@@ -5,15 +5,14 @@
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 import type { Room, Player } from '../types';
 
-const express = require('express');
-const rateLimit = require('express-rate-limit');
-const roomService = require('../services/roomService');
-const playerService = require('../services/playerService');
-const { validateParams } = require('../middleware/validation');
-const { toEnglishLowerCase } = require('../utils/sanitize');
-const { API_RATE_LIMITS } = require('../config/constants');
-const { z } = require('zod');
-
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+import * as roomService from '../services/roomService';
+import * as playerService from '../services/playerService';
+import { validateParams } from '../middleware/validation';
+import { toEnglishLowerCase } from '../utils/sanitize';
+import { API_RATE_LIMITS } from '../config/constants';
+import { z } from 'zod';
 const router: ExpressRouter = express.Router();
 
 // Rate limiter for room existence checks to prevent room code enumeration
@@ -96,5 +95,4 @@ router.get('/:code', validateParams(roomCodeSchema), async (req: RoomRequest, re
     }
 });
 
-module.exports = router;
 export default router;

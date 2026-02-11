@@ -509,7 +509,7 @@ describe('Room Handlers', () => {
     });
 
     describe('room:reconnect', () => {
-        // FIX: Use valid 64-character hex tokens for Zod schema validation
+        // Use valid 64-character hex tokens for Zod schema validation
         const validToken = 'a'.repeat(64);
 
         test('reconnects with valid token', async () => {

@@ -14,23 +14,17 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { Player, GameState, TimerCallback, RedisSetOptions, LuaEvalOptions } from '../types';
+import type { Player, GameState, TimerCallback } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
-const logger = require('../utils/logger');
-const { SOCKET_EVENTS, LOCKS } = require('../config/constants');
-const { safeEmitToRoom } = require('./safeEmit');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-
+import logger from '../utils/logger';
+import { SOCKET_EVENTS, LOCKS } from '../config/constants';
+import { safeEmitToRoom } from './safeEmit';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
 /**
  * Redis client interface for socket operations
  */
-interface RedisClient {
-    set: (key: string, value: string, options?: RedisSetOptions) => Promise<string | null>;
-    del: (key: string) => Promise<number>;
-    eval: (script: string, options: LuaEvalOptions) => Promise<unknown>;
-}
 
 /**
  * Create the callback for timer expiration.
@@ -76,7 +70,7 @@ function createTimerExpireCallback(
             setImmediate(() => {
                 (async () => {
                     const { getRedis, isRedisHealthy } = require('../config/redis');
-                    const redis: RedisClient = getRedis();
+                    const redis = getRedis();
                     const lockKey = `lock:timer-restart:${roomCode}`;
                     let lockAcquired = false;
                     let lockValue: string | undefined;
@@ -134,7 +128,7 @@ function createTimerExpireCallback(
                     } catch (err) {
                         logger.error(`Timer restart failed for room ${roomCode}: ${(err as Error).message}`);
                     } finally {
-                        // ISSUE #3 FIX: Always release lock if we acquired it (owner-verified)
+                        // Always release lock if we acquired it (owner-verified)
                         if (lockAcquired && lockValue) {
                             try {
                                 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
@@ -188,7 +182,7 @@ async function handleDisconnect(
 
         const roomCode = player.roomCode;
 
-        // ISSUE #17 FIX: Generate reconnection token before marking as disconnected
+        // Generate reconnection token before marking as disconnected
         let reconnectionToken: string | null = null;
         try {
             reconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);
@@ -207,7 +201,7 @@ async function handleDisconnect(
 
         // Notify other players in the room
         if (roomCode) {
-            // ISSUE #15 FIX: Get updated player list to ensure clients have consistent state
+            // Get updated player list to ensure clients have consistent state
             const updatedPlayers: Player[] = await playerService.getPlayersInRoom(roomCode);
 
             // US-16.3: Calculate reconnection deadline for frontend display
@@ -225,7 +219,7 @@ async function handleDisconnect(
                 team: player.team,
                 reason: reason,
                 timestamp: Date.now(),
-                // ISSUE #15 FIX: Include updated player list for state consistency
+                // Include updated player list for state consistency
                 players: updatedPlayers,
                 // US-16.3: Indicate player may reconnect and when the window closes
                 // Token is NOT broadcast - stored server-side only for security
@@ -243,9 +237,9 @@ async function handleDisconnect(
                 return;
             }
 
-            // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL
+            // Check if disconnected player was host - use lock with longer TTL
             if (player.isHost) {
-                const redis: RedisClient = getRedis();
+                const redis = getRedis();
                 const lockKey = `lock:host-transfer:${roomCode}`;
                 let hostTransferLockAcquired = false;
                 let hostLockValue: string | undefined;
@@ -268,7 +262,7 @@ async function handleDisconnect(
                             // Skip host transfer - host is back
                         } else {
                             const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
-                            // FIX: Don't early return - just skip transfer if we can't get players
+                            // Don't early return - just skip transfer if we can't get players
                             // Early return was causing the rest of disconnect handling to be skipped
                             if (!players || !Array.isArray(players)) {
                                 logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
@@ -308,7 +302,7 @@ async function handleDisconnect(
                 } catch (hostTransferError) {
                     logger.error(`Host transfer failed for room ${roomCode}: ${(hostTransferError as Error).message}`);
                 } finally {
-                    // ISSUE #7 FIX: Only release lock if we acquired it (owner-verified)
+                    // Only release lock if we acquired it (owner-verified)
                     if (hostTransferLockAcquired && hostLockValue) {
                         try {
                             const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
@@ -329,12 +323,6 @@ async function handleDisconnect(
         logger.error('Error handling disconnect:', error);
     }
 }
-
-module.exports = {
-    handleDisconnect,
-    createTimerExpireCallback
-};
-
 export {
     handleDisconnect,
     createTimerExpireCallback

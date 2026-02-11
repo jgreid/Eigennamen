@@ -11,9 +11,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-const logger = require('../utils/logger');
-const { audit } = require('../services/auditService');
-
+import logger from '../utils/logger';
+import { audit } from '../services/auditService';
 /**
  * Log a CSRF violation to the audit service (fire-and-forget)
  */
@@ -173,9 +172,4 @@ function isOriginAllowed(origin: string, allowedOrigins: string[] | null): boole
         return false;
     });
 }
-
-module.exports = {
-    csrfProtection
-};
-
 export { csrfProtection };

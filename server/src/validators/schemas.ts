@@ -10,10 +10,9 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, TIMER, GAME_MODE_CONFIG } = require('../config/constants');
-const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
-
+import { z } from 'zod';
+import { BOARD_SIZE, VALIDATION, RESERVED_NAMES, TIMER, GAME_MODE_CONFIG } from '../config/constants';
+import { removeControlChars, isReservedName, toEnglishLowerCase } from '../utils/sanitize';
 // Re-export z for external use
 export { z };
 
@@ -64,14 +63,14 @@ const createRoomIdSchema = () =>
  * Used for all nickname inputs throughout the application
  * IMPORTANT: Defined early so it can be used in roomCreateSchema
  */
-const createNicknameSchema = (): ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodString, string, string>, string, string>, string, string>, string, string> => z.string()
+const createNicknameSchema = (): any => z.string()
     .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
     .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
     .transform((val: string) => removeControlChars(val).trim())
     .refine((val: string) => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
     .refine((val: string) => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
     .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
-    .refine((val: string) => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
+    .refine((val: string) => !isReservedName(val, RESERVED_NAMES as unknown as string[]), 'This nickname is reserved');
 
 /**
  * Validate turnTimer against game mode limits from GAME_MODE_CONFIG.
@@ -199,7 +198,7 @@ const gameRevealSchema = z.object({
         .max(BOARD_SIZE - 1, 'Invalid card index')
 });
 
-// ISSUE #2 FIX: Clue word regex with quantified repetition to prevent ReDoS
+// Clue word regex with quantified repetition to prevent ReDoS
 // Allows Unicode letters with optional single spaces/hyphens/apostrophes between words
 // Maximum of 10 word parts to prevent excessive backtracking
 // Uses Unicode property escapes to support international characters (é, ñ, ü, etc.)
@@ -239,7 +238,7 @@ const spectatorChatSchema = z.object({
         .refine((val: string) => val.length >= 1, 'Message is required')
 });
 
-// FIX: Add missing schemas for events that previously used manual validation
+// Add missing schemas for events that previously used manual validation
 
 // Game history limit schema (for game:getHistory)
 const gameHistoryLimitSchema = z.object({
@@ -311,36 +310,6 @@ const spectatorJoinResponseSchema = z.object({
 
 export type SpectatorJoinRequestInput = ZodType.infer<typeof spectatorJoinRequestSchema>;
 export type SpectatorJoinResponseInput = ZodType.infer<typeof spectatorJoinResponseSchema>;
-
-module.exports = {
-    roomCreateSchema,
-    roomJoinSchema,
-    roomSettingsSchema,
-    roomReconnectSchema,
-    roomCodeSchema,
-    wordListIdSchema,
-    playerTeamSchema,
-    playerRoleSchema,
-    playerNicknameSchema,
-    gameStartSchema,
-    gameRevealSchema,
-    gameClueSchema,
-    chatMessageSchema,
-    spectatorChatSchema,
-    // FIX: Export new schemas for previously unvalidated events
-    gameHistoryLimitSchema,
-    gameReplaySchema,
-    playerKickSchema,
-    timerAddTimeSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema,
-    // Export for reuse in custom validation
-    createNicknameSchema,
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema
-};
-
 export {
     roomCreateSchema,
     roomJoinSchema,

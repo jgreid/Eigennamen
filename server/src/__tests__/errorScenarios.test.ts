@@ -12,7 +12,7 @@ const timerService = require('../services/timerService');
 const { createMockRedis, createMockLogger, createMockRoom, createMockGame } = require('./helpers/mocks');
 
 // Mock dependencies
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: jest.fn()
 }));
 
@@ -35,7 +35,7 @@ jest.mock('../utils/logger', () => ({
     error: jest.fn()
 }));
 
-const { getRedis } = require('../config/redis');
+const { getRedis } = require('../infrastructure/redis');
 
 describe('Error Scenarios', () => {
     let mockRedis;

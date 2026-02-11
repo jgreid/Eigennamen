@@ -8,7 +8,7 @@
 const playerService = require('../services/playerService');
 
 // Mock dependencies
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: jest.fn()
 }));
 
@@ -43,7 +43,7 @@ jest.mock('../config/constants', () => ({
     }
 }));
 
-const { getRedis } = require('../config/redis');
+const { getRedis } = require('../infrastructure/redis');
 const logger = require('../utils/logger');
 
 describe('Player Service', () => {
@@ -64,7 +64,7 @@ describe('Player Service', () => {
             sAdd: jest.fn(),
             sRem: jest.fn(),
             sMembers: jest.fn(),
-            sCard: jest.fn(), // ISSUE #13 FIX: Added for empty team set cleanup
+            sCard: jest.fn(), // Added for empty team set cleanup
             mGet: jest.fn(),
             expire: jest.fn(),
             eval: jest.fn(),
@@ -313,7 +313,7 @@ describe('Player Service', () => {
 
     describe('setRole', () => {
         test('sets role for player with team via atomic Lua script', async () => {
-            // FIX: Updated to use Lua script instead of lock-based approach
+            // Updated to use Lua script instead of lock-based approach
             const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
             const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
@@ -372,7 +372,7 @@ describe('Player Service', () => {
         });
 
         test('throws error when role is already taken (via Lua script)', async () => {
-            // FIX: Updated to use Lua script response format
+            // Updated to use Lua script response format
             const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns ROLE_TAKEN response
@@ -389,7 +389,7 @@ describe('Player Service', () => {
         });
 
         test('throws error when team already has role (via Lua script)', async () => {
-            // FIX: Updated to use Lua script response format
+            // Updated to use Lua script response format
             const player1 = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
 
             mockRedis.get.mockResolvedValue(JSON.stringify(player1));
@@ -423,7 +423,7 @@ describe('Player Service', () => {
         });
 
         test('successfully assigns role via atomic Lua script', async () => {
-            // FIX: Updated to use Lua script response format
+            // Updated to use Lua script response format
             const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
             const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));

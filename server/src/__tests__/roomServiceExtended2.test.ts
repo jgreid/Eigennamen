@@ -16,7 +16,7 @@ const mockRedis = {
     eval: jest.fn()
 };
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: jest.fn(() => mockRedis)
 }));
 
@@ -32,7 +32,7 @@ jest.mock('../services/playerService', () => ({
     updatePlayer: jest.fn(),
     removePlayer: jest.fn(),
     getPlayersInRoom: jest.fn(),
-    // FIX: Add atomicHostTransfer for H4 fix
+    // Add atomicHostTransfer for H4 fix
     atomicHostTransfer: jest.fn()
 }));
 
@@ -251,7 +251,7 @@ describe('Extended Room Service Tests', () => {
                 { sessionId: 'other-player' }
             ]);
             playerService.updatePlayer.mockResolvedValue({});
-            // FIX: Mock atomicHostTransfer for H4 fix - return success
+            // Mock atomicHostTransfer for H4 fix - return success
             playerService.atomicHostTransfer.mockResolvedValue({ success: true });
 
             const result = await roomService.leaveRoom('test-room', 'host-session');

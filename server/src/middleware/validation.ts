@@ -5,9 +5,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ZodSchema, ZodError as ZodErrorType, ZodIssue } from 'zod';
 
-const { ZodError } = require('zod');
-const { ERROR_CODES } = require('../config/constants');
-
+import { ZodError } from 'zod';
+import { ERROR_CODES } from '../config/constants';
 /**
  * Validation error structure
  */
@@ -87,14 +86,6 @@ function validateParams<T>(schema: ZodSchema<T>): (req: Request, res: Response, 
         }
     };
 }
-
-module.exports = {
-    validateInput,
-    validateBody,
-    validateQuery,
-    validateParams
-};
-
 export {
     validateInput,
     validateBody,

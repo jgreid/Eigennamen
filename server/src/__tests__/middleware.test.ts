@@ -10,7 +10,7 @@ const { ZodError } = require('zod');
 
 // Mock Redis
 const mockRedisStorage = new Map();
-jest.mock('../config/redis', () => {
+jest.mock('../infrastructure/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
         set: jest.fn(async (key, value) => {

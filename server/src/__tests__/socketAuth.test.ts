@@ -27,7 +27,7 @@ jest.mock('../services/playerService', () => ({
     validateSocketAuthToken: jest.fn()
 }));
 
-jest.mock('../config/jwt', () => ({
+jest.mock('../infrastructure/jwt', () => ({
     verifyToken: jest.fn(),
     verifyTokenWithClaims: jest.fn(),
     isJwtEnabled: jest.fn(),
@@ -40,7 +40,7 @@ jest.mock('../config/jwt', () => ({
     }
 }));
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: jest.fn()
 }));
 
@@ -65,8 +65,8 @@ jest.mock('../config/constants', () => ({
 
 const logger = require('../utils/logger');
 const playerService = require('../services/playerService');
-const { verifyToken, verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../config/jwt');
-const { getRedis } = require('../config/redis');
+const { verifyToken, verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../infrastructure/jwt');
+const { getRedis } = require('../infrastructure/redis');
 
 describe('Socket Authentication Middleware', () => {
     let mockRedis;

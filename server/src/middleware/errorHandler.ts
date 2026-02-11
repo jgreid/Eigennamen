@@ -4,9 +4,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-const logger = require('../utils/logger');
-const { ERROR_CODES } = require('../config/constants');
-
+import logger from '../utils/logger';
+import { ERROR_CODES } from '../config/constants';
 /**
  * Custom error type with code and details
  */
@@ -51,7 +50,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
     logger.error('Unhandled error:', err);
 
     // Handle known error types
-    if ('code' in err && err.code && Object.values(ERROR_CODES).includes(err.code)) {
+    if ('code' in err && err.code && (Object.values(ERROR_CODES) as string[]).includes(err.code)) {
         const statusMap: ErrorStatusMap = {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
@@ -108,10 +107,4 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
         }
     });
 }
-
-module.exports = {
-    notFoundHandler,
-    errorHandler
-};
-
 export { notFoundHandler, errorHandler };

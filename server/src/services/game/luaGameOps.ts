@@ -7,25 +7,16 @@
 
 import type { GameState } from '../../types';
 
-const fs = require('fs');
-const path = require('path');
-const { z } = require('zod');
-const { getRedis } = require('../../config/redis');
-const logger = require('../../utils/logger');
-const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-const { parseJSON } = require('../../utils/parseJSON');
-const { tryParseJSON } = require('../../utils/parseJSON');
-const {
-    ERROR_CODES,
-    REDIS_TTL,
-    GAME_HISTORY,
-    RETRY_CONFIG
-} = require('../../config/constants');
-const {
-    GameStateError,
-    ServerError
-} = require('../../errors/GameError');
-
+import fs from 'fs';
+import path from 'path';
+import { z } from 'zod';
+import { getRedis } from '../../infrastructure/redis';
+import logger from '../../utils/logger';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
+import { parseJSON } from '../../utils/parseJSON';
+import { tryParseJSON } from '../../utils/parseJSON';
+import { ERROR_CODES, REDIS_TTL, GAME_HISTORY, RETRY_CONFIG } from '../../config/constants';
+import { GameStateError, ServerError } from '../../errors/GameError';
 // Lua scripts loaded once at module initialization
 export const OPTIMIZED_REVEAL_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/revealCard.lua'), 'utf8');
 export const OPTIMIZED_GIVE_CLUE_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/giveClue.lua'), 'utf8');
@@ -75,19 +66,11 @@ export const MAX_CLUES: number = GAME_HISTORY.MAX_CLUES;
 const MAX_TRANSACTION_RETRIES: number = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 
 /**
- * Redis client type (simplified for migration)
+ * Redis client interface used throughout game services.
+ * Compatible with both RedisClientType and MemoryStorageClient.
  */
-export interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<string | null>;
-    del(key: string): Promise<number>;
-    ttl(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-    watch(key: string): Promise<string>;
-    unwatch(): Promise<string>;
-    multi(): RedisTransaction;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RedisClient = any;
 
 /** Type signature for executeLuaScript (used by gameService's require()-based import). */
 export type ExecuteLuaScript = <T>(
@@ -98,10 +81,7 @@ export type ExecuteLuaScript = <T>(
     operationName: string
 ) => Promise<T>;
 
-interface RedisTransaction {
-    set(key: string, value: string, options?: { EX?: number }): RedisTransaction;
-    exec(): Promise<unknown[] | null>;
-}
+
 
 /**
  * Safely parse game data from Redis
@@ -274,20 +254,3 @@ export async function executeGameTransaction<T>(
 
     throw ServerError.concurrentModification();
 }
-
-module.exports = {
-    OPTIMIZED_REVEAL_SCRIPT,
-    OPTIMIZED_GIVE_CLUE_SCRIPT,
-    OPTIMIZED_END_TURN_SCRIPT,
-    gameStateSchema,
-    gameModePreCheckSchema,
-    luaResultObjectSchema,
-    MAX_HISTORY_ENTRIES,
-    MAX_CLUES,
-    safeParseGameData,
-    isDuetMode,
-    incrementVersion,
-    executeLuaScript,
-    withLuaFallback,
-    executeGameTransaction
-};

@@ -20,7 +20,7 @@ const mockRedisStorage = new Map();
 const mockRedisSets = new Map();
 
 // Setup mocks before importing services
-jest.mock('../config/redis', () => {
+jest.mock('../infrastructure/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
         set: jest.fn(async (key, value, _options) => {

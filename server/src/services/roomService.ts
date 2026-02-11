@@ -17,26 +17,18 @@ import type {
 } from '../types/room';
 import type { Player, PlayerGameState } from '../types';
 
-// Using require for CommonJS modules during migration
-const { getRedis } = require('../config/redis');
-const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
-const playerService = require('./playerService');
-const gameService = require('./gameService');
-const timerService = require('./timerService');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { toEnglishLowerCase } = require('../utils/sanitize');
-const {
-    ROOM_MAX_PLAYERS,
-    REDIS_TTL,
-    ROOM_STATUS,
-    ERROR_CODES,
-    GAME_MODE_CONFIG
-} = require('../config/constants');
-const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
-
+import { getRedis } from '../infrastructure/redis';
+import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
+import * as playerService from './playerService';
+import * as gameService from './gameService';
+import * as timerService from './timerService';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { toEnglishLowerCase } from '../utils/sanitize';
+import { ROOM_MAX_PLAYERS, REDIS_TTL, ROOM_STATUS, ERROR_CODES, GAME_MODE_CONFIG } from '../config/constants';
+import { RoomError, PlayerError, ServerError } from '../errors/GameError';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 // Zod schema for Room data from Redis.
 // Validates critical fields when present; non-essential fields are optional
 // so tests with sparse mocks still pass.
@@ -54,17 +46,6 @@ const roomSchema = z.object({
 /**
  * Redis client type (simplified for migration)
  */
-interface RedisClient {
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number }): Promise<string | null>;
-    del(keys: string | string[]): Promise<number>;
-    exists(key: string): Promise<number>;
-    expire(key: string, seconds: number): Promise<number>;
-    sMembers(key: string): Promise<string[]>;
-    sRem(key: string, member: string): Promise<number>;
-    mGet(keys: string[]): Promise<(string | null)[]>;
-    eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
-}
 
 /**
  * Lua script for atomic room creation
@@ -171,7 +152,7 @@ export async function createRoom(
     hostSessionId: string,
     settings: CreateRoomSettings = {}
 ): Promise<CreateRoomResult> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Normalize room ID (case-insensitive)
     const normalizedRoomId = toEnglishLowerCase(roomId);
@@ -242,7 +223,7 @@ export async function createRoom(
  * Get room by room ID (case-insensitive)
  */
 export async function getRoom(roomId: string): Promise<Room | null> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     // Normalize room ID for case-insensitive lookup
     const normalizedId = toEnglishLowerCase(roomId);
     const roomData = await redis.get(`room:${normalizedId}`);
@@ -266,7 +247,7 @@ export async function joinRoom(
     sessionId: string,
     nickname: string
 ): Promise<JoinRoomResult> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Normalize room ID (case-insensitive)
     const normalizedRoomId = toEnglishLowerCase(roomId);
@@ -289,7 +270,7 @@ export async function joinRoom(
     } else {
         // New join - use Lua script for atomic capacity check and add
         // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
-        // FIX: Pass room key as KEYS[2] so the script can verify room still exists
+        // Pass room key as KEYS[2] so the script can verify room still exists
         const result = await withTimeout(
             redis.eval(
                 ATOMIC_JOIN_SCRIPT,
@@ -366,7 +347,7 @@ export async function joinRoom(
  * Leave a room
  */
 export async function leaveRoom(code: string, sessionId: string): Promise<LeaveRoomResult> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     code = toEnglishLowerCase(code);
     const room = await getRoom(code);
 
@@ -420,7 +401,7 @@ export async function updateSettings(
     sessionId: string,
     newSettings: Partial<RoomSettings>
 ): Promise<RoomSettings> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const room = await getRoom(code);
 
     if (!room) {
@@ -461,7 +442,7 @@ export async function updateSettings(
  * Check if room exists
  */
 export async function roomExists(code: string): Promise<boolean> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
     const normalizedCode = toEnglishLowerCase(code);
     return await redis.exists(`room:${normalizedCode}`) === 1;
 }
@@ -471,7 +452,7 @@ export async function roomExists(code: string): Promise<boolean> {
  * ISSUE #8 FIX: Uses Lua script to prevent TTL race condition
  */
 export async function refreshRoomTTL(code: string): Promise<void> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
     await withTimeout(
@@ -499,7 +480,7 @@ export async function refreshRoomTTL(code: string): Promise<void> {
  * Uses parallel operations for better performance
  */
 export async function cleanupRoom(code: string): Promise<void> {
-    const redis: RedisClient = getRedis();
+    const redis = getRedis();
 
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);
@@ -511,17 +492,17 @@ export async function cleanupRoom(code: string): Promise<void> {
     const tokenKeys = sessionIds.map(id => `reconnect:session:${id}`);
     const reconnectTokens = tokenKeys.length > 0 ? await redis.mGet(tokenKeys) : [];
 
-    // ISSUE #4 FIX: Build list of all keys to delete including team sets
+    // Build list of all keys to delete including team sets
     const keysToDelete: string[] = [
         ...sessionIds.map(sessionId => `player:${sessionId}`),
         ...sessionIds.map(sessionId => `session:${sessionId}:socket`), // Also clean socket mappings
         ...sessionIds.map(sessionId => `reconnect:session:${sessionId}`), // Clean reconnection session keys
-        ...reconnectTokens.filter((t): t is string => t !== null).map(token => `reconnect:token:${token}`), // Clean reconnection token keys
+        ...reconnectTokens.filter((t: string | null): t is string => t !== null).map((token: string) => `reconnect:token:${token}`), // Clean reconnection token keys
         `room:${code}`,
         `room:${code}:players`,
         `room:${code}:game`,
-        `room:${code}:team:red`,   // ISSUE #4 FIX: Include team sets
-        `room:${code}:team:blue`   // ISSUE #4 FIX: Include team sets
+        `room:${code}:team:red`,   // Include team sets
+        `room:${code}:team:blue`   // Include team sets
     ];
 
     // Delete all keys in parallel using DEL with multiple keys (single Redis call)
@@ -538,16 +519,3 @@ export async function cleanupRoom(code: string): Promise<void> {
 export async function deleteRoom(code: string): Promise<void> {
     await cleanupRoom(code);
 }
-
-// Default export for CommonJS compatibility
-module.exports = {
-    createRoom,
-    getRoom,
-    joinRoom,
-    leaveRoom,
-    updateSettings,
-    roomExists,
-    refreshRoomTTL,
-    cleanupRoom,
-    deleteRoom
-};

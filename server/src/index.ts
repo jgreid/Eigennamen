@@ -4,21 +4,18 @@
 
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketServer } from 'socket.io';
-import type { Application } from 'express';
 
-require('dotenv').config();
-
-const http = require('http');
-const app = require('./app') as Application & { updateSocketCount: (delta: number) => void };
-const { initializeSocket, cleanupSocketModule } = require('./socket');
-const { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } = require('./config/redis');
-const { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } = require('./config/database');
-const { validateEnv, getEnvInt } = require('./config/env');
-const timerService = require('./services/timerService');
-const { startMemoryMonitoring, stopMemoryMonitoring } = require('./middleware/timing');
-const logger = require('./utils/logger');
-
-const PORT: number = getEnvInt('PORT', 3000);
+import 'dotenv/config';
+import http from 'http';
+import app from './app';
+import { initializeSocket, cleanupSocketModule } from './socket';
+import { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } from './infrastructure/redis';
+import { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } from './infrastructure/database';
+import { validateEnv, getEnvInt } from './config/env';
+import * as timerService from './services/timerService';
+import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
+import logger from './utils/logger';
+const PORT = getEnvInt('PORT', 3000) ?? 3000;
 
 async function startServer(): Promise<void> {
     try {
@@ -38,7 +35,7 @@ async function startServer(): Promise<void> {
         const server: HttpServer = http.createServer(app);
 
         // Initialize Socket.io with app reference for socket count caching
-        const io: SocketServer = initializeSocket(server, app);
+        const io: SocketServer = initializeSocket(server, app as any);
         logger.info('Socket.io initialized');
 
         // Attach dependencies to app for health checks
@@ -65,7 +62,7 @@ async function startServer(): Promise<void> {
             logger.info(`Server running on http://0.0.0.0:${PORT}`);
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
-            // Sprint 19: Start memory monitoring
+            // Start memory monitoring
             startMemoryMonitoring();
         });
 
@@ -73,7 +70,7 @@ async function startServer(): Promise<void> {
         const shutdown = async (signal: string): Promise<void> => {
             logger.info(`${signal} received, shutting down gracefully`);
 
-            // Sprint 19: Stop memory monitoring
+            // Stop memory monitoring
             stopMemoryMonitoring();
 
             // Clean up all active timers first (prevents pending callbacks)
@@ -129,7 +126,7 @@ async function startServer(): Promise<void> {
         });
 
         process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-            logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+            logger.error('Unhandled rejection', { promise: String(promise), reason: String(reason) });
             // In production, terminate on unhandled rejections to avoid corrupted state
             if (process.env.NODE_ENV === 'production') {
                 shutdown('UNHANDLED_REJECTION');

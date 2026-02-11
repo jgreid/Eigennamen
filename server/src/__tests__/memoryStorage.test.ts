@@ -21,7 +21,7 @@ describe('MemoryStorage', () => {
     beforeEach(() => {
         // Get fresh module
         jest.isolateModules(() => {
-            MemoryStorage = require('../config/memoryStorage').MemoryStorage;
+            MemoryStorage = require('../infrastructure/memoryStorage').MemoryStorage;
         });
     });
 

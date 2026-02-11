@@ -26,7 +26,7 @@ const mockPrisma = {
 
 let mockIsDatabaseEnabled = true;
 
-jest.mock('../config/database', () => ({
+jest.mock('../infrastructure/database', () => ({
     getDatabase: () => mockPrisma,
     isDatabaseEnabled: () => mockIsDatabaseEnabled
 }));

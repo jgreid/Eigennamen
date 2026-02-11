@@ -5,10 +5,9 @@
  * Supports both legacy string logging and structured field logging.
  */
 
-const winston = require('winston');
-const fs = require('fs');
-const path = require('path');
-
+import winston from 'winston';
+import fs from 'fs';
+import path from 'path';
 import type { Logger as WinstonLogger } from 'winston';
 
 /**
@@ -40,19 +39,21 @@ interface ErrorMeta {
 /**
  * Child logger interface
  */
+type LogArg = LogMeta | Error | string | unknown;
+
 interface ChildLogger {
-    error(msg: string, meta?: LogMeta): void;
-    warn(msg: string, meta?: LogMeta): void;
-    info(msg: string, meta?: LogMeta): void;
-    http(msg: string, meta?: LogMeta): void;
-    debug(msg: string, meta?: LogMeta): void;
+    error(msg: string, meta?: LogArg): void;
+    warn(msg: string, meta?: LogArg): void;
+    info(msg: string, meta?: LogArg): void;
+    http(msg: string, meta?: LogArg): void;
+    debug(msg: string, meta?: LogArg): void;
 }
 
 /**
  * Logger interface
  */
 interface Logger extends ChildLogger {
-    _buildMeta(metaOrError: LogMeta | Error): LogMeta;
+    _buildMeta(metaOrError: LogArg): LogMeta;
     child(defaultMeta: LogMeta): ChildLogger;
 }
 
@@ -126,7 +127,7 @@ const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID |
 const consoleFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
     winston.format.colorize({ all: true }),
-    winston.format.printf((info: { timestamp: string; level: string; message: string; [key: string]: unknown }) => {
+    winston.format.printf(((info: { timestamp: string; level: string; message: string; [key: string]: unknown }): string => {
         const { timestamp, level, message, ...meta } = info;
 
         // Build context string from metadata
@@ -153,7 +154,7 @@ const consoleFormat = winston.format.combine(
             : '';
 
         return `${timestamp} ${level}:${contextStr} ${message}${extraStr}`;
-    })
+    }) as any)
 );
 
 /**
@@ -330,8 +331,6 @@ const logger: Logger = {
         };
     }
 };
-
-module.exports = logger;
 
 export default logger;
 

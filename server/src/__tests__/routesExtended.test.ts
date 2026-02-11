@@ -11,7 +11,7 @@ const mockRedisStorage = new Map();
 const mockRedisSets = new Map();
 
 // Setup mocks before importing
-jest.mock('../config/redis', () => {
+jest.mock('../infrastructure/redis', () => {
     const mockRedis = {
         get: jest.fn(async (key) => mockRedisStorage.get(key) || null),
         set: jest.fn(async (key, value) => {
@@ -61,7 +61,7 @@ jest.mock('../config/redis', () => {
     };
 });
 
-jest.mock('../config/database', () => ({
+jest.mock('../infrastructure/database', () => ({
     getDatabase: jest.fn(() => null),
     connectDatabase: jest.fn(async () => {}),
     disconnectDatabase: jest.fn(async () => {}),
@@ -214,7 +214,7 @@ describe('Extended Room Routes', () => {
 
 describe('Extended Health Routes', () => {
     let app;
-    const { isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
+    const { isRedisHealthy, isUsingMemoryMode } = require('../infrastructure/redis');
     const pubSubHealth = require('../utils/pubSubHealth');
 
     beforeEach(() => {

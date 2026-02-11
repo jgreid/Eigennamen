@@ -8,16 +8,15 @@
 
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const wordListService = require('../services/wordListService');
-const { validateBody, validateParams, validateQuery } = require('../middleware/validation');
-const { z } = require('zod');
-const { BOARD_SIZE } = require('../config/constants');
-const logger = require('../utils/logger');
-const { getJwtSecret } = require('../config/jwt');
-const { removeControlChars } = require('../utils/sanitize');
-
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import * as wordListService from '../services/wordListService';
+import { validateBody, validateParams, validateQuery } from '../middleware/validation';
+import { z } from 'zod';
+import { BOARD_SIZE } from '../config/constants';
+import logger from '../utils/logger';
+import { getJwtSecret } from '../infrastructure/jwt';
+import { removeControlChars } from '../utils/sanitize';
 const router: ExpressRouter = express.Router();
 
 /**
@@ -35,19 +34,7 @@ interface AuthenticatedRequest extends Request {
     user?: JwtUser;
 }
 
-/**
- * Word list data
- */
-interface WordList {
-    id: string;
-    name: string;
-    description?: string;
-    words: string[];
-    isPublic: boolean;
-    ownerId: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
+// Uses WordList type from wordListService (imported via the service)
 
 /**
  * Authentication middleware placeholder
@@ -116,7 +103,7 @@ const wordListQuerySchema = z.object({
 const createWordListSchema = z.object({
     name: z.string().min(1).max(100).transform((val: string) => removeControlChars(val).trim()),
     description: z.string().max(500).transform((val: string) => removeControlChars(val).trim()).optional(),
-    // FIX: Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
+    // Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
     words: z.array(
         z.string()
             .min(1)
@@ -131,7 +118,7 @@ const createWordListSchema = z.object({
 const updateWordListSchema = z.object({
     name: z.string().min(1).max(100).transform((val: string) => removeControlChars(val).trim()).optional(),
     description: z.string().max(500).transform((val: string) => removeControlChars(val).trim()).optional(),
-    // FIX: Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
+    // Apply removeControlChars to each word for XSS prevention (consistent with gameStartSchema)
     words: z.array(
         z.string()
             .min(1)
@@ -169,7 +156,7 @@ router.get('/', validateQuery(wordListQuerySchema), async (req: Request, res: Re
  */
 router.get('/:id', validateParams(wordListIdSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const wordList: WordList | null = await wordListService.getWordList(req.params.id);
+        const wordList = await wordListService.getWordList(req.params.id!);
 
         if (!wordList) {
             res.status(404).json({
@@ -244,7 +231,7 @@ router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(u
         // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
         const user = req.user as JwtUser;
         const wordList = await wordListService.updateWordList(
-            req.params.id,
+            req.params.id!,
             { name, description, words, isPublic },
             user.id
         );
@@ -264,12 +251,11 @@ router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req:
     try {
         // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
         const user = req.user as JwtUser;
-        await wordListService.deleteWordList(req.params.id, user.id);
+        await wordListService.deleteWordList(req.params.id!, user.id);
         res.json({ success: true });
     } catch (error) {
         next(error);
     }
 });
 
-module.exports = router;
 export default router;

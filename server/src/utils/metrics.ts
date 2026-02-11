@@ -388,7 +388,7 @@ const METRIC_NAMES = {
     ROOMS_JOINED: 'rooms_joined',
     ERRORS: 'errors',
     RATE_LIMIT_HITS: 'rate_limit_hits',
-    // PHASE 5.1: Additional counters for better observability
+    // Additional counters for better observability
     HTTP_REQUESTS: 'http_requests_total',
     WEBSOCKET_EVENTS: 'websocket_events_total',
     RECONNECTIONS: 'reconnections_total',
@@ -402,7 +402,7 @@ const METRIC_NAMES = {
     ACTIVE_TIMERS: 'active_timers',
     SOCKET_CONNECTIONS: 'socket_connections',
     REDIS_CONNECTION_STATUS: 'redis_connection_status',
-    // PHASE 5.1: Additional gauges for system health
+    // Additional gauges for system health
     MEMORY_HEAP_USED: 'memory_heap_used_bytes',
     MEMORY_HEAP_TOTAL: 'memory_heap_total_bytes',
     MEMORY_RSS: 'memory_rss_bytes',
@@ -415,7 +415,7 @@ const METRIC_NAMES = {
     GAME_DURATION: 'game_duration_seconds',
     TURN_DURATION: 'turn_duration_seconds',
     SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
-    // PHASE 5.1: Additional histograms
+    // Additional histograms
     HTTP_REQUEST_DURATION: 'http_request_duration_ms',
     WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
 } as const;
@@ -441,7 +441,7 @@ const trackOperationLatency = (operation: string, durationMs: number): void => r
 const trackRedisLatency = (command: string, durationMs: number): void => recordHistogram(METRIC_NAMES.REDIS_LATENCY, durationMs, { command });
 const trackSocketEventLatency = (event: string, durationMs: number): void => recordHistogram(METRIC_NAMES.SOCKET_EVENT_LATENCY, durationMs, { event });
 
-// PHASE 5.1: Additional tracking functions
+// Additional tracking functions
 const trackHttpRequest = (method: string, path: string, statusCode: number): void => incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method, path, statusCode: String(statusCode) });
 const trackWebsocketEvent = (event: string, direction: string = 'in'): void => incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event, direction });
 const trackReconnection = (roomCode: string, success: boolean): void => incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode, success: String(success) });
@@ -451,7 +451,7 @@ const trackHttpRequestDuration = (method: string, path: string, durationMs: numb
 const trackWebsocketMessageSize = (event: string, bytes: number): void => recordHistogram(METRIC_NAMES.WEBSOCKET_MESSAGE_SIZE, bytes, { event });
 const setSpectatorCount = (count: number): void => setGauge(METRIC_NAMES.SPECTATORS, count);
 
-// PHASE 5.1: Update system metrics (call periodically)
+// Update system metrics (call periodically)
 function updateSystemMetrics(): void {
     const mem = process.memoryUsage();
     setGauge(METRIC_NAMES.MEMORY_HEAP_USED, mem.heapUsed);
@@ -459,7 +459,7 @@ function updateSystemMetrics(): void {
     setGauge(METRIC_NAMES.MEMORY_RSS, mem.rss);
 }
 
-// PHASE 5.1: Measure event loop lag
+// Measure event loop lag
 let lastLoopTime = process.hrtime.bigint();
 function measureEventLoopLag(): void {
     const now = process.hrtime.bigint();
@@ -489,7 +489,7 @@ function stopEventLoopMonitoring(): void {
 }
 
 /**
- * PHASE 5.1: Export metrics in Prometheus text format
+ * Export metrics in Prometheus text format
  * @returns Prometheus-compatible metrics text
  */
 function getPrometheusMetrics(): string {

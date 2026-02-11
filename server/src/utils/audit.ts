@@ -12,9 +12,8 @@
  * - Word list modifications
  */
 
-const logger = require('./logger');
-const { getCorrelationId } = require('./correlationId');
-
+import logger from './logger';
+import { getCorrelationId } from './correlationId';
 // Instance ID for distributed deployments
 const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
 
@@ -272,22 +271,6 @@ function auditWordListModified(
         metadata: { wordListId, action }
     });
 }
-
-module.exports = {
-    AUDIT_EVENTS,
-    audit,
-    // Convenience functions
-    auditHostTransferred,
-    auditSpymasterAssigned,
-    auditRoleChanged,
-    auditGameStarted,
-    auditGameEnded,
-    auditSessionHijackBlocked,
-    auditRateLimitExceeded,
-    auditPlayerKicked,
-    auditWordListModified
-};
-
 // ES6 exports for TypeScript imports
 export {
     AUDIT_EVENTS,

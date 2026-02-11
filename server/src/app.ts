@@ -5,23 +5,21 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Server as SocketServer } from 'socket.io';
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const path = require('path');
-
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, strictLimiter, getHttpRateLimitMetrics } = require('./middleware/rateLimit');
-const { csrfProtection } = require('./middleware/csrf');
-const { requestTiming } = require('./middleware/timing');
-const routes = require('./routes');
-const adminRoutes = require('./routes/adminRoutes');
-const logger = require('./utils/logger');
-const { setupSwagger } = require('./config/swagger');
-const { getAllMetrics, setSocketConnections } = require('./utils/metrics');
-const { SOCKET } = require('./config/constants');
-
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import path from 'path';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { apiLimiter, strictLimiter, getHttpRateLimitMetrics } from './middleware/rateLimit';
+import { csrfProtection } from './middleware/csrf';
+import { requestTiming } from './middleware/timing';
+import routes from './routes';
+import adminRoutes from './routes/adminRoutes';
+import logger from './utils/logger';
+import { setupSwagger } from './config/swagger';
+import { getAllMetrics, setSocketConnections } from './utils/metrics';
+import { SOCKET } from './config/constants';
 /**
  * Extended Express Application with custom properties
  */
@@ -45,7 +43,7 @@ interface RateLimiterWithMetrics {
     getMetrics: () => Record<string, unknown>;
 }
 
-const app: ExtendedApp = express() as ExtendedApp;
+const app = express() as unknown as ExtendedApp;
 
 // Trust proxy when behind reverse proxy (Fly.io, nginx, etc.)
 // Required for accurate IP detection in rate limiting and logging
@@ -130,7 +128,7 @@ app.use(helmet({
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
-            // Sprint 19: Additional security directives
+            // Additional security directives
             baseUri: ["'self'"],                      // Prevent base tag hijacking
             formAction: ["'self'"],                   // Control form submissions
             frameAncestors: ["'none'"],               // Prevent clickjacking (defense in depth)
@@ -141,7 +139,7 @@ app.use(helmet({
     },
     crossOriginEmbedderPolicy: false, // Required for some game assets
     crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
-    // Sprint 19: Additional security headers
+    // Additional security headers
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     dnsPrefetchControl: { allow: false },
     permittedCrossDomainPolicies: { permittedPolicies: 'none' },
@@ -163,7 +161,7 @@ app.use(cors({
 // Compression
 app.use(compression());
 
-// Sprint 19: Request timing middleware
+// Request timing middleware
 app.use(requestTiming);
 
 // Body parsing with size limits to prevent memory exhaustion attacks
@@ -242,7 +240,7 @@ app.get('/health/ready', async (_req: Request, res: Response) => {
 
     // Check Database (PostgreSQL via Prisma) - Optional
     try {
-        const { isDatabaseEnabled } = require('./config/database');
+        const { isDatabaseEnabled } = require('./infrastructure/database');
         if (isDatabaseEnabled()) {
             const getDatabase = app.get('database') as () => { $queryRaw: (query: TemplateStringsArray) => Promise<unknown> };
             const prisma = getDatabase();
@@ -255,12 +253,12 @@ app.get('/health/ready', async (_req: Request, res: Response) => {
     } catch (error) {
         checks.checks.database = { status: 'error', message: (error as Error).message };
         // Database errors don't degrade overall status since it's optional
-        logger.warn('Health check: Database error (non-critical)', (error as Error).message);
+        logger.warn('Health check: Database error (non-critical)', { error: (error as Error).message });
     }
 
     // Check Redis/Storage
     try {
-        const { isRedisHealthy, isUsingMemoryMode } = require('./config/redis');
+        const { isRedisHealthy, isUsingMemoryMode } = require('./infrastructure/redis');
         const healthy: boolean = await isRedisHealthy();
         const memoryMode: boolean = isUsingMemoryMode();
         if (healthy) {
@@ -276,7 +274,7 @@ app.get('/health/ready', async (_req: Request, res: Response) => {
     } catch (error) {
         checks.checks.storage = { status: 'error', message: (error as Error).message };
         checks.status = 'degraded';
-        logger.error('Health check: Storage error', (error as Error).message);
+        logger.error('Health check: Storage error', { error: (error as Error).message });
     }
 
     // Check Socket.io with cached count for fast response
@@ -308,7 +306,7 @@ app.get('/health/live', (_req: Request, res: Response) => {
 });
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
-setupSwagger(app);
+setupSwagger(app as any);
 
 // Metrics response interface
 interface MetricsResponse {
@@ -369,7 +367,7 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
             };
         }
     } catch (error) {
-        logger.warn('Failed to fetch socket stats for metrics:', (error as Error).message);
+        logger.warn('Failed to fetch socket stats for metrics:', { error: (error as Error).message });
         metricsData.socketio = {
             status: 'error',
             error: (error as Error).message
@@ -378,10 +376,10 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
 
     // Add application metrics (counters, gauges, histograms)
     try {
-        const appMetrics = getAllMetrics();
+        const appMetrics = getAllMetrics() as any;
         metricsData.application = appMetrics;
     } catch (error) {
-        logger.warn('Failed to fetch application metrics:', (error as Error).message);
+        logger.warn('Failed to fetch application metrics:', { error: (error as Error).message });
         metricsData.application = {
             status: 'error',
             error: (error as Error).message
@@ -393,11 +391,11 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
         const httpMetrics = getHttpRateLimitMetrics();
         const socketRateLimiter = app.get('socketRateLimiter') as RateLimiterWithMetrics | undefined;
         metricsData.rateLimits = {
-            http: httpMetrics,
+            http: httpMetrics as unknown as Record<string, unknown>,
             socket: socketRateLimiter ? socketRateLimiter.getMetrics() : { status: 'not initialized' }
         };
     } catch (error) {
-        logger.warn('Failed to fetch rate limit metrics:', (error as Error).message);
+        logger.warn('Failed to fetch rate limit metrics:', { error: (error as Error).message });
         metricsData.rateLimits = {
             http: {},
             socket: {}
@@ -420,5 +418,4 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-module.exports = app;
 export default app;

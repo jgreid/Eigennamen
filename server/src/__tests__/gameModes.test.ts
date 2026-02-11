@@ -13,7 +13,7 @@ type AnyRecord = Record<string, any>;
 // Mock Redis
 let mockRedis: AnyRecord;
 
-jest.mock('../config/redis', () => ({
+jest.mock('../infrastructure/redis', () => ({
     getRedis: () => mockRedis
 }));
 
