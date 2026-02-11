@@ -127,16 +127,3 @@ export interface RoomInfo {
   createdAt: number;
 }
 
-/**
- * Room statistics
- */
-export interface RoomStats {
-  /** Total number of rooms */
-  totalRooms: number;
-  /** Rooms currently waiting for game to start */
-  waitingRooms: number;
-  /** Rooms with games in progress */
-  playingRooms: number;
-  /** Total players across all rooms */
-  totalPlayers: number;
-}

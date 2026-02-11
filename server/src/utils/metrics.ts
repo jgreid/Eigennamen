@@ -422,36 +422,7 @@ const METRIC_NAMES = {
 
 type MetricName = typeof METRIC_NAMES[keyof typeof METRIC_NAMES];
 
-// Convenience functions for common metrics
-const trackGameStarted = (roomCode: string): void => incrementCounter(METRIC_NAMES.GAMES_STARTED, 1, { roomCode });
-const trackGameCompleted = (roomCode: string, winner: string): void => incrementCounter(METRIC_NAMES.GAMES_COMPLETED, 1, { roomCode, winner });
-const trackCardRevealed = (roomCode: string, team: string, cardType: string): void => incrementCounter(METRIC_NAMES.CARDS_REVEALED, 1, { roomCode, team, cardType });
-const trackClueGiven = (roomCode: string, team: string): void => incrementCounter(METRIC_NAMES.CLUES_GIVEN, 1, { roomCode, team });
-const trackRoomCreated = (): void => incrementCounter(METRIC_NAMES.ROOMS_CREATED);
-const trackRoomJoined = (roomCode: string): void => incrementCounter(METRIC_NAMES.ROOMS_JOINED, 1, { roomCode });
-const trackError = (errorCode: string, operation: string): void => incrementCounter(METRIC_NAMES.ERRORS, 1, { errorCode, operation });
-const trackRateLimitHit = (event: string): void => incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { event });
-
-const setActiveRooms = (count: number): void => setGauge(METRIC_NAMES.ACTIVE_ROOMS, count);
-const setActivePlayers = (count: number): void => setGauge(METRIC_NAMES.ACTIVE_PLAYERS, count);
-const setActiveGames = (count: number): void => setGauge(METRIC_NAMES.ACTIVE_GAMES, count);
-const setSocketConnections = (count: number): void => setGauge(METRIC_NAMES.SOCKET_CONNECTIONS, count);
-
-const trackOperationLatency = (operation: string, durationMs: number): void => recordHistogram(METRIC_NAMES.OPERATION_LATENCY, durationMs, { operation });
-const trackRedisLatency = (command: string, durationMs: number): void => recordHistogram(METRIC_NAMES.REDIS_LATENCY, durationMs, { command });
-const trackSocketEventLatency = (event: string, durationMs: number): void => recordHistogram(METRIC_NAMES.SOCKET_EVENT_LATENCY, durationMs, { event });
-
-// PHASE 5.1: Additional tracking functions
-const trackHttpRequest = (method: string, path: string, statusCode: number): void => incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method, path, statusCode: String(statusCode) });
-const trackWebsocketEvent = (event: string, direction: string = 'in'): void => incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event, direction });
-const trackReconnection = (roomCode: string, success: boolean): void => incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode, success: String(success) });
-const trackPlayerKick = (roomCode: string, reason: string): void => incrementCounter(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode, reason });
-const trackBroadcast = (type: string): void => incrementCounter(METRIC_NAMES.BROADCASTS_SENT, 1, { type });
-const trackHttpRequestDuration = (method: string, path: string, durationMs: number): void => recordHistogram(METRIC_NAMES.HTTP_REQUEST_DURATION, durationMs, { method, path });
-const trackWebsocketMessageSize = (event: string, bytes: number): void => recordHistogram(METRIC_NAMES.WEBSOCKET_MESSAGE_SIZE, bytes, { event });
-const setSpectatorCount = (count: number): void => setGauge(METRIC_NAMES.SPECTATORS, count);
-
-// PHASE 5.1: Update system metrics (call periodically)
+// Update system metrics (call periodically)
 function updateSystemMetrics(): void {
     const mem = process.memoryUsage();
     setGauge(METRIC_NAMES.MEMORY_HEAP_USED, mem.heapUsed);
@@ -564,30 +535,7 @@ export {
     updateSystemMetrics,
     startEventLoopMonitoring,
     stopEventLoopMonitoring,
-    METRIC_NAMES,
-    trackGameStarted,
-    trackGameCompleted,
-    trackCardRevealed,
-    trackClueGiven,
-    trackRoomCreated,
-    trackRoomJoined,
-    trackError,
-    trackRateLimitHit,
-    setActiveRooms,
-    setActivePlayers,
-    setActiveGames,
-    setSocketConnections,
-    trackOperationLatency,
-    trackRedisLatency,
-    trackSocketEventLatency,
-    trackHttpRequest,
-    trackWebsocketEvent,
-    trackReconnection,
-    trackPlayerKick,
-    trackBroadcast,
-    trackHttpRequestDuration,
-    trackWebsocketMessageSize,
-    setSpectatorCount
+    METRIC_NAMES
 };
 
 export type {

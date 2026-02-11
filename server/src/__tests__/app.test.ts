@@ -14,7 +14,40 @@ jest.mock('../utils/logger', () => ({
 
 jest.mock('../utils/metrics', () => ({
     getAllMetrics: jest.fn(() => ({ counters: {}, gauges: {}, histograms: {} })),
-    setSocketConnections: jest.fn()
+    setGauge: jest.fn(),
+    incrementCounter: jest.fn(),
+    METRIC_NAMES: {
+        SOCKET_CONNECTIONS: 'socket_connections',
+        PLAYER_KICKS: 'player_kicks_total',
+        BROADCASTS_SENT: 'broadcasts_sent_total',
+        RECONNECTIONS: 'reconnections_total',
+        GAMES_STARTED: 'games_started',
+        GAMES_COMPLETED: 'games_completed',
+        CARDS_REVEALED: 'cards_revealed',
+        CLUES_GIVEN: 'clues_given',
+        ROOMS_CREATED: 'rooms_created',
+        ROOMS_JOINED: 'rooms_joined',
+        ERRORS: 'errors',
+        RATE_LIMIT_HITS: 'rate_limit_hits',
+        HTTP_REQUESTS: 'http_requests_total',
+        WEBSOCKET_EVENTS: 'websocket_events_total',
+        ACTIVE_ROOMS: 'active_rooms',
+        ACTIVE_PLAYERS: 'active_players',
+        ACTIVE_GAMES: 'active_games',
+        ACTIVE_TIMERS: 'active_timers',
+        SPECTATORS: 'spectators_total',
+        MEMORY_HEAP_USED: 'memory_heap_used_bytes',
+        MEMORY_HEAP_TOTAL: 'memory_heap_total_bytes',
+        MEMORY_RSS: 'memory_rss_bytes',
+        EVENT_LOOP_LAG: 'event_loop_lag_ms',
+        OPERATION_LATENCY: 'operation_latency_ms',
+        REDIS_LATENCY: 'redis_latency_ms',
+        GAME_DURATION: 'game_duration_seconds',
+        TURN_DURATION: 'turn_duration_seconds',
+        SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
+        HTTP_REQUEST_DURATION: 'http_request_duration_ms',
+        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
+    }
 }));
 
 jest.mock('../utils/correlationId', () => ({
@@ -189,7 +222,6 @@ describe('Express Application', () => {
 
             expect(response.body).toHaveProperty('rateLimits');
             expect(response.body.rateLimits).toMatchObject({
-                http: expect.any(Object),
                 socket: expect.any(Object)
             });
         });

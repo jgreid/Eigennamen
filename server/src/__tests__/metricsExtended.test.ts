@@ -21,30 +21,7 @@ const {
     updateSystemMetrics,
     startEventLoopMonitoring,
     stopEventLoopMonitoring,
-    METRIC_NAMES,
-    trackGameStarted,
-    trackGameCompleted,
-    trackCardRevealed,
-    trackClueGiven,
-    trackRoomCreated,
-    trackRoomJoined,
-    trackError,
-    trackRateLimitHit,
-    setActiveRooms,
-    setActivePlayers,
-    setActiveGames,
-    setSocketConnections,
-    trackOperationLatency,
-    trackRedisLatency,
-    trackSocketEventLatency,
-    trackHttpRequest,
-    trackWebsocketEvent,
-    trackReconnection,
-    trackPlayerKick,
-    trackBroadcast,
-    trackHttpRequestDuration,
-    trackWebsocketMessageSize,
-    setSpectatorCount
+    METRIC_NAMES
 } = require('../utils/metrics');
 
 describe('Metrics Extended Tests', () => {
@@ -303,92 +280,92 @@ describe('Metrics Extended Tests', () => {
 
     describe('Convenience tracking functions', () => {
         it('should track game started', () => {
-            trackGameStarted('ROOM01');
+            incrementCounter(METRIC_NAMES.GAMES_STARTED, 1, { roomCode: 'ROOM01' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['games_started:roomCode=ROOM01'].value).toBe(1);
         });
 
         it('should track game completed', () => {
-            trackGameCompleted('ROOM02', 'red');
+            incrementCounter(METRIC_NAMES.GAMES_COMPLETED, 1, { roomCode: 'ROOM02', winner: 'red' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['games_completed:roomCode=ROOM02,winner=red'].value).toBe(1);
         });
 
         it('should track card revealed', () => {
-            trackCardRevealed('ROOM03', 'blue', 'agent');
+            incrementCounter(METRIC_NAMES.CARDS_REVEALED, 1, { roomCode: 'ROOM03', team: 'blue', cardType: 'agent' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['cards_revealed:cardType=agent,roomCode=ROOM03,team=blue'].value).toBe(1);
         });
 
         it('should track clue given', () => {
-            trackClueGiven('ROOM04', 'red');
+            incrementCounter(METRIC_NAMES.CLUES_GIVEN, 1, { roomCode: 'ROOM04', team: 'red' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['clues_given:roomCode=ROOM04,team=red'].value).toBe(1);
         });
 
         it('should track room created', () => {
-            trackRoomCreated();
-            trackRoomCreated();
+            incrementCounter(METRIC_NAMES.ROOMS_CREATED);
+            incrementCounter(METRIC_NAMES.ROOMS_CREATED);
 
             const metrics = getAllMetrics();
             expect(metrics.counters['rooms_created'].value).toBe(2);
         });
 
         it('should track room joined', () => {
-            trackRoomJoined('ROOM05');
+            incrementCounter(METRIC_NAMES.ROOMS_JOINED, 1, { roomCode: 'ROOM05' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['rooms_joined:roomCode=ROOM05'].value).toBe(1);
         });
 
         it('should track errors', () => {
-            trackError('ROOM_NOT_FOUND', 'joinRoom');
+            incrementCounter(METRIC_NAMES.ERRORS, 1, { errorCode: 'ROOM_NOT_FOUND', operation: 'joinRoom' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['errors:errorCode=ROOM_NOT_FOUND,operation=joinRoom'].value).toBe(1);
         });
 
         it('should track rate limit hits', () => {
-            trackRateLimitHit('room:create');
+            incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { event: 'room:create' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['rate_limit_hits:event=room:create'].value).toBe(1);
         });
 
         it('should set active rooms gauge', () => {
-            setActiveRooms(15);
+            setGauge(METRIC_NAMES.ACTIVE_ROOMS, 15);
 
             const metrics = getAllMetrics();
             expect(metrics.gauges['active_rooms'].value).toBe(15);
         });
 
         it('should set active players gauge', () => {
-            setActivePlayers(100);
+            setGauge(METRIC_NAMES.ACTIVE_PLAYERS, 100);
 
             const metrics = getAllMetrics();
             expect(metrics.gauges['active_players'].value).toBe(100);
         });
 
         it('should set active games gauge', () => {
-            setActiveGames(5);
+            setGauge(METRIC_NAMES.ACTIVE_GAMES, 5);
 
             const metrics = getAllMetrics();
             expect(metrics.gauges['active_games'].value).toBe(5);
         });
 
         it('should set socket connections gauge', () => {
-            setSocketConnections(200);
+            setGauge(METRIC_NAMES.SOCKET_CONNECTIONS, 200);
 
             const metrics = getAllMetrics();
             expect(metrics.gauges['socket_connections'].value).toBe(200);
         });
 
         it('should track operation latency', () => {
-            trackOperationLatency('createRoom', 150);
+            recordHistogram(METRIC_NAMES.OPERATION_LATENCY, 150, { operation: 'createRoom' });
 
             const stats = getHistogramStats('operation_latency_ms', { operation: 'createRoom' });
             expect(stats.count).toBe(1);
@@ -396,14 +373,14 @@ describe('Metrics Extended Tests', () => {
         });
 
         it('should track Redis latency', () => {
-            trackRedisLatency('GET', 5);
+            recordHistogram(METRIC_NAMES.REDIS_LATENCY, 5, { command: 'GET' });
 
             const stats = getHistogramStats('redis_latency_ms', { command: 'GET' });
             expect(stats.count).toBe(1);
         });
 
         it('should track socket event latency', () => {
-            trackSocketEventLatency('room:join', 25);
+            recordHistogram(METRIC_NAMES.SOCKET_EVENT_LATENCY, 25, { event: 'room:join' });
 
             const stats = getHistogramStats('socket_event_latency_ms', { event: 'room:join' });
             expect(stats.count).toBe(1);
@@ -412,8 +389,8 @@ describe('Metrics Extended Tests', () => {
 
     describe('Phase 5.1 tracking functions', () => {
         it('should track HTTP requests', () => {
-            trackHttpRequest('GET', '/api/rooms', 200);
-            trackHttpRequest('POST', '/api/rooms', 201);
+            incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method: 'GET', path: '/api/rooms', statusCode: '200' });
+            incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method: 'POST', path: '/api/rooms', statusCode: '201' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['http_requests_total:method=GET,path=/api/rooms,statusCode=200'].value).toBe(1);
@@ -421,8 +398,8 @@ describe('Metrics Extended Tests', () => {
         });
 
         it('should track websocket events', () => {
-            trackWebsocketEvent('room:join', 'in');
-            trackWebsocketEvent('room:joined', 'out');
+            incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event: 'room:join', direction: 'in' });
+            incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event: 'room:joined', direction: 'out' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['websocket_events_total:direction=in,event=room:join'].value).toBe(1);
@@ -430,8 +407,8 @@ describe('Metrics Extended Tests', () => {
         });
 
         it('should track reconnections', () => {
-            trackReconnection('ROOM06', true);
-            trackReconnection('ROOM06', false);
+            incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode: 'ROOM06', success: 'true' });
+            incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode: 'ROOM06', success: 'false' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['reconnections_total:roomCode=ROOM06,success=true'].value).toBe(1);
@@ -439,28 +416,28 @@ describe('Metrics Extended Tests', () => {
         });
 
         it('should track player kicks', () => {
-            trackPlayerKick('ROOM07', 'admin');
+            incrementCounter(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode: 'ROOM07', reason: 'admin' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['player_kicks_total:reason=admin,roomCode=ROOM07'].value).toBe(1);
         });
 
         it('should track broadcasts', () => {
-            trackBroadcast('announcement');
+            incrementCounter(METRIC_NAMES.BROADCASTS_SENT, 1, { type: 'announcement' });
 
             const metrics = getAllMetrics();
             expect(metrics.counters['broadcasts_sent_total:type=announcement'].value).toBe(1);
         });
 
         it('should track HTTP request duration', () => {
-            trackHttpRequestDuration('GET', '/health', 5);
+            recordHistogram(METRIC_NAMES.HTTP_REQUEST_DURATION, 5, { method: 'GET', path: '/health' });
 
             const stats = getHistogramStats('http_request_duration_ms', { method: 'GET', path: '/health' });
             expect(stats.count).toBe(1);
         });
 
         it('should track websocket message size', () => {
-            trackWebsocketMessageSize('game:state', 1024);
+            recordHistogram(METRIC_NAMES.WEBSOCKET_MESSAGE_SIZE, 1024, { event: 'game:state' });
 
             const stats = getHistogramStats('websocket_message_size_bytes', { event: 'game:state' });
             expect(stats.count).toBe(1);
@@ -468,7 +445,7 @@ describe('Metrics Extended Tests', () => {
         });
 
         it('should set spectator count', () => {
-            setSpectatorCount(10);
+            setGauge(METRIC_NAMES.SPECTATORS, 10);
 
             const metrics = getAllMetrics();
             expect(metrics.gauges['spectators_total'].value).toBe(10);

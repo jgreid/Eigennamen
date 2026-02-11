@@ -695,7 +695,6 @@ export async function cleanupGame(roomCode: string): Promise<void> {
 }
 
 // ─── Exports ────────────────────────────────────────────────────────
-// All functions are re-exported so existing `require('./gameService')` continues to work.
 
 module.exports = {
     // Game lifecycle
@@ -709,21 +708,5 @@ module.exports = {
     giveClue,
     endTurn,
     forfeitGame,
-    getGameHistory,
-
-    // Pure functions (re-exported from focused modules for backward compat)
-    seededRandom,
-    hashString,
-    shuffleWithSeed,
-    generateSeed,
-    validateClueWord,
-    generateDuetBoard,
-
-    // Decomposed reveal functions
-    validateCardIndex,
-    validateRevealPreconditions,
-    executeCardReveal,
-    determineRevealOutcome,
-    switchTurn,
-    buildRevealResult
+    getGameHistory
 };

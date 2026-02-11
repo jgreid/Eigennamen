@@ -6,9 +6,9 @@ const {
     seededRandom,
     hashString,
     shuffleWithSeed,
-    generateSeed,
-    validateClueWord
-} = require('../services/gameService');
+    generateSeed
+} = require('../services/game/boardGenerator');
+const { validateClueWord } = require('../services/game/clueValidator');
 
 describe('seededRandom', () => {
     test('returns consistent values for the same seed', () => {

@@ -7,22 +7,13 @@ import type { Request, Response, NextFunction } from 'express';
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 
-/**
- * Rate limit configuration
- */
 interface RateLimitConfig {
     max: number;
     window: number;
 }
 
-/**
- * Rate limit configurations by event name
- */
 type RateLimitConfigs = Record<string, RateLimitConfig | undefined>;
 
-/**
- * Socket with rate limit properties
- */
 interface RateLimitSocket {
     id: string;
     sessionId?: string;
@@ -32,35 +23,23 @@ interface RateLimitSocket {
     };
 }
 
-/**
- * Rate limiter middleware function
- */
 type RateLimiterMiddleware = (
     socket: RateLimitSocket,
     data: unknown,
     next: (error?: Error) => void
 ) => void;
 
-/**
- * Entry for LRU eviction
- */
 interface LRUEntry {
     key: string;
     map: 'socket' | 'ip';
     lastActivity: number;
 }
 
-/**
- * Event stats
- */
 interface EventStats {
     event: string;
     count: number;
 }
 
-/**
- * Rate limiter metrics
- */
 interface RateLimiterMetrics {
     totalRequests: number;
     blockedRequests: number;
@@ -76,22 +55,6 @@ interface RateLimiterMetrics {
     uptimeMinutes: number;
 }
 
-/**
- * HTTP rate limit metrics
- */
-interface HttpRateLimitMetrics {
-    totalRequests: number;
-    blockedRequests: number;
-    blockRate: string;
-    uniqueIPs: number;
-    blockedIPs: number;
-    requestsPerMinute: number;
-    uptimeMinutes: number;
-}
-
-/**
- * Socket rate limiter interface
- */
 interface SocketRateLimiter {
     getLimiter: (eventName: string) => RateLimiterMiddleware;
     cleanupSocket: (socketId: string) => void;
@@ -102,9 +65,6 @@ interface SocketRateLimiter {
     resetMetrics: () => void;
 }
 
-/**
- * API rate limiter
- */
 const apiLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '') || 60 * 1000,
     max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '') || 100,
@@ -122,9 +82,6 @@ const apiLimiter = rateLimit({
     }
 });
 
-/**
- * Stricter rate limiter for sensitive endpoints
- */
 const strictLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 10,
@@ -142,17 +99,12 @@ const strictLimiter = rateLimit({
     }
 });
 
-// IP multiplier - allows multiple legitimate users on same IP (corporate, shared wifi)
-// Reduced from 5x to 3x to limit room enumeration (e.g. room:join 10/min * 3 = 30/min per IP)
+// IP multiplier: allows multiple users on same IP (3x per-socket limit)
 const IP_RATE_LIMIT_MULTIPLIER = 3;
 
-// LRU eviction configuration - prevents unbounded memory growth
 const MAX_TRACKED_ENTRIES = parseInt(process.env.RATE_LIMIT_MAX_ENTRIES || '') || 10000;
-const LRU_EVICTION_PERCENTAGE = 0.1; // Evict 10% when limit reached
+const LRU_EVICTION_PERCENTAGE = 0.1;
 
-/**
- * In-place filter for timestamp arrays - avoids memory allocation per request
- */
 function filterTimestampsInPlace(timestamps: number[], windowStart: number): number {
     let writeIndex = 0;
     for (let i = 0; i < timestamps.length; i++) {
@@ -165,48 +117,28 @@ function filterTimestampsInPlace(timestamps: number[], windowStart: number): num
     return writeIndex;
 }
 
-/**
- * Socket event rate limiter (in-memory, per socket AND per IP)
- * Returns an object with limiter and cleanup functions
- * Includes detailed metrics for production monitoring
- * Implements dual-layer rate limiting:
- *   1. Per-socket: Prevents single client from overwhelming
- *   2. Per-IP: Prevents attackers from opening many connections
- *
- * Performance optimizations:
- *   - Uses in-place array filtering to avoid memory allocations per request
- *   - Periodic cleanup of stale entries runs on interval
- */
+/** Dual-layer rate limiter: per-socket + per-IP */
 function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
-    const socketRequests = new Map<string, number[]>();  // Per-socket rate limiting
-    const ipRequests = new Map<string, number[]>();      // Per-IP rate limiting (aggregate)
-    // Reverse index for O(1) socket cleanup: socketId -> Set of keys
+    const socketRequests = new Map<string, number[]>();
+    const ipRequests = new Map<string, number[]>();
     const socketKeyIndex = new Map<string, Set<string>>();
 
-    // Metrics tracking
     let totalRequests = 0;
     let blockedRequests = 0;
     let blockedByIP = 0;
-    // HARDENING FIX: Capped with periodic cleanup to prevent unbounded growth
     const MAX_UNIQUE_TRACKING = 10000;
-    const METRICS_CLEANUP_THRESHOLD = MAX_UNIQUE_TRACKING * 0.9; // 90% triggers cleanup
+    const METRICS_CLEANUP_THRESHOLD = MAX_UNIQUE_TRACKING * 0.9;
     const uniqueSockets = new Set<string>();
     const uniqueIPs = new Set<string>();
-    const eventRequests = new Map<string, number>();   // event -> count
-    const eventBlocked = new Map<string, number>();    // event -> blocked count
+    const eventRequests = new Map<string, number>();
+    const eventBlocked = new Map<string, number>();
     const startTime = Date.now();
     let lastMetricsCleanup = Date.now();
 
-    /**
-     * Get client IP from socket (set by socketAuth middleware)
-     */
     const getSocketIP = (socket: RateLimitSocket): string => {
         return socket.clientIP || socket.handshake?.address || 'unknown';
     };
 
-    /**
-     * Get rate limiter middleware for a specific event
-     */
     const getLimiter = (eventName: string): RateLimiterMiddleware => {
         const limit = limits[eventName];
         if (!limit) return (_socket, _data, next) => next();
@@ -268,13 +200,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         };
     };
 
-    /**
-     * Clean up all rate limit entries for a specific socket
-     * Call this when a socket disconnects to prevent memory leaks
-     * Uses reverse index for O(1) lookup instead of O(n) iteration
-     */
     const cleanupSocket = (socketId: string): void => {
-        // Use reverse index for O(1) cleanup instead of O(n) iteration
         const keys = socketKeyIndex.get(socketId);
         if (keys && keys.size > 0) {
             for (const key of keys) {
@@ -283,13 +209,8 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             logger.debug(`Cleaned up ${keys.size} rate limit entries for socket ${socketId}`);
             socketKeyIndex.delete(socketId);
         }
-        // Note: IP-based entries are not cleaned up per-socket as they aggregate across sockets
     };
 
-    /**
-     * Perform LRU eviction when entry count exceeds threshold
-     * Removes the oldest entries (by last activity) to prevent unbounded memory growth
-     */
     const performLRUEviction = (): number => {
         const totalEntries = socketRequests.size + ipRequests.size;
         if (totalEntries <= MAX_TRACKED_ENTRIES) {
@@ -299,7 +220,6 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         const entriesToRemove = Math.ceil(totalEntries * LRU_EVICTION_PERCENTAGE);
         let removed = 0;
 
-        // Collect all entries with their last activity time
         const allEntries: LRUEntry[] = [];
 
         for (const [key, timestamps] of socketRequests.entries()) {
@@ -314,10 +234,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             allEntries.push({ key, map: 'ip', lastActivity });
         }
 
-        // Sort by last activity (oldest first)
         allEntries.sort((a, b) => a.lastActivity - b.lastActivity);
-
-        // Remove the oldest entries
         for (let i = 0; i < entriesToRemove && i < allEntries.length; i++) {
             const entry = allEntries[i] as LRUEntry;
             if (entry.map === 'socket') {
@@ -335,12 +252,6 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         return removed;
     };
 
-    /**
-     * Periodic cleanup of stale entries (call from a setInterval)
-     * Wrapped in try-catch to prevent cleanup failures from causing memory leaks
-     * Uses in-place filtering for performance
-     * Also performs LRU eviction if entry count exceeds threshold
-     */
     const cleanupStale = (): void => {
         try {
             const now = Date.now();
@@ -353,12 +264,10 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             let cleanedSocket = 0;
             let cleanedIP = 0;
 
-            // Clean socket-based entries using in-place filtering
             for (const [key, timestamps] of socketRequests.entries()) {
                 const newLength = filterTimestampsInPlace(timestamps, windowStart);
                 if (newLength === 0) {
                     socketRequests.delete(key);
-                    // Also clean up reverse index entry
                     const socketId = key.split(':')[0];
                     if (socketId) {
                         const indexSet = socketKeyIndex.get(socketId);
@@ -373,7 +282,6 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 }
             }
 
-            // Clean IP-based entries using in-place filtering
             for (const [key, timestamps] of ipRequests.entries()) {
                 const newLength = filterTimestampsInPlace(timestamps, windowStart);
                 if (newLength === 0) {
@@ -386,20 +294,16 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 logger.debug(`Cleaned up ${cleanedSocket} socket and ${cleanedIP} IP rate limit entries`);
             }
 
-            // Perform LRU eviction if we still have too many entries
             performLRUEviction();
 
-            // HARDENING FIX: Clean up metrics sets to prevent unbounded growth
-            // Only clean up every 5 minutes and when sets are approaching capacity
+            // Clean up metrics sets periodically to prevent unbounded growth
             const timeSinceLastMetricsCleanup = now - lastMetricsCleanup;
-            const metricsCleanupInterval = 5 * 60 * 1000; // 5 minutes
+            const metricsCleanupInterval = 5 * 60 * 1000;
 
             if (timeSinceLastMetricsCleanup >= metricsCleanupInterval) {
                 let metricsCleanedUp = false;
 
-                // Clear uniqueSockets if approaching threshold or if we can verify disconnected sockets
                 if (uniqueSockets.size >= METRICS_CLEANUP_THRESHOLD) {
-                    // Keep only sockets that still have active rate limit entries
                     const activeSockets = new Set<string>();
                     for (const socketId of socketKeyIndex.keys()) {
                         if (uniqueSockets.has(socketId)) {
@@ -415,12 +319,9 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                     metricsCleanedUp = true;
                 }
 
-                // Clear uniqueIPs if approaching threshold
                 if (uniqueIPs.size >= METRICS_CLEANUP_THRESHOLD) {
-                    // Keep only IPs that still have active rate limit entries
                     const activeIPs = new Set<string>();
                     for (const key of ipRequests.keys()) {
-                        // Key format is "ip:${clientIP}:${eventName}"
                         const parts = key.split(':');
                         if (parts.length >= 2) {
                             const ip = parts[1];
@@ -447,25 +348,16 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         }
     };
 
-    /**
-     * Get total number of tracked entries across all maps
-     */
     const getSize = (): number => socketRequests.size + ipRequests.size;
 
-    /**
-     * Get detailed metrics for monitoring
-     */
     const getMetrics = (): RateLimiterMetrics => {
         const uptimeMs = Date.now() - startTime;
         const uptimeMinutes = uptimeMs / 60000;
-
-        // Top requested events (sorted desc)
         const topRequestedEvents: EventStats[] = [...eventRequests.entries()]
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
             .map(([event, count]) => ({ event, count }));
 
-        // Top blocked events (sorted desc)
         const topBlockedEvents: EventStats[] = [...eventBlocked.entries()]
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
@@ -487,9 +379,6 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         };
     };
 
-    /**
-     * Reset all metrics counters
-     */
     const resetMetrics = (): void => {
         totalRequests = 0;
         blockedRequests = 0;
@@ -511,46 +400,14 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
     };
 }
 
-// HTTP rate limit metrics tracking
-let httpTotalRequests = 0;
-let httpBlockedRequests = 0;
-const httpUniqueIPs = new Set<string>();
-const httpBlockedIPs = new Set<string>();
-const httpStartTime = Date.now();
-
-function getHttpRateLimitMetrics(): HttpRateLimitMetrics {
-    const uptimeMs = Date.now() - httpStartTime;
-    const uptimeMinutes = uptimeMs / 60000;
-    return {
-        totalRequests: httpTotalRequests,
-        blockedRequests: httpBlockedRequests,
-        blockRate: httpTotalRequests > 0 ? `${((httpBlockedRequests / httpTotalRequests) * 100).toFixed(1)}%` : '0%',
-        uniqueIPs: httpUniqueIPs.size,
-        blockedIPs: httpBlockedIPs.size,
-        requestsPerMinute: uptimeMinutes > 0 ? Math.round(httpTotalRequests / uptimeMinutes) : 0,
-        uptimeMinutes: Math.round(uptimeMinutes * 10) / 10
-    };
-}
-
-function resetHttpRateLimitMetrics(): void {
-    httpTotalRequests = 0;
-    httpBlockedRequests = 0;
-    httpUniqueIPs.clear();
-    httpBlockedIPs.clear();
-}
-
 module.exports = {
     apiLimiter,
     strictLimiter,
-    createSocketRateLimiter,
-    getHttpRateLimitMetrics,
-    resetHttpRateLimitMetrics
+    createSocketRateLimiter
 };
 
 export {
     apiLimiter,
     strictLimiter,
-    createSocketRateLimiter,
-    getHttpRateLimitMetrics,
-    resetHttpRateLimitMetrics
+    createSocketRateLimiter
 };

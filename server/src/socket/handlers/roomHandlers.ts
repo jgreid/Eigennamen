@@ -11,6 +11,7 @@
 import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
 import type { GameSocket, RoomContext } from './types';
+import type { RoomStats } from '../../services/playerService';
 
 const roomService = require('../../services/roomService');
 const gameService = require('../../services/gameService');
@@ -22,8 +23,7 @@ const { createRoomHandler, createHostHandler, createPreRoomHandler } = require('
 const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
-// PHASE 5.1: Import metrics tracking for reconnections
-const { trackReconnection } = require('../../utils/metrics');
+const { incrementCounter, METRIC_NAMES } = require('../../utils/metrics');
 const { getSocketRateLimiter } = require('../rateLimitHandler');
 const { safeEmitToRoom } = require('../safeEmit');
 
@@ -49,18 +49,6 @@ interface RoomJoinInput {
 interface RoomReconnectInput {
     code: string;
     reconnectionToken: string;
-}
-
-/**
- * Room stats from playerService
- */
-interface RoomStats {
-    totalPlayers: number;
-    spectatorCount: number;
-    teams: {
-        red: { total: number; spymaster: string | null; clicker: string | null };
-        blue: { total: number; spymaster: string | null; clicker: string | null };
-    };
 }
 
 /**
@@ -500,7 +488,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             });
 
             // PHASE 5.1: Track successful reconnection
-            trackReconnection(code, true);
+            incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode: code, success: 'true' });
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);
         }

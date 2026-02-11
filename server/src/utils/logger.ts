@@ -1,8 +1,7 @@
 /**
  * Logging Utility (Winston)
  *
- * Provides structured logging with automatic correlation ID injection.
- * Supports both legacy string logging and structured field logging.
+ * Structured logging with automatic correlation ID injection.
  */
 
 const winston = require('winston');
@@ -11,9 +10,6 @@ const path = require('path');
 
 import type { Logger as WinstonLogger } from 'winston';
 
-/**
- * Context fields interface
- */
 interface ContextFields {
     correlationId?: string;
     sessionId?: string;
@@ -21,25 +17,16 @@ interface ContextFields {
     instanceId?: string;
 }
 
-/**
- * Log metadata interface
- */
 interface LogMeta extends ContextFields {
     [key: string]: unknown;
 }
 
-/**
- * Error metadata interface
- */
 interface ErrorMeta {
     message: string;
     code?: string;
     stack?: string;
 }
 
-/**
- * Child logger interface
- */
 interface ChildLogger {
     error(msg: string, meta?: LogMeta): void;
     warn(msg: string, meta?: LogMeta): void;
@@ -48,9 +35,6 @@ interface ChildLogger {
     debug(msg: string, meta?: LogMeta): void;
 }
 
-/**
- * Logger interface
- */
 interface Logger extends ChildLogger {
     _buildMeta(metaOrError: LogMeta | Error): LogMeta;
     child(defaultMeta: LogMeta): ChildLogger;
@@ -72,9 +56,6 @@ function loadCorrelationId(): () => ContextFields {
     return getContextFields as () => ContextFields;
 }
 
-/**
- * Log levels
- */
 const levels: Record<string, number> = {
     error: 0,
     warn: 1,
@@ -83,27 +64,16 @@ const levels: Record<string, number> = {
     debug: 4
 };
 
-/**
- * Determine log level from environment
- * Priority: LOG_LEVEL env var > NODE_ENV-based default
- * Production defaults to 'warn' for reduced noise, development to 'debug'
- */
 const level = (): string => {
-    // Explicit LOG_LEVEL takes priority
     const explicitLevel = process.env.LOG_LEVEL;
     if (explicitLevel && levels[explicitLevel] !== undefined) {
         return explicitLevel;
     }
-
-    // Default based on NODE_ENV
     const env = process.env.NODE_ENV || 'development';
     switch (env) {
-        case 'production':
-            return 'warn';  // Only warnings and errors in production
-        case 'test':
-            return 'error'; // Minimal logging during tests
-        default:
-            return 'debug'; // Full logging in development
+        case 'production': return 'warn';
+        case 'test': return 'error';
+        default: return 'debug';
     }
 };
 
@@ -120,9 +90,6 @@ winston.addColors(colors);
 // Instance ID for multi-instance logging
 const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
 
-/**
- * Format for console output (human-readable)
- */
 const consoleFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
     winston.format.colorize({ all: true }),
@@ -156,17 +123,11 @@ const consoleFormat = winston.format.combine(
     })
 );
 
-/**
- * Format for JSON output (structured, machine-readable)
- */
 const jsonFormat = winston.format.combine(
     winston.format.timestamp(),
     winston.format.json()
 );
 
-/**
- * Choose format based on environment
- */
 const getFormat = (): ReturnType<typeof winston.format.combine> => {
     if (process.env.LOG_FORMAT === 'json' || process.env.NODE_ENV === 'production') {
         return jsonFormat;
@@ -180,16 +141,6 @@ const transports: InstanceType<typeof winston.transports.Console | typeof winsto
     })
 ];
 
-/**
- * Log rotation configuration
- */
-interface LogRotationConfig {
-    maxsize: number;
-    maxFiles: number;
-    tailable: boolean;
-    zippedArchive: boolean;
-}
-
 // Add file transports in production (if possible)
 if (process.env.NODE_ENV === 'production') {
     try {
@@ -199,13 +150,11 @@ if (process.env.NODE_ENV === 'production') {
             fs.mkdirSync(logsDir, { recursive: true });
         }
 
-        // Log rotation configuration to prevent disk fill
-        // maxsize: 10MB per file, maxFiles: 5 files kept (50MB total max)
-        const LOG_ROTATION_CONFIG: LogRotationConfig = {
+        const LOG_ROTATION_CONFIG = {
             maxsize: 10 * 1024 * 1024,  // 10MB per file
-            maxFiles: 5,                  // Keep 5 rotated files
-            tailable: true,               // Most recent logs always in main file
-            zippedArchive: false          // Don't compress (faster writes)
+            maxFiles: 5,
+            tailable: true,
+            zippedArchive: false
         };
 
         transports.push(
@@ -236,60 +185,23 @@ const winstonLogger: WinstonLogger = winston.createLogger({
     transports
 });
 
-/**
- * Enhanced logger wrapper with structured logging support
- */
 const logger: Logger = {
-    /**
-     * Log error message
-     * @param message - Log message
-     * @param metaOrError - Additional metadata or Error object
-     */
     error(message: string, metaOrError: LogMeta | Error = {}): void {
-        const meta = this._buildMeta(metaOrError);
-        winstonLogger.error(message, meta);
+        winstonLogger.error(message, this._buildMeta(metaOrError));
     },
-
-    /**
-     * Log warning message
-     * @param message - Log message
-     * @param meta - Additional metadata
-     */
     warn(message: string, meta: LogMeta = {}): void {
         winstonLogger.warn(message, this._buildMeta(meta));
     },
-
-    /**
-     * Log info message
-     * @param message - Log message
-     * @param meta - Additional metadata
-     */
     info(message: string, meta: LogMeta = {}): void {
         winstonLogger.info(message, this._buildMeta(meta));
     },
-
-    /**
-     * Log http message
-     * @param message - Log message
-     * @param meta - Additional metadata
-     */
     http(message: string, meta: LogMeta = {}): void {
         winstonLogger.http(message, this._buildMeta(meta));
     },
-
-    /**
-     * Log debug message
-     * @param message - Log message
-     * @param meta - Additional metadata
-     */
     debug(message: string, meta: LogMeta = {}): void {
         winstonLogger.debug(message, this._buildMeta(meta));
     },
 
-    /**
-     * Build metadata object with correlation context
-     * @private
-     */
     _buildMeta(metaOrError: LogMeta | Error): LogMeta {
         // Get correlation context
         const contextFields = loadCorrelationId()();
@@ -314,11 +226,6 @@ const logger: Logger = {
         };
     },
 
-    /**
-     * Create a child logger with additional default metadata
-     * @param defaultMeta - Default metadata for all log calls
-     * @returns Child logger
-     */
     child(defaultMeta: LogMeta): ChildLogger {
         const parent = this;
         return {
@@ -335,4 +242,4 @@ module.exports = logger;
 
 export default logger;
 
-export type { ContextFields, LogMeta, ErrorMeta, ChildLogger, Logger, LogRotationConfig };
+export type { ContextFields, LogMeta, ErrorMeta, ChildLogger, Logger };

@@ -4,16 +4,7 @@
 
 const {
     AUDIT_EVENTS,
-    audit,
-    auditHostTransferred,
-    auditSpymasterAssigned,
-    auditRoleChanged,
-    auditGameStarted,
-    auditGameEnded,
-    auditSessionHijackBlocked,
-    auditRateLimitExceeded,
-    auditPlayerKicked,
-    auditWordListModified
+    audit
 } = require('../utils/audit');
 
 // Mock the logger
@@ -104,9 +95,14 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditHostTransferred()', () => {
+    describe('audit HOST_TRANSFERRED', () => {
         test('logs host transfer with all details', () => {
-            const result = auditHostTransferred('ROOM03', 'from-session', 'to-session', 'manual', '127.0.0.1');
+            const result = audit(AUDIT_EVENTS.HOST_TRANSFERRED, {
+                roomCode: 'ROOM03',
+                sessionId: 'from-session',
+                ip: '127.0.0.1',
+                metadata: { fromSessionId: 'from-session', toSessionId: 'to-session', reason: 'manual' }
+            });
 
             expect(result.event).toBe('HOST_TRANSFERRED');
             expect(result.roomCode).toBe('ROOM03');
@@ -118,9 +114,15 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditSpymasterAssigned()', () => {
+    describe('audit SPYMASTER_ASSIGNED', () => {
         test('logs spymaster assignment', () => {
-            const result = auditSpymasterAssigned('ROOM04', 'session-5', 'PlayerName', 'red', '1.2.3.4');
+            const result = audit(AUDIT_EVENTS.SPYMASTER_ASSIGNED, {
+                roomCode: 'ROOM04',
+                sessionId: 'session-5',
+                nickname: 'PlayerName',
+                ip: '1.2.3.4',
+                metadata: { team: 'red' }
+            });
 
             expect(result.event).toBe('SPYMASTER_ASSIGNED');
             expect(result.roomCode).toBe('ROOM04');
@@ -131,9 +133,15 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditRoleChanged()', () => {
+    describe('audit ROLE_CHANGED', () => {
         test('logs role change', () => {
-            const result = auditRoleChanged('ROOM05', 'session-6', 'Player2', 'clicker', 'spymaster', '5.6.7.8');
+            const result = audit(AUDIT_EVENTS.ROLE_CHANGED, {
+                roomCode: 'ROOM05',
+                sessionId: 'session-6',
+                nickname: 'Player2',
+                ip: '5.6.7.8',
+                metadata: { oldRole: 'clicker', newRole: 'spymaster' }
+            });
 
             expect(result.event).toBe('ROLE_CHANGED');
             expect(result.roomCode).toBe('ROOM05');
@@ -145,9 +153,14 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditGameStarted()', () => {
+    describe('audit GAME_STARTED', () => {
         test('logs game start', () => {
-            const result = auditGameStarted('ROOM06', 'session-7', 6, '10.10.10.10');
+            const result = audit(AUDIT_EVENTS.GAME_STARTED, {
+                roomCode: 'ROOM06',
+                sessionId: 'session-7',
+                ip: '10.10.10.10',
+                metadata: { playerCount: 6 }
+            });
 
             expect(result.event).toBe('GAME_STARTED');
             expect(result.roomCode).toBe('ROOM06');
@@ -157,9 +170,14 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditGameEnded()', () => {
+    describe('audit GAME_ENDED', () => {
         test('logs game end with all parameters', () => {
-            const result = auditGameEnded('ROOM07', 'session-8', '11.11.11.11', 'blue', 'all_cards_found', 450);
+            const result = audit(AUDIT_EVENTS.GAME_ENDED, {
+                roomCode: 'ROOM07',
+                sessionId: 'session-8',
+                ip: '11.11.11.11',
+                metadata: { winner: 'blue', endReason: 'all_cards_found', duration: 450 }
+            });
 
             expect(result.event).toBe('GAME_ENDED');
             expect(result.roomCode).toBe('ROOM07');
@@ -171,7 +189,12 @@ describe('Audit Logging', () => {
         });
 
         test('logs game end with null optional fields', () => {
-            const result = auditGameEnded('ROOM08', null, null, 'red', 'forfeit', null);
+            const result = audit(AUDIT_EVENTS.GAME_ENDED, {
+                roomCode: 'ROOM08',
+                sessionId: null,
+                ip: null,
+                metadata: { winner: 'red', endReason: 'forfeit', duration: null }
+            });
 
             expect(result.event).toBe('GAME_ENDED');
             expect(result.sessionId).toBeNull();
@@ -180,9 +203,13 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditSessionHijackBlocked()', () => {
+    describe('audit SESSION_HIJACK_BLOCKED', () => {
         test('logs session hijack attempt', () => {
-            const result = auditSessionHijackBlocked('session-9', '192.168.1.1', '10.0.0.99');
+            const result = audit(AUDIT_EVENTS.SESSION_HIJACK_BLOCKED, {
+                sessionId: 'session-9',
+                ip: '10.0.0.99',
+                metadata: { originalIP: '192.168.1.1' }
+            });
 
             expect(result.event).toBe('SESSION_HIJACK_BLOCKED');
             expect(result.sessionId).toBe('session-9');
@@ -191,9 +218,13 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditRateLimitExceeded()', () => {
+    describe('audit RATE_LIMIT_EXCEEDED', () => {
         test('logs rate limit exceeded', () => {
-            const result = auditRateLimitExceeded('session-10', '8.8.8.8', 'room:create', 100);
+            const result = audit(AUDIT_EVENTS.RATE_LIMIT_EXCEEDED, {
+                sessionId: 'session-10',
+                ip: '8.8.8.8',
+                metadata: { event: 'room:create', attempts: 100 }
+            });
 
             expect(result.event).toBe('RATE_LIMIT_EXCEEDED');
             expect(result.sessionId).toBe('session-10');
@@ -203,9 +234,14 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditPlayerKicked()', () => {
+    describe('audit PLAYER_KICKED', () => {
         test('logs player kick', () => {
-            const result = auditPlayerKicked('ROOM09', 'kicked-session', 'host-session', 'disruptive behavior', '1.1.1.1');
+            const result = audit(AUDIT_EVENTS.PLAYER_KICKED, {
+                roomCode: 'ROOM09',
+                sessionId: 'host-session',
+                ip: '1.1.1.1',
+                metadata: { kickedSessionId: 'kicked-session', reason: 'disruptive behavior' }
+            });
 
             expect(result.event).toBe('PLAYER_KICKED');
             expect(result.roomCode).toBe('ROOM09');
@@ -216,9 +252,13 @@ describe('Audit Logging', () => {
         });
     });
 
-    describe('auditWordListModified()', () => {
+    describe('audit WORD_LIST events', () => {
         test('logs word list creation', () => {
-            const result = auditWordListModified('wordlist-123', 'create', 'session-11', '2.2.2.2');
+            const result = audit(AUDIT_EVENTS.WORD_LIST_CREATED, {
+                sessionId: 'session-11',
+                ip: '2.2.2.2',
+                metadata: { wordListId: 'wordlist-123', action: 'create' }
+            });
 
             expect(result.event).toBe('WORD_LIST_CREATED');
             expect(result.sessionId).toBe('session-11');
@@ -228,13 +268,21 @@ describe('Audit Logging', () => {
         });
 
         test('logs word list modification', () => {
-            const result = auditWordListModified('wordlist-456', 'update', 'session-12', '3.3.3.3');
+            const result = audit(AUDIT_EVENTS.WORD_LIST_MODIFIED, {
+                sessionId: 'session-12',
+                ip: '3.3.3.3',
+                metadata: { wordListId: 'wordlist-456', action: 'update' }
+            });
 
             expect(result.event).toBe('WORD_LIST_MODIFIED');
         });
 
         test('logs word list deletion', () => {
-            const result = auditWordListModified('wordlist-789', 'delete', 'session-13', '4.4.4.4');
+            const result = audit(AUDIT_EVENTS.WORD_LIST_DELETED, {
+                sessionId: 'session-13',
+                ip: '4.4.4.4',
+                metadata: { wordListId: 'wordlist-789', action: 'delete' }
+            });
 
             expect(result.event).toBe('WORD_LIST_DELETED');
         });

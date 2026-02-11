@@ -9,165 +9,9 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
-// Import types
 import type { Express, Request, Response } from 'express';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * OpenAPI schema object
- */
-interface OpenAPISchema {
-    type?: string;
-    properties?: Record<string, OpenAPISchema>;
-    items?: OpenAPISchema;
-    enum?: string[];
-    format?: string;
-    description?: string;
-    $ref?: string;
-    pattern?: string;
-    minLength?: number;
-    maxLength?: number;
-    minimum?: number;
-    maximum?: number;
-    minItems?: number;
-    default?: unknown;
-    required?: string[];
-}
-
-/**
- * OpenAPI response object
- */
-interface OpenAPIResponse {
-    description: string;
-    content?: {
-        'application/json': {
-            schema: OpenAPISchema;
-        };
-    };
-}
-
-/**
- * OpenAPI parameter object
- */
-interface OpenAPIParameter {
-    name: string;
-    in: 'path' | 'query' | 'header' | 'cookie';
-    required?: boolean;
-    schema: OpenAPISchema;
-    description?: string;
-}
-
-/**
- * OpenAPI request body object
- */
-interface OpenAPIRequestBody {
-    required?: boolean;
-    content: {
-        'application/json': {
-            schema: OpenAPISchema;
-        };
-    };
-}
-
-/**
- * OpenAPI operation object
- */
-interface OpenAPIOperation {
-    tags: string[];
-    summary: string;
-    description: string;
-    parameters?: OpenAPIParameter[];
-    requestBody?: OpenAPIRequestBody;
-    responses: Record<string, OpenAPIResponse>;
-    security?: Array<Record<string, string[]>>;
-}
-
-/**
- * OpenAPI path item object
- */
-interface OpenAPIPathItem {
-    get?: OpenAPIOperation;
-    post?: OpenAPIOperation;
-    put?: OpenAPIOperation;
-    delete?: OpenAPIOperation;
-    patch?: OpenAPIOperation;
-}
-
-/**
- * OpenAPI tag object
- */
-interface OpenAPITag {
-    name: string;
-    description: string;
-}
-
-/**
- * OpenAPI server object
- */
-interface OpenAPIServer {
-    url: string;
-    description: string;
-}
-
-/**
- * OpenAPI security scheme object
- */
-interface OpenAPISecurityScheme {
-    type: string;
-    scheme?: string;
-    bearerFormat?: string;
-    description?: string;
-}
-
-/**
- * OpenAPI components object
- */
-interface OpenAPIComponents {
-    schemas: Record<string, OpenAPISchema>;
-    securitySchemes: Record<string, OpenAPISecurityScheme>;
-}
-
-/**
- * OpenAPI info object
- */
-interface OpenAPIInfo {
-    title: string;
-    version: string;
-    description: string;
-    license: {
-        name: string;
-        url: string;
-    };
-}
-
-/**
- * OpenAPI definition object
- */
-interface OpenAPIDefinition {
-    openapi: string;
-    info: OpenAPIInfo;
-    servers: OpenAPIServer[];
-    tags: OpenAPITag[];
-    components: OpenAPIComponents;
-    paths: Record<string, OpenAPIPathItem>;
-}
-
-/**
- * Swagger JSDoc options
- */
-interface SwaggerOptions {
-    definition: OpenAPIDefinition;
-    apis: string[];
-}
-
-// ============================================================================
-// OpenAPI Definition
-// ============================================================================
-
-const options: SwaggerOptions = {
+const options = {
     definition: {
         openapi: '3.0.0',
         info: {
@@ -850,33 +694,19 @@ See the project README for WebSocket event documentation.
     apis: [] // We're defining everything in the definition above
 };
 
-// Generate swagger spec
 const swaggerSpec = swaggerJsdoc(options);
 
-// ============================================================================
-// Setup Function
-// ============================================================================
-
-/**
- * Setup Swagger UI middleware
- * @param app - Express application
- */
 export function setupSwagger(app: Express): void {
-    // Serve Swagger UI at /api-docs
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
         customCss: '.swagger-ui .topbar { display: none }',
         customSiteTitle: 'Codenames API Documentation'
     }));
 
-    // Serve raw OpenAPI spec at /api-docs.json
     app.get('/api-docs.json', (_req: Request, res: Response) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(swaggerSpec);
     });
 }
 
-// Export swagger spec for external use
 export { swaggerSpec };
-
-// CommonJS export for backward compatibility
 module.exports = { setupSwagger, swaggerSpec };

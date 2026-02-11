@@ -23,7 +23,7 @@ const {
     ValidationError,
     RoomError
 } = require('../../errors/GameError');
-const { auditGameStarted, auditGameEnded } = require('../../utils/audit');
+const { audit, AUDIT_EVENTS } = require('../../utils/audit');
 const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
 const { getSocketFunctions } = require('../socketFunctionProvider');
 const { safeEmitToRoom, safeEmitToPlayers } = require('../safeEmit');
@@ -150,7 +150,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             // Audit log game start
             const clientIp = socket.clientIP || socket.handshake.address;
-            auditGameStarted(ctx.roomCode, ctx.sessionId, players.length, clientIp);
+            audit(AUDIT_EVENTS.GAME_STARTED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: clientIp, metadata: { playerCount: players.length } });
 
             logger.info(`Game started in room ${ctx.roomCode}`);
         }
@@ -259,7 +259,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
                 // Audit log game end
                 const clientIpEnd = socket.clientIP || socket.handshake.address;
-                auditGameEnded(ctx.roomCode, ctx.sessionId, clientIpEnd, result.winner, result.endReason, null);
+                audit(AUDIT_EVENTS.GAME_ENDED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: clientIpEnd, metadata: { winner: result.winner, endReason: result.endReason } });
             }
 
             logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
@@ -390,7 +390,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
-            auditGameEnded(ctx.roomCode, ctx.sessionId, forfeitIp, result.winner, 'forfeit', null);
+            audit(AUDIT_EVENTS.GAME_ENDED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: forfeitIp, metadata: { winner: result.winner, endReason: 'forfeit' } });
 
             logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
         }

@@ -9,15 +9,15 @@
  * - Player state visibility
  */
 
+const { generateDuetBoard } = require('../services/game/boardGenerator');
 const {
-    generateDuetBoard,
     executeCardReveal,
     determineRevealOutcome,
     switchTurn,
     buildRevealResult,
     getGameStateForPlayer,
     validateRevealPreconditions
-} = require('../services/gameService');
+} = require('../services/game/revealEngine');
 
 const { DUET_BOARD_CONFIG } = require('../config/constants');
 

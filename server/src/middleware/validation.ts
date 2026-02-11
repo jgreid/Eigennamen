@@ -40,30 +40,12 @@ function validateInput<T>(schema: ZodSchema<T>, data: unknown): T {
 }
 
 /**
- * Express middleware for validating request body
- * ISSUE #40 FIX: Use next(error) to pass to centralized error handler
+ * Create Express validation middleware for a given request source
  */
-function validateBody<T>(schema: ZodSchema<T>): (req: Request, res: Response, next: NextFunction) => void {
+function validateSource<T>(source: 'body' | 'query' | 'params', schema: ZodSchema<T>): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, _res: Response, next: NextFunction): void => {
         try {
-            req.body = validateInput(schema, req.body);
-            next();
-        } catch (error) {
-            // Ensure error has proper structure for error handler
-            (error as ValidationError).statusCode = 400;
-            next(error);
-        }
-    };
-}
-
-/**
- * Express middleware for validating query params
- * ISSUE #40 FIX: Use next(error) to pass to centralized error handler
- */
-function validateQuery<T>(schema: ZodSchema<T>): (req: Request, res: Response, next: NextFunction) => void {
-    return (req: Request, _res: Response, next: NextFunction): void => {
-        try {
-            req.query = validateInput(schema, req.query) as typeof req.query;
+            (req as Record<string, unknown>)[source] = validateInput(schema, req[source]);
             next();
         } catch (error) {
             (error as ValidationError).statusCode = 400;
@@ -72,21 +54,9 @@ function validateQuery<T>(schema: ZodSchema<T>): (req: Request, res: Response, n
     };
 }
 
-/**
- * Express middleware for validating URL params
- * ISSUE #40 FIX: Use next(error) to pass to centralized error handler
- */
-function validateParams<T>(schema: ZodSchema<T>): (req: Request, res: Response, next: NextFunction) => void {
-    return (req: Request, _res: Response, next: NextFunction): void => {
-        try {
-            req.params = validateInput(schema, req.params) as typeof req.params;
-            next();
-        } catch (error) {
-            (error as ValidationError).statusCode = 400;
-            next(error);
-        }
-    };
-}
+const validateBody = <T>(schema: ZodSchema<T>) => validateSource('body', schema);
+const validateQuery = <T>(schema: ZodSchema<T>) => validateSource('query', schema);
+const validateParams = <T>(schema: ZodSchema<T>) => validateSource('params', schema);
 
 module.exports = {
     validateInput,
