@@ -13,11 +13,25 @@ const { z } = require('zod');
 
 import type { Team, CardType } from '../types';
 
-// Minimal Zod schema for GameHistoryEntry deserialization validation.
-// Only requires `id` to distinguish valid entries from garbage.
+// Zod schema for GameHistoryEntry deserialization validation.
+// Validates critical fields when present; non-essential fields are optional.
 const gameHistoryEntrySchema = z.object({
     id: z.string(),
-}).passthrough();
+    roomCode: z.string().optional(),
+    timestamp: z.number().optional(),
+    startedAt: z.number().optional(),
+    endedAt: z.number().optional(),
+    initialBoard: z.unknown().optional(),
+    finalState: z.unknown().optional(),
+    clues: z.array(z.unknown()).nullable().optional(),
+    history: z.array(z.unknown()).nullable().optional(),
+    winner: z.string().nullable().optional(),
+    endReason: z.string().optional(),
+    teamNames: z.unknown().optional(),
+    wordListId: z.string().nullable().optional(),
+    stateVersion: z.number().optional(),
+    gameMode: z.string().optional(),
+});
 
 /**
  * Initial board state for replay

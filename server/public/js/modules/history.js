@@ -63,7 +63,8 @@ export function renderGameHistory(games) {
         const info = document.createElement('div');
         info.className = 'history-item-info';
         const winnerDiv = document.createElement('div');
-        winnerDiv.className = `history-item-winner ${escapeHTML(game.winner)}`;
+        const winnerClass = game.winner === 'red' ? 'red' : 'blue';
+        winnerDiv.className = `history-item-winner ${winnerClass}`;
         winnerDiv.textContent = `${winnerName} Team Wins!`;
         info.appendChild(winnerDiv);
         const dateDiv = document.createElement('div');
@@ -158,7 +159,8 @@ export function renderReplayData(data) {
     const replayInfo = document.getElementById('replay-info');
     replayInfo.innerHTML = '';
     const winnerBadge = document.createElement('span');
-    winnerBadge.className = `winner-badge ${escapeHTML(data.finalState?.winner || '')}`;
+    const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
+    winnerBadge.className = `winner-badge ${replayWinnerClass}`;
     winnerBadge.textContent = `${data.teamNames?.[data.finalState?.winner] || data.finalState?.winner || 'Unknown'} Team Wins!`;
     replayInfo.appendChild(winnerBadge);
     const durationSpan = document.createElement('span');
@@ -264,7 +266,8 @@ export function renderReplayEventLog() {
         row.dataset.eventIndex = String(index);
 
         const teamSpan = document.createElement('span');
-        teamSpan.className = `event-team ${escapeHTML(team)}`;
+        const eventTeamClass = team === 'red' ? 'red' : (team === 'blue' ? 'blue' : '');
+        teamSpan.className = `event-team ${eventTeamClass}`;
         teamSpan.textContent = team.toUpperCase();
         row.appendChild(teamSpan);
 
@@ -297,61 +300,57 @@ export function updateReplayControls() {
     progressEl.textContent = `Move ${state.currentReplayIndex + 1} / ${events.length}`;
 }
 
+// Use event delegation on the replay controls to avoid listener accumulation.
+// Set up once; each render just updates button state via updateReplayControls().
+let replayControlsDelegated = false;
+
 export function setupReplayControls() {
-    const prevBtn = document.getElementById('replay-prev');
-    const nextBtn = document.getElementById('replay-next');
-    const playBtn = document.getElementById('replay-play');
+    if (replayControlsDelegated) return;
+    replayControlsDelegated = true;
+
+    const controls = document.querySelector('.replay-controls');
+    if (!controls) return;
+
+    controls.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        switch (target.id) {
+            case 'replay-prev':
+                if (state.currentReplayIndex >= 0) {
+                    state.currentReplayIndex--;
+                    applyReplayState();
+                    renderReplayEventLog();
+                    updateReplayControls();
+                    scrollToCurrentEvent();
+                }
+                break;
+            case 'replay-next': {
+                const events = state.currentReplayData?.events || [];
+                if (state.currentReplayIndex < events.length - 1) {
+                    state.currentReplayIndex++;
+                    applyReplayState();
+                    renderReplayEventLog();
+                    updateReplayControls();
+                    scrollToCurrentEvent();
+                }
+                break;
+            }
+            case 'replay-play':
+                toggleReplayPlayback();
+                break;
+            case 'replay-speed':
+                cycleReplaySpeed();
+                break;
+            case 'replay-share':
+                copyReplayLink();
+                break;
+        }
+    });
+
+    // Initialize speed button text
     const speedBtn = document.getElementById('replay-speed');
-    const shareBtn = document.getElementById('replay-share');
-
-    // Remove old listeners by cloning
-    const newPrevBtn = prevBtn.cloneNode(true);
-    const newNextBtn = nextBtn.cloneNode(true);
-    const newPlayBtn = playBtn.cloneNode(true);
-
-    prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
-    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
-    playBtn.parentNode.replaceChild(newPlayBtn, playBtn);
-
-    newPrevBtn.addEventListener('click', () => {
-        if (state.currentReplayIndex >= 0) {
-            state.currentReplayIndex--;
-            applyReplayState();
-            renderReplayEventLog();
-            updateReplayControls();
-            scrollToCurrentEvent();
-        }
-    });
-
-    newNextBtn.addEventListener('click', () => {
-        const events = state.currentReplayData?.events || [];
-        if (state.currentReplayIndex < events.length - 1) {
-            state.currentReplayIndex++;
-            applyReplayState();
-            renderReplayEventLog();
-            updateReplayControls();
-            scrollToCurrentEvent();
-        }
-    });
-
-    newPlayBtn.addEventListener('click', () => {
-        toggleReplayPlayback();
-    });
-
-    // PHASE 4: Speed control
-    if (speedBtn) {
-        const newSpeedBtn = speedBtn.cloneNode(true);
-        speedBtn.parentNode.replaceChild(newSpeedBtn, speedBtn);
-        newSpeedBtn.addEventListener('click', cycleReplaySpeed);
-        newSpeedBtn.textContent = currentReplaySpeed;
-    }
-
-    // PHASE 4: Share/export replay link
-    if (shareBtn) {
-        const newShareBtn = shareBtn.cloneNode(true);
-        shareBtn.parentNode.replaceChild(newShareBtn, shareBtn);
-        newShareBtn.addEventListener('click', copyReplayLink);
-    }
+    if (speedBtn) speedBtn.textContent = currentReplaySpeed;
 }
 
 export function toggleReplayPlayback() {

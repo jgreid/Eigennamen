@@ -15,16 +15,33 @@ const { ServerError, ValidationError } = require('../errors/GameError');
 const { tryParseJSON, parseJSON } = require('../utils/parseJSON');
 const { z } = require('zod');
 
-// Minimal Zod schemas for Redis deserialization validation.
-// All use .passthrough() to tolerate optional/extra fields and sparse test mocks.
-// Only require the minimum fields that distinguish valid data from garbage.
+// Zod schemas for Redis deserialization validation.
+// Validates critical fields when present; non-essential fields are optional
+// so tests with sparse mocks still pass. No .passthrough() — unknown keys are stripped.
 const playerSchema = z.object({
     sessionId: z.string(),
-}).passthrough();
+    roomCode: z.string().optional(),
+    nickname: z.string().optional(),
+    team: z.string().nullable().optional(),
+    role: z.string().optional(),
+    isHost: z.boolean().optional(),
+    connected: z.boolean().optional(),
+    lastSeen: z.number().optional(),
+    joinedAt: z.number().optional(),
+    createdAt: z.number().optional(),
+    connectedAt: z.number().optional(),
+    disconnectedAt: z.number().optional(),
+    lastIP: z.string().optional(),
+    userId: z.string().optional(),
+});
 
 const luaResultSchema = z.object({
     success: z.boolean(),
-}).passthrough();
+    error: z.string().optional(),
+    reason: z.string().optional(),
+    player: z.unknown().optional(),
+    existingNickname: z.string().optional(),
+});
 
 const cleanupEntrySchema = z.object({
     sessionId: z.string(),
@@ -34,11 +51,17 @@ const cleanupEntrySchema = z.object({
 const reconnectionTokenSchema = z.object({
     sessionId: z.string(),
     roomCode: z.string(),
-}).passthrough();
+    nickname: z.string().optional(),
+    team: z.string().nullable().optional(),
+    role: z.string().optional(),
+});
 
 const hostTransferResultSchema = z.object({
     success: z.boolean(),
-}).passthrough();
+    error: z.string().optional(),
+    newHostSessionId: z.string().optional(),
+    newHostNickname: z.string().optional(),
+});
 
 /**
  * Player update data
@@ -871,10 +894,14 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
         return newToken
     `;
 
-    const result = await redis.eval(luaScript, {
-        keys: [sessionKey, tokenKey],
-        arguments: [token, JSON.stringify(tokenData), String(ttl)]
-    });
+    const result = await withTimeout(
+        redis.eval(luaScript, {
+            keys: [sessionKey, tokenKey],
+            arguments: [token, JSON.stringify(tokenData), String(ttl)]
+        }),
+        TIMEOUTS.REDIS_OPERATION,
+        `reconnection-token-${sessionId}`
+    );
 
     const returnedToken = result as string;
     if (returnedToken !== token) {

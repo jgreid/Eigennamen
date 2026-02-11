@@ -89,11 +89,22 @@ function handleKeyboardShortcut(e) {
 // ========== SHORTCUT HELP OVERLAY ==========
 
 let overlayElement = null;
+let overlayEscListener = null;
 
-function toggleShortcutOverlay() {
+function closeOverlay() {
     if (overlayElement) {
         overlayElement.remove();
         overlayElement = null;
+    }
+    if (overlayEscListener) {
+        document.removeEventListener('keydown', overlayEscListener);
+        overlayEscListener = null;
+    }
+}
+
+function toggleShortcutOverlay() {
+    if (overlayElement) {
+        closeOverlay();
         return;
     }
 
@@ -153,18 +164,16 @@ function toggleShortcutOverlay() {
 
     overlayElement.addEventListener('click', (e) => {
         if (e.target === overlayElement) {
-            overlayElement.remove();
-            overlayElement = null;
+            closeOverlay();
         }
     });
 
-    document.addEventListener('keydown', function closeOnEsc(e) {
-        if (e.key === 'Escape' && overlayElement) {
-            overlayElement.remove();
-            overlayElement = null;
-            document.removeEventListener('keydown', closeOnEsc);
+    overlayEscListener = function(e) {
+        if (e.key === 'Escape') {
+            closeOverlay();
         }
-    });
+    };
+    document.addEventListener('keydown', overlayEscListener);
 
     document.body.appendChild(overlayElement);
 }

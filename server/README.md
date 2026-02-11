@@ -230,9 +230,9 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all backend tests (2,980+)
+npm test              # Run all backend tests (2,308+)
 npm run test:coverage # Run tests with coverage report
-npm run test:frontend # Run frontend unit tests (300+)
+npm run test:frontend # Run frontend unit tests (303)
 ```
 
 ## Configuration

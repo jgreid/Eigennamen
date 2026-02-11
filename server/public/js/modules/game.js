@@ -53,7 +53,11 @@ export function initGameWithWords(seed, boardWords) {
 
 // Initialize game with a word list (selects random words for the board)
 export function initGame(seed, wordList) {
-    const words = wordList || state.activeWords;
+    // Use localized words when available and word source includes defaults
+    let words = wordList || state.activeWords;
+    if (!wordList && state.localizedDefaultWords && (state.wordSource === 'default' || state.wordSource === 'combined')) {
+        words = [...new Set([...state.localizedDefaultWords, ...state.activeWords])];
+    }
 
     if (words.length < BOARD_SIZE) {
         showToast(`Not enough words! You need at least ${BOARD_SIZE} words to play. Please add more words in Settings.`, 'error');

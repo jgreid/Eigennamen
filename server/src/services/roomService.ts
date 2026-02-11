@@ -38,11 +38,18 @@ const { tryParseJSON } = require('../utils/parseJSON');
 const { z } = require('zod');
 
 // Zod schema for Room data from Redis.
-// Validates minimum structural integrity (must be an object with a code string).
-// Uses passthrough() to preserve all fields — the Room type is enforced at call sites.
+// Validates critical fields when present; non-essential fields are optional
+// so tests with sparse mocks still pass.
 const roomSchema = z.object({
-    code: z.string()
-}).passthrough();
+    code: z.string(),
+    id: z.string().optional(),
+    roomId: z.string().optional(),
+    hostSessionId: z.string().optional(),
+    status: z.string().optional(),
+    settings: z.unknown().optional(),
+    createdAt: z.number().optional(),
+    expiresAt: z.number().optional(),
+});
 
 /**
  * Redis client type (simplified for migration)
@@ -331,8 +338,15 @@ export async function joinRoom(
     const game = await gameService.getGame(normalizedRoomId);
     const gameState: PlayerGameState | null = game ? gameService.getGameStateForPlayer(game, player) : null;
 
-    // Refresh all room-related TTLs
-    await refreshRoomTTL(normalizedRoomId);
+    // Refresh all room-related TTLs (non-critical — don't fail join if TTL refresh fails)
+    try {
+        await refreshRoomTTL(normalizedRoomId);
+    } catch (ttlError) {
+        logger.warn('Failed to refresh room TTL during join', {
+            roomId: normalizedRoomId,
+            error: (ttlError as Error).message
+        });
+    }
 
     // Ensure player is not null at this point
     if (!player) {
