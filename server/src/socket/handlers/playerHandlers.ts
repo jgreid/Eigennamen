@@ -70,36 +70,54 @@ interface ChangePermission {
 }
 
 /**
+ * Per-player mutex to prevent concurrent room membership updates.
+ * Without this, concurrent setTeam + setRole can both call syncSpectatorRoomMembership
+ * and produce inconsistent socket room state (e.g., player in both room:X and spectators:X).
+ */
+const roomSyncLocks = new Map<string, Promise<void>>();
+
+/**
  * Bug #14 Fix: Helper to sync spectator room membership based on CURRENT player state.
- * This prevents race conditions where concurrent setTeam/setRole operations could
- * result in inconsistent socket room membership (e.g., spymaster incorrectly in spectators room).
- *
- * The issue: Each handler uses the result from its own Lua script to decide room membership,
- * but that result can be stale if another operation completed after the Lua script ran.
- *
- * The fix: Always re-fetch current player state before updating socket rooms.
+ * Uses a per-player mutex to serialize room membership updates, preventing the race
+ * where concurrent setTeam/setRole operations leave a player in multiple socket rooms.
  */
 async function syncSpectatorRoomMembership(
     socket: GameSocket,
     roomCode: string,
     sessionId: string
 ): Promise<void> {
-    // Re-fetch current player state to ensure we have the latest team/role
-    const currentPlayer: Player | null = await playerService.getPlayer(sessionId);
-    if (!currentPlayer) return;
+    // Serialize room membership updates per player to prevent race conditions
+    const lockKey = `${sessionId}:${roomCode}`;
+    const existingLock = roomSyncLocks.get(lockKey) || Promise.resolve();
 
-    const spectatorRoom = `spectators:${roomCode}`;
+    const newLock = existingLock.then(async () => {
+        // Re-fetch current player state to ensure we have the latest team/role
+        const currentPlayer: Player | null = await playerService.getPlayer(sessionId);
+        if (!currentPlayer) return;
 
-    // Player should be in spectators room if:
-    // - They have no team, OR
-    // - Their role is 'spectator'
-    const shouldBeInSpectatorRoom = !currentPlayer.team || currentPlayer.role === 'spectator';
+        const spectatorRoom = `spectators:${roomCode}`;
 
-    if (shouldBeInSpectatorRoom) {
-        socket.join(spectatorRoom);
-    } else {
-        socket.leave(spectatorRoom);
-    }
+        // Player should be in spectators room if:
+        // - They have no team, OR
+        // - Their role is 'spectator'
+        const shouldBeInSpectatorRoom = !currentPlayer.team || currentPlayer.role === 'spectator';
+
+        if (shouldBeInSpectatorRoom) {
+            socket.join(spectatorRoom);
+        } else {
+            socket.leave(spectatorRoom);
+        }
+    }).catch((err) => {
+        logger.warn(`syncSpectatorRoomMembership failed for ${sessionId}:`, (err as Error).message);
+    }).finally(() => {
+        // Clean up lock after completion
+        if (roomSyncLocks.get(lockKey) === newLock) {
+            roomSyncLocks.delete(lockKey);
+        }
+    });
+
+    roomSyncLocks.set(lockKey, newLock);
+    await newLock;
 }
 
 function playerHandlers(io: Server, socket: GameSocket): void {
@@ -319,6 +337,12 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             const requester: Player | null = await playerService.getPlayer(validated.requesterId);
             if (!requester || requester.roomCode !== ctx.roomCode) {
                 throw new PlayerError('Requester not found in room', ERROR_CODES.PLAYER_NOT_FOUND);
+            }
+
+            // Verify the requester is actually a spectator to prevent team players
+            // from exploiting the spectator join flow
+            if (requester.team && requester.role !== 'spectator') {
+                throw PlayerError.notAuthorized('Requester is not a spectator');
             }
 
             if (validated.approved) {

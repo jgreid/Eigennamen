@@ -76,7 +76,7 @@ const {
     getGameStateForPlayer
 } = require('./game/revealEngine');
 
-import type { RedisClient, ExecuteLuaScript } from './game/luaGameOps';
+import type { RedisClient } from './game/luaGameOps';
 
 const {
     OPTIMIZED_REVEAL_SCRIPT,
@@ -86,14 +86,10 @@ const {
     MAX_HISTORY_ENTRIES,
     MAX_CLUES,
     safeParseGameData,
-    isDuetMode,
     incrementVersion,
-    executeLuaScript: _executeLuaScript,
     withLuaFallback,
     executeGameTransaction
 } = require('./game/luaGameOps');
-
-const executeLuaScript: ExecuteLuaScript = _executeLuaScript;
 
 // Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
@@ -132,12 +128,25 @@ export async function createGame(
     const lockAcquired = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE });
 
     if (!lockAcquired) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
-        const existingGame = await getGame(roomCode);
-        if (existingGame && !existingGame.gameOver) {
-            throw RoomError.gameInProgress(roomCode);
+        // Exponential backoff retry: wait, then check if the other creator finished
+        const maxRetries = 3;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            const delayMs = RETRY_CONFIG.RACE_CONDITION.delayMs * Math.pow(2, attempt);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            const existingGame = await getGame(roomCode);
+            if (existingGame && !existingGame.gameOver) {
+                throw RoomError.gameInProgress(roomCode);
+            }
+            // Lock may have been released, try to acquire again
+            const retryLock = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE });
+            if (retryLock) {
+                // Acquired on retry — fall through to game creation below
+                break;
+            }
+            if (attempt === maxRetries - 1) {
+                throw RoomError.gameInProgress(roomCode);
+            }
         }
-        throw new Error('Game creation in progress by another player, please try again');
     }
 
     try {
@@ -310,7 +319,8 @@ export async function revealCard(
             ],
             errorMap,
             () => revealCardFallback(roomCode, gameKey, index, playerNickname),
-            `revealCard-${roomCode}`
+            `revealCard-${roomCode}`,
+            false  // Lua script now handles Duet mode natively
         );
     } finally {
         await withTimeout(

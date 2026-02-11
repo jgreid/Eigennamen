@@ -28,7 +28,7 @@ function buildCardAriaLabel(word: string, isRevealed: boolean, type: string, row
 // Re-fit card text on resize (debounced)
 let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer!);
+    if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         const board = document.getElementById('board');
         if (board && board.children.length > 0) {

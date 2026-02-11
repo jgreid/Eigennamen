@@ -23,9 +23,9 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
     const mpExtraRow = document.getElementById('mp-extra-buttons-row');
 
     if (room) {
-        codeEl!.textContent = room.code;
-        countEl!.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
-        indicator!.classList.add('active');
+        if (codeEl) codeEl.textContent = room.code;
+        if (countEl) countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
+        if (indicator) indicator.classList.add('active');
 
         // Show multiplayer-only buttons row (history + forfeit)
         if (mpExtraRow) {
@@ -40,7 +40,7 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         // Update share panel for multiplayer mode
         updateSharePanelMode(true, room.code);
     } else {
-        indicator!.classList.remove('active');
+        if (indicator) indicator.classList.remove('active');
         if (playerListEl) playerListEl.style.display = 'none';
         // Hide multiplayer-only buttons when not in multiplayer mode
         if (mpExtraRow) {

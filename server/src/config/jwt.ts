@@ -50,43 +50,37 @@ export const JWT_CONFIG = {
 // Minimum secret length for production
 export const MIN_SECRET_LENGTH = 32;
 
-// Development-only fallback secret (never use in production)
-const DEV_SECRET = 'development-secret-do-not-use-in-production';
-
 /**
- * Get JWT secret with validation
+ * Get JWT secret with validation.
+ *
+ * SECURITY: Never returns a hardcoded fallback secret. If JWT_SECRET is not
+ * explicitly configured, JWT authentication is disabled (returns null).
+ *
  * @returns JWT secret or null if not configured
- * @throws In production if secret is missing or too short
+ * @throws In production if secret is configured but too short
  */
 function getJwtSecret(): string | null {
     const secret = process.env.JWT_SECRET;
     const isProduction = process.env.NODE_ENV === 'production';
 
-    if (isProduction) {
-        if (!secret) {
+    if (!secret) {
+        if (isProduction) {
             logger.warn('JWT_SECRET not configured in production - JWT authentication disabled');
-            return null;
+        } else {
+            logger.debug('JWT_SECRET not set - JWT authentication disabled in development');
         }
-        if (secret.length < MIN_SECRET_LENGTH) {
-            throw new Error(`JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters in production`);
-        }
-        if (secret === DEV_SECRET) {
-            throw new Error('JWT_SECRET must not be the development fallback secret in production');
-        }
-        return secret;
+        return null;
     }
 
-    // In development, use provided secret or fallback
-    if (secret) {
-        if (secret.length < MIN_SECRET_LENGTH) {
-            logger.warn(`JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters - this is insecure`);
-        }
-        return secret;
+    if (isProduction && secret.length < MIN_SECRET_LENGTH) {
+        throw new Error(`JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters in production`);
     }
 
-    // Development fallback
-    logger.debug('Using development JWT secret - do not use in production');
-    return DEV_SECRET;
+    if (!isProduction && secret.length < MIN_SECRET_LENGTH) {
+        logger.warn(`JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters - this is insecure`);
+    }
+
+    return secret;
 }
 
 /**

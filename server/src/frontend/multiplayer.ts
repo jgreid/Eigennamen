@@ -98,12 +98,14 @@ export function setMpMode(mode: string): void {
     });
 
     // Show correct form
-    document.getElementById('join-form')!.classList.toggle('active', mode === 'join');
-    document.getElementById('create-form')!.classList.toggle('active', mode === 'create');
+    const joinForm = document.getElementById('join-form');
+    const createForm = document.getElementById('create-form');
+    if (joinForm) joinForm.classList.toggle('active', mode === 'join');
+    if (createForm) createForm.classList.toggle('active', mode === 'create');
 
     // Update action button text
-    const actionBtn = document.getElementById('btn-mp-action')!;
-    actionBtn.textContent = mode === 'join' ? 'Join Game' : 'Create Game';
+    const actionBtn = document.getElementById('btn-mp-action');
+    if (actionBtn) actionBtn.textContent = mode === 'join' ? 'Join Game' : 'Create Game';
 }
 
 export function setMpStatus(message: string, type: string): void {
@@ -372,7 +374,13 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
 
 // ========== MODAL INITIALIZATION ==========
 
+// Guard: prevent duplicate registration of multiplayer modal listeners
+let mpModalInitialized = false;
+
 export function initMultiplayerModal(): void {
+    if (mpModalInitialized) return;
+    mpModalInitialized = true;
+
     // Mode toggle buttons
     document.querySelectorAll('.mode-btn').forEach((btn) => {
         const el = btn as HTMLElement;
@@ -380,7 +388,8 @@ export function initMultiplayerModal(): void {
     });
 
     // Action button
-    document.getElementById('btn-mp-action')!.addEventListener('click', handleMpAction);
+    const actionBtn = document.getElementById('btn-mp-action');
+    if (actionBtn) actionBtn.addEventListener('click', handleMpAction);
 
     // Enter key submits
     ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach(id => {

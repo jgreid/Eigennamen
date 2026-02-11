@@ -1,5 +1,5 @@
 local playerKey = KEYS[1]
-local teamSetKey = KEYS[2]
+-- KEYS[2] is reserved (previously teamSetKey passed from JS; now derived atomically below)
 local roomCode = KEYS[3]
 local newTeam = ARGV[1]
 local sessionId = ARGV[2]
@@ -32,9 +32,12 @@ if newTeam ~= '__NULL__' then
 end
 
 -- If we need to check for empty team (during active game with team change)
+-- FIX: Derive team set key from the atomically-read oldTeam instead of using the
+-- pre-passed KEYS[2] from JS, which could be stale due to a concurrent team switch.
 if checkEmpty and oldTeam and oldTeam ~= cjson.null and oldTeam ~= actualNewTeam then
-    -- Get all session IDs on the old team
-    local teamMembers = redis.call('SMEMBERS', teamSetKey)
+    -- Get all session IDs on the old team (key derived atomically from player data)
+    local atomicTeamSetKey = 'room:' .. roomCode .. ':team:' .. oldTeam
+    local teamMembers = redis.call('SMEMBERS', atomicTeamSetKey)
     local otherConnectedCount = 0
 
     for _, memberId in ipairs(teamMembers) do

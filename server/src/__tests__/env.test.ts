@@ -60,7 +60,8 @@ describe('Environment Configuration', () => {
 
             expect(process.env.NODE_ENV).toBe('development');
             expect(process.env.PORT).toBe('3000');
-            expect(process.env.CORS_ORIGIN).toBe('*');
+            // CORS_ORIGIN defaults to null (must be explicitly configured)
+            expect(process.env.CORS_ORIGIN).toBeUndefined();
             expect(process.env.LOG_LEVEL).toBe('info');
         });
 

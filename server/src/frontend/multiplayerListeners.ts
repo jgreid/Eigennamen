@@ -285,19 +285,31 @@ export function setupMultiplayerListeners(): void {
                 }
 
                 if (updatedPlayer) {
-                    syncLocalPlayerState(updatedPlayer);
+                    // Determine if this update confirms the in-flight role change operation.
+                    // During a role change, skip syncLocalPlayerState for unrelated updates
+                    // to avoid overwriting optimistic UI state (race condition fix).
+                    const rc = state.roleChange;
+                    const isConfirmingUpdate = rc.phase !== 'idle' && (
+                        (rc.phase === 'changing_team' && data.changes.team !== undefined) ||
+                        (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
+                        (rc.phase === 'team_then_role' && data.changes.team !== undefined)
+                    );
+
+                    if (rc.phase === 'idle' || isConfirmingUpdate) {
+                        syncLocalPlayerState(updatedPlayer);
+                    }
 
                     // Check for pending role change after team change completed
-                    if (state.roleChange.phase === 'team_then_role' && data.changes.team) {
+                    if (rc.phase === 'team_then_role' && data.changes.team) {
                         // Team change completed, now send the queued role change
-                        const roleToSet = state.roleChange.pendingRole;
-                        const currentOpId = state.roleChange.operationId;
+                        const roleToSet = rc.pendingRole;
+                        const currentOpId = rc.operationId;
 
                         // Narrow revert: team change succeeded, only revert role on failure
                         const confirmedTeam = updatedPlayer.team;
                         state.roleChange = {
                             phase: 'changing_role',
-                            target: state.roleChange.target,
+                            target: rc.target,
                             operationId: currentOpId,
                             revertFn: () => {
                                 state.playerTeam = confirmedTeam;
@@ -310,9 +322,11 @@ export function setupMultiplayerListeners(): void {
                         };
 
                         CodenamesClient.setRole(roleToSet);
-                    } else {
+                    } else if (isConfirmingUpdate || rc.phase === 'idle') {
                         clearRoleChange();
                     }
+                    // If role change in progress but not confirmed by this update,
+                    // leave state machine alone — ack callback handles success/failure
 
                     updateControls();
                     updateRoleBanner();

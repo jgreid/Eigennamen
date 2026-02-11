@@ -77,6 +77,7 @@ describe('Socket Authentication Middleware', () => {
         mockRedis = {
             incr: jest.fn(),
             expire: jest.fn(),
+            eval: jest.fn(),
             set: jest.fn(),
             get: jest.fn(),
             del: jest.fn()
@@ -175,7 +176,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: '192.168.1.1'
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(validPlayer);
 
@@ -192,7 +193,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: '192.168.1.1'
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(expiredPlayer);
 
@@ -209,7 +210,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: '192.168.1.1'
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(player);
 
@@ -227,7 +228,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: null
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(player);
 
@@ -244,7 +245,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: '192.168.1.1'
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(player);
 
@@ -263,7 +264,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: '192.168.1.1'
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(player);
 
@@ -281,7 +282,7 @@ describe('Socket Authentication Middleware', () => {
 
     describe('validateSession', () => {
         test('returns rate limited when exceeded', async () => {
-            mockRedis.incr.mockResolvedValue(100);
+            mockRedis.eval.mockResolvedValue(100);
 
             const result = await validateSession('test-session', '192.168.1.1');
 
@@ -290,7 +291,7 @@ describe('Socket Authentication Middleware', () => {
         });
 
         test('returns session not found when player does not exist', async () => {
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(null);
 
@@ -307,7 +308,7 @@ describe('Socket Authentication Middleware', () => {
                 lastIP: '192.168.1.1'
             };
 
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             playerService.getPlayer.mockResolvedValue(player);
 
@@ -410,7 +411,7 @@ describe('Socket Authentication Middleware', () => {
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
             playerService.validateSocketAuthToken.mockResolvedValue(true);
             playerService.setSocketMapping.mockResolvedValue(true);
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
 
@@ -441,7 +442,7 @@ describe('Socket Authentication Middleware', () => {
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
             playerService.validateSocketAuthToken.mockResolvedValue(false);
             playerService.setSocketMapping.mockResolvedValue(true);
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
 
@@ -472,7 +473,7 @@ describe('Socket Authentication Middleware', () => {
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
             playerService.validateSocketAuthToken.mockResolvedValue(true);
             playerService.setSocketMapping.mockResolvedValue(true);
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
 
@@ -583,7 +584,7 @@ describe('Socket Authentication Middleware', () => {
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
             playerService.setSocketMapping.mockResolvedValue(true);
-            mockRedis.incr.mockResolvedValue(1);
+            mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
 
