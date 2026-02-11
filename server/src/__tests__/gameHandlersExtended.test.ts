@@ -566,7 +566,7 @@ describe('Extended Game Handlers Tests', () => {
             await forfeitHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: 'ROOM_NOT_FOUND',
+                code: 'GAME_NOT_STARTED',
                 message: 'No active game'
             }));
             expect(gameService.forfeitGame).not.toHaveBeenCalled();

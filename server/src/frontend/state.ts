@@ -74,6 +74,28 @@ export const ROLE_BANNER_CONFIG: Record<string, { red: string; blue: string; lab
 
 // ========== INTERFACES ==========
 
+/**
+ * Discriminated union for role-change state machine.
+ *
+ * Replaces five scattered variables (isChangingRole, changingTarget,
+ * pendingRoleChange, roleChangeOperationId, roleChangeRevertFn)
+ * with a single typed state that makes impossible states unrepresentable.
+ *
+ * Transitions:
+ *   idle → changing_team     (user clicks team button)
+ *   idle → changing_role     (user clicks role on current team)
+ *   idle → team_then_role    (user clicks role on different team)
+ *   changing_team → idle     (team confirmed, no pending role)
+ *   team_then_role → changing_role  (team confirmed, sending queued role)
+ *   changing_role → idle     (role confirmed)
+ *   any non-idle → idle      (error, disconnect, or timeout)
+ */
+export type RoleChangeState =
+    | { phase: 'idle' }
+    | { phase: 'changing_team'; target: string; operationId: string; revertFn: () => void }
+    | { phase: 'team_then_role'; target: string; operationId: string; revertFn: () => void; pendingRole: 'spymaster' | 'clicker' }
+    | { phase: 'changing_role'; target: string; operationId: string; revertFn: () => void };
+
 export interface CachedElements {
     board: HTMLElement | null;
     roleBanner: HTMLElement | null;
@@ -181,11 +203,7 @@ export interface AppState {
     spymasterTeam: string | null;
     clickerTeam: string | null;
     playerTeam: string | null;
-    isChangingRole: boolean;
-    changingTarget: string | null;
-    pendingRoleChange: string | null;
-    roleChangeOperationId: string | null;
-    roleChangeRevertFn: (() => void) | null;
+    roleChange: RoleChangeState;
 
     // Game state
     gameState: GameState;
@@ -207,6 +225,7 @@ export interface AppState {
     pendingUIUpdate: boolean;
     isRevealingCard: boolean;
     revealingCards: Set<number>;
+    revealTimeouts: Map<number, ReturnType<typeof setTimeout>>;
 
     // Copy button
     copyButtonTimeoutId: ReturnType<typeof setTimeout> | null;
@@ -224,9 +243,6 @@ export interface AppState {
     // Spectator/room stats (set dynamically by multiplayer sync)
     spectatorCount: number;
     roomStats: any;
-
-    // Allow dynamic properties from server sync
-    [key: string]: any;
 }
 
 // The single shared state object
@@ -291,13 +307,7 @@ export const state: AppState = {
     spymasterTeam: null,
     clickerTeam: null,
     playerTeam: null,
-    isChangingRole: false,
-    changingTarget: null,
-    pendingRoleChange: null,
-    // Bug #1 fix: Track operation ID to handle race conditions between ACK and playerUpdated
-    roleChangeOperationId: null,
-    // Bug #1 fix: Store revert function for the current operation
-    roleChangeRevertFn: null,
+    roleChange: { phase: 'idle' },
 
     // Game state
     gameState: {
@@ -351,6 +361,7 @@ export const state: AppState = {
     pendingUIUpdate: false,
     isRevealingCard: false,          // legacy boolean kept for backward compat
     revealingCards: new Set(),        // Per-card reveal tracking (Set of indices)
+    revealTimeouts: new Map(),        // Per-card reveal timeout IDs
 
     // Copy button
     copyButtonTimeoutId: null,

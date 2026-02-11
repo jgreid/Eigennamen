@@ -25,6 +25,10 @@ Thumbs.db
 dist/
 build/
 
+# Compiled frontend JS (generated from server/src/frontend/*.ts)
+server/public/js/modules/*.js
+server/public/js/modules/*.js.map
+
 # Test coverage
 coverage/
 

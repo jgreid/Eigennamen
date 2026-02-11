@@ -390,7 +390,7 @@ export function revealCard(index: number): void {
                 if (pendingCard) (pendingCard as HTMLElement).classList.remove('revealing');
             }
         }, UI.CARD_REVEAL_TIMEOUT_MS);
-        (state as any)[`_revealTimeout_${index}`] = timeoutId;
+        state.revealTimeouts.set(index, timeoutId);
 
         // Add visual feedback - show card as "pending"
         const card = document.querySelector(`.card[data-index="${index}"]`);

@@ -6,7 +6,7 @@ import { escapeHTML, safeGetItem, safeSetItem, copyToClipboard } from './utils.j
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { revealCardFromServer, showGameOver, updateScoreboard, updateTurnIndicator } from './game.js';
-import { updateRoleBanner, updateControls } from './roles.js';
+import { updateRoleBanner, updateControls, clearRoleChange, revertAndClearRoleChange } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
 // PHASE 2 FIX: Import shared constants for validation
@@ -621,7 +621,11 @@ export function setupMultiplayerListeners(): void {
         // Clear per-card reveal tracking for the revealed card
         if (data.index !== undefined) {
             state.revealingCards.delete(data.index);
-            clearTimeout(state[`_revealTimeout_${data.index}`]);
+            const revealTimeout = state.revealTimeouts.get(data.index);
+            if (revealTimeout) {
+                clearTimeout(revealTimeout);
+                state.revealTimeouts.delete(data.index);
+            }
         }
         state.isRevealingCard = state.revealingCards.size > 0;
 
@@ -800,48 +804,39 @@ export function setupMultiplayerListeners(): void {
                     syncLocalPlayerState(updatedPlayer);
 
                     // Check for pending role change after team change completed
-                    if (state.pendingRoleChange && data.changes.team) {
+                    if (state.roleChange.phase === 'team_then_role' && data.changes.team) {
                         // Team change completed, now send the queued role change
-                        const roleToSet = state.pendingRoleChange;
-                        state.pendingRoleChange = null;
+                        const roleToSet = state.roleChange.pendingRole;
+                        const currentOpId = state.roleChange.operationId;
 
-                        // Bug #13 fix: Update revert function to only revert the role part
-                        // Team change succeeded, so if role change fails, we should only
-                        // revert the role (to spectator), not the team
+                        // Narrow revert: team change succeeded, only revert role on failure
                         const confirmedTeam = updatedPlayer.team;
-                        state.roleChangeRevertFn = () => {
-                            // Keep the confirmed team, just revert role to spectator
-                            state.playerTeam = confirmedTeam;
-                            state.spymasterTeam = null;
-                            state.clickerTeam = null;
-                            updateRoleBanner();
-                            updateControls();
-                            renderBoard();
+                        state.roleChange = {
+                            phase: 'changing_role',
+                            target: state.roleChange.target,
+                            operationId: currentOpId,
+                            revertFn: () => {
+                                state.playerTeam = confirmedTeam;
+                                state.spymasterTeam = null;
+                                state.clickerTeam = null;
+                                updateRoleBanner();
+                                updateControls();
+                                renderBoard();
+                            }
                         };
 
-                        // Don't clear isChangingRole yet - let it clear after role is set
                         CodenamesClient.setRole(roleToSet);
                     } else {
-                        state.isChangingRole = false;
-                        state.changingTarget = null;
-                        // Bug #1 fix: Clear operation tracking on successful update
-                        state.roleChangeOperationId = null;
-                        state.roleChangeRevertFn = null;
+                        clearRoleChange();
                     }
 
                     updateControls();
                     updateRoleBanner();
                     renderBoard();
                 } else {
-                    // Even if player not found, clear the flag to prevent blocking
-                    // This should not normally happen, but handles edge cases
-                    console.warn('playerUpdated: current player not found in list, clearing isChangingRole');
-                    state.isChangingRole = false;
-                    state.changingTarget = null;
-                    // Bug #2 fix: Always clear all role change state on edge cases
-                    state.pendingRoleChange = null;
-                    state.roleChangeOperationId = null;
-                    state.roleChangeRevertFn = null;
+                    // Even if player not found, clear role change to prevent blocking
+                    console.warn('playerUpdated: current player not found in list, clearing role change state');
+                    clearRoleChange();
                 }
             }
         }
@@ -956,12 +951,7 @@ export function setupMultiplayerListeners(): void {
 
     // Disconnect handling
     CodenamesClient.on('disconnected', () => {
-        // Bug #7 fix: Reset all role change state on disconnect
-        state.isChangingRole = false;
-        state.changingTarget = null;
-        state.pendingRoleChange = null;
-        state.roleChangeOperationId = null;
-        state.roleChangeRevertFn = null;
+        clearRoleChange();
         showToast('Disconnected from server', 'warning');
         // Show reconnection overlay if we were in a room
         if (state.isMultiplayerMode) {
@@ -1099,20 +1089,12 @@ export function setupMultiplayerListeners(): void {
         // Log full error details for debugging
         console.error('Multiplayer error:', JSON.stringify(error, null, 2));
 
-        // Bug #12 fix: Call revert function BEFORE clearing state to undo optimistic updates
-        if (state.roleChangeRevertFn) {
-            state.roleChangeRevertFn();
-        }
+        // Revert optimistic UI then clear role change state
+        revertAndClearRoleChange();
 
-        // Clear any in-progress flags
+        // Clear any in-progress card reveal flags
         state.revealingCards.clear();
         state.isRevealingCard = false;
-        state.isChangingRole = false;
-        state.changingTarget = null;
-        // Bug #2 fix: Clear all role change state on error
-        state.pendingRoleChange = null;
-        state.roleChangeOperationId = null;
-        state.roleChangeRevertFn = null;
         document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
         // Map technical error codes to user-friendly messages
@@ -1269,11 +1251,7 @@ function resetMultiplayerState(): void {
     state.spymasterTeam = null;
     state.clickerTeam = null;
     state.isHost = false;
-    state.isChangingRole = false;
-    state.changingTarget = null;
-    state.pendingRoleChange = null;
-    state.roleChangeOperationId = null;
-    state.roleChangeRevertFn = null;
+    clearRoleChange();
     state.revealingCards.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
