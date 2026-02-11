@@ -407,7 +407,7 @@ describe('Admin Routes', () => {
                 .send({ message: '', type: 'info' })
                 .expect(400);
 
-            expect(response.body.error.code).toBe('INVALID_MESSAGE');
+            expect(response.body.error.code).toBe('INVALID_INPUT');
         });
 
         it('should reject message that is too long', async () => {
@@ -419,7 +419,7 @@ describe('Admin Routes', () => {
                 .send({ message: longMessage, type: 'info' })
                 .expect(400);
 
-            expect(response.body.error.code).toBe('MESSAGE_TOO_LONG');
+            expect(response.body.error.code).toBe('INVALID_INPUT');
         });
 
         it('should reject invalid message type', async () => {
@@ -429,7 +429,7 @@ describe('Admin Routes', () => {
                 .send({ message: 'Test', type: 'invalid' })
                 .expect(400);
 
-            expect(response.body.error.code).toBe('INVALID_TYPE');
+            expect(response.body.error.code).toBe('INVALID_INPUT');
         });
 
         it('should default to info type when not specified', async () => {

@@ -212,6 +212,12 @@ export async function updatePlayer(
     const maxRetries = 3;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+        // HIGH FIX: Add exponential backoff between retries to reduce contention
+        if (attempt > 0) {
+            const backoffMs = Math.min(50 * Math.pow(2, attempt - 1), 200);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+        }
+
         await redis.watch(playerKey);
 
         const playerData = await redis.get(playerKey);
@@ -574,6 +580,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 /**
  * Remove player from room
  * Also removes from team set if player was on a team
+ * CRITICAL FIX: Also cleans up reconnection tokens to prevent orphaned tokens
  */
 export async function removePlayer(sessionId: string): Promise<void> {
     const redis: RedisClient = getRedis();
@@ -586,6 +593,14 @@ export async function removePlayer(sessionId: string): Promise<void> {
         // Remove from team set if player was on a team
         if (player.team) {
             await redis.sRem(`room:${player.roomCode}:team:${player.team}`, sessionId);
+        }
+
+        // CRITICAL FIX: Clean up reconnection tokens to prevent orphaned keys.
+        // Previously relied solely on background cleanupOrphanedReconnectionTokens()
+        try {
+            await invalidateRoomReconnectToken(sessionId);
+        } catch (tokenError) {
+            logger.warn(`Failed to clean up reconnection token for ${sessionId}:`, (tokenError as Error).message);
         }
 
         // Delete player data

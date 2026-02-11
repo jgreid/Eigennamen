@@ -19,6 +19,7 @@ const { isDatabaseEnabled } = require('../config/database');
 // PHASE 5.1: Import additional metrics tracking functions
 const { getAllMetrics, trackPlayerKick, trackBroadcast } = require('../utils/metrics');
 const { API_RATE_LIMITS } = require('../config/constants');
+const { z } = require('zod');
 const { toEnglishLowerCase } = require('../utils/sanitize');
 const { audit, getAuditLogs, getAuditSummary } = require('../services/auditService');
 
@@ -352,42 +353,32 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
 });
 
 /**
+ * Zod schema for broadcast validation
+ * HIGH FIX: Replaces manual type assertion with proper schema validation
+ */
+const broadcastSchema = z.object({
+    message: z.string().min(1, 'Broadcast message is required').max(500, 'Broadcast message must be 500 characters or less'),
+    type: z.enum(['info', 'warning', 'error']).default('info')
+});
+
+/**
  * POST /admin/api/broadcast - Send broadcast message to all rooms
  */
 router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
     try {
-        const { message, type = 'info' } = req.body as { message?: string; type?: string };
-
-        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        const parsed = broadcastSchema.safeParse(req.body);
+        if (!parsed.success) {
+            const firstError = parsed.error.errors[0];
             res.status(400).json({
                 error: {
-                    code: 'INVALID_MESSAGE',
-                    message: 'Broadcast message is required'
+                    code: 'INVALID_INPUT',
+                    message: firstError?.message || 'Invalid broadcast input'
                 }
             });
             return;
         }
 
-        if (message.length > 500) {
-            res.status(400).json({
-                error: {
-                    code: 'MESSAGE_TOO_LONG',
-                    message: 'Broadcast message must be 500 characters or less'
-                }
-            });
-            return;
-        }
-
-        const validTypes = ['info', 'warning', 'error'];
-        if (!validTypes.includes(type)) {
-            res.status(400).json({
-                error: {
-                    code: 'INVALID_TYPE',
-                    message: `Type must be one of: ${validTypes.join(', ')}`
-                }
-            });
-            return;
-        }
+        const { message, type } = parsed.data;
 
         const io = req.app.get('io');
 

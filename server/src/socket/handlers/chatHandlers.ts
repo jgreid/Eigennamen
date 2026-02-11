@@ -104,7 +104,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
      * Send a spectator-only chat message
      */
     socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
-        (ctx: RoomContext, validated: SpectatorChatInput) => {
+        async (ctx: RoomContext, validated: SpectatorChatInput) => {
             // Only allow spectators to send spectator-only messages
             if (ctx.player.role !== 'spectator') {
                 throw PlayerError.notAuthorized();

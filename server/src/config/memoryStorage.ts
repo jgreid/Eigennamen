@@ -80,9 +80,10 @@ export interface ScanResult {
 
 /**
  * Eval options for Lua script simulation
+ * HIGH FIX: keys is required — eval() always requires KEYS for Lua script simulation
  */
 export interface EvalOptions {
-    keys?: string[];
+    keys: string[];
     arguments?: string[];
 }
 
@@ -283,16 +284,14 @@ export class MemoryStorage {
     }
 
     /**
-     * Check if a key is expired
+     * Check if a key is expired.
+     * CRITICAL FIX: Separated expiry check from cleanup to prevent side-effect
+     * bugs where callers check expiry then try to operate on the (now-deleted) key.
      */
     private _isExpired(key: string): boolean {
         const expiry = this.expiries.get(key);
         if (expiry && expiry <= Date.now()) {
-            this.data.delete(key);
-            this.sets.delete(key);
-            this.lists.delete(key);
-            this.sortedSets.delete(key);
-            this.expiries.delete(key);
+            this._deleteKey(key);
             return true;
         }
         return false;

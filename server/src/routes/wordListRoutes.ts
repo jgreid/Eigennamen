@@ -74,11 +74,14 @@ function extractUser(req: AuthenticatedRequest, _res: Response, next: NextFuncti
             if (decoded && typeof decoded.id === 'string') {
                 req.user = decoded;
             } else {
-                logger.debug('Invalid auth token structure in word list request');
+                // HIGH FIX: Warn on structurally invalid tokens (potential tampering)
+                logger.warn('JWT token verified but has invalid structure (missing id)');
             }
         } catch {
-            // Invalid token - continue without user
-            logger.debug('Invalid auth token in word list request');
+            // HIGH FIX: Log at warn level for auditability.
+            // Token was present but invalid — could indicate tampering or expiration.
+            // We still continue without user (requireAuth will block protected routes).
+            logger.warn('Invalid or malformed JWT token in word list request');
         }
     }
     next();

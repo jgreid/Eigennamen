@@ -197,6 +197,23 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
         // Attach rate limiter to socket for use in handlers
         gameSocket.rateLimiter = socketRateLimiter;
 
+        // CRITICAL FIX: Ensure socket functions are registered before handlers.
+        // Handlers call getSocketFunctions() at runtime; if a client sends an
+        // event before registerSocketFunctions() runs, it would crash.
+        // Registration is idempotent (Object.freeze), so calling it per-connection
+        // when it was already registered on first connection is a safe no-op.
+        if (!require('./socketFunctionProvider').isRegistered()) {
+            registerSocketFunctions({
+                emitToRoom,
+                emitToPlayer,
+                startTurnTimer,
+                stopTurnTimer,
+                getTimerStatus,
+                getIO,
+                createTimerExpireCallback
+            });
+        }
+
         // Register all event handlers
         roomHandlers(socketServer, gameSocket);
         gameHandlers(socketServer, gameSocket);
@@ -281,16 +298,20 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     // Recounts actual connected sockets per IP every 5 minutes
     startConnectionsCleanup(socketServer);
 
-    // Register socket functions for handlers (breaks circular dependency)
-    registerSocketFunctions({
-        emitToRoom,
-        emitToPlayer,
-        startTurnTimer,
-        stopTurnTimer,
-        getTimerStatus,
-        getIO,
-        createTimerExpireCallback
-    });
+    // Register socket functions for handlers (breaks circular dependency).
+    // Also registered above inside the connection handler for safety;
+    // this call covers the edge case of no connections yet.
+    if (!require('./socketFunctionProvider').isRegistered()) {
+        registerSocketFunctions({
+            emitToRoom,
+            emitToPlayer,
+            startTurnTimer,
+            stopTurnTimer,
+            getTimerStatus,
+            getIO,
+            createTimerExpireCallback
+        });
+    }
 
     return socketServer;
 }

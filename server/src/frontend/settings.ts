@@ -24,7 +24,10 @@ export function openSettings(): void {
     updateCharCounter('blue-name-input', 'blue-char-counter', 32);
 
     // Load word list mode
-    const savedMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    // HIGH FIX: Validate savedMode against allowed values before using in CSS selector
+    const rawSavedMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    const allowedModes = ['default', 'combined', 'custom'];
+    const savedMode = allowedModes.includes(rawSavedMode ?? '') ? rawSavedMode : 'combined';
     const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`) as HTMLInputElement | null;
     if (modeRadio) {
         modeRadio.checked = true;
@@ -141,8 +144,9 @@ export function updateWordCount(): void {
 const MAX_WORD_LIST_SIZE = 10000;
 
 export function parseWords(text: string): string[] {
+    // FIX: Handle Windows \r\n line endings to prevent empty entries
     const words = text
-        .split('\n')
+        .split(/\r?\n/)
         .map(w => w.trim())
         .filter(w => w.length > 0 && !w.startsWith('#'))
         .map(w => w.toUpperCase());
