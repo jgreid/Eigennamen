@@ -1,6 +1,5 @@
 /**
  * Rate-limited Socket Handler Utility
- * Extracted to avoid circular dependencies between socket/index.ts and handlers
  */
 
 import type { Socket } from 'socket.io';
@@ -10,9 +9,6 @@ const { RATE_LIMITS, ERROR_CODES } = require('../config/constants');
 const logger = require('../utils/logger');
 const { sanitizeErrorForClient } = require('../errors/GameError');
 
-/**
- * Extended Socket type with game-specific properties
- */
 export interface GameSocket extends Socket {
     sessionId: string;
     roomCode: string | null;
@@ -21,26 +17,17 @@ export interface GameSocket extends Socket {
     rateLimiter?: SocketRateLimiter;
 }
 
-/**
- * Rate limiter middleware function type
- */
 type RateLimiterMiddleware = (
     socket: GameSocket,
     data: unknown,
     next: (error?: Error) => void
 ) => void;
 
-/**
- * Event stats for metrics
- */
 interface EventStats {
     event: string;
     count: number;
 }
 
-/**
- * Rate limiter metrics
- */
 interface RateLimiterMetrics {
     totalRequests: number;
     blockedRequests: number;
@@ -56,9 +43,6 @@ interface RateLimiterMetrics {
     uptimeMinutes: number;
 }
 
-/**
- * Socket rate limiter interface
- */
 export interface SocketRateLimiter {
     getLimiter: (eventName: string) => RateLimiterMiddleware;
     cleanupSocket: (socketId: string) => void;
@@ -69,40 +53,19 @@ export interface SocketRateLimiter {
     resetMetrics: () => void;
 }
 
-/**
- * Acknowledgment callback type
- */
 type AckCallback = (response: { ok?: boolean; error?: boolean }) => void;
-
-/**
- * Rate-limited handler function type
- */
 type RateLimitedHandler = (data: unknown, ackCallback?: AckCallback) => Promise<void>;
-
-/**
- * Handler function type (user-provided)
- */
 type HandlerFunction = (data: unknown) => Promise<void>;
 
-// Create socket rate limiter using centralized constants
-// This ensures consistency between constants.ts and actual rate limiting
 const socketRateLimiter: SocketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
-
-// Store reference for cleanup on shutdown
 let rateLimitCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
-/**
- * Start periodic cleanup of stale rate limit entries
- */
 function startRateLimitCleanup(): void {
     if (!rateLimitCleanupInterval) {
         rateLimitCleanupInterval = setInterval(() => socketRateLimiter.cleanupStale(), 60000);
     }
 }
 
-/**
- * Stop periodic cleanup of stale rate limit entries
- */
 function stopRateLimitCleanup(): void {
     if (rateLimitCleanupInterval) {
         clearInterval(rateLimitCleanupInterval);
@@ -110,26 +73,13 @@ function stopRateLimitCleanup(): void {
     }
 }
 
-/**
- * Create a rate-limited socket event handler wrapper
- * @param socket - Socket instance
- * @param eventName - Event name for rate limiting
- * @param handler - Async handler function
- * @returns Wrapped handler with rate limiting
- */
 function createRateLimitedHandler(
     socket: GameSocket,
     eventName: string,
     handler: HandlerFunction
 ): RateLimitedHandler {
-    // Socket.io passes the ack callback as the last argument when the client
-    // calls socket.emit('event', data, callback). We must call it explicitly -
-    // Socket.io 4.8 does NOT auto-ack from async return values.
     return (data: unknown, ackCallback?: AckCallback): Promise<void> => {
         const limiter = socketRateLimiter.getLimiter(eventName);
-
-        // FIX C1: Wrap callback-based limiter in Promise so we properly await completion
-        // Previously the function returned immediately before the limiter callback executed
         return new Promise((resolve) => {
             limiter(socket, data, async (err?: Error) => {
                 if (err) {
@@ -159,9 +109,6 @@ function createRateLimitedHandler(
     };
 }
 
-/**
- * Get the socket rate limiter for use in handlers
- */
 function getSocketRateLimiter(): SocketRateLimiter {
     return socketRateLimiter;
 }

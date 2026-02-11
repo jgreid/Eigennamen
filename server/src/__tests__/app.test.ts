@@ -222,7 +222,6 @@ describe('Express Application', () => {
 
             expect(response.body).toHaveProperty('rateLimits');
             expect(response.body.rateLimits).toMatchObject({
-                http: expect.any(Object),
                 socket: expect.any(Object)
             });
         });

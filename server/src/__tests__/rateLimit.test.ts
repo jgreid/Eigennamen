@@ -13,9 +13,7 @@ jest.mock('../utils/logger', () => ({
 const {
     apiLimiter,
     strictLimiter,
-    createSocketRateLimiter,
-    getHttpRateLimitMetrics,
-    resetHttpRateLimitMetrics
+    createSocketRateLimiter
 } = require('../middleware/rateLimit');
 
 describe('Rate Limit Middleware', () => {
@@ -23,28 +21,6 @@ describe('Rate Limit Middleware', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        resetHttpRateLimitMetrics();
-    });
-
-    describe('HTTP API Rate Limit Metrics', () => {
-        it('should return initial stats with zero values', () => {
-            const stats = getHttpRateLimitMetrics();
-
-            expect(stats.totalRequests).toBe(0);
-            expect(stats.blockedRequests).toBe(0);
-            expect(stats.blockRate).toBe('0%');
-            expect(stats.uniqueIPs).toBe(0);
-            expect(stats.blockedIPs).toBe(0);
-        });
-
-        it('should reset metrics correctly', () => {
-            // The metrics are internal, so we test via getStats/reset cycle
-            resetHttpRateLimitMetrics();
-            const stats = getHttpRateLimitMetrics();
-
-            expect(stats.totalRequests).toBe(0);
-            expect(stats.blockedRequests).toBe(0);
-        });
     });
 
     describe('apiLimiter', () => {

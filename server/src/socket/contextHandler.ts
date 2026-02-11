@@ -2,23 +2,7 @@
  * Context-Aware Handler Wrapper
  *
  * Combines rate limiting with player context validation to eliminate
- * boilerplate and ensure consistent state handling across all handlers.
- *
- * Before (in every handler):
- *   if (!socket.roomCode) throw...
- *   const validated = validateInput(schema, data)
- *   const player = await playerService.getPlayer(socket.sessionId)
- *   if (!player || player.roomCode !== socket.roomCode) throw...
- *   const game = await gameService.getGame(socket.roomCode)
- *   // actual logic
- *
- * After (using this wrapper):
- *   createRoomHandler(socket, 'player:setTeam', playerTeamSchema,
- *     async (ctx, validated) => {
- *       // ctx.player, ctx.game, ctx.roomCode already validated
- *       // actual logic only
- *     }
- *   )
+ * boilerplate across all socket handlers.
  */
 
 import type { ZodSchema } from 'zod';
@@ -30,49 +14,23 @@ const { getPlayerContext, syncSocketRooms } = require('./playerContext');
 const { createRateLimitedHandler } = require('./rateLimitHandler');
 const { validateInput } = require('../middleware/validation');
 
-/**
- * Handler result that may include updated player for room syncing
- */
 export interface HandlerResult {
     player?: Player;
     [key: string]: unknown;
 }
 
-/**
- * Context handler function type
- */
 export type ContextHandlerFn<T = unknown> = (
     ctx: PlayerContextResult,
     validated: T
 ) => Promise<HandlerResult | void>;
 
-/**
- * Pre-room handler function type (no context needed)
- */
 export type PreRoomHandlerFn<T = unknown> = (
     validated: T
 ) => Promise<void>;
 
-/**
- * Acknowledgment callback type
- */
 type AckCallback = (response: { ok?: boolean; error?: boolean }) => void;
-
-/**
- * Rate-limited handler function type
- */
 type RateLimitedHandler = (data: unknown, ackCallback?: AckCallback) => Promise<void>;
 
-/**
- * Create a handler with automatic context validation and rate limiting.
- *
- * @param socket - Socket.io socket instance
- * @param eventName - Event name for rate limiting and logging
- * @param schema - Zod schema for input validation (or null if no input)
- * @param contextOptions - Options for getPlayerContext
- * @param handler - Async handler function (ctx, validatedData) => Promise<void>
- * @returns Wrapped handler
- */
 function createContextHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
@@ -95,15 +53,10 @@ function createContextHandler<T = unknown>(
         }
 
         return result;
-        // Bug #11 fix: Errors are no longer caught here - they propagate to rateLimitHandler
-        // which emits the error event and sends ACK with { error: true }
-        // Previously errors were caught and error event emitted, but ACK returned { ok: true }
     });
 }
 
-/**
- * Context handler for room-required operations (most common case).
- */
+/** Room-required operations (most common case) */
 function createRoomHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
@@ -113,9 +66,7 @@ function createRoomHandler<T = unknown>(
     return createContextHandler(socket, eventName, schema, { requireRoom: true }, handler);
 }
 
-/**
- * Context handler for host-only operations.
- */
+/** Host-only operations */
 function createHostHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
@@ -128,9 +79,7 @@ function createHostHandler<T = unknown>(
     }, handler);
 }
 
-/**
- * Context handler for game operations (requires active game).
- */
+/** Game operations (requires active game) */
 function createGameHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
@@ -143,11 +92,7 @@ function createGameHandler<T = unknown>(
     }, handler);
 }
 
-/**
- * Context handler for pre-room operations (room:create, room:join).
- * Provides rate limiting, input validation, and consistent error handling
- * without requiring the player to already be in a room.
- */
+/** Pre-room operations (room:create, room:join) - no player context needed */
 function createPreRoomHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
@@ -157,7 +102,6 @@ function createPreRoomHandler<T = unknown>(
     return createRateLimitedHandler(socket, eventName, async (data: unknown) => {
         const validated = schema ? validateInput(schema, data) as T : (data || {}) as T;
         await handler(validated);
-        // Bug #11 fix: Errors propagate to rateLimitHandler for consistent error handling
     });
 }
 
