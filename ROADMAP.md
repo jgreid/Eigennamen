@@ -58,27 +58,31 @@ multiplayer E2E tests (11 tests), deprecated file cleanup — all done.
 
 ---
 
-## Remaining Work (Deep Review Findings)
+## Completed (Deep Review Findings)
 
-### Critical — Must Fix
+### Critical ✅ Fixed
 
-| ID | Task | Category | Description |
-|----|------|----------|-------------|
-| CRIT-1 | Fix spectator handler signatures | Bug | `spectator:requestJoin`/`approveJoin` pass wrong params — handlers non-functional |
-| CRIT-2 | Add max word count validation | Security | No upper limit on word lists — DoS vector via memory exhaustion |
+| ID | Task | Category | Status |
+|----|------|----------|--------|
+| CRIT-1 | Fix spectator handler signatures | Bug | ✅ Corrected to 4-param pattern |
+| CRIT-2 | Add max word count validation | Security | ✅ MAX_WORD_LIST_SIZE=10000 |
 
-### High Priority — Should Fix
+### High Priority ✅ Fixed
 
-| ID | Task | Category | Description |
-|----|------|----------|-------------|
-| HIGH-1 | Invalidate token on player kick | Security | Kicked players retain reconnection tokens |
-| HIGH-2 | Verify history cleanup index | Data | `cleanupOldHistory` zRange params need verification |
-| HIGH-3 | Wire localized words into game | Bug | Localized word lists loaded but never used by game logic |
-| HIGH-4 | Fix className escapeHTML misuse | Bug | `escapeHTML()` wrong for CSS class context in history.js |
-| HIGH-5 | Fix replay event listener leak | Memory | Listener accumulation on repeated replay opens |
-| HIGH-6 | Handle refreshRoomTTL failures | Resilience | TTL refresh failure propagates and fails room join |
-| HIGH-7 | Fix accessibility listener leak | Memory | Keyboard overlay listener persists on click-close |
-| HIGH-8 | Cap connectionsPerIP map size | Security | Unbounded map growth under IP spoofing attack |
+| ID | Task | Category | Status |
+|----|------|----------|--------|
+| HIGH-1 | Invalidate token on player kick | Security | ✅ Token invalidated before removal |
+| HIGH-2 | Verify history cleanup index | Data | ✅ Verified correct |
+| HIGH-3 | Wire localized words into game | Bug | ✅ localizedDefaultWords merged in initGame |
+| HIGH-4 | Fix className escapeHTML misuse | Bug | ✅ Whitelist check |
+| HIGH-5 | Fix replay event listener leak | Memory | ✅ Event delegation |
+| HIGH-6 | Handle refreshRoomTTL failures | Resilience | ✅ try-catch with warning log |
+| HIGH-7 | Fix accessibility listener leak | Memory | ✅ Shared closeOverlay() |
+| HIGH-8 | Cap connectionsPerIP map size | Security | ✅ MAX_TRACKED_IPS=10000 |
+
+---
+
+## Remaining Work
 
 ### Medium Priority
 

@@ -67,28 +67,28 @@ The codebase is **production-ready** with strong defensive programming patterns 
 
 ---
 
-## Phase 3.5: Deep Review Critical Fixes — NEW
+## Phase 3.5: Deep Review Critical Fixes ✅ COMPLETED
 
 > 2 critical + 8 high priority issues identified in deep line-by-line review.
 
-### 3.5.1 Critical Fixes (Must Fix)
-- CRIT-1: Fix spectator handler signatures in `playerHandlers.ts` — `spectator:requestJoin`/`approveJoin` pass `io` as first param instead of `socket`; handlers are completely non-functional
-- CRIT-2: Add max word count validation (server Zod schema + frontend settings.js) — no upper limit allows DoS via memory exhaustion
+### 3.5.1 Critical Fixes ✅
+- CRIT-1: Fix spectator handler signatures in `playerHandlers.ts` ✅ — corrected to 4-param pattern with `io` from closure
+- CRIT-2: Add max word count validation (server + frontend) ✅ — MAX_WORD_LIST_SIZE=10000 enforced
 
-### 3.5.2 High Priority Fixes
-- HIGH-1: Invalidate reconnection token when player is kicked (security: kicked players can rejoin)
-- HIGH-2: Verify/fix `cleanupOldHistory` zRange index direction (data loss risk)
-- HIGH-3: Wire `state.localizedDefaultWords` into game.js word selection (localized words loaded but never used)
-- HIGH-4: Fix `escapeHTML()` misuse in CSS className context in history.js
-- HIGH-5: Fix event listener accumulation in replay controls (memory leak)
-- HIGH-6: Wrap `refreshRoomTTL` callers in try-catch (room expiration during active game)
-- HIGH-7: Fix accessibility keyboard overlay listener leak
-- HIGH-8: Cap `connectionsPerIP` Map size to prevent memory DoS under IP spoofing
+### 3.5.2 High Priority Fixes ✅
+- HIGH-1: Invalidate reconnection token when player is kicked ✅
+- HIGH-2: Verify `cleanupOldHistory` zRange index direction ✅ — verified correct (only returns excess entries)
+- HIGH-3: Wire `state.localizedDefaultWords` into game.js word selection ✅
+- HIGH-4: Fix `escapeHTML()` misuse in CSS className context in history.js ✅ — whitelist check
+- HIGH-5: Fix event listener accumulation in replay controls ✅ — event delegation
+- HIGH-6: Wrap `refreshRoomTTL` callers in try-catch ✅ — warning log, no join failure
+- HIGH-7: Fix accessibility keyboard overlay listener leak ✅ — shared closeOverlay()
+- HIGH-8: Cap `connectionsPerIP` Map size ✅ — MAX_TRACKED_IPS=10000
 
-### 3.5.3 Security Fixes
+### 3.5.3 Security Fixes (Remaining)
 - SEC-3: Session age validation uses `connectedAt` fallback — frequent reconnectors bypass 8h limit
 - SEC-4: JWT secret length only warned in production, not enforced
-- SEC-5: `connectionsPerIP` map unbounded (= HIGH-8)
+- SEC-5: `connectionsPerIP` map unbounded ✅ (= HIGH-8, fixed)
 
 ---
 
@@ -193,7 +193,7 @@ Four complete language files (EN, DE, ES, FR) with localized word lists exist. G
 
 ### Current Achievement
 - Zero race condition bugs in production ✅
-- Critical security issues resolved ✅ (2 new critical bugs found in deep review)
+- Critical security issues resolved ✅ (2 critical + 8 high from deep review — all fixed)
 - Test coverage > 85% ✅ (94%+)
 - WebSocket connection success rate > 99% ✅
 

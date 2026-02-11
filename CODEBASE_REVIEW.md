@@ -11,7 +11,7 @@
 
 Codenames Online (Die Eigennamen) is a **mature, production-ready** multiplayer web application. After completing Tiers 1-3 plus Tier A hardening (Zod schema hardening, timeout wrappers, documentation fixes), this deep line-by-line review examined every source file across all layers.
 
-The codebase demonstrates **excellent engineering fundamentals**: strict TypeScript, comprehensive Zod validation, atomic Lua operations, defense-in-depth security, and 2,675+ tests. This review identifies **2 critical bugs**, **8 high-priority issues**, and **25+ medium-priority improvements** across backend services, socket handlers, frontend modules, and infrastructure.
+The codebase demonstrates **excellent engineering fundamentals**: strict TypeScript, comprehensive Zod validation, atomic Lua operations, defense-in-depth security, and 2,675+ tests. This review identified **2 critical bugs** and **8 high-priority issues** — **all now fixed**. **25+ medium-priority improvements** remain across backend services, socket handlers, frontend modules, and infrastructure.
 
 ### Scorecard
 
@@ -402,7 +402,7 @@ The `connectionsPerIP` Map uses raw IP strings as keys with no max size check. A
 | ID | Issue | Severity | Description |
 |----|-------|----------|-------------|
 | TG-1 | No tests for malformed WebSocket messages | Medium | Could cause unhandled errors |
-| TG-2 | No tests for spectator join flow (it's broken — CRIT-1) | Medium | |
+| TG-2 | No tests for spectator join flow (CRIT-1 fixed, tests still needed) | Medium | |
 | TG-3 | No ReDoS regression tests for clue regex | Medium | |
 | TG-4 | No cleanup/history index correctness integration tests | Medium | |
 | TG-5 | E2E selectors use classes/IDs instead of `data-testid` | Low | Fragile against CSS refactors |
@@ -420,25 +420,25 @@ All items from Tiers 1, 2, 3, and Tier A remain completed and verified:
 - Zod `.passthrough()` removal, timeout wrappers, IP docs, directory refs ✅
 - Multiplayer E2E tests (11 tests) ✅
 
-### New Tier A: Critical Fixes (Must Fix)
+### Tier A: Critical Fixes ✅ COMPLETED
 
-| ID | Task | Description | Effort |
+| ID | Task | Description | Status |
 |----|------|-------------|--------|
-| CRIT-1 | Fix spectator handler signatures | Rewrite `spectator:requestJoin` / `spectator:approveJoin` with correct params | Low |
-| CRIT-2 | Add max word count validation | Server: Zod `max(10000)`; Client: `settings.js` cap | Low |
+| CRIT-1 | Fix spectator handler signatures | Corrected to 4-param pattern with `io` from closure | ✅ |
+| CRIT-2 | Add max word count validation | Server: MAX_WORD_LIST_SIZE=10000; Client: parseWords cap | ✅ |
 
-### New Tier B: High Priority Fixes
+### Tier B: High Priority Fixes ✅ COMPLETED
 
-| ID | Task | Description | Effort |
+| ID | Task | Description | Status |
 |----|------|-------------|--------|
-| HIGH-1 | Invalidate token on player kick | Add `invalidateRoomReconnectToken` to kick handler | Low |
-| HIGH-2 | Verify/fix history cleanup index direction | Add integration test; fix zRange params if needed | Low |
-| HIGH-3 | Wire localized words into game logic | Connect `state.localizedDefaultWords` → game.js word selection | Low |
-| HIGH-4 | Fix className escapeHTML misuse | Replace with whitelist check in history.js | Low |
-| HIGH-5 | Fix event listener accumulation in replays | Use event delegation or stable references | Medium |
-| HIGH-6 | Handle refreshRoomTTL failures gracefully | Wrap in try-catch, log warning, don't fail join | Low |
-| HIGH-7 | Fix accessibility keyboard listener leak | Store reference, remove in all close paths | Low |
-| HIGH-8 | Cap connectionsPerIP map size | Add LRU eviction or max entries check | Low |
+| HIGH-1 | Invalidate token on player kick | Token invalidated before removePlayer | ✅ |
+| HIGH-2 | Verify history cleanup index direction | Verified correct — returns only excess entries | ✅ |
+| HIGH-3 | Wire localized words into game logic | localizedDefaultWords merged in initGame() | ✅ |
+| HIGH-4 | Fix className escapeHTML misuse | Replaced with 'red'/'blue' whitelist check | ✅ |
+| HIGH-5 | Fix event listener accumulation in replays | Event delegation on .replay-controls | ✅ |
+| HIGH-6 | Handle refreshRoomTTL failures gracefully | try-catch with warning log, no join failure | ✅ |
+| HIGH-7 | Fix accessibility keyboard listener leak | Shared closeOverlay() for all close paths | ✅ |
+| HIGH-8 | Cap connectionsPerIP map size | MAX_TRACKED_IPS=10000, reject new IPs when full | ✅ |
 
 ### New Tier C: Medium Priority Improvements
 
@@ -486,8 +486,8 @@ All items from Tiers 1, 2, 3, and Tier A remain completed and verified:
 
 | Severity | Count | Status |
 |----------|-------|--------|
-| Critical | 2 | New — must fix |
-| High | 8 | New — should fix |
+| Critical | 2 | ✅ All fixed |
+| High | 8 | ✅ All fixed (HIGH-2 verified correct as-is) |
 | Medium | 35+ | New — plan and address |
 | Low | 20+ | New — backlog |
 | Previously Fixed | 23+ | Tiers 1-3 + Tier A |
