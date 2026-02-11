@@ -167,6 +167,6 @@ export async function getLocalizedWordList(lang = currentLanguage) {
 function getNestedValue(obj, path) {
     if (!obj || !path)
         return undefined;
-    return path.split('.').reduce((curr, key) => curr?.[key], obj);
+    return path.split('.').reduce((curr, key) => (curr && typeof curr === 'object') ? curr[key] : undefined, obj);
 }
 //# sourceMappingURL=i18n.js.map

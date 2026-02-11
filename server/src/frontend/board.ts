@@ -136,6 +136,7 @@ export function renderBoard(): void {
             }
             card.textContent = word;
             card.setAttribute('data-index', String(index));
+            card.setAttribute('data-testid', 'board-card');
 
             // Accessibility: make cards focusable and add ARIA attributes
             const isRevealed = state.gameState.revealed[index];

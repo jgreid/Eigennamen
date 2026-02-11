@@ -67,8 +67,8 @@ export const ROLE_BANNER_CONFIG = {
     clicker: { red: 'clicker-red', blue: 'clicker-blue', label: 'Clicker' },
     spectator: { red: 'spectator-red', blue: 'spectator-blue', label: 'Team' }
 };
-// The single shared state object
-export const state = {
+// The raw state object (wrapped with a debug proxy below)
+const _rawState = {
     // Cached DOM elements
     cachedElements: {
         board: null,
@@ -122,13 +122,7 @@ export const state = {
     spymasterTeam: null,
     clickerTeam: null,
     playerTeam: null,
-    isChangingRole: false,
-    changingTarget: null,
-    pendingRoleChange: null,
-    // Bug #1 fix: Track operation ID to handle race conditions between ACK and playerUpdated
-    roleChangeOperationId: null,
-    // Bug #1 fix: Store revert function for the current operation
-    roleChangeRevertFn: null,
+    roleChange: { phase: 'idle' },
     // Game state
     gameState: {
         words: [],
@@ -177,6 +171,7 @@ export const state = {
     pendingUIUpdate: false,
     isRevealingCard: false, // legacy boolean kept for backward compat
     revealingCards: new Set(), // Per-card reveal tracking (Set of indices)
+    revealTimeouts: new Map(), // Per-card reveal timeout IDs
     // Copy button
     copyButtonTimeoutId: null,
     // i18n
@@ -190,6 +185,68 @@ export const state = {
     spectatorCount: 0,
     roomStats: null
 };
+const watchers = new Map();
+// ========== STATE PROXY ==========
+// When debug mode is enabled, wraps the state in a Proxy that automatically
+// logs all mutations and invokes watchers. In production, this is a no-op —
+// the raw state object is exported directly.
+/**
+ * Create a recursive Proxy that logs property mutations.
+ * Sub-objects are wrapped lazily on access so the overhead is minimal.
+ */
+function createStateProxy(target, path = 'state') {
+    const subProxies = new WeakMap();
+    return new Proxy(target, {
+        get(obj, prop) {
+            const value = Reflect.get(obj, prop);
+            // Wrap sub-objects so nested mutations are also tracked
+            if (value !== null && typeof value === 'object' && typeof prop === 'string') {
+                if (!subProxies.has(value)) {
+                    subProxies.set(value, createStateProxy(value, `${path}.${prop}`));
+                }
+                return subProxies.get(value);
+            }
+            return value;
+        },
+        set(obj, prop, value) {
+            const oldValue = Reflect.get(obj, prop);
+            const result = Reflect.set(obj, prop, value);
+            if (typeof prop === 'string' && oldValue !== value) {
+                const fullPath = `${path}.${prop}`;
+                // Invalidate sub-proxy cache when a sub-object is replaced
+                if (oldValue !== null && typeof oldValue === 'object') {
+                    subProxies.delete(oldValue);
+                }
+                logStateChange(fullPath, oldValue, value, 'proxy');
+                // Invoke watchers registered via watchState()
+                const watcherList = watchers.get(fullPath);
+                if (watcherList) {
+                    for (const cb of watcherList) {
+                        try {
+                            cb(oldValue, value);
+                        }
+                        catch { /* watcher errors are non-fatal */ }
+                    }
+                }
+            }
+            return result;
+        }
+    });
+}
+/**
+ * Exported state object.
+ * In debug mode this is a Proxy that logs mutations automatically.
+ * Otherwise it's the plain object (zero overhead).
+ */
+export const state = (() => {
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage.getItem('debug') === 'codenames') {
+            return createStateProxy(_rawState);
+        }
+    }
+    catch { /* SSR / test environments without localStorage */ }
+    return _rawState;
+})();
 // ========== DEBUGGING UTILITIES ==========
 // Enable debug mode by setting localStorage.debug = 'codenames'
 const DEBUG_KEY = 'codenames';
@@ -284,7 +341,7 @@ export function clearStateHistory() {
  * Get current state snapshot (for debugging)
  */
 export function getStateSnapshot() {
-    return safeClone(state);
+    return safeClone(_rawState);
 }
 /**
  * Dump state to console (for debugging)
@@ -302,7 +359,11 @@ export function dumpState() {
     console.log('multiplayerPlayers:', state.multiplayerPlayers.length, 'players');
     console.groupEnd();
 }
-const watchers = new Map();
+/**
+ * Watch for changes to a state property (debugging)
+ * @param property - Property to watch
+ * @param callback - Called on change with (oldValue, newValue)
+ */
 export function watchState(property, callback) {
     if (!watchers.has(property)) {
         watchers.set(property, []);

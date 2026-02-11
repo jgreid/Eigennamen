@@ -63,7 +63,7 @@ export function initSettingsNav() {
     const navItems = document.querySelectorAll('.settings-nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            switchSettingsPanel(item.dataset.panel);
+            switchSettingsPanel(item.dataset.panel || '');
         });
     });
 }
@@ -218,7 +218,7 @@ export function resetWords() {
 }
 export function loadLocalSettings() {
     // Load word list mode
-    state.wordListMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    state.wordListMode = safeGetItem('codenames-wordlist-mode', 'combined') || '';
     // Load custom words
     const customWordsText = safeGetItem('codenames-custom-words');
     const customWords = customWordsText ? parseWords(customWordsText) : [];
@@ -276,8 +276,10 @@ export async function tryLoadWordlistFile() {
     catch (e) {
         // Log unexpected errors (network issues, CORS, etc.) in development
         // TypeError is expected for network errors when file doesn't exist
-        if (e.name !== 'TypeError' && window.location.hostname === 'localhost') {
-            console.warn('Unexpected error loading wordlist.txt:', e.message);
+        const isTypeError = e instanceof Error && e.name === 'TypeError';
+        if (!isTypeError && window.location.hostname === 'localhost') {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.warn('Unexpected error loading wordlist.txt:', msg);
         }
     }
 }
