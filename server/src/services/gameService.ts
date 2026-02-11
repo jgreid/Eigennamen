@@ -95,6 +95,40 @@ const {
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
 
 /**
+ * Release a distributed lock with retry and exponential backoff.
+ * HIGH FIX: Prevents permanent lock when release fails (lock self-heals via TTL,
+ * but retry reduces the window where subsequent operations are blocked).
+ */
+async function releaseLockWithRetry(
+    redis: RedisClient,
+    lockKey: string,
+    lockValue: string,
+    context: string,
+    maxRetries: number = 3
+): Promise<void> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            await withTimeout(
+                redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
+                TIMEOUTS.TIMER_OPERATION,
+                `${context}-attempt-${attempt}`
+            );
+            return; // Success
+        } catch (err: unknown) {
+            const errorMsg = (err as Error).message;
+            if (attempt < maxRetries) {
+                const backoffMs = Math.min(50 * Math.pow(2, attempt), 400);
+                logger.warn(`Lock release failed for ${context} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoffMs}ms: ${errorMsg}`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+            } else {
+                // Lock will self-heal via TTL expiration (LOCKS.CARD_REVEAL = 15s)
+                logger.error(`Failed to release lock for ${context} after ${maxRetries + 1} attempts: ${errorMsg}`);
+            }
+        }
+    }
+}
+
+/**
  * History entry union type
  */
 type HistoryEntry = RevealHistoryEntry | ClueHistoryEntry | EndTurnHistoryEntry | ForfeitHistoryEntry;
@@ -247,13 +281,7 @@ export async function createGame(
         logger.info(`Game created for room ${roomCode} with seed ${seed}`);
         return game;
     } finally {
-        await withTimeout(
-            redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
-            TIMEOUTS.TIMER_OPERATION,
-            `release-creation-lock-${roomCode}`
-        ).catch((err: Error) => {
-            logger.error(`Failed to release creation lock for room ${roomCode}:`, err.message);
-        });
+        await releaseLockWithRetry(redis, lockKey, lockValue, `creation-lock-${roomCode}`);
     }
 }
 
@@ -323,13 +351,7 @@ export async function revealCard(
             false  // Lua script now handles Duet mode natively
         );
     } finally {
-        await withTimeout(
-            redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
-            TIMEOUTS.TIMER_OPERATION,
-            `release-reveal-lock-${roomCode}`
-        ).catch((err: Error) => {
-            logger.error(`Failed to release reveal lock for room ${roomCode}:`, err.message);
-        });
+        await releaseLockWithRetry(redis, lockKey, lockValue, `reveal-lock-${roomCode}`);
     }
 }
 

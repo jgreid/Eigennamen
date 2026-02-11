@@ -1075,19 +1075,21 @@ describe('revealCard', () => {
         expect(mockRedis.eval).toHaveBeenCalled();
     });
 
-    test('logs error when lock release fails', async () => {
+    test('logs error when lock release fails after retries', async () => {
         mockRedis.set.mockResolvedValueOnce('OK');
         const luaResult = { success: true, index: 5, type: 'red' };
-        // First eval: Lua reveal succeeds. Second eval: lock release fails.
+        // First eval: Lua reveal succeeds. Remaining evals: lock release fails on all retry attempts (4 total).
         mockRedis.eval
             .mockResolvedValueOnce(JSON.stringify(luaResult))
+            .mockRejectedValueOnce(new Error('Redis down'))
+            .mockRejectedValueOnce(new Error('Redis down'))
+            .mockRejectedValueOnce(new Error('Redis down'))
             .mockRejectedValueOnce(new Error('Redis down'));
 
         await revealCard('TEST01', 5);
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Failed to release reveal lock'),
-            expect.any(String)
+            expect.stringContaining('Failed to release lock for reveal-lock-TEST01')
         );
     });
 });

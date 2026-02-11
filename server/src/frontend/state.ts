@@ -605,28 +605,24 @@ export function watchState(property: string, callback: WatcherCallback): () => v
     };
 }
 
-// Expose debugging utilities globally for console access
-if (typeof window !== 'undefined') {
+// HIGH FIX: Only expose debugging utilities when debug mode is explicitly enabled.
+// Previously exposed unconditionally, allowing any user to inspect internal state.
+if (typeof window !== 'undefined' && debugEnabled()) {
     (window as Window).__codenamesDebug = {
         getState: getStateSnapshot,
         getHistory: getStateHistory,
         clearHistory: clearStateHistory,
         dumpState,
         watchState,
-        enableDebug: () => {
-            localStorage.setItem('debug', DEBUG_KEY);
-            console.log('%c[Debug] Enabled', 'color: #00ff00');
-        },
         disableDebug: () => {
             localStorage.removeItem('debug');
-            console.log('%c[Debug] Disabled', 'color: #ff0000');
+            delete (window as Window).__codenamesDebug;
+            console.log('%c[Debug] Disabled — reload to take full effect', 'color: #ff0000');
         }
     };
 
-    if (debugEnabled()) {
-        console.log('%c[Codenames Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
-            '\nUse window.__codenamesDebug for debugging utilities');
-    }
+    console.log('%c[Codenames Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
+        '\nUse window.__codenamesDebug for debugging utilities');
 }
 
 // Initialize cached elements (called once on page load)
