@@ -15,6 +15,7 @@ import { apiLimiter, strictLimiter, getHttpRateLimitMetrics } from './middleware
 import { csrfProtection } from './middleware/csrf';
 import { requestTiming } from './middleware/timing';
 import routes from './routes';
+import healthRoutes from './routes/healthRoutes';
 import adminRoutes from './routes/adminRoutes';
 import logger from './utils/logger';
 import { setupSwagger } from './config/swagger';
@@ -180,6 +181,9 @@ app.use('/api', routes);
 // Admin dashboard routes (protected by basic auth)
 app.use('/admin', adminRoutes);
 
+// Health check routes (single source of truth at /health)
+app.use('/health', healthRoutes);
+
 // Service worker must never be HTTP-cached so browser always checks for updates
 app.get('/service-worker.js', (_req: Request, res: Response, next: NextFunction) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -193,117 +197,7 @@ app.use(express.static(path.join(__dirname, '../public'), {
     lastModified: true
 }));
 
-// Basic health check (fast, for load balancer keep-alive)
-app.get('/health', (_req: Request, res: Response) => {
-    res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
-
-// Health check response interface
-interface HealthCheckResponse {
-    status: string;
-    timestamp: string;
-    uptime: number;
-    memory: NodeJS.MemoryUsage;
-    instance?: {
-        flyAllocId: string;
-        flyRegion?: string;
-    };
-    checks: {
-        database?: { status: string; note?: string; message?: string };
-        storage?: { status: string; type?: string; note?: string; message?: string };
-        socketio?: { status: string; connections?: number; cached?: boolean; note?: string; message?: string };
-    };
-}
-
-// Detailed health check with all dependencies (Redis, Database, Socket.io)
-// This is the endpoint Fly.io should use for readiness checks
-app.get('/health/ready', async (_req: Request, res: Response) => {
-    const checks: HealthCheckResponse = {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        checks: {}
-    };
-
-    // Add Fly.io instance info if available
-    if (process.env.FLY_ALLOC_ID) {
-        checks.instance = {
-            flyAllocId: process.env.FLY_ALLOC_ID,
-            flyRegion: process.env.FLY_REGION
-        };
-    }
-
-    // Check Database (PostgreSQL via Prisma) - Optional
-    try {
-        const { isDatabaseEnabled } = require('./infrastructure/database');
-        if (isDatabaseEnabled()) {
-            const getDatabase = app.get('database') as () => { $queryRaw: (query: TemplateStringsArray) => Promise<unknown> };
-            const prisma = getDatabase();
-            // Simple query to verify database connectivity
-            await prisma.$queryRaw`SELECT 1`;
-            checks.checks.database = { status: 'ok' };
-        } else {
-            checks.checks.database = { status: 'disabled', note: 'Game works without database' };
-        }
-    } catch (error) {
-        checks.checks.database = { status: 'error', message: (error as Error).message };
-        // Database errors don't degrade overall status since it's optional
-        logger.warn('Health check: Database error (non-critical)', { error: (error as Error).message });
-    }
-
-    // Check Redis/Storage
-    try {
-        const { isRedisHealthy, isUsingMemoryMode } = require('./infrastructure/redis');
-        const healthy: boolean = await isRedisHealthy();
-        const memoryMode: boolean = isUsingMemoryMode();
-        if (healthy) {
-            checks.checks.storage = {
-                status: 'ok',
-                type: memoryMode ? 'memory' : 'redis',
-                note: memoryMode ? 'Single-instance mode, data will not persist across restarts' : undefined
-            };
-        } else {
-            checks.checks.storage = { status: 'error', message: 'Storage not connected' };
-            checks.status = 'degraded';
-        }
-    } catch (error) {
-        checks.checks.storage = { status: 'error', message: (error as Error).message };
-        checks.status = 'degraded';
-        logger.error('Health check: Storage error', { error: (error as Error).message });
-    }
-
-    // Check Socket.io with cached count for fast response
-    try {
-        const io = app.get('io') as SocketServer | undefined;
-        if (io) {
-            const { count, cached, stale } = await getCachedSocketCount(io);
-            checks.checks.socketio = {
-                status: 'ok',
-                connections: count,
-                cached,
-                ...(stale && { note: 'Count may be stale' })
-            };
-        } else {
-            checks.checks.socketio = { status: 'not_configured' };
-        }
-    } catch (error) {
-        checks.checks.socketio = { status: 'error', message: (error as Error).message };
-        checks.status = 'degraded';
-    }
-
-    const statusCode = checks.status === 'ok' ? 200 : 503;
-    res.status(statusCode).json(checks);
-});
-
-// Liveness probe (Kubernetes/Fly.io) - just confirms process is running
-app.get('/health/live', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'alive' });
-});
+// Health endpoints are consolidated in routes/healthRoutes.ts (mounted at /health above)
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
 setupSwagger(app as any);
