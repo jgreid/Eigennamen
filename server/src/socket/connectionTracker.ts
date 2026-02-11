@@ -17,6 +17,9 @@ const { SOCKET } = require('../config/constants');
 // Track connections per IP for DoS protection
 const connectionsPerIP = new Map<string, number>();
 
+// Maximum distinct IPs to track before rejecting new connections
+const MAX_TRACKED_IPS = 10000;
+
 // Periodic cleanup interval handle
 let connectionsCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -26,6 +29,11 @@ let connectionsCleanupInterval: ReturnType<typeof setInterval> | null = null;
  */
 function incrementConnectionCount(ip: string): void {
     const currentCount = connectionsPerIP.get(ip) || 0;
+    // If this is a new IP and we've hit the cap, reject to prevent memory DoS
+    if (currentCount === 0 && connectionsPerIP.size >= MAX_TRACKED_IPS) {
+        logger.warn('Connection tracker IP map at capacity, rejecting new IP', { ip, mapSize: connectionsPerIP.size });
+        return;
+    }
     connectionsPerIP.set(ip, currentCount + 1);
 }
 
@@ -50,7 +58,10 @@ function decrementConnectionCount(ip: string): void {
  */
 function isConnectionLimitReached(ip: string): boolean {
     const currentCount = connectionsPerIP.get(ip) || 0;
-    return currentCount >= SOCKET.MAX_CONNECTIONS_PER_IP;
+    if (currentCount >= SOCKET.MAX_CONNECTIONS_PER_IP) return true;
+    // Reject new IPs when map is at capacity to prevent memory DoS
+    if (currentCount === 0 && connectionsPerIP.size >= MAX_TRACKED_IPS) return true;
+    return false;
 }
 
 /**

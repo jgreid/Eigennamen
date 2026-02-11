@@ -11,6 +11,8 @@ const { BOARD_SIZE } = require('../config/constants');
 const { ServerError, ValidationError, WordListError, PlayerError } = require('../errors/GameError');
 const { toEnglishUpperCase } = require('../utils/sanitize');
 
+const MAX_WORD_LIST_SIZE = 10000;
+
 /**
  * Word list data structure
  */
@@ -228,9 +230,12 @@ export async function createWordList(data: CreateWordListData): Promise<WordList
         throw new ValidationError('Word list name is required');
     }
 
-    // Validate minimum words
+    // Validate word count bounds
     if (!words || words.length < BOARD_SIZE) {
         throw new ValidationError(`Word list must contain at least ${BOARD_SIZE} words`);
+    }
+    if (words.length > MAX_WORD_LIST_SIZE) {
+        throw new ValidationError(`Word list cannot exceed ${MAX_WORD_LIST_SIZE} words`);
     }
 
     // Clean and deduplicate words
@@ -313,6 +318,10 @@ export async function updateWordList(
     }
 
     if (words !== undefined) {
+        if (words.length > MAX_WORD_LIST_SIZE) {
+            throw new ValidationError(`Word list cannot exceed ${MAX_WORD_LIST_SIZE} words`);
+        }
+
         const cleanedWords = [...new Set(
             words
                 .map(w => toEnglishUpperCase(w.trim()))

@@ -262,6 +262,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 }
             }
 
+            // Invalidate reconnection token so kicked player cannot rejoin
+            await playerService.invalidateRoomReconnectToken(validated.targetSessionId);
+
             // Remove player from room data (after socket is disconnected)
             await playerService.removePlayer(validated.targetSessionId);
 
@@ -279,8 +282,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
     ));
 
     // Spectator: Request to join a team
-    socket.on(SOCKET_EVENTS.SPECTATOR_REQUEST_JOIN, createRoomHandler(
-        io, socket, 'spectator:requestJoin',
+    socket.on(SOCKET_EVENTS.SPECTATOR_REQUEST_JOIN, createRoomHandler(socket, SOCKET_EVENTS.SPECTATOR_REQUEST_JOIN, spectatorJoinRequestSchema,
         async (ctx: RoomContext, validated: { team: string }) => {
             // Only spectators can request to join
             if (ctx.player.team && ctx.player.role !== 'spectator') {
@@ -294,7 +296,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 throw new PlayerError('No host found in room', ERROR_CODES.NOT_HOST);
             }
 
-            // Emit join request to the host
+            // Emit join request to the host (io captured from outer closure)
             const hostSockets = await io.in(host.sessionId).fetchSockets();
             if (hostSockets.length > 0) {
                 hostSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
@@ -306,13 +308,11 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             }
 
             logger.info(`Spectator ${sanitizeHtml(ctx.player.nickname)} requested to join ${validated.team} team in room ${ctx.roomCode}`);
-        },
-        spectatorJoinRequestSchema
+        }
     ));
 
     // Host: Approve or deny spectator join request
-    socket.on(SOCKET_EVENTS.SPECTATOR_APPROVE_JOIN, createHostHandler(
-        io, socket, 'spectator:approveJoin',
+    socket.on(SOCKET_EVENTS.SPECTATOR_APPROVE_JOIN, createHostHandler(socket, SOCKET_EVENTS.SPECTATOR_APPROVE_JOIN, spectatorJoinResponseSchema,
         async (ctx: RoomContext, validated: { requesterId: string; approved: boolean }) => {
             const requester: Player | null = await playerService.getPlayer(validated.requesterId);
             if (!requester || requester.roomCode !== ctx.roomCode) {
@@ -320,7 +320,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             }
 
             if (validated.approved) {
-                // Notify the requester they've been approved
+                // Notify the requester they've been approved (io captured from outer closure)
                 const requesterSockets = await io.in(validated.requesterId).fetchSockets();
                 if (requesterSockets.length > 0) {
                     requesterSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_APPROVED, {
@@ -331,7 +331,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
 
                 logger.info(`Host approved spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`);
             } else {
-                // Notify the requester they've been denied
+                // Notify the requester they've been denied (io captured from outer closure)
                 const requesterSockets = await io.in(validated.requesterId).fetchSockets();
                 if (requesterSockets.length > 0) {
                     requesterSockets[0]!.emit(SOCKET_EVENTS.SPECTATOR_JOIN_DENIED, {
@@ -342,8 +342,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
 
                 logger.info(`Host denied spectator ${sanitizeHtml(requester.nickname)} join request in room ${ctx.roomCode}`);
             }
-        },
-        spectatorJoinResponseSchema
+        }
     ));
 }
 

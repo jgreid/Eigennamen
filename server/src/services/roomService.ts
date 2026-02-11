@@ -338,8 +338,15 @@ export async function joinRoom(
     const game = await gameService.getGame(normalizedRoomId);
     const gameState: PlayerGameState | null = game ? gameService.getGameStateForPlayer(game, player) : null;
 
-    // Refresh all room-related TTLs
-    await refreshRoomTTL(normalizedRoomId);
+    // Refresh all room-related TTLs (non-critical — don't fail join if TTL refresh fails)
+    try {
+        await refreshRoomTTL(normalizedRoomId);
+    } catch (ttlError) {
+        logger.warn('Failed to refresh room TTL during join', {
+            roomId: normalizedRoomId,
+            error: (ttlError as Error).message
+        });
+    }
 
     // Ensure player is not null at this point
     if (!player) {
