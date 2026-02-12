@@ -57,12 +57,19 @@ async function withTimeout<T>(
 
 /**
  * Parse an integer env var, returning the default if unset or invalid.
+ * Clamps to [min, max] and logs a warning if the value was out of range.
  */
-function envInt(name: string, defaultValue: number): number {
+function envInt(name: string, defaultValue: number, min: number = 1000, max: number = 120000): number {
     const raw = process.env[name];
     if (!raw) return defaultValue;
     const parsed = parseInt(raw, 10);
-    return isNaN(parsed) || parsed <= 0 ? defaultValue : parsed;
+    if (isNaN(parsed) || parsed <= 0) return defaultValue;
+    if (parsed < min || parsed > max) {
+        const clamped = Math.max(min, Math.min(max, parsed));
+        logger.warn(`Timeout ${name}=${parsed}ms out of bounds [${min}, ${max}], clamped to ${clamped}ms`);
+        return clamped;
+    }
+    return parsed;
 }
 
 /**
@@ -70,12 +77,12 @@ function envInt(name: string, defaultValue: number): number {
  * Configurable via environment variables; falls back to defaults.
  */
 const TIMEOUTS = {
-    SOCKET_HANDLER:  envInt('TIMEOUT_SOCKET_HANDLER',  30000),
-    REDIS_OPERATION: envInt('TIMEOUT_REDIS_OPERATION',  10000),
-    JOIN_ROOM:       envInt('TIMEOUT_JOIN_ROOM',        15000),
-    RECONNECT:       envInt('TIMEOUT_RECONNECT',        15000),
-    GAME_ACTION:     envInt('TIMEOUT_GAME_ACTION',      10000),
-    TIMER_OPERATION: envInt('TIMEOUT_TIMER_OPERATION',    5000)
+    SOCKET_HANDLER:  envInt('TIMEOUT_SOCKET_HANDLER',  30000, 5000, 120000),
+    REDIS_OPERATION: envInt('TIMEOUT_REDIS_OPERATION',  10000, 1000, 60000),
+    JOIN_ROOM:       envInt('TIMEOUT_JOIN_ROOM',        15000, 3000, 60000),
+    RECONNECT:       envInt('TIMEOUT_RECONNECT',        15000, 3000, 60000),
+    GAME_ACTION:     envInt('TIMEOUT_GAME_ACTION',      10000, 1000, 60000),
+    TIMER_OPERATION: envInt('TIMEOUT_TIMER_OPERATION',    5000, 1000, 30000)
 } as const;
 
 type TimeoutType = keyof typeof TIMEOUTS;

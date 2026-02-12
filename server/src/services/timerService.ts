@@ -307,7 +307,13 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
         return null;
     }
 
-    const remainingSeconds = status.remainingSeconds;
+    let remainingSeconds = status.remainingSeconds;
+
+    // Clamp to valid range: must be finite and non-negative
+    if (!Number.isFinite(remainingSeconds) || remainingSeconds < 0) {
+        logger.warn(`Invalid remainingSeconds ${remainingSeconds} in pauseTimer for ${roomCode}, clamping to 0`);
+        remainingSeconds = 0;
+    }
 
     // Stop the timer but remember the remaining time
     const redis: RedisClient = getRedis();
@@ -331,8 +337,8 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
     const localTimer = localTimers.get(roomCode);
     if (localTimer) {
         clearTimeout(localTimer.timeoutId);
-        (localTimer as TimerState & { paused?: boolean; remainingWhenPaused?: number }).paused = true;
-        (localTimer as TimerState & { remainingWhenPaused?: number }).remainingWhenPaused = remainingSeconds;
+        localTimer.paused = true;
+        localTimer.remainingWhenPaused = remainingSeconds;
     }
 
     logger.info(`Timer paused for room ${roomCode}: ${remainingSeconds}s remaining`);
@@ -392,7 +398,8 @@ export async function resumeTimer(
         }
 
         // Resume with the original remaining time (pausing preserves time)
-        if (remainingSeconds === undefined) {
+        if (remainingSeconds === undefined || !Number.isFinite(remainingSeconds) || remainingSeconds <= 0) {
+            logger.warn(`Invalid remainingSeconds ${remainingSeconds} in resumeTimer for ${roomCode}, treating as expired`);
             return null;
         }
         return await startTimer(roomCode, remainingSeconds, onExpire);

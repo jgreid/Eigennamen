@@ -663,7 +663,7 @@ describe('createGame', () => {
     test('updates room status when room data exists', async () => {
         const roomData = JSON.stringify({ code: 'TEST09', status: 'waiting', players: [] });
         // FIX: Updated for new room check at game creation
-        // Order: getGame (null), preCheckRoomData (room exists), final room update
+        // Order: getGame (null), preCheckRoomData (room exists), final room update via Lua
         mockRedis.get.mockImplementation((key) => {
             if (key.includes(':game')) return Promise.resolve(null); // No existing game
             if (key.startsWith('room:')) return Promise.resolve(roomData); // Room exists
@@ -672,32 +672,29 @@ describe('createGame', () => {
 
         await createGame('TEST09');
 
-        // Should have called set 3 times (lock + game + room update), plus del for lock cleanup
-        expect(mockRedis.set).toHaveBeenCalledTimes(3);
+        // Should have called set 2 times (lock + game data); room status update now uses eval (Lua)
+        expect(mockRedis.set).toHaveBeenCalledTimes(2);
+        // Room status update is now atomic via Lua script
+        expect(mockRedis.eval).toHaveBeenCalled();
     });
 
     test('handles corrupted room data gracefully', async () => {
-        // FIX: When room data is corrupted at the verification stage, it should fail
-        // This is actually the correct behavior - we shouldn't create games for non-existent/corrupted rooms
+        // Room status update uses atomic Lua script. If Lua fails (e.g., corrupted data),
+        // the error is caught and logged, but game creation still succeeds.
         const roomData = JSON.stringify({ code: 'TEST10', status: 'waiting' });
-        const corruptedRoomData = 'invalid-json';
-        let callCount = 0;
         mockRedis.get.mockImplementation((key) => {
             if (key.includes(':game')) return Promise.resolve(null); // No existing game
-            if (key.startsWith('room:')) {
-                callCount++;
-                // First room check succeeds (precheck), second one returns corrupted (final update)
-                if (callCount <= 1) return Promise.resolve(roomData);
-                return Promise.resolve(corruptedRoomData);
-            }
+            if (key.startsWith('room:')) return Promise.resolve(roomData); // Room exists
             return Promise.resolve(null);
         });
+        // Simulate Lua script failure (e.g., corrupted room data in Redis)
+        mockRedis.eval.mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'));
 
         const game = await createGame('TEST10');
 
         expect(game).toBeDefined();
         expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Failed to parse room data'),
+            expect.stringContaining('Failed to update room status'),
             expect.any(String)
         );
     });
