@@ -251,22 +251,27 @@ Eigennamen/
 └── server/                 # Node.js backend
     ├── public/
     │   ├── js/
-    │   │   ├── modules/    # ES6 modules (15 frontend modules)
-    │   │   │   ├── app.js          # Entry point, initialization
-    │   │   │   ├── state.js        # State management
-    │   │   │   ├── ui.js           # UI rendering utilities
-    │   │   │   ├── board.js        # Board rendering
-    │   │   │   ├── game.js         # Game logic
-    │   │   │   ├── roles.js        # Role management
-    │   │   │   ├── multiplayer.js  # Multiplayer logic (1,922 lines)
-    │   │   │   ├── history.js      # Game history and replay
-    │   │   │   ├── timer.js        # Turn timer
-    │   │   │   ├── settings.js     # Settings management
-    │   │   │   ├── i18n.js         # Internationalization
-    │   │   │   ├── accessibility.js # Keyboard nav, colorblind mode
-    │   │   │   ├── notifications.js # Audio notifications
-    │   │   │   ├── constants.js    # Shared constants
-    │   │   │   └── utils.js        # Utility functions
+    │   │   ├── modules/    # ES6 modules (20 compiled frontend modules)
+    │   │   │   ├── app.js              # Entry point, initialization
+    │   │   │   ├── state.js            # State management
+    │   │   │   ├── ui.js               # UI rendering utilities
+    │   │   │   ├── board.js            # Board rendering
+    │   │   │   ├── game.js             # Game logic
+    │   │   │   ├── roles.js            # Role management
+    │   │   │   ├── multiplayer.js      # Multiplayer core (365 lines, barrel re-export)
+    │   │   │   ├── multiplayerListeners.js  # Socket event handlers (537 lines)
+    │   │   │   ├── multiplayerSync.js  # State synchronization (292 lines)
+    │   │   │   ├── multiplayerUI.js    # Multiplayer UI components (490 lines)
+    │   │   │   ├── multiplayerTypes.js # Multiplayer type definitions
+    │   │   │   ├── history.js          # Game history and replay
+    │   │   │   ├── timer.js            # Turn timer
+    │   │   │   ├── settings.js         # Settings management
+    │   │   │   ├── i18n.js             # Internationalization
+    │   │   │   ├── accessibility.js    # Keyboard nav, colorblind mode
+    │   │   │   ├── notifications.js    # Audio notifications
+    │   │   │   ├── logger.js           # Frontend logging utility
+    │   │   │   ├── constants.js        # Shared constants
+    │   │   │   └── utils.js            # Utility functions
     │   │   └── socket-client.js    # WebSocket client wrapper
     │   ├── css/            # Modular stylesheets (8 files)
     │   ├── locales/        # i18n translations (en, de, es, fr)
@@ -278,15 +283,18 @@ Eigennamen/
     │   ├── config/         # Configuration modules (13 files)
     │   ├── errors/         # Custom error classes (GameError hierarchy)
     │   ├── middleware/      # Express middleware (6 files)
+    │   │   └── auth/       # Socket auth sub-modules (4 files)
     │   ├── routes/         # REST API routes (6 files)
     │   ├── services/       # Business logic (7 service files)
-    │   ├── socket/         # WebSocket setup and utilities
-    │   │   └── handlers/   # Event-specific handlers (5 + types)
+    │   │   └── game/       # Game sub-modules (4 files)
+    │   ├── socket/         # WebSocket setup and utilities (10 files)
+    │   │   └── handlers/   # Event-specific handlers (6 files)
+    │   ├── frontend/       # Frontend TypeScript source (22 modules)
     │   ├── types/          # TypeScript type definitions (9 files)
     │   ├── utils/          # Utility modules (9 files)
-    │   ├── validators/     # Zod validation schemas
+    │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts (6 atomic operations)
-    │   └── __tests__/      # Jest tests (73+ test files)
+    │   └── __tests__/      # Jest tests (81 suites, 2,527 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests

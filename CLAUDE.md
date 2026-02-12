@@ -69,16 +69,18 @@ Eigennamen/
     │   ├── config/         # Configuration modules (13 files)
     │   ├── errors/         # Custom error classes (GameError hierarchy)
     │   ├── middleware/      # Express middleware (6 files)
-    │   ├── routes/         # REST API routes (5 files)
+    │   │   └── auth/       # Socket auth sub-modules (4 files)
+    │   ├── routes/         # REST API routes (6 files)
     │   ├── services/       # Business logic (7 service files)
-    │   ├── socket/         # WebSocket setup and utilities
-    │   │   └── handlers/   # Event-specific handlers (5 files)
-    │   ├── frontend/       # Frontend TypeScript source (15 modules + globals.d.ts)
+    │   │   └── game/       # Game sub-modules (4 files: board, clue, reveal, lua)
+    │   ├── socket/         # WebSocket setup and utilities (10 files)
+    │   │   └── handlers/   # Event-specific handlers (6 files)
+    │   ├── frontend/       # Frontend TypeScript source (22 modules)
     │   ├── types/          # TypeScript type definitions (9 files)
-    │   ├── utils/          # Utility modules (8 files)
-    │   ├── validators/     # Zod validation schemas
+    │   ├── utils/          # Utility modules (9 files)
+    │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts for atomic operations
-    │   └── __tests__/      # Jest tests (77 suites, 2,308 tests)
+    │   └── __tests__/      # Jest tests (81 suites, 2,527 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
@@ -90,7 +92,7 @@ Eigennamen/
 ## Technology Stack
 
 ### Frontend
-- TypeScript source in `server/src/frontend/` (compiled to `server/public/js/modules/`)
+- TypeScript source in `server/src/frontend/` (22 modules, compiled to `server/public/js/modules/`)
 - Socket.io client for real-time communication
 - Glassmorphism UI design
 - URL-based state encoding for standalone mode
@@ -264,7 +266,7 @@ npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
 
-**Test suite**: 77 backend suites (2,308 tests), 4 frontend suites (303 tests), 8 E2E spec files (64+ tests). Total: ~2,675 tests.
+**Test suite**: 81 suites (2,527 tests — backend + frontend), 8 E2E spec files (64+ tests). Total: ~2,591 tests.
 
 **Code quality**: ESLint reports 0 errors, 0 warnings. TypeScript compiles with 0 errors.
 
@@ -383,7 +385,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 
 ### Adding a New Socket Event
 1. Add event name to `server/src/config/socketConfig.ts`
-2. Add Zod schema in `server/src/validators/schemas.ts`
+2. Add Zod schema in appropriate `server/src/validators/*Schemas.ts` file (or `schemas.ts` barrel)
 3. Create handler in appropriate `server/src/socket/handlers/*.ts` file
 4. Register handler in `server/src/socket/index.ts`
 5. Add client handling in `server/public/js/modules/multiplayer.js`
@@ -411,14 +413,18 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 | File | Why It Matters |
 |------|----------------|
 | `index.html` | Frontend entry point (SPA) |
-| `server/src/frontend/` | TypeScript frontend source (15 modules) |
+| `server/src/frontend/` | TypeScript frontend source (22 modules incl. multiplayer split) |
 | `server/src/config/constants.ts` | Re-exports all config (game, rate limits, errors, room, security, socket) |
 | `server/src/config/gameConfig.ts` | Game modes, board layout, PRNG constants |
 | `server/src/config/socketConfig.ts` | Socket.io settings and all event name constants |
-| `server/src/services/gameService.ts` | Core game logic, PRNG, clue validation |
+| `server/src/services/gameService.ts` | Core game logic, PRNG; delegates to `game/` sub-modules |
+| `server/src/services/game/` | Game sub-modules (boardGenerator, clueValidator, revealEngine, luaGameOps) |
 | `server/src/services/playerService.ts` | Player management, reconnection tokens |
-| `server/src/socket/index.ts` | Socket.io setup and event registration |
+| `server/src/socket/index.ts` | Socket.io wiring layer (delegates to serverConfig + connectionHandler) |
 | `server/src/socket/handlers/` | Event-specific handler files (game, room, player, timer, chat) |
+| `server/src/middleware/socketAuth.ts` | Auth orchestrator (delegates to `auth/` sub-modules) |
+| `server/src/middleware/auth/` | Auth sub-modules (clientIP, originValidator, sessionValidator, jwtHandler) |
+| `server/src/validators/schemas.ts` | Barrel re-export for domain schema files (room, player, game, chat, timer) |
 | `server/src/errors/GameError.ts` | Error class hierarchy (GameError, RoomError, ValidationError, etc.) |
 | `server/src/utils/metrics.ts` | Metrics collection and tracking |
 | `server/prisma/schema.prisma` | Database schema definition |

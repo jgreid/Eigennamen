@@ -1,7 +1,7 @@
 # Roadmap — Die Eigennamen (Codenames Online)
 
-**Last Updated:** February 11, 2026 (Tier C Implementation)
-**Project Version:** v2.3.0
+**Last Updated:** February 12, 2026 (Module Decomposition + Backend Robustness)
+**Project Version:** v2.3.0+
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Backend Tests | 2,308 passing (77 suites) |
-| Frontend Tests | 303 passing (4 suites) |
+| Jest Tests | 2,527 passing (81 suites, 0 failures) |
 | E2E Tests | 64+ passing (8 spec files) |
-| Total Tests | ~2,675 |
+| Total Tests | ~2,591 |
 | Backend Coverage | 94%+ lines/statements |
 | TypeScript | Clean (0 errors) |
 | ESLint | Clean (0 errors, 0 warnings) |
 | npm audit | 0 vulnerabilities |
 | Critical/High Issues | 0 open (all 10 fixed) |
 | Medium Issues (Tier C) | 0 open (all 15 completed) |
+| Medium Issues (Tier D partial) | 0 open (17 completed — module decomposition + robustness) |
 | Code Quality | Production-ready |
 
 ### Completed Features
@@ -33,7 +33,7 @@
 - Reconnection with token-based authentication and full state recovery
 - Comprehensive security hardening (JWT, rate limiting, CSRF, XSS prevention, Helmet, audit logging)
 - Performance monitoring (request timing, memory alerts, metrics collection, Prometheus endpoint)
-- Modular ES6 frontend (15 modules in `server/public/js/modules/`)
+- Modular ES6 frontend (20 modules in `server/public/js/modules/`, compiled from 22 TypeScript sources)
 - Internationalization (English, German, Spanish, French with localized word lists)
 - Accessibility (colorblind SVG patterns, keyboard navigation, screen reader support, ARIA, focus traps)
 - Game modes: Classic, Blitz (30s turns), Duet (cooperative 2-player)
@@ -101,18 +101,34 @@
 - Converted `import()` type annotations to proper `import type` statements
 - Replaced all source-file non-null assertions with proper null checks
 
+### Module Decomposition + Backend Robustness (Feb 12, 2026) — All Done
+
+**Large file decomposition** (barrel re-export pattern preserving all existing imports):
+- `schemas.ts` (370 lines) → 7 files: schemaHelpers + 6 domain schemas (133-line barrel)
+- `socketAuth.ts` (593 lines) → 4 auth sub-modules in `middleware/auth/` (98-line orchestrator)
+- `socket/index.ts` (432 lines) → serverConfig + connectionHandler (233-line wiring layer)
+- `multiplayer.js` (1,922 lines) → already decomposed into 5 TypeScript modules (D-4)
+
+**Backend robustness fixes** (13 issues):
+- GS-2, GH-2, GH-3, GH-4, GH-5, PS-2, WL-5, RS-4, AS-1, AS-2, FE-10, CF-1, MW-1
+
+**Test fixes** (13 failures → 0):
+- playerService: Updated mocks for Lua-first updatePlayer (7 fixes + 2 new tests)
+- disconnectHandler: Added withLock mock, fixed assertion target (2 fixes)
+- board.test.ts: Mocked i18n t() for jsdom (3 fixes)
+- integration: Added updatePlayer Lua handler to mock Redis (1 fix)
+
 ---
 
 ## Remaining Work
 
-### Tier D: Lower Priority / Future (14 items)
+### Tier D: Lower Priority / Future (13 items)
 
 | ID | Task | Category | Effort |
 |----|------|----------|--------|
 | D-1 | Implement chat UI frontend | Frontend | Medium |
 | D-2 | Complete i18n markup (audit hardcoded English strings) | Frontend | Medium |
 | D-3 | Gate frontend debug logging behind config flag | Performance | Low |
-| D-4 | Split multiplayer.js (1,922 lines) into submodules | Architecture | Medium |
 | D-5 | Migrate all transactions to Lua (replace watch/unwatch) | Performance | Medium |
 | D-6 | Add chaos/resilience testing (simulate Redis failures) | Testing | Medium |
 | D-7 | Add SRI hashes for vendored JS | Security | Low |
@@ -160,7 +176,6 @@
 
 | Issue | Current State | Priority |
 |-------|---------------|----------|
-| multiplayer.js size | 1,922 lines | Medium — split into submodules |
 | Frontend debug logging | Always-on console.log | Low — gate behind config |
 | Mixed module exports | Some handlers dual-export CJS + ESM | Low — standardize |
 | Coverage threshold mismatch | package.json (80%) vs jest.config.ts.js (65/80/75/75) | Low — align |
@@ -199,10 +214,10 @@
        │ Integration │  4 test files
        │   Tests     │  Full game flow, race conditions
       ┌┴─────────────┴┐
-      │  Frontend Unit  │  303 tests (4 suites)
-      │     Tests       │  State, board, utils, rendering
+      │  Frontend Unit  │  4 suites (board, state, utils, rendering)
+      │     Tests       │  Jest + jsdom with i18n mocking
      ┌┴─────────────────┴┐
-     │   Backend Unit      │  2,308 tests (77 suites)
+     │   Backend Unit      │  2,527 tests (81 suites, 0 failures)
      │      Tests          │  Services, handlers, middleware, config
      └─────────────────────┘
 ```
