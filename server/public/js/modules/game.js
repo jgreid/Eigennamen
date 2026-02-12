@@ -7,6 +7,7 @@ import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } 
 import { updateRoleBanner, updateControls } from './roles.js';
 import { UI } from './constants.js';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed) {
     // Randomly decide who goes first (gets more cards)
@@ -308,9 +309,14 @@ export function updateQRCode(url) {
     }
 }
 export function revealCard(index) {
+    // Bounds check: prevent out-of-bounds array access
+    if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
+        logger.error(`revealCard: invalid index ${index}`);
+        return;
+    }
     // Provide specific feedback for why card click is blocked
     if (state.gameState.gameOver) {
-        showToast('Game is over - start a new game to continue', 'warning');
+        showToast(t('game.gameOverStartNew'), 'warning');
         return;
     }
     if (state.gameState.revealed[index]) {
@@ -320,21 +326,21 @@ export function revealCard(index) {
     if (!canClickCards()) {
         // Determine specific reason
         if (state.spymasterTeam) {
-            showToast('Spymasters cannot reveal cards', 'warning');
+            showToast(t('game.spymasterCannotReveal'), 'warning');
         }
         else if (state.clickerTeam && state.clickerTeam !== state.gameState.currentTurn) {
             const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-            showToast(`It's ${currentTeamName}'s turn`, 'warning');
+            showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
         }
         else if (!state.clickerTeam && !state.playerTeam) {
-            showToast('Join a team and become a clicker to reveal cards', 'warning');
+            showToast(t('game.joinTeamToClick'), 'warning');
         }
         else if (state.playerTeam && state.playerTeam !== state.gameState.currentTurn) {
             const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-            showToast(`It's ${currentTeamName}'s turn`, 'warning');
+            showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
         }
         else {
-            showToast('Only the clicker can reveal cards', 'warning');
+            showToast(t('game.onlyClickerCanReveal'), 'warning');
         }
         return;
     }
@@ -432,7 +438,9 @@ export function revealCardFromServer(index, serverData = {}) {
     if (state.gameState.revealed[index])
         return; // Already revealed
     state.gameState.revealed[index] = true;
-    const type = serverData.type || state.gameState.types[index];
+    // Use server-provided type; fall back to local only if non-null (spymasters have types,
+    // non-spymasters have null for unrevealed cards — using null causes wrong scoring)
+    const type = serverData.type || state.gameState.types[index] || 'neutral';
     // Bug fix: Update the types array with the revealed type from server
     // This is critical for non-spymasters who have null for unrevealed cards
     if (serverData.type) {
@@ -533,16 +541,16 @@ export function closeGameOver() {
 export function endTurn() {
     // Provide specific feedback for why end turn is blocked
     if (state.gameState.gameOver) {
-        showToast('Game is over - start a new game to continue', 'warning');
+        showToast(t('game.gameOverStartNew'), 'warning');
         return;
     }
     if (!state.clickerTeam) {
-        showToast('Only clickers can end the turn', 'warning');
+        showToast(t('game.onlyClickerCanEndTurn'), 'warning');
         return;
     }
     if (state.clickerTeam !== state.gameState.currentTurn) {
         const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-        showToast(`It's ${currentTeamName}'s turn - only their clicker can end it`, 'warning');
+        showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
         return;
     }
     // In multiplayer mode, send end turn to server
@@ -590,25 +598,25 @@ export function updateTurnIndicator() {
         indicator.className = 'turn-indicator game-over';
         if (state.gameMode === 'duet') {
             if (state.gameState.winner) {
-                turnText.textContent = 'YOU WIN! All agents found!';
+                turnText.textContent = t('game.duetVictory');
             }
             else {
                 const assassinIndex = state.gameState.types.indexOf('assassin');
                 if (state.gameState.revealed[assassinIndex]) {
-                    turnText.textContent = 'GAME OVER - Assassin revealed!';
+                    turnText.textContent = t('game.duetGameOverAssassin');
                 }
                 else {
-                    turnText.textContent = 'GAME OVER - Out of time!';
+                    turnText.textContent = t('game.duetGameOverTimeout');
                 }
             }
         }
         else {
             const assassinIndex = state.gameState.types.indexOf('assassin');
             if (state.gameState.revealed[assassinIndex]) {
-                turnText.textContent = `${winnerTeamName} WINS! (Assassin)`;
+                turnText.textContent = t('game.winnerAssassin', { team: winnerTeamName });
             }
             else {
-                turnText.textContent = `${winnerTeamName} WINS!`;
+                turnText.textContent = t('game.winner', { team: winnerTeamName });
             }
         }
     }
@@ -616,10 +624,10 @@ export function updateTurnIndicator() {
         const isYourTurn = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
         indicator.className = `turn-indicator ${state.gameState.currentTurn}-turn${isYourTurn ? ' your-turn' : ''}`;
         if (isYourTurn) {
-            turnText.textContent = `${currentTeamName}'s Turn - Go!`;
+            turnText.textContent = t('game.yourTurnGo', { team: currentTeamName });
         }
         else {
-            turnText.textContent = `${currentTeamName}'s Turn`;
+            turnText.textContent = t('game.teamsTurn', { team: currentTeamName });
         }
     }
 }

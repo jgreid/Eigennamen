@@ -2,12 +2,7 @@
 // Handles chat UI: toggle, send messages, render incoming messages
 
 import type { ChatMessageData } from './multiplayerTypes.js';
-
-declare const CodenamesClient: {
-    sendMessage: (text: string, teamOnly: boolean) => void;
-    isConnected: () => boolean;
-    player?: { sessionId?: string; team?: string | null };
-};
+// CodenamesClient is a global declared in globals.d.ts (loaded via <script>)
 
 let unreadCount = 0;
 let chatOpen = false;

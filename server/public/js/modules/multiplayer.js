@@ -7,6 +7,7 @@ import { showToast, openModal, closeModal } from './ui.js';
 import { updateRoleBanner, updateControls } from './roles.js';
 import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 import { updateMpIndicator, updateRoomSettingsNavVisibility, updateRoomInfoDisplay, updateForfeitButton, copyRoomId } from './multiplayerUI.js';
 import { syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL } from './multiplayerSync.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
@@ -67,11 +68,16 @@ export function setMpMode(mode) {
         el.classList.toggle('active', el.dataset.mode === mode);
     });
     // Show correct form
-    document.getElementById('join-form').classList.toggle('active', mode === 'join');
-    document.getElementById('create-form').classList.toggle('active', mode === 'create');
+    const joinForm = document.getElementById('join-form');
+    const createForm = document.getElementById('create-form');
+    if (joinForm)
+        joinForm.classList.toggle('active', mode === 'join');
+    if (createForm)
+        createForm.classList.toggle('active', mode === 'create');
     // Update action button text
     const actionBtn = document.getElementById('btn-mp-action');
-    actionBtn.textContent = mode === 'join' ? 'Join Game' : 'Create Game';
+    if (actionBtn)
+        actionBtn.textContent = mode === 'join' ? t('multiplayer.joinGame') : t('multiplayer.createGame');
 }
 export function setMpStatus(message, type) {
     const statusEl = document.getElementById('mp-status');
@@ -113,7 +119,7 @@ export async function handleMpAction() {
         return;
     const originalText = actionBtn.textContent;
     actionBtn.disabled = true;
-    actionBtn.textContent = state.currentMpMode === 'join' ? 'Joining...' : 'Creating...';
+    actionBtn.textContent = state.currentMpMode === 'join' ? t('multiplayer.joining') : t('multiplayer.creating');
     actionBtn.classList.add('loading');
     try {
         if (state.currentMpMode === 'join') {
@@ -145,10 +151,6 @@ async function handleJoinGame() {
         setFieldError(nicknameValidation.error ?? '', 'join-nickname-error');
         return;
     }
-    if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
-        setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'join-nickname-error');
-        return;
-    }
     // Use user input if provided, otherwise fall back to URL room code
     const roomId = roomIdInput || urlRoomCode;
     const roomValidation = validateRoomCode(roomId ?? '');
@@ -162,13 +164,13 @@ async function handleJoinGame() {
     if (joinBtn)
         joinBtn.disabled = true;
     try {
-        setMpStatus('Connecting...', 'connecting');
+        setMpStatus(t('multiplayer.connecting'), 'connecting');
         if (!CodenamesClient.isConnected()) {
             await CodenamesClient.connect();
         }
         if (signal.aborted)
             return;
-        setMpStatus('Joining game...', 'connecting');
+        setMpStatus(t('multiplayer.joiningGame'), 'connecting');
         const normalizedRoomId = roomId.toLowerCase();
         const result = await CodenamesClient.joinRoom(normalizedRoomId, nickname);
         if (signal.aborted)
@@ -182,20 +184,20 @@ async function handleJoinGame() {
             return;
         logger.error(`Join failed for room "${roomId}":`, error);
         if (err.code === 'ROOM_NOT_FOUND') {
-            setMpStatus(`Room "${roomId}" not found - check the Room ID`, 'error');
+            setMpStatus(t('multiplayer.roomNotFoundDetail', { roomId: roomId || '' }), 'error');
             clearRoomCodeFromURL();
         }
         else if (err.code === 'ROOM_FULL') {
-            setMpStatus('Room is full', 'error');
+            setMpStatus(t('errors.roomFull'), 'error');
         }
         else if (err.code === 'INVALID_INPUT') {
-            setMpStatus(err.message || 'Invalid input - check Room ID and nickname', 'error');
+            setMpStatus(err.message || t('multiplayer.invalidInputDetail'), 'error');
         }
         else if (err.message?.includes('connect')) {
-            setMpStatus('Could not connect to server - check your connection and try again', 'error');
+            setMpStatus(t('multiplayer.connectionFailedDetail'), 'error');
         }
         else {
-            setMpStatus(err.message || 'Failed to join game - please try again', 'error');
+            setMpStatus(err.message || t('multiplayer.joinFailed'), 'error');
         }
     }
     finally {
@@ -214,10 +216,6 @@ async function handleCreateGame() {
         setFieldError(nicknameValidation.error ?? '', 'create-nickname-error');
         return;
     }
-    if (!/^[\p{L}\p{N}\s\-_]+$/u.test(nickname)) {
-        setFieldError('Nickname can only contain letters, numbers, spaces, hyphens, and underscores', 'create-nickname-error');
-        return;
-    }
     const roomValidation = validateRoomCode(roomId);
     if (!roomValidation.valid) {
         setFieldError(roomValidation.error ?? '', 'create-error');
@@ -229,7 +227,7 @@ async function handleCreateGame() {
     if (createBtn)
         createBtn.disabled = true;
     try {
-        setMpStatus('Creating game...', 'connecting');
+        setMpStatus(t('multiplayer.creatingGame'), 'connecting');
         if (!CodenamesClient.isConnected()) {
             await CodenamesClient.connect();
         }
@@ -251,13 +249,13 @@ async function handleCreateGame() {
             return;
         logger.error('Create failed:', error);
         if (err.code === 'ROOM_ALREADY_EXISTS') {
-            setMpStatus('A room with this ID already exists. Try a different Room ID.', 'error');
+            setMpStatus(t('multiplayer.roomAlreadyExists'), 'error');
         }
         else if (err.message?.includes('connect')) {
-            setMpStatus('Could not connect to server - check your connection and try again', 'error');
+            setMpStatus(t('multiplayer.connectionFailedDetail'), 'error');
         }
         else {
-            setMpStatus(err.message || 'Failed to create game - please try again', 'error');
+            setMpStatus(err.message || t('multiplayer.createFailed'), 'error');
         }
     }
     finally {
@@ -299,7 +297,7 @@ export function onMultiplayerJoined(result, isHostParam = false) {
         updateURLWithRoomCode(result.room.code);
     }
     // Update UI
-    setMpStatus('Connected!', 'success');
+    setMpStatus(t('multiplayer.connected'), 'success');
     updateMpIndicator(result.room || null, state.multiplayerPlayers);
     updateRoomSettingsNavVisibility();
     updateRoomInfoDisplay();
@@ -310,22 +308,29 @@ export function onMultiplayerJoined(result, isHostParam = false) {
     setTimeout(() => {
         closeMultiplayer();
         if (state.isHost && state.currentRoomId) {
-            showToast(`Game created! Share Room ID: ${state.currentRoomId}`, 'success', 8000);
+            showToast(t('multiplayer.gameCreatedShare', { roomId: state.currentRoomId }), 'success', 8000);
         }
         else {
-            showToast('Connected to multiplayer game!', 'success');
+            showToast(t('multiplayer.connectedToGame'), 'success');
         }
     }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }
 // ========== MODAL INITIALIZATION ==========
+// Guard: prevent duplicate registration of multiplayer modal listeners
+let mpModalInitialized = false;
 export function initMultiplayerModal() {
+    if (mpModalInitialized)
+        return;
+    mpModalInitialized = true;
     // Mode toggle buttons
     document.querySelectorAll('.mode-btn').forEach((btn) => {
         const el = btn;
         el.addEventListener('click', () => setMpMode(el.dataset.mode || 'join'));
     });
     // Action button
-    document.getElementById('btn-mp-action').addEventListener('click', handleMpAction);
+    const actionBtn = document.getElementById('btn-mp-action');
+    if (actionBtn)
+        actionBtn.addEventListener('click', handleMpAction);
     // Enter key submits
     ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach(id => {
         const input = document.getElementById(id);

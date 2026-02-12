@@ -80,6 +80,9 @@ export function resetMultiplayerState() {
     state.clickerTeam = null;
     state.isHost = false;
     clearRoleChange();
+    // Clear pending reveal timeouts to prevent memory leaks
+    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.clear();
     state.revealingCards.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];

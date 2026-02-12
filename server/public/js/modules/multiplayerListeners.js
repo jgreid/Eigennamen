@@ -8,6 +8,7 @@ import { updateRoleBanner, updateControls, clearRoleChange, revertAndClearRoleCh
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
 import { logger } from './logger.js';
+import { handleChatMessage } from './chat.js';
 import { updateMpIndicator, updateDuetUI, updateDuetInfoBar, updateForfeitButton, updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI } from './multiplayerUI.js';
 import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup } from './multiplayerSync.js';
 /**
@@ -240,17 +241,26 @@ export function setupMultiplayerListeners() {
                     }
                 }
                 if (updatedPlayer) {
-                    syncLocalPlayerState(updatedPlayer);
+                    // Determine if this update confirms the in-flight role change operation.
+                    // During a role change, skip syncLocalPlayerState for unrelated updates
+                    // to avoid overwriting optimistic UI state (race condition fix).
+                    const rc = state.roleChange;
+                    const isConfirmingUpdate = rc.phase !== 'idle' && ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
+                        (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
+                        (rc.phase === 'team_then_role' && data.changes.team !== undefined));
+                    if (rc.phase === 'idle' || isConfirmingUpdate) {
+                        syncLocalPlayerState(updatedPlayer);
+                    }
                     // Check for pending role change after team change completed
-                    if (state.roleChange.phase === 'team_then_role' && data.changes.team) {
+                    if (rc.phase === 'team_then_role' && data.changes.team) {
                         // Team change completed, now send the queued role change
-                        const roleToSet = state.roleChange.pendingRole;
-                        const currentOpId = state.roleChange.operationId;
+                        const roleToSet = rc.pendingRole;
+                        const currentOpId = rc.operationId;
                         // Narrow revert: team change succeeded, only revert role on failure
                         const confirmedTeam = updatedPlayer.team;
                         state.roleChange = {
                             phase: 'changing_role',
-                            target: state.roleChange.target,
+                            target: rc.target,
                             operationId: currentOpId,
                             revertFn: () => {
                                 state.playerTeam = confirmedTeam;
@@ -263,9 +273,11 @@ export function setupMultiplayerListeners() {
                         };
                         CodenamesClient.setRole(roleToSet);
                     }
-                    else {
+                    else if (isConfirmingUpdate || rc.phase === 'idle') {
                         clearRoleChange();
                     }
+                    // If role change in progress but not confirmed by this update,
+                    // leave state machine alone — ack callback handles success/failure
                     updateControls();
                     updateRoleBanner();
                     renderBoard();
@@ -381,26 +393,21 @@ export function setupMultiplayerListeners() {
     CodenamesClient.on('rejoining', () => {
         showReconnectionOverlay();
     });
-    CodenamesClient.on('rejoined', (data) => {
-        // Hide reconnection overlay
+    // Shared reconnection handler (used by both auto-rejoin and token-based reconnection)
+    function handleReconnection(data) {
         hideReconnectionOverlay();
-        // Detect significant state changes during offline
         const changes = detectOfflineChanges(data);
-        // Sync current player's state after auto-rejoin
         const currentPlayer = data?.you || CodenamesClient.player;
         if (currentPlayer) {
             syncLocalPlayerState(currentPlayer);
         }
-        // Sync game state if available
         if (data?.game) {
             syncGameStateFromServer(data.game);
         }
-        // Update player list
         if (data?.players) {
             state.multiplayerPlayers = data.players;
             updateMpIndicator(data?.room || null, state.multiplayerPlayers);
         }
-        // Update UI elements
         updateControls();
         updateRoleBanner();
         updateForfeitButton();
@@ -410,38 +417,9 @@ export function setupMultiplayerListeners() {
         else {
             showToast('Reconnected!', 'success');
         }
-    });
-    // Handle token-based reconnection
-    CodenamesClient.on('roomReconnected', (data) => {
-        // Hide reconnection overlay
-        hideReconnectionOverlay();
-        // Detect significant state changes during offline
-        const changes = detectOfflineChanges(data);
-        // Sync current player's state after token-based reconnection
-        const currentPlayer = data?.you || CodenamesClient.player;
-        if (currentPlayer) {
-            syncLocalPlayerState(currentPlayer);
-        }
-        // Sync game state if available
-        if (data?.game) {
-            syncGameStateFromServer(data.game);
-        }
-        // Update player list
-        if (data?.players) {
-            state.multiplayerPlayers = data.players;
-            updateMpIndicator(data?.room || null, state.multiplayerPlayers);
-        }
-        // Update UI elements
-        updateControls();
-        updateRoleBanner();
-        updateForfeitButton();
-        if (changes.length > 0) {
-            showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
-        }
-        else {
-            showToast('Reconnected!', 'success');
-        }
-    });
+    }
+    CodenamesClient.on('rejoined', handleReconnection);
+    CodenamesClient.on('roomReconnected', handleReconnection);
     CodenamesClient.on('rejoinFailed', (data) => {
         // Hide reconnection overlay
         hideReconnectionOverlay();
@@ -529,6 +507,10 @@ export function setupMultiplayerListeners() {
             updateSpectatorCount(data.stats.spectatorCount || 0);
             updateRoomStats(data.stats);
         }
+    });
+    // D-1: Handle chat messages
+    CodenamesClient.on('chatMessage', (data) => {
+        handleChatMessage(data);
     });
     // Handle spectator chat messages
     CodenamesClient.on('spectatorChatMessage', (data) => {
