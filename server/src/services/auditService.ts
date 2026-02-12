@@ -124,7 +124,8 @@ const memoryLogs: Map<string, AuditLogEntry[]> = new Map([
 ]);
 
 /**
- * Push an entry to the front of an in-memory log list, maintaining max size
+ * Push an entry to the front of an in-memory log list, maintaining max size.
+ * Also evicts entries older than AUDIT_LOG_TTL to match Redis expiry behavior.
  */
 function memoryPush(key: string, entry: AuditLogEntry): void {
     let list = memoryLogs.get(key);
@@ -133,6 +134,14 @@ function memoryPush(key: string, entry: AuditLogEntry): void {
         memoryLogs.set(key, list);
     }
     list.unshift(entry);
+
+    // Evict entries older than the TTL (matches Redis EXPIRE behavior)
+    const cutoff = new Date(Date.now() - AUDIT_LOG_TTL * 1000).toISOString();
+    while (list.length > 0 && list[list.length - 1]!.timestamp < cutoff) {
+        list.pop();
+    }
+
+    // Hard cap as secondary bound
     if (list.length > MAX_LOGS_PER_CATEGORY) {
         list.length = MAX_LOGS_PER_CATEGORY;
     }

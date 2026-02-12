@@ -353,6 +353,9 @@ export async function joinRoom(
  * Leave a room
  */
 export async function leaveRoom(code: string, sessionId: string): Promise<LeaveRoomResult> {
+    if (!code || typeof code !== 'string') {
+        return { newHostId: null, roomDeleted: false };
+    }
     const redis: RedisClient = getRedis();
     code = toEnglishLowerCase(code);
     const room = await getRoom(code);

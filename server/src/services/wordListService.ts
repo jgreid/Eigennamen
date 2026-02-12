@@ -134,7 +134,8 @@ export async function getWordList(id: string): Promise<WordList | null> {
 export async function getPublicWordLists(
     options: GetWordListsOptions = {}
 ): Promise<WordListSummary[]> {
-    const { search = '', limit = 50, offset = 0 } = options;
+    const { search = '', limit = 50, offset: rawOffset = 0 } = options;
+    const offset = Math.max(0, rawOffset);
 
     if (!isDatabaseEnabled()) {
         return [];

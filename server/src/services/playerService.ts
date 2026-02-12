@@ -481,8 +481,12 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
  * SECURITY FIX: Defense-in-depth validation for nickname
  */
 export function setNickname(sessionId: string, nickname: string): Promise<Player> {
-    // Zod schema already validates and trims the nickname at the handler level
+    // Zod schema already validates and trims the nickname at the handler level;
+    // defense-in-depth check here prevents empty nicknames if called from other paths.
     const trimmed = (nickname || '').trim();
+    if (trimmed.length === 0) {
+        throw new ValidationError('Nickname cannot be empty');
+    }
     return updatePlayer(sessionId, { nickname: trimmed });
 }
 

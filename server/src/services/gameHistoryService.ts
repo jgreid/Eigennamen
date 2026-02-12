@@ -359,8 +359,9 @@ export async function saveGameResult(
         // Store the game history entry
         pipeline.set(gameKey, JSON.stringify(historyEntry), { EX: GAME_HISTORY_TTL });
 
-        // Add to sorted set index (score = timestamp for ordering)
-        pipeline.zAdd(indexKey, { score: timestamp, value: historyId });
+        // Add to sorted set index (score = timestamp for ordering).
+        // NX prevents duplicate entries if the same game is saved twice.
+        pipeline.zAdd(indexKey, { score: timestamp, value: historyId }, { NX: true });
 
         // Trim index to keep only the most recent games
         pipeline.zRemRangeByRank(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1));
@@ -392,13 +393,29 @@ export async function saveGameResult(
 }
 
 /**
- * Determine which team went first based on totals
+ * Determine which team went first based on board data.
+ * In classic/blitz mode, the first team has more cards (9 vs 8).
+ * Checks totals first (already computed), then falls back to counting
+ * the types array directly for robustness against partial game data.
  */
 function getFirstTeam(gameData: GameDataInput): Team {
-    // The team with 9 cards went first
-    if (gameData.redTotal === 9) return 'red';
-    if (gameData.blueTotal === 9) return 'blue';
-    // Default fallback
+    // Check pre-computed totals first
+    if (gameData.redTotal > gameData.blueTotal) return 'red';
+    if (gameData.blueTotal > gameData.redTotal) return 'blue';
+
+    // Totals equal or missing — count from the types array as fallback
+    if (Array.isArray(gameData.types)) {
+        let redCount = 0;
+        let blueCount = 0;
+        for (const t of gameData.types) {
+            if (t === 'red') redCount++;
+            else if (t === 'blue') blueCount++;
+        }
+        if (redCount > blueCount) return 'red';
+        if (blueCount > redCount) return 'blue';
+    }
+
+    // Default fallback (e.g. duet mode where both teams have equal cards)
     return 'red';
 }
 

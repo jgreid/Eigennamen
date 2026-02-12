@@ -131,12 +131,13 @@ export function updateWordCount() {
     }
 }
 const MAX_WORD_LIST_SIZE = 10000;
+const MAX_WORD_LENGTH = 50;
 export function parseWords(text) {
     const words = text
         .split('\n')
         .map(w => w.trim())
         .filter(w => w.length > 0 && !w.startsWith('#'))
-        .map(w => w.toUpperCase());
+        .map(w => w.substring(0, MAX_WORD_LENGTH).toUpperCase());
     // Cap at MAX_WORD_LIST_SIZE to prevent memory issues
     return words.slice(0, MAX_WORD_LIST_SIZE);
 }
