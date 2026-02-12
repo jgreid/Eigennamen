@@ -200,8 +200,20 @@ export async function getPlayer(sessionId: string): Promise<Player | null> {
 }
 
 /**
- * Update player data atomically using WATCH/MULTI to prevent lost updates
+ * Lua script for atomic player update (D-5)
+ * Replaces WATCH/MULTI read-modify-write with a single atomic Lua operation.
+ * Prevents lost updates from concurrent modifications.
+ * Takes: KEYS[1] = player key, ARGV[1] = JSON updates, ARGV[2] = TTL, ARGV[3] = timestamp
+ * Returns: JSON string of updated player on success, nil if player not found
+ */
+const ATOMIC_UPDATE_PLAYER_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../scripts/updatePlayer.lua'), 'utf8');
+
+/**
+ * Update player data atomically using Lua script to prevent lost updates
  * from concurrent read-modify-write operations (e.g., simultaneous disconnect + nickname change).
+ *
+ * D-5: Uses Lua script for true single-operation atomicity (no WATCH/MULTI retry loop).
+ * Falls back to WATCH/MULTI if the Lua call fails (e.g., Redis scripting disabled).
  */
 export async function updatePlayer(
     sessionId: string,
@@ -209,6 +221,44 @@ export async function updatePlayer(
 ): Promise<Player> {
     const redis: RedisClient = getRedis();
     const playerKey = `player:${sessionId}`;
+
+    // Try Lua script first for true atomicity
+    try {
+        const result = await withTimeout(
+            redis.eval(
+                ATOMIC_UPDATE_PLAYER_SCRIPT,
+                {
+                    keys: [playerKey],
+                    arguments: [
+                        JSON.stringify(updates),
+                        REDIS_TTL.PLAYER.toString(),
+                        Date.now().toString()
+                    ]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `updatePlayer-lua-${sessionId}`
+        ) as string | null;
+
+        if (!result) {
+            throw new ServerError('Player not found');
+        }
+
+        const updatedPlayer = tryParseJSON(result, playerSchema, `updatePlayer lua for ${sessionId}`) as Player | null;
+        if (!updatedPlayer) {
+            throw new ServerError('Corrupted player data from Lua script');
+        }
+
+        return updatedPlayer;
+    } catch (luaError) {
+        // Propagate known application errors (player not found, corrupted data)
+        if (luaError instanceof ServerError) {
+            throw luaError;
+        }
+        logger.warn(`Lua updatePlayer failed for ${sessionId}, falling back to WATCH/MULTI: ${(luaError as Error).message}`);
+    }
+
+    // Fallback: WATCH/MULTI with retries (original implementation)
     const maxRetries = 3;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -247,7 +297,7 @@ export async function updatePlayer(
         }
 
         // Transaction aborted due to concurrent modification, retry
-        logger.debug(`updatePlayer transaction conflict for ${sessionId}, attempt ${attempt + 1}`);
+        logger.debug(`updatePlayer WATCH/MULTI conflict for ${sessionId}, attempt ${attempt + 1}`);
     }
 
     // All atomic retries exhausted — throw rather than falling back to a non-atomic

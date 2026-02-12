@@ -199,10 +199,12 @@
     "source": "Quellcode"
   },
   "chat": {
+    "title": "Chat",
     "placeholder": "Nachricht eingeben...",
     "send": "Senden",
     "teamOnly": "Nur Team",
-    "spectatorChat": "Zuschauer-Chat"
+    "spectatorChat": "Zuschauer-Chat",
+    "noMessages": "Noch keine Nachrichten"
   },
   "errors": {
     "connectionFailed": "Verbindung zum Server fehlgeschlagen",

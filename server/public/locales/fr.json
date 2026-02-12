@@ -199,10 +199,12 @@
     "source": "Code source"
   },
   "chat": {
+    "title": "Discussion",
     "placeholder": "Tapez un message...",
     "send": "Envoyer",
     "teamOnly": "Équipe uniquement",
-    "spectatorChat": "Chat spectateurs"
+    "spectatorChat": "Chat spectateurs",
+    "noMessages": "Aucun message pour le moment"
   },
   "errors": {
     "connectionFailed": "Échec de la connexion au serveur",

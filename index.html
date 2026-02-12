@@ -134,6 +134,27 @@
                 </div>
             </div>
 
+            <!-- D-1: Chat panel (multiplayer only, collapsed by default) -->
+            <div class="chat-panel mp-only" id="chat-panel" style="display: none;">
+                <button type="button" class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-body">
+                    <span class="chat-toggle-icon" aria-hidden="true">💬</span>
+                    <span data-i18n="chat.title">Chat</span>
+                    <span class="chat-unread-badge" id="chat-unread-badge" style="display: none;">0</span>
+                    <span class="expand-icon chat-expand-icon">▾</span>
+                </button>
+                <div class="chat-body" id="chat-body" style="display: none;">
+                    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+                    <div class="chat-input-row">
+                        <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" aria-label="Chat message input">
+                        <label class="chat-team-only" title="Send to team only">
+                            <input type="checkbox" id="chat-team-only">
+                            <span class="chat-team-label">Team</span>
+                        </label>
+                        <button type="button" class="chat-send-btn" id="chat-send-btn" aria-label="Send message">Send</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Share section -->
             <div class="share-section">
                 <div class="share-input-group">

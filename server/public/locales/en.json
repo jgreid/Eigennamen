@@ -199,10 +199,12 @@
     "source": "Source Code"
   },
   "chat": {
+    "title": "Chat",
     "placeholder": "Type a message...",
     "send": "Send",
     "teamOnly": "Team only",
-    "spectatorChat": "Spectator chat"
+    "spectatorChat": "Spectator chat",
+    "noMessages": "No messages yet"
   },
   "errors": {
     "connectionFailed": "Failed to connect to server",

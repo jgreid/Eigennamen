@@ -7,6 +7,7 @@ import { showToast, openModal, closeModal } from './ui.js';
 import { VALIDATION, UI } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
+import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 import type { ServerPlayerData, ServerRoomData, ServerGameData, RoomStats, SpectatorChatData } from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
@@ -33,6 +34,10 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
             mpExtraRow.style.display = 'flex';
         }
 
+        // D-1: Show chat panel and initialize listeners (idempotent)
+        showChatPanel();
+        initChat();
+
         // Update player list
         if (playersUl && players) {
             updatePlayerList(playersUl, players);
@@ -47,6 +52,9 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         if (mpExtraRow) {
             mpExtraRow.style.display = 'none';
         }
+
+        // D-1: Hide chat panel
+        hideChatPanel();
 
         // Update share panel for standalone mode
         updateSharePanelMode(false);
