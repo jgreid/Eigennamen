@@ -56,6 +56,7 @@ export interface AuditEventDetails {
 export interface AuditLogOptions {
     category?: AuditCategory;
     limit?: number;
+    offset?: number;
     severity?: AuditSeverity | null;
 }
 
@@ -124,7 +125,8 @@ const memoryLogs: Map<string, AuditLogEntry[]> = new Map([
 ]);
 
 /**
- * Push an entry to the front of an in-memory log list, maintaining max size
+ * Push an entry to the front of an in-memory log list, maintaining max size.
+ * Also evicts entries older than AUDIT_LOG_TTL to match Redis expiry behavior.
  */
 function memoryPush(key: string, entry: AuditLogEntry): void {
     let list = memoryLogs.get(key);
@@ -133,6 +135,14 @@ function memoryPush(key: string, entry: AuditLogEntry): void {
         memoryLogs.set(key, list);
     }
     list.unshift(entry);
+
+    // Evict entries older than the TTL (matches Redis EXPIRE behavior)
+    const cutoff = new Date(Date.now() - AUDIT_LOG_TTL * 1000).toISOString();
+    while (list.length > 0 && list[list.length - 1]!.timestamp < cutoff) {
+        list.pop();
+    }
+
+    // Hard cap as secondary bound
     if (list.length > MAX_LOGS_PER_CATEGORY) {
         list.length = MAX_LOGS_PER_CATEGORY;
     }
@@ -245,7 +255,8 @@ export async function logAuditEvent(
  * Get recent audit logs
  */
 export async function getAuditLogs(options: AuditLogOptions = {}): Promise<AuditLogEntry[]> {
-    const { category = 'all', limit = 100, severity = null } = options;
+    const { category = 'all', limit = 100, offset: rawOffset = 0, severity = null } = options;
+    const offset = Math.max(0, rawOffset);
 
     try {
         let key = AUDIT_LOG_KEY;
@@ -256,10 +267,10 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
 
         if (isUsingMemoryMode()) {
             const list = memoryLogs.get(key) || [];
-            parsed = list.slice(0, limit);
+            parsed = list.slice(offset, offset + limit);
         } else {
             const redis: RedisClient = getRedis();
-            const logs = await redis.lRange(key, 0, limit - 1);
+            const logs = await redis.lRange(key, offset, offset + limit - 1);
             parsed = logs.map(log =>
                 tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null
             ).filter((entry): entry is AuditLogEntry => entry !== null);

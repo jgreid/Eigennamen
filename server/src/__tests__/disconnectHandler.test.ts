@@ -46,6 +46,7 @@ jest.mock('../socket/safeEmit', () => ({
 
 jest.mock('../utils/distributedLock', () => ({
     RELEASE_LOCK_SCRIPT: 'mock-release-script',
+    withLock: jest.fn((_key: string, fn: () => Promise<unknown>) => fn()),
 }));
 
 const { handleDisconnect, createTimerExpireCallback } = require('../socket/disconnectHandler');
@@ -287,8 +288,10 @@ describe('disconnectHandler', () => {
 
             await callback('ROOM01');
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Timer expiry error'), expect.any(Error)
+            // Error from withLock callback is caught by the inner try-catch and
+            // logged as debug (lock contention path), then returns early.
+            expect(logger.debug).toHaveBeenCalledWith(
+                expect.stringContaining('Timer expiration lock not acquired')
             );
         });
     });

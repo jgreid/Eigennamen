@@ -1025,6 +1025,39 @@ export class MemoryStorage {
             return 1;
         }
 
+        // ATOMIC_UPDATE_PLAYER_SCRIPT: 1 key (playerKey), 3 args (updatesJson, ttl, now)
+        // Used by playerService.updatePlayer()
+        // Reads player, merges updates, sets lastSeen, saves with TTL
+        if (numKeys === 1 && numArgs === 3 && firstKey.startsWith('player:')) {
+            const playerKey = firstKey;
+            const updatesJson = args[0] as string;
+            const ttl = parseInt(args[1] as string, 10);
+            const now = parseInt(args[2] as string, 10);
+
+            if (this._isExpired(playerKey) || !this.data.has(playerKey)) {
+                return null;
+            }
+
+            try {
+                const player = JSON.parse(this.data.get(playerKey) as string) as Record<string, unknown>;
+                const updates = JSON.parse(updatesJson) as Record<string, unknown>;
+
+                // Merge updates into the player object
+                for (const [k, v] of Object.entries(updates)) {
+                    player[k] = v;
+                }
+                // Always set lastSeen
+                player.lastSeen = now;
+
+                const result = JSON.stringify(player);
+                this.data.set(playerKey, result);
+                this.expiries.set(playerKey, Date.now() + (ttl * 1000));
+                return result;
+            } catch {
+                return null;
+            }
+        }
+
         // ATOMIC_SET_TEAM_SCRIPT: 2 keys (playerKey, roomCode), 4 args (team, ttl, now, sessionId)
         // Used by playerService.setTeam()
         // Guard: keys[1] is a bare roomCode (e.g. "ABCDEF"), NOT "room:X:players"

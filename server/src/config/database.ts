@@ -33,8 +33,10 @@ function sleep(ms: number): Promise<void> {
  */
 function isDatabaseConfigured(): boolean {
     const dbUrl = process.env.DATABASE_URL;
-    // Skip if not set, empty, or explicitly set to skip
-    return !!(dbUrl && dbUrl.length > 0 && !dbUrl.includes('skip'));
+    // Skip if not set, empty, or explicitly set to a sentinel value
+    if (!dbUrl || dbUrl.length === 0) return false;
+    const normalized = dbUrl.trim().toLowerCase();
+    return normalized !== 'skip' && normalized !== 'disabled' && normalized !== 'none';
 }
 
 async function connectDatabase(): Promise<PrismaClientType | null> {

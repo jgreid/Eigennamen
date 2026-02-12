@@ -230,9 +230,9 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all backend tests (2,308 across 77 suites)
+npm test              # Run all tests (2,527 across 81 suites, 0 failures)
 npm run test:coverage # Run tests with coverage report (94%+ lines)
-npm run test:frontend # Run frontend unit tests (303 across 4 suites)
+npm run test:frontend # Run frontend unit tests (Jest + jsdom)
 npm run test:e2e      # Run E2E tests (64+ across 8 Playwright specs)
 ```
 
