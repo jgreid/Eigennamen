@@ -7,6 +7,34 @@
  * Test environment: jsdom (provides window, document, Element, etc.).
  */
 
+// Mock i18n so translation keys resolve to English strings (no fetch needed in jsdom)
+jest.mock('../../frontend/i18n', () => {
+    const translations: Record<string, string> = {
+        'board.gridPosition': 'Row {{row}}, column {{col}}',
+        'board.assassinCard': 'assassin card',
+        'board.teamCard': '{{type}} team card',
+        'board.revealedCardLabel': '{{word}}, revealed as {{typeLabel}}. {{position}}',
+        'board.unrevealedCardLabel': '{{word}}, unrevealed card. {{position}}. Press Enter to reveal.',
+    };
+
+    return {
+        t: (key: string, params: Record<string, string | number> = {}): string => {
+            const template = translations[key];
+            if (!template) return key;
+            return template.replace(/\{\{(\w+)\}\}/g, (_: string, name: string) =>
+                params[name] !== undefined ? String(params[name]) : `{{${name}}}`
+            );
+        },
+        initI18n: async () => {},
+        setLanguage: async () => {},
+        getLanguage: () => 'en',
+        translatePage: () => {},
+        getLocalizedWordList: async () => null,
+        LANGUAGES: { en: { name: 'English', flag: 'EN' } },
+        DEFAULT_LANGUAGE: 'en',
+    };
+});
+
 import {
     canClickCards,
     renderBoard,

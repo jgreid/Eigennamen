@@ -129,6 +129,27 @@ jest.mock('../../config/redis', () => {
                 return JSON.stringify(player);
             }
 
+            // Simulate atomic player update script (updatePlayer.lua)
+            if (script.includes('lastSeen') && script.includes('cjson.decode')) {
+                const playerKey = options.keys[0];
+                const updatesJson = options.arguments[0];
+                const now = parseInt(options.arguments[2]);
+
+                const playerData = mockRedisStorage.get(playerKey);
+                if (!playerData) return null;
+
+                const player = JSON.parse(playerData);
+                const updates = JSON.parse(updatesJson);
+
+                for (const [k, v] of Object.entries(updates)) {
+                    player[k] = v;
+                }
+                player.lastSeen = now;
+
+                mockRedisStorage.set(playerKey, JSON.stringify(player));
+                return JSON.stringify(player);
+            }
+
             return null;
         }),
         publish: jest.fn(async () => 0),
