@@ -1,15 +1,21 @@
 /**
  * Redis Configuration
  *
- * Supports TLS connections (rediss://) for Fly.io Upstash Redis
- * Also supports in-memory mode for single-instance deployments
+ * Supports three modes:
+ *   1. External Redis via REDIS_URL (redis:// or rediss://)
+ *   2. Local Redis on default port (when REDIS_URL is not set)
+ *   3. Embedded Redis (REDIS_URL=memory) — spawns a local redis-server
+ *      process on a random port, giving real Redis behavior (including
+ *      Lua scripting) without an external dependency.
  */
 
 import { createClient } from 'redis';
+import { spawn } from 'child_process';
+import { createServer } from 'net';
 import logger from '../utils/logger';
 import type { RedisClientType } from 'redis';
 import type { RedisClient } from '../types/redis';
-import { getMemoryStorage, isMemoryMode } from './memoryStorage';
+import type { ChildProcess } from 'child_process';
 
 // ============================================================================
 // Types
@@ -60,43 +66,28 @@ export interface RedisMemoryInfo {
  * Pub/Sub clients return type
  */
 export interface PubSubClients {
-    pubClient: RedisClientType | MemoryStorageClient;
-    subClient: RedisClientType | MemoryStorageClient;
+    pubClient: RedisClientType;
+    subClient: RedisClientType;
 }
 
 /**
  * Connect Redis return type
  */
 export interface RedisClients {
-    redisClient: RedisClientType | MemoryStorageClient;
-    pubClient: RedisClientType | MemoryStorageClient;
-    subClient: RedisClientType | MemoryStorageClient;
-}
-
-/**
- * Memory storage client interface (subset of Redis client)
- */
-interface MemoryStorageClient {
-    isOpen: boolean;
-    connect(): Promise<MemoryStorageClient>;
-    quit(): Promise<string>;
-    disconnect(): Promise<string>;
-    duplicate(): MemoryStorageClient;
-    ping(): Promise<string>;
-    get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: Record<string, unknown>): Promise<string | null>;
-    del(key: string | string[]): Promise<number>;
-    // Additional methods as needed
+    redisClient: RedisClientType;
+    pubClient: RedisClientType;
+    subClient: RedisClientType;
 }
 
 // ============================================================================
 // Module State
 // ============================================================================
 
-let redisClient: RedisClientType | MemoryStorageClient | null = null;
-let pubClient: RedisClientType | MemoryStorageClient | null = null;
-let subClient: RedisClientType | MemoryStorageClient | null = null;
+let redisClient: RedisClientType | null = null;
+let pubClient: RedisClientType | null = null;
+let subClient: RedisClientType | null = null;
 let usingMemoryMode = false;
+let embeddedRedisProcess: ChildProcess | null = null;
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -110,6 +101,120 @@ const INITIAL_RETRY_DELAY = 1000; // 1 second
  */
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if REDIS_URL indicates memory mode
+ */
+export function isMemoryMode(): boolean {
+    const redisUrl = process.env['REDIS_URL'] || '';
+    return redisUrl === 'memory' || redisUrl === 'memory://';
+}
+
+/**
+ * Find a free TCP port by briefly binding to port 0
+ */
+async function findFreePort(): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const server = createServer();
+        server.unref();
+        server.on('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+            const addr = server.address();
+            if (addr && typeof addr === 'object') {
+                const port = addr.port;
+                server.close(() => resolve(port));
+            } else {
+                server.close(() => reject(new Error('Could not determine port')));
+            }
+        });
+    });
+}
+
+/**
+ * Start an embedded redis-server process on a random port.
+ * Uses --save "" --appendonly no for pure in-memory operation.
+ * Returns the URL to connect to.
+ */
+async function startEmbeddedRedis(): Promise<string> {
+    const port = await findFreePort();
+    const args = [
+        '--port', port.toString(),
+        '--bind', '127.0.0.1',
+        '--save', '',           // Disable RDB snapshots
+        '--appendonly', 'no',   // Disable AOF persistence
+        '--daemonize', 'no',
+        '--loglevel', 'warning'
+    ];
+
+    return new Promise<string>((resolve, reject) => {
+        const proc = spawn('redis-server', args, {
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+
+        embeddedRedisProcess = proc;
+
+        let started = false;
+        const timeout = setTimeout(() => {
+            if (!started) {
+                proc.kill();
+                reject(new Error('Embedded redis-server failed to start within 5s'));
+            }
+        }, 5000);
+
+        proc.stdout?.on('data', (data: Buffer) => {
+            const output = data.toString();
+            if (output.includes('Ready to accept connections') || output.includes('ready to accept connections')) {
+                started = true;
+                clearTimeout(timeout);
+                resolve(`redis://127.0.0.1:${port}`);
+            }
+        });
+
+        proc.stderr?.on('data', (data: Buffer) => {
+            const msg = data.toString().trim();
+            if (msg) logger.warn(`Embedded Redis stderr: ${msg}`);
+        });
+
+        proc.on('error', (err) => {
+            clearTimeout(timeout);
+            embeddedRedisProcess = null;
+            reject(new Error(`Failed to start redis-server: ${err.message}. Is redis-server installed?`));
+        });
+
+        proc.on('exit', (code) => {
+            if (!started) {
+                clearTimeout(timeout);
+                embeddedRedisProcess = null;
+                reject(new Error(`redis-server exited with code ${code} before becoming ready`));
+            }
+        });
+    });
+}
+
+/**
+ * Stop the embedded redis-server process
+ */
+async function stopEmbeddedRedis(): Promise<void> {
+    if (!embeddedRedisProcess) return;
+
+    return new Promise<void>((resolve) => {
+        const proc = embeddedRedisProcess;
+        if (!proc) { resolve(); return; }
+
+        const timeout = setTimeout(() => {
+            proc.kill('SIGKILL');
+            resolve();
+        }, 3000);
+
+        proc.on('exit', () => {
+            clearTimeout(timeout);
+            embeddedRedisProcess = null;
+            resolve();
+        });
+
+        proc.kill('SIGTERM');
+    });
 }
 
 /**
@@ -171,26 +276,19 @@ function createClientOptions(redisUrl: string): RedisClientOptions {
 // ============================================================================
 
 /**
- * Connect to Redis or initialize memory storage
+ * Connect to Redis.
+ * In memory mode, spawns an embedded redis-server on a random port.
  * @returns Promise resolving to Redis clients
  */
 export async function connectRedis(): Promise<RedisClients> {
-    const redisUrl = process.env['REDIS_URL'] || 'redis://localhost:6379';
+    let redisUrl = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
-    // Check for memory mode (single-instance deployment without Redis)
+    // Memory mode: start an embedded redis-server process
     if (isMemoryMode()) {
-        logger.info('Using in-memory storage mode (single-instance only, data will not persist)');
+        logger.info('Starting embedded Redis server (single-instance, no persistence)');
         usingMemoryMode = true;
-        const memoryStorage = getMemoryStorage();
-        await memoryStorage.connect();
-        redisClient = memoryStorage;
-        pubClient = memoryStorage.duplicate();
-        subClient = memoryStorage.duplicate();
-        return {
-            redisClient: redisClient as RedisClientType | MemoryStorageClient,
-            pubClient: pubClient as RedisClientType | MemoryStorageClient,
-            subClient: subClient as RedisClientType | MemoryStorageClient
-        };
+        redisUrl = await startEmbeddedRedis();
+        logger.info(`Embedded Redis started at ${redisUrl}`);
     }
 
     let lastError: Error | undefined;
@@ -199,43 +297,43 @@ export async function connectRedis(): Promise<RedisClients> {
             const clientOptions = createClientOptions(redisUrl);
 
             // Main client for general operations
-            redisClient = createClient(clientOptions);
+            redisClient = createClient(clientOptions) as RedisClientType;
 
-            (redisClient as RedisClientType).on('error', (err: Error & { code?: string }) => {
+            redisClient.on('error', (err: Error & { code?: string }) => {
                 // Only log if it's not a connection reset during reconnection
                 if (err.code !== 'ECONNRESET') {
                     logger.error('Redis Client Error:', err.message);
                 }
             });
 
-            (redisClient as RedisClientType).on('reconnecting', () => {
+            redisClient.on('reconnecting', () => {
                 logger.info('Redis client reconnecting...');
             });
 
-            (redisClient as RedisClientType).on('ready', () => {
+            redisClient.on('ready', () => {
                 logger.info('Redis client ready');
             });
 
-            await (redisClient as RedisClientType).connect();
+            await redisClient.connect();
 
             // Pub/Sub clients for Socket.io adapter
-            pubClient = (redisClient as RedisClientType).duplicate();
-            subClient = (redisClient as RedisClientType).duplicate();
+            pubClient = redisClient.duplicate() as RedisClientType;
+            subClient = redisClient.duplicate() as RedisClientType;
 
-            (pubClient as RedisClientType).on('error', (err: Error) => logger.error('Redis Pub Client Error:', err.message));
-            (subClient as RedisClientType).on('error', (err: Error) => logger.error('Redis Sub Client Error:', err.message));
+            pubClient.on('error', (err: Error) => logger.error('Redis Pub Client Error:', err.message));
+            subClient.on('error', (err: Error) => logger.error('Redis Sub Client Error:', err.message));
 
             await Promise.all([
-                (pubClient as RedisClientType).connect(),
-                (subClient as RedisClientType).connect()
+                pubClient.connect(),
+                subClient.connect()
             ]);
 
-            logger.info(`Redis connected (TLS: ${redisUrl.startsWith('rediss://')})`);
-            return {
-                redisClient: redisClient as RedisClientType,
-                pubClient: pubClient as RedisClientType,
-                subClient: subClient as RedisClientType
-            };
+            if (usingMemoryMode) {
+                logger.info('Connected to embedded Redis (memory mode)');
+            } else {
+                logger.info(`Redis connected (TLS: ${redisUrl.startsWith('rediss://')})`);
+            }
+            return { redisClient, pubClient, subClient };
 
         } catch (error) {
             lastError = error as Error;
@@ -259,7 +357,7 @@ export async function connectRedis(): Promise<RedisClients> {
  * Clean up partially connected clients
  */
 async function cleanupPartialConnections(): Promise<void> {
-    const clients = [redisClient, pubClient, subClient].filter(Boolean) as (RedisClientType | MemoryStorageClient)[];
+    const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
     for (const client of clients) {
         try {
             if (client.isOpen) {
@@ -291,10 +389,7 @@ export function getPubSubClients(): PubSubClients {
     if (!pubClient || !subClient) {
         throw new Error('Redis Pub/Sub not initialized.');
     }
-    return {
-        pubClient: pubClient as RedisClientType | MemoryStorageClient,
-        subClient: subClient as RedisClientType | MemoryStorageClient
-    };
+    return { pubClient, subClient };
 }
 
 /**
@@ -306,7 +401,7 @@ export async function isRedisHealthy(): Promise<boolean> {
         if (!redisClient || !redisClient.isOpen) {
             return false;
         }
-        await (redisClient as RedisClientType).ping();
+        await redisClient.ping();
         return true;
     } catch {
         return false;
@@ -319,24 +414,9 @@ export async function isRedisHealthy(): Promise<boolean> {
  */
 export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
     try {
-        if (usingMemoryMode) {
-            // Return placeholder for memory mode
-            return {
-                mode: 'memory',
-                used_memory: 0,
-                used_memory_human: 'N/A',
-                used_memory_peak: 0,
-                used_memory_peak_human: 'N/A',
-                maxmemory: 0,
-                maxmemory_human: 'N/A',
-                memory_usage_percent: 0,
-                alert: null
-            };
-        }
-
         if (!redisClient || !redisClient.isOpen) {
             return {
-                mode: 'redis',
+                mode: usingMemoryMode ? 'memory' : 'redis',
                 used_memory: 0,
                 used_memory_human: 'unknown',
                 used_memory_peak: 0,
@@ -349,8 +429,8 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
             };
         }
 
-        // Get memory info from Redis INFO command
-        const info = await (redisClient as RedisClientType).info('memory');
+        // Get memory info from Redis INFO command (works for both modes)
+        const info = await redisClient.info('memory');
         const lines = info.split('\r\n');
         const memoryInfo: Record<string, string> = {};
 
@@ -381,7 +461,7 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
         }
 
         return {
-            mode: 'redis',
+            mode: usingMemoryMode ? 'memory' : 'redis',
             used_memory: used,
             used_memory_human: memoryInfo['used_memory_human'] || 'unknown',
             used_memory_peak: peak,
@@ -396,7 +476,7 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
     } catch (error) {
         logger.error('Failed to get Redis memory info', { error: (error as Error).message });
         return {
-            mode: 'redis',
+            mode: usingMemoryMode ? 'memory' : 'redis',
             used_memory: 0,
             used_memory_human: 'unknown',
             used_memory_peak: 0,
@@ -411,10 +491,10 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
 }
 
 /**
- * Disconnect from Redis
+ * Disconnect from Redis and stop embedded server if running
  */
 export async function disconnectRedis(): Promise<void> {
-    const clients = [redisClient, pubClient, subClient].filter(Boolean) as (RedisClientType | MemoryStorageClient)[];
+    const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
     await Promise.all(clients.map(async (client) => {
         try {
             if (client.isOpen) {
@@ -423,13 +503,20 @@ export async function disconnectRedis(): Promise<void> {
         } catch {
             // Force disconnect if quit fails
             try {
-                (client as RedisClientType).disconnect();
+                client.disconnect();
             } catch {
                 // Ignore
             }
         }
     }));
     redisClient = pubClient = subClient = null;
+
+    // Stop embedded Redis process if we started one
+    if (embeddedRedisProcess) {
+        await stopEmbeddedRedis();
+        logger.info('Embedded Redis server stopped');
+    }
+
     logger.info('Redis disconnected');
 }
 
@@ -439,4 +526,3 @@ export async function disconnectRedis(): Promise<void> {
 export function isUsingMemoryMode(): boolean {
     return usingMemoryMode;
 }
-

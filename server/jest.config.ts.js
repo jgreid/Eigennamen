@@ -68,10 +68,10 @@ module.exports = {
                 '!src/types/**',
                 '!src/frontend/**'
             ],
-            // Note: Global thresholds are lower because redis.ts, memoryStorage.ts, and
-            // socket/index.ts are infrastructure modules that require integration tests
-            // (real Redis, real Socket.IO) for meaningful coverage. Business logic modules
-            // (services, handlers, middleware) individually exceed 80%.
+            // Note: Global thresholds are lower because redis.ts and socket/index.ts are
+            // infrastructure modules that require integration tests (real Redis, real
+            // Socket.IO) for meaningful coverage. Business logic modules (services,
+            // handlers, middleware) individually exceed 80%.
             coverageThreshold: {
                 global: {
                     branches: 75,

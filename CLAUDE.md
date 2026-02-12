@@ -270,7 +270,7 @@ npm run test:e2e:headed  # E2E in headed browser mode
 
 **Code quality**: ESLint reports 0 errors, 0 warnings. TypeScript compiles with 0 errors.
 
-**Coverage thresholds** (from `jest.config.ts.js`): 65% branches, 80% functions, 75% lines/statements. Note: `package.json` has a separate fallback config at 80% all metrics — `jest.config.ts.js` takes precedence when running `npm test`. Infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage; business logic modules individually exceed 80%. Current actual coverage: 94%+ lines/statements.
+**Coverage thresholds** (from `jest.config.ts.js`): 65% branches, 80% functions, 75% lines/statements. Note: `package.json` has a separate fallback config at 80% all metrics — `jest.config.ts.js` takes precedence when running `npm test`. Infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage; business logic modules individually exceed 80%. Current actual coverage: 94%+ lines/statements.
 
 **Test file locations**:
 - `server/src/__tests__/` - Backend unit tests (services, handlers, middleware, routes, config, utils)
@@ -359,7 +359,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 
 ### Graceful Degradation
 - Database is optional - game works fully without PostgreSQL
-- Redis is optional - falls back to in-memory storage (`memoryStorage.ts`)
+- Redis is optional - `REDIS_URL=memory` spawns an embedded redis-server process
 - Standalone mode works without any server
 
 ### Security Features
