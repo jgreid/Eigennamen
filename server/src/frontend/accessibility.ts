@@ -39,7 +39,7 @@ const SHORTCUTS: Record<string, { action: string; description: string }> = {
     '?': { action: 'show-shortcuts', description: 'Show Shortcuts' }
 };
 
-let shortcutsEnabled = true;
+const shortcutsEnabled = true;
 
 export function initKeyboardShortcuts(): void {
     document.addEventListener('keydown', handleKeyboardShortcut);
