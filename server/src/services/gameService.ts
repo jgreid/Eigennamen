@@ -3,22 +3,18 @@
  *
  * Delegates to focused modules:
  *   - game/boardGenerator: PRNG, shuffling, board layout
- *   - game/clueValidator: Clue word validation
- *   - game/revealEngine: Card reveal logic + outcome determination
+ *   - game/revealEngine: Player state view, card validation
  *   - game/luaGameOps: Lua script execution, transactions, schemas
  *
  * This file handles game lifecycle (create, get, cleanup) and
- * the async operations that coordinate Redis + Lua + fallback.
+ * the async operations that coordinate Redis + Lua.
  */
 
 import type {
     Team,
     GameState,
-    Clue,
-    RevealHistoryEntry,
-    ClueHistoryEntry,
-    EndTurnHistoryEntry,
     ForfeitHistoryEntry,
+    GameHistoryEntry,
     CreateGameOptions,
     RevealResult,
     ClueWithGuesses,
@@ -78,14 +74,8 @@ import {
     selectBoardWords
 } from './game/boardGenerator';
 
-import { validateClueWord } from './game/clueValidator';
-
 import {
     validateCardIndex,
-    validateRevealPreconditions,
-    executeCardReveal,
-    determineRevealOutcome,
-    buildRevealResult,
     getGameStateForPlayer
 } from './game/revealEngine';
 
@@ -98,9 +88,7 @@ import {
     gameStateSchema,
     MAX_HISTORY_ENTRIES,
     MAX_CLUES,
-    safeParseGameData,
-    incrementVersion,
-    withLuaFallback,
+    executeLuaScript,
     executeGameTransaction
 } from './game/luaGameOps';
 
@@ -145,14 +133,9 @@ async function releaseLockWithRetry(
 }
 
 /**
- * History entry union type
- */
-type HistoryEntry = RevealHistoryEntry | ClueHistoryEntry | EndTurnHistoryEntry | ForfeitHistoryEntry;
-
-/**
  * Add entry to game history with cap to prevent unbounded growth
  */
-function addToHistory(game: GameState, entry: HistoryEntry): void {
+function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
     if (!game.history) game.history = [];
     game.history.push(entry);
 
@@ -319,7 +302,7 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
 // ─── Card Reveal ────────────────────────────────────────────────────
 
 /**
- * Reveal a card with distributed lock and Lua optimization + fallback
+ * Reveal a card with distributed lock and atomic Lua execution
  */
 export async function revealCard(
     roomCode: string,
@@ -340,19 +323,19 @@ export async function revealCard(
     }
 
     try {
-        const errorMap: Record<string, { code: string; message: string }> = {
-            'NO_GAME': { code: ERROR_CODES.GAME_NOT_STARTED, message: 'No active game' },
-            'GAME_OVER': { code: ERROR_CODES.GAME_OVER, message: 'Game is already over' },
-            'NO_GUESSES': { code: ERROR_CODES.INVALID_INPUT, message: 'No guesses remaining this turn' },
-            'ALREADY_REVEALED': { code: ERROR_CODES.CARD_ALREADY_REVEALED, message: 'Card already revealed' },
-            'NOT_YOUR_TURN': { code: ERROR_CODES.NOT_YOUR_TURN, message: "It's not your team's turn" },
-            'NO_CLUE': { code: ERROR_CODES.NO_CLUE, message: 'Spymaster must give a clue before revealing cards' },
-            'INVALID_INDEX': { code: ERROR_CODES.INVALID_INPUT, message: 'Invalid card index' }
+        const errorMap: Record<string, Error> = {
+            'NO_GAME': GameStateError.noActiveGame(),
+            'GAME_OVER': GameStateError.gameOver(),
+            'NO_GUESSES': new ValidationError('No guesses remaining this turn'),
+            'ALREADY_REVEALED': GameStateError.cardAlreadyRevealed(index),
+            'NOT_YOUR_TURN': PlayerError.notYourTurn(playerTeam),
+            'NO_CLUE': new ValidationError('Spymaster must give a clue before revealing cards'),
+            'INVALID_INDEX': new ValidationError('Invalid card index')
         };
 
-        return await withLuaFallback<RevealResult>(
-            gameKey,
+        return await executeLuaScript<RevealResult>(
             OPTIMIZED_REVEAL_SCRIPT,
+            gameKey,
             [
                 index.toString(),
                 Date.now().toString(),
@@ -361,92 +344,17 @@ export async function revealCard(
                 playerTeam || ''
             ],
             errorMap,
-            () => revealCardFallback(roomCode, gameKey, index, playerNickname),
-            `revealCard-${roomCode}`,
-            false  // Lua script now handles Duet mode natively
+            `revealCard-${roomCode}`
         );
     } finally {
         await releaseLockWithRetry(redis, lockKey, lockValue, `reveal-lock-${roomCode}`);
     }
 }
 
-/**
- * TypeScript fallback for card reveal (used for Duet mode and when Lua fails)
- */
-async function revealCardFallback(
-    roomCode: string,
-    gameKey: string,
-    index: number,
-    playerNickname: string
-): Promise<RevealResult> {
-    const redis: RedisClient = getRedis();
-    const maxRetries = 3;
-    let retries = 0;
-
-    while (retries < maxRetries) {
-        try {
-            await redis.watch(gameKey);
-
-            const gameData = await redis.get(gameKey);
-            if (!gameData) {
-                await redis.unwatch();
-                throw GameStateError.noActiveGame();
-            }
-
-            const game = safeParseGameData(gameData, roomCode);
-            if (!game) {
-                await redis.unwatch();
-                await redis.del(gameKey);
-                throw GameStateError.corrupted(roomCode);
-            }
-
-            validateRevealPreconditions(game, index);
-
-            const previousTurn = game.currentTurn;
-            const cardType = executeCardReveal(game, index);
-            const outcome = determineRevealOutcome(game, cardType, previousTurn);
-
-            addToHistory(game, {
-                action: 'reveal',
-                index,
-                word: game.words[index] || 'UNKNOWN',
-                type: cardType,
-                team: previousTurn,
-                player: playerNickname,
-                guessNumber: game.guessesUsed,
-                timestamp: Date.now()
-            });
-
-            incrementVersion(game);
-
-            const currentTTL = await redis.ttl(gameKey);
-            const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
-
-            const result = await redis.multi()
-                .set(gameKey, JSON.stringify(game), { EX: ttl })
-                .exec();
-
-            if (result === null) {
-                await redis.unwatch();
-                retries++;
-                continue;
-            }
-
-            return buildRevealResult(game, index, cardType, outcome);
-
-        } catch (error) {
-            await redis.unwatch();
-            throw error;
-        }
-    }
-
-    throw ServerError.concurrentModification();
-}
-
 // ─── Clue Giving ────────────────────────────────────────────────────
 
 /**
- * Give a clue with validation — Lua with TypeScript fallback
+ * Give a clue with validation — atomic Lua execution
  */
 export async function giveClue(
     roomCode: string,
@@ -476,9 +384,9 @@ export async function giveClue(
         'WORD_ON_BOARD': ValidationError.invalidClue(`"${word}" is a word on the board`),
     };
 
-    return withLuaFallback<ClueWithGuesses>(
-        gameKey,
+    return executeLuaScript<ClueWithGuesses>(
         OPTIMIZED_GIVE_CLUE_SCRIPT,
+        gameKey,
         [
             team,
             normalizedWord,
@@ -490,122 +398,14 @@ export async function giveClue(
             MAX_CLUES.toString()
         ],
         luaErrorMap,
-        () => giveClueTransactional(roomCode, gameKey, team, word, number, spymasterNickname),
         `giveClue-${roomCode}`
     );
-}
-
-/**
- * TypeScript transactional clue giving (fallback / Duet)
- */
-async function giveClueTransactional(
-    roomCode: string,
-    gameKey: string,
-    team: Team,
-    word: string,
-    number: number,
-    spymasterNickname: string
-): Promise<ClueWithGuesses> {
-    const redis: RedisClient = getRedis();
-    const maxRetries = 3;
-    let retries = 0;
-
-    while (retries < maxRetries) {
-        try {
-            await redis.watch(gameKey);
-
-            const gameData = await redis.get(gameKey);
-            if (!gameData) {
-                await redis.unwatch();
-                throw GameStateError.noActiveGame();
-            }
-
-            const game = safeParseGameData(gameData, roomCode);
-            if (!game) {
-                await redis.unwatch();
-                await redis.del(gameKey);
-                throw GameStateError.corrupted(roomCode);
-            }
-
-            if (game.gameOver) {
-                await redis.unwatch();
-                throw GameStateError.gameOver();
-            }
-
-            if (game.currentTurn !== team) {
-                await redis.unwatch();
-                throw PlayerError.notYourTurn(team);
-            }
-
-            if (game.currentClue) {
-                await redis.unwatch();
-                throw ValidationError.clueAlreadyGiven();
-            }
-
-            const validation = validateClueWord(word, game.words);
-            if (!validation.valid) {
-                await redis.unwatch();
-                throw ValidationError.invalidClue(validation.reason || 'Invalid clue');
-            }
-
-            const clue: Clue = {
-                team,
-                word: toEnglishUpperCase(word),
-                number,
-                spymaster: spymasterNickname,
-                timestamp: Date.now()
-            };
-
-            game.currentClue = clue;
-            game.guessesAllowed = number === 0 ? 0 : number + 1;
-            game.guessesUsed = 0;
-
-            if (!game.clues) game.clues = [];
-            game.clues.push(clue);
-            if (game.clues.length > MAX_CLUES) {
-                game.clues = game.clues.slice(-MAX_CLUES);
-            }
-
-            addToHistory(game, {
-                action: 'clue',
-                team,
-                word: clue.word,
-                number,
-                guessesAllowed: game.guessesAllowed,
-                spymaster: spymasterNickname,
-                timestamp: Date.now()
-            });
-
-            incrementVersion(game);
-
-            const currentTTL = await redis.ttl(gameKey);
-            const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
-
-            const result = await redis.multi()
-                .set(gameKey, JSON.stringify(game), { EX: ttl })
-                .exec();
-
-            if (result === null) {
-                await redis.unwatch();
-                retries++;
-                continue;
-            }
-
-            return { ...clue, guessesAllowed: game.guessesAllowed };
-
-        } catch (error) {
-            await redis.unwatch();
-            throw error;
-        }
-    }
-
-    throw ServerError.concurrentModification();
 }
 
 // ─── End Turn ───────────────────────────────────────────────────────
 
 /**
- * End the current turn — Lua with TypeScript fallback
+ * End the current turn — atomic Lua execution
  */
 export async function endTurn(
     roomCode: string,
@@ -620,36 +420,11 @@ export async function endTurn(
         'NOT_YOUR_TURN': PlayerError.notYourTurn(expectedTeam as Team)
     };
 
-    return withLuaFallback<EndTurnResult>(
-        gameKey,
+    return executeLuaScript<EndTurnResult>(
         OPTIMIZED_END_TURN_SCRIPT,
+        gameKey,
         [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
         luaErrorMap,
-        () => executeGameTransaction(gameKey, (game: GameState) => {
-            if (game.gameOver) {
-                throw GameStateError.gameOver();
-            }
-
-            if (expectedTeam && game.currentTurn !== expectedTeam) {
-                throw PlayerError.notYourTurn(expectedTeam as Team);
-            }
-
-            const previousTurn = game.currentTurn;
-            game.currentTurn = game.currentTurn === 'red' ? 'blue' : 'red';
-            game.currentClue = null;
-            game.guessesUsed = 0;
-            game.guessesAllowed = 0;
-
-            addToHistory(game, {
-                action: 'endTurn',
-                fromTeam: previousTurn,
-                toTeam: game.currentTurn,
-                player: playerNickname,
-                timestamp: Date.now()
-            });
-
-            return { currentTurn: game.currentTurn, previousTurn };
-        }, 'endTurn'),
         `endTurn-${roomCode}`
     );
 }
@@ -694,7 +469,7 @@ export function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<Forfe
 /**
  * Get game history
  */
-export async function getGameHistory(roomCode: string): Promise<HistoryEntry[]> {
+export async function getGameHistory(roomCode: string): Promise<GameHistoryEntry[]> {
     const game = await getGame(roomCode);
     if (!game) return [];
     return game.history || [];

@@ -1,8 +1,9 @@
 /**
- * Lua Game Operations - Generic Lua script execution with TypeScript fallback
+ * Lua Game Operations - Lua script execution and Redis transactions
  *
- * Eliminates the duplicated try-Lua-catch-fallback pattern that was
- * copy-pasted across revealCard, giveClue, and endTurn.
+ * Provides executeLuaScript for atomic game operations (revealCard, giveClue,
+ * endTurn) and executeGameTransaction for operations without Lua scripts
+ * (forfeitGame).
  */
 
 import type { GameState, RedisClient as SharedRedisClient } from '../../types';
@@ -15,7 +16,6 @@ import logger from '../../utils/logger';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { parseJSON, tryParseJSON } from '../../utils/parseJSON';
 import {
-    ERROR_CODES,
     REDIS_TTL,
     GAME_HISTORY,
     RETRY_CONFIG
@@ -59,14 +59,10 @@ const gameStateSchema = z.object({
     greenTotal: z.number().optional(),
 });
 
-const gameModePreCheckSchema = z.object({
-    gameMode: z.string().optional(),
-});
-
 const luaResultObjectSchema = z.record(z.unknown());
 
 // Re-export schemas for use by gameService
-export { gameStateSchema, gameModePreCheckSchema, luaResultObjectSchema };
+export { gameStateSchema, luaResultObjectSchema };
 
 // Centralized constants
 export const MAX_HISTORY_ENTRIES: number = GAME_HISTORY.MAX_ENTRIES;
@@ -91,16 +87,6 @@ export type ExecuteLuaScript = <T>(
  */
 export function safeParseGameData(gameData: string, roomCode: string): GameState | null {
     return tryParseJSON(gameData, gameStateSchema, `game state for ${roomCode}`) as GameState | null;
-}
-
-/**
- * Check if a game is in Duet mode without full deserialization
- */
-export async function isDuetMode(gameKey: string): Promise<boolean> {
-    const redis: RedisClient = getRedis();
-    const preCheckData = await redis.get(gameKey);
-    if (!preCheckData) return false;
-    return tryParseJSON(preCheckData, gameModePreCheckSchema, `duet pre-check`)?.gameMode === 'duet';
 }
 
 /**
@@ -158,51 +144,8 @@ export async function executeLuaScript<T>(
 }
 
 /**
- * Execute a game operation with Lua optimization and TypeScript fallback.
- *
- * This is the generic pattern that replaces the duplicated try-Lua-catch-fallback
- * code in revealCard, giveClue, and endTurn.
- *
- * @param gameKey - Redis key for the game state
- * @param luaScript - Lua script to try first
- * @param luaArgs - Arguments for the Lua script
- * @param luaErrorMap - Error mapping for Lua error codes
- * @param fallback - TypeScript fallback function if Lua fails
- * @param operationName - Name for logging
- * @param skipLuaForDuet - Whether to skip Lua for Duet mode (default true)
- */
-export async function withLuaFallback<T>(
-    gameKey: string,
-    luaScript: string,
-    luaArgs: string[],
-    luaErrorMap: Record<string, Error | { code: string; message: string }>,
-    fallback: () => Promise<T>,
-    operationName: string,
-    skipLuaForDuet: boolean = true
-): Promise<T> {
-    // Check if Duet mode — skip Lua for Duet games
-    if (skipLuaForDuet && await isDuetMode(gameKey)) {
-        return fallback();
-    }
-
-    // Try Lua script first
-    try {
-        return await executeLuaScript<T>(luaScript, gameKey, luaArgs, luaErrorMap, operationName);
-    } catch (luaError) {
-        // Propagate game logic errors (known error codes)
-        if ((luaError as { code?: string }).code && (luaError as { code?: string }).code !== ERROR_CODES.SERVER_ERROR) {
-            throw luaError;
-        }
-        logger.warn(`Lua ${operationName} failed, falling back to TypeScript: ${(luaError as Error).message}`);
-    }
-
-    // Fall back to TypeScript implementation
-    return fallback();
-}
-
-/**
  * Execute a Redis transaction with optimistic locking and retries.
- * Used by the TypeScript fallback path.
+ * Used by operations that don't have a Lua script (e.g., forfeitGame).
  */
 export async function executeGameTransaction<T>(
     gameKey: string,

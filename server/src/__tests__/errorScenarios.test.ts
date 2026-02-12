@@ -209,11 +209,7 @@ describe('Error Scenarios', () => {
         });
 
         test('handles card reveal on already revealed card', async () => {
-            const mockGame = createMockGame({
-                roomCode: 'TESTROOM',
-                revealed: Array(25).fill(false).map((_, i) => i === 0)
-            });
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'ALREADY_REVEALED' }));
 
             await expect(
                 gameService.revealCard('TESTROOM', 0, 'red')
@@ -221,12 +217,7 @@ describe('Error Scenarios', () => {
         });
 
         test('handles turn action on game over state', async () => {
-            const mockGame = createMockGame({
-                roomCode: 'TESTROOM',
-                gameOver: true,
-                winner: 'red'
-            });
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
 
             await expect(
                 gameService.revealCard('TESTROOM', 1, 'red')
