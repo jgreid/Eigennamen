@@ -31,9 +31,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install curl for healthcheck and openssl for Prisma, create non-root user,
-# and create logs directory — all in single layer to reduce image size
-RUN apk add --no-cache curl openssl && \
+# Install curl for healthcheck, openssl for Prisma, redis for embedded
+# memory-mode server, create non-root user, and create logs directory
+RUN apk add --no-cache curl openssl redis && \
     addgroup -g 1001 -S nodejs && \
     adduser -S codenames -u 1001 && \
     mkdir -p /app/logs && chown codenames:nodejs /app/logs

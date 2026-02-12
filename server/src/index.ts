@@ -68,8 +68,14 @@ async function startServer(): Promise<void> {
             startMemoryMonitoring();
         });
 
-        // Graceful shutdown
+        // Graceful shutdown (guarded against duplicate signals)
+        let isShuttingDown = false;
         const shutdown = async (signal: string): Promise<void> => {
+            if (isShuttingDown) {
+                logger.info(`${signal} received, shutdown already in progress`);
+                return;
+            }
+            isShuttingDown = true;
             logger.info(`${signal} received, shutting down gracefully`);
 
             // Sprint 19: Stop memory monitoring
