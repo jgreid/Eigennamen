@@ -12,6 +12,8 @@ import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeRe
 import { openSettings, closeSettings, saveSettings, resetWords, initSettingsNav, loadLocalSettings, tryLoadWordlistFile, initSettingsListeners } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
+// Signal that the ES module loaded successfully
+window.__appModuleLoaded = true;
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
 // Register all modal close handlers
@@ -182,6 +184,10 @@ function initRoomSettingsUI() {
 }
 async function init() {
     try {
+        // Remove loading placeholder
+        const loadingEl = document.getElementById('board-loading');
+        if (loadingEl)
+            loadingEl.remove();
         // Initialize cached DOM elements first
         initCachedElements();
         // Set up centralized event listeners
@@ -226,6 +232,7 @@ async function init() {
     }
     catch (e) {
         const message = e instanceof Error ? e.message : 'Unknown error';
+        console.error('[Codenames] Initialization failed:', message, e);
         // Show error modal to inform user
         showErrorModal('Failed to load the game. This might be due to corrupted data or a browser issue.', message);
     }

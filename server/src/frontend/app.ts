@@ -26,6 +26,9 @@ import {
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 
+// Signal that the ES module loaded successfully
+(window as Window & { __appModuleLoaded?: boolean }).__appModuleLoaded = true;
+
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
 
@@ -210,6 +213,10 @@ function initRoomSettingsUI(): void {
 
 async function init(): Promise<void> {
     try {
+        // Remove loading placeholder
+        const loadingEl = document.getElementById('board-loading');
+        if (loadingEl) loadingEl.remove();
+
         // Initialize cached DOM elements first
         initCachedElements();
         // Set up centralized event listeners
@@ -253,6 +260,7 @@ async function init(): Promise<void> {
         checkURLForReplayLoad();
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Unknown error';
+        console.error('[Codenames] Initialization failed:', message, e);
         // Show error modal to inform user
         showErrorModal(
             'Failed to load the game. This might be due to corrupted data or a browser issue.',
