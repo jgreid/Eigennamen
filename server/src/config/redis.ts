@@ -144,7 +144,7 @@ async function startEmbeddedRedis(): Promise<string> {
         '--save', '',           // Disable RDB snapshots
         '--appendonly', 'no',   // Disable AOF persistence
         '--daemonize', 'no',
-        '--loglevel', 'warning'
+        '--loglevel', 'notice'
     ];
 
     return new Promise<string>((resolve, reject) => {
