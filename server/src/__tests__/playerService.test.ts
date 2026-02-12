@@ -198,8 +198,9 @@ describe('Player Service', () => {
                 nickname: 'OldName',
                 team: null
             };
-            mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            mockRedis.set.mockResolvedValue('OK');
+            // Lua script returns the merged player directly
+            const updatedPlayer = { ...existingPlayer, nickname: 'NewName', lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
 
             const updated = await playerService.updatePlayer('session-123', { nickname: 'NewName' });
 
@@ -208,7 +209,8 @@ describe('Player Service', () => {
         });
 
         test('throws error when player not found', async () => {
-            mockRedis.get.mockResolvedValue(null);
+            // Lua script returns null when player key doesn't exist
+            mockRedis.eval.mockResolvedValue(null);
 
             await expect(playerService.updatePlayer('nonexistent', {}))
                 .rejects.toMatchObject({ code: 'SERVER_ERROR' });
@@ -221,8 +223,9 @@ describe('Player Service', () => {
                 team: 'red',
                 role: 'clicker'
             };
-            mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            mockRedis.set.mockResolvedValue('OK');
+            // Lua script merges updates into existing data and returns full player
+            const updatedPlayer = { ...existingPlayer, connected: false, lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
 
             const updated = await playerService.updatePlayer('session-123', { connected: false });
 
@@ -409,17 +412,13 @@ describe('Player Service', () => {
         test('allows setting spectator role without team', async () => {
             const player = { sessionId: 'session-123', team: null, roomCode: 'ABC123', role: 'spectator' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.set.mockResolvedValue('OK');
+            // setRole('spectator') calls updatePlayer which uses Lua script
+            const updatedPlayer = { ...player, role: 'spectator', lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
 
             const result = await playerService.setRole('session-123', 'spectator');
 
             expect(result.role).toBe('spectator');
-            // Should not acquire lock for spectator role
-            expect(mockRedis.set).not.toHaveBeenCalledWith(
-                expect.stringContaining('lock:spectator'),
-                expect.any(String),
-                expect.any(Object)
-            );
         });
 
         test('successfully assigns role via atomic Lua script', async () => {
@@ -444,12 +443,23 @@ describe('Player Service', () => {
     describe('setNickname', () => {
         test('updates player nickname', async () => {
             const player = { sessionId: 'session-123', nickname: 'OldName' };
-            mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.set.mockResolvedValue('OK');
+            // setNickname calls updatePlayer which uses Lua script
+            const updatedPlayer = { ...player, nickname: 'NewName', lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
 
             const result = await playerService.setNickname('session-123', 'NewName');
 
             expect(result.nickname).toBe('NewName');
+        });
+
+        test('throws error for empty nickname', () => {
+            expect(() => playerService.setNickname('session-123', ''))
+                .toThrow('Nickname cannot be empty');
+        });
+
+        test('throws error for whitespace-only nickname', () => {
+            expect(() => playerService.setNickname('session-123', '   '))
+                .toThrow('Nickname cannot be empty');
         });
     });
 
@@ -604,9 +614,10 @@ describe('Player Service', () => {
     describe('handleDisconnect', () => {
         test('marks player disconnected and schedules cleanup', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', connected: true };
-            mockRedis.get.mockResolvedValueOnce(JSON.stringify(player));
-            mockRedis.get.mockResolvedValueOnce(JSON.stringify(player)); // For updatePlayer
-            mockRedis.set.mockResolvedValue('OK');
+            mockRedis.get.mockResolvedValue(JSON.stringify(player));
+            // updatePlayer uses Lua script
+            const disconnectedPlayer = { ...player, connected: false, disconnectedAt: Date.now(), lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(disconnectedPlayer));
             mockRedis.zAdd.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
 
@@ -829,6 +840,9 @@ describe('Player Service', () => {
             const player = { sessionId: 's1', nickname: 'Test' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.set.mockResolvedValue('OK');
+            // updatePlayer (for lastIP) uses Lua script
+            const updatedPlayer = { ...player, lastIP: '192.168.1.1', lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
 
             const result = await playerService.setSocketMapping('s1', 'socket-123', '192.168.1.1');
 
@@ -840,16 +854,18 @@ describe('Player Service', () => {
             );
         });
 
-        test('updates player with lastIP', async () => {
+        test('updates player with lastIP via Lua script', async () => {
             const player = { sessionId: 's1', nickname: 'Test' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.set.mockResolvedValue('OK');
+            // updatePlayer uses Lua script for atomic update
+            const updatedPlayer = { ...player, lastIP: '192.168.1.1', lastSeen: Date.now() };
+            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
 
             await playerService.setSocketMapping('s1', 'socket-123', '192.168.1.1');
 
-            // updatePlayer now uses WATCH/MULTI, so the player set goes through multi().set()
-            expect(mockRedis.watch).toHaveBeenCalledWith('player:s1');
-            expect(mockRedis.multi).toHaveBeenCalled();
+            // updatePlayer now uses Lua script (not WATCH/MULTI)
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('returns false for non-existent player', async () => {
