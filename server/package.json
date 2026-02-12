@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
+    "predev": "tsc -p tsconfig.frontend.json",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.frontend.json && cp -r src/scripts dist/scripts",
     "build:check": "tsc --noEmit && tsc --noEmit -p tsconfig.frontend.json",
