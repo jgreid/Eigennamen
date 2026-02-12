@@ -21,6 +21,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Redis
+dump.rdb
+
 # Build outputs
 dist/
 build/
