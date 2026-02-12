@@ -71,40 +71,6 @@ export type { GameStartInput, GameRevealInput, GameClueInput, GameHistoryLimitIn
 export type { ChatMessageInput, SpectatorChatInput } from './chatSchemas';
 export type { TimerAddTimeInput } from './timerSchemas';
 
-module.exports = {
-    // Shared helpers
-    z,
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema,
-    createNicknameSchema,
-    // Room schemas
-    roomCreateSchema,
-    roomJoinSchema,
-    roomSettingsSchema,
-    roomReconnectSchema,
-    roomCodeSchema,
-    wordListIdSchema,
-    // Player schemas
-    playerTeamSchema,
-    playerRoleSchema,
-    playerNicknameSchema,
-    playerKickSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema,
-    // Game schemas
-    gameStartSchema,
-    gameRevealSchema,
-    gameClueSchema,
-    gameHistoryLimitSchema,
-    gameReplaySchema,
-    // Chat schemas
-    chatMessageSchema,
-    spectatorChatSchema,
-    // Timer schemas
-    timerAddTimeSchema
-};
-
 export {
     createSanitizedString,
     createTeamNameSchema,

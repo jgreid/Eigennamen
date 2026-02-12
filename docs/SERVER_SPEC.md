@@ -643,14 +643,12 @@ const authorizeAction = (action) => (socket, data, next) => {
 ### 5.3 Rate Limiting
 
 ```javascript
-// server/middleware/rateLimit.js
+// server/src/middleware/rateLimit.ts
 
 const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
 
-// HTTP endpoints
+// HTTP endpoints (uses in-memory store by default)
 const apiLimiter = rateLimit({
-    store: new RedisStore({ client: redisClient }),
     windowMs: 60 * 1000, // 1 minute
     max: 100, // 100 requests per minute
     message: { error: 'Too many requests' }

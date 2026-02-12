@@ -34,11 +34,6 @@ const spectatorChatSchema = z.object({
 export type ChatMessageInput = ZodType.infer<typeof chatMessageSchema>;
 export type SpectatorChatInput = ZodType.infer<typeof spectatorChatSchema>;
 
-module.exports = {
-    chatMessageSchema,
-    spectatorChatSchema
-};
-
 export {
     chatMessageSchema,
     spectatorChatSchema

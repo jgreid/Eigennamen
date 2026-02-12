@@ -85,14 +85,6 @@ export type GameClueInput = ZodType.infer<typeof gameClueSchema>;
 export type GameHistoryLimitInput = ZodType.infer<typeof gameHistoryLimitSchema>;
 export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
 
-module.exports = {
-    gameStartSchema,
-    gameRevealSchema,
-    gameClueSchema,
-    gameHistoryLimitSchema,
-    gameReplaySchema
-};
-
 export {
     gameStartSchema,
     gameRevealSchema,

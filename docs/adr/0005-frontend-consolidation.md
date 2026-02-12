@@ -139,7 +139,7 @@ npm run build
 
 ## References
 
-- Vite Configuration: `vite.config.js`
-- Production Frontend: `server/public/js/modules/`
+- Production Frontend: `server/public/js/modules/` (compiled from `server/src/frontend/`)
 - Server Tests: `server/src/__tests__/`
-- E2E Tests: `tests/` (Playwright)
+- E2E Tests: `server/e2e/` (Playwright)
+- Note: `vite.config.js` and root `package.json` were removed as part of cleanup since Vite is no longer used

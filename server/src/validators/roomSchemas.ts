@@ -74,15 +74,6 @@ export type RoomJoinInput = ZodType.infer<typeof roomJoinSchema>;
 export type RoomSettingsInput = ZodType.infer<typeof roomSettingsSchema>;
 export type RoomReconnectInput = ZodType.infer<typeof roomReconnectSchema>;
 
-module.exports = {
-    roomCreateSchema,
-    roomJoinSchema,
-    roomSettingsSchema,
-    roomReconnectSchema,
-    roomCodeSchema,
-    wordListIdSchema
-};
-
 export {
     roomCreateSchema,
     roomJoinSchema,

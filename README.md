@@ -2,7 +2,7 @@
 
 A web-based implementation of the popular board game Codenames, optimized for remote play over video conferencing or direct online multiplayer.
 
-**Version:** v2.3.0 | **License:** GPL v3.0 | **Tests:** 2,675+
+**Version:** v2.3.0 | **License:** GPL v3.0 | **Tests:** 2,571+
 
 ## Features
 

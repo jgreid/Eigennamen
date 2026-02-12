@@ -96,15 +96,6 @@ const validateModeTimer = (data: { gameMode?: string; turnTimer?: number | null 
     }
 };
 
-module.exports = {
-    z,
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema,
-    createNicknameSchema,
-    validateModeTimer
-};
-
 export {
     createSanitizedString,
     createTeamNameSchema,

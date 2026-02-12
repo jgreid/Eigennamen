@@ -19,10 +19,6 @@ const timerAddTimeSchema = z.object({
 // Type exports for schema inference
 export type TimerAddTimeInput = ZodType.infer<typeof timerAddTimeSchema>;
 
-module.exports = {
-    timerAddTimeSchema
-};
-
 export {
     timerAddTimeSchema
 };
