@@ -5,6 +5,7 @@ import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
 import { openModal, closeModal } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator, updateQRCode } from './game.js';
+import { t } from './i18n.js';
 
 export function openSettings(): void {
     openModal('settings-modal');
@@ -102,38 +103,38 @@ export function updateWordCount(): void {
     const mode = modeRadio ? modeRadio.value : 'combined';
 
     if (mode === 'default') {
-        countEl.textContent = `Using ${DEFAULT_WORDS.length} default words`;
+        countEl.textContent = t('wordList.usingDefault', { count: DEFAULT_WORDS.length });
         countEl.className = 'word-count';
         if (errorEl) errorEl.classList.remove('visible');
         textarea.classList.remove('invalid');
     } else if (mode === 'combined') {
         if (count === 0) {
-            countEl.textContent = `Using ${DEFAULT_WORDS.length} default words`;
+            countEl.textContent = t('wordList.usingDefault', { count: DEFAULT_WORDS.length });
         } else {
             const totalUnique = new Set([...DEFAULT_WORDS, ...words]).size;
-            countEl.textContent = `${count} custom + ${DEFAULT_WORDS.length} default = ${totalUnique} unique words`;
+            countEl.textContent = t('wordList.customPlusDefault', { custom: count, default: DEFAULT_WORDS.length, total: totalUnique });
         }
         countEl.className = 'word-count';
         if (errorEl) errorEl.classList.remove('visible');
         textarea.classList.remove('invalid');
     } else if (mode === 'custom') {
         if (count === 0) {
-            countEl.textContent = `0 words (need at least ${BOARD_SIZE})`;
+            countEl.textContent = t('wordList.zeroWords', { min: BOARD_SIZE });
             countEl.className = 'word-count error';
             if (errorEl) errorEl.classList.add('visible');
             textarea.classList.add('invalid');
         } else if (count < BOARD_SIZE) {
-            countEl.textContent = `${count} words (need at least ${BOARD_SIZE})`;
+            countEl.textContent = t('wordList.tooFewWords', { count, min: BOARD_SIZE });
             countEl.className = 'word-count error';
             if (errorEl) errorEl.classList.add('visible');
             textarea.classList.add('invalid');
         } else if (count < 50) {
-            countEl.textContent = `${count} words (works, but more variety is better)`;
+            countEl.textContent = t('wordList.lowVariety', { count });
             countEl.className = 'word-count warning';
             if (errorEl) errorEl.classList.remove('visible');
             textarea.classList.remove('invalid');
         } else {
-            countEl.textContent = `${count} custom words`;
+            countEl.textContent = t('wordList.customWordCount', { count });
             countEl.className = 'word-count';
             if (errorEl) errorEl.classList.remove('visible');
             textarea.classList.remove('invalid');

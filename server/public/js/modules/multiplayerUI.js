@@ -21,7 +21,7 @@ export function updateMpIndicator(room, players) {
         if (codeEl)
             codeEl.textContent = room.code;
         if (countEl)
-            countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
+            countEl.textContent = (players?.length === 1) ? t('multiplayer.playerCountOne') : t('multiplayer.playerCount', { count: players?.length || 1 });
         if (indicator)
             indicator.classList.add('active');
         // Show multiplayer-only buttons row (history + forfeit)
@@ -94,23 +94,23 @@ export async function copyRoomCode() {
     const copied = await copyToClipboard(roomCode);
     if (copied) {
         if (feedback) {
-            feedback.textContent = 'Room code copied!';
+            feedback.textContent = t('toast.roomCodeCopied');
             setTimeout(() => { feedback.textContent = ''; }, UI.COPY_FEEDBACK_MS);
         }
-        showToast('Room code copied to clipboard');
+        showToast(t('toast.roomCodeCopiedClipboard'));
     }
     else {
-        showToast('Failed to copy - please copy manually', 'warning');
+        showToast(t('toast.failedToCopy'), 'warning');
     }
 }
 export async function copyRoomId() {
     if (state.currentRoomId) {
         const copied = await copyToClipboard(state.currentRoomId);
         if (copied) {
-            showToast('Room ID copied!', 'success', 2000);
+            showToast(t('toast.roomIdCopied'), 'success', 2000);
         }
         else {
-            showToast('Failed to copy', 'error', 2000);
+            showToast(t('toast.failedToCopyShort'), 'error', 2000);
         }
     }
 }
@@ -132,7 +132,7 @@ export function updatePlayerList(ul, players) {
         if (p.isHost) {
             const badge = document.createElement('span');
             badge.className = 'host-badge';
-            badge.textContent = 'Host';
+            badge.textContent = t('multiplayer.host');
             info.appendChild(badge);
         }
         const roleSpan = document.createElement('span');
@@ -194,7 +194,7 @@ export function updateRoomInfoDisplay() {
     if (playersEl)
         playersEl.textContent = String(state.multiplayerPlayers?.length || 0);
     if (statusEl)
-        statusEl.textContent = state.gameState.status === 'ended' ? 'Game Over' : (state.gameState.status === 'playing' ? 'In Progress' : 'Waiting');
+        statusEl.textContent = state.gameState.status === 'ended' ? t('roomSettings.gameOver') : (state.gameState.status === 'playing' ? t('roomSettings.inProgress') : t('roomSettings.waiting'));
 }
 // Sync game mode UI with server state
 export function syncGameModeUI(gameMode) {
@@ -299,7 +299,7 @@ export function handleSpectatorChatMessage(data) {
     const badgeEl = document.createElement('span');
     badgeEl.className = 'chat-badge spectator-badge';
     badgeEl.textContent = '\uD83D\uDC41';
-    badgeEl.title = 'Spectator message';
+    badgeEl.title = t('chat.spectatorMessage');
     messageEl.appendChild(badgeEl);
     messageEl.appendChild(senderEl);
     messageEl.appendChild(document.createTextNode(': '));
@@ -316,7 +316,7 @@ export function sendSpectatorChat(message) {
     // Only spectators can send spectator messages
     const player = CodenamesClient.player;
     if (player?.role !== 'spectator' && player?.team) {
-        showToast('Only spectators can use spectator chat', 'error');
+        showToast(t('multiplayer.spectatorChatOnly'), 'error');
         return;
     }
     CodenamesClient.sendSpectatorChat(message.trim());
@@ -327,15 +327,15 @@ export function sendSpectatorChat(message) {
  */
 export function confirmForfeit() {
     if (!state.isMultiplayerMode || !CodenamesClient?.isConnected()) {
-        showToast('Forfeit is only available in multiplayer mode', 'warning');
+        showToast(t('forfeit.multiplayerOnly'), 'warning');
         return;
     }
     if (!CodenamesClient.player?.isHost) {
-        showToast('Only the host can forfeit the game', 'warning');
+        showToast(t('forfeit.hostOnly'), 'warning');
         return;
     }
     if (state.gameState.gameOver) {
-        showToast('The game is already over', 'info');
+        showToast(t('forfeit.gameAlreadyOver'), 'info');
         return;
     }
     openModal('confirm-forfeit-modal');
@@ -434,11 +434,11 @@ function saveNickname() {
     const input = document.getElementById('nickname-edit-input');
     const nickname = input?.value?.trim();
     if (!nickname || nickname.length < VALIDATION.NICKNAME_MIN_LENGTH || nickname.length > VALIDATION.NICKNAME_MAX_LENGTH) {
-        showToast(`Nickname must be ${VALIDATION.NICKNAME_MIN_LENGTH}-${VALIDATION.NICKNAME_MAX_LENGTH} characters`, 'warning');
+        showToast(t('multiplayer.nicknameLength', { min: VALIDATION.NICKNAME_MIN_LENGTH, max: VALIDATION.NICKNAME_MAX_LENGTH }), 'warning');
         return;
     }
     if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
-        showToast('Only letters, numbers, spaces, hyphens and underscores allowed', 'warning');
+        showToast(t('multiplayer.nicknameCharsOnly'), 'warning');
         return;
     }
     if (CodenamesClient?.isConnected()) {

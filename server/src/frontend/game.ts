@@ -42,7 +42,7 @@ export function setupGameBoard(numericSeed: number): void {
 // Initialize game with specific board words (no shuffling needed - words are the board)
 export function initGameWithWords(seed: string, boardWords: string[]): boolean {
     if (boardWords.length !== BOARD_SIZE) {
-        showToast(`Invalid game: need exactly ${BOARD_SIZE} words`, 'error');
+        showToast(t('game.invalidWordCount', { count: BOARD_SIZE }), 'error');
         return false;
     }
 
@@ -63,7 +63,7 @@ export function initGame(seed: string, wordList?: string[]): boolean {
     }
 
     if (words.length < BOARD_SIZE) {
-        showToast(`Not enough words! You need at least ${BOARD_SIZE} words to play. Please add more words in Settings.`, 'error');
+        showToast(t('game.notEnoughWords', { count: BOARD_SIZE }), 'error');
         return false;
     }
 
@@ -465,7 +465,7 @@ export function revealCard(index: number): void {
     const word = state.gameState.words[index];
     const typeNames: Record<string, string> = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
     const typeName = typeNames[type] || type;
-    announceToScreenReader(`${word} revealed as ${typeName}`);
+    announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
 
     if (state.gameState.gameOver) {
         showGameOverModal();
@@ -627,7 +627,7 @@ export function endTurn(): void {
 
     // Announce turn change
     const newTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-    announceToScreenReader(`Turn ended. Now ${newTeamName}'s turn.`);
+    announceToScreenReader(t('game.turnEndedAnnounce', { team: newTeamName }));
 }
 
 export function updateScoreboard(): void {
@@ -704,25 +704,25 @@ export async function copyLink(): Promise<void> {
 
     const copied = await copyToClipboard(urlToCopy);
     if (copied) {
-        showToast('Link copied to clipboard!', 'success', 3000);
+        showToast(t('toast.linkCopied'), 'success', 3000);
     } else {
-        showToast('Failed to copy - please copy manually', 'warning', 3000);
+        showToast(t('toast.failedToCopy'), 'warning', 3000);
     }
 
     // Update feedback for both buttons
     if (btn) {
-        btn.textContent = 'Copied!';
+        btn.textContent = t('game.copiedShort');
     }
     if (linkPanelBtn) {
-        linkPanelBtn.querySelector('.copy-text')!.textContent = 'Copied!';
+        linkPanelBtn.querySelector('.copy-text')!.textContent = t('game.copiedShort');
     }
     if (feedback) {
-        feedback.textContent = 'Link copied to clipboard!';
+        feedback.textContent = t('toast.linkCopied');
     }
 
     state.copyButtonTimeoutId = setTimeout(() => {
         if (btn) btn.textContent = COPY_BUTTON_TEXT;
-        if (linkPanelBtn) linkPanelBtn.querySelector('.copy-text')!.textContent = 'Copy';
+        if (linkPanelBtn) linkPanelBtn.querySelector('.copy-text')!.textContent = t('game.copy');
         if (feedback) feedback.textContent = '';
         state.copyButtonTimeoutId = null;
     }, 3000);

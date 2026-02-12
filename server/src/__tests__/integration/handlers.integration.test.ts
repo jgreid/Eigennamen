@@ -569,7 +569,7 @@ describe('Socket Handler Integration Tests', () => {
             await createPromise;
 
             // Emit with missing required fields — should get an error, not crash
-            const errorPromise = waitForEvent(client, 'game:error', 3000).catch(() => null);
+            const _errorPromise = waitForEvent(client, 'game:error', 3000).catch(() => null);
             client.emit('game:reveal', {});
             // The server should respond with an error, or simply ignore.
             // The key assertion: the connection should NOT be dropped.

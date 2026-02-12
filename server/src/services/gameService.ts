@@ -53,6 +53,23 @@ const { toEnglishUpperCase } = require('../utils/sanitize');
 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
 const { tryParseJSON } = require('../utils/parseJSON');
 
+// Lua script to atomically update room status (prevents TOCTOU race on room data)
+const ATOMIC_SET_ROOM_STATUS_SCRIPT = `
+local roomKey = KEYS[1]
+local newStatus = ARGV[1]
+local ttl = tonumber(ARGV[2])
+
+local roomData = redis.call('GET', roomKey)
+if not roomData then
+    return nil
+end
+
+local room = cjson.decode(roomData)
+room.status = newStatus
+redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
+return 'OK'
+`;
+
 // Focused modules
 const {
     seededRandom,
@@ -265,15 +282,14 @@ export async function createGame(
 
         await redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM });
 
-        const roomData = await redis.get(`room:${roomCode}`);
-        if (roomData) {
-            try {
-                const room = JSON.parse(roomData);
-                room.status = 'playing';
-                await redis.set(`room:${roomCode}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
-            } catch (e) {
-                logger.error(`Failed to parse room data for ${roomCode}:`, (e as Error).message);
-            }
+        // Atomically update room status to 'playing' via Lua to prevent TOCTOU race
+        try {
+            await redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                keys: [`room:${roomCode}`],
+                arguments: ['playing', REDIS_TTL.ROOM.toString()]
+            });
+        } catch (e) {
+            logger.error(`Failed to update room status for ${roomCode}:`, (e as Error).message);
         }
 
         await redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM);

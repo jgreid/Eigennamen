@@ -24,7 +24,11 @@ function parseImports(source) {
     while ((match = importRegex.exec(source)) !== null) {
         const symbols = match[1]
             .split(',')
-            .map(s => s.trim())
+            .map(s => {
+                // Handle "name as alias" — check the original name (what the source exports)
+                const parts = s.trim().split(/\s+as\s+/);
+                return parts[0].trim();
+            })
             .filter(s => s.length > 0);
         const sourcePath = match[2];
         // Find line number

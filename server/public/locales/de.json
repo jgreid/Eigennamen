@@ -61,7 +61,14 @@
     "joinTeamToClick": "Tritt einem Team bei und werde Ermittler, um Karten aufzudecken",
     "onlyClickerCanReveal": "Nur der Ermittler kann Karten aufdecken",
     "onlyClickerCanEndTurn": "Nur Ermittler können den Zug beenden",
-    "gameOverStartNew": "Das Spiel ist beendet – starte ein neues Spiel, um weiterzuspielen"
+    "gameOverStartNew": "Das Spiel ist beendet – starte ein neues Spiel, um weiterzuspielen",
+    "invalidWordCount": "Ungültiges Spiel: genau {{count}} Wörter benötigt",
+    "notEnoughWords": "Nicht genug Wörter! Mindestens {{count}} Wörter zum Spielen benötigt. Bitte füge mehr Wörter in den Einstellungen hinzu.",
+    "turnEndedAnnounce": "Zug beendet. Jetzt ist {{team}} dran.",
+    "wordRevealedAs": "{{word}} aufgedeckt als {{type}}",
+    "roleCleared": "{{role}}-Rolle entfernt. Jetzt im {{team}}-Team.",
+    "copy": "Kopieren",
+    "copiedShort": "Kopiert!"
   },
   "board": {
     "clickToReveal": "Klicken zum Aufdecken",
@@ -72,7 +79,8 @@
     "teamCard": "{{type}}-Teamkarte",
     "revealedCardLabel": "{{word}}, aufgedeckt als {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, verdeckte Karte. {{position}}. Eingabetaste zum Aufdecken.",
-    "boardAriaLabel": "Codenames-Spielfeld – 5 mal 5 Raster mit Wortkarten"
+    "boardAriaLabel": "Codenames-Spielfeld – 5 mal 5 Raster mit Wortkarten",
+    "renderError": "Darstellungsfehler. Bitte starte ein neues Spiel."
   },
   "timer": {
     "remaining": "verbleibend",
@@ -123,7 +131,13 @@
     "offline": "offline",
     "you": "du",
     "kick": "Entfernen",
-    "kickPlayer": "Spieler entfernen"
+    "kickPlayer": "Spieler entfernen",
+    "waitJoiningRoom": "Bitte warten – Raum wird beigetreten...",
+    "playerCount": "{{count}} Spieler",
+    "playerCountOne": "1 Spieler",
+    "spectatorChatOnly": "Nur Zuschauer können den Zuschauer-Chat verwenden",
+    "nicknameLength": "Spitzname muss {{min}}–{{max}} Zeichen lang sein",
+    "nicknameCharsOnly": "Nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche erlaubt"
   },
   "settings": {
     "title": "Einstellungen",
@@ -158,6 +172,7 @@
     "status": "Status",
     "waiting": "Wartend",
     "inProgress": "Läuft",
+    "gameOver": "Spiel beendet",
     "gameMode": "Spielmodus",
     "gameModeHint": "Wähle, wie du spielen möchtest.",
     "classic": "Klassisch",
@@ -175,7 +190,13 @@
     "defaultOnly": "Nur Standard",
     "enterWords": "Eigene Wörter eingeben (eins pro Zeile)",
     "wordCount": "{{count}} Wörter",
-    "minWords": "Mindestens 25 Wörter erforderlich"
+    "minWords": "Mindestens 25 Wörter erforderlich",
+    "usingDefault": "{{count}} Standardwörter werden verwendet",
+    "customPlusDefault": "{{custom}} eigene + {{default}} Standard = {{total}} einzigartige Wörter",
+    "zeroWords": "0 Wörter (mindestens {{min}} benötigt)",
+    "tooFewWords": "{{count}} Wörter (mindestens {{min}} benötigt)",
+    "lowVariety": "{{count}} Wörter (funktioniert, aber mehr Abwechslung ist besser)",
+    "customWordCount": "{{count}} eigene Wörter"
   },
   "rules": {
     "intro": "Zwei Teams versuchen, alle ihre Wörter zu finden. Geheimdienstchefs geben Hinweise, Ermittler decken Karten auf.",
@@ -204,7 +225,8 @@
     "send": "Senden",
     "teamOnly": "Nur Team",
     "spectatorChat": "Zuschauer-Chat",
-    "noMessages": "Noch keine Nachrichten"
+    "noMessages": "Noch keine Nachrichten",
+    "spectatorMessage": "Zuschauer-Nachricht"
   },
   "errors": {
     "connectionFailed": "Verbindung zum Server fehlgeschlagen",
@@ -218,6 +240,58 @@
     "gameStarted": "Neues Spiel gestartet!",
     "blitzGameStarted": "Blitz-Spiel gestartet!",
     "copied": "In die Zwischenablage kopiert!",
-    "linkCopied": "Link kopiert!"
+    "linkCopied": "Link kopiert!",
+    "failedToCopy": "Kopieren fehlgeschlagen – bitte manuell kopieren",
+    "failedToCopyShort": "Kopieren fehlgeschlagen",
+    "roomCodeCopied": "Raumcode kopiert!",
+    "roomCodeCopiedClipboard": "Raumcode in die Zwischenablage kopiert",
+    "roomIdCopied": "Raum-ID kopiert!",
+    "replayLinkCopied": "Replay-Link in die Zwischenablage kopiert!",
+    "couldNotCopyLink": "Link konnte nicht kopiert werden",
+    "replaySpeed": "Wiedergabegeschwindigkeit: {{speed}}",
+    "replayLoaded": "Replay über geteilten Link geladen",
+    "replayNotFound": "Replay nicht gefunden oder abgelaufen",
+    "replayFailed": "Replay konnte nicht geladen werden",
+    "sharedReplayFailed": "Geteiltes Replay konnte nicht geladen werden",
+    "noReplayData": "Keine Replay-Daten verfügbar"
+  },
+  "history": {
+    "multiplayerOnly": "Spielverlauf ist nur im Multiplayer-Modus verfügbar",
+    "teamWins": "{{team}}-Team gewinnt!",
+    "moveStats": "{{moves}} Züge, {{clues}} Hinweise",
+    "loadingReplay": "Replay wird geladen...",
+    "loading": "Laden...",
+    "couldNotLoad": "Replay-Daten konnten nicht geladen werden.",
+    "duration": "Dauer: {{duration}} | {{moves}} Züge",
+    "replayBoard": "Replay-Spielfeld",
+    "cardLabel": "Karte {{number}}: {{word}}",
+    "noEvents": "Keine Ereignisse aufgezeichnet.",
+    "moveProgress": "Zug {{current}} / {{total}}",
+    "gaveClue": "gab Hinweis",
+    "revealed": "aufgedeckt",
+    "endedTurn": "beendete Zug",
+    "forfeited": "aufgegeben",
+    "winsShort": "{{team}} gewinnt"
+  },
+  "notifications": {
+    "yourTurn": "Du bist dran – Codenames"
+  },
+  "forfeit": {
+    "multiplayerOnly": "Aufgeben ist nur im Multiplayer-Modus verfügbar",
+    "hostOnly": "Nur der Gastgeber kann das Spiel aufgeben",
+    "gameAlreadyOver": "Das Spiel ist bereits beendet"
+  },
+  "accessibility": {
+    "keyboardShortcuts": "Tastenkürzel",
+    "newGame": "Neues Spiel",
+    "endTurn": "Zug beenden",
+    "settings": "Einstellungen",
+    "playOnline": "Online spielen",
+    "gameHistory": "Spielverlauf",
+    "showShortcuts": "Tastenkürzel anzeigen",
+    "closeOverlay": "Modal / Overlay schließen",
+    "navigateBoard": "Spielfeldkarten navigieren",
+    "revealCard": "Ausgewählte Karte aufdecken",
+    "toggleHint": "Drücke ? um dieses Overlay umzuschalten"
   }
 }

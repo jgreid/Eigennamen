@@ -37,7 +37,7 @@ export function setupGameBoard(numericSeed) {
 // Initialize game with specific board words (no shuffling needed - words are the board)
 export function initGameWithWords(seed, boardWords) {
     if (boardWords.length !== BOARD_SIZE) {
-        showToast(`Invalid game: need exactly ${BOARD_SIZE} words`, 'error');
+        showToast(t('game.invalidWordCount', { count: BOARD_SIZE }), 'error');
         return false;
     }
     state.gameState.seed = seed;
@@ -54,7 +54,7 @@ export function initGame(seed, wordList) {
         words = [...new Set([...state.localizedDefaultWords, ...state.activeWords])];
     }
     if (words.length < BOARD_SIZE) {
-        showToast(`Not enough words! You need at least ${BOARD_SIZE} words to play. Please add more words in Settings.`, 'error');
+        showToast(t('game.notEnoughWords', { count: BOARD_SIZE }), 'error');
         return false;
     }
     state.gameState.seed = seed;
@@ -419,7 +419,7 @@ export function revealCard(index) {
     const word = state.gameState.words[index];
     const typeNames = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
     const typeName = typeNames[type] || type;
-    announceToScreenReader(`${word} revealed as ${typeName}`);
+    announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
     if (state.gameState.gameOver) {
         showGameOverModal();
     }
@@ -566,7 +566,7 @@ export function endTurn() {
     updateControls();
     // Announce turn change
     const newTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-    announceToScreenReader(`Turn ended. Now ${newTeamName}'s turn.`);
+    announceToScreenReader(t('game.turnEndedAnnounce', { team: newTeamName }));
 }
 export function updateScoreboard() {
     const redRemaining = state.gameState.redTotal - state.gameState.redScore;
@@ -647,26 +647,26 @@ export async function copyLink() {
     const urlToCopy = input.value || window.location.href;
     const copied = await copyToClipboard(urlToCopy);
     if (copied) {
-        showToast('Link copied to clipboard!', 'success', 3000);
+        showToast(t('toast.linkCopied'), 'success', 3000);
     }
     else {
-        showToast('Failed to copy - please copy manually', 'warning', 3000);
+        showToast(t('toast.failedToCopy'), 'warning', 3000);
     }
     // Update feedback for both buttons
     if (btn) {
-        btn.textContent = 'Copied!';
+        btn.textContent = t('game.copiedShort');
     }
     if (linkPanelBtn) {
-        linkPanelBtn.querySelector('.copy-text').textContent = 'Copied!';
+        linkPanelBtn.querySelector('.copy-text').textContent = t('game.copiedShort');
     }
     if (feedback) {
-        feedback.textContent = 'Link copied to clipboard!';
+        feedback.textContent = t('toast.linkCopied');
     }
     state.copyButtonTimeoutId = setTimeout(() => {
         if (btn)
             btn.textContent = COPY_BUTTON_TEXT;
         if (linkPanelBtn)
-            linkPanelBtn.querySelector('.copy-text').textContent = 'Copy';
+            linkPanelBtn.querySelector('.copy-text').textContent = t('game.copy');
         if (feedback)
             feedback.textContent = '';
         state.copyButtonTimeoutId = null;

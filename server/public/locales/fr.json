@@ -61,7 +61,14 @@
     "joinTeamToClick": "Rejoignez une équipe et devenez agent de terrain pour révéler des cartes",
     "onlyClickerCanReveal": "Seul l'agent de terrain peut révéler des cartes",
     "onlyClickerCanEndTurn": "Seuls les agents de terrain peuvent terminer le tour",
-    "gameOverStartNew": "La partie est terminée – lancez une nouvelle partie pour continuer"
+    "gameOverStartNew": "La partie est terminée – lancez une nouvelle partie pour continuer",
+    "invalidWordCount": "Partie invalide : exactement {{count}} mots requis",
+    "notEnoughWords": "Pas assez de mots ! Vous avez besoin d'au moins {{count}} mots pour jouer. Ajoutez-en dans les Paramètres.",
+    "turnEndedAnnounce": "Tour terminé. C'est au tour de {{team}}.",
+    "wordRevealedAs": "{{word}} révélé comme {{type}}",
+    "roleCleared": "Rôle {{role}} retiré. Maintenant dans l'équipe {{team}}.",
+    "copy": "Copier",
+    "copiedShort": "Copié !"
   },
   "board": {
     "clickToReveal": "Cliquer pour révéler",
@@ -72,7 +79,8 @@
     "teamCard": "carte de l'équipe {{type}}",
     "revealedCardLabel": "{{word}}, révélée comme {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, carte non révélée. {{position}}. Appuyez sur Entrée pour révéler.",
-    "boardAriaLabel": "Plateau de jeu Codenames – grille de 5 par 5 avec des cartes de mots"
+    "boardAriaLabel": "Plateau de jeu Codenames – grille de 5 par 5 avec des cartes de mots",
+    "renderError": "Erreur d'affichage. Veuillez lancer une nouvelle partie."
   },
   "timer": {
     "remaining": "restant",
@@ -123,7 +131,13 @@
     "offline": "hors ligne",
     "you": "vous",
     "kick": "Expulser",
-    "kickPlayer": "Expulser le joueur"
+    "kickPlayer": "Expulser le joueur",
+    "waitJoiningRoom": "Veuillez patienter – connexion au salon...",
+    "playerCount": "{{count}} joueurs",
+    "playerCountOne": "1 joueur",
+    "spectatorChatOnly": "Seuls les spectateurs peuvent utiliser le chat spectateurs",
+    "nicknameLength": "Le pseudonyme doit comporter {{min}}-{{max}} caractères",
+    "nicknameCharsOnly": "Seuls les lettres, chiffres, espaces, tirets et underscores sont autorisés"
   },
   "settings": {
     "title": "Paramètres",
@@ -158,6 +172,7 @@
     "status": "Statut",
     "waiting": "En attente",
     "inProgress": "En cours",
+    "gameOver": "Fin de partie",
     "gameMode": "Mode de jeu",
     "gameModeHint": "Choisissez comment vous voulez jouer.",
     "classic": "Classique",
@@ -175,7 +190,13 @@
     "defaultOnly": "Par défaut uniquement",
     "enterWords": "Entrez des mots personnalisés (un par ligne)",
     "wordCount": "{{count}} mots",
-    "minWords": "Il faut au moins 25 mots"
+    "minWords": "Il faut au moins 25 mots",
+    "usingDefault": "Utilisation de {{count}} mots par défaut",
+    "customPlusDefault": "{{custom}} personnalisés + {{default}} par défaut = {{total}} mots uniques",
+    "zeroWords": "0 mots ({{min}} minimum requis)",
+    "tooFewWords": "{{count}} mots ({{min}} minimum requis)",
+    "lowVariety": "{{count}} mots (ça fonctionne, mais plus de variété serait mieux)",
+    "customWordCount": "{{count}} mots personnalisés"
   },
   "rules": {
     "intro": "Deux équipes s'affrontent pour trouver tous leurs mots. Les Maîtres-espions donnent des indices, les Agents révèlent les cartes.",
@@ -204,7 +225,8 @@
     "send": "Envoyer",
     "teamOnly": "Équipe uniquement",
     "spectatorChat": "Chat spectateurs",
-    "noMessages": "Aucun message pour le moment"
+    "noMessages": "Aucun message pour le moment",
+    "spectatorMessage": "Message de spectateur"
   },
   "errors": {
     "connectionFailed": "Échec de la connexion au serveur",
@@ -218,6 +240,58 @@
     "gameStarted": "Nouvelle partie lancée !",
     "blitzGameStarted": "Partie Blitz lancée !",
     "copied": "Copié dans le presse-papiers !",
-    "linkCopied": "Lien copié !"
+    "linkCopied": "Lien copié !",
+    "failedToCopy": "Échec de la copie – veuillez copier manuellement",
+    "failedToCopyShort": "Échec de la copie",
+    "roomCodeCopied": "Code du salon copié !",
+    "roomCodeCopiedClipboard": "Code du salon copié dans le presse-papiers",
+    "roomIdCopied": "ID du salon copié !",
+    "replayLinkCopied": "Lien du replay copié dans le presse-papiers !",
+    "couldNotCopyLink": "Impossible de copier le lien",
+    "replaySpeed": "Vitesse de lecture : {{speed}}",
+    "replayLoaded": "Replay chargé depuis le lien partagé",
+    "replayNotFound": "Replay introuvable ou expiré",
+    "replayFailed": "Échec du chargement du replay",
+    "sharedReplayFailed": "Échec du chargement du replay partagé",
+    "noReplayData": "Aucune donnée de replay disponible"
+  },
+  "history": {
+    "multiplayerOnly": "L'historique n'est disponible qu'en mode multijoueur",
+    "teamWins": "L'équipe {{team}} gagne !",
+    "moveStats": "{{moves}} coups, {{clues}} indices",
+    "loadingReplay": "Chargement du replay...",
+    "loading": "Chargement...",
+    "couldNotLoad": "Impossible de charger les données du replay.",
+    "duration": "Durée : {{duration}} | {{moves}} coups",
+    "replayBoard": "Plateau de replay",
+    "cardLabel": "Carte {{number}} : {{word}}",
+    "noEvents": "Aucun événement enregistré.",
+    "moveProgress": "Coup {{current}} / {{total}}",
+    "gaveClue": "a donné un indice",
+    "revealed": "a révélé",
+    "endedTurn": "a terminé le tour",
+    "forfeited": "a abandonné",
+    "winsShort": "{{team}} gagne"
+  },
+  "notifications": {
+    "yourTurn": "Votre tour – Codenames"
+  },
+  "forfeit": {
+    "multiplayerOnly": "Abandonner n'est disponible qu'en mode multijoueur",
+    "hostOnly": "Seul l'hôte peut abandonner la partie",
+    "gameAlreadyOver": "La partie est déjà terminée"
+  },
+  "accessibility": {
+    "keyboardShortcuts": "Raccourcis clavier",
+    "newGame": "Nouvelle partie",
+    "endTurn": "Fin du tour",
+    "settings": "Paramètres",
+    "playOnline": "Jouer en ligne",
+    "gameHistory": "Historique",
+    "showShortcuts": "Afficher les raccourcis",
+    "closeOverlay": "Fermer le modal / overlay",
+    "navigateBoard": "Naviguer les cartes du plateau",
+    "revealCard": "Révéler la carte sélectionnée",
+    "toggleHint": "Appuyez sur ? pour basculer cet overlay"
   }
 }
