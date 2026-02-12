@@ -8,7 +8,7 @@
 
 ## Summary
 
-The codebase is production-ready with 0 critical/high issues, 2,527 passing tests at 94%+ coverage, 0 ESLint warnings, and 0 TypeScript errors. The recommendations below focus on **highest-impact next steps** rather than rehashing resolved items. They are grouped into three tiers:
+The codebase is production-ready with 0 critical/high issues, **2,571 passing tests** (83 suites) at 94%+ coverage, 0 ESLint warnings, and 0 TypeScript errors. The recommendations below focus on **highest-impact next steps** rather than rehashing resolved items. They are grouped into three tiers:
 
 1. **Tier A — High-Value, Moderate Effort** (ship the product further)
 2. **Tier B — Code Quality Hardening** (reduce technical risk)
@@ -18,34 +18,17 @@ The codebase is production-ready with 0 critical/high issues, 2,527 passing test
 
 ## Tier A: High-Value, Moderate Effort
 
-### A-1. Implement Chat UI Frontend
+### ~~A-1. Implement Chat UI Frontend~~ ALREADY COMPLETE
 
-**Why**: The chat backend (events, validation, rate limiting, team filtering) is fully complete. The feature is invisible to users without a frontend panel.
-
-**What**:
-- Add a collapsible chat panel to `index.html` with team/spectator/all tabs
-- Create `server/src/frontend/chatUI.ts` to wire up `chat:send` / `chat:message` / `chat:spectatorMessage` events
-- Style with glassmorphism to match existing UI
-- Add i18n keys for chat labels
-
-**Files to touch**: `index.html`, `server/src/frontend/chat.ts`, `server/public/css/` (new `chat.css`), `server/public/locales/*.json`
-
-**Risk**: Low — backend is tested; this is purely additive frontend work.
+Chat UI (`server/src/frontend/chat.ts`) is fully implemented with team/spectator tabs, glassmorphism styling, and i18n keys.
 
 ### ~~A-2. Atomicize Room Status Update in `createGame`~~ DONE
 
 Replaced non-atomic GET-modify-SET with inline Lua script `ATOMIC_SET_ROOM_STATUS_SCRIPT` in `gameService.ts`.
 
-### A-3. Complete i18n Markup (D-2)
+### ~~A-3. Complete i18n Markup (D-2)~~ DONE
 
-**Why**: Approximately 10% of user-facing strings in `index.html` and frontend modules are still hardcoded in English. Users selecting German/Spanish/French see mixed-language UI.
-
-**What**:
-- Audit all hardcoded English strings in `index.html` and `server/src/frontend/*.ts`
-- Add corresponding keys to all four locale files (`en.json`, `de.json`, `es.json`, `fr.json`)
-- Replace hardcoded text with `t('key')` calls or `data-i18n` attributes
-
-**Files to touch**: `index.html`, `server/src/frontend/*.ts`, `server/public/locales/*.json`
+Replaced ~70 hardcoded English strings across 9 frontend TypeScript modules (`chat.ts`, `notifications.ts`, `settings.ts`, `accessibility.ts`, `game.ts`, `board.ts`, `roles.ts`, `multiplayerUI.ts`, `history.ts`) with `t()` calls. Added corresponding keys to all 4 locale files (en/de/es/fr).
 
 ### A-4. Migrate Remaining WATCH/MULTI Transactions to Lua (D-5)
 
@@ -82,55 +65,29 @@ Added min/max bounds to `envInt()` with warning logs and clamping for each timeo
 
 Analysis revealed the two functions use fundamentally different Redis key patterns (`reconnect:session:` vs `reconnect:token:`), different lookup strategies, different return types, and different consumption behaviors. The apparent duplication is intentional — consolidating would add complexity for no benefit.
 
-### B-6. Improve Health Check Staleness Handling
+### ~~B-6. Improve Health Check Staleness Handling~~ ALREADY COMPLETE
 
-**Why**: `app.ts:65-94` — `getCachedSocketCount()` returns `{ count, stale }` using `Promise.race()`. When `io.fetchSockets()` times out, it returns stale cache. However, the `/health/ready` and `/metrics` endpoints don't consistently surface the `stale` flag to consumers.
+The `stale` flag is already surfaced in health/metrics JSON responses (`healthRoutes.ts`).
 
-**What**:
-- Include a `"stale": true` field in health/metrics JSON responses when the count is from cache
-- Consider adding a Prometheus label `codenames_socket_count{source="cache|live"}`
+### ~~B-7. Add Chaos/Resilience Testing (D-6)~~ DONE
 
-**Files to touch**: `server/src/app.ts`, `server/src/routes/healthRoutes.ts`
-
-### B-7. Add Chaos/Resilience Testing (D-6)
-
-**Why**: The codebase has excellent unit and integration tests but no tests that simulate infrastructure failures (Redis disconnects, slow responses, connection pool exhaustion). The graceful degradation design (ADR 004) deserves automated verification.
-
-**What**:
-- Add a test suite that starts with Redis, performs operations, kills Redis mid-operation, and verifies fallback behavior
-- Test reconnection after Redis comes back
-- Test timer behavior when Redis is temporarily unavailable
-
-**Files to touch**: New test file in `server/src/__tests__/integration/`
+Added 25 chaos/resilience tests in `server/src/__tests__/integration/chaos.test.ts` covering: Redis operation failures, mid-operation failures, lock contention, transaction semantics, timer resilience, set operations under failure, pub/sub resilience, graceful degradation patterns, and memory pressure simulation.
 
 ---
 
 ## Tier C: Low-Effort Quick Wins
 
-### C-1. Add SRI Hashes for Vendored JS (D-7)
+### ~~C-1. Add SRI Hashes for Vendored JS (D-7)~~ DONE
 
-**Why**: `index.html` loads `qrcode.min.js` and `socket.io.min.js` from local paths without Subresource Integrity hashes. If the files are tampered with (e.g., via supply chain attack on the build), the browser won't detect it.
-
-**What**:
-- Generate SRI hashes: `shasum -b -a 384 file.js | base64`
-- Add `integrity="sha384-..."` and `crossorigin="anonymous"` attributes to script tags
-
-**Files to touch**: `index.html`
+Added `integrity="sha384-..."` and `crossorigin="anonymous"` attributes to `qrcode.min.js` and `socket.io.min.js` script tags in `index.html`.
 
 ### ~~C-2. Align HTML Input Pattern with Server Validation~~ DONE
 
 Removed restrictive ASCII-only `pattern` attributes from 3 nickname inputs. Server-side Zod validation is authoritative.
 
-### C-3. Gate Frontend Debug Logging (D-3)
+### ~~C-3. Gate Frontend Debug Logging (D-3)~~ ALREADY COMPLETE
 
-**Why**: `console.log` / `console.debug` calls in frontend modules run unconditionally. In production, this clutters the browser console and can leak game state information.
-
-**What**:
-- Add a `DEBUG` flag (from URL param `?debug=true` or localStorage)
-- Wrap all debug logging behind the flag in `server/src/frontend/logger.ts`
-- Strip or no-op the logger in production builds
-
-**Files to touch**: `server/src/frontend/logger.ts`, `server/src/frontend/debug.ts`
+Frontend debug logging is already gated behind a `DEBUG` flag via `server/src/frontend/debug.ts` and `logger.ts`.
 
 ### C-4. Add Dependabot Configuration (D-13)
 
@@ -142,15 +99,9 @@ Removed restrictive ASCII-only `pattern` attributes from 3 nickname inputs. Serv
 
 **Files to touch**: New `.github/dependabot.yml`
 
-### C-5. Add ReDoS Regression Tests (D-14)
+### ~~C-5. Add ReDoS Regression Tests (D-14)~~ DONE
 
-**Why**: Clue validation uses Unicode regex patterns. While current patterns are bounded (`{0,9}`), regression tests ensure future changes don't introduce catastrophic backtracking.
-
-**What**:
-- Add test cases with adversarial inputs (long strings of matching characters, alternating match/non-match)
-- Assert validation completes within a timeout (e.g., 100ms)
-
-**Files to touch**: New or existing test file in `server/src/__tests__/`
+Added 16 ReDoS regression tests in `server/src/__tests__/redos.test.ts` covering all user-facing regex patterns (teamName, roomId, nickname, clueWord, reconnectionToken) with adversarial inputs up to 10,000 characters, asserting completion within 50ms.
 
 ### C-6. Add `.dockerignore` (D-11)
 
@@ -175,14 +126,14 @@ These items emerged from this review and are not tracked in the current `ROADMAP
 | NEW-4 | Raw `JSON.parse` without Zod | Low | **FIXED** (superseded by Lua) |
 | NEW-5 | Timeout env vars accept unbounded values | Low | **FIXED** (bounds + clamping) |
 | NEW-6 | HTML nickname pattern rejects Unicode names | Low | **FIXED** |
-| NEW-7 | Health endpoints don't surface stale socket count flag | Low | Open |
+| NEW-7 | Health endpoints don't surface stale socket count flag | Low | **Already complete** |
 | NEW-8 | Token validation appears duplicated | Low | Not needed (different key patterns) |
 
 ---
 
 ## Recommended Priority Order
 
-6 of 8 new findings have been fixed. Remaining recommended order:
+All 8 new findings resolved. 15 of 17 items complete. Remaining:
 
 1. ~~**C-2** — Fix HTML pattern~~ DONE
 2. ~~**B-1** — Fix `LocalTimerData` type~~ DONE
@@ -191,16 +142,16 @@ These items emerged from this review and are not tracked in the current `ROADMAP
 5. ~~**A-2** — Atomicize room status update~~ DONE
 6. ~~**C-6** — Add `.dockerignore`~~ Already existed
 7. ~~**C-4** — Add Dependabot config~~ Already existed
-8. **C-1** — Add SRI hashes (10 min, supply chain protection)
+8. ~~**C-1** — Add SRI hashes~~ DONE
 9. ~~**B-4** — Bounds-check timeout env vars~~ DONE
 10. ~~**B-5** — Consolidate token validation~~ Not needed
-11. **A-1** — Chat UI frontend (feature completion — largest remaining gap)
-12. **A-3** — Complete i18n markup (user experience for non-English users)
-13. **C-3** — Gate debug logging (production hygiene)
+11. ~~**A-1** — Chat UI frontend~~ Already complete
+12. ~~**A-3** — Complete i18n markup~~ DONE
+13. ~~**C-3** — Gate debug logging~~ Already complete
 14. **A-4** — Migrate WATCH/MULTI to Lua (performance under load)
-15. **B-6** — Improve health staleness handling (operational visibility)
-16. **B-7** — Chaos testing (resilience verification)
-17. **C-5** — ReDoS regression tests (defensive testing)
+15. ~~**B-6** — Improve health staleness handling~~ Already complete
+16. ~~**B-7** — Chaos testing~~ DONE
+17. ~~**C-5** — ReDoS regression tests~~ DONE
 
 ---
 
