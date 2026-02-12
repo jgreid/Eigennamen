@@ -56,6 +56,7 @@ export interface AuditEventDetails {
 export interface AuditLogOptions {
     category?: AuditCategory;
     limit?: number;
+    offset?: number;
     severity?: AuditSeverity | null;
 }
 
@@ -254,7 +255,8 @@ export async function logAuditEvent(
  * Get recent audit logs
  */
 export async function getAuditLogs(options: AuditLogOptions = {}): Promise<AuditLogEntry[]> {
-    const { category = 'all', limit = 100, severity = null } = options;
+    const { category = 'all', limit = 100, offset: rawOffset = 0, severity = null } = options;
+    const offset = Math.max(0, rawOffset);
 
     try {
         let key = AUDIT_LOG_KEY;
@@ -265,10 +267,10 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
 
         if (isUsingMemoryMode()) {
             const list = memoryLogs.get(key) || [];
-            parsed = list.slice(0, limit);
+            parsed = list.slice(offset, offset + limit);
         } else {
             const redis: RedisClient = getRedis();
-            const logs = await redis.lRange(key, 0, limit - 1);
+            const logs = await redis.lRange(key, offset, offset + limit - 1);
             parsed = logs.map(log =>
                 tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null
             ).filter((entry): entry is AuditLogEntry => entry !== null);

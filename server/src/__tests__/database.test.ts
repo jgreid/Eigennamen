@@ -104,14 +104,17 @@ describe('Database Configuration', () => {
             expect(dbModule.isDatabaseEnabled()).toBe(false);
         });
 
-        it('should skip connection when DATABASE_URL contains skip', async () => {
-            process.env.DATABASE_URL = 'skip-database';
-            dbModule = require('../config/database');
+        it('should skip connection when DATABASE_URL is a sentinel value', async () => {
+            for (const sentinel of ['skip', 'disabled', 'none', 'SKIP', 'Disabled']) {
+                jest.resetModules();
+                process.env.DATABASE_URL = sentinel;
+                dbModule = require('../config/database');
 
-            const result = await dbModule.connectDatabase();
+                const result = await dbModule.connectDatabase();
 
-            expect(result).toBeNull();
-            expect(dbModule.isDatabaseEnabled()).toBe(false);
+                expect(result).toBeNull();
+                expect(dbModule.isDatabaseEnabled()).toBe(false);
+            }
         });
     });
 

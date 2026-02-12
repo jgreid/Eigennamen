@@ -63,11 +63,20 @@ export function validateRevealPreconditions(game: GameState, index: number): voi
  * In Duet mode, uses the active team's perspective to determine card type
  */
 export function executeCardReveal(game: GameState, index: number): CardType {
+    // Defence-in-depth: guard against corrupted game data where types array
+    // is shorter than expected (index validated upstream by validateCardIndex)
+    if (index >= game.types.length) {
+        throw GameStateError.corrupted(`types array too short (length ${game.types.length}, index ${index})`);
+    }
+
     game.revealed[index] = true;
 
     let type: CardType;
     if (game.gameMode === 'duet') {
         if (game.currentTurn === 'blue' && game.duetTypes) {
+            if (index >= game.duetTypes.length) {
+                throw GameStateError.corrupted(`duetTypes array too short (length ${game.duetTypes.length}, index ${index})`);
+            }
             type = game.duetTypes[index] as CardType;
         } else {
             type = game.types[index] as CardType;

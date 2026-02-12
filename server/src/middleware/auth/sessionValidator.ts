@@ -73,6 +73,7 @@ interface SessionResolutionResult {
  */
 const memoryRateLimits = new Map<string, { count: number; expiresAt: number }>();
 const MEMORY_RATE_LIMIT_CLEANUP_INTERVAL = 60_000; // 1 minute
+const MEMORY_RATE_LIMIT_MAX_ENTRIES = 10_000; // Cap to prevent unbounded growth
 let memoryRateLimitCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 function ensureMemoryRateLimitCleanup(): void {
@@ -99,6 +100,11 @@ function checkMemoryRateLimit(clientIP: string): RateLimitResult {
     const entry = memoryRateLimits.get(key);
 
     if (!entry || entry.expiresAt <= now) {
+        // Evict oldest entries if map exceeds max size (LRU-style protection)
+        if (memoryRateLimits.size >= MEMORY_RATE_LIMIT_MAX_ENTRIES) {
+            const firstKey = memoryRateLimits.keys().next().value;
+            if (firstKey) memoryRateLimits.delete(firstKey);
+        }
         memoryRateLimits.set(key, { count: 1, expiresAt: now + windowMs });
         return { allowed: true, attempts: 1 };
     }
