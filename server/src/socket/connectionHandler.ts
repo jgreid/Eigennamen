@@ -17,6 +17,7 @@ import {
     socketRateLimiter,
 } from './rateLimitHandler';
 import { registerSocketFunctions, isRegistered } from './socketFunctionProvider';
+import type { SocketFunctions } from './socketFunctionProvider';
 import {
     handleDisconnect,
     createTimerExpireCallback as createTimerExpireCallbackImpl
@@ -30,19 +31,6 @@ import chatHandlers from './handlers/chatHandlers';
 import timerHandlers from './handlers/timerHandlers';
 
 /**
- * Socket functions interface matching what socketFunctionProvider expects
- */
-interface SocketFunctions {
-    emitToRoom: (roomCode: string, event: string, data: unknown) => void;
-    emitToPlayer: (sessionId: string, event: string, data: unknown) => void;
-    startTurnTimer: (roomCode: string, durationSeconds: number) => Promise<unknown>;
-    stopTurnTimer: (roomCode: string) => Promise<void>;
-    getTimerStatus: (roomCode: string) => Promise<unknown>;
-    getIO: () => SocketIOServer;
-    createTimerExpireCallback: () => unknown;
-}
-
-/**
  * Express app with socket count update function
  */
 interface ExpressAppWithSockets {
@@ -52,7 +40,7 @@ interface ExpressAppWithSockets {
 /**
  * Create a timer expire callback bound to the given socket functions.
  */
-function createTimerExpireCallback(socketFns: SocketFunctions): () => unknown {
+function createTimerExpireCallback(socketFns: SocketFunctions): SocketFunctions['createTimerExpireCallback'] {
     return () => createTimerExpireCallbackImpl(socketFns.emitToRoom, socketFns.startTurnTimer);
 }
 
@@ -178,4 +166,4 @@ function handleConnection(
 }
 
 export { handleConnection, ensureSocketFunctionsRegistered, createTimerExpireCallback };
-export type { SocketFunctions, ExpressAppWithSockets };
+export type { ExpressAppWithSockets };

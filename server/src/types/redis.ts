@@ -35,7 +35,7 @@ export interface RedisMulti {
 export interface RedisClient {
     // ── String commands ──────────────────────────────────────────────
     get(key: string): Promise<string | null>;
-    set(key: string, value: string, options?: { EX?: number; NX?: boolean }): Promise<string | null>;
+    set(key: string, value: string, options?: { EX?: number; PX?: number; NX?: boolean }): Promise<string | null>;
 
     // ── Key commands ─────────────────────────────────────────────────
     del(key: string | string[]): Promise<number>;

@@ -11,6 +11,7 @@ import type { Request, Response, NextFunction, Router as ExpressRouter } from 'e
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import * as wordListService from '../services/wordListService';
+import type { WordList } from '../services/wordListService';
 import { validateBody, validateParams, validateQuery } from '../middleware/validation';
 import { z } from 'zod';
 import { BOARD_SIZE } from '../config/constants';
@@ -33,20 +34,6 @@ interface JwtUser {
  */
 interface AuthenticatedRequest extends Request {
     user?: JwtUser;
-}
-
-/**
- * Word list data
- */
-interface WordList {
-    id: string;
-    name: string;
-    description?: string;
-    words: string[];
-    isPublic: boolean;
-    ownerId: string;
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 /**
@@ -172,7 +159,8 @@ router.get('/', validateQuery(wordListQuerySchema), async (req: Request, res: Re
  */
 router.get('/:id', validateParams(wordListIdSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const wordList: WordList | null = await wordListService.getWordList(req.params.id);
+        const { id } = req.params as { id: string };
+        const wordList: WordList | null = await wordListService.getWordList(id);
 
         if (!wordList) {
             res.status(404).json({
@@ -242,12 +230,13 @@ router.post('/', requireAuth, validateBody(createWordListSchema), async (req: Au
  */
 router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(updateWordListSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+        const { id } = req.params as { id: string };
         const { name, description, words, isPublic } = req.body;
 
         // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
         const user = req.user as JwtUser;
         const wordList = await wordListService.updateWordList(
-            req.params.id,
+            id,
             { name, description, words, isPublic },
             user.id
         );
@@ -265,9 +254,10 @@ router.put('/:id', requireAuth, validateParams(wordListIdSchema), validateBody(u
  */
 router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+        const { id } = req.params as { id: string };
         // Safe to cast: requireAuth middleware guarantees req.user exists with a valid id
         const user = req.user as JwtUser;
-        await wordListService.deleteWordList(req.params.id, user.id);
+        await wordListService.deleteWordList(id, user.id);
         res.json({ success: true });
     } catch (error) {
         next(error);

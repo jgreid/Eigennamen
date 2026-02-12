@@ -21,6 +21,7 @@ import { API_RATE_LIMITS } from '../config/constants';
 import { z } from 'zod';
 import { toEnglishLowerCase } from '../utils/sanitize';
 import { audit, getAuditLogs, getAuditSummary } from '../services/auditService';
+import type { AuditCategory, AuditSeverity } from '../services/auditService';
 
 const router: ExpressRouter = express.Router();
 
@@ -130,7 +131,7 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login
-                audit.adminLogin(req.ip, true);
+                audit.adminLogin(req.ip ?? '', true);
                 return next();
             }
         }
@@ -139,7 +140,7 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
     }
 
     // Audit failed login
-    audit.adminLogin(req.ip, false);
+    audit.adminLogin(req.ip ?? '', false);
 
     res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
     return res.status(401).json({
@@ -637,7 +638,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         incrementCounter(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode: normalizedCode, reason: 'admin' });
 
         // Audit the player kick action
-        audit.adminKickPlayer(normalizedCode, playerId, req.ip, 'Admin action');
+        audit.adminKickPlayer(normalizedCode, playerId, req.ip ?? '', 'Admin action');
 
         res.json({
             success: true,
@@ -716,7 +717,7 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         });
 
         // Audit the room deletion
-        audit.adminDeleteRoom(normalizedCode, req.ip, 'Admin action');
+        audit.adminDeleteRoom(normalizedCode, req.ip ?? '', 'Admin action');
 
         res.json({
             success: true,
@@ -745,9 +746,9 @@ router.get('/api/audit', async (req: Request, res: Response) => {
         };
 
         const logs = await getAuditLogs({
-            category,
+            category: category as AuditCategory,
             limit: Math.min(parseInt(limit, 10) || 100, 1000),
-            severity
+            severity: severity as AuditSeverity | null
         });
 
         const summary = await getAuditSummary();

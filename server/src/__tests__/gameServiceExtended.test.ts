@@ -853,14 +853,12 @@ describe('revealCard Lua error mapping', () => {
         });
     });
 
-    test('falls back to TypeScript path on unknown Lua error', async () => {
-        // Unknown errors (code SERVER_ERROR) trigger the fallback path.
-        // With no game data in Redis, the fallback throws NO_ACTIVE_GAME.
+    test('throws ServerError on unknown Lua error code', async () => {
+        mockRedis.set.mockResolvedValueOnce('OK'); // Lock
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'UNKNOWN_ERROR' }));
-        mockRedis.get.mockResolvedValue(null);
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.GAME_NOT_STARTED
+            code: ERROR_CODES.SERVER_ERROR
         });
     });
 
@@ -870,7 +868,7 @@ describe('revealCard Lua error mapping', () => {
         });
 
         // Lock should still be acquired, but eval should not be called for invalid index
-        // (validateCardIndex throws before withLuaFallback runs)
+        // (validateCardIndex throws before Lua script runs)
     });
 });
 
@@ -930,132 +928,6 @@ describe('revealCard', () => {
         });
     });
 
-    test('falls back to standard reveal when Lua script fails with SERVER_ERROR', async () => {
-        mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-        mockRedis.eval.mockRejectedValue(new Error('Lua scripting not available'));
-
-        // Setup for fallback path
-        const gameData = {
-            id: 'test-id',
-            words: DEFAULT_WORDS.slice(0, 25),
-            types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
-            revealed: Array(25).fill(false),
-            currentTurn: 'red',
-            redScore: 0,
-            blueScore: 0,
-            redTotal: 9,
-            blueTotal: 8,
-            gameOver: false,
-            winner: null,
-            currentClue: { word: 'TEST', number: 2 },
-            guessesUsed: 0,
-            guessesAllowed: 3,
-            clues: [],
-            history: [],
-            stateVersion: 1
-        };
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
-        const result = await revealCard('TEST01', 0, 'Player1');
-
-        expect(result).toMatchObject({
-            index: 0,
-            type: 'red',
-            redScore: 1
-        });
-        expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('falling back to TypeScript'));
-    });
-
-    test('fallback path handles no game data', async () => {
-        mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-        mockRedis.eval.mockRejectedValue(new Error('Script error'));
-        mockRedis.get.mockResolvedValue(null);
-
-        await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.GAME_NOT_STARTED,
-            message: 'No active game'
-        });
-    });
-
-    test('fallback path handles corrupted game data', async () => {
-        mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-        mockRedis.eval.mockRejectedValue(new Error('Script error'));
-        mockRedis.get.mockResolvedValue('invalid-json');
-
-        await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.SERVER_ERROR,
-            message: 'Game data corrupted, please start a new game'
-        });
-    });
-
-    test('fallback path retries on concurrent modification', async () => {
-        mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-        mockRedis.eval.mockRejectedValue(new Error('Script error'));
-
-        const gameData = {
-            id: 'test-id',
-            words: DEFAULT_WORDS.slice(0, 25),
-            types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
-            revealed: Array(25).fill(false),
-            currentTurn: 'red',
-            redScore: 0,
-            blueScore: 0,
-            redTotal: 9,
-            blueTotal: 8,
-            gameOver: false,
-            winner: null,
-            currentClue: { word: 'TEST', number: 2 },
-            guessesUsed: 0,
-            guessesAllowed: 3,
-            clues: [],
-            history: [],
-            stateVersion: 1
-        };
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
-        // First two attempts fail (null result), third succeeds
-        mockMulti.exec
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(mockMultiResult);
-
-        const result = await revealCard('TEST01', 0, 'Player1');
-
-        expect(result).toMatchObject({ index: 0, type: 'red' });
-        expect(mockMulti.exec).toHaveBeenCalledTimes(3);
-    });
-
-    test('fallback path fails after max retries', async () => {
-        mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-        mockRedis.eval.mockRejectedValue(new Error('Script error'));
-
-        const gameData = {
-            id: 'test-id',
-            words: DEFAULT_WORDS.slice(0, 25),
-            types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
-            revealed: Array(25).fill(false),
-            currentTurn: 'red',
-            redScore: 0,
-            blueScore: 0,
-            redTotal: 9,
-            blueTotal: 8,
-            gameOver: false,
-            winner: null,
-            currentClue: { word: 'TEST', number: 2 },
-            guessesUsed: 0,
-            guessesAllowed: 3,
-            clues: [],
-            history: [],
-            stateVersion: 1
-        };
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-        mockMulti.exec.mockResolvedValue(null); // Always fail
-
-        await expect(revealCard('TEST01', 0)).rejects.toMatchObject({
-            code: ERROR_CODES.SERVER_ERROR
-        });
-    });
-
     test('releases lock even on error', async () => {
         mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
@@ -1091,58 +963,34 @@ describe('revealCard', () => {
 
 describe('giveClue', () => {
     beforeEach(() => {
-        mockRedis.watch.mockReset().mockResolvedValue('OK');
-        mockRedis.unwatch.mockReset().mockResolvedValue('OK');
-        mockRedis.del.mockReset().mockResolvedValue(1);
-        mockRedis.get.mockReset();
-        mockMulti.exec.mockReset().mockResolvedValue(mockMultiResult);
-        // Reset eval to reject so tests use fallback WATCH/MULTI path
-        mockRedis.eval.mockReset().mockRejectedValue(new Error('Lua not supported in test'));
+        mockRedis.eval.mockReset();
     });
 
-    const createMockGameData = (overrides = {}) => ({
-        id: 'game-1',
-        words: DEFAULT_WORDS.slice(0, 25),
-        types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
-        revealed: Array(25).fill(false),
-        currentTurn: 'red',
-        redScore: 0,
-        blueScore: 0,
-        redTotal: 9,
-        blueTotal: 8,
-        gameOver: false,
-        winner: null,
-        currentClue: null,
-        guessesUsed: 0,
-        guessesAllowed: 0,
-        clues: [],
-        history: [],
-        stateVersion: 1,
-        ...overrides
-    });
-
-    test('successfully gives a clue', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+    test('successfully gives a clue via Lua', async () => {
+        const luaResult = {
+            team: 'red', word: 'ANIMAL', number: 3,
+            spymaster: 'Spymaster1', guessesAllowed: 4
+        };
+        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
         const result = await giveClue('TEST01', 'red', 'ANIMAL', 3, 'Spymaster1');
 
         expect(result).toMatchObject({
-            team: 'red',
-            word: 'ANIMAL',
-            number: 3,
-            spymaster: 'Spymaster1',
-            guessesAllowed: 4 // number + 1
+            team: 'red', word: 'ANIMAL', number: 3,
+            spymaster: 'Spymaster1', guessesAllowed: 4
         });
     });
 
     test('gives clue with 0 for unlimited guesses', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        const luaResult = {
+            team: 'red', word: 'UNLIMITED', number: 0,
+            spymaster: 'Spymaster1', guessesAllowed: 0
+        };
+        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
         const result = await giveClue('TEST01', 'red', 'UNLIMITED', 0, 'Spymaster1');
 
-        expect(result.guessesAllowed).toBe(0); // 0 means unlimited
+        expect(result.guessesAllowed).toBe(0);
     });
 
     test('rejects when team is not provided', async () => {
@@ -1161,7 +1009,7 @@ describe('giveClue', () => {
     });
 
     test('rejects when no game exists', async () => {
-        mockRedis.get.mockResolvedValue(null);
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GAME' }));
 
         await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
             .rejects.toMatchObject({
@@ -1169,19 +1017,8 @@ describe('giveClue', () => {
             });
     });
 
-    test('rejects when game data is corrupted', async () => {
-        mockRedis.get.mockResolvedValue('invalid-json');
-
-        await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: expect.stringContaining('corrupted')
-            });
-    });
-
     test('rejects when game is over', async () => {
-        const gameData = createMockGameData({ gameOver: true, winner: 'blue' });
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
 
         await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
             .rejects.toMatchObject({
@@ -1190,8 +1027,7 @@ describe('giveClue', () => {
     });
 
     test('rejects when not your turn', async () => {
-        const gameData = createMockGameData({ currentTurn: 'blue' });
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NOT_YOUR_TURN' }));
 
         await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
             .rejects.toMatchObject({
@@ -1200,10 +1036,7 @@ describe('giveClue', () => {
     });
 
     test('rejects when clue already given this turn', async () => {
-        const gameData = createMockGameData({
-            currentClue: { word: 'EXISTING', number: 2 }
-        });
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'CLUE_ALREADY_GIVEN' }));
 
         await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
             .rejects.toMatchObject({
@@ -1213,9 +1046,6 @@ describe('giveClue', () => {
     });
 
     test('rejects when clue number is negative', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
         await expect(giveClue('TEST01', 'red', 'WORD', -1, 'Spymaster'))
             .rejects.toMatchObject({
                 code: ERROR_CODES.INVALID_INPUT,
@@ -1224,9 +1054,6 @@ describe('giveClue', () => {
     });
 
     test('rejects when clue number exceeds board size', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
         await expect(giveClue('TEST01', 'red', 'WORD', 26, 'Spymaster'))
             .rejects.toMatchObject({
                 code: ERROR_CODES.INVALID_INPUT,
@@ -1235,9 +1062,6 @@ describe('giveClue', () => {
     });
 
     test('rejects when clue number is not an integer', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
         await expect(giveClue('TEST01', 'red', 'WORD', 2.5, 'Spymaster'))
             .rejects.toMatchObject({
                 code: ERROR_CODES.INVALID_INPUT
@@ -1245,103 +1069,33 @@ describe('giveClue', () => {
     });
 
     test('rejects when clue word is on the board', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'WORD_ON_BOARD' }));
 
-        // Use a word that's definitely on the board
-        const boardWord = gameData.words[0];
-        await expect(giveClue('TEST01', 'red', boardWord, 2, 'Spymaster'))
+        await expect(giveClue('TEST01', 'red', 'AFRICA', 2, 'Spymaster'))
             .rejects.toMatchObject({
                 code: ERROR_CODES.INVALID_INPUT,
                 message: expect.stringContaining('board')
-            });
-    });
-
-    test('rejects clue word that contains board word', async () => {
-        const gameData = createMockGameData({
-            words: ['SNOW', ...DEFAULT_WORDS.slice(1, 25)]
-        });
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
-        await expect(giveClue('TEST01', 'red', 'SNOWMAN', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: expect.stringContaining('contains')
-            });
-    });
-
-    test('retries on concurrent modification', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-        mockMulti.exec
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(mockMultiResult);
-
-        const result = await giveClue('TEST01', 'red', 'ANIMAL', 3, 'Spymaster');
-
-        expect(result).toMatchObject({ word: 'ANIMAL' });
-        expect(mockMulti.exec).toHaveBeenCalledTimes(3);
-    });
-
-    test('fails after max retries', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-        mockMulti.exec.mockResolvedValue(null);
-
-        await expect(giveClue('TEST01', 'red', 'ANIMAL', 3, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: expect.stringContaining('concurrent modifications')
             });
     });
 });
 
 describe('endTurn', () => {
     beforeEach(() => {
-        mockRedis.watch.mockReset().mockResolvedValue('OK');
-        mockRedis.unwatch.mockReset().mockResolvedValue('OK');
-        mockRedis.del.mockReset().mockResolvedValue(1);
-        mockRedis.get.mockReset();
-        mockMulti.exec.mockReset().mockResolvedValue(mockMultiResult);
-        // Reset eval to reject so tests use fallback WATCH/MULTI path
-        mockRedis.eval.mockReset().mockRejectedValue(new Error('Lua not supported in test'));
+        mockRedis.eval.mockReset();
     });
 
-    const createMockGameData = (overrides = {}) => ({
-        id: 'game-1',
-        words: DEFAULT_WORDS.slice(0, 25),
-        types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
-        revealed: Array(25).fill(false),
-        currentTurn: 'red',
-        redScore: 0,
-        blueScore: 0,
-        gameOver: false,
-        winner: null,
-        currentClue: { word: 'TEST', number: 2 },
-        guessesUsed: 1,
-        guessesAllowed: 3,
-        clues: [],
-        history: [],
-        stateVersion: 1,
-        ...overrides
-    });
-
-    test('successfully ends turn', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+    test('successfully ends turn via Lua', async () => {
+        const luaResult = { currentTurn: 'blue', previousTurn: 'red' };
+        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
         const result = await endTurn('TEST01', 'Player1');
 
-        expect(result).toEqual({
-            currentTurn: 'blue',
-            previousTurn: 'red'
-        });
+        expect(result).toEqual({ currentTurn: 'blue', previousTurn: 'red' });
     });
 
     test('switches from blue to red', async () => {
-        const gameData = createMockGameData({ currentTurn: 'blue' });
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        const luaResult = { currentTurn: 'red', previousTurn: 'blue' };
+        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
         const result = await endTurn('TEST01');
 
@@ -1350,7 +1104,7 @@ describe('endTurn', () => {
     });
 
     test('rejects when no game exists', async () => {
-        mockRedis.get.mockResolvedValue(null);
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GAME' }));
 
         await expect(endTurn('TEST01'))
             .rejects.toMatchObject({
@@ -1358,48 +1112,12 @@ describe('endTurn', () => {
             });
     });
 
-    test('rejects when game data is corrupted', async () => {
-        mockRedis.get.mockResolvedValue('invalid-json');
-
-        await expect(endTurn('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: expect.stringContaining('corrupted')
-            });
-    });
-
     test('rejects when game is over', async () => {
-        const gameData = createMockGameData({ gameOver: true });
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
+        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
 
         await expect(endTurn('TEST01'))
             .rejects.toMatchObject({
                 code: ERROR_CODES.GAME_OVER
-            });
-    });
-
-    test('retries on concurrent modification', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-        mockMulti.exec
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(mockMultiResult);
-
-        const result = await endTurn('TEST01');
-
-        expect(result.currentTurn).toBe('blue');
-        expect(mockMulti.exec).toHaveBeenCalledTimes(2);
-    });
-
-    test('fails after max retries', async () => {
-        const gameData = createMockGameData();
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-        mockMulti.exec.mockResolvedValue(null);
-
-        await expect(endTurn('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: expect.stringContaining('concurrent modifications')
             });
     });
 });

@@ -51,7 +51,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
     logger.error('Unhandled error:', err);
 
     // Handle known error types
-    if ('code' in err && err.code && Object.values(ERROR_CODES).includes(err.code)) {
+    if ('code' in err && err.code && (Object.values(ERROR_CODES) as string[]).includes(err.code)) {
         const statusMap: ErrorStatusMap = {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
