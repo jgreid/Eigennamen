@@ -463,31 +463,24 @@ export function setupMultiplayerListeners(): void {
         showReconnectionOverlay();
     });
 
-    CodenamesClient.on('rejoined', (data: ReconnectionData) => {
-        // Hide reconnection overlay
+    // Shared reconnection handler (used by both auto-rejoin and token-based reconnection)
+    function handleReconnection(data: ReconnectionData): void {
         hideReconnectionOverlay();
 
-        // Detect significant state changes during offline
         const changes = detectOfflineChanges(data);
 
-        // Sync current player's state after auto-rejoin
         const currentPlayer = data?.you || CodenamesClient.player;
         if (currentPlayer) {
             syncLocalPlayerState(currentPlayer as ServerPlayerData);
         }
-
-        // Sync game state if available
         if (data?.game) {
             syncGameStateFromServer(data.game);
         }
-
-        // Update player list
         if (data?.players) {
             state.multiplayerPlayers = data.players;
             updateMpIndicator(data?.room || null, state.multiplayerPlayers);
         }
 
-        // Update UI elements
         updateControls();
         updateRoleBanner();
         updateForfeitButton();
@@ -497,44 +490,10 @@ export function setupMultiplayerListeners(): void {
         } else {
             showToast('Reconnected!', 'success');
         }
-    });
+    }
 
-    // Handle token-based reconnection
-    CodenamesClient.on('roomReconnected', (data: ReconnectionData) => {
-        // Hide reconnection overlay
-        hideReconnectionOverlay();
-
-        // Detect significant state changes during offline
-        const changes = detectOfflineChanges(data);
-
-        // Sync current player's state after token-based reconnection
-        const currentPlayer = data?.you || CodenamesClient.player;
-        if (currentPlayer) {
-            syncLocalPlayerState(currentPlayer as ServerPlayerData);
-        }
-
-        // Sync game state if available
-        if (data?.game) {
-            syncGameStateFromServer(data.game);
-        }
-
-        // Update player list
-        if (data?.players) {
-            state.multiplayerPlayers = data.players;
-            updateMpIndicator(data?.room || null, state.multiplayerPlayers);
-        }
-
-        // Update UI elements
-        updateControls();
-        updateRoleBanner();
-        updateForfeitButton();
-
-        if (changes.length > 0) {
-            showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
-        } else {
-            showToast('Reconnected!', 'success');
-        }
-    });
+    CodenamesClient.on('rejoined', handleReconnection);
+    CodenamesClient.on('roomReconnected', handleReconnection);
 
     CodenamesClient.on('rejoinFailed', (data: ReconnectionData) => {
         // Hide reconnection overlay

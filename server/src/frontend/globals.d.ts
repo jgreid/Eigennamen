@@ -59,6 +59,7 @@ interface CodenamesClientAPI {
     getReplay(gameId: string): void;
 
     // Chat
+    sendMessage(text: string, teamOnly: boolean): void;
     sendSpectatorChat(message: string): void;
 
     // Event emitter (callback uses any[] due to event emitter pattern)

@@ -21,7 +21,10 @@ export function openSettings() {
     updateCharCounter('red-name-input', 'red-char-counter', 32);
     updateCharCounter('blue-name-input', 'blue-char-counter', 32);
     // Load word list mode
-    const savedMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    // HIGH FIX: Validate savedMode against allowed values before using in CSS selector
+    const rawSavedMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    const allowedModes = ['default', 'combined', 'custom'];
+    const savedMode = allowedModes.includes(rawSavedMode ?? '') ? rawSavedMode : 'combined';
     const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`);
     if (modeRadio) {
         modeRadio.checked = true;
@@ -58,8 +61,13 @@ export function switchSettingsPanel(panelId) {
         resetWordsBtn.style.display = panelId === 'words' ? '' : 'none';
     }
 }
-// Initialize settings nav listeners
+// Guard: prevent duplicate registration of settings nav listeners
+let settingsNavInitialized = false;
+// Initialize settings nav listeners (idempotent — safe to call multiple times)
 export function initSettingsNav() {
+    if (settingsNavInitialized)
+        return;
+    settingsNavInitialized = true;
     const navItems = document.querySelectorAll('.settings-nav-item');
     navItems.forEach(item => {
         item.addEventListener('click', () => {
@@ -133,8 +141,9 @@ export function updateWordCount() {
 const MAX_WORD_LIST_SIZE = 10000;
 const MAX_WORD_LENGTH = 50;
 export function parseWords(text) {
+    // FIX: Handle Windows \r\n line endings to prevent empty entries
     const words = text
-        .split('\n')
+        .split(/\r?\n/)
         .map(w => w.trim())
         .filter(w => w.length > 0 && !w.startsWith('#'))
         .map(w => w.substring(0, MAX_WORD_LENGTH).toUpperCase());

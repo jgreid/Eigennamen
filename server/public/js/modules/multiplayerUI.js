@@ -4,6 +4,8 @@ import { state } from './state.js';
 import { escapeHTML, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
 import { VALIDATION, UI } from './constants.js';
+import { t } from './i18n.js';
+import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 // Session ID pending kick confirmation (used by confirm-kick-modal)
 let pendingKickSessionId = null;
 // Reconnection overlay timeout ID for cleanup
@@ -16,13 +18,19 @@ export function updateMpIndicator(room, players) {
     const playersUl = document.getElementById('mp-players-ul');
     const mpExtraRow = document.getElementById('mp-extra-buttons-row');
     if (room) {
-        codeEl.textContent = room.code;
-        countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
-        indicator.classList.add('active');
+        if (codeEl)
+            codeEl.textContent = room.code;
+        if (countEl)
+            countEl.textContent = `${players?.length || 1} player${players?.length !== 1 ? 's' : ''}`;
+        if (indicator)
+            indicator.classList.add('active');
         // Show multiplayer-only buttons row (history + forfeit)
         if (mpExtraRow) {
             mpExtraRow.style.display = 'flex';
         }
+        // D-1: Show chat panel and initialize listeners (idempotent)
+        showChatPanel();
+        initChat();
         // Update player list
         if (playersUl && players) {
             updatePlayerList(playersUl, players);
@@ -31,13 +39,16 @@ export function updateMpIndicator(room, players) {
         updateSharePanelMode(true, room.code);
     }
     else {
-        indicator.classList.remove('active');
+        if (indicator)
+            indicator.classList.remove('active');
         if (playerListEl)
             playerListEl.style.display = 'none';
         // Hide multiplayer-only buttons when not in multiplayer mode
         if (mpExtraRow) {
             mpExtraRow.style.display = 'none';
         }
+        // D-1: Hide chat panel
+        hideChatPanel();
         // Update share panel for standalone mode
         updateSharePanelMode(false);
     }
@@ -116,7 +127,7 @@ export function updatePlayerList(ul, players) {
         info.className = 'player-info';
         const nameSpan = document.createElement('span');
         nameSpan.className = `player-name${isMe ? ' you' : ''}${p.team ? ` player-team-${escapeHTML(p.team)}` : ''}`;
-        nameSpan.textContent = p.nickname + (isMe ? ' (you)' : '');
+        nameSpan.textContent = p.nickname + (isMe ? ` (${t('multiplayer.you')})` : '');
         info.appendChild(nameSpan);
         if (p.isHost) {
             const badge = document.createElement('span');
@@ -126,15 +137,15 @@ export function updatePlayerList(ul, players) {
         }
         const roleSpan = document.createElement('span');
         roleSpan.className = 'player-role';
-        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ' - offline' : '');
+        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
         info.appendChild(roleSpan);
         li.appendChild(info);
         if (amHost && !isMe) {
             const kickBtn = document.createElement('button');
             kickBtn.className = 'btn-kick';
             kickBtn.dataset.session = p.sessionId;
-            kickBtn.title = 'Kick player';
-            kickBtn.textContent = 'Kick';
+            kickBtn.title = t('multiplayer.kickPlayer');
+            kickBtn.textContent = t('multiplayer.kick');
             li.appendChild(kickBtn);
         }
         ul.appendChild(li);
@@ -437,7 +448,7 @@ function saveNickname() {
             localStorage.setItem('codenames-nickname', nickname);
         }
         catch { /* ignore */ }
-        showToast('Nickname updated!', 'success', 2000);
+        showToast(t('multiplayer.nicknameUpdated'), 'success', 2000);
     }
     cancelNicknameEdit();
 }
@@ -470,7 +481,7 @@ export function showReconnectionOverlay() {
         const overlayCheck = document.getElementById('reconnection-overlay');
         if (overlayCheck && overlayCheck.style.display !== 'none') {
             hideReconnectionOverlay();
-            showToast('Reconnection failed \u2014 please refresh the page', 'error', 8000);
+            showToast(t('multiplayer.reconnectionFailed'), 'error', 8000);
         }
     }, UI.RECONNECTION_TIMEOUT_MS);
 }

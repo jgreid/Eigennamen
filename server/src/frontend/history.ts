@@ -398,33 +398,38 @@ export function setupReplayControls(): void {
     if (speedBtn) speedBtn.textContent = currentReplaySpeed;
 }
 
+/**
+ * Start (or restart) the replay interval at the given speed.
+ * Clears any existing interval first.
+ */
+function startReplayInterval(): void {
+    if (state.replayInterval) {
+        clearInterval(state.replayInterval);
+        state.replayInterval = null;
+    }
+    const speedMs = REPLAY_SPEEDS[currentReplaySpeed] || 1500;
+    state.replayInterval = setInterval(() => {
+        const events = state.currentReplayData?.events || [];
+        if (state.currentReplayIndex < events.length - 1) {
+            state.currentReplayIndex++;
+            applyReplayState();
+            renderReplayEventLog();
+            updateReplayControls();
+            scrollToCurrentEvent();
+        } else {
+            state.replayPlaying = false;
+            clearInterval(state.replayInterval ?? undefined);
+            state.replayInterval = null;
+            updateReplayControls();
+        }
+    }, speedMs);
+}
+
 export function toggleReplayPlayback(): void {
     state.replayPlaying = !state.replayPlaying;
 
     if (state.replayPlaying) {
-        // Guard: clear any leftover interval to prevent duplicates on rapid toggle
-        if (state.replayInterval) {
-            clearInterval(state.replayInterval);
-            state.replayInterval = null;
-        }
-        // PHASE 4: Use selected replay speed
-        const speedMs = REPLAY_SPEEDS[currentReplaySpeed] || 1500;
-        state.replayInterval = setInterval(() => {
-            const events = state.currentReplayData?.events || [];
-            if (state.currentReplayIndex < events.length - 1) {
-                state.currentReplayIndex++;
-                applyReplayState();
-                renderReplayEventLog();
-                updateReplayControls();
-                scrollToCurrentEvent();
-            } else {
-                // Reached the end
-                state.replayPlaying = false;
-                clearInterval(state.replayInterval ?? undefined);
-                state.replayInterval = null;
-                updateReplayControls();
-            }
-        }, speedMs);
+        startReplayInterval();
     } else {
         if (state.replayInterval) {
             clearInterval(state.replayInterval);
@@ -435,14 +440,12 @@ export function toggleReplayPlayback(): void {
     updateReplayControls();
 }
 
-// PHASE 4: Cycle through replay speed options
 export function cycleReplaySpeed(): void {
     const speedKeys = Object.keys(REPLAY_SPEEDS);
     const currentIndex = speedKeys.indexOf(currentReplaySpeed);
     const nextIndex = (currentIndex + 1) % speedKeys.length;
     currentReplaySpeed = speedKeys[nextIndex];
 
-    // Update button text
     const speedBtn = document.getElementById('replay-speed');
     if (speedBtn) {
         speedBtn.textContent = currentReplaySpeed;
@@ -450,23 +453,7 @@ export function cycleReplaySpeed(): void {
 
     // If currently playing, restart with new speed
     if (state.replayPlaying) {
-        clearInterval(state.replayInterval ?? undefined);
-        const speedMs = REPLAY_SPEEDS[currentReplaySpeed];
-        state.replayInterval = setInterval(() => {
-            const events = state.currentReplayData?.events || [];
-            if (state.currentReplayIndex < events.length - 1) {
-                state.currentReplayIndex++;
-                applyReplayState();
-                renderReplayEventLog();
-                updateReplayControls();
-                scrollToCurrentEvent();
-            } else {
-                state.replayPlaying = false;
-                clearInterval(state.replayInterval ?? undefined);
-                state.replayInterval = null;
-                updateReplayControls();
-            }
-        }, speedMs);
+        startReplayInterval();
     }
 
     showToast(`Playback speed: ${currentReplaySpeed}`, 'info');

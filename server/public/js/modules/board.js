@@ -2,6 +2,7 @@
 // Board rendering
 import { state, BOARD_SIZE } from './state.js';
 import { getCardFontClass, fitCardText } from './utils.js';
+import { t } from './i18n.js';
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler = null;
 /**
@@ -14,17 +15,18 @@ let cardClickHandler = null;
  * @returns Descriptive ARIA label
  */
 function buildCardAriaLabel(word, isRevealed, type, row, col) {
-    const position = `Row ${row}, column ${col}`;
+    const position = t('board.gridPosition', { row, col });
     if (isRevealed) {
-        const typeLabel = type === 'assassin' ? 'assassin card' : `${type} team card`;
-        return `${word}, revealed as ${typeLabel}. ${position}`;
+        const typeLabel = type === 'assassin' ? t('board.assassinCard') : t('board.teamCard', { type });
+        return t('board.revealedCardLabel', { word, typeLabel, position });
     }
-    return `${word}, unrevealed card. ${position}. Press Enter to reveal.`;
+    return t('board.unrevealedCardLabel', { word, position });
 }
 // Re-fit card text on resize (debounced)
 let resizeTimer = null;
 window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
+    if (resizeTimer)
+        clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         const board = document.getElementById('board');
         if (board && board.children.length > 0) {
