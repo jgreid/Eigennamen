@@ -358,6 +358,36 @@ function getAllMetrics(): AllMetrics {
 }
 
 /**
+ * Prune stale metrics that haven't been updated within the given window.
+ * Prevents unbounded growth of metric keys on long-running servers.
+ * @param maxAgeMs - Maximum age in ms before a metric is pruned (default: 1 hour)
+ */
+function pruneStaleMetrics(maxAgeMs: number = 3600000): void {
+    const now = Date.now();
+
+    for (const key of Object.keys(metrics.counters)) {
+        const counter = metrics.counters[key];
+        if (counter && (now - (counter.lastUpdated || counter.createdAt)) > maxAgeMs) {
+            delete metrics.counters[key];
+        }
+    }
+
+    for (const key of Object.keys(metrics.gauges)) {
+        const gauge = metrics.gauges[key];
+        if (gauge && (now - gauge.lastUpdated) > maxAgeMs) {
+            delete metrics.gauges[key];
+        }
+    }
+
+    for (const key of Object.keys(metrics.histograms)) {
+        const histogram = metrics.histograms[key];
+        if (histogram && (now - (histogram.lastUpdated || histogram.createdAt)) > maxAgeMs) {
+            delete metrics.histograms[key];
+        }
+    }
+}
+
+/**
  * Reset all metrics
  */
 function resetMetrics(): void {
@@ -443,12 +473,17 @@ function measureEventLoopLag(): void {
     lastLoopTime = now;
 }
 
-// Start event loop monitoring (only in non-test environments)
+// Start event loop monitoring and periodic metric pruning (only in non-test environments)
 let eventLoopInterval: ReturnType<typeof setInterval> | null = null;
+let metricsPruneInterval: ReturnType<typeof setInterval> | null = null;
 function startEventLoopMonitoring(): void {
     if (process.env.NODE_ENV !== 'test' && !eventLoopInterval) {
         eventLoopInterval = setInterval(measureEventLoopLag, 100);
         eventLoopInterval.unref(); // Don't keep process alive
+
+        // Prune stale metrics every 30 minutes to prevent unbounded growth
+        metricsPruneInterval = setInterval(() => pruneStaleMetrics(), 30 * 60 * 1000);
+        metricsPruneInterval.unref();
     }
 }
 
@@ -456,6 +491,10 @@ function stopEventLoopMonitoring(): void {
     if (eventLoopInterval) {
         clearInterval(eventLoopInterval);
         eventLoopInterval = null;
+    }
+    if (metricsPruneInterval) {
+        clearInterval(metricsPruneInterval);
+        metricsPruneInterval = null;
     }
 }
 
@@ -531,6 +570,7 @@ export {
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
+    pruneStaleMetrics,
     getPrometheusMetrics,
     updateSystemMetrics,
     startEventLoopMonitoring,

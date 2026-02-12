@@ -118,7 +118,7 @@ export function decodeWordsFromURL(encoded: string): string[] | null {
         }
         parts.push(current);
         return parts.map(unescapeWordDelimiter).filter(w => w.length > 0);
-    } catch (e) {
+    } catch {
         return null;
     }
 }

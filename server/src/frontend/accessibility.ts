@@ -6,7 +6,6 @@ import { safeGetItem, safeSetItem } from './utils.js';
 import { t } from './i18n.js';
 
 const CB_STORAGE_KEY = 'codenames-colorblind';
-const KB_STORAGE_KEY = 'codenames-keyboard-shortcuts';
 
 // ========== COLOR BLIND MODE ==========
 

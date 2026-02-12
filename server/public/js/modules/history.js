@@ -233,11 +233,10 @@ export function renderReplayBoard() {
 export function applyReplayState() {
     if (!state.currentReplayData)
         return;
-    const types = state.currentReplayData.initialBoard?.types || [];
     const events = state.currentReplayData.events || [];
     const cards = document.querySelectorAll('.replay-card');
     // Reset all cards
-    cards.forEach((card, index) => {
+    cards.forEach((card) => {
         card.className = 'replay-card';
     });
     // Apply reveals up to current index

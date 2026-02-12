@@ -83,7 +83,7 @@ describe('ReDoS regression tests', () => {
 
         it('handles repeated separator patterns quickly', () => {
             // This pattern could cause backtracking in naive implementations
-            assertFastExecution(clueWordRegex, 'a' + " a".repeat(9), 'repeated separators');
+            assertFastExecution(clueWordRegex, 'a' + ' a'.repeat(9), 'repeated separators');
         });
 
         it('handles apostrophe-separated words quickly', () => {

@@ -8,7 +8,7 @@
  * - Persists language preference in localStorage
  */
 
-import { state, DEFAULT_WORDS } from './state.js';
+import { state } from './state.js';
 
 /** Supported languages with display names */
 export const LANGUAGES: Record<string, { name: string; flag: string }> = {

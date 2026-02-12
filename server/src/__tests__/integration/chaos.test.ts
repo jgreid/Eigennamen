@@ -108,7 +108,7 @@ describe('Chaos/Resilience Tests', () => {
             let parsed = null;
             try {
                 parsed = JSON.parse(raw);
-            } catch (_e) {
+            } catch {
                 parsed = null; // Graceful fallback
             }
             expect(parsed).toBeNull();
@@ -223,7 +223,7 @@ describe('Chaos/Resilience Tests', () => {
             // System should handle null timer data gracefully
             let parsed = null;
             if (result) {
-                try { parsed = JSON.parse(result); } catch (_e) { parsed = null; }
+                try { parsed = JSON.parse(result); } catch { parsed = null; }
             }
             expect(parsed).toBeNull();
         });
@@ -372,7 +372,7 @@ describe('Chaos/Resilience Tests', () => {
                 try {
                     result = await mockRedis.get(key);
                     break;
-                } catch (_e) {
+                } catch {
                     attempts++;
                 }
             }
@@ -391,7 +391,7 @@ describe('Chaos/Resilience Tests', () => {
             async function safeGet(key) {
                 try {
                     return await mockRedis.get(key);
-                } catch (_e) {
+                } catch {
                     return null;
                 }
             }
@@ -400,7 +400,7 @@ describe('Chaos/Resilience Tests', () => {
                 try {
                     await mockRedis.set(key, value);
                     return true;
-                } catch (_e) {
+                } catch {
                     return false;
                 }
             }

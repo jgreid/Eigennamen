@@ -2,7 +2,7 @@
  * Player Service - Player management logic
  */
 
-import type { Team, Role, Player, RedisClient, RedisMulti } from '../types';
+import type { Team, Role, Player, RedisClient } from '../types';
 
 const fs = require('fs');
 const path = require('path');

@@ -16,7 +16,7 @@
  */
 export interface RedisMulti {
     set(key: string, value: string, options?: { EX?: number }): RedisMulti;
-    zAdd(key: string, member: { score: number; value: string }): RedisMulti;
+    zAdd(key: string, member: { score: number; value: string }, options?: { NX?: boolean }): RedisMulti;
     zRemRangeByRank(key: string, start: number, stop: number): RedisMulti;
     expire(key: string, seconds: number): RedisMulti;
     exec(): Promise<unknown[] | null>;
@@ -55,7 +55,7 @@ export interface RedisClient {
     sIsMember(key: string, value: string): Promise<boolean>;
 
     // ── Sorted set commands ──────────────────────────────────────────
-    zAdd(key: string, member: { score: number; value: string }): Promise<number>;
+    zAdd(key: string, member: { score: number; value: string }, options?: { NX?: boolean }): Promise<number>;
     zRem(key: string, member: string | string[]): Promise<number>;
     zRange(key: string, start: number, stop: number, options?: { REV?: boolean; WITHSCORES?: boolean }): Promise<string[] | Array<{ value: string; score: number }>>;
     zRangeByScore(key: string, min: number, max: number, options?: { LIMIT?: { offset: number; count: number } }): Promise<string[]>;

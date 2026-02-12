@@ -26,7 +26,6 @@ const {
     startRateLimitCleanup,
     stopRateLimitCleanup
 } = require('./rateLimitHandler');
-const { registerSocketFunctions } = require('./socketFunctionProvider');
 const { safeEmitToRoom } = require('./safeEmit');
 const {
     incrementConnectionCount,

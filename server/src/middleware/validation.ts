@@ -45,7 +45,7 @@ function validateInput<T>(schema: ZodSchema<T>, data: unknown): T {
 function validateSource<T>(source: 'body' | 'query' | 'params', schema: ZodSchema<T>): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, _res: Response, next: NextFunction): void => {
         try {
-            (req as Record<string, unknown>)[source] = validateInput(schema, req[source]);
+            (req as unknown as Record<string, unknown>)[source] = validateInput(schema, req[source]);
             next();
         } catch (error) {
             (error as ValidationError).statusCode = 400;

@@ -5,7 +5,6 @@ import { state } from './state.js';
 import { escapeHTML, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
 import { VALIDATION, UI } from './constants.js';
-import { logger } from './logger.js';
 import { t } from './i18n.js';
 import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 import type { ServerPlayerData, ServerRoomData, ServerGameData, RoomStats, SpectatorChatData } from './multiplayerTypes.js';

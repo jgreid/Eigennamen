@@ -2,10 +2,9 @@
 // Core game logic (reveal, turns, scoring, board setup, URL, QR)
 
 import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, COPY_BUTTON_TEXT } from './state.js';
-import { escapeHTML, hashString, shuffleWithSeed, generateGameSeed, seededRandom, encodeWordsForURL, decodeWordsFromURL, copyToClipboard } from './utils.js';
-import { showToast, openModal, closeModal, announceToScreenReader, showErrorModal } from './ui.js';
+import { hashString, shuffleWithSeed, generateGameSeed, seededRandom, encodeWordsForURL, decodeWordsFromURL, copyToClipboard } from './utils.js';
+import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
-import { playNotificationSound } from './notifications.js';
 import { updateRoleBanner, updateControls } from './roles.js';
 import { UI } from './constants.js';
 import { logger } from './logger.js';
@@ -156,7 +155,6 @@ export function loadGameFromURL(): void {
     const encodedWords = params.get('w'); // Custom words encoded in URL
 
     // Load team names from URL with length and character validation (max 32 chars to match server)
-    const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
     const sanitizeTeamName = (name: string | null, defaultName: string): string => {
         if (!name) return defaultName;
         // Only allow alphanumeric, spaces, and hyphens (matches server validation)
@@ -168,7 +166,7 @@ export function loadGameFromURL(): void {
         try {
             const decoded = decodeURIComponent(redName);
             state.teamNames.red = sanitizeTeamName(decoded, 'Red Team');
-        } catch (e) {
+        } catch {
             // Malformed URL encoding - use default silently
             state.teamNames.red = 'Red Team';
         }
@@ -177,7 +175,7 @@ export function loadGameFromURL(): void {
         try {
             const decoded = decodeURIComponent(blueName);
             state.teamNames.blue = sanitizeTeamName(decoded, 'Blue Team');
-        } catch (e) {
+        } catch {
             // Malformed URL encoding - use default silently
             state.teamNames.blue = 'Blue Team';
         }

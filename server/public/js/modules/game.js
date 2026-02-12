@@ -137,7 +137,6 @@ export function loadGameFromURL() {
     const blueName = params.get('bn');
     const encodedWords = params.get('w'); // Custom words encoded in URL
     // Load team names from URL with length and character validation (max 32 chars to match server)
-    const teamNameRegex = /^[a-zA-Z0-9\s\-]+$/;
     const sanitizeTeamName = (name, defaultName) => {
         if (!name)
             return defaultName;
@@ -150,7 +149,7 @@ export function loadGameFromURL() {
             const decoded = decodeURIComponent(redName);
             state.teamNames.red = sanitizeTeamName(decoded, 'Red Team');
         }
-        catch (e) {
+        catch {
             // Malformed URL encoding - use default silently
             state.teamNames.red = 'Red Team';
         }
@@ -160,7 +159,7 @@ export function loadGameFromURL() {
             const decoded = decodeURIComponent(blueName);
             state.teamNames.blue = sanitizeTeamName(decoded, 'Blue Team');
         }
-        catch (e) {
+        catch {
             // Malformed URL encoding - use default silently
             state.teamNames.blue = 'Blue Team';
         }
