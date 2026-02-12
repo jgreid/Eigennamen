@@ -80,7 +80,7 @@ Eigennamen/
     │   ├── utils/          # Utility modules (9 files)
     │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts for atomic operations
-    │   └── __tests__/      # Jest tests (81 suites, 2,527 tests)
+    │   └── __tests__/      # Jest tests (83 suites, 2,571 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
@@ -111,7 +111,7 @@ Eigennamen/
 - **Logging**: Winston
 - **API Docs**: Swagger (swagger-jsdoc + swagger-ui-express)
 - **Auth**: JWT (jsonwebtoken) + session tokens
-- **Security**: Helmet.js, CSRF protection, rate limiting (express-rate-limit + rate-limit-redis)
+- **Security**: Helmet.js, CSRF protection, rate limiting (express-rate-limit)
 
 ## Key Services
 
@@ -266,7 +266,7 @@ npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
 
-**Test suite**: 81 suites (2,527 tests — backend + frontend), 8 E2E spec files (64+ tests). Total: ~2,591 tests.
+**Test suite**: 83 suites (2,571 tests — backend + frontend), 10 E2E spec files (64+ tests). Total: ~2,635 tests.
 
 **Code quality**: ESLint reports 0 errors, 0 warnings. TypeScript compiles with 0 errors.
 
@@ -438,7 +438,8 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 - [QUICKSTART.md](QUICKSTART.md) - Getting started guide
 - [ROADMAP.md](ROADMAP.md) - Development roadmap and remaining work
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contributor guidelines
-- [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) - Code review findings and development plan
+- [CODEBASE_REVIEW.md](CODEBASE_REVIEW.md) - Canonical code review findings and development plan
+- [NEXT_STEPS.md](NEXT_STEPS.md) - Actionable improvement roadmap
 - [FUTURE_PLAN.md](FUTURE_PLAN.md) - Future development phases
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
 - [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) - Technical specification

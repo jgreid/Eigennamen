@@ -54,15 +54,6 @@ export type PlayerKickInput = ZodType.infer<typeof playerKickSchema>;
 export type SpectatorJoinRequestInput = ZodType.infer<typeof spectatorJoinRequestSchema>;
 export type SpectatorJoinResponseInput = ZodType.infer<typeof spectatorJoinResponseSchema>;
 
-module.exports = {
-    playerTeamSchema,
-    playerRoleSchema,
-    playerNicknameSchema,
-    playerKickSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema
-};
-
 export {
     playerTeamSchema,
     playerRoleSchema,
