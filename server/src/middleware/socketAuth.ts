@@ -10,13 +10,13 @@
 
 import type { Socket } from 'socket.io';
 
-const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
-const playerService = require('../services/playerService');
-const { getClientIP } = require('./auth/clientIP');
-const { validateOrigin } = require('./auth/originValidator');
-const { resolveSessionId, validateSession } = require('./auth/sessionValidator');
-const { handleJwtVerification } = require('./auth/jwtHandler');
+import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
+import * as playerService from '../services/playerService';
+import { getClientIP } from './auth/clientIP';
+import { validateOrigin } from './auth/originValidator';
+import { resolveSessionId, validateSession } from './auth/sessionValidator';
+import { handleJwtVerification } from './auth/jwtHandler';
 
 import type { AuthSocket } from './auth/jwtHandler';
 
@@ -80,14 +80,6 @@ function requireAuth(socket: Socket, next: (err?: Error) => void): void {
     }
     next();
 }
-
-module.exports = {
-    authenticateSocket,
-    requireAuth,
-    getClientIP,
-    validateSession,
-    validateOrigin
-};
 
 export {
     authenticateSocket,

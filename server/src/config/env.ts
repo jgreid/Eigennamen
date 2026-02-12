@@ -4,8 +4,7 @@
  * Provides typed environment variable access and validation at startup.
  */
 
-// Import logger - using require for CommonJS compatibility during migration
-const logger = require('../utils/logger');
+import logger from '../utils/logger';
 
 /**
  * Required environment variables (currently none - game works anonymously)
@@ -189,12 +188,3 @@ export function isDevelopment(): boolean {
     return process.env['NODE_ENV'] === 'development' || !process.env['NODE_ENV'];
 }
 
-// Default export for CommonJS compatibility
-module.exports = {
-    validateEnv,
-    getEnv,
-    getEnvInt,
-    getEnvBool,
-    isProduction,
-    isDevelopment
-};

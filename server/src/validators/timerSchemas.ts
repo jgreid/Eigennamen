@@ -6,7 +6,7 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
+import { z } from 'zod';
 
 // Timer add-time schema (centralized from timerHandlers.ts)
 const timerAddTimeSchema = z.object({

@@ -4,16 +4,16 @@
 
 import type { Team, Role, Player, RedisClient } from '../types';
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } = require('../config/constants');
-const { ServerError, ValidationError } = require('../errors/GameError');
-const { tryParseJSON, parseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { getRedis } from '../config/redis';
+import logger from '../utils/logger';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { REDIS_TTL, SESSION_SECURITY, PLAYER_CLEANUP } from '../config/constants';
+import { ServerError, ValidationError } from '../errors/GameError';
+import { tryParseJSON, parseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 
 // Zod schemas for Redis deserialization validation.
 // Validates critical fields when present; non-essential fields are optional
@@ -1220,39 +1220,3 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
     return results;
 }
 
-// CommonJS exports for compatibility
-module.exports = {
-    createPlayer,
-    getPlayer,
-    updatePlayer,
-    setTeam,
-    setRole,
-    setNickname,
-    getTeamMembers,
-    getPlayersInRoom,
-    removePlayer,
-    handleDisconnect,
-    setSocketMapping,
-    getSocketId,
-    // ISSUE #57 FIX: Export cleanup functions
-    processScheduledCleanups,
-    startCleanupTask,
-    stopCleanupTask,
-    // ISSUE #17 FIX: Reconnection token functions
-    // validateSocketAuthToken - simple tokens for automatic socket auth reconnection
-    validateSocketAuthToken,
-    // Complex token functions for explicit room:reconnect flow
-    generateReconnectionToken,
-    validateRoomReconnectToken,
-    getExistingReconnectionToken,
-    invalidateRoomReconnectToken,
-    cleanupOrphanedReconnectionTokens,
-    // US-16.1: Spectator mode enhancements
-    getSpectators,
-    getSpectatorCount,
-    getRoomStats,
-    // SECURITY FIX: Atomic host transfer
-    atomicHostTransfer,
-    // Reset roles for new game
-    resetRolesForNewGame
-};

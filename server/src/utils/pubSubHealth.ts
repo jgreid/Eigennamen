@@ -5,7 +5,7 @@
  * Used by the timer service and other pub/sub consumers to report connection status.
  */
 
-const logger = require('./logger');
+import logger from './logger';
 
 /**
  * Last error interface
@@ -173,15 +173,6 @@ function reset(): void {
     recoverySuccesses = 0;
 }
 
-module.exports = {
-    recordSuccess,
-    recordFailure,
-    getHealth,
-    isHealthy,
-    reset
-};
-
-// ES6 exports for TypeScript imports
 export {
     recordSuccess,
     recordFailure,

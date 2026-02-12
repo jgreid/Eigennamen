@@ -16,20 +16,3 @@ export * from './socketConfig';
 export * from './errorCodes';
 export * from './securityConfig';
 export * from './roomConfig';
-
-// CommonJS re-exports for require('../config/constants')
-import * as gameConfig from './gameConfig';
-import * as rateLimits from './rateLimits';
-import * as socketConfig from './socketConfig';
-import * as errorCodes from './errorCodes';
-import * as securityConfig from './securityConfig';
-import * as roomConfig from './roomConfig';
-
-module.exports = {
-    ...gameConfig,
-    ...rateLimits,
-    ...socketConfig,
-    ...errorCodes,
-    ...securityConfig,
-    ...roomConfig
-};

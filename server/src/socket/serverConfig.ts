@@ -14,11 +14,11 @@
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketIOServer } from 'socket.io';
 
-const { Server } = require('socket.io');
-const { createAdapter } = require('@socket.io/redis-adapter');
-const { getPubSubClients, isUsingMemoryMode } = require('../config/redis');
-const logger = require('../utils/logger');
-const { SOCKET } = require('../config/constants');
+import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { getPubSubClients, isUsingMemoryMode } from '../config/redis';
+import logger from '../utils/logger';
+import { SOCKET } from '../config/constants';
 
 /**
  * Create and configure the Socket.io server instance.
@@ -90,7 +90,5 @@ function createSocketServer(server: HttpServer): SocketIOServer {
 
     return socketServer;
 }
-
-module.exports = { createSocketServer };
 
 export { createSocketServer };

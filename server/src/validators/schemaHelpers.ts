@@ -7,9 +7,9 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
-const { VALIDATION, RESERVED_NAMES, GAME_MODE_CONFIG } = require('../config/constants');
-const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
+import { z } from 'zod';
+import { VALIDATION, RESERVED_NAMES, GAME_MODE_CONFIG } from '../config/constants';
+import { removeControlChars, isReservedName, toEnglishLowerCase } from '../utils/sanitize';
 
 // Re-export z for external use
 export { z };

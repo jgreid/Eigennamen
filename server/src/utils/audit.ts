@@ -12,8 +12,8 @@
  * - Word list modifications
  */
 
-const logger = require('./logger');
-const { getCorrelationId } = require('./correlationId');
+import logger from './logger';
+import { getCorrelationId } from './correlationId';
 
 // Instance ID for distributed deployments
 const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
@@ -100,12 +100,6 @@ function audit(event: AuditEventType, details: AuditDetails = {}): AuditEntry {
     return entry;
 }
 
-module.exports = {
-    AUDIT_EVENTS,
-    audit
-};
-
-// ES6 exports for TypeScript imports
 export {
     AUDIT_EVENTS,
     audit

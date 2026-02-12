@@ -8,8 +8,8 @@
 
 import type { Socket } from 'socket.io';
 
-const logger = require('../../utils/logger');
-const { verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } = require('../../config/jwt');
+import logger from '../../utils/logger';
+import { verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } from '../../config/jwt';
 
 import type { SessionValidationResult } from './sessionValidator';
 
@@ -100,8 +100,6 @@ function handleJwtVerification(
         });
     }
 }
-
-module.exports = { handleJwtVerification };
 
 export { handleJwtVerification };
 export type { AuthSocket, JwtPayload };

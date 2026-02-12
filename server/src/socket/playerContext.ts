@@ -15,11 +15,11 @@
 import type { Player, GameState, Team, Role } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 
-const playerService = require('../services/playerService');
-const gameService = require('../services/gameService');
-const logger = require('../utils/logger');
-const { RoomError, PlayerError } = require('../errors/GameError');
-const { ERROR_CODES } = require('../config/constants');
+import * as playerService from '../services/playerService';
+import * as gameService from '../services/gameService';
+import logger from '../utils/logger';
+import { RoomError, PlayerError } from '../errors/GameError';
+import { ERROR_CODES } from '../config/constants';
 
 /**
  * Options for building player context
@@ -286,12 +286,6 @@ function syncSocketRooms(
         socket.join(`spectators:${roomCode}`);
     }
 }
-
-module.exports = {
-    getPlayerContext,
-    canChangeTeamOrRole,
-    syncSocketRooms
-};
 
 export {
     getPlayerContext,

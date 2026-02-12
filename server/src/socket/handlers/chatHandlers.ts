@@ -9,14 +9,14 @@ import type { Server } from 'socket.io';
 import type { Player, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 
-const playerService = require('../../services/playerService');
-const { chatMessageSchema, spectatorChatSchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { SOCKET_EVENTS } = require('../../config/constants');
-const { createRoomHandler } = require('../contextHandler');
-const { sanitizeHtml } = require('../../utils/sanitize');
-const { PlayerError } = require('../../errors/GameError');
-const { safeEmitToRoom, safeEmitToPlayer } = require('../safeEmit');
+import * as playerService from '../../services/playerService';
+import { chatMessageSchema, spectatorChatSchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { SOCKET_EVENTS } from '../../config/constants';
+import { createRoomHandler } from '../contextHandler';
+import { sanitizeHtml } from '../../utils/sanitize';
+import { PlayerError } from '../../errors/GameError';
+import { safeEmitToRoom, safeEmitToPlayer } from '../safeEmit';
 
 /**
  * Chat message input
@@ -130,5 +130,8 @@ function chatHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = chatHandlers;
 export default chatHandlers;
+
+// CommonJS compat
+module.exports = chatHandlers;
+module.exports.default = chatHandlers;

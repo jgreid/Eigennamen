@@ -9,14 +9,14 @@
 import type { Server } from 'socket.io';
 import type { GameSocket, RoomContext } from './types';
 
-const timerService = require('../../services/timerService');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
-const { createHostHandler } = require('../contextHandler');
-const { getSocketFunctions } = require('../socketFunctionProvider');
-const { timerAddTimeSchema } = require('../../validators/schemas');
-const { GameStateError } = require('../../errors/GameError');
-const { safeEmitToRoom } = require('../safeEmit');
+import * as timerService from '../../services/timerService';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
+import { createHostHandler } from '../contextHandler';
+import { getSocketFunctions } from '../socketFunctionProvider';
+import { timerAddTimeSchema } from '../../validators/schemas';
+import { GameStateError } from '../../errors/GameError';
+import { safeEmitToRoom } from '../safeEmit';
 
 /**
  * Timer add time input
@@ -144,5 +144,8 @@ function timerHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = timerHandlers;
 export default timerHandlers;
+
+// CommonJS compat
+module.exports = timerHandlers;
+module.exports.default = timerHandlers;

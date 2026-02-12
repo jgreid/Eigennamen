@@ -11,23 +11,23 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
 
-const logger = require('../utils/logger');
-const { SOCKET } = require('../config/constants');
-const {
+import logger from '../utils/logger';
+import { SOCKET } from '../config/constants';
+import {
     socketRateLimiter,
-} = require('./rateLimitHandler');
-const { registerSocketFunctions, isRegistered } = require('./socketFunctionProvider');
-const {
+} from './rateLimitHandler';
+import { registerSocketFunctions, isRegistered } from './socketFunctionProvider';
+import {
     handleDisconnect,
-    createTimerExpireCallback: createTimerExpireCallbackImpl
-} = require('./disconnectHandler');
+    createTimerExpireCallback as createTimerExpireCallbackImpl
+} from './disconnectHandler';
 
 // Import handlers
-const roomHandlers = require('./handlers/roomHandlers');
-const gameHandlers = require('./handlers/gameHandlers');
-const playerHandlers = require('./handlers/playerHandlers');
-const chatHandlers = require('./handlers/chatHandlers');
-const timerHandlers = require('./handlers/timerHandlers');
+import roomHandlers from './handlers/roomHandlers';
+import gameHandlers from './handlers/gameHandlers';
+import playerHandlers from './handlers/playerHandlers';
+import chatHandlers from './handlers/chatHandlers';
+import timerHandlers from './handlers/timerHandlers';
 
 /**
  * Socket functions interface matching what socketFunctionProvider expects
@@ -176,8 +176,6 @@ function handleConnection(
         });
     });
 }
-
-module.exports = { handleConnection, ensureSocketFunctionsRegistered, createTimerExpireCallback };
 
 export { handleConnection, ensureSocketFunctionsRegistered, createTimerExpireCallback };
 export type { SocketFunctions, ExpressAppWithSockets };

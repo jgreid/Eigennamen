@@ -8,10 +8,10 @@
 
 import type { RedisClient } from '../types';
 
-const logger = require('../utils/logger');
-const { getRedis, isUsingMemoryMode } = require('../config/redis');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
+import logger from '../utils/logger';
+import { getRedis, isUsingMemoryMode } from '../config/redis';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 
 // Minimal Zod schema for audit log entry validation.
 // Only validates it's a JSON object (not a primitive or array).
@@ -474,12 +474,3 @@ export function clearMemoryLogs(): void {
     }
 }
 
-// CommonJS exports for compatibility
-module.exports = {
-    AUDIT_EVENTS,
-    logAuditEvent,
-    getAuditLogs,
-    getAuditSummary,
-    audit,
-    clearMemoryLogs
-};

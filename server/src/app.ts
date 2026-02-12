@@ -5,22 +5,22 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Server as SocketServer } from 'socket.io';
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import path from 'path';
 
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, strictLimiter } = require('./middleware/rateLimit');
-const { csrfProtection } = require('./middleware/csrf');
-const { requestTiming } = require('./middleware/timing');
-const routes = require('./routes');
-const adminRoutes = require('./routes/adminRoutes');
-const logger = require('./utils/logger');
-const { setupSwagger } = require('./config/swagger');
-const { getAllMetrics, setGauge, METRIC_NAMES } = require('./utils/metrics');
-const { SOCKET } = require('./config/constants');
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { apiLimiter, strictLimiter } from './middleware/rateLimit';
+import { csrfProtection } from './middleware/csrf';
+import { requestTiming } from './middleware/timing';
+import routes from './routes';
+import adminRoutes from './routes/adminRoutes';
+import logger from './utils/logger';
+import { setupSwagger } from './config/swagger';
+import { getAllMetrics, setGauge, METRIC_NAMES } from './utils/metrics';
+import { SOCKET } from './config/constants';
 
 /**
  * Extended Express Application with custom properties
@@ -415,5 +415,8 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-module.exports = app;
 export default app;
+
+// CommonJS compat
+module.exports = app;
+module.exports.default = app;

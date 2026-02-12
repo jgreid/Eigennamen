@@ -14,14 +14,14 @@ import type {
     PlayerGameState
 } from '../../types';
 
-const {
+import {
     BOARD_SIZE,
     DUET_BOARD_CONFIG
-} = require('../../config/constants');
-const {
+} from '../../config/constants';
+import {
     GameStateError,
     ValidationError
-} = require('../../errors/GameError');
+} from '../../errors/GameError';
 
 /**
  * Reveal outcome determination (internal)
@@ -332,12 +332,3 @@ export function getGameStateForPlayer(
     return state;
 }
 
-module.exports = {
-    validateCardIndex,
-    validateRevealPreconditions,
-    executeCardReveal,
-    switchTurn,
-    determineRevealOutcome,
-    buildRevealResult,
-    getGameStateForPlayer
-};

@@ -5,9 +5,8 @@
  * Access documentation at /api-docs when server is running.
  */
 
-// Use require for CommonJS compatibility during migration
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 import type { Express, Request, Response } from 'express';
 
@@ -709,4 +708,3 @@ export function setupSwagger(app: Express): void {
 }
 
 export { swaggerSpec };
-module.exports = { setupSwagger, swaggerSpec };

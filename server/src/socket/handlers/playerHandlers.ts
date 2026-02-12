@@ -10,16 +10,16 @@ import type { Player, GameState, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 import type { RoomStats } from '../../services/playerService';
 
-const playerService = require('../../services/playerService');
-const gameService = require('../../services/gameService');
-const { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
-const { createRoomHandler, createHostHandler } = require('../contextHandler');
-const { canChangeTeamOrRole } = require('../playerContext');
-const { PlayerError, ValidationError, GameStateError } = require('../../errors/GameError');
-const { sanitizeHtml } = require('../../utils/sanitize');
-const { safeEmitToRoom } = require('../safeEmit');
+import * as playerService from '../../services/playerService';
+import * as gameService from '../../services/gameService';
+import { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
+import { createRoomHandler, createHostHandler } from '../contextHandler';
+import { canChangeTeamOrRole } from '../playerContext';
+import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
+import { sanitizeHtml } from '../../utils/sanitize';
+import { safeEmitToRoom } from '../safeEmit';
 
 /**
  * Player team input
@@ -365,5 +365,8 @@ function playerHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = playerHandlers;
 export default playerHandlers;
+
+// CommonJS compat
+module.exports = playerHandlers;
+module.exports.default = playerHandlers;

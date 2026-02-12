@@ -6,10 +6,8 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import type { AsyncLocalStorage as AsyncLocalStorageType } from 'async_hooks';
-
-const { AsyncLocalStorage } = require('async_hooks') as { AsyncLocalStorage: new <T>() => AsyncLocalStorageType<T> };
-const { v4: uuidv4 } = require('uuid');
+import { AsyncLocalStorage } from 'async_hooks';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Correlation context interface
@@ -170,28 +168,6 @@ function socketCorrelationMiddleware(socket: CorrelationSocket, next: (err?: Err
     next();
 }
 
-module.exports = {
-    // Core functions
-    getContext,
-    getCorrelationId,
-    getContextFields,
-
-    // Context management
-    withContext,
-
-    // Context factories
-    createContextFromSocket,
-    createContextFromRequest,
-
-    // Middleware
-    correlationMiddleware,
-    socketCorrelationMiddleware,
-
-    // Constants
-    CORRELATION_HEADER
-};
-
-// ES6 exports for TypeScript imports
 export {
     getContext,
     getCorrelationId,

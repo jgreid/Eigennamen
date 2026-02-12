@@ -17,25 +17,24 @@ import type {
 } from '../types/room';
 import type { Player, PlayerGameState, RedisClient } from '../types';
 
-// Using require for CommonJS modules during migration
-const { getRedis } = require('../config/redis');
-const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
-const playerService = require('./playerService');
-const gameService = require('./gameService');
-const timerService = require('./timerService');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { toEnglishLowerCase } = require('../utils/sanitize');
-const {
+import { getRedis } from '../config/redis';
+import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
+import * as playerService from './playerService';
+import * as gameService from './gameService';
+import * as timerService from './timerService';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { toEnglishLowerCase } from '../utils/sanitize';
+import {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
     ROOM_STATUS,
     ERROR_CODES,
     GAME_MODE_CONFIG
-} = require('../config/constants');
-const { RoomError, PlayerError, ServerError } = require('../errors/GameError');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
+} from '../config/constants';
+import { RoomError, PlayerError, ServerError } from '../errors/GameError';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 
 // Zod schema for Room data from Redis.
 // Validates critical fields when present; non-essential fields are optional
@@ -529,15 +528,3 @@ export async function deleteRoom(code: string): Promise<void> {
     await cleanupRoom(code);
 }
 
-// Default export for CommonJS compatibility
-module.exports = {
-    createRoom,
-    getRoom,
-    joinRoom,
-    leaveRoom,
-    updateSettings,
-    roomExists,
-    refreshRoomTTL,
-    cleanupRoom,
-    deleteRoom
-};

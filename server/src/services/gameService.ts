@@ -27,11 +27,11 @@ import type {
     ClueValidationResult
 } from '../types';
 
-const { v4: uuidv4 } = require('uuid');
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const wordListService = require('./wordListService');
-const {
+import { v4 as uuidv4 } from 'uuid';
+import { getRedis } from '../config/redis';
+import logger from '../utils/logger';
+import * as wordListService from './wordListService';
+import {
     BOARD_SIZE,
     DEFAULT_WORDS,
     REDIS_TTL,
@@ -40,18 +40,18 @@ const {
     RETRY_CONFIG,
     GAME_INTERNALS,
     DUET_BOARD_CONFIG
-} = require('../config/constants');
-const {
+} from '../config/constants';
+import {
     GameStateError,
     ValidationError,
     PlayerError,
     ServerError,
     RoomError
-} = require('../errors/GameError');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { toEnglishUpperCase } = require('../utils/sanitize');
-const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
-const { tryParseJSON } = require('../utils/parseJSON');
+} from '../errors/GameError';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { toEnglishUpperCase } from '../utils/sanitize';
+import { RELEASE_LOCK_SCRIPT } from '../utils/distributedLock';
+import { tryParseJSON } from '../utils/parseJSON';
 
 // Lua script to atomically update room status (prevents TOCTOU race on room data)
 const ATOMIC_SET_ROOM_STATUS_SCRIPT = `
@@ -71,27 +71,27 @@ return 'OK'
 `;
 
 // Focused modules
-const {
+import {
     hashString,
     generateSeed,
     generateBoardLayout,
     selectBoardWords
-} = require('./game/boardGenerator');
+} from './game/boardGenerator';
 
-const { validateClueWord } = require('./game/clueValidator');
+import { validateClueWord } from './game/clueValidator';
 
-const {
+import {
     validateCardIndex,
     validateRevealPreconditions,
     executeCardReveal,
     determineRevealOutcome,
     buildRevealResult,
     getGameStateForPlayer
-} = require('./game/revealEngine');
+} from './game/revealEngine';
 
-import type { RedisClient, withLuaFallback as WithLuaFallbackFn, executeGameTransaction as ExecuteGameTransactionFn } from './game/luaGameOps';
+import type { RedisClient } from './game/luaGameOps';
 
-const {
+import {
     OPTIMIZED_REVEAL_SCRIPT,
     OPTIMIZED_GIVE_CLUE_SCRIPT,
     OPTIMIZED_END_TURN_SCRIPT,
@@ -102,21 +102,13 @@ const {
     incrementVersion,
     withLuaFallback,
     executeGameTransaction
-} = require('./game/luaGameOps') as {
-    OPTIMIZED_REVEAL_SCRIPT: string;
-    OPTIMIZED_GIVE_CLUE_SCRIPT: string;
-    OPTIMIZED_END_TURN_SCRIPT: string;
-    gameStateSchema: unknown;
-    MAX_HISTORY_ENTRIES: number;
-    MAX_CLUES: number;
-    safeParseGameData: (data: string, roomCode: string) => GameState | null;
-    incrementVersion: (game: GameState) => number;
-    withLuaFallback: typeof WithLuaFallbackFn;
-    executeGameTransaction: typeof ExecuteGameTransactionFn;
-};
+} from './game/luaGameOps';
 
 // Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
+
+// Re-export getGameStateForPlayer from revealEngine for consumers that access it via gameService
+export { getGameStateForPlayer };
 
 /**
  * Release a distributed lock with retry and exponential backoff.
@@ -718,18 +710,4 @@ export async function cleanupGame(roomCode: string): Promise<void> {
 }
 
 // ─── Exports ────────────────────────────────────────────────────────
-
-module.exports = {
-    // Game lifecycle
-    createGame,
-    getGame,
-    getGameStateForPlayer,
-    cleanupGame,
-
-    // Game actions
-    revealCard,
-    giveClue,
-    endTurn,
-    forfeitGame,
-    getGameHistory
-};
+// All exports use `export` keyword on function declarations above.

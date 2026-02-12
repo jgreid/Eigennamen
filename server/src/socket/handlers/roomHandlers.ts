@@ -13,19 +13,19 @@ import type { Room, Player, GameState, PlayerGameState, Team } from '../../types
 import type { GameSocket, RoomContext } from './types';
 import type { RoomStats } from '../../services/playerService';
 
-const roomService = require('../../services/roomService');
-const gameService = require('../../services/gameService');
-const playerService = require('../../services/playerService');
-const { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } = require('../../config/constants');
-const { createRoomHandler, createHostHandler, createPreRoomHandler } = require('../contextHandler');
-const { RoomError, PlayerError, ServerError } = require('../../errors/GameError');
-const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-const { getSocketFunctions } = require('../socketFunctionProvider');
-const { incrementCounter, METRIC_NAMES } = require('../../utils/metrics');
-const { getSocketRateLimiter } = require('../rateLimitHandler');
-const { safeEmitToRoom } = require('../safeEmit');
+import * as roomService from '../../services/roomService';
+import * as gameService from '../../services/gameService';
+import * as playerService from '../../services/playerService';
+import { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS, SESSION_SECURITY } from '../../config/constants';
+import { createRoomHandler, createHostHandler, createPreRoomHandler } from '../contextHandler';
+import { RoomError, PlayerError, ServerError } from '../../errors/GameError';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
+import { getSocketFunctions } from '../socketFunctionProvider';
+import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
+import { getSocketRateLimiter } from '../rateLimitHandler';
+import { safeEmitToRoom } from '../safeEmit';
 
 /**
  * Room create input
@@ -495,5 +495,8 @@ function roomHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = roomHandlers;
 export default roomHandlers;
+
+// CommonJS compat
+module.exports = roomHandlers;
+module.exports.default = roomHandlers;

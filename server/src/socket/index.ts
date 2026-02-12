@@ -16,31 +16,31 @@ import type { TimerCallback } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
-const logger = require('../utils/logger');
-const { authenticateSocket, getClientIP } = require('../middleware/socketAuth');
-const timerService = require('../services/timerService');
-const { SOCKET_EVENTS } = require('../config/constants');
-const {
+import logger from '../utils/logger';
+import { authenticateSocket, getClientIP } from '../middleware/socketAuth';
+import * as timerService from '../services/timerService';
+import { SOCKET_EVENTS } from '../config/constants';
+import {
     getSocketRateLimiter,
     createRateLimitedHandler,
     startRateLimitCleanup,
     stopRateLimitCleanup
-} = require('./rateLimitHandler');
-const { safeEmitToRoom } = require('./safeEmit');
-const {
+} from './rateLimitHandler';
+import { safeEmitToRoom } from './safeEmit';
+import {
     incrementConnectionCount,
     decrementConnectionCount,
     isConnectionLimitReached,
     getConnectionCount,
     startConnectionsCleanup,
     stopConnectionsCleanup
-} = require('./connectionTracker');
-const {
+} from './connectionTracker';
+import {
     handleDisconnect,
-    createTimerExpireCallback: createTimerExpireCallbackImpl
-} = require('./disconnectHandler');
-const { createSocketServer } = require('./serverConfig');
-const { handleConnection, ensureSocketFunctionsRegistered } = require('./connectionHandler');
+    createTimerExpireCallback as createTimerExpireCallbackImpl
+} from './disconnectHandler';
+import { createSocketServer } from './serverConfig';
+import { handleConnection, ensureSocketFunctionsRegistered } from './connectionHandler';
 
 import type { ExpressAppWithSockets } from './connectionHandler';
 
@@ -200,21 +200,6 @@ function cleanupSocketModule(): void {
 }
 
 // ─── Exports ────────────────────────────────────────────────────────
-
-module.exports = {
-    initializeSocket,
-    getIO,
-    emitToRoom,
-    emitToPlayer,
-    startTurnTimer,
-    stopTurnTimer,
-    getTimerStatus,
-    getSocketRateLimiter,
-    createRateLimitedHandler,
-    cleanupSocketModule,
-    _handleDisconnect: handleDisconnect,
-    _createTimerExpireCallback: createTimerExpireCallback
-};
 
 export {
     initializeSocket,

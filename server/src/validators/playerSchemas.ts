@@ -7,9 +7,9 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
-const { removeControlChars } = require('../utils/sanitize');
-const { createNicknameSchema } = require('./schemaHelpers');
+import { z } from 'zod';
+import { removeControlChars } from '../utils/sanitize';
+import { createNicknameSchema } from './schemaHelpers';
 
 const playerTeamSchema = z.object({
     team: z.enum(['red', 'blue']).nullable()

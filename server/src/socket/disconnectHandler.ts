@@ -18,11 +18,11 @@ import type { Player, GameState, TimerCallback, RedisClient } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
-const logger = require('../utils/logger');
-const { SOCKET_EVENTS, LOCKS } = require('../config/constants');
-const { safeEmitToRoom } = require('./safeEmit');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { withLock } = require('../utils/distributedLock');
+import logger from '../utils/logger';
+import { SOCKET_EVENTS, LOCKS } from '../config/constants';
+import { safeEmitToRoom } from './safeEmit';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { withLock } from '../utils/distributedLock';
 
 // RedisClient imported from '../types' (shared across all services)
 
@@ -340,11 +340,6 @@ async function handleDisconnect(
         logger.error('Error handling disconnect:', error);
     }
 }
-
-module.exports = {
-    handleDisconnect,
-    createTimerExpireCallback
-};
 
 export {
     handleDisconnect,

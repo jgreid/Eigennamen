@@ -5,11 +5,11 @@
  * All functions return empty/null results when database is disabled.
  */
 
-const { getDatabase, isDatabaseEnabled } = require('../config/database');
-const logger = require('../utils/logger');
-const { BOARD_SIZE } = require('../config/constants');
-const { ServerError, ValidationError, WordListError } = require('../errors/GameError');
-const { toEnglishUpperCase } = require('../utils/sanitize');
+import { getDatabase, isDatabaseEnabled } from '../config/database';
+import logger from '../utils/logger';
+import { BOARD_SIZE } from '../config/constants';
+import { ServerError, ValidationError, WordListError } from '../errors/GameError';
+import { toEnglishUpperCase } from '../utils/sanitize';
 
 const MAX_WORD_LIST_SIZE = 10000;
 
@@ -442,14 +442,3 @@ export async function getWordsForGame(id: string): Promise<string[] | null> {
     }
 }
 
-// CommonJS exports for compatibility
-module.exports = {
-    getWordList,
-    getPublicWordLists,
-    getUserWordLists,
-    createWordList,
-    updateWordList,
-    deleteWordList,
-    incrementUsageCount,
-    getWordsForGame
-};
