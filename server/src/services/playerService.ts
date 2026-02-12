@@ -1043,7 +1043,7 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
 
     // Scan for reconnect:session:* keys
     try {
-        // Use scanIterator if available (node-redis v4+, MemoryStorage)
+        // Use scanIterator if available (node-redis v4+)
         if (redis.scanIterator) {
             for await (const key of redis.scanIterator({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
                 const sessionId = key.replace('reconnect:session:', '');
@@ -1064,7 +1064,7 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
             }
         }
     } catch (error) {
-        // Non-critical - memory storage may not support scan
+        // Non-critical - scan may not be available
         logger.debug('Reconnection token cleanup skipped:', (error as Error).message);
     }
 

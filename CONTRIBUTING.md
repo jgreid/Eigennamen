@@ -265,7 +265,7 @@ How were changes tested?
 
 ### Coverage Thresholds
 
-Configured in `jest.config.ts.js` (primary) and `package.json` (fallback). Thresholds are set lower globally because infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%. Current actual coverage: 94%+ lines/statements.
+Configured in `jest.config.ts.js` (primary) and `package.json` (fallback). Thresholds are set lower globally because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%. Current actual coverage: 94%+ lines/statements.
 
 | Metric | Minimum (jest.config.ts.js) | Minimum (package.json) | Current |
 |--------|-----|-----|---------|

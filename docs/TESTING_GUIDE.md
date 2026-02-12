@@ -35,7 +35,7 @@ npx playwright test
 
 ## Test Coverage Requirements
 
-Global thresholds are set lower because infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
+Global thresholds are set lower because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
 
 | Metric | Minimum | Current |
 |--------|---------|---------|
@@ -549,7 +549,7 @@ module.exports = {
 };
 ```
 
-Global thresholds are lower because infrastructure modules (redis.ts, memoryStorage.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
+Global thresholds are lower because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
 
 ## Related Documentation
 

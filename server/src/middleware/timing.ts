@@ -104,18 +104,7 @@ function startMemoryMonitoring(): void {
         };
 
         if (heapUsedMB > MEMORY_CRITICAL_THRESHOLD_MB) {
-            logger.error('Critical memory usage - forcing cleanup', logData);
-            try {
-                const { isMemoryMode, getMemoryStorage } = require('../config/memoryStorage');
-                if (isMemoryMode()) {
-                    const storage = getMemoryStorage();
-                    const cleaned = storage.forceCleanup();
-                    const keyCount = storage.getKeyCount();
-                    logger.warn(`Emergency cleanup completed: ${cleaned} keys removed, ${keyCount} remaining`);
-                }
-            } catch (e) {
-                logger.error('Failed to run emergency cleanup:', e);
-            }
+            logger.error('Critical memory usage detected', logData);
         } else if (heapUsedMB > MEMORY_WARNING_THRESHOLD_MB) {
             logger.warn('High memory usage detected', logData);
         } else {
