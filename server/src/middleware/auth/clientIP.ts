@@ -49,6 +49,4 @@ function getClientIP(socket: Socket): string {
     return socket.handshake.address;
 }
 
-module.exports = { shouldTrustProxy, getClientIP };
-
 export { shouldTrustProxy, getClientIP };

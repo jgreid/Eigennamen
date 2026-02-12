@@ -7,15 +7,15 @@
 
 import type { CardType } from '../../types';
 
-const crypto = require('crypto');
-const {
+import crypto from 'crypto';
+import {
     BOARD_SIZE,
     FIRST_TEAM_CARDS,
     SECOND_TEAM_CARDS,
     NEUTRAL_CARDS,
     GAME_INTERNALS,
     DUET_BOARD_CONFIG
-} = require('../../config/constants');
+} from '../../config/constants';
 
 /**
  * Seeded random number generator using Mulberry32 algorithm
@@ -159,12 +159,3 @@ export function selectBoardWords(words: string[], numericSeed: number): string[]
     return shuffledWords.slice(0, BOARD_SIZE);
 }
 
-module.exports = {
-    seededRandom,
-    hashString,
-    shuffleWithSeed,
-    generateSeed,
-    generateDuetBoard,
-    generateBoardLayout,
-    selectBoardWords
-};

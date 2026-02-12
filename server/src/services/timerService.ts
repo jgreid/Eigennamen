@@ -8,12 +8,12 @@
 
 import type { RedisClient } from '../types';
 
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const { withTimeout, TIMEOUTS } = require('../utils/timeout');
-const { TIMER, REDIS_TTL } = require('../config/constants');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
+import { getRedis } from '../config/redis';
+import logger from '../utils/logger';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { TIMER, REDIS_TTL } from '../config/constants';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 
 // Zod schema for runtime validation of timer state from Redis.
 // Makes instanceId optional to handle data from older server versions or tests.
@@ -517,14 +517,3 @@ export function cleanupAllTimers(): void {
     logger.info('All local timers cleaned up');
 }
 
-// CommonJS exports for compatibility
-module.exports = {
-    startTimer,
-    stopTimer,
-    getTimerStatus,
-    pauseTimer,
-    resumeTimer,
-    addTime,
-    hasActiveTimer,
-    cleanupAllTimers
-};

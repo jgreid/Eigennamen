@@ -7,9 +7,9 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION } = require('../config/constants');
-const { removeControlChars } = require('../utils/sanitize');
+import { z } from 'zod';
+import { BOARD_SIZE, VALIDATION } from '../config/constants';
+import { removeControlChars } from '../utils/sanitize';
 
 const gameStartSchema = z.object({
     // Option 1: Reference a word list stored in database (requires database)

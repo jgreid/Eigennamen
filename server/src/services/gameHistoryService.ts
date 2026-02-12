@@ -5,11 +5,11 @@
  * Uses Redis with 30-day TTL for game history storage.
  */
 
-const { getRedis } = require('../config/redis');
-const logger = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
-const { tryParseJSON } = require('../utils/parseJSON');
-const { z } = require('zod');
+import { getRedis } from '../config/redis';
+import logger from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+import { tryParseJSON } from '../utils/parseJSON';
+import { z } from 'zod';
 
 import type { Team, CardType, RedisClient } from '../types';
 
@@ -755,17 +755,3 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
     }
 }
 
-// CommonJS exports for compatibility
-module.exports = {
-    saveGameResult,
-    getGameHistory,
-    getGameById,
-    getReplayEvents,
-    cleanupOldHistory,
-    getHistoryStats,
-    // HARDENING FIX: Export validation function for testing
-    validateGameData,
-    // Constants for testing
-    GAME_HISTORY_TTL,
-    MAX_HISTORY_PER_ROOM
-};

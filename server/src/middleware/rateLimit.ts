@@ -4,8 +4,8 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-const rateLimit = require('express-rate-limit');
-const logger = require('../utils/logger');
+import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
 
 interface RateLimitConfig {
     max: number;
@@ -399,12 +399,6 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         resetMetrics
     };
 }
-
-module.exports = {
-    apiLimiter,
-    strictLimiter,
-    createSocketRateLimiter
-};
 
 export {
     apiLimiter,

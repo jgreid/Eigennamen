@@ -7,9 +7,9 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
-const { VALIDATION } = require('../config/constants');
-const { removeControlChars } = require('../utils/sanitize');
+import { z } from 'zod';
+import { VALIDATION } from '../config/constants';
+import { removeControlChars } from '../utils/sanitize';
 
 const chatMessageSchema = z.object({
     text: z.string()

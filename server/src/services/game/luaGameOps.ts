@@ -7,24 +7,23 @@
 
 import type { GameState, RedisClient as SharedRedisClient } from '../../types';
 
-const fs = require('fs');
-const path = require('path');
-const { z } = require('zod');
-const { getRedis } = require('../../config/redis');
-const logger = require('../../utils/logger');
-const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-const { parseJSON } = require('../../utils/parseJSON');
-const { tryParseJSON } = require('../../utils/parseJSON');
-const {
+import fs from 'fs';
+import path from 'path';
+import { z } from 'zod';
+import { getRedis } from '../../config/redis';
+import logger from '../../utils/logger';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
+import { parseJSON, tryParseJSON } from '../../utils/parseJSON';
+import {
     ERROR_CODES,
     REDIS_TTL,
     GAME_HISTORY,
     RETRY_CONFIG
-} = require('../../config/constants');
-const {
+} from '../../config/constants';
+import {
     GameStateError,
     ServerError
-} = require('../../errors/GameError');
+} from '../../errors/GameError';
 
 // Lua scripts loaded once at module initialization
 export const OPTIMIZED_REVEAL_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/revealCard.lua'), 'utf8');
@@ -78,7 +77,7 @@ const MAX_TRANSACTION_RETRIES: number = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 type RedisClient = SharedRedisClient;
 export type { RedisClient };
 
-/** Type signature for executeLuaScript (used by gameService's require()-based import). */
+/** Type signature for executeLuaScript (used by gameService's import). */
 export type ExecuteLuaScript = <T>(
     script: string,
     gameKey: string,
@@ -261,19 +260,3 @@ export async function executeGameTransaction<T>(
     throw ServerError.concurrentModification();
 }
 
-module.exports = {
-    OPTIMIZED_REVEAL_SCRIPT,
-    OPTIMIZED_GIVE_CLUE_SCRIPT,
-    OPTIMIZED_END_TURN_SCRIPT,
-    gameStateSchema,
-    gameModePreCheckSchema,
-    luaResultObjectSchema,
-    MAX_HISTORY_ENTRIES,
-    MAX_CLUES,
-    safeParseGameData,
-    isDuetMode,
-    incrementVersion,
-    executeLuaScript,
-    withLuaFallback,
-    executeGameTransaction
-};

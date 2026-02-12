@@ -10,7 +10,7 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import type { Player } from '../types';
 
-const logger = require('../utils/logger');
+import logger from '../utils/logger';
 
 /**
  * Emission metrics for monitoring
@@ -230,14 +230,6 @@ function resetEmissionMetrics(): void {
         lastFailure: null
     };
 }
-
-module.exports = {
-    safeEmitToRoom,
-    safeEmitToPlayer,
-    safeEmitToPlayers,
-    getEmissionMetrics,
-    resetEmissionMetrics
-};
 
 export {
     safeEmitToRoom,

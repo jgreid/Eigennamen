@@ -10,9 +10,9 @@ import type { Player } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { PlayerContextOptions, PlayerContextResult } from './playerContext';
 
-const { getPlayerContext, syncSocketRooms } = require('./playerContext');
-const { createRateLimitedHandler } = require('./rateLimitHandler');
-const { validateInput } = require('../middleware/validation');
+import { getPlayerContext, syncSocketRooms } from './playerContext';
+import { createRateLimitedHandler } from './rateLimitHandler';
+import { validateInput } from '../middleware/validation';
 
 export interface HandlerResult {
     player?: Player;
@@ -104,14 +104,6 @@ function createPreRoomHandler<T = unknown>(
         await handler(validated);
     });
 }
-
-module.exports = {
-    createContextHandler,
-    createRoomHandler,
-    createHostHandler,
-    createGameHandler,
-    createPreRoomHandler
-};
 
 export {
     createContextHandler,

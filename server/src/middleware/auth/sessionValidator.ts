@@ -11,15 +11,15 @@
 
 import type { Player } from '../../types';
 
-const { validate: isValidUuid } = require('uuid');
-const logger = require('../../utils/logger');
-const playerService = require('../../services/playerService');
-const { getRedis } = require('../../config/redis');
-const {
+import { validate as isValidUuid } from 'uuid';
+import logger from '../../utils/logger';
+import * as playerService from '../../services/playerService';
+import { getRedis } from '../../config/redis';
+import {
     SESSION_SECURITY,
     REDIS_TTL,
     ERROR_CODES
-} = require('../../config/constants');
+} from '../../config/constants';
 
 /**
  * Rate limit check result
@@ -396,15 +396,6 @@ async function resolveSessionId(
         ipMismatch: !!sessionValidation.ipMismatch
     };
 }
-
-module.exports = {
-    validateSession,
-    resolveSessionId,
-    validateSessionAge,
-    validateIPConsistency,
-    validateRoomReconnectToken,
-    checkValidationRateLimit
-};
 
 export {
     validateSession,

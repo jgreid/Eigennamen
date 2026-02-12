@@ -9,24 +9,24 @@ import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';
 
-const gameService = require('../../services/gameService');
-const playerService = require('../../services/playerService');
-const roomService = require('../../services/roomService');
-const gameHistoryService = require('../../services/gameHistoryService');
-const { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } = require('../../validators/schemas');
-const logger = require('../../utils/logger');
-const { ERROR_CODES, SOCKET_EVENTS } = require('../../config/constants');
-const { createHostHandler, createRoomHandler, createGameHandler } = require('../contextHandler');
-const {
+import * as gameService from '../../services/gameService';
+import * as playerService from '../../services/playerService';
+import * as roomService from '../../services/roomService';
+import * as gameHistoryService from '../../services/gameHistoryService';
+import { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
+import logger from '../../utils/logger';
+import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
+import { createHostHandler, createRoomHandler, createGameHandler } from '../contextHandler';
+import {
     PlayerError,
     GameStateError,
     ValidationError,
     RoomError
-} = require('../../errors/GameError');
-const { audit, AUDIT_EVENTS } = require('../../utils/audit');
-const { withTimeout, TIMEOUTS } = require('../../utils/timeout');
-const { getSocketFunctions } = require('../socketFunctionProvider');
-const { safeEmitToRoom, safeEmitToPlayers } = require('../safeEmit');
+} from '../../errors/GameError';
+import { audit, AUDIT_EVENTS } from '../../utils/audit';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
+import { getSocketFunctions } from '../socketFunctionProvider';
+import { safeEmitToRoom, safeEmitToPlayers } from '../safeEmit';
 
 /**
  * Game start input
@@ -434,5 +434,8 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
-module.exports = gameHandlers;
 export default gameHandlers;
+
+// CommonJS compat
+module.exports = gameHandlers;
+module.exports.default = gameHandlers;

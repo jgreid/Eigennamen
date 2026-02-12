@@ -6,17 +6,17 @@ import type { Server as HttpServer } from 'http';
 import type { Server as SocketServer } from 'socket.io';
 import type { Application } from 'express';
 
-require('dotenv').config();
+import 'dotenv/config';
 
-const http = require('http');
-const app = require('./app') as Application & { updateSocketCount: (delta: number) => void };
-const { initializeSocket, cleanupSocketModule } = require('./socket');
-const { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } = require('./config/redis');
-const { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } = require('./config/database');
-const { validateEnv, getEnvInt } = require('./config/env');
-const timerService = require('./services/timerService');
-const { startMemoryMonitoring, stopMemoryMonitoring } = require('./middleware/timing');
-const logger = require('./utils/logger');
+import http from 'http';
+import app from './app';
+import { initializeSocket, cleanupSocketModule } from './socket';
+import { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } from './config/redis';
+import { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } from './config/database';
+import { validateEnv, getEnvInt } from './config/env';
+import * as timerService from './services/timerService';
+import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
+import logger from './utils/logger';
 
 const PORT: number = getEnvInt('PORT', 3000);
 

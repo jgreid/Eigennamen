@@ -13,56 +13,22 @@
  */
 
 // Re-export shared helpers
-const {
-    z,
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema,
-    createNicknameSchema
-} = require('./schemaHelpers');
+export { z, createSanitizedString, createTeamNameSchema, createRoomIdSchema, createNicknameSchema } from './schemaHelpers';
 
 // Re-export room schemas
-const {
-    roomCreateSchema,
-    roomJoinSchema,
-    roomSettingsSchema,
-    roomReconnectSchema,
-    roomCodeSchema,
-    wordListIdSchema
-} = require('./roomSchemas');
+export { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema, roomCodeSchema, wordListIdSchema } from './roomSchemas';
 
 // Re-export player schemas
-const {
-    playerTeamSchema,
-    playerRoleSchema,
-    playerNicknameSchema,
-    playerKickSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema
-} = require('./playerSchemas');
+export { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } from './playerSchemas';
 
 // Re-export game schemas
-const {
-    gameStartSchema,
-    gameRevealSchema,
-    gameClueSchema,
-    gameHistoryLimitSchema,
-    gameReplaySchema
-} = require('./gameSchemas');
+export { gameStartSchema, gameRevealSchema, gameClueSchema, gameHistoryLimitSchema, gameReplaySchema } from './gameSchemas';
 
 // Re-export chat schemas
-const {
-    chatMessageSchema,
-    spectatorChatSchema
-} = require('./chatSchemas');
+export { chatMessageSchema, spectatorChatSchema } from './chatSchemas';
 
 // Re-export timer schemas
-const {
-    timerAddTimeSchema
-} = require('./timerSchemas');
-
-// Re-export z for external use
-export { z };
+export { timerAddTimeSchema } from './timerSchemas';
 
 // Re-export types from domain files
 export type { RoomCreateInput, RoomJoinInput, RoomSettingsInput, RoomReconnectInput } from './roomSchemas';
@@ -70,30 +36,3 @@ export type { PlayerTeamInput, PlayerRoleInput, PlayerNicknameInput, PlayerKickI
 export type { GameStartInput, GameRevealInput, GameClueInput, GameHistoryLimitInput, GameReplayInput } from './gameSchemas';
 export type { ChatMessageInput, SpectatorChatInput } from './chatSchemas';
 export type { TimerAddTimeInput } from './timerSchemas';
-
-export {
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema,
-    createNicknameSchema,
-    roomCreateSchema,
-    roomJoinSchema,
-    roomSettingsSchema,
-    roomReconnectSchema,
-    roomCodeSchema,
-    wordListIdSchema,
-    playerTeamSchema,
-    playerRoleSchema,
-    playerNicknameSchema,
-    playerKickSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema,
-    gameStartSchema,
-    gameRevealSchema,
-    gameClueSchema,
-    gameHistoryLimitSchema,
-    gameReplaySchema,
-    chatMessageSchema,
-    spectatorChatSchema,
-    timerAddTimeSchema
-};

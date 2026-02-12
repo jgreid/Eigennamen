@@ -4,7 +4,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 
-const logger = require('../utils/logger');
+import logger from '../utils/logger';
 
 interface TimedRequest extends Request {
     requestId?: string;
@@ -137,13 +137,6 @@ function stopMemoryMonitoring(): void {
 function generateRequestId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
 }
-
-module.exports = {
-    requestTiming,
-    socketEventTiming,
-    startMemoryMonitoring,
-    stopMemoryMonitoring
-};
 
 export {
     requestTiming,

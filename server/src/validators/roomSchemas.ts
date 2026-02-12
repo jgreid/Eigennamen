@@ -7,10 +7,10 @@
 
 import type { z as ZodType } from 'zod';
 
-const { z } = require('zod');
-const { TIMER } = require('../config/constants');
-const { removeControlChars, toEnglishLowerCase } = require('../utils/sanitize');
-const { createRoomIdSchema, createTeamNameSchema, createNicknameSchema, validateModeTimer } = require('./schemaHelpers');
+import { z } from 'zod';
+import { TIMER } from '../config/constants';
+import { removeControlChars, toEnglishLowerCase } from '../utils/sanitize';
+import { createRoomIdSchema, createTeamNameSchema, createNicknameSchema, validateModeTimer } from './schemaHelpers';
 
 const roomCreateSchema = z.object({
     roomId: createRoomIdSchema(),

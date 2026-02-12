@@ -9,18 +9,18 @@ import type { Request, Response, NextFunction, Router as ExpressRouter, Applicat
 import type { Server } from 'socket.io';
 import type { RedisClient } from '../types';
 
-const express = require('express');
-const path = require('path');
-const crypto = require('crypto');
-const rateLimit = require('express-rate-limit');
-const logger = require('../utils/logger');
-const { getRedis, isRedisHealthy, isUsingMemoryMode } = require('../config/redis');
-const { isDatabaseEnabled } = require('../config/database');
-const { getAllMetrics, incrementCounter, METRIC_NAMES } = require('../utils/metrics');
-const { API_RATE_LIMITS } = require('../config/constants');
-const { z } = require('zod');
-const { toEnglishLowerCase } = require('../utils/sanitize');
-const { audit, getAuditLogs, getAuditSummary } = require('../services/auditService');
+import express from 'express';
+import path from 'path';
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
+import { getRedis, isRedisHealthy, isUsingMemoryMode } from '../config/redis';
+import { isDatabaseEnabled } from '../config/database';
+import { getAllMetrics, incrementCounter, METRIC_NAMES } from '../utils/metrics';
+import { API_RATE_LIMITS } from '../config/constants';
+import { z } from 'zod';
+import { toEnglishLowerCase } from '../utils/sanitize';
+import { audit, getAuditLogs, getAuditSummary } from '../services/auditService';
 
 const router: ExpressRouter = express.Router();
 
@@ -844,5 +844,8 @@ function formatUptime(seconds: number): string {
     return parts.join(' ');
 }
 
-module.exports = router;
 export default router;
+
+// CommonJS compat
+module.exports = router;
+module.exports.default = router;

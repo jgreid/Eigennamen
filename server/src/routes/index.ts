@@ -4,11 +4,11 @@
 
 import type { Router as ExpressRouter } from 'express';
 
-const express = require('express');
-const roomRoutes = require('./roomRoutes');
-const wordListRoutes = require('./wordListRoutes');
-const healthRoutes = require('./healthRoutes');
-const replayRoutes = require('./replayRoutes');
+import express from 'express';
+import roomRoutes from './roomRoutes';
+import wordListRoutes from './wordListRoutes';
+import healthRoutes from './healthRoutes';
+import replayRoutes from './replayRoutes';
 
 const router: ExpressRouter = express.Router();
 
@@ -20,5 +20,8 @@ router.use('/replays', replayRoutes);
 // Health routes (also mounted at root level in app.ts for /health access)
 router.use('/health', healthRoutes);
 
-module.exports = router;
 export default router;
+
+// CommonJS compat
+module.exports = router;
+module.exports.default = router;

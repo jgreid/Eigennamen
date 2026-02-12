@@ -8,15 +8,15 @@
 
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const wordListService = require('../services/wordListService');
-const { validateBody, validateParams, validateQuery } = require('../middleware/validation');
-const { z } = require('zod');
-const { BOARD_SIZE } = require('../config/constants');
-const logger = require('../utils/logger');
-const { getJwtSecret } = require('../config/jwt');
-const { removeControlChars } = require('../utils/sanitize');
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import * as wordListService from '../services/wordListService';
+import { validateBody, validateParams, validateQuery } from '../middleware/validation';
+import { z } from 'zod';
+import { BOARD_SIZE } from '../config/constants';
+import logger from '../utils/logger';
+import { getJwtSecret } from '../config/jwt';
+import { removeControlChars } from '../utils/sanitize';
 
 const router: ExpressRouter = express.Router();
 
@@ -274,5 +274,8 @@ router.delete('/:id', requireAuth, validateParams(wordListIdSchema), async (req:
     }
 });
 
-module.exports = router;
 export default router;
+
+// CommonJS compat
+module.exports = router;
+module.exports.default = router;

@@ -10,7 +10,7 @@
  * - Suitable for development, testing, or single-instance production
  */
 
-const logger = require('../utils/logger');
+import logger from '../utils/logger';
 
 // ============================================================================
 // Types
@@ -1906,10 +1906,3 @@ export function isMemoryMode(): boolean {
     return redisUrl === 'memory' || redisUrl === 'memory://';
 }
 
-// CommonJS export for backward compatibility
-module.exports = {
-    MemoryStorage,
-    getMemoryStorage,
-    isMemoryMode,
-    MAX_TOTAL_KEYS,
-};

@@ -4,8 +4,8 @@
  * Provides secure JWT configuration with production requirements.
  */
 
-const jwt = require('jsonwebtoken');
-const logger = require('../utils/logger');
+import jwt from 'jsonwebtoken';
+import logger from '../utils/logger';
 
 /**
  * JWT payload structure
@@ -272,19 +272,6 @@ function generateSessionToken(userId: string, sessionId: string, additionalClaim
         ...additionalClaims
     });
 }
-
-module.exports = {
-    JWT_CONFIG,
-    JWT_ERROR_CODES,
-    MIN_SECRET_LENGTH,
-    getJwtSecret,
-    isJwtEnabled,
-    signToken,
-    verifyToken,
-    verifyTokenWithClaims,
-    decodeToken,
-    generateSessionToken
-};
 
 export {
     getJwtSecret,

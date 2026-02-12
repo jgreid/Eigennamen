@@ -7,9 +7,9 @@
 
 import type { Socket } from 'socket.io';
 
-const logger = require('../../utils/logger');
-const { audit } = require('../../services/auditService');
-const { getClientIP } = require('./clientIP');
+import logger from '../../utils/logger';
+import { audit } from '../../services/auditService';
+import { getClientIP } from './clientIP';
 
 /**
  * Origin validation result
@@ -87,8 +87,6 @@ function validateOrigin(socket: Socket): OriginValidationResult {
 
     return { valid: true };
 }
-
-module.exports = { validateOrigin };
 
 export { validateOrigin };
 export type { OriginValidationResult };

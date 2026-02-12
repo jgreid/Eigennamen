@@ -5,16 +5,11 @@
  * Also supports in-memory mode for single-instance deployments
  */
 
-// Use require for CommonJS compatibility during migration
-const { createClient } = require('redis');
-
-const logger = require('../utils/logger');
-
-// Import types
+import { createClient } from 'redis';
+import logger from '../utils/logger';
 import type { RedisClientType } from 'redis';
-
-// Import memory storage functions
-const { getMemoryStorage, isMemoryMode } = require('./memoryStorage');
+import type { RedisClient } from '../types/redis';
+import { getMemoryStorage, isMemoryMode } from './memoryStorage';
 
 // ============================================================================
 // Types
@@ -281,11 +276,11 @@ async function cleanupPartialConnections(): Promise<void> {
  * Get the main Redis client
  * @throws Error if Redis not initialized
  */
-export function getRedis(): RedisClientType | MemoryStorageClient {
+export function getRedis(): RedisClient {
     if (!redisClient) {
         throw new Error('Redis not initialized. Call connectRedis() first.');
     }
-    return redisClient as RedisClientType | MemoryStorageClient;
+    return redisClient as unknown as RedisClient;
 }
 
 /**
@@ -445,13 +440,3 @@ export function isUsingMemoryMode(): boolean {
     return usingMemoryMode;
 }
 
-// CommonJS export for backward compatibility
-module.exports = {
-    connectRedis,
-    getRedis,
-    getPubSubClients,
-    isRedisHealthy,
-    getRedisMemoryInfo,
-    disconnectRedis,
-    isUsingMemoryMode
-};

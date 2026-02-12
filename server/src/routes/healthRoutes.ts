@@ -7,13 +7,13 @@
 
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
-const express = require('express');
-const { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } = require('../config/redis');
-const pubSubHealth = require('../utils/pubSubHealth');
-const logger = require('../utils/logger');
+import express from 'express';
+import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config/redis';
+import * as pubSubHealth from '../utils/pubSubHealth';
+import logger from '../utils/logger';
 // PHASE 5.1: Import Prometheus metrics export
-const { getPrometheusMetrics, updateSystemMetrics } = require('../utils/metrics');
-const { withTimeout } = require('../utils/timeout');
+import { getPrometheusMetrics, updateSystemMetrics } from '../utils/metrics';
+import { withTimeout } from '../utils/timeout';
 
 const router: ExpressRouter = express.Router();
 
@@ -253,5 +253,8 @@ router.get('/metrics/prometheus', (_req: Request, res: Response) => {
     }
 });
 
-module.exports = router;
 export default router;
+
+// CommonJS compat
+module.exports = router;
+module.exports.default = router;

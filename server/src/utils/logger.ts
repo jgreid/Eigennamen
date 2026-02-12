@@ -4,9 +4,9 @@
  * Structured logging with automatic correlation ID injection.
  */
 
-const winston = require('winston');
-const fs = require('fs');
-const path = require('path');
+import winston from 'winston';
+import fs from 'fs';
+import path from 'path';
 
 import type { Logger as WinstonLogger } from 'winston';
 
@@ -28,15 +28,15 @@ interface ErrorMeta {
 }
 
 interface ChildLogger {
-    error(msg: string, meta?: LogMeta): void;
-    warn(msg: string, meta?: LogMeta): void;
-    info(msg: string, meta?: LogMeta): void;
-    http(msg: string, meta?: LogMeta): void;
-    debug(msg: string, meta?: LogMeta): void;
+    error(msg: string, meta?: LogMeta | Error | unknown): void;
+    warn(msg: string, meta?: LogMeta | Error | unknown): void;
+    info(msg: string, meta?: LogMeta | Error | unknown): void;
+    http(msg: string, meta?: LogMeta | Error | unknown): void;
+    debug(msg: string, meta?: LogMeta | Error | unknown): void;
 }
 
 interface Logger extends ChildLogger {
-    _buildMeta(metaOrError: LogMeta | Error): LogMeta;
+    _buildMeta(metaOrError: LogMeta | Error | unknown): LogMeta;
     child(defaultMeta: LogMeta): ChildLogger;
 }
 
@@ -186,23 +186,23 @@ const winstonLogger: WinstonLogger = winston.createLogger({
 });
 
 const logger: Logger = {
-    error(message: string, metaOrError: LogMeta | Error = {}): void {
+    error(message: string, metaOrError: LogMeta | Error | unknown = {}): void {
         winstonLogger.error(message, this._buildMeta(metaOrError));
     },
-    warn(message: string, meta: LogMeta = {}): void {
+    warn(message: string, meta: LogMeta | Error | unknown = {}): void {
         winstonLogger.warn(message, this._buildMeta(meta));
     },
-    info(message: string, meta: LogMeta = {}): void {
+    info(message: string, meta: LogMeta | Error | unknown = {}): void {
         winstonLogger.info(message, this._buildMeta(meta));
     },
-    http(message: string, meta: LogMeta = {}): void {
+    http(message: string, meta: LogMeta | Error | unknown = {}): void {
         winstonLogger.http(message, this._buildMeta(meta));
     },
-    debug(message: string, meta: LogMeta = {}): void {
+    debug(message: string, meta: LogMeta | Error | unknown = {}): void {
         winstonLogger.debug(message, this._buildMeta(meta));
     },
 
-    _buildMeta(metaOrError: LogMeta | Error): LogMeta {
+    _buildMeta(metaOrError: LogMeta | Error | unknown): LogMeta {
         // Get correlation context
         const contextFields = loadCorrelationId()();
 
@@ -219,27 +219,41 @@ const logger: Logger = {
             };
         }
 
-        // Handle metadata objects
-        return {
-            ...contextFields,
-            ...metaOrError
-        };
+        // Handle plain objects as metadata
+        if (metaOrError && typeof metaOrError === 'object') {
+            return {
+                ...contextFields,
+                ...(metaOrError as LogMeta)
+            };
+        }
+
+        // Handle primitives (strings, numbers, etc.) — wrap as detail
+        if (metaOrError !== undefined && metaOrError !== null) {
+            return {
+                ...contextFields,
+                detail: metaOrError
+            };
+        }
+
+        return { ...contextFields };
     },
 
     child(defaultMeta: LogMeta): ChildLogger {
         const parent = this;
         return {
-            error(msg: string, meta: LogMeta = {}): void { parent.error(msg, { ...defaultMeta, ...meta }); },
-            warn(msg: string, meta: LogMeta = {}): void { parent.warn(msg, { ...defaultMeta, ...meta }); },
-            info(msg: string, meta: LogMeta = {}): void { parent.info(msg, { ...defaultMeta, ...meta }); },
-            http(msg: string, meta: LogMeta = {}): void { parent.http(msg, { ...defaultMeta, ...meta }); },
-            debug(msg: string, meta: LogMeta = {}): void { parent.debug(msg, { ...defaultMeta, ...meta }); }
+            error(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.error(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
+            warn(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.warn(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
+            info(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.info(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
+            http(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.http(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
+            debug(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.debug(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); }
         };
     }
 };
 
-module.exports = logger;
-
 export default logger;
 
 export type { ContextFields, LogMeta, ErrorMeta, ChildLogger, Logger };
+
+// CommonJS compat — lets `const logger = require('./logger')` work in tests
+module.exports = logger;
+module.exports.default = logger;
