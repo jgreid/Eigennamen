@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
+import { t } from './i18n.js';
 import type { GameHistoryEntry, ReplayData, ReplayEvent } from './multiplayerTypes.js';
 
 // PHASE 4: Replay speed options (in milliseconds between moves)
@@ -17,7 +18,7 @@ let currentReplaySpeed = '1x';
 
 export function openGameHistory(): void {
     if (!state.isMultiplayerMode || !CodenamesClient.isConnected()) {
-        showToast('Game history is only available in multiplayer mode', 'info');
+        showToast(t('history.multiplayerOnly'), 'info');
         return;
     }
 
@@ -71,7 +72,7 @@ export function renderGameHistory(games: GameHistoryEntry[]): void {
         const winnerDiv = document.createElement('div');
         const winnerClass = game.winner === 'red' ? 'red' : 'blue';
         winnerDiv.className = `history-item-winner ${winnerClass}`;
-        winnerDiv.textContent = `${winnerName} Team Wins!`;
+        winnerDiv.textContent = t('history.teamWins', { team: winnerName });
         info.appendChild(winnerDiv);
         const dateDiv = document.createElement('div');
         dateDiv.className = 'history-item-date';
@@ -94,7 +95,7 @@ export function renderGameHistory(games: GameHistoryEntry[]): void {
         stats.appendChild(scoreDiv);
         const movesDiv = document.createElement('div');
         movesDiv.className = 'history-item-moves';
-        movesDiv.textContent = `${game.moveCount || 0} moves, ${game.clueCount || 0} clues`;
+        movesDiv.textContent = t('history.moveStats', { moves: game.moveCount || 0, clues: game.clueCount || 0 });
         stats.appendChild(movesDiv);
 
         item.appendChild(info);
@@ -132,10 +133,10 @@ export function openReplay(gameId: string): void {
     const replayBoardEl = document.getElementById('replay-board');
     const replayEventLogEl = document.getElementById('replay-event-log');
     const replayProgressEl = document.getElementById('replay-progress');
-    if (replayInfoEl) replayInfoEl.innerHTML = '<p>Loading replay...</p>';
+    if (replayInfoEl) replayInfoEl.textContent = t('history.loadingReplay');
     if (replayBoardEl) replayBoardEl.innerHTML = '';
     if (replayEventLogEl) replayEventLogEl.innerHTML = '';
-    if (replayProgressEl) replayProgressEl.textContent = 'Loading...';
+    if (replayProgressEl) replayProgressEl.textContent = t('history.loading');
 
     openModal('replay-modal');
 
@@ -162,7 +163,7 @@ export function renderReplayData(data: ReplayData): void {
 
     if (!data) {
         const infoEl = document.getElementById('replay-info');
-        if (infoEl) infoEl.innerHTML = '<p>Could not load replay data.</p>';
+        if (infoEl) infoEl.textContent = t('history.couldNotLoad');
         return;
     }
 
@@ -174,10 +175,11 @@ export function renderReplayData(data: ReplayData): void {
         const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
         winnerBadge.className = `winner-badge ${replayWinnerClass}`;
         const finalWinner = data.finalState?.winner || '';
-        winnerBadge.textContent = `${(data.teamNames && finalWinner ? data.teamNames[finalWinner] : undefined) || finalWinner || 'Unknown'} Team Wins!`;
+        const winnerTeamName = (data.teamNames && finalWinner ? data.teamNames[finalWinner] : undefined) || finalWinner || 'Unknown';
+        winnerBadge.textContent = t('history.teamWins', { team: winnerTeamName });
         replayInfo.appendChild(winnerBadge);
         const durationSpan = document.createElement('span');
-        durationSpan.textContent = `Duration: ${formatDuration(data.duration || 0)} | ${data.totalMoves || 0} moves`;
+        durationSpan.textContent = t('history.duration', { duration: formatDuration(data.duration || 0), moves: data.totalMoves || 0 });
         replayInfo.appendChild(durationSpan);
     }
 
@@ -201,7 +203,7 @@ export function renderReplayBoard(): void {
 
     board.innerHTML = '';
     board.setAttribute('role', 'grid');
-    board.setAttribute('aria-label', 'Replay game board');
+    board.setAttribute('aria-label', t('history.replayBoard'));
 
     words.forEach((word: string, index: number) => {
         const card = document.createElement('div');
@@ -210,7 +212,7 @@ export function renderReplayBoard(): void {
         card.textContent = word;
         card.setAttribute('role', 'gridcell');
         card.setAttribute('tabindex', index === 0 ? '0' : '-1');
-        card.setAttribute('aria-label', `Card ${index + 1}: ${word}`);
+        card.setAttribute('aria-label', t('history.cardLabel', { number: index + 1, word }));
         board.appendChild(card);
     });
 
@@ -276,7 +278,11 @@ export function renderReplayEventLog(): void {
     const events = state.currentReplayData?.events || [];
 
     if (events.length === 0) {
-        logEl.innerHTML = '<p style="opacity: 0.5;">No events recorded.</p>';
+        logEl.innerHTML = '';
+        const noEventsP = document.createElement('p');
+        noEventsP.style.opacity = '0.5';
+        noEventsP.textContent = t('history.noEvents');
+        logEl.appendChild(noEventsP);
         return;
     }
 
@@ -288,19 +294,19 @@ export function renderReplayEventLog(): void {
 
         switch (event.type) {
             case 'clue':
-                actionText = 'gave clue';
+                actionText = t('history.gaveClue');
                 detailText = `"${event.data?.word || ''}" for ${event.data?.number ?? ''}`;
                 break;
             case 'reveal':
-                actionText = 'revealed';
+                actionText = t('history.revealed');
                 detailText = `${event.data?.word || ''} (${event.data?.type || ''})`;
                 break;
             case 'endTurn':
-                actionText = 'ended turn';
+                actionText = t('history.endedTurn');
                 break;
             case 'forfeit':
-                actionText = 'forfeited';
-                detailText = `${event.data?.winner || ''} wins`;
+                actionText = t('history.forfeited');
+                detailText = t('history.winsShort', { team: event.data?.winner || '' });
                 break;
             default:
                 actionText = event.type || '';
@@ -342,7 +348,7 @@ export function updateReplayControls(): void {
     if (prevBtn) prevBtn.disabled = state.currentReplayIndex < 0;
     if (nextBtn) nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
     if (playBtn) playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
-    if (progressEl) progressEl.textContent = `Move ${state.currentReplayIndex + 1} / ${events.length}`;
+    if (progressEl) progressEl.textContent = t('history.moveProgress', { current: state.currentReplayIndex + 1, total: events.length });
 }
 
 // Use event delegation on the replay controls to avoid listener accumulation.
@@ -456,13 +462,13 @@ export function cycleReplaySpeed(): void {
         startReplayInterval();
     }
 
-    showToast(`Playback speed: ${currentReplaySpeed}`, 'info');
+    showToast(t('toast.replaySpeed', { speed: currentReplaySpeed }), 'info');
 }
 
 // PHASE 4: Copy shareable replay link to clipboard
 export async function copyReplayLink(): Promise<void> {
     if (!state.currentReplayData?.id) {
-        showToast('No replay data available', 'error');
+        showToast(t('toast.noReplayData'), 'error');
         return;
     }
 
@@ -479,9 +485,9 @@ export async function copyReplayLink(): Promise<void> {
     // Copy to clipboard using shared utility
     const copied = await copyToClipboard(url.toString());
     if (copied) {
-        showToast('Replay link copied to clipboard!', 'success');
+        showToast(t('toast.replayLinkCopied'), 'success');
     } else {
-        showToast('Could not copy link', 'error');
+        showToast(t('toast.couldNotCopyLink'), 'error');
     }
 }
 
@@ -512,9 +518,9 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
         const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`);
         if (!response.ok) {
             if (response.status === 404) {
-                showToast('Replay not found or expired', 'error');
+                showToast(t('toast.replayNotFound'), 'error');
             } else {
-                showToast('Failed to load replay', 'error');
+                showToast(t('toast.replayFailed'), 'error');
             }
             return false;
         }
@@ -522,7 +528,7 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
         const data = await response.json();
         if (data.replay) {
             renderReplayData(data);
-            showToast('Replay loaded from shared link', 'success');
+            showToast(t('toast.replayLoaded'), 'success');
 
             // Clean replay params from URL to prevent re-loading on refresh
             const url = new URL(window.location.href);
@@ -534,7 +540,7 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
         }
     } catch (error) {
         console.error('Failed to load shared replay:', error);
-        showToast('Failed to load shared replay', 'error');
+        showToast(t('toast.sharedReplayFailed'), 'error');
     }
     return false;
 }

@@ -37,7 +37,7 @@ export function updateRoleBanner() {
     const banner = state.cachedElements.roleBanner || document.getElementById('role-banner');
     if (!banner)
         return;
-    const hostBadge = state.isHost ? '<span class="host-badge">Host</span>' : '';
+    const hostBadge = state.isHost ? `<span class="host-badge">${escapeHTML(t('multiplayer.host'))}</span>` : '';
     // Determine role and team for config lookup
     let role = null;
     let team = null;
@@ -63,11 +63,11 @@ export function updateRoleBanner() {
     }
     else if (state.isHost) {
         banner.className = 'role-banner host';
-        banner.innerHTML = `<span class="host-badge">Host</span> Spectator`;
+        banner.innerHTML = `<span class="host-badge">${escapeHTML(t('multiplayer.host'))}</span> ${escapeHTML(t('roles.spectator'))}`;
     }
     else {
         banner.className = 'role-banner viewer';
-        banner.innerHTML = `Spectator`;
+        banner.innerHTML = escapeHTML(t('roles.spectator'));
     }
 }
 export function updateControls() {
@@ -185,7 +185,7 @@ export function setTeam(team) {
         // ISSUE FIX: Must be in a room before setting team
         if (!CodenamesClient.isInRoom()) {
             logger.warn('setTeam: Not in a room yet, ignoring');
-            showToast('Please wait - joining room...', 'info');
+            showToast(t('multiplayer.waitJoiningRoom'), 'info');
             return;
         }
         // Prevent double-click while request in progress
@@ -236,7 +236,7 @@ export function setTeam(team) {
     // Standalone mode: update local state directly
     // When changing teams, clear any team-specific roles
     const hadRole = state.spymasterTeam || state.clickerTeam;
-    const oldRole = state.spymasterTeam ? 'Spymaster' : (state.clickerTeam ? 'Clicker' : null);
+    const oldRole = state.spymasterTeam ? t('roles.spymaster') : (state.clickerTeam ? t('roles.clicker') : null);
     if (state.playerTeam !== team) {
         if (state.spymasterTeam)
             state.spymasterTeam = null;
@@ -248,8 +248,8 @@ export function setTeam(team) {
     // Announce role change to screen reader if role was cleared
     if (hadRole && oldRole) {
         // Use nullish coalescing for safe team name access
-        const teamName = (team && state.teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : 'Spectator');
-        announceToScreenReader(`${oldRole} role cleared. Now on ${teamName} team.`);
+        const teamName = (team && state.teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : t('roles.spectator'));
+        announceToScreenReader(t('game.roleCleared', { role: oldRole, team: teamName }));
     }
 }
 // ---- Shared role setter (eliminates duplication between setSpymaster/setClicker) ----
@@ -272,7 +272,7 @@ function setRoleForTeam(team, roleName, getOwnState, setOwnState, clearOther) {
     if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
         if (!CodenamesClient.isInRoom()) {
             logger.warn(`set${roleName}: Not in a room yet, ignoring`);
-            showToast('Please wait - joining room...', 'info');
+            showToast(t('multiplayer.waitJoiningRoom'), 'info');
             return;
         }
         if (isChangingRole()) {

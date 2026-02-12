@@ -61,7 +61,14 @@
     "joinTeamToClick": "Únete a un equipo y conviértete en agente de campo para revelar cartas",
     "onlyClickerCanReveal": "Solo el agente de campo puede revelar cartas",
     "onlyClickerCanEndTurn": "Solo los agentes de campo pueden terminar el turno",
-    "gameOverStartNew": "La partida ha terminado – inicia una nueva partida para continuar"
+    "gameOverStartNew": "La partida ha terminado – inicia una nueva partida para continuar",
+    "invalidWordCount": "Partida no válida: se necesitan exactamente {{count}} palabras",
+    "notEnoughWords": "¡No hay suficientes palabras! Necesitas al menos {{count}} palabras para jugar. Añade más en Ajustes.",
+    "turnEndedAnnounce": "Turno terminado. Ahora es el turno de {{team}}.",
+    "wordRevealedAs": "{{word}} revelada como {{type}}",
+    "roleCleared": "Rol de {{role}} eliminado. Ahora en el equipo {{team}}.",
+    "copy": "Copiar",
+    "copiedShort": "¡Copiado!"
   },
   "board": {
     "clickToReveal": "Clic para revelar",
@@ -72,7 +79,8 @@
     "teamCard": "carta del equipo {{type}}",
     "revealedCardLabel": "{{word}}, revelada como {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, carta sin revelar. {{position}}. Pulsa Enter para revelar.",
-    "boardAriaLabel": "Tablero de Codenames – cuadrícula de 5 por 5 con cartas de palabras"
+    "boardAriaLabel": "Tablero de Codenames – cuadrícula de 5 por 5 con cartas de palabras",
+    "renderError": "Error de renderizado. Inicia una nueva partida."
   },
   "timer": {
     "remaining": "restante",
@@ -123,7 +131,13 @@
     "offline": "desconectado",
     "you": "tú",
     "kick": "Expulsar",
-    "kickPlayer": "Expulsar jugador"
+    "kickPlayer": "Expulsar jugador",
+    "waitJoiningRoom": "Por favor espera – uniéndose a la sala...",
+    "playerCount": "{{count}} jugadores",
+    "playerCountOne": "1 jugador",
+    "spectatorChatOnly": "Solo los espectadores pueden usar el chat de espectadores",
+    "nicknameLength": "El apodo debe tener {{min}}-{{max}} caracteres",
+    "nicknameCharsOnly": "Solo se permiten letras, números, espacios, guiones y guiones bajos"
   },
   "settings": {
     "title": "Ajustes",
@@ -158,6 +172,7 @@
     "status": "Estado",
     "waiting": "Esperando",
     "inProgress": "En curso",
+    "gameOver": "Fin de la partida",
     "gameMode": "Modo de juego",
     "gameModeHint": "Elige cómo quieres jugar.",
     "classic": "Clásico",
@@ -175,7 +190,13 @@
     "defaultOnly": "Solo predeterminadas",
     "enterWords": "Introduce palabras personalizadas (una por línea)",
     "wordCount": "{{count}} palabras",
-    "minWords": "Se necesitan al menos 25 palabras"
+    "minWords": "Se necesitan al menos 25 palabras",
+    "usingDefault": "Usando {{count}} palabras predeterminadas",
+    "customPlusDefault": "{{custom}} personalizadas + {{default}} predeterminadas = {{total}} palabras únicas",
+    "zeroWords": "0 palabras (se necesitan al menos {{min}})",
+    "tooFewWords": "{{count}} palabras (se necesitan al menos {{min}})",
+    "lowVariety": "{{count}} palabras (funciona, pero más variedad es mejor)",
+    "customWordCount": "{{count}} palabras personalizadas"
   },
   "rules": {
     "intro": "Dos equipos compiten por encontrar todas sus palabras. Los Jefes de espías dan pistas, los Agentes revelan cartas.",
@@ -204,7 +225,8 @@
     "send": "Enviar",
     "teamOnly": "Solo equipo",
     "spectatorChat": "Chat de espectadores",
-    "noMessages": "Sin mensajes todavia"
+    "noMessages": "Sin mensajes todavia",
+    "spectatorMessage": "Mensaje de espectador"
   },
   "errors": {
     "connectionFailed": "Error al conectar con el servidor",
@@ -218,6 +240,58 @@
     "gameStarted": "¡Nueva partida iniciada!",
     "blitzGameStarted": "¡Partida Blitz iniciada!",
     "copied": "¡Copiado al portapapeles!",
-    "linkCopied": "¡Enlace copiado!"
+    "linkCopied": "¡Enlace copiado!",
+    "failedToCopy": "Error al copiar – copia manualmente",
+    "failedToCopyShort": "Error al copiar",
+    "roomCodeCopied": "¡Código de sala copiado!",
+    "roomCodeCopiedClipboard": "Código de sala copiado al portapapeles",
+    "roomIdCopied": "¡ID de sala copiado!",
+    "replayLinkCopied": "¡Enlace de replay copiado al portapapeles!",
+    "couldNotCopyLink": "No se pudo copiar el enlace",
+    "replaySpeed": "Velocidad de reproducción: {{speed}}",
+    "replayLoaded": "Replay cargado desde enlace compartido",
+    "replayNotFound": "Replay no encontrado o expirado",
+    "replayFailed": "Error al cargar el replay",
+    "sharedReplayFailed": "Error al cargar el replay compartido",
+    "noReplayData": "No hay datos de replay disponibles"
+  },
+  "history": {
+    "multiplayerOnly": "El historial solo está disponible en modo multijugador",
+    "teamWins": "¡El equipo {{team}} gana!",
+    "moveStats": "{{moves}} movimientos, {{clues}} pistas",
+    "loadingReplay": "Cargando replay...",
+    "loading": "Cargando...",
+    "couldNotLoad": "No se pudieron cargar los datos del replay.",
+    "duration": "Duración: {{duration}} | {{moves}} movimientos",
+    "replayBoard": "Tablero de replay",
+    "cardLabel": "Carta {{number}}: {{word}}",
+    "noEvents": "No hay eventos registrados.",
+    "moveProgress": "Movimiento {{current}} / {{total}}",
+    "gaveClue": "dio pista",
+    "revealed": "reveló",
+    "endedTurn": "terminó turno",
+    "forfeited": "se rindió",
+    "winsShort": "{{team}} gana"
+  },
+  "notifications": {
+    "yourTurn": "Tu turno – Codenames"
+  },
+  "forfeit": {
+    "multiplayerOnly": "Rendirse solo está disponible en modo multijugador",
+    "hostOnly": "Solo el anfitrión puede rendirse",
+    "gameAlreadyOver": "La partida ya ha terminado"
+  },
+  "accessibility": {
+    "keyboardShortcuts": "Atajos de teclado",
+    "newGame": "Nueva partida",
+    "endTurn": "Terminar turno",
+    "settings": "Ajustes",
+    "playOnline": "Jugar en línea",
+    "gameHistory": "Historial",
+    "showShortcuts": "Mostrar atajos",
+    "closeOverlay": "Cerrar modal / overlay",
+    "navigateBoard": "Navegar cartas del tablero",
+    "revealCard": "Revelar carta seleccionada",
+    "toggleHint": "Pulsa ? para alternar este overlay"
   }
 }

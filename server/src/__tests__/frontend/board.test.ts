@@ -678,7 +678,7 @@ describe('updateSingleCard(index)', () => {
     it('updates aria-label with revealed info', () => {
         updateSingleCard(0);
         const card = boardEl.children[0] as HTMLElement;
-        expect(card.getAttribute('aria-label')).toBe('AFRICA, revealed as red');
+        expect(card.getAttribute('aria-label')).toBe('AFRICA, revealed as red team card. Row 1, column 1');
     });
 
     it('adds success-reveal class when lastRevealedWasCorrect is true', () => {

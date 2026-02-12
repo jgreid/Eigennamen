@@ -2,6 +2,7 @@
 // Handles chat UI: toggle, send messages, render incoming messages
 
 import type { ChatMessageData } from './multiplayerTypes.js';
+import { t } from './i18n.js';
 // CodenamesClient is a global declared in globals.d.ts (loaded via <script>)
 
 let unreadCount = 0;
@@ -98,7 +99,7 @@ export function handleChatMessage(data: ChatMessageData): void {
         const badgeEl = document.createElement('span');
         badgeEl.className = 'chat-badge';
         badgeEl.textContent = '🔒';
-        badgeEl.title = 'Team only';
+        badgeEl.title = t('chat.teamOnly');
         messageEl.appendChild(badgeEl);
     }
 
@@ -107,7 +108,7 @@ export function handleChatMessage(data: ChatMessageData): void {
         const badgeEl = document.createElement('span');
         badgeEl.className = 'chat-badge spectator-badge';
         badgeEl.textContent = '👁';
-        badgeEl.title = 'Spectator';
+        badgeEl.title = t('chat.spectatorMessage');
         messageEl.appendChild(badgeEl);
     }
 

@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
+import { t } from './i18n.js';
 
 const CB_STORAGE_KEY = 'codenames-colorblind';
 const KB_STORAGE_KEY = 'codenames-keyboard-shortcuts';
@@ -30,13 +31,13 @@ function applyColorBlindMode(enabled: boolean): void {
 
 // ========== KEYBOARD SHORTCUTS ==========
 
-const SHORTCUTS: Record<string, { action: string; description: string }> = {
-    'n': { action: 'confirm-new-game', description: 'New Game' },
-    'e': { action: 'confirm-end-turn', description: 'End Turn' },
-    's': { action: 'open-settings', description: 'Settings' },
-    'm': { action: 'open-multiplayer', description: 'Play Online' },
-    'h': { action: 'open-history', description: 'Game History' },
-    '?': { action: 'show-shortcuts', description: 'Show Shortcuts' }
+const SHORTCUTS: Record<string, { action: string; descKey: string }> = {
+    'n': { action: 'confirm-new-game', descKey: 'accessibility.newGame' },
+    'e': { action: 'confirm-end-turn', descKey: 'accessibility.endTurn' },
+    's': { action: 'open-settings', descKey: 'accessibility.settings' },
+    'm': { action: 'open-multiplayer', descKey: 'accessibility.playOnline' },
+    'h': { action: 'open-history', descKey: 'accessibility.gameHistory' },
+    '?': { action: 'show-shortcuts', descKey: 'accessibility.showShortcuts' }
 };
 
 const shortcutsEnabled = true;
@@ -111,23 +112,23 @@ function toggleShortcutOverlay(): void {
     overlayElement = document.createElement('div');
     overlayElement.className = 'keyboard-shortcuts-overlay';
     overlayElement.setAttribute('role', 'dialog');
-    overlayElement.setAttribute('aria-label', 'Keyboard shortcuts');
+    overlayElement.setAttribute('aria-label', t('accessibility.keyboardShortcuts'));
 
     const panel = document.createElement('div');
     panel.className = 'shortcuts-panel';
 
     const heading = document.createElement('h3');
-    heading.textContent = 'Keyboard Shortcuts';
+    heading.textContent = t('accessibility.keyboardShortcuts');
     panel.appendChild(heading);
 
     // Dynamic shortcuts from SHORTCUTS config
-    for (const [key, { description }] of Object.entries(SHORTCUTS)) {
+    for (const [key, { descKey }] of Object.entries(SHORTCUTS)) {
         const row = document.createElement('div');
         row.className = 'shortcut-row';
         const kbd = document.createElement('kbd');
         kbd.textContent = key === '?' ? '?' : key.toUpperCase();
         const span = document.createElement('span');
-        span.textContent = description;
+        span.textContent = t(descKey);
         row.appendChild(kbd);
         row.appendChild(span);
         panel.appendChild(row);
@@ -135,9 +136,9 @@ function toggleShortcutOverlay(): void {
 
     // Static shortcut entries
     const staticShortcuts: [string, string][] = [
-        ['ESC', 'Close modal / this overlay'],
-        ['↑↓←→', 'Navigate board cards'],
-        ['ENTER', 'Reveal selected card']
+        ['ESC', t('accessibility.closeOverlay')],
+        ['↑↓←→', t('accessibility.navigateBoard')],
+        ['ENTER', t('accessibility.revealCard')]
     ];
     for (const [keyText, desc] of staticShortcuts) {
         const row = document.createElement('div');
@@ -153,11 +154,7 @@ function toggleShortcutOverlay(): void {
 
     const hint = document.createElement('p');
     hint.className = 'shortcuts-hint';
-    hint.textContent = 'Press ';
-    const hintKbd = document.createElement('kbd');
-    hintKbd.textContent = '?';
-    hint.appendChild(hintKbd);
-    hint.append(' to toggle this overlay');
+    hint.textContent = t('accessibility.toggleHint');
     panel.appendChild(hint);
 
     overlayElement.appendChild(panel);

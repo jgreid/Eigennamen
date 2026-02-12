@@ -14,7 +14,7 @@ describe('ReDoS regression tests', () => {
 
     const SAFE_TIMEOUT_MS = 50;
 
-    function assertFastExecution(regex: RegExp, input: string, label: string): void {
+    function assertFastExecution(regex: RegExp, input: string, _label: string): void {
         const start = performance.now();
         regex.test(input);
         const elapsed = performance.now() - start;

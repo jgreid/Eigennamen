@@ -61,7 +61,14 @@
     "joinTeamToClick": "Join a team and become a clicker to reveal cards",
     "onlyClickerCanReveal": "Only the clicker can reveal cards",
     "onlyClickerCanEndTurn": "Only clickers can end the turn",
-    "gameOverStartNew": "Game is over - start a new game to continue"
+    "gameOverStartNew": "Game is over - start a new game to continue",
+    "invalidWordCount": "Invalid game: need exactly {{count}} words",
+    "notEnoughWords": "Not enough words! You need at least {{count}} words to play. Please add more words in Settings.",
+    "turnEndedAnnounce": "Turn ended. Now {{team}}'s turn.",
+    "wordRevealedAs": "{{word}} revealed as {{type}}",
+    "roleCleared": "{{role}} role cleared. Now on {{team}} team.",
+    "copy": "Copy",
+    "copiedShort": "Copied!"
   },
   "board": {
     "clickToReveal": "Click to reveal",
@@ -72,7 +79,8 @@
     "teamCard": "{{type}} team card",
     "revealedCardLabel": "{{word}}, revealed as {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, unrevealed card. {{position}}. Press Enter to reveal.",
-    "boardAriaLabel": "Codenames game board - 5 by 5 grid of word cards"
+    "boardAriaLabel": "Codenames game board - 5 by 5 grid of word cards",
+    "renderError": "Board rendering error. Please start a new game."
   },
   "timer": {
     "remaining": "remaining",
@@ -123,7 +131,13 @@
     "offline": "offline",
     "you": "you",
     "kick": "Kick",
-    "kickPlayer": "Kick player"
+    "kickPlayer": "Kick player",
+    "waitJoiningRoom": "Please wait - joining room...",
+    "playerCount": "{{count}} players",
+    "playerCountOne": "1 player",
+    "spectatorChatOnly": "Only spectators can use spectator chat",
+    "nicknameLength": "Nickname must be {{min}}-{{max}} characters",
+    "nicknameCharsOnly": "Only letters, numbers, spaces, hyphens and underscores allowed"
   },
   "settings": {
     "title": "Settings",
@@ -158,6 +172,7 @@
     "status": "Status",
     "waiting": "Waiting",
     "inProgress": "In Progress",
+    "gameOver": "Game Over",
     "gameMode": "Game Mode",
     "gameModeHint": "Choose how you want to play.",
     "classic": "Classic",
@@ -175,7 +190,13 @@
     "defaultOnly": "Default Only",
     "enterWords": "Enter custom words (one per line)",
     "wordCount": "{{count}} words",
-    "minWords": "Need at least 25 words"
+    "minWords": "Need at least 25 words",
+    "usingDefault": "Using {{count}} default words",
+    "customPlusDefault": "{{custom}} custom + {{default}} default = {{total}} unique words",
+    "zeroWords": "0 words (need at least {{min}})",
+    "tooFewWords": "{{count}} words (need at least {{min}})",
+    "lowVariety": "{{count}} words (works, but more variety is better)",
+    "customWordCount": "{{count}} custom words"
   },
   "rules": {
     "intro": "Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.",
@@ -204,7 +225,8 @@
     "send": "Send",
     "teamOnly": "Team only",
     "spectatorChat": "Spectator chat",
-    "noMessages": "No messages yet"
+    "noMessages": "No messages yet",
+    "spectatorMessage": "Spectator message"
   },
   "errors": {
     "connectionFailed": "Failed to connect to server",
@@ -218,6 +240,58 @@
     "gameStarted": "New game started!",
     "blitzGameStarted": "Blitz game started!",
     "copied": "Copied to clipboard!",
-    "linkCopied": "Link copied!"
+    "linkCopied": "Link copied!",
+    "failedToCopy": "Failed to copy - please copy manually",
+    "failedToCopyShort": "Failed to copy",
+    "roomCodeCopied": "Room code copied!",
+    "roomCodeCopiedClipboard": "Room code copied to clipboard",
+    "roomIdCopied": "Room ID copied!",
+    "replayLinkCopied": "Replay link copied to clipboard!",
+    "couldNotCopyLink": "Could not copy link",
+    "replaySpeed": "Playback speed: {{speed}}",
+    "replayLoaded": "Replay loaded from shared link",
+    "replayNotFound": "Replay not found or expired",
+    "replayFailed": "Failed to load replay",
+    "sharedReplayFailed": "Failed to load shared replay",
+    "noReplayData": "No replay data available"
+  },
+  "history": {
+    "multiplayerOnly": "Game history is only available in multiplayer mode",
+    "teamWins": "{{team}} Team Wins!",
+    "moveStats": "{{moves}} moves, {{clues}} clues",
+    "loadingReplay": "Loading replay...",
+    "loading": "Loading...",
+    "couldNotLoad": "Could not load replay data.",
+    "duration": "Duration: {{duration}} | {{moves}} moves",
+    "replayBoard": "Replay game board",
+    "cardLabel": "Card {{number}}: {{word}}",
+    "noEvents": "No events recorded.",
+    "moveProgress": "Move {{current}} / {{total}}",
+    "gaveClue": "gave clue",
+    "revealed": "revealed",
+    "endedTurn": "ended turn",
+    "forfeited": "forfeited",
+    "winsShort": "{{team}} wins"
+  },
+  "notifications": {
+    "yourTurn": "Your Turn - Codenames"
+  },
+  "forfeit": {
+    "multiplayerOnly": "Forfeit is only available in multiplayer mode",
+    "hostOnly": "Only the host can forfeit the game",
+    "gameAlreadyOver": "The game is already over"
+  },
+  "accessibility": {
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "newGame": "New Game",
+    "endTurn": "End Turn",
+    "settings": "Settings",
+    "playOnline": "Play Online",
+    "gameHistory": "Game History",
+    "showShortcuts": "Show Shortcuts",
+    "closeOverlay": "Close modal / this overlay",
+    "navigateBoard": "Navigate board cards",
+    "revealCard": "Reveal selected card",
+    "toggleHint": "Press ? to toggle this overlay"
   }
 }

@@ -117,7 +117,7 @@ export function renderBoard() {
         board.innerHTML = '';
         // Board-level accessibility: grid role and description
         board.setAttribute('role', 'grid');
-        board.setAttribute('aria-label', 'Codenames game board - 5 by 5 grid of word cards');
+        board.setAttribute('aria-label', t('board.boardAriaLabel'));
         state.gameState.words.forEach((word, index) => {
             const card = document.createElement('div');
             const fontClass = getCardFontClass(word);
@@ -156,7 +156,11 @@ export function renderBoard() {
     catch (err) {
         console.error('renderBoard failed:', err);
         // Show a minimal fallback so the board area isn't blank
-        board.innerHTML = '<div class="board-error">Board rendering error. Please start a new game.</div>';
+        board.innerHTML = '';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'board-error';
+        errorDiv.textContent = t('board.renderError');
+        board.appendChild(errorDiv);
     }
 }
 // Incremental update - only update changed cards (much faster)
@@ -247,7 +251,10 @@ export function updateSingleCard(index) {
     const type = state.gameState.types[index];
     card.classList.add('revealed', type);
     card.setAttribute('tabindex', '-1');
-    card.setAttribute('aria-label', `${state.gameState.words[index]}, revealed as ${type}`);
+    const word = state.gameState.words[index];
+    const row = Math.floor(index / 5) + 1;
+    const col = (index % 5) + 1;
+    card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
     // Add animation class
     if (state.lastRevealedWasCorrect) {
         card.classList.add('success-reveal');

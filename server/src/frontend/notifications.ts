@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
+import { t } from './i18n.js';
 
 // Load notification preferences from localStorage
 export function loadNotificationPrefs(): void {
@@ -100,7 +101,7 @@ export function playTone(ctx: AudioContext, startTime: number, frequency: number
 // Update browser tab title with notification
 export function setTabNotification(isYourTurn: boolean): void {
     if (isYourTurn && state.notificationPrefs.tabNotificationEnabled) {
-        document.title = '🔴 Your Turn - Codenames';
+        document.title = '🔴 ' + t('notifications.yourTurn');
     } else {
         document.title = state.originalDocumentTitle;
     }
