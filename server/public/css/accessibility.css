@@ -323,6 +323,18 @@ body.colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
     color: #e65100;
 }
 
+/* ========== REDUCED MOTION (WCAG 2.1 AA) ========== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* ========== KEYBOARD SHORTCUTS OVERLAY ========== */
 .keyboard-shortcuts-overlay {
     position: fixed;

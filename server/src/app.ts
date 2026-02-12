@@ -331,7 +331,7 @@ interface MetricsResponse {
     };
     application?: Record<string, unknown> | { status: string; error: string };
     rateLimits?: {
-        http: Record<string, unknown>;
+        http?: Record<string, unknown>;
         socket: Record<string, unknown> | { status: string };
     };
 }

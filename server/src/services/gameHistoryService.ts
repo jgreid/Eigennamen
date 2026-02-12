@@ -11,7 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 const { tryParseJSON } = require('../utils/parseJSON');
 const { z } = require('zod');
 
-import type { Team, CardType, RedisClient, RedisMulti } from '../types';
+import type { Team, CardType, RedisClient } from '../types';
 
 // Zod schema for GameHistoryEntry deserialization validation.
 // Validates critical fields when present; non-essential fields are optional.

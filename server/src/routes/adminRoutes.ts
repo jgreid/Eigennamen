@@ -228,13 +228,15 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
         let roomCount = 0;
         try {
             const redis: RedisClient = getRedis();
-            let cursor = '0';
-            do {
-                const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
-                cursor = result.cursor.toString();
-                // Filter to only room codes (excluding sub-keys like room:abc:players)
-                roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
-            } while (cursor !== '0');
+            if (redis.scan) {
+                let cursor = '0';
+                do {
+                    const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
+                    cursor = result.cursor.toString();
+                    // Filter to only room codes (excluding sub-keys like room:abc:players)
+                    roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
+                } while (cursor !== '0');
+            }
         } catch (error) {
             logger.warn('Failed to count rooms', { error: (error as Error).message });
         }
@@ -291,6 +293,10 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
 router.get('/api/rooms', async (_req: Request, res: Response) => {
     try {
         const redis: RedisClient = getRedis();
+        if (!redis.scan) {
+            res.json({ count: 0, rooms: [] });
+            return;
+        }
         // Use SCAN to avoid blocking Redis
         const validRoomKeys: string[] = [];
         let cursor = '0';

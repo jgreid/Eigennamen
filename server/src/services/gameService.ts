@@ -72,11 +72,8 @@ return 'OK'
 
 // Focused modules
 const {
-    seededRandom,
     hashString,
-    shuffleWithSeed,
     generateSeed,
-    generateDuetBoard,
     generateBoardLayout,
     selectBoardWords
 } = require('./game/boardGenerator');
@@ -87,13 +84,12 @@ const {
     validateCardIndex,
     validateRevealPreconditions,
     executeCardReveal,
-    switchTurn,
     determineRevealOutcome,
     buildRevealResult,
     getGameStateForPlayer
 } = require('./game/revealEngine');
 
-import type { RedisClient } from './game/luaGameOps';
+import type { RedisClient, withLuaFallback as WithLuaFallbackFn, executeGameTransaction as ExecuteGameTransactionFn } from './game/luaGameOps';
 
 const {
     OPTIMIZED_REVEAL_SCRIPT,
@@ -106,7 +102,18 @@ const {
     incrementVersion,
     withLuaFallback,
     executeGameTransaction
-} = require('./game/luaGameOps');
+} = require('./game/luaGameOps') as {
+    OPTIMIZED_REVEAL_SCRIPT: string;
+    OPTIMIZED_GIVE_CLUE_SCRIPT: string;
+    OPTIMIZED_END_TURN_SCRIPT: string;
+    gameStateSchema: unknown;
+    MAX_HISTORY_ENTRIES: number;
+    MAX_CLUES: number;
+    safeParseGameData: (data: string, roomCode: string) => GameState | null;
+    incrementVersion: (game: GameState) => number;
+    withLuaFallback: typeof WithLuaFallbackFn;
+    executeGameTransaction: typeof ExecuteGameTransactionFn;
+};
 
 // Re-export types for consumers
 export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };

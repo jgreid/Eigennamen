@@ -5,7 +5,7 @@
  * copy-pasted across revealCard, giveClue, and endTurn.
  */
 
-import type { GameState, RedisClient as SharedRedisClient, RedisMulti } from '../../types';
+import type { GameState, RedisClient as SharedRedisClient } from '../../types';
 
 const fs = require('fs');
 const path = require('path');
@@ -75,7 +75,8 @@ export const MAX_CLUES: number = GAME_HISTORY.MAX_CLUES;
 const MAX_TRANSACTION_RETRIES: number = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 
 // RedisClient imported from '../../types' (shared across all services)
-export type { SharedRedisClient as RedisClient };
+type RedisClient = SharedRedisClient;
+export type { RedisClient };
 
 /** Type signature for executeLuaScript (used by gameService's require()-based import). */
 export type ExecuteLuaScript = <T>(

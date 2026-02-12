@@ -14,7 +14,7 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { Player, GameState, TimerCallback, RedisSetOptions, LuaEvalOptions, RedisClient } from '../types';
+import type { Player, GameState, TimerCallback, RedisClient } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
