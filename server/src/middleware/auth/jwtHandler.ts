@@ -10,6 +10,7 @@ import type { Socket } from 'socket.io';
 
 import logger from '../../utils/logger';
 import { verifyTokenWithClaims, isJwtEnabled, JWT_ERROR_CODES } from '../../config/jwt';
+import type { TokenVerificationResult, JwtPayload } from '../../config/jwt';
 
 import type { SessionValidationResult } from './sessionValidator';
 
@@ -24,25 +25,6 @@ interface AuthSocket extends Socket {
     jwtVerified?: boolean;
     jwtExpired?: boolean;
     ipMismatch?: boolean;
-}
-
-/**
- * JWT payload structure
- */
-interface JwtPayload {
-    userId: string;
-    sessionId?: string;
-    [key: string]: unknown;
-}
-
-/**
- * Token verification result
- */
-interface TokenVerificationResult {
-    valid: boolean;
-    decoded?: JwtPayload;
-    error?: string;
-    message?: string;
 }
 
 /**

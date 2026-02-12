@@ -255,7 +255,7 @@ describe('Extended Health Routes', () => {
             pubSubHealth.getHealth.mockReturnValue({
                 isHealthy: false,
                 consecutiveFailures: 10,
-                lastError: 'Connection timeout'
+                lastError: { type: 'error', message: 'Connection timeout', timestamp: Date.now() }
             });
 
             const response = await request(app)

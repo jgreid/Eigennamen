@@ -93,7 +93,7 @@ const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID |
 const consoleFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
     winston.format.colorize({ all: true }),
-    winston.format.printf((info: { timestamp: string; level: string; message: string; [key: string]: unknown }) => {
+    winston.format.printf((info) => {
         const { timestamp, level, message, ...meta } = info;
 
         // Build context string from metadata

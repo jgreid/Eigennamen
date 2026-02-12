@@ -85,7 +85,7 @@ async function sendTimerStatus(
 ): Promise<void> {
     try {
         const { getTimerStatus } = getSocketFunctions();
-        const timerStatus: TimerStatus | null = await getTimerStatus(roomCode);
+        const timerStatus: TimerStatus | null = await getTimerStatus(roomCode) as unknown as TimerStatus | null;
         if (timerStatus && timerStatus.endTime) {
             socket.emit(SOCKET_EVENTS.TIMER_STATUS, {
                 roomCode,
@@ -195,7 +195,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                     ),
                     TIMEOUTS.JOIN_ROOM,
                     'room:join'
-                );
+                ) as { room: Room; players: Player[]; game: GameState | null; player: Player };
             } catch (error) {
                 // Track failed attempt for rate limiting (prevents room enumeration)
                 if ((error as { code?: string }).code === ERROR_CODES.ROOM_NOT_FOUND ||
@@ -270,7 +270,8 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // Invalidate reconnection token when explicitly leaving
             await playerService.invalidateRoomReconnectToken(ctx.sessionId);
 
-            const result: { newHostId?: string } | null = await roomService.leaveRoom(ctx.roomCode, ctx.sessionId);
+            const leaveResult = await roomService.leaveRoom(ctx.roomCode, ctx.sessionId);
+            const result: { newHostId?: string } | null = leaveResult ? { ...leaveResult, newHostId: leaveResult.newHostId ?? undefined } : null;
 
             // Leave all socket rooms for this room
             socket.leave(`room:${ctx.roomCode}`);

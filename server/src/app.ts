@@ -2,7 +2,7 @@
  * Express Application Configuration
  */
 
-import type { Request, Response, NextFunction, Application } from 'express';
+import type { Request, Response, NextFunction, Application, Express } from 'express';
 import type { Server as SocketServer } from 'socket.io';
 
 import express from 'express';
@@ -45,7 +45,7 @@ interface RateLimiterWithMetrics {
     getMetrics: () => Record<string, unknown>;
 }
 
-const app: ExtendedApp = express() as ExtendedApp;
+const app: ExtendedApp = express() as unknown as ExtendedApp;
 
 // Trust proxy when behind reverse proxy (Fly.io, nginx, etc.)
 // Required for accurate IP detection in rate limiting and logging
@@ -308,7 +308,7 @@ app.get('/health/live', (_req: Request, res: Response) => {
 });
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
-setupSwagger(app);
+setupSwagger(app as unknown as Express);
 
 // Metrics response interface
 interface MetricsResponse {
@@ -379,7 +379,7 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
     // Add application metrics (counters, gauges, histograms)
     try {
         const appMetrics = getAllMetrics();
-        metricsData.application = appMetrics;
+        metricsData.application = appMetrics as unknown as Record<string, unknown>;
     } catch (error) {
         logger.warn('Failed to fetch application metrics:', (error as Error).message);
         metricsData.application = {

@@ -31,7 +31,6 @@ import {
     BOARD_SIZE,
     DEFAULT_WORDS,
     REDIS_TTL,
-    ERROR_CODES,
     LOCKS,
     RETRY_CONFIG,
     GAME_INTERNALS,
@@ -199,7 +198,7 @@ export async function createGame(
         const isDuet = gameMode === 'duet';
 
         // Resolve words: direct wordList > wordListId > default
-        let words: string[] = DEFAULT_WORDS;
+        let words: string[] = [...DEFAULT_WORDS];
         let usedWordListId: string | null = null;
 
         if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {

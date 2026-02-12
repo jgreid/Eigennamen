@@ -128,7 +128,7 @@ function signToken(payload: JwtPayload, options: SignOptions = {}): string | nul
         expiresIn
     };
 
-    return jwt.sign(payload, secret, signOptions);
+    return jwt.sign(payload, secret, signOptions as jwt.SignOptions);
 }
 
 // JWT error codes for structured error handling

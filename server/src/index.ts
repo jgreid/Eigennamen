@@ -4,7 +4,6 @@
 
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketServer } from 'socket.io';
-import type { Application } from 'express';
 
 import 'dotenv/config';
 
@@ -18,7 +17,7 @@ import * as timerService from './services/timerService';
 import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
 import logger from './utils/logger';
 
-const PORT: number = getEnvInt('PORT', 3000);
+const PORT: number = getEnvInt('PORT', 3000) ?? 3000;
 
 async function startServer(): Promise<void> {
     try {
@@ -129,7 +128,7 @@ async function startServer(): Promise<void> {
         });
 
         process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-            logger.error('Unhandled rejection at:', promise, 'reason:', reason);
+            logger.error('Unhandled rejection', { promise, reason });
             // In production, terminate on unhandled rejections to avoid corrupted state
             if (process.env.NODE_ENV === 'production') {
                 shutdown('UNHANDLED_REJECTION');

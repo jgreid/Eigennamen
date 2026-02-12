@@ -176,7 +176,7 @@ async function getPlayerContext(
         throw new RoomError(
             ERROR_CODES.GAME_NOT_STARTED,
             'No active game in this room',
-            { roomCode }
+            { roomCode: roomCode ?? undefined }
         );
     }
 

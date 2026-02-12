@@ -12,7 +12,7 @@
 
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketIOServer, Socket } from 'socket.io';
-import type { TimerCallback } from '../types';
+import type { TimerCallback, TimerState } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
@@ -96,8 +96,8 @@ async function stopTurnTimer(roomCode: string): Promise<void> {
 /**
  * Get timer status for a room (async)
  */
-function getTimerStatus(roomCode: string): Promise<unknown> {
-    return timerService.getTimerStatus(roomCode);
+function getTimerStatus(roomCode: string): Promise<TimerState | null> {
+    return timerService.getTimerStatus(roomCode) as Promise<TimerState | null>;
 }
 
 /**

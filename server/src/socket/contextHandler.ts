@@ -9,6 +9,7 @@ import type { ZodSchema } from 'zod';
 import type { Player } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { PlayerContextOptions, PlayerContextResult } from './playerContext';
+import type { RoomContext, GameContext } from './handlers/types';
 
 import { getPlayerContext, syncSocketRooms } from './playerContext';
 import { createRateLimitedHandler } from './rateLimitHandler';
@@ -21,6 +22,16 @@ export interface HandlerResult {
 
 export type ContextHandlerFn<T = unknown> = (
     ctx: PlayerContextResult,
+    validated: T
+) => Promise<HandlerResult | void>;
+
+export type RoomHandlerFn<T = unknown> = (
+    ctx: RoomContext,
+    validated: T
+) => Promise<HandlerResult | void>;
+
+export type GameHandlerFn<T = unknown> = (
+    ctx: GameContext,
     validated: T
 ) => Promise<HandlerResult | void>;
 
@@ -38,7 +49,7 @@ function createContextHandler<T = unknown>(
     contextOptions: PlayerContextOptions,
     handler: ContextHandlerFn<T>
 ): RateLimitedHandler {
-    return createRateLimitedHandler(socket, eventName, async (data: unknown) => {
+    return createRateLimitedHandler(socket, eventName, async (data: unknown): Promise<void> => {
         const validated = schema ? validateInput(schema, data) as T : (data || {}) as T;
         const ctx: PlayerContextResult = await getPlayerContext(socket, contextOptions);
 
@@ -51,8 +62,6 @@ function createContextHandler<T = unknown>(
         if (result && result.player) {
             syncSocketRooms(socket, result.player, previousPlayer);
         }
-
-        return result;
     });
 }
 
@@ -61,9 +70,10 @@ function createRoomHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
     schema: ZodSchema<T> | null,
-    handler: ContextHandlerFn<T>
+    handler: RoomHandlerFn<T>
 ): RateLimitedHandler {
-    return createContextHandler(socket, eventName, schema, { requireRoom: true }, handler);
+    return createContextHandler(socket, eventName, schema, { requireRoom: true },
+        (ctx, validated) => handler(ctx as unknown as RoomContext, validated));
 }
 
 /** Host-only operations */
@@ -71,12 +81,12 @@ function createHostHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
     schema: ZodSchema<T> | null,
-    handler: ContextHandlerFn<T>
+    handler: RoomHandlerFn<T>
 ): RateLimitedHandler {
     return createContextHandler(socket, eventName, schema, {
         requireRoom: true,
         requireHost: true
-    }, handler);
+    }, (ctx, validated) => handler(ctx as unknown as RoomContext, validated));
 }
 
 /** Game operations (requires active game) */
@@ -84,12 +94,12 @@ function createGameHandler<T = unknown>(
     socket: GameSocket,
     eventName: string,
     schema: ZodSchema<T> | null,
-    handler: ContextHandlerFn<T>
+    handler: GameHandlerFn<T>
 ): RateLimitedHandler {
     return createContextHandler(socket, eventName, schema, {
         requireRoom: true,
         requireGame: true
-    }, handler);
+    }, (ctx, validated) => handler(ctx as unknown as GameContext, validated));
 }
 
 /** Pre-room operations (room:create, room:join) - no player context needed */
@@ -99,7 +109,7 @@ function createPreRoomHandler<T = unknown>(
     schema: ZodSchema<T> | null,
     handler: PreRoomHandlerFn<T>
 ): RateLimitedHandler {
-    return createRateLimitedHandler(socket, eventName, async (data: unknown) => {
+    return createRateLimitedHandler(socket, eventName, async (data: unknown): Promise<void> => {
         const validated = schema ? validateInput(schema, data) as T : (data || {}) as T;
         await handler(validated);
     });

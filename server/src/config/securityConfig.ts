@@ -56,13 +56,13 @@ export const LOCKS = {
 } as const;
 
 // Retry configuration (centralized for all retry operations)
-export const RETRY_CONFIG: Record<string, RetryConfig | { delayMs: number }> = {
+export const RETRY_CONFIG = {
     OPTIMISTIC_LOCK: { maxRetries: 3, baseDelayMs: 100 },
     REDIS_OPERATION: { maxRetries: 3, baseDelayMs: 50 },
     DISTRIBUTED_LOCK: { maxRetries: 50, baseDelayMs: 100 },
     NETWORK_REQUEST: { maxRetries: 4, baseDelayMs: 2000 },
     RACE_CONDITION: { delayMs: 100 }  // Delay between race condition retries
-};
+} as const;
 
 // Retry configuration (legacy)
 export const RETRIES = {

@@ -855,7 +855,7 @@ describe('Health Routes (/api/health)', () => {
             pubSubHealth.getHealth = jest.fn().mockReturnValue({
                 isHealthy: false,
                 consecutiveFailures: 5,
-                lastError: 'Connection lost'
+                lastError: { type: 'error', message: 'Connection lost', timestamp: Date.now() }
             });
 
             const response = await request(app)

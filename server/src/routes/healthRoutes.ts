@@ -9,6 +9,7 @@ import type { Request, Response, Router as ExpressRouter } from 'express';
 
 import express from 'express';
 import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config/redis';
+import type { RedisMemoryInfo } from '../config/redis';
 import * as pubSubHealth from '../utils/pubSubHealth';
 import logger from '../utils/logger';
 // PHASE 5.1: Import Prometheus metrics export
@@ -22,16 +23,6 @@ const serverStartTime: number = Date.now();
 
 // Health check timeout (prevents hanging if Redis is slow)
 const HEALTH_CHECK_TIMEOUT_MS = 3000;
-
-/**
- * Redis memory info
- */
-interface RedisMemoryInfo {
-    used_memory_human?: string;
-    maxmemory_human?: string;
-    memory_usage_percent?: number;
-    alert?: string;
-}
 
 /**
  * Health check result
@@ -69,7 +60,7 @@ interface MetricsResponse {
         healthy: boolean;
         totalPublishes: number;
         totalFailures: number;
-        failureRate: number;
+        failureRate: string;
         consecutiveFailures: number;
     };
     process: {
@@ -127,7 +118,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
                 healthy: pubSubStatus.isHealthy,
                 status: pubSubStatus.isHealthy ? 'connected' : 'degraded',
                 consecutiveFailures: pubSubStatus.consecutiveFailures,
-                lastError: pubSubStatus.lastError
+                lastError: pubSubStatus.lastError?.message ?? null
             };
         }
 

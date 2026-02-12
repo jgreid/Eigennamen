@@ -7,6 +7,7 @@
 
 import type { Server } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
+import type { ErrorCode } from '../../types/errors';
 import type { GameSocket, RoomContext } from './types';
 import type { RoomStats } from '../../services/playerService';
 
@@ -17,6 +18,7 @@ import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
 import { createRoomHandler, createHostHandler } from '../contextHandler';
 import { canChangeTeamOrRole } from '../playerContext';
+import type { PlayerContextResult } from '../playerContext';
 import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { safeEmitToRoom } from '../safeEmit';
@@ -116,10 +118,10 @@ function playerHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx: RoomContext, validated: PlayerTeamInput) => {
-            const canChange: ChangePermission = canChangeTeamOrRole(ctx, { isTeamChange: true });
+            const canChange: ChangePermission = canChangeTeamOrRole(ctx as unknown as PlayerContextResult, { isTeamChange: true });
             if (!canChange.allowed) {
-                const errorCode = canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN;
-                throw new GameStateError(errorCode, canChange.reason);
+                const errorCode = (canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN) as ErrorCode;
+                throw new GameStateError(errorCode, canChange.reason ?? '');
             }
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
@@ -163,9 +165,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: PlayerRoleInput) => {
             // Skip validation if player already has the requested role (idempotent)
             if (ctx.player.role !== validated.role) {
-                const canChange: ChangePermission = canChangeTeamOrRole(ctx, { targetRole: validated.role });
+                const canChange: ChangePermission = canChangeTeamOrRole(ctx as unknown as PlayerContextResult, { targetRole: validated.role });
                 if (!canChange.allowed) {
-                    throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason);
+                    throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason ?? '');
                 }
             }
 
@@ -293,14 +295,14 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: { team: string }) => {
             // Only spectators can request to join
             if (ctx.player.team && ctx.player.role !== 'spectator') {
-                throw PlayerError.notAuthorized('Only spectators can request to join a team');
+                throw PlayerError.notAuthorized();
             }
 
             // Find the host to notify
             const players: Player[] = await playerService.getPlayersInRoom(ctx.roomCode);
             const host = players.find((p: Player) => p.isHost);
             if (!host) {
-                throw new PlayerError('No host found in room', ERROR_CODES.NOT_HOST);
+                throw new PlayerError(ERROR_CODES.NOT_HOST, 'No host found in room');
             }
 
             // Emit join request to the host (io captured from outer closure)
@@ -325,13 +327,13 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: { requesterId: string; approved: boolean }) => {
             const requester: Player | null = await playerService.getPlayer(validated.requesterId);
             if (!requester || requester.roomCode !== ctx.roomCode) {
-                throw new PlayerError('Requester not found in room', ERROR_CODES.PLAYER_NOT_FOUND);
+                throw new PlayerError(ERROR_CODES.PLAYER_NOT_FOUND, 'Requester not found in room');
             }
 
             // Verify the requester is actually a spectator to prevent team players
             // from exploiting the spectator join flow
             if (requester.team && requester.role !== 'spectator') {
-                throw PlayerError.notAuthorized('Requester is not a spectator');
+                throw PlayerError.notAuthorized();
             }
 
             if (validated.approved) {

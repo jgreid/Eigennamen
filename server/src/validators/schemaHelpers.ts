@@ -60,14 +60,14 @@ const createRoomIdSchema = () =>
  * Create a validated nickname schema with reserved name checking
  * Used for all nickname inputs throughout the application
  */
-const createNicknameSchema = (): ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodString, string, string>, string, string>, string, string>, string, string> => z.string()
+const createNicknameSchema = () => z.string()
     .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
     .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
     .transform((val: string) => removeControlChars(val).trim())
     .refine((val: string) => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
     .refine((val: string) => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
     .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
-    .refine((val: string) => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
+    .refine((val: string) => !isReservedName(val, [...RESERVED_NAMES]), 'This nickname is reserved');
 
 /**
  * Validate turnTimer against game mode limits from GAME_MODE_CONFIG.

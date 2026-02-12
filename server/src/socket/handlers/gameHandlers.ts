@@ -9,10 +9,12 @@ import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';
 
+import type { ZodType } from 'zod';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import * as roomService from '../../services/roomService';
 import * as gameHistoryService from '../../services/gameHistoryService';
+import type { GameDataInput } from '../../services/gameHistoryService';
 import { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
@@ -68,15 +70,6 @@ interface GameReplayInput {
 // Result types (RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses) imported from ../../types
 
 /**
- * History entry
- */
-interface HistoryEntry {
-    action: string;
-    timestamp: number;
-    [key: string]: unknown;
-}
-
-/**
  * Replay data
  */
 interface ReplayData {
@@ -92,7 +85,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     /**
      * Start a new game (host only)
      */
-    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, SOCKET_EVENTS.GAME_START, gameStartSchema,
+    socket.on(SOCKET_EVENTS.GAME_START, createHostHandler(socket, SOCKET_EVENTS.GAME_START, gameStartSchema as ZodType<GameStartInput>,
         async (ctx: RoomContext, validated: GameStartInput) => {
             // Stop any existing timer
             await getSocketFunctions().stopTurnTimer(ctx.roomCode);
@@ -252,8 +245,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 if (completedGame) {
                     const gameDataWithTeamNames = {
                         ...completedGame,
+                        winner: completedGame.winner ?? undefined,
                         teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
-                    };
+                    } as GameDataInput;
                     await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
                 }
 
@@ -273,6 +267,10 @@ function gameHandlers(io: Server, socket: GameSocket): void {
         async (ctx: GameContext, validated: GameClueInput) => {
             if (!ctx.player || ctx.player.role !== 'spymaster') {
                 throw PlayerError.notSpymaster();
+            }
+
+            if (!ctx.player.team) {
+                throw new ValidationError('You must join a team before giving a clue');
             }
 
             const clue: ClueWithGuesses = await withTimeout(
@@ -383,8 +381,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             if (completedGame) {
                 const gameDataWithTeamNames = {
                     ...completedGame,
+                    winner: completedGame.winner ?? undefined,
                     teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
-                };
+                } as GameDataInput;
                 await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
             }
 
@@ -401,7 +400,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.GAME_HISTORY, createRoomHandler(socket, SOCKET_EVENTS.GAME_HISTORY, null,
         async (ctx: RoomContext) => {
-            const history: HistoryEntry[] = await gameService.getGameHistory(ctx.roomCode);
+            const history = await gameService.getGameHistory(ctx.roomCode);
             socket.emit(SOCKET_EVENTS.GAME_HISTORY_DATA, { history });
         }
     ));
