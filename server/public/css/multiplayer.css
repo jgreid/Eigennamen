@@ -552,6 +552,178 @@
     animation: spin 0.8s linear infinite;
 }
 
+/* ========== D-1: CHAT PANEL ========== */
+.chat-panel {
+    margin-top: 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.chat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-align: left;
+}
+
+.chat-toggle:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.chat-toggle[aria-expanded="true"] .chat-expand-icon {
+    transform: rotate(180deg);
+}
+
+.chat-expand-icon {
+    margin-left: auto;
+    transition: transform 0.2s;
+    font-size: 0.7rem;
+}
+
+.chat-unread-badge {
+    background: var(--red-team, #e74c3c);
+    color: white;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.chat-body {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-messages {
+    height: 160px;
+    overflow-y: auto;
+    padding: 8px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    scroll-behavior: smooth;
+}
+
+.chat-messages:empty::before {
+    content: 'No messages yet';
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+    display: block;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.chat-message {
+    padding: 3px 0;
+    word-wrap: break-word;
+}
+
+.chat-message.team-only {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 3px 6px;
+    border-radius: 4px;
+    border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-message.system-message {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.chat-sender {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.chat-sender.red { color: var(--red-team, #e74c3c); }
+.chat-sender.blue { color: var(--blue-team, #3498db); }
+.chat-sender.spectator { color: rgba(255, 255, 255, 0.5); }
+
+.chat-content {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.chat-badge {
+    font-size: 0.7rem;
+    margin-right: 4px;
+    opacity: 0.7;
+}
+
+.chat-timestamp {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.3);
+    margin-left: 4px;
+}
+
+.chat-input-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.chat-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    padding: 5px 8px;
+    color: inherit;
+    font-size: 0.8rem;
+    outline: none;
+    min-width: 0;
+}
+
+.chat-input:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.chat-team-only {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    opacity: 0.7;
+}
+
+.chat-team-only:hover {
+    opacity: 1;
+}
+
+.chat-team-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-send-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 5px 10px;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.chat-send-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }

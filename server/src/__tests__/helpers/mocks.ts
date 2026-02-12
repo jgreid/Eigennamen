@@ -118,6 +118,30 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             }
             return removed;
         }),
+        // E-12: Added missing sorted set operations used in production
+        zCard: jest.fn(async (key: string) => {
+            const sorted = sortedSets.get(key);
+            return sorted ? sorted.length : 0;
+        }),
+        zRange: jest.fn(async (key: string, start: number | string, end: number | string, options: AnyRecord = {}) => {
+            const sorted = sortedSets.get(key);
+            if (!sorted) return [];
+            let items = [...sorted];
+            if (options.REV) {
+                items.reverse();
+            }
+            // Handle numeric range indices
+            const startIdx = typeof start === 'number' ? (start < 0 ? Math.max(0, items.length + start) : start) : 0;
+            const endIdx = typeof end === 'number' ? (end < 0 ? items.length + end + 1 : end + 1) : items.length;
+            items = items.slice(startIdx, endIdx);
+            if (options.LIMIT) {
+                items = items.slice(options.LIMIT.offset, options.LIMIT.offset + options.LIMIT.count);
+            }
+            if (options.WITHSCORES) {
+                return items.map(i => ({ value: i.value, score: i.score }));
+            }
+            return items.map(i => i.value);
+        }),
         zRangeByScore: jest.fn(async (key: string, min: number, max: number, options: AnyRecord = {}) => {
             const sorted = sortedSets.get(key);
             if (!sorted) return [];
@@ -242,6 +266,19 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         eval: jest.fn(async () => null),
         evalSha: jest.fn(async () => null),
         scriptLoad: jest.fn(async () => 'mock-sha'),
+
+        // E-12: Added scan operation (used in adminRoutes.ts)
+        scan: jest.fn(async (cursor: string | number, options: AnyRecord = {}) => {
+            const pattern = options.MATCH || '*';
+            const count = options.COUNT || 10;
+            const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+            const allKeys = [...storage.keys()].filter(key => regex.test(key));
+            const startIdx = Number(cursor);
+            const endIdx = Math.min(startIdx + count, allKeys.length);
+            const keys = allKeys.slice(startIdx, endIdx);
+            const nextCursor = endIdx >= allKeys.length ? '0' : String(endIdx);
+            return { cursor: nextCursor, keys };
+        }),
 
         // SCAN iterator
         scanIterator: jest.fn(function* (options: AnyRecord = {}) {

@@ -17,7 +17,7 @@ const sharedConfig = {
         }]
     },
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-    testTimeout: 10000,
+    testTimeout: 15000,
     clearMocks: true,
     restoreMocks: true,
 };

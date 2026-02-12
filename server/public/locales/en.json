@@ -18,7 +18,15 @@
   "roles": {
     "spymaster": "Spymaster",
     "clicker": "Clicker",
-    "spectator": "Spectator"
+    "spectator": "Spectator",
+    "endTurnTitle": "End your team's turn",
+    "onlyClickerCanEndTurn": "Only the Clicker can end the turn",
+    "waitForYourTurn": "Wait for your team's turn",
+    "gameIsOver": "Game is over",
+    "selectTeamFirst": "Select a team above to choose a role",
+    "clickerOfflineCanClick": "Clicker offline - you can reveal cards",
+    "chooseRole": "Choose Spymaster or Clicker",
+    "joinTeamFirst": "Please join a team first by clicking on a team score"
   },
   "game": {
     "redTurn": "Red Team's Turn",
@@ -40,12 +48,31 @@
     "youAreClicker": "You are a Clicker",
     "youAreSpectator": "You are a Spectator",
     "waitingForClue": "Waiting for clue...",
-    "guessesRemaining": "{{count}} guesses remaining"
+    "guessesRemaining": "{{count}} guesses remaining",
+    "duetVictory": "YOU WIN! All agents found!",
+    "duetGameOverAssassin": "GAME OVER - Assassin revealed!",
+    "duetGameOverTimeout": "GAME OVER - Out of time!",
+    "winnerAssassin": "{{team}} WINS! (Assassin)",
+    "winner": "{{team}} WINS!",
+    "yourTurnGo": "{{team}}'s Turn - Go!",
+    "teamsTurn": "{{team}}'s Turn",
+    "spymasterCannotReveal": "Spymasters cannot reveal cards",
+    "notYourTurn": "It's {{team}}'s turn",
+    "joinTeamToClick": "Join a team and become a clicker to reveal cards",
+    "onlyClickerCanReveal": "Only the clicker can reveal cards",
+    "onlyClickerCanEndTurn": "Only clickers can end the turn",
+    "gameOverStartNew": "Game is over - start a new game to continue"
   },
   "board": {
     "clickToReveal": "Click to reveal",
     "revealed": "Revealed",
-    "assassin": "Assassin"
+    "assassin": "Assassin",
+    "gridPosition": "Row {{row}}, column {{col}}",
+    "assassinCard": "assassin card",
+    "teamCard": "{{type}} team card",
+    "revealedCardLabel": "{{word}}, revealed as {{typeLabel}}. {{position}}",
+    "unrevealedCardLabel": "{{word}}, unrevealed card. {{position}}. Press Enter to reveal.",
+    "boardAriaLabel": "Codenames game board - 5 by 5 grid of word cards"
   },
   "timer": {
     "remaining": "remaining",
@@ -76,7 +103,27 @@
     "joinGame": "Join Game",
     "hostGame": "Host Game",
     "enterRoomIdShort": "Enter a Room ID",
-    "createRoomShort": "Create a new room"
+    "createRoomShort": "Create a new room",
+    "createGame": "Create Game",
+    "joining": "Joining...",
+    "creating": "Creating...",
+    "connecting": "Connecting...",
+    "joiningGame": "Joining game...",
+    "creatingGame": "Creating game...",
+    "roomNotFoundDetail": "Room \"{{roomId}}\" not found - check the Room ID",
+    "invalidInputDetail": "Invalid input - check Room ID and nickname",
+    "connectionFailedDetail": "Could not connect to server - check your connection and try again",
+    "joinFailed": "Failed to join game - please try again",
+    "roomAlreadyExists": "A room with this ID already exists. Try a different Room ID.",
+    "createFailed": "Failed to create game - please try again",
+    "gameCreatedShare": "Game created! Share Room ID: {{roomId}}",
+    "connectedToGame": "Connected to multiplayer game!",
+    "reconnectionFailed": "Reconnection failed \u2014 please refresh the page",
+    "nicknameUpdated": "Nickname updated!",
+    "offline": "offline",
+    "you": "you",
+    "kick": "Kick",
+    "kickPlayer": "Kick player"
   },
   "settings": {
     "title": "Settings",
@@ -152,10 +199,12 @@
     "source": "Source Code"
   },
   "chat": {
+    "title": "Chat",
     "placeholder": "Type a message...",
     "send": "Send",
     "teamOnly": "Team only",
-    "spectatorChat": "Spectator chat"
+    "spectatorChat": "Spectator chat",
+    "noMessages": "No messages yet"
   },
   "errors": {
     "connectionFailed": "Failed to connect to server",

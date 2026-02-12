@@ -127,7 +127,6 @@ describe('Extended Room Routes', () => {
         app = createTestApp();
         mockRedisStorage.clear();
         mockRedisSets.clear();
-        jest.clearAllMocks();
     });
 
     describe('GET /api/rooms/:code/exists', () => {
@@ -219,7 +218,6 @@ describe('Extended Health Routes', () => {
 
     beforeEach(() => {
         app = createTestApp();
-        jest.clearAllMocks();
     });
 
     describe('GET /api/health', () => {

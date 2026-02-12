@@ -134,6 +134,27 @@
                 </div>
             </div>
 
+            <!-- D-1: Chat panel (multiplayer only, collapsed by default) -->
+            <div class="chat-panel mp-only" id="chat-panel" style="display: none;">
+                <button type="button" class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-body">
+                    <span class="chat-toggle-icon" aria-hidden="true">💬</span>
+                    <span data-i18n="chat.title">Chat</span>
+                    <span class="chat-unread-badge" id="chat-unread-badge" style="display: none;">0</span>
+                    <span class="expand-icon chat-expand-icon">▾</span>
+                </button>
+                <div class="chat-body" id="chat-body" style="display: none;">
+                    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+                    <div class="chat-input-row">
+                        <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" aria-label="Chat message input">
+                        <label class="chat-team-only" title="Send to team only">
+                            <input type="checkbox" id="chat-team-only">
+                            <span class="chat-team-label">Team</span>
+                        </label>
+                        <button type="button" class="chat-send-btn" id="chat-send-btn" aria-label="Send message">Send</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Share section -->
             <div class="share-section">
                 <div class="share-input-group">
@@ -612,14 +633,14 @@
             </div>
 
             <div class="replay-controls">
-                <button type="button" class="replay-btn" id="replay-prev" title="Previous Move">&#9664;</button>
-                <button type="button" class="replay-btn" id="replay-play" title="Play/Pause">&#9654;</button>
-                <button type="button" class="replay-btn" id="replay-next" title="Next Move">&#9654;</button>
+                <button type="button" class="replay-btn" id="replay-prev" title="Previous Move" aria-label="Previous move">&#9664;</button>
+                <button type="button" class="replay-btn" id="replay-play" title="Play/Pause" aria-label="Play or pause replay">&#9654;</button>
+                <button type="button" class="replay-btn" id="replay-next" title="Next Move" aria-label="Next move">&#9654;</button>
                 <!-- PHASE 4: Playback speed control -->
-                <button type="button" class="replay-btn replay-speed-btn" id="replay-speed" title="Playback Speed">1x</button>
+                <button type="button" class="replay-btn replay-speed-btn" id="replay-speed" title="Playback Speed" aria-label="Playback speed">1x</button>
                 <span class="replay-progress" id="replay-progress">Move 0 / 0</span>
                 <!-- PHASE 4: Share replay link -->
-                <button type="button" class="replay-btn replay-share-btn" id="replay-share" title="Copy Replay Link">🔗</button>
+                <button type="button" class="replay-btn replay-share-btn" id="replay-share" title="Copy Replay Link" aria-label="Copy replay link">🔗</button>
             </div>
 
             <div class="replay-event-log" id="replay-event-log">

@@ -3,6 +3,7 @@
 
 import { state, BOARD_SIZE } from './state.js';
 import { getCardFontClass, fitCardText } from './utils.js';
+import { t } from './i18n.js';
 
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler: ((index: number) => void) | null = null;
@@ -17,12 +18,12 @@ let cardClickHandler: ((index: number) => void) | null = null;
  * @returns Descriptive ARIA label
  */
 function buildCardAriaLabel(word: string, isRevealed: boolean, type: string, row: number, col: number): string {
-    const position = `Row ${row}, column ${col}`;
+    const position = t('board.gridPosition', { row, col });
     if (isRevealed) {
-        const typeLabel = type === 'assassin' ? 'assassin card' : `${type} team card`;
-        return `${word}, revealed as ${typeLabel}. ${position}`;
+        const typeLabel = type === 'assassin' ? t('board.assassinCard') : t('board.teamCard', { type });
+        return t('board.revealedCardLabel', { word, typeLabel, position });
     }
-    return `${word}, unrevealed card. ${position}. Press Enter to reveal.`;
+    return t('board.unrevealedCardLabel', { word, position });
 }
 
 // Re-fit card text on resize (debounced)

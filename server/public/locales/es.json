@@ -18,7 +18,15 @@
   "roles": {
     "spymaster": "Jefe de espías",
     "clicker": "Agente de campo",
-    "spectator": "Espectador"
+    "spectator": "Espectador",
+    "endTurnTitle": "Terminar el turno de tu equipo",
+    "onlyClickerCanEndTurn": "Solo el Agente de campo puede terminar el turno",
+    "waitForYourTurn": "Espera el turno de tu equipo",
+    "gameIsOver": "La partida ha terminado",
+    "selectTeamFirst": "Selecciona un equipo arriba para elegir un rol",
+    "clickerOfflineCanClick": "Agente de campo desconectado – puedes revelar cartas",
+    "chooseRole": "Elige Jefe de espías o Agente de campo",
+    "joinTeamFirst": "Únete primero a un equipo haciendo clic en la puntuación de un equipo"
   },
   "game": {
     "redTurn": "Turno del Equipo Rojo",
@@ -40,12 +48,31 @@
     "youAreClicker": "Eres un Agente de campo",
     "youAreSpectator": "Eres Espectador",
     "waitingForClue": "Esperando pista...",
-    "guessesRemaining": "{{count}} intentos restantes"
+    "guessesRemaining": "{{count}} intentos restantes",
+    "duetVictory": "¡GANASTE! ¡Todos los agentes encontrados!",
+    "duetGameOverAssassin": "FIN DE LA PARTIDA – ¡Asesino revelado!",
+    "duetGameOverTimeout": "FIN DE LA PARTIDA – ¡Se acabó el tiempo!",
+    "winnerAssassin": "¡{{team}} GANA! (Asesino)",
+    "winner": "¡{{team}} GANA!",
+    "yourTurnGo": "Turno de {{team}} – ¡Adelante!",
+    "teamsTurn": "Turno de {{team}}",
+    "spymasterCannotReveal": "Los Jefes de espías no pueden revelar cartas",
+    "notYourTurn": "Es el turno de {{team}}",
+    "joinTeamToClick": "Únete a un equipo y conviértete en agente de campo para revelar cartas",
+    "onlyClickerCanReveal": "Solo el agente de campo puede revelar cartas",
+    "onlyClickerCanEndTurn": "Solo los agentes de campo pueden terminar el turno",
+    "gameOverStartNew": "La partida ha terminado – inicia una nueva partida para continuar"
   },
   "board": {
     "clickToReveal": "Clic para revelar",
     "revealed": "Revelada",
-    "assassin": "Asesino"
+    "assassin": "Asesino",
+    "gridPosition": "Fila {{row}}, columna {{col}}",
+    "assassinCard": "carta del asesino",
+    "teamCard": "carta del equipo {{type}}",
+    "revealedCardLabel": "{{word}}, revelada como {{typeLabel}}. {{position}}",
+    "unrevealedCardLabel": "{{word}}, carta sin revelar. {{position}}. Pulsa Enter para revelar.",
+    "boardAriaLabel": "Tablero de Codenames – cuadrícula de 5 por 5 con cartas de palabras"
   },
   "timer": {
     "remaining": "restante",
@@ -76,7 +103,27 @@
     "joinGame": "Unirse a partida",
     "hostGame": "Crear partida",
     "enterRoomIdShort": "Introduce un ID de sala",
-    "createRoomShort": "Crear una nueva sala"
+    "createRoomShort": "Crear una nueva sala",
+    "createGame": "Crear partida",
+    "joining": "Uniéndose...",
+    "creating": "Creando...",
+    "connecting": "Conectando...",
+    "joiningGame": "Uniéndose a la partida...",
+    "creatingGame": "Creando partida...",
+    "roomNotFoundDetail": "Sala \"{{roomId}}\" no encontrada – comprueba el ID de sala",
+    "invalidInputDetail": "Entrada no válida – comprueba el ID de sala y el apodo",
+    "connectionFailedDetail": "No se pudo conectar al servidor – comprueba tu conexión e inténtalo de nuevo",
+    "joinFailed": "Error al unirse a la partida – inténtalo de nuevo",
+    "roomAlreadyExists": "Ya existe una sala con este ID. Prueba con un ID de sala diferente.",
+    "createFailed": "Error al crear la partida – inténtalo de nuevo",
+    "gameCreatedShare": "¡Partida creada! Comparte el ID de sala: {{roomId}}",
+    "connectedToGame": "¡Conectado a la partida multijugador!",
+    "reconnectionFailed": "Reconexión fallida – por favor, recarga la página",
+    "nicknameUpdated": "¡Apodo actualizado!",
+    "offline": "desconectado",
+    "you": "tú",
+    "kick": "Expulsar",
+    "kickPlayer": "Expulsar jugador"
   },
   "settings": {
     "title": "Ajustes",
@@ -152,10 +199,12 @@
     "source": "Código fuente"
   },
   "chat": {
+    "title": "Chat",
     "placeholder": "Escribe un mensaje...",
     "send": "Enviar",
     "teamOnly": "Solo equipo",
-    "spectatorChat": "Chat de espectadores"
+    "spectatorChat": "Chat de espectadores",
+    "noMessages": "Sin mensajes todavia"
   },
   "errors": {
     "connectionFailed": "Error al conectar con el servidor",

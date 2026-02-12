@@ -114,10 +114,10 @@ jobs:
           echo "Critical vulnerabilities: $CRITICAL"
           echo "High vulnerabilities: $HIGH"
 
-          # Fail if critical vulnerabilities exist
-          if [ "$CRITICAL" -gt 0 ]; then
-            echo "::error::Critical vulnerabilities found!"
-            cat audit-results.json | jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical") | .key'
+          # Fail if critical or high vulnerabilities exist
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "::error::Critical or high vulnerabilities found! (critical=$CRITICAL, high=$HIGH)"
+            cat audit-results.json | jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | .key'
             exit 1
           fi
 
@@ -137,6 +137,8 @@ jobs:
 
       - name: Build Docker image
         run: docker build -f server/Dockerfile -t codenames:ci .
+        env:
+          DOCKER_BUILDKIT: 1
 
       - name: Verify image starts
         run: |

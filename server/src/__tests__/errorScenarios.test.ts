@@ -44,7 +44,6 @@ describe('Error Scenarios', () => {
         mockRedis = createMockRedis();
         createMockLogger();
         getRedis.mockReturnValue(mockRedis);
-        jest.clearAllMocks();
     });
 
     describe('Redis Timeout Scenarios', () => {
@@ -312,7 +311,6 @@ describe('Timer Service Error Scenarios', () => {
     beforeEach(() => {
         mockRedis = createMockRedis();
         getRedis.mockReturnValue(mockRedis);
-        jest.clearAllMocks();
     });
 
     test('handles getting status for non-existent timer', async () => {
@@ -378,7 +376,6 @@ describe('Player Service Error Scenarios', () => {
     beforeEach(() => {
         mockRedis = createMockRedis();
         getRedis.mockReturnValue(mockRedis);
-        jest.clearAllMocks();
     });
 
     test('throws when updating non-existent player', async () => {
@@ -421,7 +418,6 @@ describe('Room Service Error Scenarios', () => {
     beforeEach(() => {
         mockRedis = createMockRedis();
         getRedis.mockReturnValue(mockRedis);
-        jest.clearAllMocks();
     });
 
     test('handles room exists check with Redis error', async () => {

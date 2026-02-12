@@ -113,6 +113,20 @@ export interface SpectatorChatData {
     };
 }
 
+// D-1: Chat message data from server
+export interface ChatMessageData {
+    from: {
+        sessionId: string;
+        nickname: string;
+        team: string | null;
+        role: string;
+    };
+    text: string;
+    teamOnly?: boolean;
+    spectatorOnly?: boolean;
+    timestamp: number;
+}
+
 export interface HostChangedData {
     newHostSessionId?: string;
     newHostNickname?: string;

@@ -552,7 +552,6 @@ describe('generateSeed', () => {
 
 describe('createGame', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedis.set.mockResolvedValue('OK');
         mockRedis.eval.mockResolvedValue(1);
         // FIX: createGame now verifies room exists before creating game
@@ -706,7 +705,6 @@ describe('createGame', () => {
 
 describe('getGame', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         // FIX: Reset the mock implementation to avoid leaking from createGame tests
         mockRedis.get.mockReset();
     });
@@ -794,7 +792,6 @@ describe('getGameStateForPlayer', () => {
 
 describe('revealCard Lua error mapping', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         // Lock acquisition succeeds by default
         mockRedis.set.mockResolvedValue('OK');
     });
@@ -882,7 +879,6 @@ describe('revealCard Lua error mapping', () => {
 
 describe('revealCard', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         // Reset all mock implementations to their defaults
         mockRedis.set.mockReset().mockResolvedValue('OK');
         mockRedis.del.mockReset().mockResolvedValue(1);
@@ -1098,7 +1094,6 @@ describe('revealCard', () => {
 
 describe('giveClue', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedis.watch.mockReset().mockResolvedValue('OK');
         mockRedis.unwatch.mockReset().mockResolvedValue('OK');
         mockRedis.del.mockReset().mockResolvedValue(1);
@@ -1307,7 +1302,6 @@ describe('giveClue', () => {
 
 describe('endTurn', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedis.watch.mockReset().mockResolvedValue('OK');
         mockRedis.unwatch.mockReset().mockResolvedValue('OK');
         mockRedis.del.mockReset().mockResolvedValue(1);
@@ -1415,7 +1409,6 @@ describe('endTurn', () => {
 
 describe('forfeitGame', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedis.watch.mockReset().mockResolvedValue('OK');
         mockRedis.unwatch.mockReset().mockResolvedValue('OK');
         mockRedis.del.mockReset().mockResolvedValue(1);
@@ -1523,10 +1516,6 @@ describe('forfeitGame', () => {
 });
 
 describe('getGameHistory', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
-
     test('returns history when game exists', async () => {
         const history = [
             { action: 'clue', word: 'TEST', number: 2 },
@@ -1563,7 +1552,6 @@ describe('getGameHistory', () => {
 
 describe('cleanupGame', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedis.del.mockResolvedValue(1);
     });
 

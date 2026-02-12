@@ -12,7 +12,6 @@ describe('Timer Data Structure Tests', () => {
     let mockRedis;
 
     beforeEach(() => {
-        jest.clearAllMocks();
         mockRedis = createMockRedis();
     });
 

@@ -9,6 +9,7 @@ import { updateRoleBanner, updateControls, clearRoleChange, revertAndClearRoleCh
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
 import { logger } from './logger.js';
+import { handleChatMessage } from './chat.js';
 import {
     updateMpIndicator, updateDuetUI, updateDuetInfoBar, updateForfeitButton,
     updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage,
@@ -24,7 +25,7 @@ import type {
     GameOverData, ClueGivenData, SpymasterViewData, PlayerJoinedData,
     PlayerLeftData, PlayerUpdatedData, PlayerDisconnectedData,
     HostChangedData, TimerEventData, RoomWarningData, ReconnectionData,
-    SettingsUpdatedData, StatsUpdatedData, SpectatorChatData,
+    SettingsUpdatedData, StatsUpdatedData, SpectatorChatData, ChatMessageData,
     KickedData, PlayerKickedData, HistoryResultData, ServerErrorData,
     ReplayData
 } from './multiplayerTypes.js';
@@ -635,6 +636,11 @@ export function setupMultiplayerListeners(): void {
             updateSpectatorCount(data.stats.spectatorCount || 0);
             updateRoomStats(data.stats);
         }
+    });
+
+    // D-1: Handle chat messages
+    CodenamesClient.on('chatMessage', (data: ChatMessageData) => {
+        handleChatMessage(data);
     });
 
     // Handle spectator chat messages

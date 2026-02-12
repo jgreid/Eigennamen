@@ -18,7 +18,15 @@
   "roles": {
     "spymaster": "Geheimdienstchef",
     "clicker": "Ermittler",
-    "spectator": "Zuschauer"
+    "spectator": "Zuschauer",
+    "endTurnTitle": "Beende den Zug deines Teams",
+    "onlyClickerCanEndTurn": "Nur der Ermittler kann den Zug beenden",
+    "waitForYourTurn": "Warte, bis dein Team an der Reihe ist",
+    "gameIsOver": "Das Spiel ist beendet",
+    "selectTeamFirst": "Wähle oben ein Team, um eine Rolle auszuwählen",
+    "clickerOfflineCanClick": "Ermittler offline – du kannst Karten aufdecken",
+    "chooseRole": "Wähle Geheimdienstchef oder Ermittler",
+    "joinTeamFirst": "Bitte tritt zuerst einem Team bei, indem du auf eine Teampunktzahl klickst"
   },
   "game": {
     "redTurn": "Rotes Team ist dran",
@@ -40,12 +48,31 @@
     "youAreClicker": "Du bist ein Ermittler",
     "youAreSpectator": "Du bist Zuschauer",
     "waitingForClue": "Warte auf Hinweis...",
-    "guessesRemaining": "{{count}} Versuche übrig"
+    "guessesRemaining": "{{count}} Versuche übrig",
+    "duetVictory": "GEWONNEN! Alle Agenten gefunden!",
+    "duetGameOverAssassin": "GAME OVER – Attentäter aufgedeckt!",
+    "duetGameOverTimeout": "GAME OVER – Zeit abgelaufen!",
+    "winnerAssassin": "{{team}} GEWINNT! (Attentäter)",
+    "winner": "{{team}} GEWINNT!",
+    "yourTurnGo": "{{team}} ist dran – Los!",
+    "teamsTurn": "{{team}} ist dran",
+    "spymasterCannotReveal": "Geheimdienstchefs können keine Karten aufdecken",
+    "notYourTurn": "{{team}} ist am Zug",
+    "joinTeamToClick": "Tritt einem Team bei und werde Ermittler, um Karten aufzudecken",
+    "onlyClickerCanReveal": "Nur der Ermittler kann Karten aufdecken",
+    "onlyClickerCanEndTurn": "Nur Ermittler können den Zug beenden",
+    "gameOverStartNew": "Das Spiel ist beendet – starte ein neues Spiel, um weiterzuspielen"
   },
   "board": {
     "clickToReveal": "Klicken zum Aufdecken",
     "revealed": "Aufgedeckt",
-    "assassin": "Attentäter"
+    "assassin": "Attentäter",
+    "gridPosition": "Reihe {{row}}, Spalte {{col}}",
+    "assassinCard": "Attentäterkarte",
+    "teamCard": "{{type}}-Teamkarte",
+    "revealedCardLabel": "{{word}}, aufgedeckt als {{typeLabel}}. {{position}}",
+    "unrevealedCardLabel": "{{word}}, verdeckte Karte. {{position}}. Eingabetaste zum Aufdecken.",
+    "boardAriaLabel": "Codenames-Spielfeld – 5 mal 5 Raster mit Wortkarten"
   },
   "timer": {
     "remaining": "verbleibend",
@@ -76,7 +103,27 @@
     "joinGame": "Spiel beitreten",
     "hostGame": "Spiel erstellen",
     "enterRoomIdShort": "Raum-ID eingeben",
-    "createRoomShort": "Neuen Raum erstellen"
+    "createRoomShort": "Neuen Raum erstellen",
+    "createGame": "Spiel erstellen",
+    "joining": "Beitritt...",
+    "creating": "Erstellen...",
+    "connecting": "Verbinden...",
+    "joiningGame": "Spiel wird beigetreten...",
+    "creatingGame": "Spiel wird erstellt...",
+    "roomNotFoundDetail": "Raum \"{{roomId}}\" nicht gefunden – überprüfe die Raum-ID",
+    "invalidInputDetail": "Ungültige Eingabe – überprüfe Raum-ID und Spitznamen",
+    "connectionFailedDetail": "Verbindung zum Server fehlgeschlagen – überprüfe deine Verbindung und versuche es erneut",
+    "joinFailed": "Beitritt fehlgeschlagen – bitte erneut versuchen",
+    "roomAlreadyExists": "Ein Raum mit dieser ID existiert bereits. Versuche eine andere Raum-ID.",
+    "createFailed": "Erstellen fehlgeschlagen – bitte erneut versuchen",
+    "gameCreatedShare": "Spiel erstellt! Raum-ID teilen: {{roomId}}",
+    "connectedToGame": "Mit Multiplayer-Spiel verbunden!",
+    "reconnectionFailed": "Wiederverbindung fehlgeschlagen – bitte Seite neu laden",
+    "nicknameUpdated": "Spitzname aktualisiert!",
+    "offline": "offline",
+    "you": "du",
+    "kick": "Entfernen",
+    "kickPlayer": "Spieler entfernen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -152,10 +199,12 @@
     "source": "Quellcode"
   },
   "chat": {
+    "title": "Chat",
     "placeholder": "Nachricht eingeben...",
     "send": "Senden",
     "teamOnly": "Nur Team",
-    "spectatorChat": "Zuschauer-Chat"
+    "spectatorChat": "Zuschauer-Chat",
+    "noMessages": "Noch keine Nachrichten"
   },
   "errors": {
     "connectionFailed": "Verbindung zum Server fehlgeschlagen",

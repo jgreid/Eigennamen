@@ -12,8 +12,13 @@ COPY server/prisma ./prisma
 # Install all dependencies and generate Prisma client in single layer
 RUN npm ci && npx prisma generate
 
-# Copy server source code (separate layer — only rebuilt when source changes)
-COPY server/ .
+# E-11: Optimized layer ordering — tsconfig changes less than source code
+# Copy TypeScript config (separate layer — rarely changes)
+COPY server/tsconfig*.json ./
+
+# Copy source code and static assets (most frequently changing layer)
+COPY server/src/ ./src/
+COPY server/public/ ./public/
 
 # Copy root index.html (symlinked from server/public/index.html)
 COPY index.html ./public/index.html
@@ -56,7 +61,7 @@ EXPOSE 3000
 
 # Health check - use /health/ready to verify all dependencies (DB, Redis, Socket.io)
 # Longer start-period allows time for database connections to establish
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3000/health/ready || exit 1
 
 # Start application

@@ -6,6 +6,8 @@ import { escapeHTML, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
 import { VALIDATION, UI } from './constants.js';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
+import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 import type { ServerPlayerData, ServerRoomData, ServerGameData, RoomStats, SpectatorChatData } from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
@@ -32,6 +34,10 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
             mpExtraRow.style.display = 'flex';
         }
 
+        // D-1: Show chat panel and initialize listeners (idempotent)
+        showChatPanel();
+        initChat();
+
         // Update player list
         if (playersUl && players) {
             updatePlayerList(playersUl, players);
@@ -46,6 +52,9 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         if (mpExtraRow) {
             mpExtraRow.style.display = 'none';
         }
+
+        // D-1: Hide chat panel
+        hideChatPanel();
 
         // Update share panel for standalone mode
         updateSharePanelMode(false);
@@ -122,7 +131,7 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
 
         const nameSpan = document.createElement('span');
         nameSpan.className = `player-name${isMe ? ' you' : ''}${p.team ? ` player-team-${escapeHTML(p.team)}` : ''}`;
-        nameSpan.textContent = p.nickname + (isMe ? ' (you)' : '');
+        nameSpan.textContent = p.nickname + (isMe ? ` (${t('multiplayer.you')})` : '');
         info.appendChild(nameSpan);
 
         if (p.isHost) {
@@ -134,7 +143,7 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
 
         const roleSpan = document.createElement('span');
         roleSpan.className = 'player-role';
-        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ' - offline' : '');
+        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
         info.appendChild(roleSpan);
 
         li.appendChild(info);
@@ -143,8 +152,8 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
             const kickBtn = document.createElement('button');
             kickBtn.className = 'btn-kick';
             kickBtn.dataset.session = p.sessionId;
-            kickBtn.title = 'Kick player';
-            kickBtn.textContent = 'Kick';
+            kickBtn.title = t('multiplayer.kickPlayer');
+            kickBtn.textContent = t('multiplayer.kick');
             li.appendChild(kickBtn);
         }
 
@@ -474,7 +483,7 @@ function saveNickname(): void {
         CodenamesClient.setNickname(nickname);
         // Update stored nickname
         try { localStorage.setItem('codenames-nickname', nickname); } catch { /* ignore */ }
-        showToast('Nickname updated!', 'success', 2000);
+        showToast(t('multiplayer.nicknameUpdated'), 'success', 2000);
     }
 
     cancelNicknameEdit();
@@ -511,7 +520,7 @@ export function showReconnectionOverlay(): void {
         const overlayCheck = document.getElementById('reconnection-overlay');
         if (overlayCheck && overlayCheck.style.display !== 'none') {
             hideReconnectionOverlay();
-            showToast('Reconnection failed \u2014 please refresh the page', 'error', 8000);
+            showToast(t('multiplayer.reconnectionFailed'), 'error', 8000);
         }
     }, UI.RECONNECTION_TIMEOUT_MS);
 }
