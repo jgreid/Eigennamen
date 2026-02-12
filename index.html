@@ -166,8 +166,16 @@
 
         <!-- RIGHT MAIN AREA - Game Board -->
         <main class="main-content" id="main-content">
+            <noscript>
+                <div style="text-align:center;padding:40px;color:#e0e0e0;">
+                    <h2>JavaScript Required</h2>
+                    <p>Please enable JavaScript to play Codenames Online.</p>
+                </div>
+            </noscript>
             <div class="board-container">
-                <div class="board" id="board" data-testid="game-board" role="grid" aria-label="Codenames game board"></div>
+                <div class="board" id="board" data-testid="game-board" role="grid" aria-label="Codenames game board">
+                    <div id="board-loading" style="grid-column:1/-1;text-align:center;padding:40px;color:#a0a0b0;font-size:1.1rem;">Loading game...</div>
+                </div>
             </div>
         </main>
     </div>
@@ -654,5 +662,24 @@
     </div>
 
     <script type="module" src="/js/modules/app.js"></script>
+    <!-- Fallback: detect if the ES module failed to load -->
+    <script>
+        window.__appModuleLoaded = false;
+        setTimeout(function() {
+            if (!window.__appModuleLoaded) {
+                var board = document.getElementById('board');
+                var loading = document.getElementById('board-loading');
+                if (board && (!board.querySelector('.card'))) {
+                    var msg = loading || document.createElement('div');
+                    msg.style.cssText = 'grid-column:1/-1;text-align:center;padding:40px;color:#ff6b6b;font-size:1rem;';
+                    msg.innerHTML = '<p><strong>Game failed to load.</strong></p>' +
+                        '<p style="color:#a0a0b0;margin-top:8px;">This usually means JavaScript modules could not be loaded.<br>' +
+                        'Make sure you are accessing the game through the server (not opening the HTML file directly).</p>' +
+                        '<p style="margin-top:12px;"><button onclick="location.reload()" style="padding:8px 20px;cursor:pointer;border-radius:6px;border:1px solid #555;background:#2a2a3e;color:#e0e0e0;">Reload Page</button></p>';
+                    if (!loading) board.appendChild(msg);
+                }
+            }
+        }, 3000);
+    </script>
 </body>
 </html>
