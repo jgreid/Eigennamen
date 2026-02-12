@@ -1,347 +1,115 @@
 /**
- * Input Validation Schemas (Zod)
+ * Input Validation Schemas (Zod) - Barrel Re-export
  *
- * Provides comprehensive input validation with:
- * - Type checking and constraints
- * - XSS prevention via character restrictions
- * - Reserved name blocking
- * - Control character removal
+ * All schemas are organized by domain in separate files:
+ *   - schemaHelpers: Shared utilities (createSanitizedString, createNicknameSchema, etc.)
+ *   - roomSchemas: Room creation, joining, settings, reconnection
+ *   - playerSchemas: Team, role, nickname, kick, spectator
+ *   - gameSchemas: Start, reveal, clue, history, replay
+ *   - chatSchemas: Chat messages, spectator chat
+ *   - timerSchemas: Timer add-time
+ *
+ * This barrel file re-exports everything for backwards compatibility.
  */
 
-import type { z as ZodType } from 'zod';
+// Re-export shared helpers
+const {
+    z,
+    createSanitizedString,
+    createTeamNameSchema,
+    createRoomIdSchema,
+    createNicknameSchema
+} = require('./schemaHelpers');
 
-const { z } = require('zod');
-const { BOARD_SIZE, VALIDATION, RESERVED_NAMES, TIMER, GAME_MODE_CONFIG } = require('../config/constants');
-const { removeControlChars, isReservedName, toEnglishLowerCase } = require('../utils/sanitize');
+// Re-export room schemas
+const {
+    roomCreateSchema,
+    roomJoinSchema,
+    roomSettingsSchema,
+    roomReconnectSchema,
+    roomCodeSchema,
+    wordListIdSchema
+} = require('./roomSchemas');
+
+// Re-export player schemas
+const {
+    playerTeamSchema,
+    playerRoleSchema,
+    playerNicknameSchema,
+    playerKickSchema,
+    spectatorJoinRequestSchema,
+    spectatorJoinResponseSchema
+} = require('./playerSchemas');
+
+// Re-export game schemas
+const {
+    gameStartSchema,
+    gameRevealSchema,
+    gameClueSchema,
+    gameHistoryLimitSchema,
+    gameReplaySchema
+} = require('./gameSchemas');
+
+// Re-export chat schemas
+const {
+    chatMessageSchema,
+    spectatorChatSchema
+} = require('./chatSchemas');
+
+// Re-export timer schemas
+const {
+    timerAddTimeSchema
+} = require('./timerSchemas');
 
 // Re-export z for external use
 export { z };
 
-// Team name validation regex - Unicode letters/numbers, spaces, hyphens
-// Uses Unicode property escapes (\p{L} for letters, \p{N} for numbers) to support international characters
-// XSS defense maintained via removeControlChars and HTML escaping on output
-const teamNameRegex = /^[\p{L}\p{N}\s\-]+$/u;
-
-// Room ID validation regex - Unicode letters/numbers, hyphens, underscores (no spaces for easier sharing)
-const roomIdRegex = /^[\p{L}\p{N}\-_]+$/u;
-
-// Nickname validation regex - Unicode letters/numbers, spaces, hyphens, underscores
-const nicknameRegex = /^[\p{L}\p{N}\s\-_]+$/u;
-
-/**
- * Create a sanitized string schema with control character removal and regex validation.
- * Reduces duplication across room ID, team name, chat message, and similar fields.
- */
-const createSanitizedString = (maxLength: number, regex: RegExp, regexMessage: string) =>
-    z.string()
-        .min(1, 'Value is required')
-        .max(maxLength)
-        .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => val.length >= 1, 'Value is required')
-        .refine((val: string) => regex.test(val), regexMessage);
-
-/**
- * Create a team name schema with consistent validation.
- */
-const createTeamNameSchema = () =>
-    createSanitizedString(VALIDATION.TEAM_NAME_MAX_LENGTH, teamNameRegex, 'Team name contains invalid characters');
-
-/**
- * Create a room ID schema with consistent validation and lowercase normalization.
- * Uses toEnglishLowerCase() for locale-independent normalization, matching the
- * service layer (roomService.ts) and HTTP routes (roomRoutes.ts).
- */
-const createRoomIdSchema = () =>
-    z.string()
-        .min(3, 'Room ID must be at least 3 characters')
-        .max(20, 'Room ID must be at most 20 characters')
-        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim()))
-        .refine((val: string) => val.length >= 3, 'Room ID must be at least 3 characters')
-        .refine((val: string) => roomIdRegex.test(val), 'Room ID contains invalid characters');
-
-/**
- * Create a validated nickname schema with reserved name checking
- * Used for all nickname inputs throughout the application
- * IMPORTANT: Defined early so it can be used in roomCreateSchema
- */
-const createNicknameSchema = (): ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodEffects<ZodType.ZodString, string, string>, string, string>, string, string>, string, string> => z.string()
-    .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-    .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
-    .transform((val: string) => removeControlChars(val).trim())
-    .refine((val: string) => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-    .refine((val: string) => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
-    .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
-    .refine((val: string) => !isReservedName(val, RESERVED_NAMES), 'This nickname is reserved');
-
-/**
- * Validate turnTimer against game mode limits from GAME_MODE_CONFIG.
- * Blitz mode forces a 30s timer; classic/duet allow host-configured timers within mode bounds.
- */
-const validateModeTimer = (data: { gameMode?: string; turnTimer?: number | null }, ctx: ZodType.RefinementCtx) => {
-    if (data.turnTimer == null || data.gameMode == null) return;
-    const modeConfig = GAME_MODE_CONFIG[data.gameMode as keyof typeof GAME_MODE_CONFIG];
-    if (!modeConfig) return;
-
-    if (modeConfig.forcedTurnTimer != null && data.turnTimer !== modeConfig.forcedTurnTimer) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `${modeConfig.label} mode requires a ${modeConfig.forcedTurnTimer}s timer`,
-            path: ['turnTimer']
-        });
-        return;
-    }
-
-    if (data.turnTimer < modeConfig.minTurnTimer || data.turnTimer > modeConfig.maxTurnTimer) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Timer must be between ${modeConfig.minTurnTimer}s and ${modeConfig.maxTurnTimer}s for ${modeConfig.label} mode`,
-            path: ['turnTimer']
-        });
-    }
-};
-
-// Room schemas
-const roomCreateSchema = z.object({
-    roomId: createRoomIdSchema(),
-    settings: z.object({
-        teamNames: z.object({
-            red: createTeamNameSchema().default('Red'),
-            blue: createTeamNameSchema().default('Blue')
-        }).optional(),
-        turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
-        allowSpectators: z.boolean().optional(),
-        wordListId: z.string().uuid().nullable().optional(),
-        gameMode: z.enum(['classic', 'blitz', 'duet']).optional().default('classic'),
-        nickname: createNicknameSchema().optional()
-    }).superRefine(validateModeTimer).optional().default({})
-});
-
-const roomJoinSchema = z.object({
-    roomId: createRoomIdSchema(),
-    nickname: createNicknameSchema()
-});
-
-const roomSettingsSchema = z.object({
-    teamNames: z.object({
-        red: createTeamNameSchema(),
-        blue: createTeamNameSchema()
-    }).optional(),
-    turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
-    allowSpectators: z.boolean().optional(),
-    gameMode: z.enum(['classic', 'blitz', 'duet']).optional()
-}).superRefine(validateModeTimer);
-
-// Reconnection token is 64 hex characters (32 bytes in hex)
-const reconnectionTokenRegex = /^[0-9a-f]{64}$/i;
-
-const roomReconnectSchema = z.object({
-    code: z.string()
-        .min(3, 'Room code must be at least 3 characters')
-        .max(20, 'Room code must be at most 20 characters')
-        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim())),
-    reconnectionToken: z.string()
-        .length(64, 'Invalid reconnection token format')
-        .refine((val: string) => reconnectionTokenRegex.test(val), 'Invalid reconnection token format')
-});
-
-// HTTP route validation schema for room code parameter
-const roomCodeSchema = z.object({
-    code: z.string()
-        .min(3, 'Room code must be at least 3 characters')
-        .max(20, 'Room code must be at most 20 characters')
-        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim()))
-});
-
-// HTTP route validation schema for word list ID parameter
-const wordListIdSchema = z.object({
-    id: z.string().uuid('Invalid word list ID format')
-});
-
-// Player schemas
-const playerTeamSchema = z.object({
-    team: z.enum(['red', 'blue']).nullable()
-});
-
-const playerRoleSchema = z.object({
-    role: z.enum(['spymaster', 'clicker', 'spectator'])
-});
-
-const playerNicknameSchema = z.object({
-    nickname: createNicknameSchema()
-});
-
-// Game schemas
-const gameStartSchema = z.object({
-    // Option 1: Reference a word list stored in database (requires database)
-    wordListId: z.string().uuid().nullable().optional(),
-    // Option 2: Pass custom words directly (works without database)
-    // SECURITY FIX: Apply removeControlChars to each word for XSS prevention
-    wordList: z.array(
-        z.string()
-            .min(1)
-            .max(50)
-            .transform((val: string) => removeControlChars(val).trim())
-            .refine((val: string) => val.length >= 1, 'Word cannot be empty after sanitization')
-    )
-        .min(BOARD_SIZE, `Must have at least ${BOARD_SIZE} words`)
-        .max(500, 'Too many words')
-        .refine(
-            (words: string[]) => new Set(words.map((w: string) => w.toLowerCase())).size >= BOARD_SIZE,
-            `Must have at least ${BOARD_SIZE} unique words (case-insensitive)`
-        )
-        .optional()
-}).optional().default({});
-
-const gameRevealSchema = z.object({
-    index: z.number()
-        .int()
-        .min(0, 'Invalid card index')
-        .max(BOARD_SIZE - 1, 'Invalid card index')
-});
-
-// ISSUE #2 FIX: Clue word regex with quantified repetition to prevent ReDoS
-// Allows Unicode letters with optional single spaces/hyphens/apostrophes between words
-// Maximum of 10 word parts to prevent excessive backtracking
-// Uses Unicode property escapes to support international characters (é, ñ, ü, etc.)
-const clueWordRegex = /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u;
-
-const gameClueSchema = z.object({
-    word: z.string()
-        .min(1, 'Clue word is required')
-        .max(VALIDATION.CLUE_MAX_LENGTH, 'Clue word too long')
-        .transform((val: string) => removeControlChars(val).trim())
-        .transform((val: string) => val.replace(/\s+/g, ' ')) // Normalize multiple spaces to single space
-        .refine((val: string) => val.length >= 1, 'Clue word is required')
-        .refine((val: string) => clueWordRegex.test(val), 'Clue must be words optionally separated by single spaces, hyphens, or apostrophes'),
-    number: z.number()
-        .int()
-        .min(VALIDATION.CLUE_NUMBER_MIN, 'Number must be 0 or greater')
-        .max(VALIDATION.CLUE_NUMBER_MAX, `Number must be between ${VALIDATION.CLUE_NUMBER_MIN} and ${VALIDATION.CLUE_NUMBER_MAX}`)
-});
-
-// Chat schemas
-const chatMessageSchema = z.object({
-    text: z.string()
-        .min(1, 'Message is required')
-        .max(VALIDATION.CHAT_MESSAGE_MAX_LENGTH, 'Message too long')
-        .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => val.length >= 1, 'Message is required'),
-    teamOnly: z.boolean().default(false),
-    spectatorOnly: z.boolean().default(false) // US-16.1: Spectator-only chat
-});
-
-// Spectator chat schema (for dedicated spectator chat event)
-const spectatorChatSchema = z.object({
-    message: z.string()
-        .min(1, 'Message is required')
-        .max(VALIDATION.CHAT_MESSAGE_MAX_LENGTH, 'Message too long')
-        .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => val.length >= 1, 'Message is required')
-});
-
-// FIX: Add missing schemas for events that previously used manual validation
-
-// Game history limit schema (for game:getHistory)
-const gameHistoryLimitSchema = z.object({
-    limit: z.number()
-        .int()
-        .min(1, 'Limit must be at least 1')
-        .max(50, 'Limit cannot exceed 50')
-        .optional()
-        .default(10)
-});
-
-// Game replay schema (for game:getReplay) - gameId should be a valid identifier
-const gameReplaySchema = z.object({
-    gameId: z.string()
-        .min(1, 'Game ID is required')
-        .max(100, 'Game ID too long')
-        .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => val.length >= 1, 'Game ID is required')
-});
-
-// Session ID regex - alphanumeric, hyphens, underscores (not strict UUID format)
-const sessionIdRegex = /^[a-zA-Z0-9\-_]+$/;
-
-// Player kick schema (for player:kick)
-const playerKickSchema = z.object({
-    targetSessionId: z.string()
-        .min(1, 'Target session ID is required')
-        .max(100, 'Session ID too long')
-        .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => sessionIdRegex.test(val), 'Invalid session ID format')
-});
-
-// Timer add-time schema (centralized from timerHandlers.ts)
-const timerAddTimeSchema = z.object({
-    seconds: z.number()
-        .int()
-        .min(10, 'Must add at least 10 seconds')
-        .max(300, 'Cannot add more than 5 minutes')
-});
-
-// Type exports for schema inference
-export type RoomCreateInput = ZodType.infer<typeof roomCreateSchema>;
-export type RoomJoinInput = ZodType.infer<typeof roomJoinSchema>;
-export type RoomSettingsInput = ZodType.infer<typeof roomSettingsSchema>;
-export type RoomReconnectInput = ZodType.infer<typeof roomReconnectSchema>;
-export type PlayerTeamInput = ZodType.infer<typeof playerTeamSchema>;
-export type PlayerRoleInput = ZodType.infer<typeof playerRoleSchema>;
-export type PlayerNicknameInput = ZodType.infer<typeof playerNicknameSchema>;
-export type GameStartInput = ZodType.infer<typeof gameStartSchema>;
-export type GameRevealInput = ZodType.infer<typeof gameRevealSchema>;
-export type GameClueInput = ZodType.infer<typeof gameClueSchema>;
-export type ChatMessageInput = ZodType.infer<typeof chatMessageSchema>;
-export type SpectatorChatInput = ZodType.infer<typeof spectatorChatSchema>;
-export type GameHistoryLimitInput = ZodType.infer<typeof gameHistoryLimitSchema>;
-export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
-export type PlayerKickInput = ZodType.infer<typeof playerKickSchema>;
-export type TimerAddTimeInput = ZodType.infer<typeof timerAddTimeSchema>;
-
-// Spectator join request schema
-const spectatorJoinRequestSchema = z.object({
-    team: z.enum(['red', 'blue'])
-});
-
-// Spectator join approval/denial schema
-const spectatorJoinResponseSchema = z.object({
-    requesterId: z.string().min(1, 'Requester ID is required').max(100),
-    approved: z.boolean()
-});
-
-export type SpectatorJoinRequestInput = ZodType.infer<typeof spectatorJoinRequestSchema>;
-export type SpectatorJoinResponseInput = ZodType.infer<typeof spectatorJoinResponseSchema>;
+// Re-export types from domain files
+export type { RoomCreateInput, RoomJoinInput, RoomSettingsInput, RoomReconnectInput } from './roomSchemas';
+export type { PlayerTeamInput, PlayerRoleInput, PlayerNicknameInput, PlayerKickInput, SpectatorJoinRequestInput, SpectatorJoinResponseInput } from './playerSchemas';
+export type { GameStartInput, GameRevealInput, GameClueInput, GameHistoryLimitInput, GameReplayInput } from './gameSchemas';
+export type { ChatMessageInput, SpectatorChatInput } from './chatSchemas';
+export type { TimerAddTimeInput } from './timerSchemas';
 
 module.exports = {
+    // Shared helpers
+    z,
+    createSanitizedString,
+    createTeamNameSchema,
+    createRoomIdSchema,
+    createNicknameSchema,
+    // Room schemas
     roomCreateSchema,
     roomJoinSchema,
     roomSettingsSchema,
     roomReconnectSchema,
     roomCodeSchema,
     wordListIdSchema,
+    // Player schemas
     playerTeamSchema,
     playerRoleSchema,
     playerNicknameSchema,
+    playerKickSchema,
+    spectatorJoinRequestSchema,
+    spectatorJoinResponseSchema,
+    // Game schemas
     gameStartSchema,
     gameRevealSchema,
     gameClueSchema,
-    chatMessageSchema,
-    spectatorChatSchema,
-    // FIX: Export new schemas for previously unvalidated events
     gameHistoryLimitSchema,
     gameReplaySchema,
-    playerKickSchema,
-    timerAddTimeSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema,
-    // Export for reuse in custom validation
-    createNicknameSchema,
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema
+    // Chat schemas
+    chatMessageSchema,
+    spectatorChatSchema,
+    // Timer schemas
+    timerAddTimeSchema
 };
 
 export {
+    createSanitizedString,
+    createTeamNameSchema,
+    createRoomIdSchema,
+    createNicknameSchema,
     roomCreateSchema,
     roomJoinSchema,
     roomSettingsSchema,
@@ -351,19 +119,15 @@ export {
     playerTeamSchema,
     playerRoleSchema,
     playerNicknameSchema,
+    playerKickSchema,
+    spectatorJoinRequestSchema,
+    spectatorJoinResponseSchema,
     gameStartSchema,
     gameRevealSchema,
     gameClueSchema,
-    chatMessageSchema,
-    spectatorChatSchema,
     gameHistoryLimitSchema,
     gameReplaySchema,
-    playerKickSchema,
-    timerAddTimeSchema,
-    spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema,
-    createNicknameSchema,
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema
+    chatMessageSchema,
+    spectatorChatSchema,
+    timerAddTimeSchema
 };
