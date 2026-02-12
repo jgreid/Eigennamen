@@ -214,6 +214,7 @@ export async function executeGameTransaction<T>(
     const roomCode = gameKey.replace('room:', '').replace(':game', '');
     let retries = 0;
 
+    /* eslint-disable no-await-in-loop */
     while (retries < MAX_TRANSACTION_RETRIES) {
         try {
             await redis.watch(gameKey);
@@ -255,6 +256,7 @@ export async function executeGameTransaction<T>(
             throw error;
         }
     }
+    /* eslint-enable no-await-in-loop */
 
     throw ServerError.concurrentModification();
 }

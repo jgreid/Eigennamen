@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
-import { revealCardFromServer, showGameOver, updateScoreboard, updateTurnIndicator } from './game.js';
+import { revealCardFromServer, showGameOver, updateTurnIndicator } from './game.js';
 import { updateRoleBanner, updateControls, clearRoleChange, revertAndClearRoleChange } from './roles.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from './timer.js';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from './notifications.js';
@@ -18,7 +18,7 @@ import {
 } from './multiplayerUI.js';
 import {
     syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode,
-    detectOfflineChanges, resetMultiplayerState, domListenerCleanup
+    detectOfflineChanges, domListenerCleanup
 } from './multiplayerSync.js';
 import type {
     ServerPlayerData, GameStartedData, CardRevealedData, TurnEndedData,

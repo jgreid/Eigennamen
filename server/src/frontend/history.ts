@@ -2,7 +2,7 @@
 // Game history and replay
 
 import { state } from './state.js';
-import { escapeHTML, formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
+import { formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 import { t } from './i18n.js';
 import type { GameHistoryEntry, ReplayData, ReplayEvent } from './multiplayerTypes.js';
@@ -246,12 +246,11 @@ export function renderReplayBoard(): void {
 export function applyReplayState(): void {
     if (!state.currentReplayData) return;
 
-    const types = state.currentReplayData.initialBoard?.types || [];
     const events = state.currentReplayData.events || [];
     const cards = document.querySelectorAll('.replay-card');
 
     // Reset all cards
-    cards.forEach((card, index) => {
+    cards.forEach((card) => {
         card.className = 'replay-card';
     });
 

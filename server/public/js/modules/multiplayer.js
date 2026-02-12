@@ -109,9 +109,6 @@ export function clearFormErrors() {
         setFieldError('', id);
     });
 }
-function setMpError(message) {
-    setFieldError(message, state.currentMpMode === 'join' ? 'join-error' : 'create-error');
-}
 // ========== CONNECTION ACTIONS ==========
 export async function handleMpAction() {
     const actionBtn = document.getElementById('btn-mp-action');

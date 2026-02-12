@@ -4,7 +4,6 @@ import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { t } from './i18n.js';
 const CB_STORAGE_KEY = 'codenames-colorblind';
-const KB_STORAGE_KEY = 'codenames-keyboard-shortcuts';
 // ========== COLOR BLIND MODE ==========
 export function initColorBlindMode() {
     const enabled = safeGetItem(CB_STORAGE_KEY) === 'true';

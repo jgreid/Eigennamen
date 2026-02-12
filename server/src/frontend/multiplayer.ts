@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
 import { updateRoleBanner, updateControls } from './roles.js';
-import { VALIDATION, UI, validateNickname, validateRoomCode } from './constants.js';
+import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
 import {
@@ -137,10 +137,6 @@ export function clearFormErrors(): void {
     ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach(id => {
         setFieldError('', id);
     });
-}
-
-function setMpError(message: string): void {
-    setFieldError(message, state.currentMpMode === 'join' ? 'join-error' : 'create-error');
 }
 
 // ========== CONNECTION ACTIONS ==========

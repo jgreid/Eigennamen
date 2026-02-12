@@ -138,7 +138,9 @@ function memoryPush(key: string, entry: AuditLogEntry): void {
 
     // Evict entries older than the TTL (matches Redis EXPIRE behavior)
     const cutoff = new Date(Date.now() - AUDIT_LOG_TTL * 1000).toISOString();
-    while (list.length > 0 && list[list.length - 1]!.timestamp < cutoff) {
+    while (list.length > 0) {
+        const last = list[list.length - 1];
+        if (!last || last.timestamp >= cutoff) break;
         list.pop();
     }
 

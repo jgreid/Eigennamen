@@ -114,7 +114,7 @@ export function decodeWordsFromURL(encoded) {
         parts.push(current);
         return parts.map(unescapeWordDelimiter).filter(w => w.length > 0);
     }
-    catch (e) {
+    catch {
         return null;
     }
 }
