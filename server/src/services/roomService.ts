@@ -35,6 +35,7 @@ import {
 import { RoomError, PlayerError, ServerError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
+import { ATOMIC_CREATE_ROOM_SCRIPT, ATOMIC_JOIN_SCRIPT, ATOMIC_REFRESH_TTL_SCRIPT } from '../scripts';
 import { z } from 'zod';
 
 // Zod schema for Room data from Redis.
@@ -52,111 +53,6 @@ const roomSchema = z.object({
 });
 
 // RedisClient imported from '../types' (shared across all services)
-
-/**
- * Lua script for atomic room creation
- * Uses SETNX (SET if Not eXists) to prevent race conditions
- * Returns: 1 if created successfully, 0 if room already exists
- */
-const ATOMIC_CREATE_ROOM_SCRIPT = `
-local roomKey = KEYS[1]
-local playersKey = KEYS[2]
-local roomData = ARGV[1]
-local ttl = tonumber(ARGV[2])
-
--- Atomically try to create the room (only if it doesn't exist)
-local created = redis.call('SETNX', roomKey, roomData)
-if created == 0 then
-    return 0
-end
-
--- Set TTL on the room
-redis.call('EXPIRE', roomKey, ttl)
-
--- Clean up any stale players set from a previous room with the same code
-redis.call('DEL', playersKey)
-
-return 1
-`;
-
-/**
- * Lua script for atomic room join with capacity check and player creation (Sprint D1)
- * Atomically adds to the players set AND creates the player data key,
- * eliminating the window where a crash could leave an orphaned set member.
- * Returns: 1 if added successfully, 0 if room is full, -1 if already a member, -2 if room doesn't exist
- */
-const ATOMIC_JOIN_SCRIPT = `
-local playersKey = KEYS[1]
-local roomKey = KEYS[2]
-local maxPlayers = tonumber(ARGV[1])
-local sessionId = ARGV[2]
-local playerData = ARGV[3]
-local playerKey = ARGV[4]
-local playerTTL = tonumber(ARGV[5])
-
--- Verify room still exists (prevents orphaned player sets if room was deleted between getRoom and this script)
-if redis.call('EXISTS', roomKey) == 0 then
-    return -2
-end
-
--- Check if already a member
-if redis.call('SISMEMBER', playersKey, sessionId) == 1 then
-    return -1
-end
-
--- Check capacity and add atomically
-local currentCount = redis.call('SCARD', playersKey)
-if currentCount >= maxPlayers then
-    return 0
-end
-
-redis.call('SADD', playersKey, sessionId)
-
--- Atomically create player data (Sprint D1: eliminates crash window)
-if playerData and playerData ~= '' then
-    redis.call('SET', playerKey, playerData, 'EX', playerTTL)
-end
-
-return 1
-`;
-
-/**
- * Lua script for atomic TTL refresh of all room-related keys
- * ISSUE #8 FIX: Prevents TTL race condition by refreshing all keys atomically
- */
-const ATOMIC_REFRESH_TTL_SCRIPT = `
-local roomKey = KEYS[1]
-local playersKey = KEYS[2]
-local gameKey = KEYS[3]
-local redTeamKey = KEYS[4]
-local blueTeamKey = KEYS[5]
-local ttl = tonumber(ARGV[1])
-
--- Refresh room TTL (only if key exists)
-if redis.call('EXISTS', roomKey) == 1 then
-    redis.call('EXPIRE', roomKey, ttl)
-end
-
--- Refresh players list TTL (only if key exists)
-if redis.call('EXISTS', playersKey) == 1 then
-    redis.call('EXPIRE', playersKey, ttl)
-end
-
--- Refresh game TTL (only if key exists)
-if redis.call('EXISTS', gameKey) == 1 then
-    redis.call('EXPIRE', gameKey, ttl)
-end
-
--- Refresh team sets TTL (only if key exists)
-if redis.call('EXISTS', redTeamKey) == 1 then
-    redis.call('EXPIRE', redTeamKey, ttl)
-end
-if redis.call('EXISTS', blueTeamKey) == 1 then
-    redis.call('EXPIRE', blueTeamKey, ttl)
-end
-
-return 1
-`;
 
 /**
  * Create a new room with host-provided room ID
