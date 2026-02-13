@@ -77,7 +77,7 @@ export function stopTimerCountdown(): void {
 export function handleTimerStarted(data: { endTime?: number; duration?: number; durationSeconds?: number; remainingSeconds?: number }): void {
     state.timerState.active = true;
     state.timerState.endTime = data.endTime ?? null;
-    state.timerState.duration = data.duration || data.durationSeconds ?? null;
+    state.timerState.duration = data.duration ?? data.durationSeconds ?? null;
     // Use server's remaining seconds as authoritative source
     state.timerState.serverRemainingSeconds = data.remainingSeconds || state.timerState.duration;
     state.timerState.remainingSeconds = state.timerState.serverRemainingSeconds;
