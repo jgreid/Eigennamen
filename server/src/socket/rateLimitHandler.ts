@@ -79,6 +79,14 @@ function createRateLimitedHandler(
     handler: HandlerFunction
 ): RateLimitedHandler {
     return (data: unknown, ackCallback?: AckCallback): Promise<void> => {
+        // Extract requestId for error response correlation.
+        // Stored as a closure variable (not on socket) to avoid concurrency issues
+        // when multiple handlers run in parallel for the same socket.
+        // Zod validation strips unknown keys, so we capture it here before validation.
+        const requestId = (data != null && typeof data === 'object' && !Array.isArray(data))
+            ? (data as Record<string, unknown>).requestId as string | undefined
+            : undefined;
+
         const limiter = socketRateLimiter.getLimiter(eventName);
         return new Promise((resolve) => {
             limiter(socket, data, async (err?: Error) => {
@@ -87,7 +95,8 @@ function createRateLimitedHandler(
                     const errorEvent = `${eventName.split(':')[0]}:error`;
                     socket.emit(errorEvent, {
                         code: ERROR_CODES.RATE_LIMITED,
-                        message: 'Too many requests, please slow down'
+                        message: 'Too many requests, please slow down',
+                        ...(requestId !== undefined && { requestId })
                     });
                     if (typeof ackCallback === 'function') ackCallback({ error: true });
                     resolve();
@@ -99,7 +108,10 @@ function createRateLimitedHandler(
                 } catch (error) {
                     logger.error(`Error in ${eventName} handler:`, error);
                     const errorEvent = `${eventName.split(':')[0]}:error`;
-                    socket.emit(errorEvent, sanitizeErrorForClient(error));
+                    socket.emit(errorEvent, {
+                        ...sanitizeErrorForClient(error),
+                        ...(requestId !== undefined && { requestId })
+                    });
                     if (typeof ackCallback === 'function') ackCallback({ error: true });
                 } finally {
                     resolve();
