@@ -35,8 +35,8 @@
         connect(serverUrl = null, options = {}) {
             return new Promise((resolve, reject) => {
                 // Check if Socket.io library is loaded and is the genuine constructor
-                // CRITICAL FIX: Validate io is actually the Socket.io factory function
-                if (typeof io === 'undefined' || typeof io !== 'function' || typeof io.protocol === 'undefined') {
+                // Validate io is the Socket.io factory (io.Manager is a reliable export across v4.x)
+                if (typeof io === 'undefined' || typeof io !== 'function' || typeof io.Manager !== 'function') {
                     reject(new Error('Socket.io client library not loaded. Please check your network connection and refresh the page.'));
                     return;
                 }
