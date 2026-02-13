@@ -167,6 +167,12 @@ async function handleJoinGame() {
         }
         if (signal.aborted)
             return;
+        // Set up multiplayer event listeners BEFORE emitting join to prevent
+        // race condition where game:started arrives before listeners are ready
+        if (!state.multiplayerListenersSetup) {
+            setupMultiplayerListeners();
+            state.multiplayerListenersSetup = true;
+        }
         setMpStatus(t('multiplayer.joiningGame'), 'connecting');
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
         // (toEnglishLowerCase).  Plain .toLowerCase() can differ for non-ASCII
@@ -233,6 +239,12 @@ async function handleCreateGame() {
         }
         if (signal.aborted)
             return;
+        // Set up multiplayer event listeners BEFORE emitting create to prevent
+        // race condition where game:started arrives before listeners are ready
+        if (!state.multiplayerListenersSetup) {
+            setupMultiplayerListeners();
+            state.multiplayerListenersSetup = true;
+        }
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
         const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
         const result = await CodenamesClient.createRoom({
@@ -274,8 +286,9 @@ export function onMultiplayerJoined(result, isHostParam = false) {
     }
     state.isMultiplayerMode = true;
     safeSetItem('codenames-nickname', CodenamesClient.player?.nickname || '');
-    // Set up multiplayer event listeners FIRST to avoid race condition
-    // where game:started arrives before listeners are ready
+    // Listeners are now set up before join/create (in handleJoinGame/handleCreateGame)
+    // to prevent race conditions. This guard handles the auto-rejoin path where
+    // onMultiplayerJoined is called without going through handleJoinGame/handleCreateGame.
     if (!state.multiplayerListenersSetup) {
         setupMultiplayerListeners();
         state.multiplayerListenersSetup = true;

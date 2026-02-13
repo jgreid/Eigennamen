@@ -468,6 +468,9 @@ export async function updateSettings(
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 
+    // Refresh TTL on all room-related keys to keep active rooms alive
+    await refreshRoomTTL(code);
+
     return {
         ...room.settings
     };
@@ -507,6 +510,29 @@ export async function refreshRoomTTL(code: string): Promise<void> {
         TIMEOUTS.REDIS_OPERATION,
         `refreshRoomTTL-lua-${code}`
     );
+}
+
+/**
+ * Debounced TTL refresh — skips if last refresh for this room was <60s ago.
+ * Use this on game mutations (reveal, clue, endTurn, start) so active games
+ * don't expire, without hammering Redis on every event.
+ */
+const lastTTLRefresh = new Map<string, number>();
+const TTL_REFRESH_DEBOUNCE_MS = 60_000;
+
+export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
+    const now = Date.now();
+    const last = lastTTLRefresh.get(code) || 0;
+    if (now - last < TTL_REFRESH_DEBOUNCE_MS) {
+        return;
+    }
+    lastTTLRefresh.set(code, now);
+    try {
+        await refreshRoomTTL(code);
+    } catch (err) {
+        // Non-critical — log but don't break the game mutation
+        logger.warn(`Debounced TTL refresh failed for room ${code}: ${(err as Error).message}`);
+    }
 }
 
 /**

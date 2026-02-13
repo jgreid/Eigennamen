@@ -13,6 +13,7 @@ import type { ZodType } from 'zod';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
 import * as roomService from '../../services/roomService';
+import { debouncedRefreshRoomTTL } from '../../services/roomService';
 import * as gameHistoryService from '../../services/gameHistoryService';
 import type { GameDataInput } from '../../services/gameHistoryService';
 import { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
@@ -145,6 +146,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             const clientIp = socket.clientIP || socket.handshake.address;
             audit(AUDIT_EVENTS.GAME_STARTED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: clientIp, metadata: { playerCount: players.length } });
 
+            // Keep room alive during active games
+            await debouncedRefreshRoomTTL(ctx.roomCode);
+
             logger.info(`Game started in room ${ctx.roomCode}`);
         }
     ));
@@ -256,6 +260,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 audit(AUDIT_EVENTS.GAME_ENDED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: clientIpEnd, metadata: { winner: result.winner, endReason: result.endReason } });
             }
 
+            // Keep room alive during active games
+            await debouncedRefreshRoomTTL(ctx.roomCode);
+
             logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
         }
     ));
@@ -293,6 +300,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 guessesAllowed: clue.guessesAllowed,
                 timestamp: clue.timestamp
             });
+
+            // Keep room alive during active games
+            await debouncedRefreshRoomTTL(ctx.roomCode);
 
             logger.info(`Clue given in room ${ctx.roomCode}: ${clue.word} ${clue.number}`);
         }
@@ -347,6 +357,9 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             if (room && room.settings && room.settings.turnTimer) {
                 await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
             }
+
+            // Keep room alive during active games
+            await debouncedRefreshRoomTTL(ctx.roomCode);
 
             logger.info(`Turn ended in room ${ctx.roomCode}, now ${result.currentTurn}'s turn`);
         }
