@@ -149,6 +149,29 @@ export interface RoomStats {
 // RedisClient imported from '../types' (shared across all services)
 
 /**
+ * Build a Player data object (pure function, no Redis calls).
+ * Used by roomService for atomic join+create in Lua script (Sprint D1).
+ */
+export function buildPlayerData(
+    sessionId: string,
+    roomCode: string,
+    nickname: string,
+    isHost: boolean
+): Player {
+    return {
+        sessionId,
+        roomCode,
+        nickname,
+        team: null,
+        role: 'spectator',
+        isHost,
+        connected: true,
+        connectedAt: Date.now(),
+        lastSeen: Date.now()
+    };
+}
+
+/**
  * Create a new player
  */
 export async function createPlayer(
@@ -632,12 +655,84 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 }
 
 /**
+ * Lua script for atomic player removal (Sprint D2)
+ * Atomically reads player data, removes from room and team sets, and deletes
+ * the player key — eliminating the window where a crash could leave
+ * inconsistent state between sets and data keys.
+ * Returns: player data JSON on success, nil if player not found
+ */
+const ATOMIC_REMOVE_PLAYER_SCRIPT = `
+local playerKey = KEYS[1]
+local sessionId = ARGV[1]
+
+-- Get player data
+local playerData = redis.call('GET', playerKey)
+if not playerData then
+    return nil
+end
+
+local player = cjson.decode(playerData)
+local roomCode = player.roomCode
+local team = player.team
+
+-- Remove from room's player set
+if roomCode then
+    redis.call('SREM', 'room:' .. roomCode .. ':players', sessionId)
+    -- Remove from team set if player was on a team
+    if team and team ~= cjson.null then
+        redis.call('SREM', 'room:' .. roomCode .. ':team:' .. team, sessionId)
+    end
+end
+
+-- Delete player data
+redis.call('DEL', playerKey)
+
+return playerData
+`;
+
+/**
  * Remove player from room
- * Also removes from team set if player was on a team
- * CRITICAL FIX: Also cleans up reconnection tokens to prevent orphaned tokens
+ * Sprint D2: Uses Lua script for atomic removal from all sets + data key deletion.
+ * Falls back to sequential operations if Lua fails.
+ * Also cleans up reconnection tokens to prevent orphaned tokens.
  */
 export async function removePlayer(sessionId: string): Promise<void> {
     const redis: RedisClient = getRedis();
+
+    // Try atomic Lua script (bundles read + remove from sets + delete)
+    try {
+        const result = await withTimeout(
+            redis.eval(
+                ATOMIC_REMOVE_PLAYER_SCRIPT,
+                {
+                    keys: [`player:${sessionId}`],
+                    arguments: [sessionId]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `removePlayer-lua-${sessionId}`
+        ) as string | null;
+
+        if (!result) {
+            // Player doesn't exist — nothing to remove
+            return;
+        }
+
+        // Non-critical: clean up reconnection tokens (outside atomic boundary)
+        try {
+            await invalidateRoomReconnectToken(sessionId);
+        } catch (tokenError) {
+            logger.warn(`Failed to clean up reconnection token for ${sessionId}:`, (tokenError as Error).message);
+        }
+
+        const player = tryParseJSON(result, playerSchema, `removePlayer lua for ${sessionId}`) as Player | null;
+        logger.info(`Player ${sessionId} removed from room ${player?.roomCode ?? 'unknown'}`);
+        return;
+    } catch (luaError) {
+        logger.debug(`Lua removePlayer failed for ${sessionId}, using fallback: ${(luaError as Error).message}`);
+    }
+
+    // Fallback: sequential operations (original implementation)
     const player = await getPlayer(sessionId);
 
     if (player) {
@@ -650,7 +745,6 @@ export async function removePlayer(sessionId: string): Promise<void> {
         }
 
         // CRITICAL FIX: Clean up reconnection tokens to prevent orphaned keys.
-        // Previously relied solely on background cleanupOrphanedReconnectionTokens()
         try {
             await invalidateRoomReconnectToken(sessionId);
         } catch (tokenError) {
@@ -809,8 +903,44 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
 }
 
 /**
+ * Lua script for atomic socket mapping + IP update (Sprint D4)
+ * Bundles player existence check, socket mapping SET, and player lastIP update
+ * into a single atomic operation, reducing 3 Redis round-trips to 1.
+ * Returns: 1 on success, nil if player not found
+ */
+const ATOMIC_SET_SOCKET_MAPPING_SCRIPT = `
+local playerKey = KEYS[1]
+local socketKey = KEYS[2]
+local socketId = ARGV[1]
+local socketTTL = tonumber(ARGV[2])
+local playerTTL = tonumber(ARGV[3])
+local lastIP = ARGV[4]
+local now = ARGV[5]
+
+-- Verify player exists
+local playerData = redis.call('GET', playerKey)
+if not playerData then
+    return nil
+end
+
+-- Set socket mapping
+redis.call('SET', socketKey, socketId, 'EX', socketTTL)
+
+-- Update player lastIP and lastSeen if IP provided
+if lastIP ~= '' then
+    local player = cjson.decode(playerData)
+    player.lastIP = lastIP
+    player.lastSeen = tonumber(now)
+    redis.call('SET', playerKey, cjson.encode(player), 'EX', playerTTL)
+end
+
+return 1
+`;
+
+/**
  * Map socket ID to session ID for reconnection and track client IP
- * Only creates mapping if player exists to prevent orphaned mappings
+ * Sprint D4: Uses Lua script to bundle player check + socket mapping + IP update
+ * into a single atomic operation. Falls back to sequential operations if Lua fails.
  */
 export async function setSocketMapping(
     sessionId: string,
@@ -819,7 +949,37 @@ export async function setSocketMapping(
 ): Promise<boolean> {
     const redis: RedisClient = getRedis();
 
-    // First verify player exists to prevent orphaned socket mappings
+    // Try atomic Lua script (bundles player check + socket mapping + IP update)
+    try {
+        const result = await withTimeout(
+            redis.eval(
+                ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
+                {
+                    keys: [`player:${sessionId}`, `session:${sessionId}:socket`],
+                    arguments: [
+                        socketId,
+                        REDIS_TTL.SESSION_SOCKET.toString(),
+                        REDIS_TTL.PLAYER.toString(),
+                        clientIP || '',
+                        Date.now().toString()
+                    ]
+                }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            `setSocketMapping-lua-${sessionId}`
+        );
+
+        if (!result) {
+            logger.debug(`Skipping socket mapping for non-existent player ${sessionId}`);
+            return false;
+        }
+
+        return true;
+    } catch (luaError) {
+        logger.debug(`Lua setSocketMapping failed for ${sessionId}, using fallback: ${(luaError as Error).message}`);
+    }
+
+    // Fallback: sequential operations (original implementation)
     const player = await getPlayer(sessionId);
     if (!player) {
         logger.debug(`Skipping socket mapping for non-existent player ${sessionId}`);

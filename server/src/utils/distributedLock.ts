@@ -9,6 +9,7 @@ import { getRedis } from '../config/redis';
 import logger from './logger';
 import { v4 as uuidv4 } from 'uuid';
 import { withTimeout } from './timeout';
+import { ServerError } from '../errors/GameError';
 
 // Timeout for individual lock Redis operations (release, extend)
 const LOCK_OPERATION_TIMEOUT = 5000;
@@ -228,7 +229,7 @@ class DistributedLock {
         const lockResult = await this.acquire(lockKey, options);
 
         if (!lockResult.acquired || !lockResult.release) {
-            throw new Error(`Failed to acquire lock: ${lockKey}`);
+            throw new ServerError(`Failed to acquire lock: ${lockKey}`, { operation: `lock:${lockKey}`, retryable: true });
         }
 
         // Capture release function after the guard above ensures it exists
@@ -254,7 +255,7 @@ class DistributedLock {
         const lockResult = await this.acquire(lockKey, options);
 
         if (!lockResult.acquired || !lockResult.extend || !lockResult.release) {
-            throw new Error(`Failed to acquire lock: ${lockKey}`);
+            throw new ServerError(`Failed to acquire lock: ${lockKey}`, { operation: `lock:${lockKey}`, retryable: true });
         }
 
         // Capture functions after the guard above ensures they exist

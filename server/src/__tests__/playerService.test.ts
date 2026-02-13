@@ -582,6 +582,8 @@ describe('Player Service', () => {
     describe('removePlayer', () => {
         test('removes player from room and team sets', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', team: 'red' };
+            // Sprint D2: Lua script tries first; force fallback to test sequential path
+            mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.sRem.mockResolvedValue(1);
             mockRedis.del.mockResolvedValue(1);
@@ -593,8 +595,28 @@ describe('Player Service', () => {
             expect(mockRedis.del).toHaveBeenCalledWith('player:s1');
         });
 
+        test('removes player atomically via Lua script', async () => {
+            const player = { sessionId: 's1', roomCode: 'ABC123', team: 'red' };
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify(player));
+            mockRedis.del.mockResolvedValue(1);
+
+            await playerService.removePlayer('s1');
+
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    keys: ['player:s1'],
+                    arguments: ['s1']
+                })
+            );
+            // Sequential sRem should NOT be called (handled inside Lua)
+            expect(mockRedis.sRem).not.toHaveBeenCalled();
+        });
+
         test('handles player without team', async () => {
             const player = { sessionId: 's1', roomCode: 'ABC123', team: null };
+            // Sprint D2: Force fallback to test sequential path
+            mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.sRem.mockResolvedValue(1);
             mockRedis.del.mockResolvedValue(1);
@@ -605,8 +627,7 @@ describe('Player Service', () => {
         });
 
         test('handles non-existent player gracefully', async () => {
-            mockRedis.get.mockResolvedValue(null);
-
+            // Lua returns falsy (undefined from default mock) → early return
             await expect(playerService.removePlayer('nonexistent')).resolves.not.toThrow();
         });
     });
@@ -836,8 +857,10 @@ describe('Player Service', () => {
     });
 
     describe('setSocketMapping', () => {
-        test('creates socket mapping for existing player', async () => {
+        test('creates socket mapping for existing player via fallback', async () => {
             const player = { sessionId: 's1', nickname: 'Test' };
+            // Sprint D4: Lua script tries first; force fallback to test sequential path
+            mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.set.mockResolvedValue('OK');
             // updatePlayer (for lastIP) uses Lua script
@@ -854,8 +877,34 @@ describe('Player Service', () => {
             );
         });
 
+        test('creates socket mapping atomically via Lua script', async () => {
+            // Sprint D4: Lua script bundles player check + socket mapping + IP update
+            mockRedis.eval.mockResolvedValueOnce(1);
+
+            const result = await playerService.setSocketMapping('s1', 'socket-123', '192.168.1.1');
+
+            expect(result).toBe(true);
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    keys: ['player:s1', 'session:s1:socket'],
+                    arguments: expect.arrayContaining([
+                        'socket-123',
+                        '300',
+                        expect.any(String),
+                        '192.168.1.1'
+                    ])
+                })
+            );
+            // Sequential get/set should NOT be called (handled inside Lua)
+            expect(mockRedis.get).not.toHaveBeenCalled();
+            expect(mockRedis.set).not.toHaveBeenCalled();
+        });
+
         test('updates player with lastIP via Lua script', async () => {
             const player = { sessionId: 's1', nickname: 'Test' };
+            // Sprint D4: Force fallback to test updatePlayer Lua path
+            mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.set.mockResolvedValue('OK');
             // updatePlayer uses Lua script for atomic update
@@ -864,21 +913,22 @@ describe('Player Service', () => {
 
             await playerService.setSocketMapping('s1', 'socket-123', '192.168.1.1');
 
-            // updatePlayer now uses Lua script (not WATCH/MULTI)
+            // updatePlayer uses Lua script in fallback path
             expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('returns false for non-existent player', async () => {
-            mockRedis.get.mockResolvedValue(null);
-
+            // Lua returns falsy (undefined from default mock) → player not found
             const result = await playerService.setSocketMapping('nonexistent', 'socket-123');
 
             expect(result).toBe(false);
             expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('Skipping socket mapping'));
         });
 
-        test('handles null clientIP', async () => {
+        test('handles null clientIP via fallback', async () => {
             const player = { sessionId: 's1', nickname: 'Test' };
+            // Sprint D4: Force fallback to test null IP path
+            mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.set.mockResolvedValue('OK');
 

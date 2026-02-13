@@ -122,6 +122,14 @@ jest.mock('../../config/redis', () => {
                 if (set.size >= maxPlayers) return 0;
 
                 set.add(sessionId);
+
+                // Sprint D1: Also create player data atomically
+                const playerData = options.arguments[2];
+                const playerKey = options.arguments[3];
+                if (playerData && playerKey) {
+                    mockRedisStorage.set(playerKey, playerData);
+                }
+
                 return 1;
             }
 

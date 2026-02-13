@@ -55,15 +55,16 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
         const statusMap: ErrorStatusMap = {
             [ERROR_CODES.ROOM_NOT_FOUND]: 404,
             [ERROR_CODES.ROOM_FULL]: 403,
-            [ERROR_CODES.ROOM_EXPIRED]: 410,
             [ERROR_CODES.ROOM_ALREADY_EXISTS]: 409,
             [ERROR_CODES.GAME_IN_PROGRESS]: 409,
             [ERROR_CODES.NOT_HOST]: 403,
             [ERROR_CODES.NOT_SPYMASTER]: 403,
             [ERROR_CODES.NOT_CLICKER]: 403,
             [ERROR_CODES.NOT_YOUR_TURN]: 400,
+            [ERROR_CODES.NO_CLUE]: 400,
             [ERROR_CODES.CARD_ALREADY_REVEALED]: 400,
             [ERROR_CODES.GAME_OVER]: 400,
+            [ERROR_CODES.GAME_NOT_STARTED]: 409,
             [ERROR_CODES.INVALID_INPUT]: 400,
             [ERROR_CODES.RATE_LIMITED]: 429,
             [ERROR_CODES.WORD_LIST_NOT_FOUND]: 404,
@@ -74,6 +75,8 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.SESSION_VALIDATION_RATE_LIMITED]: 429,
             [ERROR_CODES.RESERVED_NAME]: 400,
             [ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN]: 400,
+            [ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN]: 400,
+            [ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM]: 400,
             [ERROR_CODES.PLAYER_NOT_FOUND]: 404
         };
 
