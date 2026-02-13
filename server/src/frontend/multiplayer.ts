@@ -206,7 +206,10 @@ async function handleJoinGame(): Promise<void> {
         if (signal.aborted) return;
 
         setMpStatus(t('multiplayer.joiningGame'), 'connecting');
-        const normalizedRoomId = roomId!.toLowerCase();
+        // Use toLocaleLowerCase('en-US') to match the server-side normalization
+        // (toEnglishLowerCase).  Plain .toLowerCase() can differ for non-ASCII
+        // characters depending on the browser locale, causing key mismatches.
+        const normalizedRoomId = roomId!.toLocaleLowerCase('en-US');
         const result: JoinCreateResult = await CodenamesClient.joinRoom(normalizedRoomId, nickname);
 
         if (signal.aborted) return;
@@ -271,7 +274,8 @@ async function handleCreateGame(): Promise<void> {
 
         if (signal.aborted) return;
 
-        const normalizedRoomId = roomId.toLowerCase();
+        // Use toLocaleLowerCase('en-US') to match the server-side normalization
+        const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
         const result: JoinCreateResult = await CodenamesClient.createRoom({
             roomId: normalizedRoomId,
             nickname: nickname

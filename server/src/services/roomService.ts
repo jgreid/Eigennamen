@@ -237,7 +237,20 @@ export async function getRoom(roomId: string): Promise<Room | null> {
         return null;
     }
 
-    return tryParseJSON(roomData, roomSchema, `room ${roomId}`) as Room | null;
+    const room = tryParseJSON(roomData, roomSchema, `room ${normalizedId}`) as Room | null;
+
+    if (!room) {
+        // Room key exists but data failed validation — log at error level
+        // so operators can investigate.  parseJSON already logged a warn;
+        // this adds structured context for monitoring dashboards.
+        logger.error('Room data exists in Redis but failed to parse', {
+            roomId: normalizedId,
+            rawDataLength: roomData.length,
+            rawDataPreview: roomData.substring(0, 200)
+        });
+    }
+
+    return room;
 }
 
 /**
@@ -260,6 +273,20 @@ export async function joinRoom(
     // Get room
     const room = await getRoom(normalizedRoomId);
     if (!room) {
+        // Distinguish "key missing" from "data corrupted" for better diagnostics.
+        // getRoom returns null in both cases; check if the key actually exists.
+        const keyExists = await redis.exists(`room:${normalizedRoomId}`);
+        if (keyExists === 1) {
+            logger.error('joinRoom: room key exists but getRoom returned null (data corrupted)', {
+                roomId: normalizedRoomId,
+                sessionId
+            });
+        } else {
+            logger.warn('joinRoom: room key does not exist in Redis', {
+                roomId: normalizedRoomId,
+                sessionId
+            });
+        }
         throw RoomError.notFound(roomId);
     }
 
