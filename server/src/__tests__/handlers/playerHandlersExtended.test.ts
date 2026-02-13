@@ -1,0 +1,622 @@
+/**
+ * Extended Player Handlers Tests
+ * Tests additional edge cases and code paths to improve coverage
+ */
+
+// Mock rate limit handler FIRST to bypass rate limiting
+const SAFE_ERROR_CODES_MOCK = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'NO_CLUE', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
+jest.mock('../../socket/rateLimitHandler', () => ({
+    createRateLimitedHandler: jest.fn((socket, eventName, handler) => { return async (data) => { try { return await handler(data); } catch (error) { const errorEvent = `${eventName.split(':')[0]}:error`; const code = error.code || 'SERVER_ERROR'; const isSafe = SAFE_ERROR_CODES_MOCK.includes(code); socket.emit(errorEvent, { code, message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred' }); } }; })
+}));
+
+// Mock dependencies
+jest.mock('../../services/playerService');
+jest.mock('../../services/gameService');
+jest.mock('../../utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn()
+}));
+jest.mock('../../utils/sanitize', () => ({
+    sanitizeHtml: jest.fn((str) => str),
+    removeControlChars: jest.fn((str) => str),  // FIX: Include for Zod schema validation
+    isReservedName: jest.fn(() => false)        // FIX: Include for nickname validation
+}));
+
+const playerService = require('../../services/playerService');
+const gameService = require('../../services/gameService');
+describe('Extended Player Handlers Tests', () => {
+    let mockSocket;
+    let mockIo;
+    let playerHandlers;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        mockSocket = {
+            id: 'socket-123',
+            sessionId: 'session-456',
+            roomCode: 'TEST12',
+            emit: jest.fn(),
+            on: jest.fn(),
+            join: jest.fn(),
+            leave: jest.fn()
+        };
+
+        mockIo = {
+            to: jest.fn().mockReturnThis(),
+            emit: jest.fn(),
+            sockets: {
+                sockets: new Map()
+            }
+        };
+
+        // Default player mock with roomCode for context handler
+        playerService.getPlayer.mockResolvedValue({
+            sessionId: 'session-456',
+            roomCode: 'TEST12',
+            nickname: 'Player1',
+            team: null,
+            role: 'spectator',
+            isHost: false
+        });
+        gameService.getGame.mockResolvedValue(null);
+        playerService.getRoomStats.mockResolvedValue({});
+
+        playerHandlers = require('../../socket/handlers/playerHandlers');
+        playerHandlers(mockIo, mockSocket);
+    });
+
+    describe('player:setTeam edge cases', () => {
+        test('prevents team switch during active turn as spymaster', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'spymaster'
+            });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                gameOver: false
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'blue' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                message: expect.stringContaining('Cannot change')
+            }));
+        });
+
+        test('prevents team switch during active turn as clicker', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                team: 'blue',
+                role: 'clicker'
+            });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'blue',
+                gameOver: false
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'red' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                message: expect.stringContaining('Cannot change')
+            }));
+        });
+
+        test('allows team switch when game is over', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'spymaster'
+            });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                gameOver: true
+            });
+            playerService.setTeam.mockResolvedValue({
+                sessionId: 'session-456',
+                team: 'blue',
+                nickname: 'Player1'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'blue' });
+
+            expect(playerService.setTeam).toHaveBeenCalled();
+        });
+
+        test('allows team switch when not your turn for non-spymaster', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'clicker'
+            });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'blue', // Other team's turn
+                gameOver: false
+            });
+            playerService.setTeam.mockResolvedValue({
+                sessionId: 'session-456',
+                team: 'blue',
+                nickname: 'Player1'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'blue' });
+
+            expect(playerService.setTeam).toHaveBeenCalled();
+        });
+
+        test('handles player not in room', async () => {
+            playerService.getPlayer.mockResolvedValue(null);
+            mockSocket.roomCode = null;
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'blue' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND'
+            }));
+        });
+
+        test('handles null player', async () => {
+            playerService.getPlayer.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'blue' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND'
+            }));
+        });
+
+        test('uses checkEmpty flag for active game team switch', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                team: 'red',
+                role: 'spectator'
+            });
+            gameService.getGame.mockResolvedValue({
+                currentTurn: 'red',
+                gameOver: false
+            });
+            playerService.setTeam.mockResolvedValue({
+                sessionId: 'session-456',
+                team: 'blue',
+                nickname: 'Player1'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'blue' });
+
+            expect(playerService.setTeam).toHaveBeenCalledWith(
+                'session-456',
+                'blue',
+                true // checkEmpty flag
+            );
+        });
+
+        test('logs event on successful team change', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                team: null,
+                role: 'spectator'
+            });
+            gameService.getGame.mockResolvedValue(null);
+            playerService.setTeam.mockResolvedValue({
+                sessionId: 'session-456',
+                team: 'red',
+                nickname: 'Player1'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'red' });
+
+            expect(playerService.setTeam).toHaveBeenCalled();
+        });
+    });
+
+    describe('player:setRole edge cases', () => {
+        test('sends spymaster view when becoming spymaster with active game', async () => {
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                nickname: 'Player1'
+            });
+            gameService.getGame.mockResolvedValue({
+                types: ['red', 'blue', 'neutral', 'assassin'],
+                gameOver: false
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'spymaster' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
+                types: ['red', 'blue', 'neutral', 'assassin']
+            });
+        });
+
+        test('does not send spymaster view when game is over', async () => {
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'spymaster',
+                nickname: 'Player1'
+            });
+            gameService.getGame.mockResolvedValue({
+                types: ['red', 'blue', 'neutral', 'assassin'],
+                gameOver: true
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'spymaster' });
+
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('game:spymasterView', expect.anything());
+        });
+
+        test('does not send spymaster view for clicker role', async () => {
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                nickname: 'Player1'
+            });
+            gameService.getGame.mockResolvedValue({
+                types: ['red', 'blue', 'neutral', 'assassin'],
+                gameOver: false
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'clicker' });
+
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('game:spymasterView', expect.anything());
+        });
+
+        test('succeeds even if setRole returns player with different roomCode', async () => {
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'OTHER_ROOM',
+                role: 'clicker'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'clicker' });
+
+            // No longer checks roomCode mismatch after setRole
+            expect(mockSocket.emit).not.toHaveBeenCalledWith('player:error', expect.anything());
+        });
+
+        test('handles null player from setRole', async () => {
+            playerService.setRole.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'clicker' });
+
+            // FIX: Updated to expect PLAYER_NOT_FOUND - more accurate error code
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'PLAYER_NOT_FOUND'
+            }));
+        });
+
+        test('logs event on successful role change', async () => {
+            playerService.setRole.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                role: 'clicker',
+                nickname: 'Player1'
+            });
+            gameService.getGame.mockResolvedValue(null);
+
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'clicker' });
+
+            expect(playerService.setRole).toHaveBeenCalled();
+        });
+    });
+
+    // Note: player:setNickname edge cases are covered in playerHandlersUnit.test.js
+
+    describe('player:kick edge cases', () => {
+        test('kicks player and disconnects their socket', async () => {
+            const targetSocket = {
+                emit: jest.fn(),
+                leave: jest.fn(),
+                disconnect: jest.fn(),
+                roomCode: 'TEST12'
+            };
+            mockIo.sockets.sockets.set('target-socket-id', targetSocket);
+
+            playerService.getPlayer.mockImplementation(async (sessionId) => {
+                if (sessionId === 'session-456') {
+                    return {
+                        sessionId: 'session-456',
+                        roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                        isHost: true,
+                        nickname: 'Host'
+                    };
+                }
+                return {
+                    sessionId: 'target-session',
+                    roomCode: 'TEST12',
+                    nickname: 'TargetPlayer',
+                    isHost: false
+                };
+            });
+            playerService.getSocketId.mockResolvedValue('target-socket-id');
+            playerService.removePlayer.mockResolvedValue();
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            expect(targetSocket.emit).toHaveBeenCalledWith('room:kicked', expect.anything());
+            expect(targetSocket.leave).toHaveBeenCalled();
+            expect(targetSocket.disconnect).toHaveBeenCalledWith(true);
+        });
+
+        test('handles missing target socket ID', async () => {
+            playerService.getPlayer.mockImplementation(async (sessionId) => {
+                if (sessionId === 'session-456') {
+                    return {
+                        sessionId: 'session-456',
+                        roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                        isHost: true,
+                        nickname: 'Host'
+                    };
+                }
+                return {
+                    sessionId: 'target-session',
+                    roomCode: 'TEST12',
+                    nickname: 'TargetPlayer',
+                    isHost: false
+                };
+            });
+            playerService.getSocketId.mockResolvedValue(null);
+            playerService.removePlayer.mockResolvedValue();
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            // Should still complete without crashing
+            expect(playerService.removePlayer).toHaveBeenCalled();
+        });
+
+        test('handles target socket not in sockets map', async () => {
+            playerService.getPlayer.mockImplementation(async (sessionId) => {
+                if (sessionId === 'session-456') {
+                    return {
+                        sessionId: 'session-456',
+                        roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                        isHost: true,
+                        nickname: 'Host'
+                    };
+                }
+                return {
+                    sessionId: 'target-session',
+                    roomCode: 'TEST12',
+                    nickname: 'TargetPlayer',
+                    isHost: false
+                };
+            });
+            playerService.getSocketId.mockResolvedValue('nonexistent-socket-id');
+            playerService.removePlayer.mockResolvedValue();
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            // Should still complete without crashing
+            expect(playerService.removePlayer).toHaveBeenCalled();
+        });
+
+        test('rejects kick without targetSessionId', async () => {
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({});
+
+            // FIX: Use flexible matcher for Zod validation messages
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'INVALID_INPUT',
+                message: expect.stringMatching(/required|targetSessionId/i)
+            }));
+        });
+
+        test('rejects kick with null data', async () => {
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1](null);
+
+            // FIX: Use flexible matcher for Zod validation messages
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'INVALID_INPUT',
+                message: expect.stringMatching(/required|targetSessionId/i)
+            }));
+        });
+
+        test('prevents kicking yourself', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                isHost: true,
+                nickname: 'Host'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'session-456' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                message: expect.stringContaining('Cannot kick yourself')
+            }));
+        });
+
+        test('rejects non-host kicking', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',  // FIX: Include roomCode to pass validation
+                isHost: false,
+                nickname: 'Player'
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                message: expect.stringContaining('host')
+            }));
+        });
+
+        test('handles target player not in same room', async () => {
+            playerService.getPlayer.mockImplementation(async (sessionId) => {
+                if (sessionId === 'session-456') {
+                    return {
+                        sessionId: 'session-456',
+                        roomCode: 'TEST12',
+                        isHost: true,
+                        nickname: 'Host'
+                    };
+                }
+                return {
+                    sessionId: 'target-session',
+                    roomCode: 'OTHER_ROOM',
+                    nickname: 'TargetPlayer'
+                };
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                message: expect.stringContaining('not found')
+            }));
+        });
+
+        test('handles target player not found', async () => {
+            playerService.getPlayer.mockImplementation(async (sessionId) => {
+                if (sessionId === 'session-456') {
+                    return {
+                        sessionId: 'session-456',
+                        roomCode: 'TEST12',
+                        isHost: true,
+                        nickname: 'Host'
+                    };
+                }
+                return null;
+            });
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                message: expect.stringContaining('not found')
+            }));
+        });
+
+        test('logs kick event', async () => {
+            playerService.getPlayer.mockImplementation(async (sessionId) => {
+                if (sessionId === 'session-456') {
+                    return {
+                        sessionId: 'session-456',
+                        roomCode: 'TEST12',
+                        isHost: true,
+                        nickname: 'Host'
+                    };
+                }
+                return {
+                    sessionId: 'target-session',
+                    roomCode: 'TEST12',
+                    nickname: 'TargetPlayer',
+                    isHost: false
+                };
+            });
+            playerService.getSocketId.mockResolvedValue(null);
+            playerService.removePlayer.mockResolvedValue();
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target-session' });
+
+            expect(playerService.removePlayer).toHaveBeenCalled();
+        });
+    });
+
+    describe('missing roomCode scenarios', () => {
+        beforeEach(() => {
+            mockSocket.roomCode = null;
+            playerService.getPlayer.mockResolvedValue(null);
+        });
+
+        test('setTeam rejects without roomCode', async () => {
+            const handlers = mockSocket.on.mock.calls;
+            const setTeamHandler = handlers.find(h => h[0] === 'player:setTeam');
+            await setTeamHandler[1]({ team: 'red' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND'
+            }));
+        });
+
+        test('setRole rejects without roomCode', async () => {
+            const handlers = mockSocket.on.mock.calls;
+            const setRoleHandler = handlers.find(h => h[0] === 'player:setRole');
+            await setRoleHandler[1]({ role: 'clicker' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND'
+            }));
+        });
+
+        test('setNickname rejects without roomCode', async () => {
+            const handlers = mockSocket.on.mock.calls;
+            const setNicknameHandler = handlers.find(h => h[0] === 'player:setNickname');
+            await setNicknameHandler[1]({ nickname: 'Test' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND'
+            }));
+        });
+
+        test('kick rejects without roomCode', async () => {
+            const handlers = mockSocket.on.mock.calls;
+            const kickHandler = handlers.find(h => h[0] === 'player:kick');
+            await kickHandler[1]({ targetSessionId: 'target' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
+                code: 'ROOM_NOT_FOUND'
+            }));
+        });
+    });
+});

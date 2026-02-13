@@ -1,0 +1,243 @@
+/**
+ * Sanitize Utilities Tests
+ *
+ * Tests for input sanitization functions used for XSS prevention,
+ * log redaction, control character removal, reserved name checking,
+ * and locale-safe string operations.
+ */
+
+const {
+    sanitizeHtml,
+    sanitizeForLog,
+    removeControlChars,
+    isReservedName,
+    toEnglishLowerCase,
+    toEnglishUpperCase,
+    localeCompare,
+    localeIncludes
+} = require('../../utils/sanitize');
+
+describe('sanitizeHtml', () => {
+    test('escapes HTML angle brackets', () => {
+        expect(sanitizeHtml('<script>alert(1)</script>')).toBe(
+            '&lt;script&gt;alert(1)&lt;&#x2F;script&gt;'
+        );
+    });
+
+    test('escapes ampersands', () => {
+        expect(sanitizeHtml('Tom & Jerry')).toBe('Tom &amp; Jerry');
+    });
+
+    test('escapes double and single quotes', () => {
+        expect(sanitizeHtml('"hello" & \'world\'')).toBe(
+            '&quot;hello&quot; &amp; &#x27;world&#x27;'
+        );
+    });
+
+    test('escapes forward slashes', () => {
+        expect(sanitizeHtml('path/to/file')).toBe('path&#x2F;to&#x2F;file');
+    });
+
+    test('returns empty string for non-string input', () => {
+        expect(sanitizeHtml(null)).toBe('');
+        expect(sanitizeHtml(undefined)).toBe('');
+        expect(sanitizeHtml(42)).toBe('');
+        expect(sanitizeHtml({})).toBe('');
+    });
+
+    test('handles empty string', () => {
+        expect(sanitizeHtml('')).toBe('');
+    });
+
+    test('passes through safe text unchanged', () => {
+        expect(sanitizeHtml('Hello World 123')).toBe('Hello World 123');
+    });
+});
+
+describe('sanitizeForLog', () => {
+    test('redacts password fields', () => {
+        const result = sanitizeForLog({ username: 'admin', password: 'secret123' });
+        expect(result.username).toBe('admin');
+        expect(result.password).toBe('[REDACTED]');
+    });
+
+    test('redacts token fields', () => {
+        const result = sanitizeForLog({ sessionToken: 'abc123', data: 'visible' });
+        expect(result.sessionToken).toBe('[REDACTED]');
+        expect(result.data).toBe('visible');
+    });
+
+    test('redacts fields matching any sensitive pattern', () => {
+        const result = sanitizeForLog({
+            apiKey: 'k-123',
+            authHeader: 'Bearer xyz',
+            credential: 'cred',
+            jwtSecret: 's3cr3t'
+        });
+        expect(result.apiKey).toBe('[REDACTED]');
+        expect(result.authHeader).toBe('[REDACTED]');
+        expect(result.credential).toBe('[REDACTED]');
+        expect(result.jwtSecret).toBe('[REDACTED]');
+    });
+
+    test('redacts nested sensitive fields', () => {
+        const result = sanitizeForLog({
+            user: { name: 'Alice', password: 'pw' }
+        });
+        expect(result.user.name).toBe('Alice');
+        expect(result.user.password).toBe('[REDACTED]');
+    });
+
+    test('handles arrays by recursing into elements', () => {
+        const result = sanitizeForLog([
+            { name: 'A', token: 'x' },
+            { name: 'B', token: 'y' }
+        ]);
+        expect(result[0].name).toBe('A');
+        expect(result[0].token).toBe('[REDACTED]');
+        expect(result[1].token).toBe('[REDACTED]');
+    });
+
+    test('returns primitives unchanged', () => {
+        expect(sanitizeForLog('hello')).toBe('hello');
+        expect(sanitizeForLog(42)).toBe(42);
+        expect(sanitizeForLog(null)).toBe(null);
+        expect(sanitizeForLog(undefined)).toBe(undefined);
+    });
+});
+
+describe('removeControlChars', () => {
+    test('removes null bytes and low control characters', () => {
+        expect(removeControlChars('hello\x00world')).toBe('helloworld');
+        expect(removeControlChars('\x01\x02\x03test')).toBe('test');
+    });
+
+    test('preserves newlines and carriage returns', () => {
+        expect(removeControlChars('line1\nline2')).toBe('line1\nline2');
+        expect(removeControlChars('line1\r\nline2')).toBe('line1\r\nline2');
+    });
+
+    test('removes vertical tab and form feed', () => {
+        expect(removeControlChars('hello\x0Bworld')).toBe('helloworld');
+        expect(removeControlChars('hello\x0Cworld')).toBe('helloworld');
+    });
+
+    test('removes DEL character (0x7F)', () => {
+        expect(removeControlChars('hello\x7Fworld')).toBe('helloworld');
+    });
+
+    test('returns empty string for non-string input', () => {
+        expect(removeControlChars(null)).toBe('');
+        expect(removeControlChars(undefined)).toBe('');
+        expect(removeControlChars(42)).toBe('');
+    });
+
+    test('preserves normal Unicode text', () => {
+        expect(removeControlChars('Café résumé')).toBe('Café résumé');
+    });
+});
+
+describe('isReservedName', () => {
+    const reservedNames = ['system', 'admin', 'server', 'bot'];
+
+    test('detects exact reserved names (case-insensitive)', () => {
+        expect(isReservedName('system', reservedNames)).toBe(true);
+        expect(isReservedName('SYSTEM', reservedNames)).toBe(true);
+        expect(isReservedName('System', reservedNames)).toBe(true);
+    });
+
+    test('detects reserved names with surrounding whitespace', () => {
+        expect(isReservedName('  admin  ', reservedNames)).toBe(true);
+    });
+
+    test('rejects non-reserved names', () => {
+        expect(isReservedName('player1', reservedNames)).toBe(false);
+        expect(isReservedName('systematic', reservedNames)).toBe(false);
+    });
+
+    test('returns false for non-string input', () => {
+        expect(isReservedName(null, reservedNames)).toBe(false);
+        expect(isReservedName(42, reservedNames)).toBe(false);
+        expect(isReservedName(undefined, reservedNames)).toBe(false);
+    });
+});
+
+describe('toEnglishLowerCase', () => {
+    test('lowercases ASCII text', () => {
+        expect(toEnglishLowerCase('HELLO')).toBe('hello');
+        expect(toEnglishLowerCase('Hello World')).toBe('hello world');
+    });
+
+    test('handles already-lowercase text', () => {
+        expect(toEnglishLowerCase('hello')).toBe('hello');
+    });
+
+    test('returns empty string for non-string input', () => {
+        expect(toEnglishLowerCase(null)).toBe('');
+        expect(toEnglishLowerCase(42)).toBe('');
+    });
+});
+
+describe('toEnglishUpperCase', () => {
+    test('uppercases ASCII text', () => {
+        expect(toEnglishUpperCase('hello')).toBe('HELLO');
+    });
+
+    test('returns empty string for non-string input', () => {
+        expect(toEnglishUpperCase(null)).toBe('');
+        expect(toEnglishUpperCase(42)).toBe('');
+    });
+});
+
+describe('localeCompare', () => {
+    test('compares equal strings as 0', () => {
+        expect(localeCompare('hello', 'hello')).toBe(0);
+    });
+
+    test('is case-insensitive by default', () => {
+        expect(localeCompare('Hello', 'hello')).toBe(0);
+        expect(localeCompare('ABC', 'abc')).toBe(0);
+    });
+
+    test('case-sensitive mode distinguishes case', () => {
+        const result = localeCompare('A', 'a', { caseInsensitive: false });
+        expect(result).not.toBe(0);
+    });
+
+    test('sorts strings in order', () => {
+        expect(localeCompare('apple', 'banana')).toBeLessThan(0);
+        expect(localeCompare('banana', 'apple')).toBeGreaterThan(0);
+    });
+
+    test('handles non-string inputs as empty strings', () => {
+        expect(localeCompare(null, 'hello')).not.toBeNaN();
+        expect(localeCompare('hello', null)).not.toBeNaN();
+        expect(localeCompare(null, null)).toBe(0);
+    });
+});
+
+describe('localeIncludes', () => {
+    test('finds substring (case-insensitive by default)', () => {
+        expect(localeIncludes('Hello World', 'hello')).toBe(true);
+        expect(localeIncludes('Hello World', 'WORLD')).toBe(true);
+    });
+
+    test('case-sensitive mode', () => {
+        expect(localeIncludes('Hello World', 'hello', false)).toBe(false);
+        expect(localeIncludes('Hello World', 'Hello', false)).toBe(true);
+    });
+
+    test('returns false for non-string inputs', () => {
+        expect(localeIncludes(null, 'test')).toBe(false);
+        expect(localeIncludes('test', null)).toBe(false);
+        expect(localeIncludes(42, 'test')).toBe(false);
+    });
+
+    test('handles Unicode text', () => {
+        expect(localeIncludes('Café résumé', 'café')).toBe(true);
+    });
+
+    test('empty needle always found', () => {
+        expect(localeIncludes('hello', '')).toBe(true);
+    });
+});

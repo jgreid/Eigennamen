@@ -17,6 +17,9 @@
     "test:frontend": "jest --config jest.config.ts.js --selectProjects frontend",
     "test:backend": "jest --config jest.config.ts.js --selectProjects backend",
     "build:frontend": "tsc -p tsconfig.frontend.json",
+    "build:frontend:bundle": "node esbuild.config.js",
+    "build:frontend:watch": "node esbuild.config.js --watch",
+    "build:prod": "tsc -p tsconfig.build.json && node esbuild.config.js && cp -r src/scripts dist/scripts",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:headed": "npx playwright test --headed",
@@ -30,7 +33,11 @@
     "setup": "../scripts/dev-setup.sh",
     "health": "../scripts/health-check.sh",
     "predeploy": "../scripts/pre-deploy-check.sh",
-    "redis:inspect": "../scripts/redis-inspect.sh"
+    "redis:inspect": "../scripts/redis-inspect.sh",
+    "test:mutation": "npx stryker run",
+    "test:mutation:dry": "npx stryker run --dryRunOnly",
+    "loadtest": "node loadtest/stress-test.js",
+    "loadtest:memory": "node loadtest/memory-leak-test.js"
   },
   "dependencies": {
     "@prisma/client": "^5.6.0",
@@ -73,7 +80,11 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "@stryker-mutator/core": "^8.0.0",
+    "@stryker-mutator/jest-runner": "^8.0.0",
+    "@stryker-mutator/typescript-checker": "^8.0.0",
+    "esbuild": "^0.24.0"
   },
   "engines": {
     "node": ">=18.0.0"

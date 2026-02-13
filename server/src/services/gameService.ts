@@ -47,23 +47,7 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { toEnglishUpperCase } from '../utils/sanitize';
 import { RELEASE_LOCK_SCRIPT } from '../utils/distributedLock';
 import { tryParseJSON } from '../utils/parseJSON';
-
-// Lua script to atomically update room status (prevents TOCTOU race on room data)
-const ATOMIC_SET_ROOM_STATUS_SCRIPT = `
-local roomKey = KEYS[1]
-local newStatus = ARGV[1]
-local ttl = tonumber(ARGV[2])
-
-local roomData = redis.call('GET', roomKey)
-if not roomData then
-    return nil
-end
-
-local room = cjson.decode(roomData)
-room.status = newStatus
-redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
-return 'OK'
-`;
+import { ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../scripts';
 
 // Focused modules
 import {
