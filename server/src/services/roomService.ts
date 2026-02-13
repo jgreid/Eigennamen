@@ -237,7 +237,20 @@ export async function getRoom(roomId: string): Promise<Room | null> {
         return null;
     }
 
-    return tryParseJSON(roomData, roomSchema, `room ${roomId}`) as Room | null;
+    const room = tryParseJSON(roomData, roomSchema, `room ${normalizedId}`) as Room | null;
+
+    if (!room) {
+        // Room key exists but data failed validation — log at error level
+        // so operators can investigate.  parseJSON already logged a warn;
+        // this adds structured context for monitoring dashboards.
+        logger.error('Room data exists in Redis but failed to parse', {
+            roomId: normalizedId,
+            rawDataLength: roomData.length,
+            rawDataPreview: roomData.substring(0, 200)
+        });
+    }
+
+    return room;
 }
 
 /**
@@ -260,6 +273,20 @@ export async function joinRoom(
     // Get room
     const room = await getRoom(normalizedRoomId);
     if (!room) {
+        // Distinguish "key missing" from "data corrupted" for better diagnostics.
+        // getRoom returns null in both cases; check if the key actually exists.
+        const keyExists = await redis.exists(`room:${normalizedRoomId}`);
+        if (keyExists === 1) {
+            logger.error('joinRoom: room key exists but getRoom returned null (data corrupted)', {
+                roomId: normalizedRoomId,
+                sessionId
+            });
+        } else {
+            logger.warn('joinRoom: room key does not exist in Redis', {
+                roomId: normalizedRoomId,
+                sessionId
+            });
+        }
         throw RoomError.notFound(roomId);
     }
 
@@ -441,6 +468,9 @@ export async function updateSettings(
 
     await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
 
+    // Refresh TTL on all room-related keys to keep active rooms alive
+    await refreshRoomTTL(code);
+
     return {
         ...room.settings
     };
@@ -483,12 +513,54 @@ export async function refreshRoomTTL(code: string): Promise<void> {
 }
 
 /**
+ * Debounced TTL refresh — skips if last refresh for this room was <60s ago.
+ * Use this on game mutations (reveal, clue, endTurn, start) so active games
+ * don't expire, without hammering Redis on every event.
+ */
+const lastTTLRefresh = new Map<string, number>();
+const TTL_REFRESH_DEBOUNCE_MS = 60_000;
+const TTL_REFRESH_MAX_ENTRIES = 500;
+
+export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
+    const now = Date.now();
+    const last = lastTTLRefresh.get(code) || 0;
+    if (now - last < TTL_REFRESH_DEBOUNCE_MS) {
+        return;
+    }
+    lastTTLRefresh.set(code, now);
+
+    // Prevent unbounded growth: evict stale entries when map gets too large
+    if (lastTTLRefresh.size > TTL_REFRESH_MAX_ENTRIES) {
+        for (const [key, ts] of lastTTLRefresh) {
+            if (now - ts > TTL_REFRESH_DEBOUNCE_MS * 2) {
+                lastTTLRefresh.delete(key);
+            }
+        }
+    }
+
+    try {
+        await refreshRoomTTL(code);
+    } catch (err) {
+        // Non-critical — log but don't break the game mutation
+        logger.warn(`Debounced TTL refresh failed for room ${code}: ${(err as Error).message}`);
+    }
+}
+
+/** Remove a room from the debounce map (call during room cleanup) */
+export function clearTTLRefreshEntry(code: string): void {
+    lastTTLRefresh.delete(code);
+}
+
+/**
  * Clean up all data associated with a room
  * ISSUE #4 FIX: Now includes team sets in cleanup
  * Uses parallel operations for better performance
  */
 export async function cleanupRoom(code: string): Promise<void> {
     const redis: RedisClient = getRedis();
+
+    // Clean up in-memory debounce entry
+    clearTTLRefreshEntry(code);
 
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);

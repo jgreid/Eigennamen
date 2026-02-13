@@ -382,7 +382,9 @@ export function setupMultiplayerListeners() {
     });
     // Disconnect handling
     CodenamesClient.on('disconnected', () => {
-        clearRoleChange();
+        // Use revertAndClearRoleChange (not clearRoleChange) so that buttons
+        // are reverted from 'loading' state back to their previous DOM state.
+        revertAndClearRoleChange();
         showToast('Disconnected from server', 'warning');
         // Show reconnection overlay if we were in a room
         if (state.isMultiplayerMode) {
@@ -429,8 +431,18 @@ export function setupMultiplayerListeners() {
         else {
             showToast('Could not rejoin previous game', 'warning');
         }
-        // Reset multiplayer state properly
-        leaveMultiplayerMode();
+        // Reset multiplayer state properly — wrapped in try/catch so that
+        // if any part of cleanup throws, the UI is never left stuck in
+        // multiplayer mode with a dead room code.
+        try {
+            leaveMultiplayerMode();
+        }
+        catch (e) {
+            logger.error('leaveMultiplayerMode threw during rejoinFailed:', e);
+            // Ensure critical state is always reset even if cleanup fails
+            state.isMultiplayerMode = false;
+            state.currentRoomId = null;
+        }
     });
     // Handle being kicked from the room
     CodenamesClient.on('kicked', (data) => {

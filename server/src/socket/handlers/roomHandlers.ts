@@ -163,7 +163,6 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);
-            socket.roomCode = room.code;
 
             // Host starts as spectator
             socket.join(`spectators:${room.code}`);
@@ -171,6 +170,10 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             const roomStats: RoomStats = await playerService.getRoomStats(room.code);
 
             socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
+
+            // Set roomCode AFTER all handler work succeeds to prevent
+            // stale roomCode if getRoomStats or emit throws
+            socket.roomCode = room.code;
 
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);
         }
@@ -209,7 +212,6 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);
-            socket.roomCode = room.code;
 
             const isSpectator = player.role === 'spectator' || !player.team;
             if (isSpectator) {
@@ -257,6 +259,10 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             } else {
                 socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_JOINED, { player });
             }
+
+            // Set roomCode AFTER all handler work succeeds to prevent
+            // stale roomCode if any earlier operation throws
+            socket.roomCode = room.code;
 
             logger.info(`Player ${validated.nickname} joined room ${room.code}`);
         }
@@ -447,7 +453,6 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             socket.join(`room:${code}`);
             socket.join(`player:${socket.sessionId}`);
-            socket.roomCode = code;
 
             const isSpectator = player.role === 'spectator' || !player.team;
             if (isSpectator) {
@@ -488,6 +493,9 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 team: player.team
             });
 
+            // Set roomCode AFTER all handler work succeeds
+            socket.roomCode = code;
+
             // PHASE 5.1: Track successful reconnection
             incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode: code, success: 'true' });
 
@@ -498,6 +506,6 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
 export default roomHandlers;
 
-// CommonJS compat
+// CommonJS interop — tests use require() which needs module.exports
 module.exports = roomHandlers;
 module.exports.default = roomHandlers;

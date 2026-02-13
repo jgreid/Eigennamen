@@ -249,7 +249,6 @@ export interface SocketEventNames {
   ROOM_PLAYER_LEFT: string;
   ROOM_SETTINGS: string;
   ROOM_SETTINGS_UPDATED: string;
-  ROOM_SYNC: string;
   ROOM_RESYNCED: string;
   ROOM_RESYNC: string;
   ROOM_GET_RECONNECTION_TOKEN: string;
@@ -311,7 +310,6 @@ export interface SocketEventNames {
 
   // Chat events
   CHAT_MESSAGE: string;
-  CHAT_SEND: string;
   CHAT_ERROR: string;
   CHAT_SPECTATOR: string;
   CHAT_SPECTATOR_MESSAGE: string;
@@ -363,7 +361,6 @@ export interface GameConstants {
   LOCKS: LockConfig;
 
   // Retries
-  RETRIES: { OPTIMISTIC_LOCK: number; PUSH_RETRY_DELAYS: number[] };
   RETRY_CONFIG: RetryConfig;
 
   // Enums as arrays

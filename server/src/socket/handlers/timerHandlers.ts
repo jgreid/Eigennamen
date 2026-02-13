@@ -146,6 +146,6 @@ function timerHandlers(io: Server, socket: GameSocket): void {
 
 export default timerHandlers;
 
-// CommonJS compat
+// CommonJS interop — tests use require() which needs module.exports
 module.exports = timerHandlers;
 module.exports.default = timerHandlers;
