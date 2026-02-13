@@ -416,11 +416,14 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
 });
 
 // Serve the game for any non-API route (SPA support)
+// no-cache ensures browsers always revalidate after deploys so cache-busted
+// asset references (e.g. socket-client.js?v=7) take effect immediately.
 const RESERVED_PATH_PREFIXES = ['/api', '/socket.io', '/health', '/metrics', '/api-docs', '/admin'];
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
     if (RESERVED_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
         return next();
     }
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
