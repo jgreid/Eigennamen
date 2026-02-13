@@ -188,6 +188,19 @@ app.get('/service-worker.js', (_req: Request, res: Response, next: NextFunction)
     next();
 });
 
+// HTML files must not be long-cached so that cache-busted asset references
+// (e.g. socket-client.js?v=6) take effect immediately after deploys.
+// Without this, browsers serve stale HTML for up to 1 day, loading old JS
+// versions that may have known bugs (like the io.protocol check in ?v=5).
+app.get('*.html', (_req: Request, res: Response, next: NextFunction) => {
+    res.set('Cache-Control', 'no-cache');
+    next();
+});
+app.get('/', (_req: Request, res: Response, next: NextFunction) => {
+    res.set('Cache-Control', 'no-cache');
+    next();
+});
+
 // Serve static files (the game client) with caching headers
 app.use(express.static(path.join(__dirname, '../public'), {
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
