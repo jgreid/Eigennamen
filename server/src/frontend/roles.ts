@@ -359,7 +359,9 @@ function setRoleForTeam(
         // Safety timeout in case ack is lost.
         // For compound operations (team_then_role), only timeout the initial
         // phase — the changing_role phase gets its own timeout when it starts.
-        const initialPhase = state.roleChange.phase;
+        // Typed as string to prevent TS from narrowing state.roleChange
+        // through this alias (state.roleChange changes asynchronously in the callback)
+        const initialPhase: string = state.roleChange.phase;
         setTimeout(() => {
             if (state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 if (initialPhase === 'team_then_role' && state.roleChange.phase === 'changing_role') {
