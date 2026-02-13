@@ -323,6 +323,18 @@ export function setupMultiplayerListeners(): void {
                         };
 
                         CodenamesClient.setRole(roleToSet);
+
+                        // Dedicated timeout for the role portion of the compound
+                        // operation. The original team-phase timeout in setRoleForTeam()
+                        // skips this phase, so we need our own 5s window.
+                        const rolePhaseOpId = currentOpId;
+                        setTimeout(() => {
+                            if (state.roleChange.phase === 'changing_role' && state.roleChange.operationId === rolePhaseOpId) {
+                                logger.warn('Compound role change: role portion timed out');
+                                clearRoleChange();
+                                updateControls();
+                            }
+                        }, 5000);
                     } else if (isConfirmingUpdate || rc.phase === 'idle') {
                         clearRoleChange();
                     }

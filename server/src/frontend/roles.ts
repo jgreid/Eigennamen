@@ -356,9 +356,15 @@ function setRoleForTeam(
         }
         refreshRoleUI();
 
-        // Safety timeout in case ack is lost
+        // Safety timeout in case ack is lost.
+        // For compound operations (team_then_role), only timeout the initial
+        // phase — the changing_role phase gets its own timeout when it starts.
+        const initialPhase = state.roleChange.phase;
         setTimeout(() => {
             if (state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
+                if (initialPhase === 'team_then_role' && state.roleChange.phase === 'changing_role') {
+                    return; // Role phase has its own timeout (set in playerUpdated handler)
+                }
                 logger.warn(`set${roleName}: Safety timeout - clearing role change state`);
                 clearRoleChange();
                 updateControls();

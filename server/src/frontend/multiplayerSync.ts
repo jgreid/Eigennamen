@@ -12,6 +12,10 @@ import {
     updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility,
     hideReconnectionOverlay, updateDuetUI
 } from './multiplayerUI.js';
+import {
+    setPlayerRole, clearPlayerRole, resetGameState,
+    validateTurn, validateWinner, validateGameMode, validateArrayLength
+} from './stateMutations.js';
 import type { ServerPlayerData, ServerGameData, ReconnectionData, DOMListenerEntry } from './multiplayerTypes.js';
 
 // List of multiplayer event names for cleanup
@@ -59,26 +63,12 @@ export function cleanupMultiplayerListeners(): void {
 }
 
 /**
- * Sync local player state variables from server player data
+ * Sync local player state variables from server player data.
+ * Routes through setPlayerRole() for atomic, validated updates.
  */
 export function syncLocalPlayerState(player: ServerPlayerData): void {
     if (!player) return;
-
-    // Set team affiliation
-    state.playerTeam = player.team || null;
-
-    // Set role-specific variables
-    if (player.role === 'spymaster' && player.team) {
-        state.spymasterTeam = player.team;
-        state.clickerTeam = null;
-    } else if (player.role === 'clicker' && player.team) {
-        state.clickerTeam = player.team;
-        state.spymasterTeam = null;
-    } else {
-        // Spectator or unassigned
-        state.spymasterTeam = null;
-        state.clickerTeam = null;
-    }
+    setPlayerRole(player.role, player.team);
 }
 
 /**
@@ -86,9 +76,7 @@ export function syncLocalPlayerState(player: ServerPlayerData): void {
  * Called on room change and disconnect to prevent stale data.
  */
 export function resetMultiplayerState(): void {
-    state.playerTeam = null;
-    state.spymasterTeam = null;
-    state.clickerTeam = null;
+    clearPlayerRole();
     state.isHost = false;
     clearRoleChange();
     // Clear pending reveal timeouts to prevent memory leaks
@@ -97,9 +85,6 @@ export function resetMultiplayerState(): void {
     state.revealingCards.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
-    state.gameState.currentClue = null;
-    state.gameState.guessesUsed = 0;
-    state.gameState.guessesAllowed = 0;
     document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 }
 
@@ -127,6 +112,10 @@ export function leaveMultiplayerMode(): void {
     state.isMultiplayerMode = false;
     state.currentRoomId = null;
 
+    // Reset stale game state to prevent old boards from persisting across rooms
+    resetGameState();
+    state.boardInitialized = false;
+
     // Clear room code from URL
     clearRoomCodeFromURL();
 
@@ -151,9 +140,11 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
 
     // Server sends arrays: words, types, revealed (not a board object)
     if (serverGame.words && Array.isArray(serverGame.words)) {
+        const wordCount = serverGame.words.length;
+
         // Check if words have changed - if so, force full board re-render
         const wordsChanged = !state.gameState.words ||
-            state.gameState.words.length !== serverGame.words.length ||
+            state.gameState.words.length !== wordCount ||
             state.gameState.words.some((w: string, i: number) => w !== serverGame.words![i]);
 
         if (wordsChanged) {
@@ -162,8 +153,18 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         }
 
         state.gameState.words = serverGame.words;
-        state.gameState.types = serverGame.types || [];
-        state.gameState.revealed = serverGame.revealed || [];
+
+        // Validate parallel arrays match word count
+        const types = serverGame.types || [];
+        const revealed = serverGame.revealed || [];
+        if (types.length > 0) {
+            validateArrayLength('types', types, wordCount);
+        }
+        if (revealed.length > 0) {
+            validateArrayLength('revealed', revealed, wordCount);
+        }
+        state.gameState.types = types;
+        state.gameState.revealed = revealed;
 
         // Use server-provided scores if available, with range validation
         if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
@@ -180,15 +181,15 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         }
     }
 
-    // Server uses 'currentTurn' not 'currentTeam'
+    // Validate currentTurn is a known team
     if (serverGame.currentTurn) {
-        state.gameState.currentTurn = serverGame.currentTurn;
+        state.gameState.currentTurn = validateTurn(serverGame.currentTurn, state.gameState.currentTurn);
     }
 
-    // Sync game over state
+    // Sync game over state with validated winner
     if (serverGame.gameOver || serverGame.winner) {
         state.gameState.gameOver = true;
-        state.gameState.winner = serverGame.winner || null;
+        state.gameState.winner = validateWinner(serverGame.winner);
     } else {
         state.gameState.gameOver = false;
         state.gameState.winner = null;
@@ -226,7 +227,7 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         state.gameState.greenTotal = serverGame.greenTotal;
     }
     if (serverGame.gameMode) {
-        state.gameMode = serverGame.gameMode;
+        state.gameMode = validateGameMode(serverGame.gameMode);
     }
 
     // Update all UI components
