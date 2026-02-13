@@ -82,7 +82,13 @@ declare function qrcode(typeNumber: number, errorCorrection: string): QRCode;
 
 /* ---------- Socket.io (socket.io.min.js) ---------- */
 
-declare function io(url?: string, options?: Record<string, unknown>): unknown;
+interface IoFunction {
+    (url?: string, options?: Record<string, unknown>): unknown;
+    Manager: new (url?: string, options?: Record<string, unknown>) => unknown;
+    Socket: new (...args: unknown[]) => unknown;
+    connect: IoFunction;
+}
+declare const io: IoFunction;
 
 /* ---------- Window extensions ---------- */
 
