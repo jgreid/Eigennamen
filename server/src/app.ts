@@ -188,6 +188,19 @@ app.get('/service-worker.js', (_req: Request, res: Response, next: NextFunction)
     next();
 });
 
+// HTML files must not be long-cached so that cache-busted asset references
+// (e.g. socket-client.js?v=6) take effect immediately after deploys.
+// Without this, browsers serve stale HTML for up to 1 day, loading old JS
+// versions that may have known bugs (like the io.protocol check in ?v=5).
+app.get('*.html', (_req: Request, res: Response, next: NextFunction) => {
+    res.set('Cache-Control', 'no-cache');
+    next();
+});
+app.get('/', (_req: Request, res: Response, next: NextFunction) => {
+    res.set('Cache-Control', 'no-cache');
+    next();
+});
+
 // Serve static files (the game client) with caching headers
 app.use(express.static(path.join(__dirname, '../public'), {
     maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
@@ -403,11 +416,14 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
 });
 
 // Serve the game for any non-API route (SPA support)
+// no-cache ensures browsers always revalidate after deploys so cache-busted
+// asset references (e.g. socket-client.js?v=7) take effect immediately.
 const RESERVED_PATH_PREFIXES = ['/api', '/socket.io', '/health', '/metrics', '/api-docs', '/admin'];
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
     if (RESERVED_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
         return next();
     }
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 

@@ -2,12 +2,45 @@
  * Codenames Online - WebSocket Client Adapter
  *
  * This module connects the client to the real-time multiplayer server.
- * Include Socket.io client library before this script:
- * <script src="/js/socket.io.min.js"></script>
+ * Socket.io client library is loaded automatically if not already present.
  */
 
 (function(global) {
     'use strict';
+
+    /**
+     * Check whether the Socket.io global `io` is available and valid.
+     * io.Manager is a stable export across all Socket.io v4.x releases.
+     */
+    function isSocketIOReady() {
+        return typeof io !== 'undefined' && typeof io === 'function' && typeof io.Manager === 'function';
+    }
+
+    /**
+     * Dynamically load the Socket.io client library if the static <script>
+     * tag failed (network hiccup, stale SRI hash after upgrade, ad-blocker,
+     * cached HTML referencing an old bundle, etc.).
+     * Returns a Promise that resolves once `io` is available.
+     */
+    function loadSocketIO() {
+        return new Promise((resolve, reject) => {
+            if (isSocketIOReady()) { resolve(); return; }
+
+            var script = document.createElement('script');
+            script.src = '/js/socket.io.min.js';
+            script.onload = function() {
+                if (isSocketIOReady()) {
+                    resolve();
+                } else {
+                    reject(new Error('Socket.io script loaded but io global is missing'));
+                }
+            };
+            script.onerror = function() {
+                reject(new Error('Failed to load Socket.io client library. Check your network connection and refresh the page.'));
+            };
+            document.head.appendChild(script);
+        });
+    }
 
     const CodenamesClient = {
         socket: null,
@@ -33,13 +66,19 @@
          * @returns {Promise}
          */
         connect(serverUrl = null, options = {}) {
+            // Ensure Socket.io is loaded before attempting connection.
+            // If the static <script> tag failed, dynamically load it.
+            var self = this;
+            return loadSocketIO().then(function() {
+                return self._doConnect(serverUrl, options);
+            });
+        },
+
+        /**
+         * Internal connect implementation (called after io is confirmed available)
+         */
+        _doConnect(serverUrl = null, options = {}) {
             return new Promise((resolve, reject) => {
-                // Check if Socket.io library is loaded and is the genuine constructor
-                // Validate io is the Socket.io factory (io.Manager is a reliable export across v4.x)
-                if (typeof io === 'undefined' || typeof io !== 'function' || typeof io.Manager !== 'function') {
-                    reject(new Error('Socket.io client library not loaded. Please check your network connection and refresh the page.'));
-                    return;
-                }
 
                 // ISSUE #5 & #48 FIX: Use safe storage methods with error handling
                 this.sessionId = this._safeGetStorage(sessionStorage, 'codenames-session-id');
@@ -918,7 +957,7 @@
          * @returns {boolean}
          */
         isSocketIOAvailable() {
-            return typeof io !== 'undefined';
+            return isSocketIOReady();
         },
 
         /**
