@@ -142,16 +142,6 @@ function toggleShortcutOverlay() {
     document.addEventListener('keydown', overlayEscListener);
     document.body.appendChild(overlayElement);
 }
-// ========== SCREEN READER HELPERS ==========
-export function announceToScreenReader(message, priority = 'polite') {
-    const el = document.getElementById('sr-announcements');
-    if (!el)
-        return;
-    el.setAttribute('aria-live', priority);
-    // Clear and re-set to force announcement
-    el.textContent = '';
-    requestAnimationFrame(() => {
-        el.textContent = message;
-    });
-}
+// Screen reader announcements: use announceToScreenReader() from ui.ts
+// (single canonical implementation used throughout the codebase)
 //# sourceMappingURL=accessibility.js.map

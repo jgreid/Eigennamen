@@ -448,6 +448,6 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
 export default gameHandlers;
 
-// CommonJS compat
+// CommonJS interop — tests use require() which needs module.exports
 module.exports = gameHandlers;
 module.exports.default = gameHandlers;

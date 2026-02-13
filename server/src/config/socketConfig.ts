@@ -30,7 +30,6 @@ export const SOCKET_EVENTS = {
     ROOM_PLAYER_LEFT: 'room:playerLeft',
     ROOM_SETTINGS: 'room:settings',
     ROOM_SETTINGS_UPDATED: 'room:settingsUpdated',
-    ROOM_SYNC: 'room:sync',
     ROOM_RESYNCED: 'room:resynced',
     ROOM_RESYNC: 'room:resync',
     ROOM_GET_RECONNECTION_TOKEN: 'room:getReconnectionToken',
@@ -93,7 +92,6 @@ export const SOCKET_EVENTS = {
 
     // Chat events
     CHAT_MESSAGE: 'chat:message',
-    CHAT_SEND: 'chat:send',
     CHAT_ERROR: 'chat:error',
     CHAT_SPECTATOR: 'chat:spectator',
     CHAT_SPECTATOR_MESSAGE: 'chat:spectatorMessage',

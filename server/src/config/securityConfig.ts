@@ -64,8 +64,3 @@ export const RETRY_CONFIG = {
     RACE_CONDITION: { delayMs: 100 }  // Delay between race condition retries
 } as const;
 
-// Retry configuration (legacy)
-export const RETRIES = {
-    OPTIMISTIC_LOCK: 3,       // Retries for optimistic locking operations
-    PUSH_RETRY_DELAYS: [2000, 4000, 8000, 16000]  // Exponential backoff
-} as const;

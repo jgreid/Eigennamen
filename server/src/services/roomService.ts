@@ -519,6 +519,7 @@ export async function refreshRoomTTL(code: string): Promise<void> {
  */
 const lastTTLRefresh = new Map<string, number>();
 const TTL_REFRESH_DEBOUNCE_MS = 60_000;
+const TTL_REFRESH_MAX_ENTRIES = 500;
 
 export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
     const now = Date.now();
@@ -527,12 +528,27 @@ export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
         return;
     }
     lastTTLRefresh.set(code, now);
+
+    // Prevent unbounded growth: evict stale entries when map gets too large
+    if (lastTTLRefresh.size > TTL_REFRESH_MAX_ENTRIES) {
+        for (const [key, ts] of lastTTLRefresh) {
+            if (now - ts > TTL_REFRESH_DEBOUNCE_MS * 2) {
+                lastTTLRefresh.delete(key);
+            }
+        }
+    }
+
     try {
         await refreshRoomTTL(code);
     } catch (err) {
         // Non-critical — log but don't break the game mutation
         logger.warn(`Debounced TTL refresh failed for room ${code}: ${(err as Error).message}`);
     }
+}
+
+/** Remove a room from the debounce map (call during room cleanup) */
+export function clearTTLRefreshEntry(code: string): void {
+    lastTTLRefresh.delete(code);
 }
 
 /**
@@ -542,6 +558,9 @@ export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
  */
 export async function cleanupRoom(code: string): Promise<void> {
     const redis: RedisClient = getRedis();
+
+    // Clean up in-memory debounce entry
+    clearTTLRefreshEntry(code);
 
     // Stop any active timer for this room (prevents memory leak)
     await timerService.stopTimer(code);

@@ -506,6 +506,6 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
 export default roomHandlers;
 
-// CommonJS compat
+// CommonJS interop — tests use require() which needs module.exports
 module.exports = roomHandlers;
 module.exports.default = roomHandlers;

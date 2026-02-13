@@ -132,6 +132,6 @@ function chatHandlers(io: Server, socket: GameSocket): void {
 
 export default chatHandlers;
 
-// CommonJS compat
+// CommonJS interop — tests use require() which needs module.exports
 module.exports = chatHandlers;
 module.exports.default = chatHandlers;

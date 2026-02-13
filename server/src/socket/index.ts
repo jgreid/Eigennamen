@@ -36,7 +36,6 @@ import {
     stopConnectionsCleanup
 } from './connectionTracker';
 import {
-    handleDisconnect,
     createTimerExpireCallback as createTimerExpireCallbackImpl
 } from './disconnectHandler';
 import { createSocketServer } from './serverConfig';
@@ -211,7 +210,5 @@ export {
     getTimerStatus,
     getSocketRateLimiter,
     createRateLimitedHandler,
-    cleanupSocketModule,
-    handleDisconnect as _handleDisconnect,
-    createTimerExpireCallback as _createTimerExpireCallback
+    cleanupSocketModule
 };
