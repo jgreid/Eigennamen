@@ -99,7 +99,19 @@ jest.mock('../services/playerService', () => ({
     }),
     handleDisconnect: jest.fn().mockResolvedValue(),
     // FIX: Add atomicHostTransfer for H4 fix
-    atomicHostTransfer: jest.fn().mockResolvedValue({ success: true })
+    atomicHostTransfer: jest.fn().mockResolvedValue({ success: true }),
+    // Sprint D1: buildPlayerData used for atomic join+create
+    buildPlayerData: jest.fn((sessionId, roomCode, nickname, isHost) => ({
+        sessionId,
+        roomCode,
+        nickname,
+        team: null,
+        role: 'spectator',
+        isHost,
+        connected: true,
+        connectedAt: Date.now(),
+        lastSeen: Date.now()
+    }))
 }));
 
 // Mock gameService

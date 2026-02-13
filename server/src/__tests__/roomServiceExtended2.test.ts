@@ -33,7 +33,19 @@ jest.mock('../services/playerService', () => ({
     removePlayer: jest.fn(),
     getPlayersInRoom: jest.fn(),
     // FIX: Add atomicHostTransfer for H4 fix
-    atomicHostTransfer: jest.fn()
+    atomicHostTransfer: jest.fn(),
+    // Sprint D1: buildPlayerData used for atomic join+create
+    buildPlayerData: jest.fn((sessionId, roomCode, nickname, isHost) => ({
+        sessionId,
+        roomCode,
+        nickname,
+        team: null,
+        role: 'spectator',
+        isHost,
+        connected: true,
+        connectedAt: Date.now(),
+        lastSeen: Date.now()
+    }))
 }));
 
 // Mock game service
@@ -200,17 +212,26 @@ describe('Extended Room Service Tests', () => {
                 .rejects.toThrow('unexpected error');
         });
 
-        test('rolls back on player creation failure', async () => {
+        test('creates player atomically in join script (Sprint D1)', async () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.eval.mockResolvedValue(1);
-            mockRedis.sRem.mockResolvedValue(1);
             playerService.getPlayer.mockResolvedValue(null);
-            playerService.createPlayer.mockRejectedValue(new Error('Create failed'));
+            gameService.getGame.mockResolvedValue(null);
+            playerService.getPlayersInRoom.mockResolvedValue([]);
 
-            await expect(roomService.joinRoom('test-room', 'player-session', 'Player1'))
-                .rejects.toThrow('Create failed');
+            const result = await roomService.joinRoom('test-room', 'player-session', 'Player1');
 
-            expect(mockRedis.sRem).toHaveBeenCalled();
+            // Player data is built by buildPlayerData and passed to the Lua script
+            expect(playerService.buildPlayerData).toHaveBeenCalledWith(
+                'player-session', 'test-room', 'Player1', false
+            );
+            // createPlayer should NOT be called for result===1 (atomic in Lua)
+            expect(playerService.createPlayer).not.toHaveBeenCalled();
+            expect(result.player).toMatchObject({
+                sessionId: 'player-session',
+                roomCode: 'test-room',
+                nickname: 'Player1'
+            });
         });
 
         test('handles room not found', async () => {
@@ -224,10 +245,6 @@ describe('Extended Room Service Tests', () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.eval.mockResolvedValue(1);
             playerService.getPlayer.mockResolvedValue(null);
-            playerService.createPlayer.mockResolvedValue({
-                sessionId: 'player-session',
-                nickname: 'Player1'
-            });
             gameService.getGame.mockResolvedValue(null);
             playerService.getPlayersInRoom.mockResolvedValue([]);
 

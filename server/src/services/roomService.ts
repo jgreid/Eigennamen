@@ -34,6 +34,7 @@ import {
 } from '../config/constants';
 import { RoomError, PlayerError, ServerError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
+import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
 
 // Zod schema for Room data from Redis.
@@ -79,7 +80,9 @@ return 1
 `;
 
 /**
- * Lua script for atomic room join with capacity check
+ * Lua script for atomic room join with capacity check and player creation (Sprint D1)
+ * Atomically adds to the players set AND creates the player data key,
+ * eliminating the window where a crash could leave an orphaned set member.
  * Returns: 1 if added successfully, 0 if room is full, -1 if already a member, -2 if room doesn't exist
  */
 const ATOMIC_JOIN_SCRIPT = `
@@ -87,6 +90,9 @@ local playersKey = KEYS[1]
 local roomKey = KEYS[2]
 local maxPlayers = tonumber(ARGV[1])
 local sessionId = ARGV[2]
+local playerData = ARGV[3]
+local playerKey = ARGV[4]
+local playerTTL = tonumber(ARGV[5])
 
 -- Verify room still exists (prevents orphaned player sets if room was deleted between getRoom and this script)
 if redis.call('EXISTS', roomKey) == 0 then
@@ -105,6 +111,12 @@ if currentCount >= maxPlayers then
 end
 
 redis.call('SADD', playersKey, sessionId)
+
+-- Atomically create player data (Sprint D1: eliminates crash window)
+if playerData and playerData ~= '' then
+    redis.call('SET', playerKey, playerData, 'EX', playerTTL)
+end
+
 return 1
 `;
 
@@ -300,15 +312,24 @@ export async function joinRoom(
         isReconnecting = true;
         logger.info(`Player ${sessionId} reconnected to room "${roomId}"`);
     } else {
-        // New join - use Lua script for atomic capacity check and add
-        // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
-        // FIX: Pass room key as KEYS[2] so the script can verify room still exists
+        // New join - use Lua script for atomic capacity check, set add, and player creation
+        // Sprint D1: Player data is now created atomically inside the Lua script,
+        // eliminating the crash window between SADD and SET that could leave orphaned set members.
+        const playerObj = playerService.buildPlayerData(sessionId, normalizedRoomId, nickname, false);
+        const playerJSON = JSON.stringify(playerObj);
+
         const result = await withTimeout(
             redis.eval(
                 ATOMIC_JOIN_SCRIPT,
                 {
                     keys: [`room:${normalizedRoomId}:players`, `room:${normalizedRoomId}`],
-                    arguments: [ROOM_MAX_PLAYERS.toString(), sessionId]
+                    arguments: [
+                        ROOM_MAX_PLAYERS.toString(),
+                        sessionId,
+                        playerJSON,
+                        `player:${sessionId}`,
+                        REDIS_TTL.PLAYER.toString()
+                    ]
                 }
             ),
             TIMEOUTS.REDIS_OPERATION,
@@ -329,15 +350,8 @@ export async function joinRoom(
             player = await playerService.createPlayer(sessionId, normalizedRoomId, nickname, false);
             isReconnecting = true;
         } else if (result === 1) {
-            // Successfully added to set, now create player data
-            try {
-                player = await playerService.createPlayer(sessionId, normalizedRoomId, nickname, false, false);
-            } catch (error) {
-                // Rollback: remove from players set
-                logger.warn(`Player data creation failed for ${sessionId}, rolling back set addition`);
-                await redis.sRem(`room:${normalizedRoomId}:players`, sessionId);
-                throw error;
-            }
+            // Player was created atomically by the Lua script (Sprint D1)
+            player = playerObj;
         } else {
             // Unexpected result - log and throw error
             logger.error('Unexpected result from room join script', { result, roomId });
@@ -543,6 +557,7 @@ export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
     } catch (err) {
         // Non-critical — log but don't break the game mutation
         logger.warn(`Debounced TTL refresh failed for room ${code}: ${(err as Error).message}`);
+        incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'ttl_refresh_failure' });
     }
 }
 

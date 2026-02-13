@@ -13,6 +13,7 @@ import logger from '../utils/logger';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
+import { ValidationError } from '../errors/GameError';
 import { z } from 'zod';
 
 // Zod schema for runtime validation of timer state from Redis.
@@ -419,14 +420,14 @@ export async function addTime(
 ): Promise<TimerInfo | null> {
     // Validate parameters
     if (!roomCode || typeof roomCode !== 'string') {
-        throw new Error('Invalid roomCode: must be a non-empty string');
+        throw new ValidationError('Invalid roomCode: must be a non-empty string');
     }
     if (typeof secondsToAdd !== 'number' || !Number.isFinite(secondsToAdd) || secondsToAdd <= 0) {
-        throw new Error('Invalid secondsToAdd: must be a positive number');
+        throw new ValidationError('Invalid secondsToAdd: must be a positive number');
     }
     // SECURITY FIX: Add upper bound to prevent excessive time additions
     if (secondsToAdd > TIMER.MAX_TURN_SECONDS) {
-        throw new Error(`Invalid secondsToAdd: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
+        throw new ValidationError(`Invalid secondsToAdd: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
     }
 
     return addTimeLocal(roomCode, secondsToAdd, onExpire);

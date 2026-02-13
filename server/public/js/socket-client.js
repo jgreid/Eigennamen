@@ -58,6 +58,7 @@
         _socketListeners: [],       // Track socket.io listeners for cleanup
         _offlineQueue: [],          // Queue for events sent while disconnected
         _offlineQueueMaxSize: 20,   // Max queued events to prevent memory growth
+        _nextRequestId: 0,         // Incrementing counter for request correlation
 
         /**
          * Connect to the server
@@ -126,6 +127,9 @@
 
                 this.socket.on('disconnect', (reason) => {
                     this.connected = false;
+                    // Clear operation flags so they don't block new operations after reconnect
+                    this.createInProgress = false;
+                    this.joinInProgress = false;
                     console.log('Disconnected:', reason);
                     this._emit('disconnected', { reason, wasConnected: true });
                 });
@@ -517,6 +521,15 @@
         },
 
         /**
+         * Generate a unique request ID for correlating server responses.
+         * Uses an incrementing counter (sufficient for per-connection correlation).
+         */
+        _generateRequestId() {
+            this._nextRequestId = (this._nextRequestId + 1) % Number.MAX_SAFE_INTEGER;
+            return 'req_' + this._nextRequestId;
+        },
+
+        /**
          * Emit event to listeners
          */
         _emit(event, data) {
@@ -599,6 +612,7 @@
                     return;
                 }
 
+                const requestId = this._generateRequestId();
                 let timeoutId = null;
                 let settled = false;
 
@@ -619,10 +633,18 @@
                     resolve(data);
                 };
 
-                // ISSUE #6 FIX: Clean up on ANY error, not just room errors
                 const onError = (error) => {
                     if (settled) return;
-                    if (error.type === 'room' || error.type === 'connection') {
+                    // Connection errors always match (not from server handler)
+                    if (error.type === 'connection') {
+                        settled = true;
+                        cleanup();
+                        reject(error);
+                        return;
+                    }
+                    if (error.type === 'room') {
+                        // Only match errors correlated to our request (ignore other operations' errors)
+                        if (error.requestId !== undefined && error.requestId !== requestId) return;
                         settled = true;
                         cleanup();
                         reject(error);
@@ -632,13 +654,13 @@
                 this.on('roomCreated', onCreated);
                 this.on('error', onError);
 
-                // Send roomId and settings to server
+                // Send roomId, settings, and requestId to server
                 this.socket.emit('room:create', {
                     roomId,
-                    settings: { nickname, ...settings }
+                    settings: { nickname, ...settings },
+                    requestId
                 });
 
-                // ISSUE #20 FIX: Store timeout ID for cancellation
                 // Timeout matches server SOCKET_HANDLER timeout (30s)
                 timeoutId = setTimeout(() => {
                     if (settled) return;
@@ -664,6 +686,7 @@
             this.joinInProgress = true;
 
             return new Promise((resolve, reject) => {
+                const requestId = this._generateRequestId();
                 let timeoutId = null;
                 let settled = false;
 
@@ -684,10 +707,18 @@
                     resolve(data);
                 };
 
-                // ISSUE #6 FIX: Clean up on ANY error, not just room errors
                 const onError = (error) => {
                     if (settled) return;
-                    if (error.type === 'room' || error.type === 'connection') {
+                    // Connection errors always match (not from server handler)
+                    if (error.type === 'connection') {
+                        settled = true;
+                        cleanup();
+                        reject(error);
+                        return;
+                    }
+                    if (error.type === 'room') {
+                        // Only match errors correlated to our request (ignore other operations' errors)
+                        if (error.requestId !== undefined && error.requestId !== requestId) return;
                         settled = true;
                         cleanup();
                         reject(error);
@@ -697,14 +728,11 @@
                 this.on('roomJoined', onJoined);
                 this.on('error', onError);
 
-                // Send roomId and nickname to server (no password needed)
-                this.socket.emit('room:join', { roomId, nickname });
+                // Send roomId, nickname, and requestId to server
+                this.socket.emit('room:join', { roomId, nickname, requestId });
 
-                // ISSUE #20 FIX: Store timeout ID for cancellation
-                // FIX: Client timeout (20s) exceeds server JOIN_ROOM timeout (15s) to
+                // Client timeout (20s) exceeds server JOIN_ROOM timeout (15s) to
                 // account for post-join processing (stats, token invalidation) and network latency.
-                // Previously both were 15s, causing the client to timeout before receiving
-                // the server's response when post-join operations added even small delays.
                 timeoutId = setTimeout(() => {
                     if (settled) return;
                     settled = true;
@@ -758,6 +786,7 @@
                     return;
                 }
 
+                const requestId = this._generateRequestId();
                 let timeoutId = null;
                 let settled = false;
 
@@ -777,10 +806,18 @@
                     resolve(data);
                 };
 
-                // ISSUE #6 FIX: Clean up on ANY error, not just room errors
                 const onError = (error) => {
                     if (settled) return;
-                    if (error.type === 'room' || error.type === 'connection') {
+                    // Connection errors always match (not from server handler)
+                    if (error.type === 'connection') {
+                        settled = true;
+                        cleanup();
+                        reject(error);
+                        return;
+                    }
+                    if (error.type === 'room') {
+                        // Only match errors correlated to our request (ignore other operations' errors)
+                        if (error.requestId !== undefined && error.requestId !== requestId) return;
                         settled = true;
                         cleanup();
                         reject(error);
@@ -790,9 +827,8 @@
                 this.on('roomResynced', onResynced);
                 this.on('error', onError);
 
-                this.socket.emit('room:resync');
+                this.socket.emit('room:resync', { requestId });
 
-                // ISSUE #20 FIX: Store timeout ID for cancellation
                 timeoutId = setTimeout(() => {
                     if (settled) return;
                     settled = true;
