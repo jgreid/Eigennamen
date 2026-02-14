@@ -6,7 +6,7 @@
  * ensure users always get the latest version when online.
  */
 
-const CACHE = 'codenames-v9';
+const CACHE = 'eigennamen-v1';
 
 const OFFLINE_ASSETS = [
     '/',
