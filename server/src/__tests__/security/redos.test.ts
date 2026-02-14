@@ -10,8 +10,6 @@ describe('ReDoS regression tests', () => {
     const teamNameRegex = /^[\p{L}\p{N}\s\-]+$/u;
     const roomIdRegex = /^[\p{L}\p{N}\-_]+$/u;
     const nicknameRegex = /^[\p{L}\p{N}\s\-_]+$/u;
-    const clueWordRegex = /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u;
-
     const SAFE_TIMEOUT_MS = 50;
 
     function assertFastExecution(regex: RegExp, input: string, _label: string): void {
@@ -64,41 +62,6 @@ describe('ReDoS regression tests', () => {
 
         it('handles Unicode characters', () => {
             assertFastExecution(nicknameRegex, 'München'.repeat(1000), 'unicode');
-        });
-    });
-
-    describe('clueWordRegex', () => {
-        it('handles long single-word input quickly', () => {
-            assertFastExecution(clueWordRegex, 'a'.repeat(10000), 'long single word');
-        });
-
-        it('handles max word parts (10) quickly', () => {
-            const input = Array(10).fill('word').join(' ');
-            assertFastExecution(clueWordRegex, input, 'max word parts');
-        });
-
-        it('handles long non-matching input quickly', () => {
-            assertFastExecution(clueWordRegex, 'a'.repeat(9999) + '!', 'long non-match');
-        });
-
-        it('handles repeated separator patterns quickly', () => {
-            // This pattern could cause backtracking in naive implementations
-            assertFastExecution(clueWordRegex, 'a' + ' a'.repeat(9), 'repeated separators');
-        });
-
-        it('handles apostrophe-separated words quickly', () => {
-            const input = Array(10).fill('don').join("'");
-            assertFastExecution(clueWordRegex, input, 'apostrophe separated');
-        });
-
-        it('handles hyphen-separated words quickly', () => {
-            const input = Array(10).fill('well').join('-');
-            assertFastExecution(clueWordRegex, input, 'hyphen separated');
-        });
-
-        it('rejects more than 10 word parts', () => {
-            const input = Array(11).fill('word').join(' ');
-            expect(clueWordRegex.test(input)).toBe(false);
         });
     });
 

@@ -42,7 +42,7 @@ function getErrorMessage(error: ServerErrorData): string {
         'RATE_LIMITED': 'Please wait a moment before trying again',
         'NOT_YOUR_TURN': "It's not your team's turn",
         'NOT_CLICKER': 'Only the team clicker can reveal cards',
-        'NOT_SPYMASTER': 'Only the spymaster can give clues',
+        'NOT_SPYMASTER': 'Only spymasters can perform this action',
         'GAME_NOT_STARTED': 'Wait for the host to start the game',
         'GAME_OVER': 'The game has ended - start a new game',
         'CARD_ALREADY_REVEALED': 'That card has already been revealed',

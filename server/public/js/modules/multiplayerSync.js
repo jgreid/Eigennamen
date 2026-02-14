@@ -13,7 +13,7 @@ import { setPlayerRole, clearPlayerRole, resetGameState, validateTurn, validateW
 export const multiplayerEventNames = [
     'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
     'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
-    'playerUpdated', 'clueGiven', 'spymasterView',
+    'playerUpdated', 'spymasterView',
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
     'roomReconnected', 'disconnected', 'rejoining', 'rejoined', 'rejoinFailed', 'error',
     'kicked', 'playerKicked', 'settingsUpdated',
@@ -271,10 +271,6 @@ export function detectOfflineChanges(data) {
         serverGame.currentTurn !== localGame.currentTurn && !serverGame.gameOver) {
         const teamName = serverGame.currentTurn === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue');
         changes.push(`Now ${teamName}'s turn`);
-    }
-    // Clue given while offline
-    if (serverGame && serverGame.currentClue && !localGame.currentClue) {
-        changes.push(`Clue: ${serverGame.currentClue.word} (${serverGame.currentClue.number})`);
     }
     // Player count changed
     if (data.players && state.multiplayerPlayers.length > 0) {

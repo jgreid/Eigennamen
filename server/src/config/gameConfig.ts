@@ -81,8 +81,7 @@ export const GAME_INTERNALS = {
 
 // Game history configuration
 export const GAME_HISTORY = {
-    MAX_ENTRIES: 200,  // Maximum history entries per game
-    MAX_CLUES: 100     // Maximum clues stored per game (prevents unbounded growth)
+    MAX_ENTRIES: 200   // Maximum history entries per game
 } as const;
 
 // Default word list (same as client)

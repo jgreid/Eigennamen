@@ -199,7 +199,6 @@ export interface RetryConfig {
  */
 export interface GameHistoryConfig {
   MAX_ENTRIES: number;
-  MAX_CLUES: number;
 }
 
 // ============================================================================

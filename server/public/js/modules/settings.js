@@ -5,6 +5,7 @@ import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './u
 import { openModal, closeModal } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator, updateQRCode } from './game.js';
 import { t } from './i18n.js';
+import { logger } from './logger.js';
 export function openSettings() {
     openModal('settings-modal');
     // Reset to Teams panel when opening
@@ -22,7 +23,7 @@ export function openSettings() {
     updateCharCounter('red-name-input', 'red-char-counter', 32);
     updateCharCounter('blue-name-input', 'blue-char-counter', 32);
     // Load word list mode
-    // HIGH FIX: Validate savedMode against allowed values before using in CSS selector
+    // Validate savedMode against allowed values before using in CSS selector
     const rawSavedMode = safeGetItem('codenames-wordlist-mode', 'combined');
     const allowedModes = ['default', 'combined', 'custom'];
     const savedMode = allowedModes.includes(rawSavedMode ?? '') ? rawSavedMode : 'combined';
@@ -290,7 +291,7 @@ export async function tryLoadWordlistFile() {
         const isTypeError = e instanceof Error && e.name === 'TypeError';
         if (!isTypeError && window.location.hostname === 'localhost') {
             const msg = e instanceof Error ? e.message : String(e);
-            console.warn('Unexpected error loading wordlist.txt:', msg);
+            logger.warn('Unexpected error loading wordlist.txt:', msg);
         }
     }
 }

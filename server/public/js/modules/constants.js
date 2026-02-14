@@ -1,5 +1,5 @@
 // ========== SHARED FRONTEND CONSTANTS ==========
-// PHASE 2 FIX: Centralize hardcoded limits for consistency with server validation
+// Centralize hardcoded limits for consistency with server validation
 // These values should match the server-side constants in server/src/config/constants.ts
 /**
  * Validation limits for user input
@@ -13,14 +13,8 @@ export const VALIDATION = {
     ROOM_CODE_MIN_LENGTH: 3,
     ROOM_CODE_MAX_LENGTH: 20,
     ROOM_CODE_PATTERN: /^[\p{L}\p{N}\-_]+$/u,
-    // Clue constraints
-    CLUE_MIN_LENGTH: 1,
-    CLUE_MAX_LENGTH: 50,
     // Chat message constraints
-    CHAT_MESSAGE_MAX_LENGTH: 500,
-    // Clue word regex - must match server's clueWordRegex in schemas.ts
-    // Unicode letters with optional single spaces/hyphens/apostrophes between words (max 10 parts)
-    CLUE_WORD_PATTERN: /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u
+    CHAT_MESSAGE_MAX_LENGTH: 500
 };
 /**
  * Game-related constants
@@ -188,27 +182,6 @@ export function validateNickname(nickname) {
     }
     if (RESERVED_NAMES.includes(trimmed.toLowerCase())) {
         return { valid: false, error: 'This nickname is reserved' };
-    }
-    return { valid: true, error: null };
-}
-/**
- * Validate a clue word against constraints (matches server's clueWordRegex)
- * @param word - Clue word to validate
- * @returns Validation result with valid flag and optional error message
- */
-export function validateClueWord(word) {
-    if (!word || typeof word !== 'string') {
-        return { valid: false, error: 'Clue word is required' };
-    }
-    const trimmed = word.trim().replace(/\s+/g, ' ');
-    if (trimmed.length < VALIDATION.CLUE_MIN_LENGTH) {
-        return { valid: false, error: 'Clue word is required' };
-    }
-    if (trimmed.length > VALIDATION.CLUE_MAX_LENGTH) {
-        return { valid: false, error: `Clue must be ${VALIDATION.CLUE_MAX_LENGTH} characters or less` };
-    }
-    if (!VALIDATION.CLUE_WORD_PATTERN.test(trimmed)) {
-        return { valid: false, error: 'Clue must be words separated by spaces, hyphens, or apostrophes' };
     }
     return { valid: true, error: null };
 }

@@ -23,7 +23,7 @@ export function showToast(message, type = 'error', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container)
         return undefined;
-    // HIGH FIX: Validate type against allowed values to prevent arbitrary class/key injection
+    // Validate type against allowed values to prevent arbitrary class/key injection
     const validTypes = ['error', 'success', 'warning', 'info'];
     const safeType = validTypes.includes(type) ? type : 'error';
     const toast = document.createElement('div');
@@ -111,7 +111,7 @@ export function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal)
         return;
-    // PHASE 2 FIX: Push current state onto modal stack before opening new modal
+    // Push current state onto modal stack before opening new modal
     // This preserves focus context when multiple modals are opened
     modalStack.push({
         modal: modal,
@@ -136,7 +136,7 @@ export function closeModal(modalId) {
     if (!modal)
         return;
     modal.classList.remove('active');
-    // PHASE 2 FIX: Pop modal from stack and restore previous focus
+    // Pop modal from stack and restore previous focus
     // Find and remove this modal from the stack (it might not be at the top if closed out of order)
     const stackIndex = modalStack.findIndex(entry => entry.modal === modal);
     let previousFocus = null;

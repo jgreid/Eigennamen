@@ -28,7 +28,7 @@ export function updateMpIndicator(room, players) {
         if (mpExtraRow) {
             mpExtraRow.style.display = 'flex';
         }
-        // D-1: Show chat panel and initialize listeners (idempotent)
+        // Show chat panel and initialize listeners (idempotent)
         showChatPanel();
         initChat();
         // Update player list
@@ -47,7 +47,7 @@ export function updateMpIndicator(room, players) {
         if (mpExtraRow) {
             mpExtraRow.style.display = 'none';
         }
-        // D-1: Hide chat panel
+        // Hide chat panel
         hideChatPanel();
         // Update share panel for standalone mode
         updateSharePanelMode(false);
