@@ -219,9 +219,9 @@ describe('Room Handlers', () => {
                 player: {
                     sessionId: 'session-1',
                     nickname: 'Player1',
-                    lastConnected: Date.now() - 60000,
                     team: 'red'
-                }
+                },
+                isReconnecting: true
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
@@ -234,7 +234,8 @@ describe('Room Handlers', () => {
                 room: { code: 'test-room', roomId: 'test-room' },
                 players: [],
                 game: null,
-                player: { nickname: 'Player1', lastConnected: null }
+                player: { nickname: 'Player1' },
+                isReconnecting: false
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });

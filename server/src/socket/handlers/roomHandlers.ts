@@ -198,7 +198,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // (room:join: 10/min). Failed attempts are additionally tracked by
             // trackFailedJoinAttempt for monitoring/metrics.
 
-            let joinResult: { room: Room; players: Player[]; game: GameState | null; player: Player };
+            let joinResult: { room: Room; players: Player[]; game: GameState | null; player: Player; isReconnecting: boolean };
             try {
                 joinResult = await withTimeout(
                     roomService.joinRoom(
@@ -208,7 +208,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                     ),
                     TIMEOUTS.JOIN_ROOM,
                     'room:join'
-                ) as { room: Room; players: Player[]; game: GameState | null; player: Player };
+                ) as { room: Room; players: Player[]; game: GameState | null; player: Player; isReconnecting: boolean };
             } catch (error) {
                 // Track failed attempt for rate limiting (prevents room enumeration)
                 if ((error as { code?: string }).code === ERROR_CODES.ROOM_NOT_FOUND ||
@@ -218,7 +218,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 throw error;
             }
 
-            const { room, players, game, player } = joinResult;
+            const { room, players, game, player, isReconnecting } = joinResult;
 
             socket.join(`room:${room.code}`);
             socket.join(`player:${socket.sessionId}`);
@@ -258,9 +258,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 sendTimerStatus(socket, room.code, 'join')
             ]);
 
-            const isReconnect = !!(player as Player & { lastConnected?: number }).lastConnected;
-
-            if (isReconnect) {
+            if (isReconnecting) {
                 socket.to(`room:${room.code}`).emit(SOCKET_EVENTS.ROOM_PLAYER_RECONNECTED, {
                     sessionId: socket.sessionId,
                     nickname: player.nickname,
@@ -360,7 +358,17 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 'room:resync'
             );
 
-            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
+            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode).catch((err: Error) => {
+                logger.warn(`Failed to get room stats during resync: ${err.message}`);
+                return {
+                    totalPlayers: players.length,
+                    spectatorCount: 0,
+                    teams: {
+                        red: { total: 0, spymaster: null, clicker: null },
+                        blue: { total: 0, spymaster: null, clicker: null }
+                    }
+                } as RoomStats;
+            });
 
             socket.emit(SOCKET_EVENTS.ROOM_RESYNCED, {
                 room,
@@ -471,7 +479,17 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 socket.leave(`spectators:${code}`);
             }
 
-            const roomStats: RoomStats = await playerService.getRoomStats(code);
+            const roomStats: RoomStats = await playerService.getRoomStats(code).catch((err: Error) => {
+                logger.warn(`Failed to get room stats during reconnect: ${err.message}`);
+                return {
+                    totalPlayers: players.length,
+                    spectatorCount: 0,
+                    teams: {
+                        red: { total: 0, spymaster: null, clicker: null },
+                        blue: { total: 0, spymaster: null, clicker: null }
+                    }
+                } as RoomStats;
+            });
 
             let newReconnectionToken: string | null = null;
             if (SESSION_SECURITY.ROTATE_SESSION_ON_RECONNECT) {
