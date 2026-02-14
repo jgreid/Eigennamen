@@ -38,7 +38,6 @@ export interface SocketRateLimits {
   // Game events
   'game:start': RateLimitConfig;
   'game:reveal': RateLimitConfig;
-  'game:clue': RateLimitConfig;
   'game:endTurn': RateLimitConfig;
   'game:forfeit': RateLimitConfig;
   'game:history': RateLimitConfig;
