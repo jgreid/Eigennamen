@@ -105,7 +105,7 @@ end
 
 redis.call('SADD', playersKey, sessionId)
 
--- Atomically create player data (Sprint D1: eliminates crash window)
+-- Atomically create player data (eliminates crash window)
 if playerData and playerData ~= '' then
     redis.call('SET', playerKey, playerData, 'EX', playerTTL)
 end
@@ -116,7 +116,7 @@ return 1
 /**
  * Atomic TTL refresh of all room-related keys
  * Previously in: roomService.ts
- * ISSUE #8 FIX: Prevents TTL race condition by refreshing all keys atomically
+ * Prevents TTL race condition by refreshing all keys atomically
  */
 export const ATOMIC_REFRESH_TTL_SCRIPT = `
 local roomKey = KEYS[1]

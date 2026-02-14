@@ -91,7 +91,7 @@ export async function createRoom(
     };
 
     // Atomically try to create the room
-    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    // Wrap redis.eval with timeout to prevent hanging operations
     const created = await withTimeout(
         redis.eval(
             ATOMIC_CREATE_ROOM_SCRIPT,
@@ -113,9 +113,11 @@ export async function createRoom(
         );
     }
 
+    logger.info('Room created successfully', { roomId: normalizedRoomId });
+
     // Create host player with provided nickname or default to 'Player'
     // Note: 'Host' was a reserved name causing validation failures when no nickname provided
-    // HARDENING FIX: Wrap player creation in try-catch to rollback room creation on failure
+    // Wrap player creation in try-catch to rollback room creation on failure
     let player: Player;
     try {
         player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Player', true);
@@ -209,7 +211,7 @@ export async function joinRoom(
         logger.info(`Player ${sessionId} reconnected to room "${roomId}"`);
     } else {
         // New join - use Lua script for atomic capacity check, set add, and player creation
-        // Sprint D1: Player data is now created atomically inside the Lua script,
+        // Player data is now created atomically inside the Lua script,
         // eliminating the crash window between SADD and SET that could leave orphaned set members.
         const playerObj = playerService.buildPlayerData(sessionId, normalizedRoomId, nickname, false);
         const playerJSON = JSON.stringify(playerObj);
@@ -246,7 +248,7 @@ export async function joinRoom(
             player = await playerService.createPlayer(sessionId, normalizedRoomId, nickname, false);
             isReconnecting = true;
         } else if (result === 1) {
-            // Player was created atomically by the Lua script (Sprint D1)
+            // Player was created atomically by the Lua script
             player = playerObj;
         } else {
             // Unexpected result - log and throw error
@@ -397,12 +399,12 @@ export async function roomExists(code: string): Promise<boolean> {
 
 /**
  * Refresh TTL for all room-related keys atomically
- * ISSUE #8 FIX: Uses Lua script to prevent TTL race condition
+ * Uses Lua script to prevent TTL race condition
  */
 export async function refreshRoomTTL(code: string): Promise<void> {
     const redis: RedisClient = getRedis();
 
-    // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+    // Wrap redis.eval with timeout to prevent hanging operations
     await withTimeout(
         redis.eval(
             ATOMIC_REFRESH_TTL_SCRIPT,
@@ -464,7 +466,7 @@ export function clearTTLRefreshEntry(code: string): void {
 
 /**
  * Clean up all data associated with a room
- * ISSUE #4 FIX: Now includes team sets in cleanup
+ * Now includes team sets in cleanup
  * Uses parallel operations for better performance
  */
 export async function cleanupRoom(code: string): Promise<void> {
@@ -483,7 +485,7 @@ export async function cleanupRoom(code: string): Promise<void> {
     const tokenKeys = sessionIds.map(id => `reconnect:session:${id}`);
     const reconnectTokens = tokenKeys.length > 0 ? await redis.mGet(tokenKeys) : [];
 
-    // ISSUE #4 FIX: Build list of all keys to delete including team sets
+    // Build list of all keys to delete including team sets
     const keysToDelete: string[] = [
         ...sessionIds.map(sessionId => `player:${sessionId}`),
         ...sessionIds.map(sessionId => `session:${sessionId}:socket`), // Also clean socket mappings
@@ -492,8 +494,8 @@ export async function cleanupRoom(code: string): Promise<void> {
         `room:${code}`,
         `room:${code}:players`,
         `room:${code}:game`,
-        `room:${code}:team:red`,   // ISSUE #4 FIX: Include team sets
-        `room:${code}:team:blue`   // ISSUE #4 FIX: Include team sets
+        `room:${code}:team:red`,   // Include team sets
+        `room:${code}:team:blue`   // Include team sets
     ];
 
     // Delete all keys in parallel using DEL with multiple keys (single Redis call)

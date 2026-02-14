@@ -131,19 +131,20 @@ describe('Room Handlers', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:created', expect.any(Object));
         });
 
-        test('emits room:error on error after room created', async () => {
+        test('emits room:created with fallback stats when getRoomStats fails', async () => {
             roomService.createRoom.mockResolvedValue({
                 room: { code: 'fail-room', roomId: 'fail-room', settings: {} },
                 player: { sessionId: 'session-1', nickname: 'Host' }
             });
-            // Force an error after room creation by making getRoomStats fail
+            // getRoomStats failure should not prevent room creation
             playerService.getRoomStats.mockRejectedValue(new Error('Stats failed'));
 
             await eventHandlers['room:create']({ roomId: 'fail-room', settings: {} });
 
-            // createPreRoomHandler catches and emits sanitized error
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: expect.any(String)
+            // Room creation succeeds with fallback stats
+            expect(mockSocket.emit).toHaveBeenCalledWith('room:created', expect.objectContaining({
+                room: expect.objectContaining({ code: 'fail-room' }),
+                stats: expect.objectContaining({ totalPlayers: 1 })
             }));
         });
 
@@ -218,9 +219,9 @@ describe('Room Handlers', () => {
                 player: {
                     sessionId: 'session-1',
                     nickname: 'Player1',
-                    lastConnected: Date.now() - 60000,
                     team: 'red'
-                }
+                },
+                isReconnecting: true
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
@@ -233,7 +234,8 @@ describe('Room Handlers', () => {
                 room: { code: 'test-room', roomId: 'test-room' },
                 players: [],
                 game: null,
-                player: { nickname: 'Player1', lastConnected: null }
+                player: { nickname: 'Player1' },
+                isReconnecting: false
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });

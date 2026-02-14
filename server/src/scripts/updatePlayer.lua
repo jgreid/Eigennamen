@@ -1,4 +1,4 @@
--- Atomic player update script (D-5)
+-- Atomic player update script
 -- Replaces WATCH/MULTI read-modify-write with a single atomic Lua operation.
 -- Prevents lost updates from concurrent modifications (e.g., simultaneous
 -- disconnect + nickname change).

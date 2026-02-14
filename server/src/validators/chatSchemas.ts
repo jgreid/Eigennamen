@@ -18,7 +18,7 @@ const chatMessageSchema = z.object({
         .transform((val: string) => removeControlChars(val).trim())
         .refine((val: string) => val.length >= 1, 'Message is required'),
     teamOnly: z.boolean().default(false),
-    spectatorOnly: z.boolean().default(false) // US-16.1: Spectator-only chat
+    spectatorOnly: z.boolean().default(false) // Spectator-only chat
 });
 
 // Spectator chat schema (for dedicated spectator chat event)

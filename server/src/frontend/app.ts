@@ -25,6 +25,7 @@ import {
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
+import { logger } from './logger.js';
 
 // Signal that the ES module loaded successfully
 (window as Window & { __appModuleLoaded?: boolean }).__appModuleLoaded = true;
@@ -260,7 +261,7 @@ async function init(): Promise<void> {
         checkURLForReplayLoad();
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Unknown error';
-        console.error('[Codenames] Initialization failed:', message, e);
+        logger.error('Initialization failed:', message, e);
         // Show error modal to inform user
         showErrorModal(
             'Failed to load the game. This might be due to corrupted data or a browser issue.',
@@ -269,7 +270,7 @@ async function init(): Promise<void> {
     }
 }
 
-// ISSUE #72 FIX: Use addEventListener instead of window.onload to avoid
+// Use addEventListener instead of window.onload to avoid
 // overwriting existing handlers and follow modern best practices
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

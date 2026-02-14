@@ -83,7 +83,7 @@ export { getGameStateForPlayer };
 
 /**
  * Release a distributed lock with retry and exponential backoff.
- * HIGH FIX: Prevents permanent lock when release fails (lock self-heals via TTL,
+ * Prevents permanent lock when release fails (lock self-heals via TTL,
  * but retry reduces the window where subsequent operations are blocked).
  */
 async function releaseLockWithRetry(

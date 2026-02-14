@@ -1,7 +1,7 @@
 /**
  * Safe Socket.io Emission Utilities
  *
- * HARDENING FIX: Provides error-handling wrappers for socket emissions
+ * Provides error-handling wrappers for socket emissions
  * to prevent silent failures when emitting to rooms or players.
  *
  * These utilities log errors and optionally track failed emissions for metrics.

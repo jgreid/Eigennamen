@@ -33,7 +33,7 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
             mpExtraRow.style.display = 'flex';
         }
 
-        // D-1: Show chat panel and initialize listeners (idempotent)
+        // Show chat panel and initialize listeners (idempotent)
         showChatPanel();
         initChat();
 
@@ -52,7 +52,7 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
             mpExtraRow.style.display = 'none';
         }
 
-        // D-1: Hide chat panel
+        // Hide chat panel
         hideChatPanel();
 
         // Update share panel for standalone mode

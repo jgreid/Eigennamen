@@ -129,7 +129,7 @@ if remainingMs <= 0 then
     return nil
 end
 
--- FIX: Get TTL buffer from arguments instead of hardcoding
+-- Get TTL buffer from arguments instead of hardcoding
 local ttlBuffer = tonumber(ARGV[4]) or 60
 
 -- Calculate new end time
@@ -267,7 +267,7 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
         if (!timer) return null;
         const now = Date.now();
 
-        // FIX M9: Account for paused state in timer status
+        // Account for paused state in timer status
         // When paused, return the stored remaining time instead of calculating from endTime
         if (timer.paused && timer.remainingWhenPaused !== undefined) {
             return {
@@ -325,7 +325,7 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
             if (!timer) return null;
             timer.paused = true;
             timer.remainingWhenPaused = remainingSeconds;
-            // HARDENING FIX: Store when the timer was paused to detect expiration while paused
+            // Store when the timer was paused to detect expiration while paused
             timer.pausedAt = Date.now();
             await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: REDIS_TTL.PAUSED_TIMER });
         } catch (e) {
@@ -370,7 +370,7 @@ export async function resumeTimer(
 
         const remainingSeconds = timer.remainingWhenPaused;
 
-        // HARDENING FIX: Validate that timer wouldn't have expired while paused
+        // Validate that timer wouldn't have expired while paused
         // If the timer was paused for longer than the remaining time, it should
         // be considered expired rather than starting fresh.
         // NOTE: We do NOT subtract pause duration from remaining time because
@@ -425,7 +425,7 @@ export async function addTime(
     if (typeof secondsToAdd !== 'number' || !Number.isFinite(secondsToAdd) || secondsToAdd <= 0) {
         throw new ValidationError('Invalid secondsToAdd: must be a positive number');
     }
-    // SECURITY FIX: Add upper bound to prevent excessive time additions
+    // Add upper bound to prevent excessive time additions
     if (secondsToAdd > TIMER.MAX_TURN_SECONDS) {
         throw new ValidationError(`Invalid secondsToAdd: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
     }

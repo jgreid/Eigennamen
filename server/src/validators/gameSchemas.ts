@@ -15,7 +15,7 @@ const gameStartSchema = z.object({
     // Option 1: Reference a word list stored in database (requires database)
     wordListId: z.string().uuid().nullable().optional(),
     // Option 2: Pass custom words directly (works without database)
-    // SECURITY FIX: Apply removeControlChars to each word for XSS prevention
+    // Apply removeControlChars to each word for XSS prevention
     wordList: z.array(
         z.string()
             .min(1)
@@ -39,7 +39,7 @@ const gameRevealSchema = z.object({
         .max(BOARD_SIZE - 1, 'Invalid card index')
 });
 
-// ISSUE #2 FIX: Clue word regex with quantified repetition to prevent ReDoS
+// Clue word regex with quantified repetition to prevent ReDoS
 // Allows Unicode letters with optional single spaces/hyphens/apostrophes between words
 // Maximum of 10 word parts to prevent excessive backtracking
 // Uses Unicode property escapes to support international characters

@@ -6,8 +6,9 @@ import { formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js
 import { openModal, closeModal, showToast } from './ui.js';
 import { t } from './i18n.js';
 import type { GameHistoryEntry, ReplayData, ReplayEvent } from './multiplayerTypes.js';
+import { logger } from './logger.js';
 
-// PHASE 4: Replay speed options (in milliseconds between moves)
+// Replay speed options (in milliseconds between moves)
 const REPLAY_SPEEDS: Record<string, number> = {
     '0.5x': 3000,  // Slow
     '1x': 1500,    // Normal (default)
@@ -464,7 +465,7 @@ export function cycleReplaySpeed(): void {
     showToast(t('toast.replaySpeed', { speed: currentReplaySpeed }), 'info');
 }
 
-// PHASE 4: Copy shareable replay link to clipboard
+// Copy shareable replay link to clipboard
 export async function copyReplayLink(): Promise<void> {
     if (!state.currentReplayData?.id) {
         showToast(t('toast.noReplayData'), 'error');
@@ -538,7 +539,7 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
             return true;
         }
     } catch (error) {
-        console.error('Failed to load shared replay:', error);
+        logger.error('Failed to load shared replay:', error);
         showToast(t('toast.sharedReplayFailed'), 'error');
     }
     return false;

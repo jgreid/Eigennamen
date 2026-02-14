@@ -9,6 +9,7 @@
  */
 
 import { state } from './state.js';
+import { logger } from './logger.js';
 
 /** Supported languages with display names */
 export const LANGUAGES: Record<string, { name: string; flag: string }> = {
@@ -46,7 +47,7 @@ export async function initI18n(): Promise<void> {
  */
 export async function setLanguage(lang: string, persist: boolean = true): Promise<void> {
     if (!(lang in LANGUAGES)) {
-        console.warn(`Unsupported language: ${lang}, falling back to ${DEFAULT_LANGUAGE}`);
+        logger.warn(`Unsupported language: ${lang}, falling back to ${DEFAULT_LANGUAGE}`);
         lang = DEFAULT_LANGUAGE;
     }
 
@@ -57,7 +58,7 @@ export async function setLanguage(lang: string, persist: boolean = true): Promis
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             translations[lang] = await response.json();
         } catch (err) {
-            console.error(`Failed to load translations for ${lang}:`, err);
+            logger.error(`Failed to load translations for ${lang}:`, err);
             // Fall back to English
             if (lang !== DEFAULT_LANGUAGE) {
                 return setLanguage(DEFAULT_LANGUAGE, persist);

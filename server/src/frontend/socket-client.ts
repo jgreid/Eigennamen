@@ -8,6 +8,8 @@
  * NOT an ES module. Exposes CodenamesClient on the global window object.
  */
 
+import { logger } from './logger.js';
+
 // Socket.io `io` global is declared in globals.d.ts (loaded as a separate <script>).
 
 /** Minimal Socket.io socket shape used by this adapter. */
@@ -160,14 +162,14 @@ interface CodenamesGlobal {
         _doConnect(serverUrl: string | null = null, options: ConnectOptions = {}): Promise<SocketClientInstance> {
             return new Promise((resolve, reject) => {
 
-                // ISSUE #5 & #48 FIX: Use safe storage methods with error handling
+                // Use safe storage methods with error handling
                 this.sessionId = this._safeGetStorage(sessionStorage, 'codenames-session-id');
                 this.storedNickname = this._safeGetStorage(localStorage, 'codenames-nickname');
                 this.autoRejoin = options.autoRejoin !== false;
 
                 const url = serverUrl || window.location.origin;
 
-                // ISSUE #26 FIX: Improved transport configuration
+                // Improved transport configuration
                 // - Production (HTTPS) uses websocket only for better Fly.io compatibility
                 // - Development (HTTP) uses polling + websocket for easier debugging
                 // - Use the target URL's protocol, not the page's protocol
@@ -191,14 +193,14 @@ interface CodenamesGlobal {
                     this.connected = true;
                     const wasReconnecting = this.reconnectAttempts > 0;
                     this.reconnectAttempts = 0;
-                    console.log('Connected to server:', socket.id);
+                    logger.debug('Connected to server:', socket.id);
 
                     this._emit('connected', { wasReconnecting });
 
-                    // ISSUE #11 FIX: Properly handle async _attemptRejoin with error catching
+                    // Properly handle async _attemptRejoin with error catching
                     if (wasReconnecting && this.autoRejoin) {
                         this._attemptRejoin().catch((err: Error) => {
-                            console.error('Auto-rejoin failed:', err);
+                            logger.error('Auto-rejoin failed:', err);
                         });
                     }
 
@@ -210,12 +212,12 @@ interface CodenamesGlobal {
                     // Clear operation flags so they don't block new operations after reconnect
                     this.createInProgress = false;
                     this.joinInProgress = false;
-                    console.log('Disconnected:', reason);
+                    logger.debug('Disconnected:', reason);
                     this._emit('disconnected', { reason, wasConnected: true });
                 });
 
                 socket.on('connect_error', (error: Error) => {
-                    console.error('Connection error:', error);
+                    logger.error('Connection error:', error);
                     this.reconnectAttempts++;
 
                     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -232,28 +234,28 @@ interface CodenamesGlobal {
 
         /**
          * Attempt to rejoin the previous room
-         * ISSUE #5 FIX: Use safe storage methods
+         * Use safe storage methods
          */
         async _attemptRejoin(): Promise<void> {
             const storedRoomCode = this.getStoredRoomCode();
             const nickname = this.storedNickname || this.player?.nickname;
 
             if (!storedRoomCode || !nickname) {
-                console.log('Cannot auto-rejoin: missing room code or nickname');
+                logger.debug('Cannot auto-rejoin: missing room code or nickname');
                 return;
             }
 
-            console.log(`Attempting to rejoin room ${storedRoomCode} as ${nickname}`);
+            logger.debug(`Attempting to rejoin room ${storedRoomCode} as ${nickname}`);
             this._emit('rejoining', { roomCode: storedRoomCode, nickname });
 
             try {
                 const result = await this.joinRoom(storedRoomCode, nickname);
-                console.log('Successfully rejoined room:', storedRoomCode);
+                logger.debug('Successfully rejoined room:', storedRoomCode);
                 this._emit('rejoined', result);
                 // Replay any queued offline events
                 this._flushOfflineQueue();
             } catch (error) {
-                console.error('Failed to rejoin room:', error);
+                logger.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
                 this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
                 this._emit('rejoinFailed', { roomCode: storedRoomCode, error });
@@ -279,7 +281,7 @@ interface CodenamesGlobal {
             this._registerSocketListener('room:created', (data: any) => {
                 this.roomCode = data.room.code;
                 this.player = data.player;
-                // ISSUE FIX: Sync sessionId from server if not already set
+                // Sync sessionId from server if not already set
                 // This ensures client knows its server-assigned session ID
                 if (data.player?.sessionId && !this.sessionId) {
                     this.sessionId = data.player.sessionId;
@@ -291,7 +293,7 @@ interface CodenamesGlobal {
             this._registerSocketListener('room:joined', (data: any) => {
                 this.roomCode = data.room.code;
                 this.player = data.you;
-                // ISSUE FIX: Sync sessionId from server if not already set
+                // Sync sessionId from server if not already set
                 if (data.you?.sessionId && !this.sessionId) {
                     this.sessionId = data.you.sessionId;
                 }
@@ -311,7 +313,7 @@ interface CodenamesGlobal {
                 this._emit('settingsUpdated', data);
             });
 
-            // ISSUE FIX: Add missing room:statsUpdated listener
+            // Add room:statsUpdated listener
             this._registerSocketListener('room:statsUpdated', (data: any) => {
                 this._emit('statsUpdated', data);
             });
@@ -325,7 +327,7 @@ interface CodenamesGlobal {
             });
 
             // Handle being kicked from the room
-            // ISSUE #5 FIX: Use safe storage methods
+            // Use safe storage methods
             this._registerSocketListener('room:kicked', (data: any) => {
                 this.roomCode = null;
                 this.player = null;
@@ -449,7 +451,7 @@ interface CodenamesGlobal {
                 this._emit('timerStatus', data);
             });
 
-            // ISSUE FIX: Add missing timer control event listeners
+            // Add timer control event listeners
             this._registerSocketListener('timer:paused', (data: any) => {
                 this._emit('timerPaused', data);
             });
@@ -467,7 +469,7 @@ interface CodenamesGlobal {
                 this._emit('chatMessage', data);
             });
 
-            // ISSUE FIX: Add missing spectator chat listener
+            // Add spectator chat listener
             this._registerSocketListener('chat:spectatorMessage', (data: any) => {
                 this._emit('spectatorChatMessage', data);
             });
@@ -475,7 +477,7 @@ interface CodenamesGlobal {
 
         /**
          * Safely set item in storage with quota error handling
-         * ISSUE #5 FIX: Handles QuotaExceededError for private browsing mode
+         * Handles QuotaExceededError for private browsing mode
          * @param storage - sessionStorage or localStorage
          * @param key - Storage key
          * @param value - Value to store
@@ -488,9 +490,9 @@ interface CodenamesGlobal {
             } catch (e: any) {
                 // QuotaExceededError in private browsing or when storage is full
                 if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                    console.warn(`Storage quota exceeded for ${key}, continuing without persistence`);
+                    logger.warn(`Storage quota exceeded for ${key}, continuing without persistence`);
                 } else {
-                    console.error(`Storage error for ${key}:`, e);
+                    logger.error(`Storage error for ${key}:`, e);
                 }
                 return false;
             }
@@ -498,7 +500,7 @@ interface CodenamesGlobal {
 
         /**
          * Safely get item from storage
-         * ISSUE #5 FIX: Handles storage access errors
+         * Handles storage access errors
          * @param storage - sessionStorage or localStorage
          * @param key - Storage key
          * @returns Stored value or null
@@ -507,14 +509,14 @@ interface CodenamesGlobal {
             try {
                 return storage.getItem(key);
             } catch (e) {
-                console.warn(`Storage access error for ${key}:`, e);
+                logger.warn(`Storage access error for ${key}:`, e);
                 return null;
             }
         },
 
         /**
          * Safely remove item from storage
-         * ISSUE #5 FIX: Handles storage access errors
+         * Handles storage access errors
          * @param storage - sessionStorage or localStorage
          * @param key - Storage key
          */
@@ -522,13 +524,13 @@ interface CodenamesGlobal {
             try {
                 storage.removeItem(key);
             } catch (e) {
-                console.warn(`Storage removal error for ${key}:`, e);
+                logger.warn(`Storage removal error for ${key}:`, e);
             }
         },
 
         /**
          * Save session to storage
-         * ISSUE #5 & #48 FIX: Session ID uses sessionStorage (per-tab) with error handling
+         * Session ID uses sessionStorage (per-tab) with error handling
          * Room code and nickname use localStorage for user convenience across tabs
          */
         _saveSession(): void {
@@ -595,7 +597,7 @@ interface CodenamesGlobal {
             }
 
             if (replayed > 0) {
-                console.log(`Replayed ${replayed} queued event(s) after reconnection`);
+                logger.debug(`Replayed ${replayed} queued event(s) after reconnection`);
             }
             this._offlineQueue = [];
         },
@@ -618,7 +620,7 @@ interface CodenamesGlobal {
                 try {
                     cb(data);
                 } catch (err) {
-                    console.error(`Error in ${event} listener:`, err);
+                    logger.error(`Error in ${event} listener:`, err);
                 }
             });
         },
@@ -669,7 +671,7 @@ interface CodenamesGlobal {
 
         /**
          * Create a new room
-         * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
+         * Proper listener cleanup and timeout cancellation
          * @param options - Room options including roomId and settings
          */
         createRoom(options: CreateRoomOptions = { roomId: '' }): Promise<any> {
@@ -749,7 +751,7 @@ interface CodenamesGlobal {
 
         /**
          * Join an existing room
-         * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
+         * Proper listener cleanup and timeout cancellation
          * @param roomId - Room ID to join
          * @param nickname - Player nickname
          */
@@ -819,7 +821,7 @@ interface CodenamesGlobal {
 
         /**
          * Leave current room
-         * ISSUE #5 FIX: Use safe storage methods
+         * Use safe storage methods
          */
         leaveRoom(): void {
             this.socket!.emit('room:leave');
@@ -842,7 +844,7 @@ interface CodenamesGlobal {
          */
         kickPlayer(targetSessionId: string): void {
             if (!this.player?.isHost) {
-                console.warn('Only the host can kick players');
+                logger.warn('Only the host can kick players');
                 return;
             }
             this.socket!.emit('player:kick', { targetSessionId });
@@ -850,7 +852,7 @@ interface CodenamesGlobal {
 
         /**
          * Request full state resync from server
-         * ISSUE #6 & #20 FIX: Proper listener cleanup and timeout cancellation
+         * Proper listener cleanup and timeout cancellation
          * Use this if you detect you're out of sync
          */
         requestResync(): Promise<any> {
@@ -1033,7 +1035,7 @@ interface CodenamesGlobal {
         },
 
         /**
-         * PHASE 4: Send a spectator-only chat message
+         * Send a spectator-only chat message
          * @param message - Message text
          */
         sendSpectatorChat(message: string): void {
@@ -1115,7 +1117,7 @@ interface CodenamesGlobal {
 
         /**
          * Get stored room code (for reconnection)
-         * ISSUE #5 FIX: Uses safe storage methods
+         * Uses safe storage methods
          * Uses sessionStorage to prevent multi-tab conflicts
          */
         getStoredRoomCode(): string | null {
@@ -1124,7 +1126,7 @@ interface CodenamesGlobal {
 
         /**
          * Get stored nickname
-         * ISSUE #5 FIX: Uses safe storage methods
+         * Uses safe storage methods
          */
         getStoredNickname(): string | null {
             return this._safeGetStorage(localStorage, 'codenames-nickname');
@@ -1132,7 +1134,7 @@ interface CodenamesGlobal {
 
         /**
          * Clear all stored session data
-         * ISSUE #5 FIX: Uses safe storage methods
+         * Uses safe storage methods
          * Session ID and room code use sessionStorage (per-tab)
          * Nickname uses localStorage for user convenience
          */

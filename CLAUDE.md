@@ -66,7 +66,7 @@ Eigennamen/
     ├── src/
     │   ├── index.ts        # Entry point - server initialization
     │   ├── app.ts          # Express configuration + Swagger setup
-    │   ├── config/         # Configuration modules (13 files)
+    │   ├── config/         # Configuration modules (12 files)
     │   ├── errors/         # Custom error classes (GameError hierarchy)
     │   ├── middleware/      # Express middleware (6 files)
     │   │   └── auth/       # Socket auth sub-modules (4 files)
@@ -75,12 +75,12 @@ Eigennamen/
     │   │   └── game/       # Game sub-modules (4 files: board, clue, reveal, lua)
     │   ├── socket/         # WebSocket setup and utilities (10 files)
     │   │   └── handlers/   # Event-specific handlers (6 files)
-    │   ├── frontend/       # Frontend TypeScript source (22 modules)
+    │   ├── frontend/       # Frontend TypeScript source (26 modules)
     │   ├── types/          # TypeScript type definitions (9 files)
     │   ├── utils/          # Utility modules (9 files)
     │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts for atomic operations
-    │   └── __tests__/      # Jest tests (83 suites, 2,571 tests)
+    │   └── __tests__/      # Jest tests (82 suites, 2,472 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
@@ -92,7 +92,7 @@ Eigennamen/
 ## Technology Stack
 
 ### Frontend
-- TypeScript source in `server/src/frontend/` (22 modules, compiled to `server/public/js/modules/`)
+- TypeScript source in `server/src/frontend/` (26 modules, compiled to `server/public/js/modules/`)
 - Socket.io client for real-time communication
 - Glassmorphism UI design
 - URL-based state encoding for standalone mode
@@ -266,7 +266,7 @@ npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
 
-**Test suite**: 83 suites (2,571 tests — backend + frontend), 10 E2E spec files (64+ tests). Total: ~2,635 tests.
+**Test suite**: 82 suites (2,472 tests — backend + frontend), 9 E2E spec files (64+ tests). Total: ~2,536 tests.
 
 **Code quality**: ESLint reports 0 errors, 0 warnings. TypeScript compiles with 0 errors.
 
@@ -413,7 +413,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 | File | Why It Matters |
 |------|----------------|
 | `index.html` | Frontend entry point (SPA) |
-| `server/src/frontend/` | TypeScript frontend source (22 modules incl. multiplayer split) |
+| `server/src/frontend/` | TypeScript frontend source (26 modules incl. multiplayer split) |
 | `server/src/config/constants.ts` | Re-exports all config (game, rate limits, errors, room, security, socket) |
 | `server/src/config/gameConfig.ts` | Game modes, board layout, PRNG constants |
 | `server/src/config/socketConfig.ts` | Socket.io settings and all event name constants |

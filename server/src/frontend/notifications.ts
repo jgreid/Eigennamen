@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { t } from './i18n.js';
+import { logger } from './logger.js';
 
 // Load notification preferences from localStorage
 export function loadNotificationPrefs(): void {
@@ -79,7 +80,7 @@ export function playNotificationSound(soundType: string = 'turn'): void {
                 break;
         }
     } catch (e) {
-        console.warn('Could not play notification sound:', e);
+        logger.warn('Could not play notification sound:', e);
     }
 }
 

@@ -418,7 +418,7 @@ const METRIC_NAMES = {
     ROOMS_JOINED: 'rooms_joined',
     ERRORS: 'errors',
     RATE_LIMIT_HITS: 'rate_limit_hits',
-    // PHASE 5.1: Additional counters for better observability
+    // Additional counters for better observability
     HTTP_REQUESTS: 'http_requests_total',
     WEBSOCKET_EVENTS: 'websocket_events_total',
     RECONNECTIONS: 'reconnections_total',
@@ -432,7 +432,7 @@ const METRIC_NAMES = {
     ACTIVE_TIMERS: 'active_timers',
     SOCKET_CONNECTIONS: 'socket_connections',
     REDIS_CONNECTION_STATUS: 'redis_connection_status',
-    // PHASE 5.1: Additional gauges for system health
+    // Additional gauges for system health
     MEMORY_HEAP_USED: 'memory_heap_used_bytes',
     MEMORY_HEAP_TOTAL: 'memory_heap_total_bytes',
     MEMORY_RSS: 'memory_rss_bytes',
@@ -445,7 +445,7 @@ const METRIC_NAMES = {
     GAME_DURATION: 'game_duration_seconds',
     TURN_DURATION: 'turn_duration_seconds',
     SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
-    // PHASE 5.1: Additional histograms
+    // Additional histograms
     HTTP_REQUEST_DURATION: 'http_request_duration_ms',
     WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
 } as const;
@@ -460,7 +460,7 @@ function updateSystemMetrics(): void {
     setGauge(METRIC_NAMES.MEMORY_RSS, mem.rss);
 }
 
-// PHASE 5.1: Measure event loop lag
+// Measure event loop lag
 let lastLoopTime = process.hrtime.bigint();
 function measureEventLoopLag(): void {
     const now = process.hrtime.bigint();
@@ -499,7 +499,7 @@ function stopEventLoopMonitoring(): void {
 }
 
 /**
- * PHASE 5.1: Export metrics in Prometheus text format
+ * Export metrics in Prometheus text format
  * @returns Prometheus-compatible metrics text
  */
 function getPrometheusMetrics(): string {

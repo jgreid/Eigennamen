@@ -77,7 +77,7 @@ const router: ExpressRouter = express.Router();
 
 /**
  * Zod schema for broadcast validation
- * HIGH FIX: Replaces manual type assertion with proper schema validation
+ * Replaces manual type assertion with proper schema validation
  */
 const broadcastSchema = z.object({
     message: z.string().min(1, 'Broadcast message is required').max(500, 'Broadcast message must be 500 characters or less'),
@@ -217,7 +217,7 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
 });
 
 /**
- * PHASE 4.7: GET /admin/api/rooms/:code/details - Get detailed room info with players
+ * GET /admin/api/rooms/:code/details - Get detailed room info with players
  */
 router.get('/api/rooms/:code/details', async (req: Request, res: Response): Promise<void> => {
     try {
@@ -318,7 +318,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
 });
 
 /**
- * PHASE 4.7: DELETE /admin/api/rooms/:code/players/:playerId - Kick a player from room
+ * DELETE /admin/api/rooms/:code/players/:playerId - Kick a player from room
  */
 router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, res: Response): Promise<void> => {
     try {

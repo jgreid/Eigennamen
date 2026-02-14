@@ -118,7 +118,7 @@
     "connecting": "Verbinden...",
     "joiningGame": "Spiel wird beigetreten...",
     "creatingGame": "Spiel wird erstellt...",
-    "roomNotFoundDetail": "Raum \"{{roomId}}\" nicht gefunden – überprüfe die Raum-ID",
+    "roomNotFoundDetail": "Raum \"{{roomId}}\" nicht gefunden – überprüfe die Raum-ID oder erstelle zuerst einen neuen Raum",
     "invalidInputDetail": "Ungültige Eingabe – überprüfe Raum-ID und Spitznamen",
     "connectionFailedDetail": "Verbindung zum Server fehlgeschlagen – überprüfe deine Verbindung und versuche es erneut",
     "joinFailed": "Beitritt fehlgeschlagen – bitte erneut versuchen",

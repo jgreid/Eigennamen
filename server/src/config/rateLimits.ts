@@ -23,7 +23,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     'room:settings': { window: 5000, max: 5 },    // 5 per 5 seconds
     'room:resync': { window: 5000, max: 3 },      // 3 per 5 seconds
     'room:reconnect': { window: 10000, max: 5 },  // 5 per 10 seconds
-    'room:getReconnectionToken': { window: 10000, max: 2 },  // 2 per 10 seconds (HARDENING: reduced from 5 to limit CPU exhaustion from crypto ops)
+    'room:getReconnectionToken': { window: 10000, max: 2 },  // 2 per 10 seconds (reduced from 5 to limit CPU exhaustion from crypto ops)
     // Game events
     'game:start': { window: 5000, max: 2 },       // 2 per 5 seconds
     'game:reveal': { window: 1000, max: 5 },      // 5 per second
@@ -33,7 +33,7 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     'game:history': { window: 5000, max: 5 },     // 5 per 5 seconds
     'game:getHistory': { window: 5000, max: 5 },  // 5 per 5 seconds
     'game:getReplay': { window: 5000, max: 5 },   // 5 per 5 seconds
-    // Player events (ISSUE #27 FIX: keys now match event names for consistency)
+    // Player events (keys match event names for consistency)
     'player:setTeam': { window: 2000, max: 5 },      // 5 per 2 seconds
     'player:setRole': { window: 2000, max: 5 },      // 5 per 2 seconds
     'player:setNickname': { window: 5000, max: 3 },  // 3 per 5 seconds

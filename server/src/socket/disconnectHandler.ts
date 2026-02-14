@@ -44,7 +44,7 @@ function createTimerExpireCallback(
         const gameService = require('../services/gameService');
         const roomService = require('../services/roomService');
         try {
-            // E-5 FIX: Use distributed lock to prevent race conditions when
+            // Use distributed lock to prevent race conditions when
             // multiple instances fire timer expiration for the same room.
             // Without this lock, concurrent endTurn calls could double-flip the turn.
             let result: { currentTurn: string; previousTurn: string } | null = null;
@@ -81,9 +81,9 @@ function createTimerExpireCallback(
             emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
 
             // Restart timer for the new turn (if timer is configured and game not over)
-            // BUG-6 & ISSUE #3 FIX: Use distributed lock with improved error handling
-            // when multiple timer expirations queue setImmediate callbacks
-            // SPRINT-15 FIX: Wrap in IIFE with .catch() to prevent unhandled promise rejections
+            // Use distributed lock with improved error handling
+            // when multiple timer expirations queue setImmediate callbacks.
+            // Wrap in IIFE with .catch() to prevent unhandled promise rejections
             setImmediate(() => {
                 (async () => {
                     const { getRedis, isRedisHealthy } = require('../config/redis');
@@ -144,7 +144,7 @@ function createTimerExpireCallback(
                     } catch (err) {
                         logger.error(`Timer restart failed for room ${roomCode}: ${(err as Error).message}`);
                     } finally {
-                        // ISSUE #3 FIX: Always release lock if we acquired it (owner-verified)
+                        // Always release lock if we acquired it (owner-verified)
                         if (lockAcquired && lockValue) {
                             try {
                                 const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
@@ -159,7 +159,7 @@ function createTimerExpireCallback(
                         }
                     }
                 })().catch(err => {
-                    // SPRINT-15 FIX: Catch any unhandled promise rejections from the async IIFE
+                    // Catch any unhandled promise rejections from the async IIFE
                     logger.error(`Unhandled timer restart error for room ${roomCode}:`, err);
                 });
             });
@@ -173,7 +173,7 @@ function createTimerExpireCallback(
  * Handle player disconnection with room notification.
  * Uses distributed locks to prevent race conditions during host transfer.
  *
- * ISSUE #17 FIX: Generates reconnection token for secure reconnection.
+ * Generates reconnection token for secure reconnection.
  *
  * @param ioInstance - Socket.io server instance
  * @param socket - The disconnecting socket
@@ -198,7 +198,7 @@ async function handleDisconnect(
 
         const roomCode = player.roomCode;
 
-        // ISSUE #17 FIX: Generate reconnection token before marking as disconnected
+        // Generate reconnection token before marking as disconnected
         let reconnectionToken: string | null = null;
         try {
             reconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);
@@ -217,14 +217,14 @@ async function handleDisconnect(
 
         // Notify other players in the room
         if (roomCode) {
-            // ISSUE #15 FIX: Get updated player list to ensure clients have consistent state
+            // Get updated player list to ensure clients have consistent state
             const updatedPlayers: Player[] = await playerService.getPlayersInRoom(roomCode);
 
-            // US-16.3: Calculate reconnection deadline for frontend display
+            // Calculate reconnection deadline for frontend display
             const { SESSION_SECURITY } = require('../config/constants');
             const reconnectionDeadline = Date.now() + (SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000);
 
-            // SECURITY FIX: Do NOT broadcast reconnection token to the room!
+            // Do NOT broadcast reconnection token to the room!
             // The token was previously broadcast to all players, allowing potential session hijacking.
             // Now the token is stored server-side only and validated during reconnection handshake.
             // The disconnecting player should proactively request their reconnection token via
@@ -235,9 +235,9 @@ async function handleDisconnect(
                 team: player.team,
                 reason: reason,
                 timestamp: Date.now(),
-                // ISSUE #15 FIX: Include updated player list for state consistency
+                // Include updated player list for state consistency
                 players: updatedPlayers,
-                // US-16.3: Indicate player may reconnect and when the window closes
+                // Indicate player may reconnect and when the window closes
                 // Token is NOT broadcast - stored server-side only for security
                 reconnecting: !!reconnectionToken,
                 reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
@@ -253,7 +253,7 @@ async function handleDisconnect(
                 return;
             }
 
-            // ISSUE #7 FIX: Check if disconnected player was host - use lock with longer TTL
+            // Check if disconnected player was host - use lock with longer TTL
             if (player.isHost) {
                 const redis: RedisClient = getRedis();
                 const lockKey = `lock:host-transfer:${roomCode}`;
@@ -268,7 +268,7 @@ async function handleDisconnect(
                     hostTransferLockAcquired = lockResult === 'OK' || !!lockResult;
 
                     if (hostTransferLockAcquired) {
-                        // HARDENING FIX: Re-check if the disconnected host has reconnected
+                        // Re-check if the disconnected host has reconnected
                         // This prevents transferring host to someone else when the original host
                         // successfully reconnected within the grace period
                         const currentHostPlayer: Player | null = await playerService.getPlayer(socket.sessionId);
@@ -277,7 +277,7 @@ async function handleDisconnect(
                             // Skip host transfer - host is back
                         } else {
                             const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
-                            // FIX: Don't early return - just skip transfer if we can't get players
+                            // Don't early return - just skip transfer if we can't get players
                             // Early return was causing the rest of disconnect handling to be skipped
                             if (!players || !Array.isArray(players)) {
                                 logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
@@ -290,7 +290,7 @@ async function handleDisconnect(
                                     // Safe to cast: we just verified length > 0
                                     const newHost = connectedPlayers[0] as Player;
 
-                                    // SECURITY FIX: Use atomic host transfer to prevent race conditions
+                                    // Use atomic host transfer to prevent race conditions
                                     // This atomically updates old host, new host, and room in a single Lua script
                                     const transferResult = await playerService.atomicHostTransfer(
                                         socket.sessionId,
@@ -317,7 +317,7 @@ async function handleDisconnect(
                 } catch (hostTransferError) {
                     logger.error(`Host transfer failed for room ${roomCode}: ${(hostTransferError as Error).message}`);
                 } finally {
-                    // ISSUE #7 FIX: Only release lock if we acquired it (owner-verified)
+                    // Only release lock if we acquired it (owner-verified)
                     if (hostTransferLockAcquired && hostLockValue) {
                         try {
                             const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');

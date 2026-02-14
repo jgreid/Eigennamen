@@ -44,7 +44,7 @@ export interface RoomStats {
 }
 
 /**
- * Get spectator count and list for a room (US-16.1)
+ * Get spectator count and list for a room
  * Spectators are players with role='spectator'
  */
 export async function getSpectators(roomCode: string): Promise<SpectatorsResponse> {
@@ -61,7 +61,7 @@ export async function getSpectators(roomCode: string): Promise<SpectatorsRespons
 }
 
 /**
- * Get spectator count only (lightweight version) (US-16.1)
+ * Get spectator count only (lightweight version)
  */
 export async function getSpectatorCount(
     roomCode: string,
@@ -72,7 +72,7 @@ export async function getSpectatorCount(
 }
 
 /**
- * Get room player statistics (US-16.1)
+ * Get room player statistics
  * Returns counts by role and team for UI display
  */
 export async function getRoomStats(
