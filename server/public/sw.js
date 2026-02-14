@@ -8,7 +8,7 @@
  * - WebSocket: Bypassed (not cacheable)
  */
 
-const CACHE_NAME = 'codenames-v2';
+const CACHE_NAME = 'eigennamen-v1';
 const STATIC_ASSETS = [
     '/',
     '/css/variables.css',
