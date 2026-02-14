@@ -167,12 +167,22 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // Host starts as spectator
             socket.join(`spectators:${room.code}`);
 
-            const roomStats: RoomStats = await playerService.getRoomStats(room.code);
+            // Use fallback stats if getRoomStats fails to prevent room creation
+            // from failing after the room is already persisted in Redis
+            const roomStats: RoomStats = await playerService.getRoomStats(room.code).catch((err: Error) => {
+                logger.warn(`Failed to get room stats during create: ${err.message}`);
+                return {
+                    totalPlayers: 1,
+                    spectatorCount: 0,
+                    teams: {
+                        red: { total: 0, spymaster: null, clicker: null },
+                        blue: { total: 0, spymaster: null, clicker: null }
+                    }
+                } as RoomStats;
+            });
 
             socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
 
-            // Set roomCode AFTER all handler work succeeds to prevent
-            // stale roomCode if getRoomStats or emit throws
             socket.roomCode = room.code;
 
             logger.info(`Room created: ${room.code} by ${socket.sessionId}`);

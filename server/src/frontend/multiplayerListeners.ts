@@ -52,7 +52,7 @@ function getErrorMessage(error: ServerErrorData): string {
         'SPYMASTER_CANNOT_CHANGE_TEAM': 'Spymasters cannot change teams during an active game',
         'MUST_JOIN_TEAM': 'Join a team first before selecting a role',
         'ROLE_TAKEN': 'That role is already taken by another player',
-        'ROOM_NOT_FOUND': 'Room not found - it may have been closed',
+        'ROOM_NOT_FOUND': 'Room not found - it may have expired or you need to create it first',
         'PLAYER_NOT_FOUND': 'Session expired - please rejoin the room',
         'INVALID_INPUT': 'Invalid request - please try again',
         'SERVER_ERROR': 'Server error - please try again'

@@ -113,6 +113,8 @@ export async function createRoom(
         );
     }
 
+    logger.info('Room created successfully', { roomId: normalizedRoomId });
+
     // Create host player with provided nickname or default to 'Player'
     // Note: 'Host' was a reserved name causing validation failures when no nickname provided
     // HARDENING FIX: Wrap player creation in try-catch to rollback room creation on failure

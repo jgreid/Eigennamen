@@ -118,7 +118,7 @@
     "connecting": "Conectando...",
     "joiningGame": "Uniéndose a la partida...",
     "creatingGame": "Creando partida...",
-    "roomNotFoundDetail": "Sala \"{{roomId}}\" no encontrada – comprueba el ID de sala",
+    "roomNotFoundDetail": "Sala \"{{roomId}}\" no encontrada – comprueba el ID de sala o crea una nueva sala primero",
     "invalidInputDetail": "Entrada no válida – comprueba el ID de sala y el apodo",
     "connectionFailedDetail": "No se pudo conectar al servidor – comprueba tu conexión e inténtalo de nuevo",
     "joinFailed": "Error al unirse a la partida – inténtalo de nuevo",
