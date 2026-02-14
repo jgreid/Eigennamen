@@ -319,61 +319,6 @@ describe('Extended Game Handlers Tests', () => {
         });
     });
 
-    describe('game:clue edge cases', () => {
-        test('handles null player from getPlayer', async () => {
-            playerService.getPlayer.mockResolvedValue(null);
-
-            const handlers = mockSocket.on.mock.calls;
-            const clueHandler = handlers.find(h => h[0] === 'game:clue');
-            await clueHandler[1]({ word: 'test', number: 2 });
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('must be in a room')
-            }));
-        });
-
-        test('handles no roomCode', async () => {
-            mockSocket.roomCode = null;
-            playerService.getPlayer.mockResolvedValue(null);
-
-            const handlers = mockSocket.on.mock.calls;
-            const clueHandler = handlers.find(h => h[0] === 'game:clue');
-            await clueHandler[1]({ word: 'test', number: 2 });
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: expect.any(String)
-            }));
-        });
-
-        test('logs event for clue', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-456',
-                roomCode: 'TEST12',
-                role: 'spymaster',
-                team: 'red',
-                nickname: 'Spymaster1'
-            });
-            gameService.getGame.mockResolvedValue({
-                gameOver: false,
-                currentTurn: 'red'
-            });
-            gameService.giveClue.mockResolvedValue({
-                team: 'red',
-                word: 'ANIMAL',
-                number: 2,
-                spymaster: 'Spymaster1',
-                guessesAllowed: 3,
-                timestamp: Date.now()
-            });
-
-            const handlers = mockSocket.on.mock.calls;
-            const clueHandler = handlers.find(h => h[0] === 'game:clue');
-            await clueHandler[1]({ word: 'animal', number: 2 });
-
-            expect(gameService.giveClue).toHaveBeenCalled();
-        });
-    });
-
     describe('game:endTurn edge cases', () => {
         test('handles null player from getPlayer', async () => {
             playerService.getPlayer.mockResolvedValue(null);

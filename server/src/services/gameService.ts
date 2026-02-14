@@ -17,10 +17,8 @@ import type {
     GameHistoryEntry,
     CreateGameOptions,
     RevealResult,
-    ClueWithGuesses,
     EndTurnResult,
-    ForfeitResult,
-    ClueValidationResult
+    ForfeitResult
 } from '../types';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -66,17 +64,15 @@ import type { RedisClient } from './game/luaGameOps';
 
 import {
     OPTIMIZED_REVEAL_SCRIPT,
-    OPTIMIZED_GIVE_CLUE_SCRIPT,
     OPTIMIZED_END_TURN_SCRIPT,
     gameStateSchema,
     MAX_HISTORY_ENTRIES,
-    MAX_CLUES,
     executeLuaScript,
     executeGameTransaction
 } from './game/luaGameOps';
 
 // Re-export types for consumers
-export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, ClueValidationResult };
+export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult };
 
 // Re-export getGameStateForPlayer from revealEngine for consumers that access it via gameService
 export { getGameStateForPlayer };
@@ -312,7 +308,6 @@ export async function revealCard(
             'NO_GUESSES': new ValidationError('No guesses remaining this turn'),
             'ALREADY_REVEALED': GameStateError.cardAlreadyRevealed(index),
             'NOT_YOUR_TURN': PlayerError.notYourTurn(playerTeam),
-            'NO_CLUE': new ValidationError('Spymaster must give a clue before revealing cards'),
             'INVALID_INDEX': new ValidationError('Invalid card index')
         };
 
@@ -332,57 +327,6 @@ export async function revealCard(
     } finally {
         await releaseLockWithRetry(redis, lockKey, lockValue, `reveal-lock-${roomCode}`);
     }
-}
-
-// ─── Clue Giving ────────────────────────────────────────────────────
-
-/**
- * Give a clue with validation — atomic Lua execution
- */
-export async function giveClue(
-    roomCode: string,
-    team: Team,
-    word: string,
-    number: number,
-    spymasterNickname: string
-): Promise<ClueWithGuesses> {
-    const gameKey = `room:${roomCode}:game`;
-
-    if (!team || (team !== 'red' && team !== 'blue')) {
-        throw ValidationError.invalidTeam();
-    }
-
-    if (typeof number !== 'number' || !Number.isInteger(number) || number < 0 || number > BOARD_SIZE) {
-        throw new ValidationError(`Clue number must be 0-${BOARD_SIZE}`);
-    }
-
-    const normalizedWord = toEnglishUpperCase(String(word).normalize('NFKC').trim());
-
-    const luaErrorMap: Record<string, Error> = {
-        'NO_GAME': GameStateError.noActiveGame(),
-        'GAME_OVER': GameStateError.gameOver(),
-        'NOT_YOUR_TURN': PlayerError.notYourTurn(team),
-        'CLUE_ALREADY_GIVEN': ValidationError.clueAlreadyGiven(),
-        'INVALID_NUMBER': new ValidationError(`Clue number must be 0-${BOARD_SIZE}`),
-        'WORD_ON_BOARD': ValidationError.invalidClue(`"${word}" is a word on the board`),
-    };
-
-    return executeLuaScript<ClueWithGuesses>(
-        OPTIMIZED_GIVE_CLUE_SCRIPT,
-        gameKey,
-        [
-            team,
-            normalizedWord,
-            number.toString(),
-            spymasterNickname || 'Unknown',
-            Date.now().toString(),
-            MAX_HISTORY_ENTRIES.toString(),
-            BOARD_SIZE.toString(),
-            MAX_CLUES.toString()
-        ],
-        luaErrorMap,
-        `giveClue-${roomCode}`
-    );
 }
 
 // ─── End Turn ───────────────────────────────────────────────────────

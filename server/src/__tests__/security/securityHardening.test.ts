@@ -151,56 +151,6 @@ describe('Trust Proxy Configuration', () => {
 describe('Input Validation Hardening', () => {
     const schemas = require('../../validators/schemas');
 
-    describe('Clue Number Validation', () => {
-        test('accepts valid clue numbers (0-25)', () => {
-            const validNumbers = [0, 1, 5, 10, 15, 20, 25];
-
-            for (const num of validNumbers) {
-                const result = schemas.gameClueSchema.safeParse({
-                    word: 'Test',
-                    number: num
-                });
-                expect(result.success).toBe(true);
-            }
-        });
-
-        test('rejects negative clue numbers', () => {
-            const result = schemas.gameClueSchema.safeParse({
-                word: 'Test',
-                number: -1
-            });
-            expect(result.success).toBe(false);
-        });
-
-        test('rejects clue numbers greater than 25', () => {
-            const result = schemas.gameClueSchema.safeParse({
-                word: 'Test',
-                number: 26
-            });
-            expect(result.success).toBe(false);
-        });
-
-        test('rejects non-integer clue numbers', () => {
-            const result = schemas.gameClueSchema.safeParse({
-                word: 'Test',
-                number: 2.5
-            });
-            expect(result.success).toBe(false);
-        });
-
-        test('rejects NaN and Infinity', () => {
-            const invalidNumbers = [NaN, Infinity, -Infinity];
-
-            for (const num of invalidNumbers) {
-                const result = schemas.gameClueSchema.safeParse({
-                    word: 'Test',
-                    number: num
-                });
-                expect(result.success).toBe(false);
-            }
-        });
-    });
-
     describe('Card Index Validation', () => {
         test('accepts valid card indices (0-24)', () => {
             for (let i = 0; i < BOARD_SIZE; i++) {
@@ -289,45 +239,6 @@ describe('Input Validation Hardening', () => {
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: VALID_ROOM_ID,
                 nickname: longName
-            });
-            expect(result.success).toBe(false);
-        });
-    });
-
-    describe('Clue Word Validation', () => {
-        test('accepts valid clue words', () => {
-            const validClues = ['apple', 'ice-cream', "o'brien", 'New York'];
-
-            for (const word of validClues) {
-                const result = schemas.gameClueSchema.safeParse({
-                    word,
-                    number: 2
-                });
-                expect(result.success).toBe(true);
-            }
-        });
-
-        test('rejects clue words with numbers', () => {
-            const result = schemas.gameClueSchema.safeParse({
-                word: 'test123',
-                number: 2
-            });
-            expect(result.success).toBe(false);
-        });
-
-        test('rejects empty clue words', () => {
-            const result = schemas.gameClueSchema.safeParse({
-                word: '',
-                number: 2
-            });
-            expect(result.success).toBe(false);
-        });
-
-        test('rejects clue words exceeding max length', () => {
-            const longWord = 'a'.repeat(VALIDATION.CLUE_MAX_LENGTH + 1);
-            const result = schemas.gameClueSchema.safeParse({
-                word: longWord,
-                number: 2
             });
             expect(result.success).toBe(false);
         });

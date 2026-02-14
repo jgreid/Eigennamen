@@ -61,7 +61,6 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.NOT_SPYMASTER]: 403,
             [ERROR_CODES.NOT_CLICKER]: 403,
             [ERROR_CODES.NOT_YOUR_TURN]: 400,
-            [ERROR_CODES.NO_CLUE]: 400,
             [ERROR_CODES.CARD_ALREADY_REVEALED]: 400,
             [ERROR_CODES.GAME_OVER]: 400,
             [ERROR_CODES.GAME_NOT_STARTED]: 409,

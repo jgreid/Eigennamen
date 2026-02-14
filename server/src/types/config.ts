@@ -146,9 +146,6 @@ export interface ValidationConfig {
   NICKNAME_MIN_LENGTH: number;
   NICKNAME_MAX_LENGTH: number;
   TEAM_NAME_MAX_LENGTH: number;
-  CLUE_MAX_LENGTH: number;
-  CLUE_NUMBER_MIN: number;
-  CLUE_NUMBER_MAX: number;
   CHAT_MESSAGE_MAX_LENGTH: number;
   WORD_MIN_LENGTH: number;
   WORD_MAX_LENGTH: number;
@@ -267,8 +264,6 @@ export interface SocketEventNames {
   GAME_STARTED: string;
   GAME_REVEAL: string;
   GAME_CARD_REVEALED: string;
-  GAME_CLUE: string;
-  GAME_CLUE_GIVEN: string;
   GAME_END_TURN: string;
   GAME_TURN_ENDED: string;
   GAME_FORFEIT: string;

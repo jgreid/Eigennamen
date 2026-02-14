@@ -239,21 +239,6 @@ export class ValidationError extends GameError {
         );
     }
 
-    static clueAlreadyGiven(): ValidationError {
-        return new ValidationError(
-            'A clue has already been given this turn'
-        );
-    }
-
-    static invalidClue(reason: string): ValidationError {
-        return new ValidationError(reason);
-    }
-
-    static invalidTeam(): ValidationError {
-        return new ValidationError(
-            'Spymaster must be on a team to give clues'
-        );
-    }
 }
 
 /**
@@ -325,7 +310,7 @@ export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
     'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'ROOM_ALREADY_EXISTS', 'NOT_HOST',
     'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED',
     'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
-    'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'NO_CLUE',
+    'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS',
     'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN',
     'SPYMASTER_CANNOT_CHANGE_TEAM',
     'GAME_NOT_STARTED'

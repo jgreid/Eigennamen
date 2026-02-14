@@ -398,10 +398,6 @@ interface CodenamesGlobal {
                 this._emit('cardRevealed', data);
             });
 
-            this._registerSocketListener('game:clueGiven', (data: any) => {
-                this._emit('clueGiven', data);
-            });
-
             this._registerSocketListener('game:turnEnded', (data: any) => {
                 this._emit('turnEnded', data);
             });
@@ -962,26 +958,6 @@ interface CodenamesGlobal {
          */
         revealCard(index: number): void {
             this.socket!.emit('game:reveal', { index });
-        },
-
-        /**
-         * Give a clue (spymaster only)
-         * @param word - Clue word
-         * @param number - Number of related cards
-         */
-        giveClue(word: string, number: number): void {
-            // Client-side validation matching server's clueWordRegex
-            const clueWordRegex = /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u;
-            const trimmed = (word || '').trim().replace(/\s+/g, ' ');
-            if (!trimmed || trimmed.length > 50 || !clueWordRegex.test(trimmed)) {
-                this._emit('error', {
-                    type: 'game',
-                    code: 'INVALID_INPUT',
-                    message: 'Clue must be words separated by spaces, hyphens, or apostrophes'
-                });
-                return;
-            }
-            this.socket!.emit('game:clue', { word: trimmed, number });
         },
 
         /**

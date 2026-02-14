@@ -12,7 +12,6 @@ jest.mock('../../config/constants', () => ({
         ROOM_JOIN: { points: 10, duration: 60 },
         GAME_START: { points: 5, duration: 60 },
         GAME_REVEAL: { points: 30, duration: 60 },
-        GAME_CLUE: { points: 10, duration: 60 },
         PLAYER_SET_TEAM: { points: 10, duration: 60 },
         CHAT_MESSAGE: { points: 20, duration: 60 },
         DEFAULT: { points: 50, duration: 60 }
@@ -197,7 +196,7 @@ describe('Rate Limit Handler Extended Tests', () => {
                 boolean: true
             };
             const handler = jest.fn().mockResolvedValue(undefined);
-            const wrapped = createRateLimitedHandler(mockSocket, 'game:clue', handler);
+            const wrapped = createRateLimitedHandler(mockSocket, 'game:reveal', handler);
 
             await wrapped(complexData);
             await new Promise(resolve => setTimeout(resolve, 10));

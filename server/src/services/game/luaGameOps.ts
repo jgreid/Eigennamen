@@ -1,7 +1,7 @@
 /**
  * Lua Game Operations - Lua script execution and Redis transactions
  *
- * Provides executeLuaScript for atomic game operations (revealCard, giveClue,
+ * Provides executeLuaScript for atomic game operations (revealCard,
  * endTurn) and executeGameTransaction for operations without Lua scripts
  * (forfeitGame).
  */
@@ -27,7 +27,6 @@ import {
 
 // Lua scripts loaded once at module initialization
 export const OPTIMIZED_REVEAL_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/revealCard.lua'), 'utf8');
-export const OPTIMIZED_GIVE_CLUE_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/giveClue.lua'), 'utf8');
 export const OPTIMIZED_END_TURN_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/endTurn.lua'), 'utf8');
 
 // Zod schemas
@@ -66,7 +65,6 @@ export { gameStateSchema, luaResultObjectSchema };
 
 // Centralized constants
 export const MAX_HISTORY_ENTRIES: number = GAME_HISTORY.MAX_ENTRIES;
-export const MAX_CLUES: number = GAME_HISTORY.MAX_CLUES;
 const MAX_TRANSACTION_RETRIES: number = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
 
 // RedisClient imported from '../../types' (shared across all services)

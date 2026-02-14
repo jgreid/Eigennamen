@@ -478,7 +478,6 @@ function createMockServices(): AnyRecord {
             getGame: jest.fn(async () => null),
             getGameStateForPlayer: jest.fn(() => createMockGame()),
             revealCard: jest.fn(async () => ({ index: 0, type: 'red' })),
-            giveClue: jest.fn(async () => ({ word: 'TEST', number: 2 })),
             endTurn: jest.fn(async () => ({ currentTurn: 'blue' })),
             forfeitGame: jest.fn(async () => ({ winner: 'blue' })),
             cleanupGame: jest.fn(async () => {})

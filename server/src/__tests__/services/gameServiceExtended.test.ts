@@ -8,7 +8,6 @@
  * - createGame with custom word lists and database word lists
  * - getGame with corrupted data handling
  * - revealCard and revealCardOptimized with all outcomes
- * - giveClue validation flows
  * - endTurn complete flow
  * - forfeitGame complete flow
  * - getGameHistory and cleanupGame
@@ -73,13 +72,11 @@ const {
     buildRevealResult,
     getGameStateForPlayer
 } = require('../../services/game/revealEngine');
-const { validateClueWord } = require('../../services/game/clueValidator');
 const { generateSeed } = require('../../services/game/boardGenerator');
 const {
     createGame,
     getGame,
     revealCard,
-    giveClue,
     endTurn,
     forfeitGame,
     getGameHistory,
@@ -434,40 +431,6 @@ describe('buildRevealResult', () => {
         const result = buildRevealResult(game, 0, 'red', outcome);
 
         expect(result.allTypes).toEqual(['red', 'blue', 'neutral']);
-    });
-});
-
-describe('validateClueWord edge cases', () => {
-    const boardWords = ['APPLE', 'BANANA', 'CHERRY'];
-
-    test('handles special characters in board words gracefully', () => {
-        const specialBoard = ['NEW YORK', "O'BRIEN", 'ROCK-PAPER'];
-        const result = validateClueWord('CITY', specialBoard);
-        expect(result.valid).toBe(true);
-    });
-
-    test('trims whitespace before validation', () => {
-        const result = validateClueWord('  FRUIT  ', boardWords);
-        expect(result.valid).toBe(true);
-    });
-
-    test('handles numbers in words', () => {
-        const boardWithNumbers = ['CATCH22', 'AREA51'];
-        const result = validateClueWord('CATCH', boardWithNumbers);
-        expect(result.valid).toBe(false);
-    });
-
-    test('validates against all board words', () => {
-        // Should check all words, not just first
-        const result = validateClueWord('CHER', boardWords);
-        expect(result.valid).toBe(false);
-        expect(result.reason).toContain('CHERRY');
-    });
-
-    test('handles unicode characters', () => {
-        const unicodeBoard = ['CAFE', 'NAIVE'];
-        const result = validateClueWord('COFFEE', unicodeBoard);
-        expect(result.valid).toBe(true);
     });
 });
 
@@ -958,124 +921,6 @@ describe('revealCard', () => {
         expect(mockLogger.error).toHaveBeenCalledWith(
             expect.stringContaining('Failed to release lock for reveal-lock-TEST01')
         );
-    });
-});
-
-describe('giveClue', () => {
-    beforeEach(() => {
-        mockRedis.eval.mockReset();
-    });
-
-    test('successfully gives a clue via Lua', async () => {
-        const luaResult = {
-            team: 'red', word: 'ANIMAL', number: 3,
-            spymaster: 'Spymaster1', guessesAllowed: 4
-        };
-        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
-
-        const result = await giveClue('TEST01', 'red', 'ANIMAL', 3, 'Spymaster1');
-
-        expect(result).toMatchObject({
-            team: 'red', word: 'ANIMAL', number: 3,
-            spymaster: 'Spymaster1', guessesAllowed: 4
-        });
-    });
-
-    test('gives clue with 0 for unlimited guesses', async () => {
-        const luaResult = {
-            team: 'red', word: 'UNLIMITED', number: 0,
-            spymaster: 'Spymaster1', guessesAllowed: 0
-        };
-        mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
-
-        const result = await giveClue('TEST01', 'red', 'UNLIMITED', 0, 'Spymaster1');
-
-        expect(result.guessesAllowed).toBe(0);
-    });
-
-    test('rejects when team is not provided', async () => {
-        await expect(giveClue('TEST01', null, 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: expect.stringContaining('team')
-            });
-    });
-
-    test('rejects when team is invalid', async () => {
-        await expect(giveClue('TEST01', 'green', 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT
-            });
-    });
-
-    test('rejects when no game exists', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GAME' }));
-
-        await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.GAME_NOT_STARTED
-            });
-    });
-
-    test('rejects when game is over', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
-
-        await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.GAME_OVER
-            });
-    });
-
-    test('rejects when not your turn', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NOT_YOUR_TURN' }));
-
-        await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.NOT_YOUR_TURN
-            });
-    });
-
-    test('rejects when clue already given this turn', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'CLUE_ALREADY_GIVEN' }));
-
-        await expect(giveClue('TEST01', 'red', 'WORD', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: expect.stringContaining('already been given')
-            });
-    });
-
-    test('rejects when clue number is negative', async () => {
-        await expect(giveClue('TEST01', 'red', 'WORD', -1, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: expect.stringContaining('0-25')
-            });
-    });
-
-    test('rejects when clue number exceeds board size', async () => {
-        await expect(giveClue('TEST01', 'red', 'WORD', 26, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: expect.stringContaining('0-25')
-            });
-    });
-
-    test('rejects when clue number is not an integer', async () => {
-        await expect(giveClue('TEST01', 'red', 'WORD', 2.5, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT
-            });
-    });
-
-    test('rejects when clue word is on the board', async () => {
-        mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'WORD_ON_BOARD' }));
-
-        await expect(giveClue('TEST01', 'red', 'AFRICA', 2, 'Spymaster'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: expect.stringContaining('board')
-            });
     });
 });
 

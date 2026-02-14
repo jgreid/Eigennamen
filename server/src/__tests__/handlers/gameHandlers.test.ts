@@ -261,53 +261,6 @@ describe('Game Handlers', () => {
         });
     });
 
-    describe('game:clue handler', () => {
-        test('registers handler', () => {
-            const handlers = mockSocket.on.mock.calls;
-            const clueHandler = handlers.find(h => h[0] === 'game:clue');
-            expect(clueHandler).toBeDefined();
-        });
-
-        test('validates player is spymaster', async () => {
-            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', role: 'clicker', team: 'red' });
-            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
-
-            const handlers = mockSocket.on.mock.calls;
-            const clueHandler = handlers.find(h => h[0] === 'game:clue');
-            await clueHandler[1]({ word: 'animal', number: 2 });
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('spymaster')
-            }));
-        });
-
-        test('gives clue successfully', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-456',
-                roomCode: 'TEST12',
-                role: 'spymaster',
-                team: 'red',
-                nickname: 'Spymaster1'
-            });
-            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
-            gameService.giveClue.mockResolvedValue({
-                team: 'red',
-                word: 'ANIMAL',
-                number: 2,
-                spymaster: 'Spymaster1',
-                guessesAllowed: 3,
-                timestamp: Date.now()
-            });
-
-            const handlers = mockSocket.on.mock.calls;
-            const clueHandler = handlers.find(h => h[0] === 'game:clue');
-            await clueHandler[1]({ word: 'animal', number: 2 });
-
-            expect(gameService.giveClue).toHaveBeenCalledWith('TEST12', 'red', 'animal', 2, 'Spymaster1');
-            expect(mockIo.emit).toHaveBeenCalledWith('game:clueGiven', expect.any(Object));
-        });
-    });
-
     describe('game:endTurn handler', () => {
         test('registers handler', () => {
             const handlers = mockSocket.on.mock.calls;

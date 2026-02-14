@@ -8,7 +8,6 @@ const {
     shuffleWithSeed,
     generateSeed
 } = require('../../services/game/boardGenerator');
-const { validateClueWord } = require('../../services/game/clueValidator');
 
 describe('seededRandom', () => {
     test('returns consistent values for the same seed', () => {
@@ -146,83 +145,6 @@ describe('generateSeed', () => {
             const seed = generateSeed();
             expect(seed).toMatch(/^[a-z0-9]+$/);
         }
-    });
-});
-
-describe('validateClueWord', () => {
-    const boardWords = ['APPLE', 'BANANA', 'CHERRY', 'DOG', 'ELEPHANT'];
-
-    describe('valid clues', () => {
-        test('accepts word not on board', () => {
-            const result = validateClueWord('FRUIT', boardWords);
-            expect(result.valid).toBe(true);
-        });
-
-        test('accepts completely unrelated word', () => {
-            const result = validateClueWord('COMPUTER', boardWords);
-            expect(result.valid).toBe(true);
-        });
-
-        test('is case insensitive', () => {
-            const result = validateClueWord('fruit', boardWords);
-            expect(result.valid).toBe(true);
-        });
-
-        test('rejects short words if contained in board words', () => {
-            // "AN" is in "BANANA" - stricter validation blocks this exploit
-            const result = validateClueWord('AN', boardWords);
-            expect(result.valid).toBe(false);
-        });
-
-        test('allows single-char words even if contained in board words', () => {
-            // Single character words like "A" or "I" are allowed as rare edge cases
-            const result = validateClueWord('A', boardWords);
-            expect(result.valid).toBe(true);
-        });
-    });
-
-    describe('invalid clues', () => {
-        test('rejects exact match', () => {
-            const result = validateClueWord('APPLE', boardWords);
-            expect(result.valid).toBe(false);
-            expect(result.reason).toContain('APPLE');
-        });
-
-        test('rejects exact match case insensitive', () => {
-            const result = validateClueWord('apple', boardWords);
-            expect(result.valid).toBe(false);
-        });
-
-        test('rejects clue containing board word', () => {
-            const result = validateClueWord('APPLESAUCE', boardWords);
-            expect(result.valid).toBe(false);
-            expect(result.reason).toContain('APPLE');
-        });
-
-        test('rejects clue contained in board word', () => {
-            const result = validateClueWord('CHER', boardWords);
-            expect(result.valid).toBe(false);
-            expect(result.reason).toContain('CHERRY');
-        });
-
-        test('rejects with whitespace', () => {
-            const result = validateClueWord('  APPLE  ', boardWords);
-            expect(result.valid).toBe(false);
-        });
-    });
-
-    describe('edge cases', () => {
-        test('handles board with multi-word entries', () => {
-            const boardWithSpaces = ['NEW YORK', 'ICE CREAM'];
-            const result = validateClueWord('NEW', boardWithSpaces);
-            // "NEW" (3 chars) is in "NEW YORK" so should be invalid
-            expect(result.valid).toBe(false);
-        });
-
-        test('rejects empty clue', () => {
-            const result = validateClueWord('', boardWords);
-            expect(result.valid).toBe(false); // Empty clues are now explicitly rejected
-        });
     });
 });
 

@@ -10,7 +10,6 @@ const {
     playerRoleSchema,
     playerNicknameSchema,
     gameRevealSchema,
-    gameClueSchema,
     chatMessageSchema
 } = require('../../validators/schemas');
 const { VALIDATION } = require('../../config/constants');
@@ -213,100 +212,6 @@ describe('gameRevealSchema', () => {
     test('rejects non-integer', () => {
         const result = gameRevealSchema.safeParse({ index: 1.5 });
         expect(result.success).toBe(false);
-    });
-});
-
-describe('gameClueSchema', () => {
-    test('accepts valid clue', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Animal',
-            number: 3
-        });
-        expect(result.success).toBe(true);
-        expect(result.data.word).toBe('Animal');
-        expect(result.data.number).toBe(3);
-    });
-
-    test('accepts zero as number', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Unlimited',
-            number: 0
-        });
-        expect(result.success).toBe(true);
-    });
-
-    test('accepts hyphenated words', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'well-known',
-            number: 2
-        });
-        expect(result.success).toBe(true);
-    });
-
-    test('accepts words with spaces', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Ice Cream',
-            number: 1
-        });
-        expect(result.success).toBe(true);
-    });
-
-    test('trims whitespace', () => {
-        const result = gameClueSchema.safeParse({
-            word: '  Animal  ',
-            number: 2
-        });
-        expect(result.success).toBe(true);
-        expect(result.data.word).toBe('Animal');
-    });
-
-    test('rejects empty word', () => {
-        const result = gameClueSchema.safeParse({
-            word: '',
-            number: 2
-        });
-        expect(result.success).toBe(false);
-    });
-
-    test('rejects word with numbers', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Test123',
-            number: 2
-        });
-        expect(result.success).toBe(false);
-    });
-
-    test('rejects word with special characters', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Test@Word',
-            number: 2
-        });
-        expect(result.success).toBe(false);
-    });
-
-    test('rejects negative number', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Animal',
-            number: -1
-        });
-        expect(result.success).toBe(false);
-    });
-
-    test('rejects number too large', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Animal',
-            number: 26
-        });
-        expect(result.success).toBe(false);
-    });
-
-    test('removes control characters from clue', () => {
-        const result = gameClueSchema.safeParse({
-            word: 'Ani\x00mal',
-            number: 2
-        });
-        expect(result.success).toBe(true);
-        expect(result.data.word).toBe('Animal');
     });
 });
 

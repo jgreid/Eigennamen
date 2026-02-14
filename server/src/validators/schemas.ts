@@ -5,7 +5,7 @@
  *   - schemaHelpers: Shared utilities (createSanitizedString, createNicknameSchema, etc.)
  *   - roomSchemas: Room creation, joining, settings, reconnection
  *   - playerSchemas: Team, role, nickname, kick, spectator
- *   - gameSchemas: Start, reveal, clue, history, replay
+ *   - gameSchemas: Start, reveal, history, replay
  *   - chatSchemas: Chat messages, spectator chat
  *   - timerSchemas: Timer add-time
  *
@@ -22,7 +22,7 @@ export { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSche
 export { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } from './playerSchemas';
 
 // Re-export game schemas
-export { gameStartSchema, gameRevealSchema, gameClueSchema, gameHistoryLimitSchema, gameReplaySchema } from './gameSchemas';
+export { gameStartSchema, gameRevealSchema, gameHistoryLimitSchema, gameReplaySchema } from './gameSchemas';
 
 // Re-export chat schemas
 export { chatMessageSchema, spectatorChatSchema } from './chatSchemas';
@@ -33,6 +33,6 @@ export { timerAddTimeSchema } from './timerSchemas';
 // Re-export types from domain files
 export type { RoomCreateInput, RoomJoinInput, RoomSettingsInput, RoomReconnectInput } from './roomSchemas';
 export type { PlayerTeamInput, PlayerRoleInput, PlayerNicknameInput, PlayerKickInput, SpectatorJoinRequestInput, SpectatorJoinResponseInput } from './playerSchemas';
-export type { GameStartInput, GameRevealInput, GameClueInput, GameHistoryLimitInput, GameReplayInput } from './gameSchemas';
+export type { GameStartInput, GameRevealInput, GameHistoryLimitInput, GameReplayInput } from './gameSchemas';
 export type { ChatMessageInput, SpectatorChatInput } from './chatSchemas';
 export type { TimerAddTimeInput } from './timerSchemas';
