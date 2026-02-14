@@ -23,8 +23,8 @@ COPY server/public/ ./public/
 # Copy root index.html (symlinked from server/public/index.html)
 COPY index.html ./public/index.html
 
-# Compile TypeScript and copy Lua scripts in single layer
-RUN npm run build && cp -r src/scripts dist/scripts
+# Compile TypeScript (build script also copies Lua scripts to dist/scripts/)
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine
