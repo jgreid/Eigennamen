@@ -182,8 +182,8 @@ app.use('/api', routes);
 // Admin dashboard routes (protected by basic auth)
 app.use('/admin', adminRoutes);
 
-// Service worker must never be HTTP-cached so browser always checks for updates
-app.get('/service-worker.js', (_req: Request, res: Response, next: NextFunction) => {
+// Service workers must never be HTTP-cached so browser always checks for updates
+app.get(['/sw.js', '/service-worker.js'], (_req: Request, res: Response, next: NextFunction) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     next();
 });
