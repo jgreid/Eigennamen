@@ -28,6 +28,10 @@ dump.rdb
 dist/
 build/
 
+# tsc dev artifacts (esbuild produces the production bundle in public/js/)
+server/public/js/modules/socket-client.js
+server/public/js/modules/socket-client.js.map
+
 # Test coverage
 coverage/
 
