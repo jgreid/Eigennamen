@@ -16,7 +16,6 @@ export type ErrorCode =
   | 'NOT_SPYMASTER'
   | 'NOT_CLICKER'
   | 'NOT_YOUR_TURN'
-  | 'NO_CLUE'
   | 'CARD_ALREADY_REVEALED'
   | 'GAME_OVER'
   | 'INVALID_INPUT'
@@ -114,7 +113,6 @@ export type SafeErrorCode =
   | 'SESSION_EXPIRED'
   | 'PLAYER_NOT_FOUND'
   | 'GAME_IN_PROGRESS'
-  | 'NO_CLUE'
   | 'CANNOT_SWITCH_TEAM_DURING_TURN'
   | 'CANNOT_CHANGE_ROLE_DURING_TURN'
   | 'SPYMASTER_CANNOT_CHANGE_TEAM'
@@ -145,13 +143,7 @@ export type LuaErrorCode =
   | 'NO_GUESSES'
   | 'ALREADY_REVEALED'
   | 'NOT_YOUR_TURN'
-  | 'NO_CLUE'
-  | 'INVALID_INDEX'
-  | 'CLUE_ALREADY_GIVEN'
-  | 'INVALID_NUMBER'
-  | 'WORD_ON_BOARD'
-  | 'CONTAINS_BOARD_WORD'
-  | 'BOARD_CONTAINS_CLUE';
+  | 'INVALID_INDEX';
 
 /**
  * Lua script error response

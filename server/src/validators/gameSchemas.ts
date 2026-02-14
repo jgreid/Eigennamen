@@ -1,14 +1,14 @@
 /**
  * Game Validation Schemas
  *
- * Zod schemas for game start, card reveal, clue giving,
+ * Zod schemas for game start, card reveal,
  * game history, and replay retrieval.
  */
 
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
-import { BOARD_SIZE, VALIDATION } from '../config/constants';
+import { BOARD_SIZE } from '../config/constants';
 import { removeControlChars } from '../utils/sanitize';
 
 const gameStartSchema = z.object({
@@ -39,26 +39,6 @@ const gameRevealSchema = z.object({
         .max(BOARD_SIZE - 1, 'Invalid card index')
 });
 
-// Clue word regex with quantified repetition to prevent ReDoS
-// Allows Unicode letters with optional single spaces/hyphens/apostrophes between words
-// Maximum of 10 word parts to prevent excessive backtracking
-// Uses Unicode property escapes to support international characters
-const clueWordRegex = /^[\p{L}]+(?:[\s\-'][\p{L}]+){0,9}$/u;
-
-const gameClueSchema = z.object({
-    word: z.string()
-        .min(1, 'Clue word is required')
-        .max(VALIDATION.CLUE_MAX_LENGTH, 'Clue word too long')
-        .transform((val: string) => removeControlChars(val).trim())
-        .transform((val: string) => val.replace(/\s+/g, ' ')) // Normalize multiple spaces to single space
-        .refine((val: string) => val.length >= 1, 'Clue word is required')
-        .refine((val: string) => clueWordRegex.test(val), 'Clue must be words optionally separated by single spaces, hyphens, or apostrophes'),
-    number: z.number()
-        .int()
-        .min(VALIDATION.CLUE_NUMBER_MIN, 'Number must be 0 or greater')
-        .max(VALIDATION.CLUE_NUMBER_MAX, `Number must be between ${VALIDATION.CLUE_NUMBER_MIN} and ${VALIDATION.CLUE_NUMBER_MAX}`)
-});
-
 // Game history limit schema (for game:getHistory)
 const gameHistoryLimitSchema = z.object({
     limit: z.number()
@@ -81,14 +61,12 @@ const gameReplaySchema = z.object({
 // Type exports for schema inference
 export type GameStartInput = ZodType.infer<typeof gameStartSchema>;
 export type GameRevealInput = ZodType.infer<typeof gameRevealSchema>;
-export type GameClueInput = ZodType.infer<typeof gameClueSchema>;
 export type GameHistoryLimitInput = ZodType.infer<typeof gameHistoryLimitSchema>;
 export type GameReplayInput = ZodType.infer<typeof gameReplaySchema>;
 
 export {
     gameStartSchema,
     gameRevealSchema,
-    gameClueSchema,
     gameHistoryLimitSchema,
     gameReplaySchema
 };

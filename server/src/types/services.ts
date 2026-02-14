@@ -4,7 +4,7 @@
  * Types for service layer interfaces and return types.
  */
 
-import type { Team, GameState, PlayerGameState, CreateGameOptions, RevealResult, ClueWithGuesses, EndTurnResult, ForfeitResult, GameHistoryEntry, Role } from './game';
+import type { Team, GameState, PlayerGameState, CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult, GameHistoryEntry, Role } from './game';
 import type { Room, CreateRoomSettings, CreateRoomResult, JoinRoomResult, LeaveRoomResult, RoomSettings } from './room';
 import type { Player, PlayerUpdate, ReconnectionResult, HostTransferResult } from './player';
 
@@ -20,7 +20,6 @@ export interface IGameService {
   getGame(roomCode: string): Promise<GameState | null>;
   getGameStateForPlayer(game: GameState, player: Player | null): PlayerGameState;
   revealCard(roomCode: string, index: number, playerNickname?: string, playerTeam?: string): Promise<RevealResult>;
-  giveClue(roomCode: string, team: Team, word: string, number: number, spymasterNickname?: string): Promise<ClueWithGuesses>;
   endTurn(roomCode: string, playerNickname?: string, expectedTeam?: string): Promise<EndTurnResult>;
   forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult>;
   getGameHistory(roomCode: string): Promise<GameHistoryEntry[]>;

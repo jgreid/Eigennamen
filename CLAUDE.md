@@ -72,7 +72,7 @@ Eigennamen/
     │   │   └── auth/       # Socket auth sub-modules (4 files)
     │   ├── routes/         # REST API routes (6 files)
     │   ├── services/       # Business logic (7 service files)
-    │   │   └── game/       # Game sub-modules (4 files: board, clue, reveal, lua)
+    │   │   └── game/       # Game sub-modules (3 files: board, reveal, lua)
     │   ├── socket/         # WebSocket setup and utilities (10 files)
     │   │   └── handlers/   # Event-specific handlers (6 files)
     │   ├── frontend/       # Frontend TypeScript source (26 modules)
@@ -117,7 +117,7 @@ Eigennamen/
 
 | Service | File | Purpose |
 |---------|------|---------|
-| `gameService` | `server/src/services/gameService.ts` | Core game logic, card shuffling, PRNG, clue validation |
+| `gameService` | `server/src/services/gameService.ts` | Core game logic, card shuffling, PRNG |
 | `roomService` | `server/src/services/roomService.ts` | Room lifecycle management |
 | `playerService` | `server/src/services/playerService.ts` | Player/team management, reconnection tokens |
 | `timerService` | `server/src/services/timerService.ts` | Turn timers with Redis backing, pause/resume |
@@ -143,7 +143,6 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 ### Game Events
 - `game:start` / `game:started`
 - `game:reveal` / `game:cardRevealed`
-- `game:clue` / `game:clueGiven`
 - `game:endTurn` / `game:turnEnded`
 - `game:forfeit` / `game:over`
 - `game:spymasterView`
@@ -371,13 +370,12 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 - Non-root Docker user
 - Admin dashboard with HTTP Basic Authentication
 - Audit logging for security events
-- NFKC Unicode normalization for clue validation
 - Distributed locks for critical sections
 
 ### Scalability
 - Redis Pub/Sub for multi-instance Socket.io (@socket.io/redis-adapter)
 - Redis-backed timers work across instances
-- Lua scripts for atomic operations (card reveal, clue, team switch, etc.)
+- Lua scripts for atomic operations (card reveal, team switch, etc.)
 - Distributed lock system for concurrency control
 - Correlation ID tracking across requests
 
@@ -418,7 +416,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 | `server/src/config/gameConfig.ts` | Game modes, board layout, PRNG constants |
 | `server/src/config/socketConfig.ts` | Socket.io settings and all event name constants |
 | `server/src/services/gameService.ts` | Core game logic, PRNG; delegates to `game/` sub-modules |
-| `server/src/services/game/` | Game sub-modules (boardGenerator, clueValidator, revealEngine, luaGameOps) |
+| `server/src/services/game/` | Game sub-modules (boardGenerator, revealEngine, luaGameOps) |
 | `server/src/services/playerService.ts` | Player management, reconnection tokens |
 | `server/src/socket/index.ts` | Socket.io wiring layer (delegates to serverConfig + connectionHandler) |
 | `server/src/socket/handlers/` | Event-specific handler files (game, room, player, timer, chat) |

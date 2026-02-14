@@ -50,14 +50,6 @@ export interface Clue {
 }
 
 /**
- * Clue with additional game context
- */
-export interface ClueWithGuesses extends Clue {
-  /** Number of guesses allowed (number + 1, or 0 for unlimited) */
-  guessesAllowed: number;
-}
-
-/**
  * History entry for a card reveal action
  */
 export interface RevealHistoryEntry {
@@ -272,16 +264,6 @@ export interface ForfeitResult {
   forfeitingTeam: Team;
   /** All card types (revealed after forfeit) */
   allTypes: CardType[];
-}
-
-/**
- * Result of clue word validation
- */
-export interface ClueValidationResult {
-  /** Whether the clue is valid */
-  valid: boolean;
-  /** Reason for invalidity (if invalid) */
-  reason?: string;
 }
 
 /**

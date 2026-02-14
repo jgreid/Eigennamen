@@ -1,4 +1,4 @@
-// ========== D-1: CHAT MODULE ==========
+// ========== CHAT MODULE ==========
 // Handles chat UI: toggle, send messages, render incoming messages
 import { t } from './i18n.js';
 // CodenamesClient is a global declared in globals.d.ts (loaded via <script>)

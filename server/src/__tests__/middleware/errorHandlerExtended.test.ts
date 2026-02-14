@@ -39,7 +39,6 @@ describe('Error Handler Extended Tests', () => {
             { code: ERROR_CODES.NOT_SPYMASTER, expectedStatus: 403 },
             { code: ERROR_CODES.NOT_CLICKER, expectedStatus: 403 },
             { code: ERROR_CODES.NOT_YOUR_TURN, expectedStatus: 400 },
-            { code: ERROR_CODES.NO_CLUE, expectedStatus: 400 },
             { code: ERROR_CODES.CARD_ALREADY_REVEALED, expectedStatus: 400 },
             { code: ERROR_CODES.GAME_OVER, expectedStatus: 400 },
             { code: ERROR_CODES.GAME_NOT_STARTED, expectedStatus: 409 },

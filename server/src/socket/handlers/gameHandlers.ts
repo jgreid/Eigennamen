@@ -6,7 +6,7 @@
  */
 
 import type { Server } from 'socket.io';
-import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses } from '../../types';
+import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';
 
 import type { ZodType } from 'zod';
@@ -16,7 +16,7 @@ import * as roomService from '../../services/roomService';
 import { debouncedRefreshRoomTTL } from '../../services/roomService';
 import * as gameHistoryService from '../../services/gameHistoryService';
 import type { GameDataInput } from '../../services/gameHistoryService';
-import { gameRevealSchema, gameClueSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
+import { gameRevealSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
 import { createHostHandler, createRoomHandler, createGameHandler } from '../contextHandler';
@@ -47,14 +47,6 @@ interface GameRevealInput {
 }
 
 /**
- * Game clue input
- */
-interface GameClueInput {
-    word: string;
-    number: number;
-}
-
-/**
  * Game history limit input
  */
 interface GameHistoryLimitInput {
@@ -68,7 +60,7 @@ interface GameReplayInput {
     gameId: string;
 }
 
-// Result types (RevealResult, EndTurnResult, ForfeitResult, ClueWithGuesses) imported from ../../types
+// Result types (RevealResult, EndTurnResult, ForfeitResult) imported from ../../types
 
 /**
  * Replay data
@@ -264,47 +256,6 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             await debouncedRefreshRoomTTL(ctx.roomCode);
 
             logger.info(`Card ${validated.index} revealed in room ${ctx.roomCode}`);
-        }
-    ));
-
-    /**
-     * Give a clue (spymaster only)
-     */
-    socket.on(SOCKET_EVENTS.GAME_CLUE, createGameHandler(socket, SOCKET_EVENTS.GAME_CLUE, gameClueSchema,
-        async (ctx: GameContext, validated: GameClueInput) => {
-            if (!ctx.player || ctx.player.role !== 'spymaster') {
-                throw PlayerError.notSpymaster();
-            }
-
-            if (!ctx.player.team) {
-                throw new ValidationError('You must join a team before giving a clue');
-            }
-
-            const clue: ClueWithGuesses = await withTimeout(
-                gameService.giveClue(
-                    ctx.roomCode,
-                    ctx.player.team,
-                    validated.word,
-                    validated.number,
-                    ctx.player.nickname
-                ),
-                TIMEOUTS.GAME_ACTION,
-                `game:clue in ${ctx.roomCode}`
-            );
-
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CLUE_GIVEN, {
-                team: clue.team,
-                word: clue.word,
-                number: clue.number,
-                spymaster: clue.spymaster,
-                guessesAllowed: clue.guessesAllowed,
-                timestamp: clue.timestamp
-            });
-
-            // Keep room alive during active games
-            await debouncedRefreshRoomTTL(ctx.roomCode);
-
-            logger.info(`Clue given in room ${ctx.roomCode}: ${clue.word} ${clue.number}`);
         }
     ));
 

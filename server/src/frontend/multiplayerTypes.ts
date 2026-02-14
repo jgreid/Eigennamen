@@ -161,14 +161,6 @@ export interface GameOverData {
     reason?: string;
 }
 
-export interface ClueGivenData {
-    word?: string;
-    number?: number;
-    team?: string;
-    spymaster?: string;
-    guessesAllowed?: number;
-}
-
 export interface SpymasterViewData {
     types?: string[];
 }

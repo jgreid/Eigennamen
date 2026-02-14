@@ -33,12 +33,6 @@ if playerTeam and playerTeam ~= '' and game.currentTurn ~= playerTeam then
     return cjson.encode({error = 'NOT_YOUR_TURN'})
 end
 
--- Bug #9 fix: Require a clue before revealing cards
--- currentClue is nil/null when no clue has been given this turn
-if game.currentClue == nil or game.currentClue == cjson.null then
-    return cjson.encode({error = 'NO_CLUE'})
-end
-
 if game.guessesAllowed > 0 and game.guessesUsed >= game.guessesAllowed then
     return cjson.encode({error = 'NO_GUESSES'})
 end

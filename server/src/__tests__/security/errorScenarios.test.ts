@@ -253,47 +253,6 @@ describe('Error Scenarios', () => {
             ).rejects.toThrow();
         });
     });
-
-    describe('Clue Validation Errors', () => {
-        test('handles empty clue word', async () => {
-            const mockGame = createMockGame({
-                roomCode: 'TESTROOM',
-                currentTurn: 'red'
-            });
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
-
-            await expect(
-                gameService.giveClue('TESTROOM', '', 2, 'red')
-            ).rejects.toThrow();
-        });
-
-        test('handles invalid clue number', async () => {
-            const mockGame = createMockGame({
-                roomCode: 'TESTROOM',
-                currentTurn: 'red'
-            });
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
-
-            await expect(
-                gameService.giveClue('TESTROOM', 'test', -1, 'red')
-            ).rejects.toThrow();
-        });
-
-        test('validates team before checking game over', async () => {
-            const mockGame = createMockGame({
-                roomCode: 'TESTROOM',
-                currentTurn: 'red',
-                gameOver: true,
-                winner: 'blue'
-            });
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
-
-            // Team validation happens before game over check
-            await expect(
-                gameService.giveClue('TESTROOM', 'test', 2, null)
-            ).rejects.toThrow('Spymaster must be on a team');
-        });
-    });
 });
 
 describe('Timer Service Error Scenarios', () => {

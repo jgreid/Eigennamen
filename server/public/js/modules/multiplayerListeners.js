@@ -22,7 +22,7 @@ function getErrorMessage(error) {
         'RATE_LIMITED': 'Please wait a moment before trying again',
         'NOT_YOUR_TURN': "It's not your team's turn",
         'NOT_CLICKER': 'Only the team clicker can reveal cards',
-        'NOT_SPYMASTER': 'Only the spymaster can give clues',
+        'NOT_SPYMASTER': 'Only spymasters can perform this action',
         'GAME_NOT_STARTED': 'Wait for the host to start the game',
         'GAME_OVER': 'The game has ended - start a new game',
         'CARD_ALREADY_REVEALED': 'That card has already been revealed',
@@ -32,7 +32,7 @@ function getErrorMessage(error) {
         'SPYMASTER_CANNOT_CHANGE_TEAM': 'Spymasters cannot change teams during an active game',
         'MUST_JOIN_TEAM': 'Join a team first before selecting a role',
         'ROLE_TAKEN': 'That role is already taken by another player',
-        'ROOM_NOT_FOUND': 'Room not found - it may have been closed',
+        'ROOM_NOT_FOUND': 'Room not found - it may have expired or you need to create it first',
         'PLAYER_NOT_FOUND': 'Session expired - please rejoin the room',
         'INVALID_INPUT': 'Invalid request - please try again',
         'SERVER_ERROR': 'Server error - please try again'
@@ -152,24 +152,6 @@ export function setupMultiplayerListeners() {
             setTabNotification(false);
             playNotificationSound('gameOver');
             updateForfeitButton();
-        }
-    });
-    // Handle clue given by spymaster
-    CodenamesClient.on('clueGiven', (data) => {
-        if (data.word && data.number !== undefined) {
-            // Store current clue in game state for tracking guesses
-            state.gameState.currentClue = {
-                word: data.word,
-                number: data.number,
-                team: data.team || '',
-                spymaster: data.spymaster,
-                guessesAllowed: data.guessesAllowed
-            };
-            state.gameState.guessesUsed = 0;
-            // Show clue as toast notification (visible for 5 seconds)
-            const teamName = data.team === 'red' ? state.teamNames.red : state.teamNames.blue;
-            showToast(`${teamName} clue: ${data.word} (${data.number})`, 'info', 5000);
-            announceToScreenReader(`${teamName} spymaster gives clue: ${data.word}, ${data.number}`);
         }
     });
     // Handle spymaster view (card types for spymasters)
@@ -531,7 +513,7 @@ export function setupMultiplayerListeners() {
             updateRoomStats(data.stats);
         }
     });
-    // D-1: Handle chat messages
+    // Handle chat messages
     CodenamesClient.on('chatMessage', (data) => {
         handleChatMessage(data);
     });

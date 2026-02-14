@@ -594,7 +594,7 @@ describe('Socket Handler Integration Tests', () => {
             await createPromise;
 
             // Send a string where object is expected
-            client.emit('game:clue', 'not-an-object');
+            client.emit('game:reveal', 'not-an-object');
             await new Promise(resolve => setTimeout(resolve, 500));
             expect(client.connected).toBe(true);
 

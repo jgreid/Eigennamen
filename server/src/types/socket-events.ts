@@ -11,7 +11,6 @@ import type {
     CardType,
     PlayerGameState,
     RevealResult,
-    ClueWithGuesses,
     GameHistoryEntry
 } from './game';
 import type { Room, RoomSettings, TeamNames } from './room';
@@ -73,14 +72,6 @@ export interface GameStartPayload {
  */
 export interface GameRevealPayload {
   index: number;
-}
-
-/**
- * Clue payload
- */
-export interface GameCluePayload {
-  word: string;
-  number: number;
 }
 
 /**
@@ -164,7 +155,6 @@ export interface ClientToServerEvents {
   // Game events
   'game:start': (data?: GameStartPayload) => void;
   'game:reveal': (data: GameRevealPayload) => void;
-  'game:clue': (data: GameCluePayload) => void;
   'game:endTurn': () => void;
   'game:forfeit': () => void;
   'game:getHistory': (data?: GameHistoryPayload) => void;
@@ -279,13 +269,6 @@ export interface GameStartedPayload {
  */
 export interface CardRevealedPayload extends RevealResult {
   // Inherits all from RevealResult
-}
-
-/**
- * Clue given notification
- */
-export interface ClueGivenPayload extends ClueWithGuesses {
-  // Inherits all from ClueWithGuesses
 }
 
 /**
@@ -408,7 +391,6 @@ export interface ServerToClientEvents {
   // Game events
   'game:started': (data: GameStartedPayload) => void;
   'game:cardRevealed': (data: CardRevealedPayload) => void;
-  'game:clueGiven': (data: ClueGivenPayload) => void;
   'game:turnEnded': (data: TurnEndedPayload) => void;
   'game:over': (data: GameOverPayload) => void;
   'game:spymasterView': (data: SpymasterViewPayload) => void;

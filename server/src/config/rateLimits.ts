@@ -27,7 +27,6 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
     // Game events
     'game:start': { window: 5000, max: 2 },       // 2 per 5 seconds
     'game:reveal': { window: 1000, max: 5 },      // 5 per second
-    'game:clue': { window: 5000, max: 2 },        // 2 per 5 seconds
     'game:endTurn': { window: 2000, max: 3 },     // 3 per 2 seconds
     'game:forfeit': { window: 10000, max: 2 },    // 2 per 10 seconds
     'game:history': { window: 5000, max: 5 },     // 5 per 5 seconds

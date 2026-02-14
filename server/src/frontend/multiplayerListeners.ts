@@ -22,7 +22,7 @@ import {
 } from './multiplayerSync.js';
 import type {
     ServerPlayerData, GameStartedData, CardRevealedData, TurnEndedData,
-    GameOverData, ClueGivenData, SpymasterViewData, PlayerJoinedData,
+    GameOverData, SpymasterViewData, PlayerJoinedData,
     PlayerLeftData, PlayerUpdatedData, PlayerDisconnectedData,
     HostChangedData, TimerEventData, RoomWarningData, ReconnectionData,
     SettingsUpdatedData, StatsUpdatedData, SpectatorChatData, ChatMessageData,
@@ -42,7 +42,7 @@ function getErrorMessage(error: ServerErrorData): string {
         'RATE_LIMITED': 'Please wait a moment before trying again',
         'NOT_YOUR_TURN': "It's not your team's turn",
         'NOT_CLICKER': 'Only the team clicker can reveal cards',
-        'NOT_SPYMASTER': 'Only the spymaster can give clues',
+        'NOT_SPYMASTER': 'Only spymasters can perform this action',
         'GAME_NOT_STARTED': 'Wait for the host to start the game',
         'GAME_OVER': 'The game has ended - start a new game',
         'CARD_ALREADY_REVEALED': 'That card has already been revealed',
@@ -187,26 +187,6 @@ export function setupMultiplayerListeners(): void {
             setTabNotification(false);
             playNotificationSound('gameOver');
             updateForfeitButton();
-        }
-    });
-
-    // Handle clue given by spymaster
-    CodenamesClient.on('clueGiven', (data: ClueGivenData) => {
-        if (data.word && data.number !== undefined) {
-            // Store current clue in game state for tracking guesses
-            state.gameState.currentClue = {
-                word: data.word,
-                number: data.number,
-                team: data.team || '',
-                spymaster: data.spymaster,
-                guessesAllowed: data.guessesAllowed
-            };
-            state.gameState.guessesUsed = 0;
-
-            // Show clue as toast notification (visible for 5 seconds)
-            const teamName = data.team === 'red' ? state.teamNames.red : state.teamNames.blue;
-            showToast(`${teamName} clue: ${data.word} (${data.number})`, 'info', 5000);
-            announceToScreenReader(`${teamName} spymaster gives clue: ${data.word}, ${data.number}`);
         }
     });
 

@@ -8,6 +8,7 @@
  * - Persists language preference in localStorage
  */
 import { state } from './state.js';
+import { logger } from './logger.js';
 /** Supported languages with display names */
 export const LANGUAGES = {
     en: { name: 'English', flag: 'EN' },
@@ -38,7 +39,7 @@ export async function initI18n() {
  */
 export async function setLanguage(lang, persist = true) {
     if (!(lang in LANGUAGES)) {
-        console.warn(`Unsupported language: ${lang}, falling back to ${DEFAULT_LANGUAGE}`);
+        logger.warn(`Unsupported language: ${lang}, falling back to ${DEFAULT_LANGUAGE}`);
         lang = DEFAULT_LANGUAGE;
     }
     // Load translations if not cached
@@ -50,7 +51,7 @@ export async function setLanguage(lang, persist = true) {
             translations[lang] = await response.json();
         }
         catch (err) {
-            console.error(`Failed to load translations for ${lang}:`, err);
+            logger.error(`Failed to load translations for ${lang}:`, err);
             // Fall back to English
             if (lang !== DEFAULT_LANGUAGE) {
                 return setLanguage(DEFAULT_LANGUAGE, persist);

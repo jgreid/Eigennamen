@@ -1,7 +1,7 @@
 // ========== TIMER MODULE ==========
 // Timer display and countdown
 import { state } from './state.js';
-// PHASE 2 FIX: Import timer constants for warning thresholds
+// Import timer constants for warning thresholds
 import { TIMER } from './constants.js';
 // Format seconds as MM:SS
 export function formatTimerValue(seconds) {
@@ -24,7 +24,7 @@ export function updateTimerDisplay() {
     }
     display.classList.add('active');
     value.textContent = formatTimerValue(state.timerState.remainingSeconds);
-    // PHASE 2 FIX: Use constants for warning thresholds
+    // Use constants for warning thresholds
     display.classList.remove('warning', 'critical');
     if (state.timerState.remainingSeconds <= TIMER.CRITICAL_THRESHOLD_SECONDS) {
         display.classList.add('critical');

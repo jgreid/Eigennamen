@@ -27,9 +27,6 @@ import path from 'path';
 /** Atomic card reveal with game state updates */
 export const REVEAL_CARD_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'revealCard.lua'), 'utf8');
 
-/** Atomic clue giving with history */
-export const GIVE_CLUE_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'giveClue.lua'), 'utf8');
-
 /** Atomic turn end with score updates */
 export const END_TURN_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'endTurn.lua'), 'utf8');
 
@@ -245,7 +242,6 @@ return 1
 export const LUA_SCRIPTS = {
     // File-based (game operations)
     REVEAL_CARD: REVEAL_CARD_SCRIPT,
-    GIVE_CLUE: GIVE_CLUE_SCRIPT,
     END_TURN: END_TURN_SCRIPT,
     UPDATE_PLAYER: UPDATE_PLAYER_SCRIPT,
     SAFE_TEAM_SWITCH: SAFE_TEAM_SWITCH_SCRIPT,
