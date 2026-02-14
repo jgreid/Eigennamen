@@ -723,6 +723,25 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                     await removePlayer(sessionId);
                     cleanedUp++;
                     logger.info(`Cleaned up disconnected player ${sessionId} from room ${roomCode}`);
+
+                    // Check if room is now empty and clean it up to prevent orphaned rooms.
+                    // Orphaned rooms block new room creation with the same code (SETNX returns 0)
+                    // and waste memory until their TTL expires.
+                    if (roomCode) {
+                        try {
+                            const remainingCount = await redis.sCard(`room:${roomCode}:players`);
+                            if (remainingCount === 0) {
+                                const roomExists = await redis.exists(`room:${roomCode}`);
+                                if (roomExists === 1) {
+                                    const roomService = require('./roomService');
+                                    await roomService.cleanupRoom(roomCode);
+                                    logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
+                                }
+                            }
+                        } catch (roomCleanupError) {
+                            logger.warn(`Failed to check/cleanup orphaned room ${roomCode}:`, (roomCleanupError as Error).message);
+                        }
+                    }
                 }
 
                 // Remove from cleanup schedule
