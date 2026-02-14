@@ -199,39 +199,24 @@ export async function joinRoom(
     // Normalize room ID (case-insensitive)
     const normalizedRoomId = toEnglishLowerCase(roomId);
 
-    // Get room — retry once after a brief delay if not found.
-    // This handles transient Redis read failures and race conditions where the room
-    // was just created but the key hasn't propagated yet (e.g., Redis cluster replication).
-    let room = await getRoom(normalizedRoomId);
+    // Get room
+    const room = await getRoom(normalizedRoomId);
     if (!room) {
-        // Distinguish "key missing" from "data corrupted" for better diagnostics.
+        // Distinguish "key missing" from "data corrupted" for diagnostics.
+        // getRoom returns null in both cases; check if the key actually exists.
         const keyExists = await redis.exists(`room:${normalizedRoomId}`);
         if (keyExists === 1) {
-            // Key exists but data failed Zod validation — retry parse
-            logger.error('joinRoom: room key exists but getRoom returned null (data corrupted), retrying', {
+            logger.error('joinRoom: room key exists but getRoom returned null (data corrupted)', {
                 roomId: normalizedRoomId,
                 sessionId
             });
-            room = await getRoom(normalizedRoomId);
         } else {
-            // Key genuinely missing — retry once after brief delay
-            logger.warn('joinRoom: room key does not exist in Redis, retrying after delay', {
+            logger.warn('joinRoom: room key does not exist in Redis', {
                 roomId: normalizedRoomId,
                 sessionId
             });
-            await new Promise(resolve => setTimeout(resolve, 250));
-            room = await getRoom(normalizedRoomId);
         }
-
-        if (!room) {
-            logger.warn('joinRoom: room not found after retry', {
-                roomId: normalizedRoomId,
-                sessionId,
-                keyExistsAfterRetry: await redis.exists(`room:${normalizedRoomId}`) === 1
-            });
-            throw RoomError.notFound(roomId);
-        }
-        logger.info('joinRoom: room found after retry', { roomId: normalizedRoomId });
+        throw RoomError.notFound(roomId);
     }
 
     // Check if player is already in room (reconnecting)
