@@ -253,7 +253,7 @@ function createClientOptions(redisUrl: string): RedisClientOptions {
     // Handle TLS for rediss:// URLs (Fly.io Upstash Redis)
     if (redisUrl.startsWith('rediss://')) {
         options.socket.tls = true;
-        // ISSUE #54 FIX: Only allow disabling TLS validation in development mode
+        // Only allow disabling TLS validation in development mode
         // In production, TLS certificate validation is always enabled for security
         const isProduction = process.env['NODE_ENV'] === 'production';
         const wantToDisable = process.env['REDIS_TLS_REJECT_UNAUTHORIZED'] === 'false';

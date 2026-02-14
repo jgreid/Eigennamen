@@ -46,7 +46,7 @@ function createTimerExpireCallback(socketFns: SocketFunctions): SocketFunctions[
 
 /**
  * Ensure socket functions are registered (idempotent).
- * CRITICAL FIX: Must be called before handlers can use getSocketFunctions().
+ * Must be called before handlers can use getSocketFunctions().
  */
 function ensureSocketFunctionsRegistered(socketFns: SocketFunctions): void {
     if (!isRegistered()) {
@@ -95,7 +95,7 @@ function handleConnection(
     timerHandlers(socketServer, gameSocket);
 
     // Handle disconnection
-    // ISSUE #9 FIX: Wrap disconnect handler in timeout to prevent hangs
+    // Wrap disconnect handler in timeout to prevent hangs
     socket.on('disconnect', async (reason: string) => {
         logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
 

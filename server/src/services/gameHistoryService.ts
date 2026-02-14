@@ -207,7 +207,7 @@ export const MAX_HISTORY_PER_ROOM = 100; // Maximum games to keep per room
 const BOARD_SIZE = 25; // Expected board size
 
 /**
- * HARDENING FIX: Validate game data structure before saving to history
+ * Validate game data structure before saving to history
  * Prevents corrupted or malformed data from being saved
  */
 export function validateGameData(gameData: GameDataInput | null | undefined): ValidationResult {
@@ -295,7 +295,7 @@ export async function saveGameResult(
         return null;
     }
 
-    // HARDENING FIX: Validate game data before saving
+    // Validate game data before saving
     const validation = validateGameData(gameData);
     if (!validation.valid) {
         logger.error('Invalid game data, refusing to save to history', {

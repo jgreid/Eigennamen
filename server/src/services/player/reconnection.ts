@@ -44,7 +44,7 @@ const reconnectionTokenSchema = z.object({
 
 /**
  * Generate a secure reconnection token for a disconnecting player
- * ISSUE #17 FIX: Secure reconnection via short-lived tokens
+ * Secure reconnection via short-lived tokens
  */
 export async function generateReconnectionToken(sessionId: string): Promise<string | null> {
     const redis: RedisClient = getRedis();
@@ -116,7 +116,7 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
 
 /**
  * Validate and consume a reconnection token
- * ISSUE #17 FIX: Secure reconnection via short-lived tokens
+ * Secure reconnection via short-lived tokens
  */
 export async function validateRoomReconnectToken(
     token: string,
@@ -235,7 +235,7 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
 /**
  * Validate reconnection token for socket auth
  * Uses the same token storage as generateReconnectionToken() for consistency
- * ISSUE #17 FIX: Require valid token for reconnection to prevent session hijacking
+ * Require valid token for reconnection to prevent session hijacking
  */
 export async function validateSocketAuthToken(sessionId: string, token?: string): Promise<boolean> {
     const redis: RedisClient = getRedis();

@@ -116,7 +116,7 @@ if (isProduction && corsOrigin === '*') {
     process.exit(1);
 }
 
-// Security middleware with CSP enabled (Sprint 19: Enhanced CSP)
+// Security middleware with enhanced CSP
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -130,7 +130,7 @@ app.use(helmet({
             objectSrc: ["'none'"],
             mediaSrc: ["'self'"],
             frameSrc: ["'none'"],
-            // Sprint 19: Additional security directives
+            // Additional security directives
             baseUri: ["'self'"],                      // Prevent base tag hijacking
             formAction: ["'self'"],                   // Control form submissions
             frameAncestors: ["'none'"],               // Prevent clickjacking (defense in depth)
@@ -141,7 +141,7 @@ app.use(helmet({
     },
     crossOriginEmbedderPolicy: false, // Required for some game assets
     crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
-    // Sprint 19: Additional security headers
+    // Additional security headers
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     dnsPrefetchControl: { allow: false },
     permittedCrossDomainPolicies: { permittedPolicies: 'none' },
@@ -163,7 +163,7 @@ app.use(cors({
 // Compression
 app.use(compression());
 
-// Sprint 19: Request timing middleware
+// Request timing middleware
 app.use(requestTiming);
 
 // Body parsing with size limits to prevent memory exhaustion attacks

@@ -620,7 +620,7 @@ export function setupMultiplayerListeners(): void {
         }
     });
 
-    // D-1: Handle chat messages
+    // Handle chat messages
     CodenamesClient.on('chatMessage', (data: ChatMessageData) => {
         handleChatMessage(data);
     });

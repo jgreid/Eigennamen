@@ -1,4 +1,4 @@
-// ========== D-1: CHAT MODULE ==========
+// ========== CHAT MODULE ==========
 // Handles chat UI: toggle, send messages, render incoming messages
 
 import type { ChatMessageData } from './multiplayerTypes.js';

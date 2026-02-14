@@ -1,7 +1,7 @@
 /**
  * Audit Logging for Sensitive Operations
  *
- * ISSUE #70 FIX: Provides detailed logging for security-sensitive operations
+ * Provides detailed logging for security-sensitive operations
  * to enable security auditing and incident investigation.
  *
  * Operations logged:

@@ -228,7 +228,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 socket.join(`spectators:${room.code}`);
             }
 
-            // FIX: Run stats fetch, token invalidation, and game state computation in parallel
+            // Run stats fetch, token invalidation, and game state computation in parallel
             // to reduce total response time and avoid pushing past the client's timeout
             let statsUsedFallback = false;
             const [, roomStats, gameState] = await Promise.all([
@@ -524,7 +524,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // Set roomCode AFTER all handler work succeeds
             socket.roomCode = code;
 
-            // PHASE 5.1: Track successful reconnection
+            // Track successful reconnection
             incrementCounter(METRIC_NAMES.RECONNECTIONS, 1, { roomCode: code, success: 'true' });
 
             logger.info(`Player ${player.nickname} securely reconnected to room ${code}`);

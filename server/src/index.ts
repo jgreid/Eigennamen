@@ -64,7 +64,7 @@ async function startServer(): Promise<void> {
             logger.info(`Server running on http://0.0.0.0:${PORT}`);
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
-            // Sprint 19: Start memory monitoring
+            // Start memory monitoring
             startMemoryMonitoring();
         });
 
@@ -78,7 +78,7 @@ async function startServer(): Promise<void> {
             isShuttingDown = true;
             logger.info(`${signal} received, shutting down gracefully`);
 
-            // Sprint 19: Stop memory monitoring
+            // Stop memory monitoring
             stopMemoryMonitoring();
 
             // Clean up all active timers first (prevents pending callbacks)

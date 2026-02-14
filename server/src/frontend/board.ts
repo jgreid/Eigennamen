@@ -4,6 +4,7 @@
 import { state, BOARD_SIZE } from './state.js';
 import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';
+import { logger } from './logger.js';
 
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler: ((index: number) => void) | null = null;
@@ -169,7 +170,7 @@ export function renderBoard(): void {
         state.boardInitialized = true;
         initBoardEventDelegation();
     } catch (err) {
-        console.error('renderBoard failed:', err);
+        logger.error('renderBoard failed:', err);
         // Show a minimal fallback so the board area isn't blank
         board.innerHTML = '';
         const errorDiv = document.createElement('div');
@@ -254,7 +255,7 @@ export function updateBoardIncremental(): void {
             fitCardText(board);
         }
     } catch (err) {
-        console.error('updateBoardIncremental failed:', err);
+        logger.error('updateBoardIncremental failed:', err);
     }
 }
 

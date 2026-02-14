@@ -28,7 +28,7 @@ function createSocketServer(server: HttpServer): SocketIOServer {
     const isProduction = process.env.NODE_ENV === 'production';
     const corsOrigin = process.env.CORS_ORIGIN || '*';
 
-    // SECURITY FIX: Block wildcard CORS in production for Socket.io
+    // Block wildcard CORS in production for Socket.io
     // This matches the validation in app.ts for Express CORS
     if (isProduction && corsOrigin === '*') {
         logger.error('FATAL: CORS_ORIGIN cannot be wildcard (*) in production for Socket.io');
@@ -50,7 +50,7 @@ function createSocketServer(server: HttpServer): SocketIOServer {
         // Increase timeouts for better stability on Fly.io (from centralized constants)
         pingTimeout: SOCKET.PING_TIMEOUT_MS,
         pingInterval: SOCKET.PING_INTERVAL_MS,
-        // SECURITY FIX: Limit max message size to prevent memory exhaustion
+        // Limit max message size to prevent memory exhaustion
         maxHttpBufferSize: SOCKET.MAX_HTTP_BUFFER_SIZE,
         // Connection state recovery for reconnections
         connectionStateRecovery: {
@@ -61,7 +61,7 @@ function createSocketServer(server: HttpServer): SocketIOServer {
         },
         // Allow EIO4 for older clients
         allowEIO3: true,
-        // US-16.4: Enable per-message deflate compression for reduced bandwidth
+        // Enable per-message deflate compression for reduced bandwidth
         perMessageDeflate: {
             threshold: 1024, // Only compress messages larger than 1KB
             zlibDeflateOptions: {

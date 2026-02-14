@@ -84,7 +84,7 @@ export interface HostTransferResult {
 
 /**
  * Build a Player data object (pure function, no Redis calls).
- * Used by roomService for atomic join+create in Lua script (Sprint D1).
+ * Used by roomService for atomic join+create in Lua script.
  */
 export function buildPlayerData(
     sessionId: string,
@@ -157,7 +157,7 @@ export async function getPlayer(sessionId: string): Promise<Player | null> {
 }
 
 /**
- * Lua script for atomic player update (D-5)
+ * Lua script for atomic player update
  * Replaces WATCH/MULTI read-modify-write with a single atomic Lua operation.
  * Prevents lost updates from concurrent modifications.
  * Takes: KEYS[1] = player key, ARGV[1] = JSON updates, ARGV[2] = TTL, ARGV[3] = timestamp
@@ -169,7 +169,7 @@ const ATOMIC_UPDATE_PLAYER_SCRIPT: string = fs.readFileSync(path.join(__dirname,
  * Update player data atomically using Lua script to prevent lost updates
  * from concurrent read-modify-write operations (e.g., simultaneous disconnect + nickname change).
  *
- * D-5: Uses Lua script for true single-operation atomicity (no WATCH/MULTI retry loop).
+ * Uses Lua script for true single-operation atomicity (no WATCH/MULTI retry loop).
  * Falls back to WATCH/MULTI if the Lua call fails (e.g., Redis scripting disabled).
  */
 export async function updatePlayer(
@@ -219,7 +219,7 @@ export async function updatePlayer(
     const maxRetries = 3;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-        // HIGH FIX: Add exponential backoff between retries to reduce contention
+        // Add exponential backoff between retries to reduce contention
         if (attempt > 0) {
             const backoffMs = Math.min(50 * Math.pow(2, attempt - 1), 200);
             await new Promise(resolve => setTimeout(resolve, backoffMs));
@@ -265,7 +265,7 @@ export async function updatePlayer(
 
 /**
  * Lua script for atomic team switch with empty-team validation AND team set maintenance
- * ISSUE #1 & #59 FIX: Team set operations now inside Lua script for atomicity
+ * Team set operations now inside Lua script for atomicity
  * Prevents team from becoming empty during active game
  * Checks all team members' connected status atomically before allowing switch
  * Returns: {success: true, player: {...}} on success
@@ -352,7 +352,7 @@ export async function setTeam(
 
 /**
  * Lua script for atomic role assignment
- * FIX: Prevents race condition where two players could both become spymaster/clicker
+ * Prevents race condition where two players could both become spymaster/clicker
  * Atomically checks if role is available and assigns it in a single operation
  * Returns: {success: true, player: {...}} on success
  *          {success: false, reason: 'ROLE_TAKEN', existingNickname: '...'} if role already assigned
@@ -363,7 +363,7 @@ const ATOMIC_SET_ROLE_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../
 
 /**
  * Set player's role with atomic check to prevent race conditions
- * FIX: Uses Lua script for truly atomic role assignment
+ * Uses Lua script for truly atomic role assignment
  * Enforces one spymaster and one clicker per team
  */
 export async function setRole(sessionId: string, role: Role): Promise<Player> {
@@ -435,7 +435,7 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
 
 /**
  * Set player's nickname
- * SECURITY FIX: Defense-in-depth validation for nickname
+ * Defense-in-depth validation for nickname
  */
 export function setNickname(sessionId: string, nickname: string): Promise<Player> {
     // Zod schema already validates and trims the nickname at the handler level;
@@ -449,7 +449,7 @@ export function setNickname(sessionId: string, nickname: string): Promise<Player
 
 /**
  * Get all players on a specific team - O(1) lookup using team sets
- * ISSUE #12 FIX: Also cleans up expired player data keys
+ * Also cleans up expired player data keys
  * Uses pipeline for batch fetching player data
  */
 export async function getTeamMembers(roomCode: string, team: Team): Promise<Player[]> {
@@ -492,7 +492,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
         }
     }
 
-    // ISSUE #12 FIX: Clean up orphaned entries and their lingering data
+    // Clean up orphaned entries and their lingering data
     if (orphanedIds.length > 0) {
         // Performance fix: Batch DEL operations into single Redis call
         const playerKeysToDelete = orphanedIds.map(id => `player:${id}`);
@@ -502,7 +502,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
         ]);
         logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey}`);
 
-        // ISSUE #13 FIX: If team set is now empty, delete it
+        // If team set is now empty, delete it
         const remainingCount = await redis.sCard(teamKey);
         if (remainingCount === 0) {
             await redis.del(teamKey);
@@ -515,7 +515,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
 
 /**
  * Get all players in a room
- * ISSUE #12 FIX: Now cleans up all orphaned data including player keys and team sets
+ * Now cleans up all orphaned data including player keys and team sets
  * Uses MGET batching for better performance (single Redis round-trip instead of N)
  */
 export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
@@ -556,7 +556,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
         }
     }
 
-    // ISSUE #12 FIX: Clean up all orphaned data atomically
+    // Clean up all orphaned data atomically
     if (orphanedSessionIds.length > 0) {
         // Remove from players set
         await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
@@ -576,7 +576,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
     }
 
     // Sort by join time, with sessionId as secondary key for stability
-    // BUG FIX: Handle null/undefined array elements defensively
+    // Handle null/undefined array elements defensively
     return players
         .filter((p): p is Player => p != null)  // Remove any null/undefined entries
         .sort((a, b) => {
@@ -590,7 +590,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 
 /**
  * Remove player from room
- * Sprint D2: Uses Lua script for atomic removal from all sets + data key deletion.
+ * Uses Lua script for atomic removal from all sets + data key deletion.
  * Falls back to sequential operations if Lua fails.
  * Also cleans up reconnection tokens to prevent orphaned tokens.
  */
@@ -642,7 +642,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
             await redis.sRem(`room:${player.roomCode}:team:${player.team}`, sessionId);
         }
 
-        // CRITICAL FIX: Clean up reconnection tokens to prevent orphaned keys.
+        // Clean up reconnection tokens to prevent orphaned keys.
         try {
             await invalidateRoomReconnectToken(sessionId);
         } catch (tokenError) {
@@ -660,7 +660,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
  * Updates player status and schedules cleanup after grace period
  * Note: Token generation is handled by generateReconnectionToken() which
  * should be called before this function in socket/index.ts
- * ISSUE #57 FIX: Schedule player cleanup after grace period
+ * Schedule player cleanup after grace period
  */
 export async function handleDisconnect(sessionId: string): Promise<Player | null> {
     const redis: RedisClient = getRedis();
@@ -675,7 +675,7 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
 
     logger.info(`Player ${sessionId} disconnected from room ${player.roomCode}`);
 
-    // ISSUE #57 FIX: Schedule removal after grace period using sorted set
+    // Schedule removal after grace period using sorted set
     const cleanupTime = Date.now() + (REDIS_TTL.DISCONNECTED_PLAYER * 1000);
     await redis.zAdd('scheduled:player:cleanup', {
         score: cleanupTime,
@@ -692,7 +692,7 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
 
 /**
  * Process scheduled player cleanups
- * ISSUE #57 FIX: Run this periodically to clean up disconnected players
+ * Run this periodically to clean up disconnected players
  */
 export async function processScheduledCleanups(limit: number = 50): Promise<number> {
     const redis: RedisClient = getRedis();
@@ -747,7 +747,7 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
 
 /**
  * Map socket ID to session ID for reconnection and track client IP
- * Sprint D4: Uses Lua script to bundle player check + socket mapping + IP update
+ * Uses Lua script to bundle player check + socket mapping + IP update
  * into a single atomic operation. Falls back to sequential operations if Lua fails.
  */
 export async function setSocketMapping(
@@ -818,7 +818,7 @@ let cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start periodic player cleanup task
- * ISSUE #57 FIX: Process scheduled cleanups every 60 seconds
+ * Process scheduled cleanups every 60 seconds
  */
 export function startCleanupTask(): void {
     if (cleanupInterval) {
@@ -854,7 +854,7 @@ export function stopCleanupTask(): void {
 
 /**
  * Lua script for atomic host transfer
- * SECURITY FIX: Atomically transfers host status to prevent race conditions
+ * Atomically transfers host status to prevent race conditions
  * that could result in no host or multiple hosts
  * Returns: success with new host data, or failure reason
  */
@@ -862,7 +862,7 @@ const ATOMIC_HOST_TRANSFER_SCRIPT: string = fs.readFileSync(path.join(__dirname,
 
 /**
  * Atomically transfer host status from one player to another
- * SECURITY FIX: Prevents race conditions during host transfer
+ * Prevents race conditions during host transfer
  */
 export async function atomicHostTransfer(
     oldHostSessionId: string,
@@ -872,7 +872,7 @@ export async function atomicHostTransfer(
     const redis: RedisClient = getRedis();
 
     try {
-        // BUG FIX: Wrap redis.eval with timeout to prevent hanging operations
+        // Wrap redis.eval with timeout to prevent hanging operations
         const result = await withTimeout(
             redis.eval(
                 ATOMIC_HOST_TRANSFER_SCRIPT,

@@ -377,7 +377,7 @@ async function resolveSessionId(
         return { validatedSessionId: null, sessionValidation, ipMismatch: false };
     }
 
-    // Validate reconnection token (ISSUE #17 FIX)
+    // Validate reconnection token
     const tokenValid = await validateRoomReconnectToken(sessionId, auth.reconnectToken, currentIP);
 
     if (!tokenValid) {

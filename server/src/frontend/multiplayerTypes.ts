@@ -113,7 +113,7 @@ export interface SpectatorChatData {
     };
 }
 
-// D-1: Chat message data from server
+// Chat message data from server
 export interface ChatMessageData {
     from: {
         sessionId: string;

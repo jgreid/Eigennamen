@@ -108,7 +108,7 @@ export function validateEnv(): boolean {
             warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
         }
 
-        // ISSUE #55 FIX: Make JWT_SECRET warning more prominent in production
+        // Make JWT_SECRET warning more prominent in production
         // While anonymous play is supported, operators should understand the security implications
         if (!process.env['JWT_SECRET']) {
             warnings.push('SECURITY WARNING: JWT_SECRET not set - user authentication is disabled');

@@ -12,7 +12,7 @@ import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config
 import type { RedisMemoryInfo } from '../config/redis';
 import * as pubSubHealth from '../utils/pubSubHealth';
 import logger from '../utils/logger';
-// PHASE 5.1: Import Prometheus metrics export
+// Import Prometheus metrics export
 import { getPrometheusMetrics, updateSystemMetrics } from '../utils/metrics';
 import { withTimeout } from '../utils/timeout';
 
@@ -227,7 +227,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
 });
 
 /**
- * PHASE 5.1: Prometheus-compatible metrics endpoint
+ * Prometheus-compatible metrics endpoint
  * Returns metrics in Prometheus text exposition format
  */
 router.get('/metrics/prometheus', (_req: Request, res: Response) => {

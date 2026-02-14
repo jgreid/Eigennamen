@@ -73,12 +73,11 @@ end
 
 redis.call('SET', playerKey, cjson.encode(player), 'EX', ttl)
 
--- ISSUE #1 FIX: Atomic team set maintenance
--- Remove from old team set if was on a team
+-- Atomic team set maintenance: remove from old team set if was on a team
 if oldTeam and oldTeam ~= cjson.null then
     local oldTeamKey = 'room:' .. roomCode .. ':team:' .. oldTeam
     redis.call('SREM', oldTeamKey, sessionId)
-    -- ISSUE #13 FIX: Clean up empty team sets
+    -- Clean up empty team sets
     if redis.call('SCARD', oldTeamKey) == 0 then
         redis.call('DEL', oldTeamKey)
     end
