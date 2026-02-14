@@ -124,6 +124,7 @@
     "joinFailed": "Beitritt fehlgeschlagen – bitte erneut versuchen",
     "roomAlreadyExists": "Ein Raum mit dieser ID existiert bereits. Versuche eine andere Raum-ID.",
     "createFailed": "Erstellen fehlgeschlagen – bitte erneut versuchen",
+    "roomCreatedAutomatic": "Raum existierte noch nicht \u2014 wurde f\u00fcr dich erstellt!",
     "gameCreatedShare": "Spiel erstellt! Raum-ID teilen: {{roomId}}",
     "connectedToGame": "Mit Multiplayer-Spiel verbunden!",
     "reconnectionFailed": "Wiederverbindung fehlgeschlagen – bitte Seite neu laden",

@@ -124,6 +124,7 @@
     "joinFailed": "Échec de la connexion à la partie – veuillez réessayer",
     "roomAlreadyExists": "Un salon avec cet ID existe déjà. Essayez un autre ID de salon.",
     "createFailed": "Échec de la création de la partie – veuillez réessayer",
+    "roomCreatedAutomatic": "Le salon n'existait pas encore \u2014 cr\u00e9\u00e9 pour vous !",
     "gameCreatedShare": "Partie créée ! Partagez l'ID du salon : {{roomId}}",
     "connectedToGame": "Connecté à la partie multijoueur !",
     "reconnectionFailed": "Échec de la reconnexion – veuillez rafraîchir la page",

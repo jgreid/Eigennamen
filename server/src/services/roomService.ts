@@ -213,7 +213,8 @@ export async function joinRoom(
         } else {
             logger.warn('joinRoom: room key does not exist in Redis', {
                 roomId: normalizedRoomId,
-                sessionId
+                sessionId,
+                serverUptimeSeconds: Math.round(process.uptime())
             });
         }
         throw RoomError.notFound(roomId);

@@ -124,6 +124,7 @@
     "joinFailed": "Failed to join game - please try again",
     "roomAlreadyExists": "A room with this ID already exists. Try a different Room ID.",
     "createFailed": "Failed to create game - please try again",
+    "roomCreatedAutomatic": "Room didn't exist yet \u2014 created it for you!",
     "gameCreatedShare": "Game created! Share Room ID: {{roomId}}",
     "connectedToGame": "Connected to multiplayer game!",
     "reconnectionFailed": "Reconnection failed \u2014 please refresh the page",

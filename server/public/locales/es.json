@@ -124,6 +124,7 @@
     "joinFailed": "Error al unirse a la partida – inténtalo de nuevo",
     "roomAlreadyExists": "Ya existe una sala con este ID. Prueba con un ID de sala diferente.",
     "createFailed": "Error al crear la partida – inténtalo de nuevo",
+    "roomCreatedAutomatic": "La sala no exist\u00eda a\u00fan \u2014 \u00a1creada para ti!",
     "gameCreatedShare": "¡Partida creada! Comparte el ID de sala: {{roomId}}",
     "connectedToGame": "¡Conectado a la partida multijugador!",
     "reconnectionFailed": "Reconexión fallida – por favor, recarga la página",

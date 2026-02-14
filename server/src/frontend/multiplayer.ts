@@ -15,7 +15,7 @@ import {
 } from './multiplayerUI.js';
 import {
     syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState,
-    getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL
+    getRoomCodeFromURL, updateURLWithRoomCode
 } from './multiplayerSync.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
@@ -230,8 +230,43 @@ async function handleJoinGame(): Promise<void> {
 
         logger.error(`Join failed for room "${roomId}":`, error);
         if (err.code === 'ROOM_NOT_FOUND') {
-            setMpStatus(t('multiplayer.roomNotFoundDetail', { roomId: roomId || '' }), 'error');
-            clearRoomCodeFromURL();
+            // Room doesn't exist — automatically create it.
+            // This handles: server restarts (in-memory Redis lost), expired rooms,
+            // and the common pattern where the first user to arrive "opens" the room.
+            logger.info(`Room "${roomId}" not found, auto-creating`);
+            try {
+                setMpStatus(t('multiplayer.creatingGame'), 'connecting');
+                const normalizedRoomId = roomId!.toLocaleLowerCase('en-US');
+                const createResult: JoinCreateResult = await CodenamesClient.createRoom({
+                    roomId: normalizedRoomId,
+                    nickname: nickname
+                });
+
+                if (signal.aborted) return;
+
+                state.currentRoomId = createResult.room?.code || normalizedRoomId;
+                onMultiplayerJoined(createResult, true);
+                showToast(t('multiplayer.roomCreatedAutomatic'), 'info');
+                return;
+            } catch (createError: unknown) {
+                const createErr = createError as { code?: string; message?: string };
+                if (createErr.code === 'ROOM_ALREADY_EXISTS') {
+                    // Race condition: room was created between our join and create attempts.
+                    // Retry the join once.
+                    try {
+                        const normalizedRoomId = roomId!.toLocaleLowerCase('en-US');
+                        const retryResult: JoinCreateResult = await CodenamesClient.joinRoom(normalizedRoomId, nickname);
+                        if (signal.aborted) return;
+                        state.currentRoomId = retryResult.room?.code || normalizedRoomId;
+                        onMultiplayerJoined(retryResult, false);
+                        return;
+                    } catch (retryError: unknown) {
+                        logger.error('Retry join after ROOM_ALREADY_EXISTS also failed:', retryError);
+                    }
+                }
+                logger.error('Auto-create after ROOM_NOT_FOUND failed:', createError);
+                setMpStatus(createErr.message || t('multiplayer.joinFailed'), 'error');
+            }
         } else if (err.code === 'ROOM_FULL') {
             setMpStatus(t('errors.roomFull'), 'error');
         } else if (err.code === 'INVALID_INPUT') {
