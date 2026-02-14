@@ -113,6 +113,25 @@ export async function createRoom(
         );
     }
 
+    // Verify room was actually persisted — diagnostic check for silent Redis failures.
+    // The Lua SETNX returning 1 guarantees the write, so this is a safety net.
+    // Non-fatal: log error for operators but don't block room creation.
+    try {
+        const verifyExists = await redis.exists(`room:${normalizedRoomId}`);
+        if (verifyExists !== 1) {
+            logger.error('createRoom: room key missing immediately after Lua SETNX returned 1', {
+                roomId: normalizedRoomId,
+                luaResult: created,
+                hostSessionId
+            });
+        }
+    } catch (verifyError) {
+        logger.warn('createRoom: post-creation verification failed', {
+            roomId: normalizedRoomId,
+            error: (verifyError as Error).message
+        });
+    }
+
     logger.info('Room created successfully', { roomId: normalizedRoomId });
 
     // Create host player with provided nickname or default to 'Player'
@@ -183,7 +202,7 @@ export async function joinRoom(
     // Get room
     const room = await getRoom(normalizedRoomId);
     if (!room) {
-        // Distinguish "key missing" from "data corrupted" for better diagnostics.
+        // Distinguish "key missing" from "data corrupted" for diagnostics.
         // getRoom returns null in both cases; check if the key actually exists.
         const keyExists = await redis.exists(`room:${normalizedRoomId}`);
         if (keyExists === 1) {
