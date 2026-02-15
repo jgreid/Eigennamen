@@ -6,7 +6,6 @@ import { hashString, shuffleWithSeed, generateGameSeed, seededRandom, encodeWord
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
 import { updateRoleBanner, updateControls } from './roles.js';
-import { resetGameState } from './stateMutations.js';
 import { UI } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
@@ -98,17 +97,12 @@ export function newGame(): void {
                 newGameBtn.classList.remove('loading');
             }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
         }
-        // Clear stale board immediately so the old game isn't visible while
-        // waiting for the server to respond with the new game state.
-        resetGameState();
-        state.spymasterTeam = null;
-        state.clickerTeam = null;
-        state.boardInitialized = false;
-        renderBoard();
-        updateScoreboard();
-        updateTurnIndicator();
-
-        // Server will generate and broadcast the game to all players
+        // Don't clear the board here — wait for the server to confirm
+        // the new game via the gameStarted event.  Clearing prematurely
+        // causes a blank board if the server rejects the request (e.g.
+        // because a game is already in progress).  The gameStarted
+        // listener calls syncGameStateFromServer() which handles the
+        // full state reset and board render.
         CodenamesClient.startGame({});
         return;
     }
