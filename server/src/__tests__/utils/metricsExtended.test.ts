@@ -1,7 +1,7 @@
 /**
  * Extended Metrics Tests
  *
- * Tests for utils/metrics.js - covers system monitoring, event loop monitoring,
+ * Tests for utils/metrics.js - covers system monitoring
  * and Prometheus export functionality.
  */
 
@@ -9,18 +9,12 @@ const {
     incrementCounter,
     setGauge,
     incrementGauge,
-    decrementGauge,
     recordHistogram,
-    startTimer,
-    timed,
-    withTiming,
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
     getPrometheusMetrics,
     updateSystemMetrics,
-    startEventLoopMonitoring,
-    stopEventLoopMonitoring,
     METRIC_NAMES
 } = require('../../utils/metrics');
 
@@ -65,13 +59,6 @@ describe('Metrics Extended Tests', () => {
             expect(metrics.gauges['active_users:region=us'].value).toBe(2);
         });
 
-        it('should decrement gauge', () => {
-            setGauge('rooms', 10);
-            decrementGauge('rooms', 3);
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['rooms'].value).toBe(7);
-        });
     });
 
     describe('Histogram operations', () => {
@@ -116,61 +103,6 @@ describe('Metrics Extended Tests', () => {
         });
     });
 
-    describe('Timer operations', () => {
-        it('should time operations', async () => {
-            const stopTimer = startTimer('operation_time');
-            await new Promise(resolve => setTimeout(resolve, 10));
-            const duration = stopTimer();
-
-            expect(duration).toBeGreaterThan(9);
-            expect(duration).toBeLessThan(100);
-
-            const stats = getHistogramStats('operation_time');
-            expect(stats.count).toBe(1);
-        });
-
-        it('should wrap async functions with timing', async () => {
-            const asyncFn = async (x) => {
-                await new Promise(resolve => setTimeout(resolve, 5));
-                return x * 2;
-            };
-
-            const timedFn = withTiming(asyncFn, 'async_operation');
-            const result = await timedFn(5);
-
-            expect(result).toBe(10);
-
-            const stats = getHistogramStats('async_operation');
-            expect(stats.count).toBe(1);
-            expect(stats.min).toBeGreaterThan(4);
-        });
-    });
-
-    describe('timed decorator', () => {
-        it('should create a decorator function', () => {
-            const decorator = timed('method_time');
-            expect(typeof decorator).toBe('function');
-        });
-
-        it('should wrap method with timing', async () => {
-            const descriptor = {
-                value: async function testMethod(x) {
-                    await new Promise(resolve => setTimeout(resolve, 5));
-                    return x + 1;
-                }
-            };
-
-            const decorator = timed('decorated_method');
-            const result = decorator({}, 'testMethod', descriptor);
-
-            expect(result).toBe(descriptor);
-            expect(typeof descriptor.value).toBe('function');
-
-            const returnValue = await descriptor.value(10);
-            expect(returnValue).toBe(11);
-        });
-    });
-
     describe('updateSystemMetrics()', () => {
         it('should record memory metrics', () => {
             updateSystemMetrics();
@@ -180,37 +112,6 @@ describe('Metrics Extended Tests', () => {
             expect(metrics.gauges[METRIC_NAMES.MEMORY_HEAP_TOTAL]).toBeDefined();
             expect(metrics.gauges[METRIC_NAMES.MEMORY_RSS]).toBeDefined();
             expect(metrics.gauges[METRIC_NAMES.MEMORY_HEAP_USED].value).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Event loop monitoring', () => {
-        afterEach(() => {
-            stopEventLoopMonitoring();
-        });
-
-        it('should start and stop event loop monitoring', () => {
-            // In test environment, this should not start
-            startEventLoopMonitoring();
-            // Should not throw
-            stopEventLoopMonitoring();
-            stopEventLoopMonitoring(); // Should handle double stop
-        });
-
-        it('should measure event loop lag when not in test mode', () => {
-            // Save original NODE_ENV
-            const originalEnv = process.env.NODE_ENV;
-            process.env.NODE_ENV = 'development';
-
-            startEventLoopMonitoring();
-
-            // Wait a bit for measurement
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    stopEventLoopMonitoring();
-                    process.env.NODE_ENV = originalEnv;
-                    resolve();
-                }, 150);
-            });
         });
     });
 

@@ -6,11 +6,7 @@ const {
     incrementCounter,
     setGauge,
     incrementGauge,
-    decrementGauge,
     recordHistogram,
-    startTimer,
-    timed,
-    withTiming,
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
@@ -115,22 +111,6 @@ describe('Metrics Collection', () => {
             });
         });
 
-        describe('decrementGauge', () => {
-            it('should decrement gauge', () => {
-                setGauge('test_gauge', 10);
-                decrementGauge('test_gauge', 3);
-
-                const metrics = getAllMetrics();
-                expect(metrics.gauges['test_gauge'].value).toBe(7);
-            });
-
-            it('should go negative', () => {
-                decrementGauge('test_gauge', 5);
-
-                const metrics = getAllMetrics();
-                expect(metrics.gauges['test_gauge'].value).toBe(-5);
-            });
-        });
     });
 
     describe('Histograms', () => {
@@ -184,68 +164,6 @@ describe('Metrics Collection', () => {
             });
         });
 
-        describe('startTimer', () => {
-            it('should record duration', async () => {
-                const stopTimer = startTimer('test_timer');
-
-                // Wait a bit
-                await new Promise(resolve => setTimeout(resolve, 10));
-
-                const duration = stopTimer();
-
-                expect(duration).toBeGreaterThan(0);
-
-                const stats = getHistogramStats('test_timer');
-                expect(stats.count).toBe(1);
-                expect(stats.sum).toBeGreaterThan(0);
-            });
-
-            it('should support labels', async () => {
-                const stopTimer = startTimer('test_timer', { operation: 'query' });
-                stopTimer();
-
-                const stats = getHistogramStats('test_timer', { operation: 'query' });
-                expect(stats).not.toBeNull();
-            });
-        });
-    });
-
-    describe('Wrappers', () => {
-        describe('withTiming', () => {
-            it('should wrap async function with timing', async () => {
-                const fn = jest.fn().mockResolvedValue('result');
-                const wrapped = withTiming(fn, 'wrapped_function');
-
-                const result = await wrapped('arg1', 'arg2');
-
-                expect(result).toBe('result');
-                expect(fn).toHaveBeenCalledWith('arg1', 'arg2');
-
-                const stats = getHistogramStats('wrapped_function');
-                expect(stats.count).toBe(1);
-            });
-
-            it('should record timing even if function throws', async () => {
-                const fn = jest.fn().mockRejectedValue(new Error('test error'));
-                const wrapped = withTiming(fn, 'wrapped_function');
-
-                await expect(wrapped()).rejects.toThrow('test error');
-
-                const stats = getHistogramStats('wrapped_function');
-                expect(stats.count).toBe(1);
-            });
-        });
-
-        describe('timed decorator', () => {
-            it('should be a function', () => {
-                expect(typeof timed).toBe('function');
-            });
-
-            it('should return a decorator function', () => {
-                const decorator = timed('test_metric');
-                expect(typeof decorator).toBe('function');
-            });
-        });
     });
 
     describe('getAllMetrics', () => {

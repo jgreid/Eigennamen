@@ -154,16 +154,6 @@ function incrementGauge(name: string, value: number = 1, labels: MetricLabels = 
 }
 
 /**
- * Decrement a gauge
- * @param name - Gauge name
- * @param value - Value to subtract (default 1)
- * @param labels - Optional labels
- */
-function decrementGauge(name: string, value: number = 1, labels: MetricLabels = {}): void {
-    incrementGauge(name, -value, labels);
-}
-
-/**
  * Record a histogram value
  * @param name - Histogram name
  * @param value - Observed value
@@ -199,74 +189,6 @@ function recordHistogram(name: string, value: number, labels: MetricLabels = {})
         histogram.min = Math.min(...histogram.values);
         histogram.max = Math.max(...histogram.values);
     }
-}
-
-/**
- * Timer stop function type
- */
-type TimerStopFunction = () => number;
-
-/**
- * Create a timer that records duration to a histogram
- * @param name - Histogram name
- * @param labels - Optional labels
- * @returns Function to stop the timer and record the duration
- */
-function startTimer(name: string, labels: MetricLabels = {}): TimerStopFunction {
-    const start = process.hrtime.bigint();
-    return (): number => {
-        const end = process.hrtime.bigint();
-        const durationMs = Number(end - start) / 1e6;
-        recordHistogram(name, durationMs, labels);
-        return durationMs;
-    };
-}
-
-/**
- * Decorator function to time async functions
- * @param name - Histogram name for timing
- * @param labels - Optional labels
- * @returns Decorator function
- */
-function timed(name: string, labels: MetricLabels = {}): MethodDecorator {
-    return function(_target: unknown, propertyKey: string | symbol, descriptor: PropertyDescriptor): PropertyDescriptor {
-        const original = descriptor.value;
-        descriptor.value = async function(this: unknown, ...args: unknown[]): Promise<unknown> {
-            const stopTimer = startTimer(name, {
-                ...labels,
-                operation: String(propertyKey)
-            });
-            try {
-                return await original.apply(this, args);
-            } finally {
-                stopTimer();
-            }
-        };
-        return descriptor;
-    };
-}
-
-/**
- * Async function type for withTiming
- */
-type AsyncFunction<T> = (...args: unknown[]) => Promise<T>;
-
-/**
- * Wrap an async function with timing
- * @param fn - Function to wrap
- * @param name - Histogram name
- * @param labels - Optional labels
- * @returns Wrapped function
- */
-function withTiming<T>(fn: AsyncFunction<T>, name: string, labels: MetricLabels = {}): AsyncFunction<T> {
-    return async function(this: unknown, ...args: unknown[]): Promise<T> {
-        const stopTimer = startTimer(name, labels);
-        try {
-            return await fn.apply(this, args);
-        } finally {
-            stopTimer();
-        }
-    };
 }
 
 /**
@@ -487,17 +409,6 @@ function startEventLoopMonitoring(): void {
     }
 }
 
-function stopEventLoopMonitoring(): void {
-    if (eventLoopInterval) {
-        clearInterval(eventLoopInterval);
-        eventLoopInterval = null;
-    }
-    if (metricsPruneInterval) {
-        clearInterval(metricsPruneInterval);
-        metricsPruneInterval = null;
-    }
-}
-
 /**
  * Export metrics in Prometheus text format
  * @returns Prometheus-compatible metrics text
@@ -562,11 +473,7 @@ export {
     incrementCounter,
     setGauge,
     incrementGauge,
-    decrementGauge,
     recordHistogram,
-    startTimer,
-    timed,
-    withTiming,
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
@@ -574,7 +481,6 @@ export {
     getPrometheusMetrics,
     updateSystemMetrics,
     startEventLoopMonitoring,
-    stopEventLoopMonitoring,
     METRIC_NAMES
 };
 
@@ -587,7 +493,5 @@ export type {
     HistogramStats,
     AllMetrics,
     MetricsConfig,
-    MetricName,
-    TimerStopFunction,
-    AsyncFunction
+    MetricName
 };
