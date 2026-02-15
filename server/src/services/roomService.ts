@@ -442,7 +442,16 @@ export async function updateSettings(
         throw new ServerError('Failed to update room settings');
     }
 
-    const result = JSON.parse(resultStr) as { error?: string; success?: boolean; settings?: RoomSettings };
+    const luaSettingsResultSchema = z.object({
+        error: z.string().optional(),
+        success: z.boolean().optional(),
+        settings: z.unknown().optional(),
+    });
+    const result = tryParseJSON(resultStr, luaSettingsResultSchema, `updateSettings for room ${code}`) as { error?: string; success?: boolean; settings?: RoomSettings } | null;
+
+    if (!result) {
+        throw new ServerError('Failed to parse room settings update result');
+    }
 
     if (result.error === 'ROOM_NOT_FOUND') {
         throw RoomError.notFound(code);

@@ -525,6 +525,7 @@ describe('WordList Routes', () => {
     describe('Authentication with JWT', () => {
         const jwt = require('jsonwebtoken');
         const testSecret = 'test-jwt-secret';
+        const jwtOpts = { algorithm: 'HS256', issuer: 'die-eigennamen', audience: 'game-client' };
 
         beforeEach(() => {
             process.env.JWT_SECRET = testSecret;
@@ -535,7 +536,7 @@ describe('WordList Routes', () => {
         });
 
         it('should allow authenticated user to create word list', async () => {
-            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: 'user-123' }, testSecret, jwtOpts);
 
             const response = await request(app)
                 .post('/api/wordlists')
@@ -553,7 +554,7 @@ describe('WordList Routes', () => {
 
         it('should allow authenticated owner to update word list', async () => {
             const userId = 'owner-user-123';
-            const token = jwt.sign({ id: userId }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: userId }, testSecret, jwtOpts);
             const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
 
             mockWordLists.set(listId, {
@@ -575,7 +576,7 @@ describe('WordList Routes', () => {
 
         it('should allow authenticated owner to delete word list', async () => {
             const userId = 'owner-user-456';
-            const token = jwt.sign({ id: userId }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: userId }, testSecret, jwtOpts);
             const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
 
             mockWordLists.set(listId, {
@@ -609,7 +610,7 @@ describe('WordList Routes', () => {
         });
 
         it('should reject JWT with invalid structure (missing id)', async () => {
-            const token = jwt.sign({ name: 'user' }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ name: 'user' }, testSecret, jwtOpts);
 
             const response = await request(app)
                 .post('/api/wordlists')
@@ -626,7 +627,7 @@ describe('WordList Routes', () => {
 
         it('should allow authenticated owner to view private word list', async () => {
             const userId = 'owner-user-789';
-            const token = jwt.sign({ id: userId }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: userId }, testSecret, jwtOpts);
             const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
 
             mockWordLists.set(listId, {
@@ -646,7 +647,7 @@ describe('WordList Routes', () => {
         });
 
         it('should handle service errors gracefully in POST', async () => {
-            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: 'user-123' }, testSecret, jwtOpts);
 
             wordListService.createWordList.mockRejectedValueOnce(new Error('Database error'));
 
@@ -664,7 +665,7 @@ describe('WordList Routes', () => {
         });
 
         it('should handle service errors gracefully in PUT', async () => {
-            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: 'user-123' }, testSecret, jwtOpts);
             const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
 
             wordListService.updateWordList.mockRejectedValueOnce(new Error('Database error'));
@@ -679,7 +680,7 @@ describe('WordList Routes', () => {
         });
 
         it('should handle service errors gracefully in DELETE', async () => {
-            const token = jwt.sign({ id: 'user-123' }, testSecret, { algorithm: 'HS256' });
+            const token = jwt.sign({ id: 'user-123' }, testSecret, jwtOpts);
             const listId = 'e8f8c9a0-1234-5678-9abc-def012345678';
 
             wordListService.deleteWordList.mockRejectedValueOnce(new Error('Database error'));

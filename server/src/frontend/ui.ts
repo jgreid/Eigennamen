@@ -22,9 +22,9 @@ export function announceToScreenReader(message: string): void {
 }
 
 // ========== TOAST NOTIFICATION SYSTEM ==========
-export function showToast(message: string, type: string = 'error', duration: number = 4000): HTMLDivElement {
+export function showToast(message: string, type: string = 'error', duration: number = 4000): HTMLDivElement | null {
     const container = document.getElementById('toast-container');
-    if (!container) return undefined as unknown as HTMLDivElement;
+    if (!container) return null;
 
     // Validate type against allowed values to prevent arbitrary class/key injection
     const validTypes = ['error', 'success', 'warning', 'info'];

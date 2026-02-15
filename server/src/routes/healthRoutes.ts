@@ -63,7 +63,7 @@ interface MetricsResponse {
         failureRate: string;
         consecutiveFailures: number;
     };
-    process: {
+    process?: {
         pid: number;
         nodeVersion: string;
         platform: string;
@@ -194,13 +194,18 @@ router.get('/metrics', async (_req: Request, res: Response) => {
                 totalFailures: pubSubStatus.totalFailures,
                 failureRate: pubSubStatus.failureRate,
                 consecutiveFailures: pubSubStatus.consecutiveFailures
-            },
-            process: {
+            }
+        };
+
+        // Only expose process details (PID, Node version, platform) outside production
+        // to prevent fingerprinting attacks
+        if (process.env.NODE_ENV !== 'production') {
+            metrics.process = {
                 pid: process.pid,
                 nodeVersion: process.version,
                 platform: process.platform
-            }
-        };
+            };
+        }
 
         // Add alert status at top level if Redis memory is concerning
         if (redisMemory.alert) {

@@ -179,6 +179,9 @@ app.use('/api', csrfProtection);
 // API routes
 app.use('/api', routes);
 
+// CSRF protection for admin API routes (state-changing operations)
+app.use('/admin/api', csrfProtection);
+
 // Admin dashboard routes (protected by basic auth)
 app.use('/admin', adminRoutes);
 
