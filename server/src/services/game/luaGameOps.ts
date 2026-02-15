@@ -66,6 +66,7 @@ export { gameStateSchema, luaResultObjectSchema };
 // Centralized constants
 export const MAX_HISTORY_ENTRIES: number = GAME_HISTORY.MAX_ENTRIES;
 const MAX_TRANSACTION_RETRIES: number = RETRY_CONFIG.OPTIMISTIC_LOCK.maxRetries;
+const TRANSACTION_BASE_DELAY_MS: number = RETRY_CONFIG.OPTIMISTIC_LOCK.baseDelayMs;
 
 // RedisClient imported from '../../types' (shared across all services)
 type RedisClient = SharedRedisClient;
@@ -186,6 +187,11 @@ export async function executeGameTransaction<T>(
             if (txResult === null) {
                 await redis.unwatch();
                 retries++;
+                if (retries < MAX_TRANSACTION_RETRIES) {
+                    // Exponential backoff to reduce contention
+                    const delay = TRANSACTION_BASE_DELAY_MS * Math.pow(2, retries - 1);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
                 continue;
             }
 

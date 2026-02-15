@@ -84,8 +84,16 @@ function handleConnection(
     // Attach rate limiter to socket for use in handlers
     gameSocket.rateLimiter = socketRateLimiter;
 
-    // Ensure socket functions are registered before handlers run
-    ensureSocketFunctionsRegistered(socketFns);
+    // Ensure socket functions are registered before handlers run.
+    // If registration fails, disconnect the socket to prevent handlers
+    // from running without the required function dependencies.
+    try {
+        ensureSocketFunctionsRegistered(socketFns);
+    } catch (regError) {
+        logger.error('Failed to register socket functions, disconnecting:', regError);
+        socket.disconnect(true);
+        return;
+    }
 
     // Register all event handlers
     roomHandlers(socketServer, gameSocket);

@@ -190,7 +190,11 @@ async function handleDisconnect(
     const { getRedis } = require('../config/redis');
 
     try {
-        const player: Player | null = await playerService.getPlayer(socket.sessionId);
+        const player: Player | null = await withTimeout(
+            playerService.getPlayer(socket.sessionId),
+            TIMEOUTS.REDIS_OPERATION,
+            `disconnect-getPlayer-${socket.sessionId}`
+        );
 
         if (!player) {
             return;
@@ -201,13 +205,21 @@ async function handleDisconnect(
         // Generate reconnection token before marking as disconnected
         let reconnectionToken: string | null = null;
         try {
-            reconnectionToken = await playerService.generateReconnectionToken(socket.sessionId);
+            reconnectionToken = await withTimeout(
+                playerService.generateReconnectionToken(socket.sessionId),
+                TIMEOUTS.REDIS_OPERATION,
+                `disconnect-genToken-${socket.sessionId}`
+            );
         } catch (tokenError) {
             logger.warn(`Failed to generate reconnection token for ${socket.sessionId}:`, (tokenError as Error).message);
         }
 
         // Update player's connected status
-        await playerService.handleDisconnect(socket.sessionId);
+        await withTimeout(
+            playerService.handleDisconnect(socket.sessionId),
+            TIMEOUTS.REDIS_OPERATION,
+            `disconnect-handleDisconnect-${socket.sessionId}`
+        );
 
         // Check if we've been aborted (timed out) — skip remaining non-critical work
         if (abortSignal?.aborted) {
@@ -218,7 +230,11 @@ async function handleDisconnect(
         // Notify other players in the room
         if (roomCode) {
             // Get updated player list to ensure clients have consistent state
-            const updatedPlayers: Player[] = await playerService.getPlayersInRoom(roomCode);
+            const updatedPlayers: Player[] = await withTimeout(
+                playerService.getPlayersInRoom(roomCode),
+                TIMEOUTS.REDIS_OPERATION,
+                `disconnect-getPlayers-${roomCode}`
+            );
 
             // Calculate reconnection deadline for frontend display
             const { SESSION_SECURITY } = require('../config/constants');
@@ -244,7 +260,11 @@ async function handleDisconnect(
             });
 
             // Broadcast updated stats so clients reflect the disconnection
-            const roomStats = await playerService.getRoomStats(roomCode, updatedPlayers);
+            const roomStats = await withTimeout(
+                playerService.getRoomStats(roomCode, updatedPlayers),
+                TIMEOUTS.REDIS_OPERATION,
+                `disconnect-getRoomStats-${roomCode}`
+            );
             safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             // Check abort before expensive host transfer

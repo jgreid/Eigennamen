@@ -27,9 +27,10 @@ function buildCardAriaLabel(word: string, isRevealed: boolean, type: string, row
     return t('board.unrevealedCardLabel', { word, position });
 }
 
-// Re-fit card text on resize (debounced)
+// Re-fit card text on resize (debounced).
+// Stored as a named function so it can be removed when leaving a room.
 let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-window.addEventListener('resize', () => {
+function handleResize(): void {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         const board = document.getElementById('board');
@@ -41,7 +42,34 @@ window.addEventListener('resize', () => {
             fitCardText(board);
         }
     }, 150);
-});
+}
+let resizeListenerAttached = false;
+
+/**
+ * Attach the window resize listener (idempotent).
+ * Call once when the board is first rendered.
+ */
+export function attachResizeListener(): void {
+    if (!resizeListenerAttached) {
+        window.addEventListener('resize', handleResize);
+        resizeListenerAttached = true;
+    }
+}
+
+/**
+ * Remove the window resize listener and cancel any pending debounce.
+ * Call when leaving a room to prevent accumulating listeners.
+ */
+export function detachResizeListener(): void {
+    if (resizeListenerAttached) {
+        window.removeEventListener('resize', handleResize);
+        resizeListenerAttached = false;
+    }
+    if (resizeTimer) {
+        clearTimeout(resizeTimer);
+        resizeTimer = null;
+    }
+}
 
 export function setCardClickHandler(fn: (index: number) => void): void {
     cardClickHandler = fn;
@@ -174,6 +202,7 @@ export function renderBoard(): void {
 
         state.boardInitialized = true;
         initBoardEventDelegation();
+        attachResizeListener();
     } catch (err) {
         logger.error('renderBoard failed:', err);
         // Show a minimal fallback so the board area isn't blank

@@ -204,6 +204,47 @@ return playerData
 `;
 
 /**
+ * Atomic cleanup of a disconnected player.
+ * Checks that the player is still disconnected before removing,
+ * preventing a TOCTOU race where a player reconnects between the
+ * cleanup scheduler's read and the removal.
+ * Returns: player data JSON on success, 'RECONNECTED' if connected, nil if not found
+ */
+export const ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT = `
+local playerKey = KEYS[1]
+local sessionId = ARGV[1]
+
+-- Get player data
+local playerData = redis.call('GET', playerKey)
+if not playerData then
+    return nil
+end
+
+local player = cjson.decode(playerData)
+
+-- Guard: only remove if still disconnected
+if player.connected then
+    return 'RECONNECTED'
+end
+
+local roomCode = player.roomCode
+local team = player.team
+
+-- Remove from room's player set
+if roomCode then
+    redis.call('SREM', 'room:' .. roomCode .. ':players', sessionId)
+    if team and team ~= cjson.null then
+        redis.call('SREM', 'room:' .. roomCode .. ':team:' .. team, sessionId)
+    end
+end
+
+-- Delete player data
+redis.call('DEL', playerKey)
+
+return playerData
+`;
+
+/**
  * Atomic socket mapping + IP update
  * Previously in: playerService.ts
  * Returns: 1 on success, nil if player not found
@@ -256,5 +297,6 @@ export const LUA_SCRIPTS = {
 
     // Player operations
     ATOMIC_REMOVE_PLAYER: ATOMIC_REMOVE_PLAYER_SCRIPT,
+    ATOMIC_CLEANUP_DISCONNECTED_PLAYER: ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
     ATOMIC_SET_SOCKET_MAPPING: ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
 } as const;

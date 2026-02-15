@@ -2,7 +2,7 @@
 // State synchronization, cleanup, and URL management for multiplayer mode
 
 import { state } from './state.js';
-import { renderBoard } from './board.js';
+import { renderBoard, detachResizeListener } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { updateRoleBanner, updateControls, clearRoleChange } from './roles.js';
 import { handleTimerStopped } from './timer.js';
@@ -115,6 +115,9 @@ export function leaveMultiplayerMode(): void {
     // Reset stale game state to prevent old boards from persisting across rooms
     resetGameState();
     state.boardInitialized = false;
+
+    // Clean up resize listener to prevent accumulation across room switches
+    detachResizeListener();
 
     // Clear room code from URL
     clearRoomCodeFromURL();
