@@ -133,6 +133,36 @@ jest.mock('../../config/redis', () => {
                 return 1;
             }
 
+            // Simulate atomic updateSettings script (must be checked BEFORE team change
+            // since both contain 'cjson.decode' and 'team' in the script text)
+            if (script.includes('hostSessionId') && script.includes('settingsJson')) {
+                const roomKey = options.keys[0];
+                const sessionId = options.arguments[0];
+                const newSettingsJson = options.arguments[1];
+                const blitzForcedTimer = parseInt(options.arguments[2]);
+
+                const roomData = mockRedisStorage.get(roomKey);
+                if (!roomData) return JSON.stringify({ error: 'ROOM_NOT_FOUND' });
+
+                const room = JSON.parse(roomData);
+                if (room.hostSessionId !== sessionId) return JSON.stringify({ error: 'NOT_HOST' });
+
+                const newSettings = JSON.parse(newSettingsJson);
+                if (!room.settings) room.settings = {};
+
+                if (newSettings.teamNames !== undefined) room.settings.teamNames = newSettings.teamNames;
+                if (newSettings.turnTimer !== undefined) room.settings.turnTimer = newSettings.turnTimer;
+                if (newSettings.allowSpectators !== undefined) room.settings.allowSpectators = newSettings.allowSpectators;
+                if (newSettings.gameMode !== undefined) room.settings.gameMode = newSettings.gameMode;
+
+                if (room.settings.gameMode === 'blitz') {
+                    room.settings.turnTimer = blitzForcedTimer;
+                }
+
+                mockRedisStorage.set(roomKey, JSON.stringify(room));
+                return JSON.stringify({ success: true, settings: room.settings });
+            }
+
             // Simulate atomic team change script
             if (script.includes('cjson.decode') && script.includes('team') && !script.includes('OPTIMIZED_REVEAL')) {
                 const playerKey = options.keys[0];

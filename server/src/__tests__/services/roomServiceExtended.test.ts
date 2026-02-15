@@ -321,7 +321,10 @@ describe('Room Service', () => {
 
         test('last player leaving deletes room', async () => {
             const playerService = require('../../services/playerService');
-            playerService.getPlayersInRoom.mockResolvedValueOnce([]);
+            // Must return [] for both calls: initial fetch + post-removal re-check
+            playerService.getPlayersInRoom
+                .mockResolvedValueOnce([])
+                .mockResolvedValueOnce([]);
 
             const result = await roomService.leaveRoom('leave-room', 'host-1');
 
@@ -352,6 +355,12 @@ describe('Room Service', () => {
         });
 
         test('updates settings successfully', async () => {
+            // Mock Lua script result (updateSettings now uses atomic Lua script)
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
+                success: true,
+                settings: { turnTimer: 120, allowSpectators: false, teamNames: { red: 'Red', blue: 'Blue' } }
+            }));
+
             const result = await roomService.updateSettings('settings-room', 'host-1', {
                 turnTimer: 120,
                 allowSpectators: false
@@ -362,6 +371,11 @@ describe('Room Service', () => {
         });
 
         test('updates team names', async () => {
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
+                success: true,
+                settings: { turnTimer: 60, allowSpectators: true, teamNames: { red: 'Dragons', blue: 'Knights' } }
+            }));
+
             const result = await roomService.updateSettings('settings-room', 'host-1', {
                 teamNames: { red: 'Dragons', blue: 'Knights' }
             });
@@ -370,12 +384,16 @@ describe('Room Service', () => {
         });
 
         test('throws when not host', async () => {
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({ error: 'NOT_HOST' }));
+
             await expect(roomService.updateSettings('settings-room', 'not-host', {
                 turnTimer: 90
             })).rejects.toMatchObject({ code: ERROR_CODES.NOT_HOST });
         });
 
         test('throws when room not found', async () => {
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({ error: 'ROOM_NOT_FOUND' }));
+
             await expect(roomService.updateSettings('notexist', 'host-1', {
                 turnTimer: 90
             })).rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });

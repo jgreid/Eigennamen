@@ -142,6 +142,7 @@ export async function createGame(
     if (!lockAcquired) {
         // Exponential backoff retry: wait, then check if the other creator finished
         const maxRetries = 3;
+        let acquiredOnRetry = false;
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             const delayMs = RETRY_CONFIG.RACE_CONDITION.delayMs * Math.pow(2, attempt);
             await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -152,10 +153,21 @@ export async function createGame(
             // Lock may have been released, try to acquire again
             const retryLock = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE });
             if (retryLock) {
-                // Acquired on retry — fall through to game creation below
+                acquiredOnRetry = true;
                 break;
             }
             if (attempt === maxRetries - 1) {
+                throw RoomError.gameInProgress(roomCode);
+            }
+        }
+
+        // After acquiring on retry, wait briefly and re-check to handle the case where
+        // the previous lock holder's TTL expired but their game creation is still in-flight.
+        if (acquiredOnRetry) {
+            await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
+            const lateGame = await getGame(roomCode);
+            if (lateGame && !lateGame.gameOver) {
+                await releaseLockWithRetry(redis, lockKey, lockValue, `creation-lock-${roomCode}`);
                 throw RoomError.gameInProgress(roomCode);
             }
         }

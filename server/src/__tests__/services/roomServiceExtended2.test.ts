@@ -307,13 +307,11 @@ describe('Extended Room Service Tests', () => {
 
     describe('updateSettings', () => {
         test('updates settings successfully', async () => {
-            const mockRoom = {
-                code: 'test-room',
-                hostSessionId: 'host-session',
-                settings: { turnTimer: 60 }
-            };
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
-            mockRedis.set.mockResolvedValue('OK');
+            // updateSettings now uses atomic Lua script via redis.eval
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
+                success: true,
+                settings: { turnTimer: 90 }
+            }));
 
             const result = await roomService.updateSettings('test-room', 'host-session', { turnTimer: 90 });
 
@@ -321,25 +319,17 @@ describe('Extended Room Service Tests', () => {
         });
 
         test('rejects non-host update', async () => {
-            const mockRoom = {
-                code: 'test-room',
-                hostSessionId: 'host-session',
-                settings: {}
-            };
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({ error: 'NOT_HOST' }));
 
             await expect(roomService.updateSettings('test-room', 'other-session', { turnTimer: 90 }))
                 .rejects.toThrow('host');
         });
 
         test('updates team names', async () => {
-            const mockRoom = {
-                code: 'test-room',
-                hostSessionId: 'host-session',
-                settings: { teamNames: { red: 'Red', blue: 'Blue' } }
-            };
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
-            mockRedis.set.mockResolvedValue('OK');
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
+                success: true,
+                settings: { teamNames: { red: 'Cats', blue: 'Dogs' } }
+            }));
 
             const result = await roomService.updateSettings('test-room', 'host-session', {
                 teamNames: { red: 'Cats', blue: 'Dogs' }
@@ -350,13 +340,10 @@ describe('Extended Room Service Tests', () => {
         });
 
         test('updates allow spectators setting', async () => {
-            const mockRoom = {
-                code: 'test-room',
-                hostSessionId: 'host-session',
-                settings: { allowSpectators: true }
-            };
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
-            mockRedis.set.mockResolvedValue('OK');
+            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
+                success: true,
+                settings: { allowSpectators: false }
+            }));
 
             const result = await roomService.updateSettings('test-room', 'host-session', {
                 allowSpectators: false

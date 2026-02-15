@@ -347,8 +347,10 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     // Remove player after host transfer is complete
     await playerService.removePlayer(sessionId);
 
-    // If no players left, clean up room completely
-    if (remainingPlayers.length === 0) {
+    // Re-check actual player count from Redis (not the stale snapshot) to handle
+    // concurrent leaves that may have emptied the room since we fetched allPlayers
+    const currentPlayers: Player[] = await playerService.getPlayersInRoom(code);
+    if (currentPlayers.length === 0) {
         await cleanupRoom(code);
         roomDeleted = true;
     }
@@ -362,21 +364,56 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
  * @param sessionId - Session ID of the requester
  * @param newSettings - New settings
  */
+/**
+ * Lua script to atomically update room settings.
+ * Prevents race conditions where a concurrent createGame or other room
+ * mutation could be overwritten by a stale read-modify-write cycle.
+ */
+const ATOMIC_UPDATE_SETTINGS_SCRIPT = `
+local roomKey = KEYS[1]
+local sessionId = ARGV[1]
+local settingsJson = ARGV[2]
+local blitzForcedTimer = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+
+local roomData = redis.call('GET', roomKey)
+if not roomData then
+    return cjson.encode({error = 'ROOM_NOT_FOUND'})
+end
+
+local room = cjson.decode(roomData)
+
+if room.hostSessionId ~= sessionId then
+    return cjson.encode({error = 'NOT_HOST'})
+end
+
+local newSettings = cjson.decode(settingsJson)
+
+-- Merge only allowed keys into existing settings
+if not room.settings then
+    room.settings = {}
+end
+if newSettings.teamNames ~= nil then room.settings.teamNames = newSettings.teamNames end
+if newSettings.turnTimer ~= nil then room.settings.turnTimer = newSettings.turnTimer end
+if newSettings.allowSpectators ~= nil then room.settings.allowSpectators = newSettings.allowSpectators end
+if newSettings.gameMode ~= nil then room.settings.gameMode = newSettings.gameMode end
+
+-- Enforce blitz constraints
+if room.settings.gameMode == 'blitz' then
+    room.settings.turnTimer = blitzForcedTimer
+end
+
+redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
+
+return cjson.encode({success = true, settings = room.settings})
+`;
+
 export async function updateSettings(
     code: string,
     sessionId: string,
     newSettings: Partial<RoomSettings>
 ): Promise<RoomSettings> {
     const redis: RedisClient = getRedis();
-    const room = await getRoom(code);
-
-    if (!room) {
-        throw RoomError.notFound(code);
-    }
-
-    if (room.hostSessionId !== sessionId) {
-        throw PlayerError.notHost();
-    }
 
     // Whitelist allowed settings keys to prevent arbitrary key injection
     const allowedKeys: (keyof RoomSettings)[] = ['teamNames', 'turnTimer', 'allowSpectators', 'gameMode'];
@@ -387,24 +424,40 @@ export async function updateSettings(
         }
     }
 
-    room.settings = {
-        ...room.settings,
-        ...sanitizedSettings
-    };
+    const resultStr = await withTimeout(
+        redis.eval(ATOMIC_UPDATE_SETTINGS_SCRIPT, {
+            keys: [`room:${code}`],
+            arguments: [
+                sessionId,
+                JSON.stringify(sanitizedSettings),
+                GAME_MODE_CONFIG.blitz.forcedTurnTimer.toString(),
+                REDIS_TTL.ROOM.toString()
+            ]
+        }),
+        TIMEOUTS.REDIS_OPERATION,
+        'updateSettings-lua'
+    ) as string | null;
 
-    // Enforce game mode constraints on turn timer
-    if (room.settings.gameMode === 'blitz') {
-        room.settings.turnTimer = GAME_MODE_CONFIG.blitz.forcedTurnTimer;
+    if (!resultStr) {
+        throw new ServerError('Failed to update room settings');
     }
 
-    await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+    const result = JSON.parse(resultStr) as { error?: string; success?: boolean; settings?: RoomSettings };
+
+    if (result.error === 'ROOM_NOT_FOUND') {
+        throw RoomError.notFound(code);
+    }
+    if (result.error === 'NOT_HOST') {
+        throw PlayerError.notHost();
+    }
+    if (result.error) {
+        throw new ServerError(result.error);
+    }
 
     // Refresh TTL on all room-related keys to keep active rooms alive
     await refreshRoomTTL(code);
 
-    return {
-        ...room.settings
-    };
+    return result.settings as RoomSettings;
 }
 
 /**
