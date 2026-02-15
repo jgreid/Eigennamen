@@ -115,6 +115,7 @@
     "joiningGame": "Joining game...",
     "creatingGame": "Creating game...",
     "roomNotFoundDetail": "Room \"{{roomId}}\" not found - check the Room ID or create a new room first",
+    "roomNotFoundCreate": "Room \"{{roomId}}\" not found — click Create Game to start it",
     "invalidInputDetail": "Invalid input - check Room ID and nickname",
     "connectionFailedDetail": "Could not connect to server - check your connection and try again",
     "joinFailed": "Failed to join game - please try again",
