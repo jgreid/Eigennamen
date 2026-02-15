@@ -361,7 +361,7 @@ export async function endTurn(
 /**
  * Forfeit the game
  */
-export function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult> {
+export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult> {
     const gameKey = `room:${roomCode}:game`;
 
     return executeGameTransaction(gameKey, (game: GameState) => {
