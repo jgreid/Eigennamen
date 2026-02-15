@@ -98,6 +98,18 @@ module.exports = {
             moduleNameMapper: {
                 '^(\\.\\.?\\/.*)\\.js$': '$1'
             },
+            collectCoverageFrom: [
+                'src/frontend/**/*.ts',
+                '!src/frontend/types/**'
+            ],
+            coverageThreshold: {
+                global: {
+                    branches: 40,
+                    functions: 25,
+                    lines: 50,
+                    statements: 50
+                }
+            },
         },
     ],
 };

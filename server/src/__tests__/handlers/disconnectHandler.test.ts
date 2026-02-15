@@ -52,7 +52,9 @@ jest.mock('../../utils/distributedLock', () => ({
 const { handleDisconnect, createTimerExpireCallback } = require('../../socket/disconnectHandler');
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
+const roomService = require('../../services/roomService');
 const { safeEmitToRoom } = require('../../socket/safeEmit');
+const { isRedisHealthy } = require('../../config/redis');
 const logger = require('../../utils/logger');
 
 describe('disconnectHandler', () => {
@@ -247,6 +249,97 @@ describe('disconnectHandler', () => {
                 handleDisconnect(mockIo, mockSocket, 'transport close')
             ).resolves.not.toThrow();
         });
+
+        it('should handle reconnection token generation failure gracefully', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Alice',
+                team: 'red', isHost: false, connected: true,
+            });
+            playerService.generateReconnectionToken.mockRejectedValue(new Error('token error'));
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Failed to generate reconnection token'),
+                expect.any(String)
+            );
+            // Should still proceed with disconnect
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
+        });
+
+        it('should skip room notification when player has no roomCode', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1', roomCode: null, nickname: 'Alice',
+                team: null, isHost: false, connected: true,
+            });
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            expect(playerService.handleDisconnect).toHaveBeenCalledWith('sess-1');
+            expect(safeEmitToRoom).not.toHaveBeenCalled();
+        });
+
+        it('should abort before host transfer when signal is triggered late', async () => {
+            const ac = new AbortController();
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                team: 'red', isHost: true, connected: true,
+            });
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+            playerService.getRoomStats.mockImplementation(async () => {
+                // Abort after room notification but before host transfer
+                ac.abort();
+                return { totalPlayers: 0 };
+            });
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close', ac.signal);
+
+            // Room notification should have happened
+            expect(safeEmitToRoom).toHaveBeenCalled();
+            // But host transfer should not (aborted)
+            expect(playerService.atomicHostTransfer).not.toHaveBeenCalled();
+        });
+
+        it('should handle host transfer error gracefully', async () => {
+            playerService.getPlayer
+                .mockResolvedValueOnce({
+                    sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                    team: 'red', isHost: true, connected: true,
+                })
+                .mockRejectedValueOnce(new Error('Redis error during recheck'));
+
+            playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            await expect(
+                handleDisconnect(mockIo, mockSocket, 'transport close')
+            ).resolves.not.toThrow();
+
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.stringContaining('Host transfer failed'),
+            );
+        });
+
+        it('should broadcast updated room stats after disconnect notification', async () => {
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Alice',
+                team: 'blue', isHost: false, connected: true,
+            });
+            const updatedPlayers = [
+                { sessionId: 'sess-2', nickname: 'Bob', connected: true },
+            ];
+            playerService.getPlayersInRoom.mockResolvedValue(updatedPlayers);
+            playerService.getRoomStats.mockResolvedValue({ totalPlayers: 1, connectedPlayers: 1 });
+
+            await handleDisconnect(mockIo, mockSocket, 'transport close');
+
+            // Should emit both player:disconnected and room:statsUpdated
+            expect(safeEmitToRoom).toHaveBeenCalledTimes(2);
+            expect(safeEmitToRoom).toHaveBeenCalledWith(
+                mockIo, 'ROOM01', expect.stringContaining('statsUpdated'),
+                expect.objectContaining({ stats: expect.any(Object) })
+            );
+        });
     });
 
     describe('createTimerExpireCallback', () => {
@@ -293,6 +386,103 @@ describe('disconnectHandler', () => {
             expect(logger.debug).toHaveBeenCalledWith(
                 expect.stringContaining('Timer expiration lock not acquired')
             );
+        });
+
+        it('should schedule timer restart via setImmediate after ending turn', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            roomService.getRoom.mockResolvedValue({
+                code: 'ROOM01', settings: { turnTimer: 60 },
+            });
+            (isRedisHealthy as jest.Mock).mockResolvedValue(true);
+            mockRedis.set.mockResolvedValue('OK');
+
+            await callback('ROOM01');
+
+            // Timer restart runs in setImmediate — flush it
+            await new Promise(resolve => setImmediate(resolve));
+            // Allow the async IIFE to settle
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(startTurnTimer).toHaveBeenCalledWith('ROOM01', 60);
+        });
+
+        it('should skip timer restart when Redis is unhealthy', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false });
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            (isRedisHealthy as jest.Mock).mockResolvedValue(false);
+
+            await callback('ROOM01');
+            await new Promise(resolve => setImmediate(resolve));
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Redis not healthy')
+            );
+            expect(startTurnTimer).not.toHaveBeenCalled();
+        });
+
+        it('should skip timer restart when lock not acquired', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false });
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            (isRedisHealthy as jest.Mock).mockResolvedValue(true);
+            mockRedis.set.mockResolvedValue(null); // lock failed
+
+            await callback('ROOM01');
+            await new Promise(resolve => setImmediate(resolve));
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(startTurnTimer).not.toHaveBeenCalled();
+        });
+
+        it('should skip timer restart when room not found', async () => {
+            gameService.getGame
+                .mockResolvedValueOnce({ gameOver: false }) // for endTurn check
+                .mockResolvedValueOnce({ gameOver: false }); // for restart check
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            (isRedisHealthy as jest.Mock).mockResolvedValue(true);
+            mockRedis.set.mockResolvedValue('OK');
+            roomService.getRoom.mockResolvedValue(null);
+
+            await callback('ROOM01');
+            await new Promise(resolve => setImmediate(resolve));
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(startTurnTimer).not.toHaveBeenCalled();
+        });
+
+        it('should skip timer restart when no turn timer configured', async () => {
+            gameService.getGame.mockResolvedValue({ gameOver: false, currentTurn: 'red' });
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            (isRedisHealthy as jest.Mock).mockResolvedValue(true);
+            mockRedis.set.mockResolvedValue('OK');
+            roomService.getRoom.mockResolvedValue({
+                code: 'ROOM01', settings: { turnTimer: null },
+            });
+
+            await callback('ROOM01');
+            await new Promise(resolve => setImmediate(resolve));
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(startTurnTimer).not.toHaveBeenCalled();
+        });
+
+        it('should skip timer restart when game is over after turn end', async () => {
+            gameService.getGame
+                .mockResolvedValueOnce({ gameOver: false }) // for endTurn check
+                .mockResolvedValueOnce({ gameOver: true, winner: 'blue' }); // for restart check
+            gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
+            (isRedisHealthy as jest.Mock).mockResolvedValue(true);
+            mockRedis.set.mockResolvedValue('OK');
+            roomService.getRoom.mockResolvedValue({
+                code: 'ROOM01', settings: { turnTimer: 60 },
+            });
+
+            await callback('ROOM01');
+            await new Promise(resolve => setImmediate(resolve));
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(startTurnTimer).not.toHaveBeenCalled();
         });
     });
 });

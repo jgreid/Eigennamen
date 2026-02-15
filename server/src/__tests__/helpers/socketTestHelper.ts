@@ -274,168 +274,10 @@ class SocketTestServer {
     }
 }
 
-/**
- * Mock Redis client for testing
- */
-class MockRedis {
-    _storage: Map<string, unknown>;
-    _sets: Map<string, Set<string>>;
-    _watching: Set<string>;
-    _subscriptions: Map<string, Array<(message: string) => void>>;
-
-    constructor() {
-        this._storage = new Map();
-        this._sets = new Map();
-        this._watching = new Set();
-        this._subscriptions = new Map();
-    }
-
-    async get(key: string): Promise<unknown> {
-        return this._storage.get(key) || null;
-    }
-
-    async set(key: string, value: unknown, options: AnyRecord = {}): Promise<string> {
-        this._storage.set(key, value);
-        if (options.EX) {
-            setTimeout(() => this._storage.delete(key), options.EX * 1000);
-        }
-        return 'OK';
-    }
-
-    async del(key: string): Promise<number> {
-        const existed = this._storage.has(key);
-        this._storage.delete(key);
-        return existed ? 1 : 0;
-    }
-
-    async exists(key: string): Promise<number> {
-        return this._storage.has(key) ? 1 : 0;
-    }
-
-    async expire(key: string, seconds: number): Promise<number> {
-        if (this._storage.has(key)) {
-            setTimeout(() => this._storage.delete(key), seconds * 1000);
-            return 1;
-        }
-        return 0;
-    }
-
-    async sAdd(key: string, ...members: string[]): Promise<number> {
-        if (!this._sets.has(key)) {
-            this._sets.set(key, new Set());
-        }
-        const set = this._sets.get(key)!;
-        let added = 0;
-        for (const member of members) {
-            if (!set.has(member)) {
-                set.add(member);
-                added++;
-            }
-        }
-        return added;
-    }
-
-    async sRem(key: string, ...members: string[]): Promise<number> {
-        const set = this._sets.get(key);
-        if (!set) return 0;
-        let removed = 0;
-        for (const member of members) {
-            if (set.delete(member)) removed++;
-        }
-        return removed;
-    }
-
-    async sMembers(key: string): Promise<string[]> {
-        const set = this._sets.get(key);
-        return set ? [...set] : [];
-    }
-
-    async sIsMember(key: string, member: string): Promise<number> {
-        const set = this._sets.get(key);
-        return set && set.has(member) ? 1 : 0;
-    }
-
-    async watch(key: string): Promise<string> {
-        this._watching.add(key);
-        return 'OK';
-    }
-
-    async unwatch(): Promise<string> {
-        this._watching.clear();
-        return 'OK';
-    }
-
-    multi(): AnyRecord {
-        const commands: Array<{ cmd: string; args: unknown[] }> = [];
-
-        const self = this;
-
-        return {
-            set(key: string, value: unknown, options?: AnyRecord) {
-                commands.push({ cmd: 'set', args: [key, value, options] });
-                return this;
-            },
-            del(key: string) {
-                commands.push({ cmd: 'del', args: [key] });
-                return this;
-            },
-            async exec() {
-                const results: Array<[null, unknown]> = [];
-                // Sequential execution required for transaction semantics
-                for (const { cmd, args } of commands) {
-                    const result = await (self as AnyRecord)[cmd](...args);
-                    results.push([null, result]);
-                }
-                return results;
-            }
-        };
-    }
-
-    async hSet(key: string, field: string | AnyRecord, value?: unknown): Promise<number> {
-        if (!this._storage.has(key)) {
-            this._storage.set(key, {} as AnyRecord);
-        }
-        const hash = this._storage.get(key) as AnyRecord;
-        if (typeof field === 'object') {
-            Object.assign(hash, field);
-        } else {
-            hash[field] = value;
-        }
-        return 1;
-    }
-
-    async hGet(key: string, field: string): Promise<unknown> {
-        const hash = this._storage.get(key) as AnyRecord | undefined;
-        return hash ? hash[field] : null;
-    }
-
-    async hGetAll(key: string): Promise<AnyRecord> {
-        return (this._storage.get(key) as AnyRecord) || {};
-    }
-
-    async publish(channel: string, message: string): Promise<number> {
-        const handlers = this._subscriptions.get(channel) || [];
-        handlers.forEach(handler => handler(message));
-        return handlers.length;
-    }
-
-    async subscribe(channel: string, handler: (message: string) => void): Promise<void> {
-        if (!this._subscriptions.has(channel)) {
-            this._subscriptions.set(channel, []);
-        }
-        this._subscriptions.get(channel)!.push(handler);
-    }
-
-    // Clear all data (useful for test cleanup)
-    clear(): void {
-        this._storage.clear();
-        this._sets.clear();
-        this._watching.clear();
-    }
-}
-
 // F-5: Import shared utilities from mocks.ts instead of duplicating them
+// MockRedis class removed — use createMockRedis() from mocks.ts instead
 const {
+    createMockRedis,
     createMockPlayer,
     createMockRoom,
     createMockGame,
@@ -447,7 +289,7 @@ const {
 
 module.exports = {
     SocketTestServer,
-    MockRedis,
+    createMockRedis,
     createMockPlayer,
     createMockRoom,
     createMockGame,

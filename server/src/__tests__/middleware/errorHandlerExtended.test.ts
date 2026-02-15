@@ -57,19 +57,17 @@ describe('Error Handler Extended Tests', () => {
             { code: ERROR_CODES.PLAYER_NOT_FOUND, expectedStatus: 404 }
         ];
 
-        errorCodeTests.forEach(({ code, expectedStatus }) => {
-            it(`should return ${expectedStatus} for ${code}`, async () => {
-                app.get('/test', (req, res, next) => {
-                    next({ code, message: `Test error: ${code}` });
-                });
-                app.use(errorHandler);
-
-                const response = await request(app)
-                    .get('/test')
-                    .expect(expectedStatus);
-
-                expect(response.body.error.code).toBe(code);
+        it.each(errorCodeTests)('should return $expectedStatus for $code', async ({ code, expectedStatus }) => {
+            app.get('/test', (req: any, res: any, next: any) => {
+                next({ code, message: `Test error: ${code}` });
             });
+            app.use(errorHandler);
+
+            const response = await request(app)
+                .get('/test')
+                .expect(expectedStatus);
+
+            expect(response.body.error.code).toBe(code);
         });
 
         it('should return 500 for unknown error codes', async () => {

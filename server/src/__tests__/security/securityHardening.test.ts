@@ -26,7 +26,7 @@ describe('Trust Proxy Configuration', () => {
         delete process.env.DYNO;
     });
 
-    afterAll(() => {
+    afterEach(() => {
         process.env = originalEnv;
     });
 
@@ -539,7 +539,7 @@ describe('Session Security', () => {
             delete process.env.DYNO;
         });
 
-        afterAll(() => {
+        afterEach(() => {
             process.env = originalEnv;
         });
 

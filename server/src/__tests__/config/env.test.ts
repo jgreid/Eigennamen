@@ -40,7 +40,7 @@ describe('Environment Configuration', () => {
         delete process.env.MEMORY_MODE_ALLOW_FLY;
     });
 
-    afterAll(() => {
+    afterEach(() => {
         process.env = originalEnv;
     });
 
