@@ -82,7 +82,7 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             }
         }
     } catch (error) {
-        logger.warn('Failed to decode admin credentials', { error: (error as Error).message });
+        logger.warn('Failed to decode admin credentials', { error: error instanceof Error ? error.message : String(error) });
     }
 
     // Audit failed login

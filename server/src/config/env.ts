@@ -48,8 +48,13 @@ export function validateEnv(): boolean {
     }
 
     // Specific validations
-    if (process.env['PORT'] && isNaN(parseInt(process.env['PORT'], 10))) {
-        errors.push('PORT must be a number');
+    if (process.env['PORT']) {
+        const port = parseInt(process.env['PORT'], 10);
+        if (isNaN(port)) {
+            errors.push('PORT must be a number');
+        } else if (port < 1 || port > 65535) {
+            errors.push('PORT must be between 1 and 65535');
+        }
     }
 
     // Production-specific validations
@@ -102,10 +107,18 @@ export function validateEnv(): boolean {
             }
         }
 
-        // Validate ADMIN_PASSWORD minimum length if provided
+        // Validate ADMIN_PASSWORD strength if provided
         const adminPassword = process.env['ADMIN_PASSWORD'];
-        if (adminPassword && adminPassword.length < 12) {
-            warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
+        if (adminPassword) {
+            if (adminPassword.length < 12) {
+                warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
+            }
+            const hasLower = /[a-z]/.test(adminPassword);
+            const hasUpper = /[A-Z]/.test(adminPassword);
+            const hasDigit = /\d/.test(adminPassword);
+            if (!(hasLower && hasUpper && hasDigit)) {
+                warnings.push('SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters');
+            }
         }
 
         // Make JWT_SECRET warning more prominent in production

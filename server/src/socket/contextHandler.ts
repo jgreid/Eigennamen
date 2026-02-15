@@ -65,6 +65,32 @@ function createContextHandler<T = unknown>(
     });
 }
 
+/**
+ * Narrow PlayerContextResult to RoomContext.
+ * Safe when requireRoom: true guarantees non-null roomCode and player.
+ */
+function toRoomContext(ctx: PlayerContextResult): RoomContext {
+    return {
+        sessionId: ctx.sessionId,
+        roomCode: ctx.roomCode!,
+        player: ctx.player!,
+        game: ctx.game
+    };
+}
+
+/**
+ * Narrow PlayerContextResult to GameContext.
+ * Safe when requireGame: true guarantees non-null game.
+ */
+function toGameContext(ctx: PlayerContextResult): GameContext {
+    return {
+        sessionId: ctx.sessionId,
+        roomCode: ctx.roomCode!,
+        player: ctx.player!,
+        game: ctx.game!
+    };
+}
+
 /** Room-required operations (most common case) */
 function createRoomHandler<T = unknown>(
     socket: GameSocket,
@@ -73,7 +99,7 @@ function createRoomHandler<T = unknown>(
     handler: RoomHandlerFn<T>
 ): RateLimitedHandler {
     return createContextHandler(socket, eventName, schema, { requireRoom: true },
-        (ctx, validated) => handler(ctx as unknown as RoomContext, validated));
+        (ctx, validated) => handler(toRoomContext(ctx), validated));
 }
 
 /** Host-only operations */
@@ -86,7 +112,7 @@ function createHostHandler<T = unknown>(
     return createContextHandler(socket, eventName, schema, {
         requireRoom: true,
         requireHost: true
-    }, (ctx, validated) => handler(ctx as unknown as RoomContext, validated));
+    }, (ctx, validated) => handler(toRoomContext(ctx), validated));
 }
 
 /** Game operations (requires active game) */
@@ -99,7 +125,7 @@ function createGameHandler<T = unknown>(
     return createContextHandler(socket, eventName, schema, {
         requireRoom: true,
         requireGame: true
-    }, (ctx, validated) => handler(ctx as unknown as GameContext, validated));
+    }, (ctx, validated) => handler(toGameContext(ctx), validated));
 }
 
 /** Pre-room operations (room:create, room:join) - no player context needed */

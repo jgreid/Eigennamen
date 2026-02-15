@@ -12,6 +12,7 @@ import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
 import type { GameSocket, RoomContext } from './types';
 import type { RoomStats, TeamStats } from '../../services/playerService';
+import type { TimerStatus } from '../../services/timerService';
 
 import * as roomService from '../../services/roomService';
 import * as gameService from '../../services/gameService';
@@ -26,6 +27,7 @@ import { getSocketFunctions } from '../socketFunctionProvider';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
 import { getSocketRateLimiter } from '../rateLimitHandler';
 import { safeEmitToRoom } from '../safeEmit';
+import { isPlayerSpectator } from '../playerContext';
 
 /**
  * Room create input
@@ -49,15 +51,6 @@ interface RoomJoinInput {
 interface RoomReconnectInput {
     code: string;
     reconnectionToken: string;
-}
-
-/**
- * Timer status from timerService
- */
-interface TimerStatus {
-    remainingSeconds: number;
-    endTime: number;
-    isPaused?: boolean;
 }
 
 /**
@@ -85,7 +78,7 @@ async function sendTimerStatus(
 ): Promise<void> {
     try {
         const { getTimerStatus } = getSocketFunctions();
-        const timerStatus: TimerStatus | null = await getTimerStatus(roomCode) as unknown as TimerStatus | null;
+        const timerStatus: TimerStatus | null = await getTimerStatus(roomCode);
         if (timerStatus && timerStatus.endTime) {
             socket.emit(SOCKET_EVENTS.TIMER_STATUS, {
                 roomCode,
@@ -95,7 +88,7 @@ async function sendTimerStatus(
             });
         }
     } catch (timerError) {
-        logger.warn(`Failed to send timer status on ${context}: ${(timerError as Error).message}`);
+        logger.warn(`Failed to send timer status on ${context}: ${timerError instanceof Error ? timerError.message : String(timerError)}`);
     }
 }
 
@@ -141,7 +134,7 @@ async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> {
         });
     } catch (error) {
         // Non-critical - log but don't block
-        logger.debug('Failed to track join attempt', { error: (error as Error).message });
+        logger.debug('Failed to track join attempt', { error: error instanceof Error ? error.message : String(error) });
     }
 }
 
@@ -160,7 +153,7 @@ function computeFallbackStats(players: Player[]): RoomStats {
     };
     return {
         totalPlayers: players.length,
-        spectatorCount: players.filter(p => !p.team || p.role === 'spectator').length,
+        spectatorCount: players.filter(p => isPlayerSpectator(p)).length,
         teams: { red: teamStats('red'), blue: teamStats('blue') }
     };
 }
@@ -536,8 +529,10 @@ function roomHandlers(io: Server, socket: GameSocket): void {
     ));
 }
 
+export { sendSpymasterViewIfNeeded };
 export default roomHandlers;
 
 // CommonJS interop — tests use require() which needs module.exports
 module.exports = roomHandlers;
 module.exports.default = roomHandlers;
+module.exports.sendSpymasterViewIfNeeded = sendSpymasterViewIfNeeded;
