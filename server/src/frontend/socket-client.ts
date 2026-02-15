@@ -6,86 +6,20 @@
  *
  * Built as an IIFE -- loaded via <script src="/js/socket-client.js">.
  * NOT an ES module. Exposes CodenamesClient on the global window object.
+ *
+ * Sub-modules (bundled by esbuild into a single IIFE):
+ *   socket-client-types.ts    — Type definitions
+ *   socket-client-storage.ts  — Safe browser storage utilities
+ *   socket-client-events.ts   — Server-to-client event listener registration
  */
 
 import { logger } from './logger.js';
-
-// Socket.io `io` global is declared in globals.d.ts (loaded as a separate <script>).
-
-/** Minimal Socket.io socket shape used by this adapter. */
-interface SocketClientInstance {
-    id: string;
-    connected: boolean;
-    on(event: string, handler: (...args: any[]) => void): void;
-    off(event: string, handler: (...args: any[]) => void): void;
-    emit(event: string, ...args: any[]): void;
-    disconnect(): void;
-}
-
-/** Player data as tracked by the client adapter. */
-interface Player {
-    sessionId: string;
-    roomCode?: string;
-    nickname: string;
-    team: string | null;
-    role: string | null;
-    isHost: boolean;
-    connected: boolean;
-}
-
-/** Room data returned by the server. */
-interface _RoomData {
-    code: string;
-    status?: string;
-    settings?: Record<string, unknown>;
-}
-
-/** Options passed to connect(). */
-interface ConnectOptions {
-    autoRejoin?: boolean;
-    socketOptions?: Record<string, any>;
-}
-
-/** Options passed to createRoom(). */
-interface CreateRoomOptions {
-    roomId: string;
-    nickname?: string;
-    [key: string]: unknown;
-}
-
-/** A tracked socket.io listener for cleanup. */
-interface SocketListenerEntry {
-    event: string;
-    handler: (...args: any[]) => void;
-}
-
-/** An event queued while the client is offline. */
-interface OfflineQueueItem {
-    event: string;
-    data: Record<string, unknown>;
-    timestamp: number;
-}
-
-/** Error data emitted by the adapter. */
-interface ErrorData {
-    type: string;
-    code?: string;
-    message?: string;
-    error?: Error;
-    attempt?: number;
-    requestId?: string;
-    [key: string]: unknown;
-}
-
-/** The map of event name -> array of listener callbacks. */
-interface ListenerMap {
-    [event: string]: Array<(data: any) => void>;
-}
-
-/** Extended Window to allow setting CodenamesClient globally. */
-interface CodenamesGlobal {
-    CodenamesClient?: any;
-}
+import { safeSetStorage, safeGetStorage, safeRemoveStorage } from './socket-client-storage.js';
+import { registerAllEventListeners } from './socket-client-events.js';
+import type {
+    SocketClientInstance, Player, ConnectOptions, CreateRoomOptions,
+    SocketListenerEntry, OfflineQueueItem, ErrorData, ListenerMap, CodenamesGlobal
+} from './socket-client-types.js';
 
 (function (global: (Window & CodenamesGlobal) | (typeof globalThis & CodenamesGlobal)) {
     'use strict';
@@ -271,257 +205,50 @@ interface CodenamesGlobal {
         },
 
         /**
-         * Set up Socket.io event listeners
+         * Set up Socket.io event listeners.
+         * Delegates to registerAllEventListeners() in socket-client-events.ts.
          */
         _setupEventListeners(): void {
             // Clear any previous listeners first
             this._cleanupSocketListeners();
 
-            // Room events
-            this._registerSocketListener('room:created', (data: any) => {
-                this.roomCode = data.room.code;
-                this.player = data.player;
-                // Sync sessionId from server if not already set
-                // This ensures client knows its server-assigned session ID
-                if (data.player?.sessionId && !this.sessionId) {
-                    this.sessionId = data.player.sessionId;
+            // The kicked handler also needs to clear storage, so wrap emit for that case
+            const self = this;
+            const wrappedEmit = (event: string, data: any): void => {
+                if (event === 'kicked') {
+                    safeRemoveStorage(sessionStorage, 'codenames-room-code');
                 }
-                this._saveSession();
-                this._emit('roomCreated', data);
-            });
+                self._emit(event, data);
+            };
 
-            this._registerSocketListener('room:joined', (data: any) => {
-                this.roomCode = data.room.code;
-                this.player = data.you;
-                // Sync sessionId from server if not already set
-                if (data.you?.sessionId && !this.sessionId) {
-                    this.sessionId = data.you.sessionId;
+            registerAllEventListeners(
+                this._registerSocketListener.bind(this),
+                wrappedEmit,
+                {
+                    get roomCode() { return self.roomCode; },
+                    set roomCode(v) { self.roomCode = v; },
+                    get player() { return self.player; },
+                    set player(v) { self.player = v; },
+                    get sessionId() { return self.sessionId; },
+                    set sessionId(v) { self.sessionId = v; },
+                    saveSession: () => self._saveSession()
                 }
-                this._saveSession();
-                this._emit('roomJoined', data);
-            });
-
-            this._registerSocketListener('room:playerJoined', (data: any) => {
-                this._emit('playerJoined', data);
-            });
-
-            this._registerSocketListener('room:playerLeft', (data: any) => {
-                this._emit('playerLeft', data);
-            });
-
-            this._registerSocketListener('room:settingsUpdated', (data: any) => {
-                this._emit('settingsUpdated', data);
-            });
-
-            // Add room:statsUpdated listener
-            this._registerSocketListener('room:statsUpdated', (data: any) => {
-                this._emit('statsUpdated', data);
-            });
-
-            this._registerSocketListener('room:hostChanged', (data: any) => {
-                // Update local player if we became host
-                if (this.player && data.newHostSessionId === this.player.sessionId) {
-                    this.player.isHost = true;
-                }
-                this._emit('hostChanged', data);
-            });
-
-            // Handle being kicked from the room
-            // Use safe storage methods
-            this._registerSocketListener('room:kicked', (data: any) => {
-                this.roomCode = null;
-                this.player = null;
-                this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
-                this._emit('kicked', data);
-            });
-
-            // Handle another player being kicked
-            this._registerSocketListener('player:kicked', (data: any) => {
-                this._emit('playerKicked', data);
-            });
-
-            this._registerSocketListener('room:error', (error: any) => {
-                this._emit('error', { type: 'room', ...error });
-            });
-
-            // Handle room:warning (non-fatal issues like stale stats)
-            this._registerSocketListener('room:warning', (data: any) => {
-                this._emit('roomWarning', data);
-            });
-
-            // Handle room:resynced (response to requestResync)
-            this._registerSocketListener('room:resynced', (data: any) => {
-                this.roomCode = data.room.code;
-                this.player = data.you;
-                this._emit('roomResynced', data);
-            });
-
-            // Handle room:reconnected (response to token-based reconnection)
-            this._registerSocketListener('room:reconnected', (data: any) => {
-                this.roomCode = data.room.code;
-                this.player = data.you;
-                this._saveSession();
-                this._emit('roomReconnected', data);
-            });
-
-            // Player events
-            this._registerSocketListener('player:updated', (data: any) => {
-                if (data.sessionId === this.player?.sessionId) {
-                    this.player = { ...this.player, ...data.changes };
-                }
-                this._emit('playerUpdated', data);
-            });
-
-            this._registerSocketListener('player:disconnected', (data: any) => {
-                this._emit('playerDisconnected', data);
-            });
-
-            this._registerSocketListener('player:reconnected', (data: any) => {
-                this._emit('playerReconnected', data);
-            });
-
-            // Handle room:playerReconnected (from secure token reconnection)
-            this._registerSocketListener('room:playerReconnected', (data: any) => {
-                this._emit('playerReconnected', data);
-            });
-
-            this._registerSocketListener('player:error', (error: any) => {
-                this._emit('error', { type: 'player', ...error });
-            });
-
-            // Game events
-            this._registerSocketListener('game:started', (data: any) => {
-                this._emit('gameStarted', data);
-            });
-
-            this._registerSocketListener('game:cardRevealed', (data: any) => {
-                this._emit('cardRevealed', data);
-            });
-
-            this._registerSocketListener('game:turnEnded', (data: any) => {
-                this._emit('turnEnded', data);
-            });
-
-            this._registerSocketListener('game:over', (data: any) => {
-                this._emit('gameOver', data);
-            });
-
-            this._registerSocketListener('game:spymasterView', (data: any) => {
-                this._emit('spymasterView', data);
-            });
-
-            this._registerSocketListener('game:historyData', (data: any) => {
-                this._emit('historyData', data);
-            });
-
-            this._registerSocketListener('game:historyResult', (data: any) => {
-                this._emit('historyResult', data);
-            });
-
-            this._registerSocketListener('game:replayData', (data: any) => {
-                this._emit('replayData', data);
-            });
-
-            this._registerSocketListener('game:error', (error: any) => {
-                this._emit('error', { type: 'game', ...error });
-            });
-
-            // Timer events
-            this._registerSocketListener('timer:started', (data: any) => {
-                this._emit('timerStarted', data);
-            });
-
-            this._registerSocketListener('timer:stopped', (data: any) => {
-                this._emit('timerStopped', data);
-            });
-
-            this._registerSocketListener('timer:tick', (data: any) => {
-                this._emit('timerTick', data);
-            });
-
-            this._registerSocketListener('timer:expired', (data: any) => {
-                this._emit('timerExpired', data);
-            });
-
-            this._registerSocketListener('timer:status', (data: any) => {
-                this._emit('timerStatus', data);
-            });
-
-            // Add timer control event listeners
-            this._registerSocketListener('timer:paused', (data: any) => {
-                this._emit('timerPaused', data);
-            });
-
-            this._registerSocketListener('timer:resumed', (data: any) => {
-                this._emit('timerResumed', data);
-            });
-
-            this._registerSocketListener('timer:timeAdded', (data: any) => {
-                this._emit('timerTimeAdded', data);
-            });
-
-            // Chat events
-            this._registerSocketListener('chat:message', (data: any) => {
-                this._emit('chatMessage', data);
-            });
-
-            // Add spectator chat listener
-            this._registerSocketListener('chat:spectatorMessage', (data: any) => {
-                this._emit('spectatorChatMessage', data);
-            });
+            );
         },
 
-        /**
-         * Safely set item in storage with quota error handling
-         * Handles QuotaExceededError for private browsing mode
-         * @param storage - sessionStorage or localStorage
-         * @param key - Storage key
-         * @param value - Value to store
-         * @returns True if successful
-         */
+        /** Delegate to extracted storage utility */
         _safeSetStorage(storage: Storage, key: string, value: string): boolean {
-            try {
-                storage.setItem(key, value);
-                return true;
-            } catch (e: any) {
-                // QuotaExceededError in private browsing or when storage is full
-                if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                    logger.warn(`Storage quota exceeded for ${key}, continuing without persistence`);
-                } else {
-                    logger.error(`Storage error for ${key}:`, e);
-                }
-                return false;
-            }
+            return safeSetStorage(storage, key, value);
         },
 
-        /**
-         * Safely get item from storage
-         * Handles storage access errors
-         * @param storage - sessionStorage or localStorage
-         * @param key - Storage key
-         * @returns Stored value or null
-         */
+        /** Delegate to extracted storage utility */
         _safeGetStorage(storage: Storage, key: string): string | null {
-            try {
-                return storage.getItem(key);
-            } catch (e) {
-                logger.warn(`Storage access error for ${key}:`, e);
-                return null;
-            }
+            return safeGetStorage(storage, key);
         },
 
-        /**
-         * Safely remove item from storage
-         * Handles storage access errors
-         * @param storage - sessionStorage or localStorage
-         * @param key - Storage key
-         */
+        /** Delegate to extracted storage utility */
         _safeRemoveStorage(storage: Storage, key: string): void {
-            try {
-                storage.removeItem(key);
-            } catch (e) {
-                logger.warn(`Storage removal error for ${key}:`, e);
-            }
+            safeRemoveStorage(storage, key);
         },
 
         /**
@@ -531,14 +258,14 @@ interface CodenamesGlobal {
          */
         _saveSession(): void {
             if (this.sessionId) {
-                this._safeSetStorage(sessionStorage, 'codenames-session-id', this.sessionId);
+                safeSetStorage(sessionStorage, 'codenames-session-id', this.sessionId);
             }
             if (this.roomCode) {
                 // Use sessionStorage for room code to prevent multi-tab conflicts
-                this._safeSetStorage(sessionStorage, 'codenames-room-code', this.roomCode);
+                safeSetStorage(sessionStorage, 'codenames-room-code', this.roomCode);
             }
             if (this.player?.nickname) {
-                this._safeSetStorage(localStorage, 'codenames-nickname', this.player.nickname);
+                safeSetStorage(localStorage, 'codenames-nickname', this.player.nickname);
                 this.storedNickname = this.player.nickname;
             }
         },

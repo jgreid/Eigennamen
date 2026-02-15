@@ -167,7 +167,7 @@ export async function validateRoomReconnectToken(
  * Get existing reconnection token for a session (if any)
  * Used to avoid generating multiple tokens for the same session
  */
-export function getExistingReconnectionToken(sessionId: string): Promise<string | null> {
+export async function getExistingReconnectionToken(sessionId: string): Promise<string | null> {
     const redis: RedisClient = getRedis();
     return redis.get(`reconnect:session:${sessionId}`);
 }

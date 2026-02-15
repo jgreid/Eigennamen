@@ -437,7 +437,7 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
  * Set player's nickname
  * Defense-in-depth validation for nickname
  */
-export function setNickname(sessionId: string, nickname: string): Promise<Player> {
+export async function setNickname(sessionId: string, nickname: string): Promise<Player> {
     // Zod schema already validates and trims the nickname at the handler level;
     // defense-in-depth check here prevents empty nicknames if called from other paths.
     const trimmed = (nickname || '').trim();
@@ -853,7 +853,7 @@ export async function setSocketMapping(
 /**
  * Get socket ID for a session
  */
-export function getSocketId(sessionId: string): Promise<string | null> {
+export async function getSocketId(sessionId: string): Promise<string | null> {
     const redis: RedisClient = getRedis();
     return redis.get(`session:${sessionId}:socket`);
 }
