@@ -76,7 +76,9 @@ export function setupMultiplayerListeners() {
             updateDuetUI(data.game);
             updateForfeitButton();
             const modeLabels = { blitz: 'Blitz game started!', duet: 'Duet game started!', classic: 'New game started!' };
-            showToast(modeLabels[data.gameMode || 'classic'] || 'New game started!', 'success');
+            const label = modeLabels[data.gameMode || 'classic'] || 'New game started!';
+            // All roles are reset to spectator on new game — guide players to pick a role
+            showToast(`${label} Pick your team and role to play.`, 'success', 5000);
         }
     });
     CodenamesClient.on('cardRevealed', (data) => {
@@ -435,6 +437,8 @@ export function setupMultiplayerListeners() {
             // Ensure critical state is always reset even if cleanup fails
             state.isMultiplayerMode = false;
             state.currentRoomId = null;
+            state.multiplayerListenersSetup = false;
+            state.multiplayerPlayers = [];
         }
     });
     // Handle being kicked from the room

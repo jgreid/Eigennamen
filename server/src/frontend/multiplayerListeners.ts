@@ -101,7 +101,9 @@ export function setupMultiplayerListeners(): void {
             updateDuetUI(data.game);
             updateForfeitButton();
             const modeLabels: Record<string, string> = { blitz: 'Blitz game started!', duet: 'Duet game started!', classic: 'New game started!' };
-            showToast(modeLabels[data.gameMode || 'classic'] || 'New game started!', 'success');
+            const label = modeLabels[data.gameMode || 'classic'] || 'New game started!';
+            // All roles are reset to spectator on new game — guide players to pick a role
+            showToast(`${label} Pick your team and role to play.`, 'success', 5000);
         }
     });
 
@@ -508,6 +510,8 @@ export function setupMultiplayerListeners(): void {
             // Ensure critical state is always reset even if cleanup fails
             state.isMultiplayerMode = false;
             state.currentRoomId = null;
+            state.multiplayerListenersSetup = false;
+            state.multiplayerPlayers = [];
         }
     });
 

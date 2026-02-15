@@ -195,10 +195,18 @@ describe('canClickCards()', () => {
         expect(canClickCards()).toBe(true);
     });
 
-    it('returns false when player is clicker for wrong team', () => {
+    it('returns false in multiplayer when player is clicker for wrong team', () => {
+        state.isMultiplayerMode = true;
         state.clickerTeam = 'blue';
         state.gameState.currentTurn = 'red';
         expect(canClickCards()).toBe(false);
+    });
+
+    it('returns true in standalone when player is clicker for wrong team', () => {
+        state.isMultiplayerMode = false;
+        state.clickerTeam = 'blue';
+        state.gameState.currentTurn = 'red';
+        expect(canClickCards()).toBe(true);
     });
 
     it('returns false when player is on wrong team (not clicker)', () => {
@@ -208,10 +216,10 @@ describe('canClickCards()', () => {
         expect(canClickCards()).toBe(false);
     });
 
-    it('returns false when clickerTeam is null and not in multiplayer', () => {
+    it('returns true when not in multiplayer (standalone mode allows all clicks)', () => {
         state.clickerTeam = null;
         state.isMultiplayerMode = false;
-        expect(canClickCards()).toBe(false);
+        expect(canClickCards()).toBe(true);
     });
 
     it('returns true in multiplayer when clicker is disconnected', () => {
@@ -435,9 +443,11 @@ describe('renderBoard()', () => {
     });
 
     it('sets board className with no-click when cards cannot be clicked', () => {
-        // No clickerTeam, not multiplayer mode, game not over
+        // In multiplayer with no clicker role and connected clicker present
+        state.isMultiplayerMode = true;
         state.clickerTeam = null;
-        state.isMultiplayerMode = false;
+        state.playerTeam = 'blue';
+        state.gameState.currentTurn = 'red';
         renderBoard();
         expect(boardEl.className).toContain('no-click');
     });

@@ -233,18 +233,22 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 if (result.timerTokens !== undefined) gameOverPayload.timerTokens = result.timerTokens;
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
 
-                // Save completed game to history
-                const [completedGame, roomForHistory] = await Promise.all([
-                    gameService.getGame(ctx.roomCode),
-                    roomService.getRoom(ctx.roomCode)
-                ]) as [GameState | null, Room | null];
-                if (completedGame) {
-                    const gameDataWithTeamNames = {
-                        ...completedGame,
-                        winner: completedGame.winner ?? undefined,
-                        teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
-                    } as GameDataInput;
-                    await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
+                // Save completed game to history (non-critical — don't break the game-over flow)
+                try {
+                    const [completedGame, roomForHistory] = await Promise.all([
+                        gameService.getGame(ctx.roomCode),
+                        roomService.getRoom(ctx.roomCode)
+                    ]) as [GameState | null, Room | null];
+                    if (completedGame) {
+                        const gameDataWithTeamNames = {
+                            ...completedGame,
+                            winner: completedGame.winner ?? undefined,
+                            teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
+                        } as GameDataInput;
+                        await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
+                    }
+                } catch (historyError) {
+                    logger.error(`Failed to save game history for room ${ctx.roomCode}:`, historyError);
                 }
 
                 // Audit log game end
@@ -337,18 +341,22 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 types: result.allTypes
             });
 
-            // Save completed game to history
-            const [completedGame, roomForHistory] = await Promise.all([
-                gameService.getGame(ctx.roomCode),
-                roomService.getRoom(ctx.roomCode)
-            ]) as [GameState | null, Room | null];
-            if (completedGame) {
-                const gameDataWithTeamNames = {
-                    ...completedGame,
-                    winner: completedGame.winner ?? undefined,
-                    teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
-                } as GameDataInput;
-                await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
+            // Save completed game to history (non-critical — don't break the forfeit flow)
+            try {
+                const [completedGame, roomForHistory] = await Promise.all([
+                    gameService.getGame(ctx.roomCode),
+                    roomService.getRoom(ctx.roomCode)
+                ]) as [GameState | null, Room | null];
+                if (completedGame) {
+                    const gameDataWithTeamNames = {
+                        ...completedGame,
+                        winner: completedGame.winner ?? undefined,
+                        teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
+                    } as GameDataInput;
+                    await gameHistoryService.saveGameResult(ctx.roomCode, gameDataWithTeamNames);
+                }
+            } catch (historyError) {
+                logger.error(`Failed to save forfeit game history for room ${ctx.roomCode}:`, historyError);
             }
 
             // Audit log game end (forfeit)

@@ -45,12 +45,16 @@ export function setCardClickHandler(fn) {
 export function canClickCards() {
     if (state.gameState.gameOver)
         return false;
-    // Clicker for the current team can always click
+    // Standalone mode: everyone can click (no team/role restrictions)
+    if (!state.isMultiplayerMode) {
+        return true;
+    }
+    // Multiplayer: clicker for the current team can always click
     if (state.clickerTeam && state.clickerTeam === state.gameState.currentTurn) {
         return true;
     }
     // In multiplayer: any team member can click if clicker is disconnected
-    if (state.isMultiplayerMode && state.playerTeam === state.gameState.currentTurn) {
+    if (state.playerTeam === state.gameState.currentTurn) {
         const teamClicker = state.multiplayerPlayers.find(p => p.team === state.gameState.currentTurn && p.role === 'clicker');
         // Allow if no clicker assigned or clicker is disconnected
         if (!teamClicker || !teamClicker.connected) {

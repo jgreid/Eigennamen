@@ -17,6 +17,9 @@ import {
     syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState,
     getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL
 } from './multiplayerSync.js';
+import { resetGameState } from './stateMutations.js';
+import { renderBoard } from './board.js';
+import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 
@@ -350,9 +353,24 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     // Update global isHost from parameter or player data
     state.isHost = isHostParam || CodenamesClient.player?.isHost || false;
 
-    // Sync game state from server if available
+    // Sync game state from server if available, otherwise clear stale local state
+    // (e.g., leftover board from standalone mode) to prevent card clicks when no
+    // server-side game exists — which would trigger GAME_NOT_STARTED errors.
     if (result.game) {
         syncGameStateFromServer(result.game);
+    } else {
+        resetGameState();
+        state.boardInitialized = false;
+        renderBoard();
+        updateScoreboard();
+        updateTurnIndicator();
+
+        // Auto-start a game when the host creates a room so the board is
+        // immediately playable. Players who join later receive the game
+        // state via the room:joined response.
+        if (isHostParam && CodenamesClient && CodenamesClient.isConnected()) {
+            CodenamesClient.startGame({});
+        }
     }
 
     // Update URL with room code for shareable links
