@@ -35,8 +35,9 @@ export function registerAllEventListeners(
     register('room:created', (data: any) => {
         client.roomCode = data.room.code;
         client.player = data.player;
-        // Sync sessionId from server if not already set
-        if (data.player?.sessionId && !client.sessionId) {
+        // Always sync sessionId from server — the server may have assigned a
+        // new one if our old session was invalidated during auth.
+        if (data.player?.sessionId) {
             client.sessionId = data.player.sessionId;
         }
         client.saveSession();
@@ -46,8 +47,9 @@ export function registerAllEventListeners(
     register('room:joined', (data: any) => {
         client.roomCode = data.room.code;
         client.player = data.you;
-        // Sync sessionId from server if not already set
-        if (data.you?.sessionId && !client.sessionId) {
+        // Always sync sessionId from server — the server may have assigned a
+        // new one if our old session was invalidated during auth.
+        if (data.you?.sessionId) {
             client.sessionId = data.you.sessionId;
         }
         client.saveSession();

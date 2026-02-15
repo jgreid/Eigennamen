@@ -372,63 +372,50 @@ describe('Socket Authentication Middleware', () => {
             expect(next).toHaveBeenCalledWith();
         });
 
-        test('blocks session hijacking when player is connected', async () => {
+        test('allows session continuity from same IP when player is connected', async () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
             const socket = createMockSocket({ sessionId: validUuid });
             const next = jest.fn();
 
             playerService.getPlayer.mockResolvedValue({
                 sessionId: validUuid,
-                connected: true
+                connected: true,
+                lastIP: '192.168.1.1' // Same IP as the socket
             });
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
 
             await authenticateSocket(socket, next);
 
-            expect(logger.warn).toHaveBeenCalledWith('Session hijacking attempt blocked', expect.any(Object));
-            expect(socket.sessionId).not.toBe(validUuid);
-            expect(next).toHaveBeenCalledWith();
-        });
-
-        test('validates reconnection with token for disconnected player', async () => {
-            const validUuid = '550e8400-e29b-41d4-a716-446655440000';
-            // Token must be 64 hex characters (32 bytes * 2)
-            const validHexToken = 'a'.repeat(64);
-            const socket = createMockSocket({
-                sessionId: validUuid,
-                reconnectToken: validHexToken
-            });
-            const next = jest.fn();
-
-            const disconnectedPlayer = {
-                sessionId: validUuid,
-                connected: false,
-                createdAt: Date.now(),
-                lastIP: '192.168.1.1'
-            };
-
-            playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
-            playerService.validateSocketAuthToken.mockResolvedValue(true);
-            playerService.setSocketMapping.mockResolvedValue(true);
-            mockRedis.eval.mockResolvedValue(1);
-            mockRedis.expire.mockResolvedValue(true);
-            isJwtEnabled.mockReturnValue(false);
-
-            await authenticateSocket(socket, next);
-
+            // Same IP = legitimate reconnection (page refresh / network blip)
             expect(socket.sessionId).toBe(validUuid);
-            expect(playerService.validateSocketAuthToken).toHaveBeenCalledWith(validUuid, validHexToken);
             expect(next).toHaveBeenCalledWith();
         });
 
-        test('generates new session when reconnection token is invalid', async () => {
+        test('blocks session hijacking from different IP when player is connected', async () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
-            // Token must be 64 hex characters but will fail validation
-            const invalidButWellFormedToken = 'b'.repeat(64);
-            const socket = createMockSocket({
+            const socket = createMockSocket({ sessionId: validUuid }, '10.0.0.99');
+            const next = jest.fn();
+
+            playerService.getPlayer.mockResolvedValue({
                 sessionId: validUuid,
-                reconnectToken: invalidButWellFormedToken
+                connected: true,
+                lastIP: '192.168.1.1' // Different IP from the socket
+            });
+            playerService.setSocketMapping.mockResolvedValue(true);
+            isJwtEnabled.mockReturnValue(false);
+
+            await authenticateSocket(socket, next);
+
+            expect(logger.warn).toHaveBeenCalledWith('Session hijacking attempt blocked: different IP', expect.any(Object));
+            expect(socket.sessionId).not.toBe(validUuid);
+            expect(next).toHaveBeenCalledWith();
+        });
+
+        test('validates disconnected player session without requiring token', async () => {
+            const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            const socket = createMockSocket({
+                sessionId: validUuid
             });
             const next = jest.fn();
 
@@ -440,7 +427,6 @@ describe('Socket Authentication Middleware', () => {
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
-            playerService.validateSocketAuthToken.mockResolvedValue(false);
             playerService.setSocketMapping.mockResolvedValue(true);
             mockRedis.eval.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
@@ -448,8 +434,37 @@ describe('Socket Authentication Middleware', () => {
 
             await authenticateSocket(socket, next);
 
+            // Auth middleware validates session (age + IP) but does NOT require
+            // a reconnection token — token validation is for the explicit
+            // room:reconnect flow, not the socket auth middleware.
+            expect(socket.sessionId).toBe(validUuid);
+            expect(playerService.validateSocketAuthToken).not.toHaveBeenCalled();
+            expect(next).toHaveBeenCalledWith();
+        });
+
+        test('generates new session when session validation fails for disconnected player', async () => {
+            const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            const socket = createMockSocket({ sessionId: validUuid });
+            const next = jest.fn();
+
+            const disconnectedPlayer = {
+                sessionId: validUuid,
+                connected: false,
+                // Session created 25 hours ago — exceeds MAX_SESSION_AGE_MS (24h)
+                createdAt: Date.now() - 25 * 60 * 60 * 1000,
+                lastIP: '192.168.1.1'
+            };
+
+            playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
+            playerService.setSocketMapping.mockResolvedValue(true);
+            mockRedis.eval.mockResolvedValue(1);
+            mockRedis.expire.mockResolvedValue(true);
+            isJwtEnabled.mockReturnValue(false);
+
+            await authenticateSocket(socket, next);
+
+            // Expired session → new UUID generated
             expect(socket.sessionId).not.toBe(validUuid);
-            expect(logger.warn).toHaveBeenCalledWith('Reconnection token validation failed', expect.any(Object));
             expect(next).toHaveBeenCalledWith();
         });
 
