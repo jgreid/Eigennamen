@@ -5,6 +5,29 @@ import { state } from './state.js';
 // Import timer constants for warning thresholds
 import { TIMER } from './constants.js';
 
+// Timer thresholds (in seconds) at which screen readers are notified
+const ANNOUNCE_THRESHOLDS = [30, 10, 1] as const;
+// Track last announced threshold to avoid repeating
+let lastAnnouncedThreshold: number | null = null;
+
+/**
+ * Announce timer urgency to screen readers at key thresholds.
+ * Only announces once per threshold crossing per countdown.
+ */
+function announceTimerThreshold(remaining: number): void {
+    for (const threshold of ANNOUNCE_THRESHOLDS) {
+        if (remaining === threshold && lastAnnouncedThreshold !== threshold) {
+            lastAnnouncedThreshold = threshold;
+            const el = document.getElementById('sr-announcements');
+            if (!el) return;
+            const label = threshold === 1 ? '1 second remaining' : `${threshold} seconds remaining`;
+            el.textContent = '';
+            requestAnimationFrame(() => { el.textContent = label; });
+            return;
+        }
+    }
+}
+
 // Format seconds as MM:SS
 export function formatTimerValue(seconds: number | null | undefined): string {
     if (seconds === null || seconds === undefined || seconds < 0) return '--:--';
@@ -41,6 +64,7 @@ export function updateTimerDisplay(): void {
 // Uses server-authoritative timing to avoid clock skew issues
 export function startTimerCountdown(): void {
     stopTimerCountdown(); // Clear any existing interval
+    lastAnnouncedThreshold = null; // Reset announcement tracker for new countdown
 
     if (!state.timerState.active || state.timerState.serverRemainingSeconds === null) return;
 
@@ -58,6 +82,9 @@ export function startTimerCountdown(): void {
         const remaining = Math.max(0, Math.ceil(state.timerState.serverRemainingSeconds - elapsedSeconds));
         state.timerState.remainingSeconds = remaining;
         updateTimerDisplay();
+
+        // Announce key thresholds to screen readers
+        announceTimerThreshold(remaining);
 
         if (remaining <= 0) {
             stopTimerCountdown();

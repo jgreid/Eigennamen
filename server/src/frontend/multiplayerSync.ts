@@ -116,6 +116,15 @@ export function leaveMultiplayerMode(): void {
     resetGameState();
     state.boardInitialized = false;
 
+    // Clear replay state to prevent stale data leaking across rooms
+    state.currentReplayData = null;
+    state.currentReplayIndex = -1;
+    state.replayPlaying = false;
+    if (state.replayInterval) {
+        clearInterval(state.replayInterval);
+        state.replayInterval = null;
+    }
+
     // Clean up resize listener to prevent accumulation across room switches
     detachResizeListener();
 
