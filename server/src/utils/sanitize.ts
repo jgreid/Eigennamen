@@ -95,62 +95,6 @@ function toEnglishUpperCase(input: unknown): string {
     return input.toLocaleUpperCase('en-US');
 }
 
-/**
- * Options for locale comparison
- */
-interface LocaleCompareOptions {
-    caseInsensitive?: boolean;
-}
-
-/**
- * Compare two strings in a locale-safe manner
- * Uses English collation to ensure consistent comparison across locales
- * @param a - First string
- * @param b - Second string
- * @param options - Comparison options
- * @returns -1, 0, or 1 for sorting; 0 means equal
- */
-function localeCompare(a: unknown, b: unknown, options: LocaleCompareOptions = {}): number {
-    const { caseInsensitive = true } = options;
-
-    const strA = typeof a === 'string' ? a : '';
-    const strB = typeof b === 'string' ? b : '';
-
-    // Normalize both strings first
-    const normalizedA = strA.normalize('NFC');
-    const normalizedB = strB.normalize('NFC');
-
-    // Use English collator for consistent comparison across locales
-    const collator = new Intl.Collator('en-US', {
-        sensitivity: caseInsensitive ? 'base' : 'variant',
-        usage: 'sort'
-    });
-
-    return collator.compare(normalizedA, normalizedB);
-}
-
-/**
- * Check if string A contains string B (locale-safe)
- * @param haystack - String to search in
- * @param needle - String to search for
- * @param caseInsensitive - Whether to ignore case (default: true)
- * @returns True if haystack contains needle
- */
-function localeIncludes(haystack: unknown, needle: unknown, caseInsensitive: boolean = true): boolean {
-    if (typeof haystack !== 'string' || typeof needle !== 'string') return false;
-
-    // Normalize both strings
-    let normalizedHaystack = haystack.normalize('NFC');
-    let normalizedNeedle = needle.normalize('NFC');
-
-    if (caseInsensitive) {
-        normalizedHaystack = toEnglishLowerCase(normalizedHaystack);
-        normalizedNeedle = toEnglishLowerCase(normalizedNeedle);
-    }
-
-    return normalizedHaystack.includes(normalizedNeedle);
-}
-
 // ES6 exports
 export {
     sanitizeHtml,
@@ -158,9 +102,5 @@ export {
     removeControlChars,
     isReservedName,
     toEnglishLowerCase,
-    toEnglishUpperCase,
-    localeCompare,
-    localeIncludes
+    toEnglishUpperCase
 };
-
-export type { LocaleCompareOptions };

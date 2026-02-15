@@ -397,48 +397,71 @@ function createMockGame(overrides: AnyRecord = {}): AnyRecord {
 }
 
 /**
- * Create a mock socket object
+ * Create a mock socket object matching real Socket.io shape.
+ * Includes event handler registration, rooms Set, and rateLimiter.
  */
 function createMockSocket(overrides: AnyRecord = {}): AnyRecord {
     const sessionId = overrides.sessionId || uuidv4();
     const socketId = overrides.id || `socket-${uuidv4()}`;
+    const eventHandlers: Record<string, Function> = {};
 
-    return {
+    const mockSocket: AnyRecord = {
         id: socketId,
         sessionId,
         roomCode: overrides.roomCode || null,
         clientIP: overrides.clientIP || '127.0.0.1',
+        flyInstanceId: undefined,
+        rateLimiter: overrides.rateLimiter || { cleanupSocket: jest.fn() },
+        rooms: new Set([socketId]),
         handshake: {
             auth: { sessionId },
             address: '127.0.0.1',
             ...overrides.handshake
         },
-        join: jest.fn(),
-        leave: jest.fn(),
+        join: jest.fn((room: string) => { mockSocket.rooms.add(room); }),
+        leave: jest.fn((room: string) => { mockSocket.rooms.delete(room); }),
         to: jest.fn(() => ({ emit: jest.fn() })),
+        on: jest.fn((event: string, handler: Function) => { eventHandlers[event] = handler; }),
+        once: jest.fn((event: string, handler: Function) => { eventHandlers[event] = handler; }),
+        removeAllListeners: jest.fn(),
         emit: jest.fn(),
         broadcast: {
             to: jest.fn(() => ({ emit: jest.fn() }))
         },
         disconnect: jest.fn(),
+        // Test utility: access registered handlers
+        _eventHandlers: eventHandlers,
         ...overrides
     };
+
+    return mockSocket;
 }
 
 /**
- * Create a mock Socket.io server
+ * Create a mock Socket.io server matching real Server shape.
+ * Includes adapter stub, sockets namespace, and fetchSockets.
  */
 function createMockIO(overrides: AnyRecord = {}): AnyRecord {
+    const mockEmit = jest.fn();
     return {
-        to: jest.fn(() => ({
-            emit: jest.fn()
-        })),
+        to: jest.fn(() => ({ emit: mockEmit })),
         in: jest.fn(() => ({
-            emit: jest.fn(),
+            emit: mockEmit,
             fetchSockets: jest.fn(async () => [])
         })),
         emit: jest.fn(),
         on: jest.fn(),
+        use: jest.fn(),
+        close: jest.fn(),
+        sockets: {
+            adapter: {
+                rooms: new Map(),
+                sids: new Map()
+            },
+            sockets: new Map()
+        },
+        // Test utility: access the emit mock used by .to()/.in()
+        _roomEmit: mockEmit,
         ...overrides
     };
 }

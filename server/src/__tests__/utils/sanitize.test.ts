@@ -3,7 +3,6 @@
  *
  * Tests for input sanitization functions used for XSS prevention,
  * log redaction, control character removal, reserved name checking,
- * and locale-safe string operations.
  */
 
 const {
@@ -13,8 +12,6 @@ const {
     isReservedName,
     toEnglishLowerCase,
     toEnglishUpperCase,
-    localeCompare,
-    localeIncludes
 } = require('../../utils/sanitize');
 
 describe('sanitizeHtml', () => {
@@ -189,55 +186,3 @@ describe('toEnglishUpperCase', () => {
     });
 });
 
-describe('localeCompare', () => {
-    test('compares equal strings as 0', () => {
-        expect(localeCompare('hello', 'hello')).toBe(0);
-    });
-
-    test('is case-insensitive by default', () => {
-        expect(localeCompare('Hello', 'hello')).toBe(0);
-        expect(localeCompare('ABC', 'abc')).toBe(0);
-    });
-
-    test('case-sensitive mode distinguishes case', () => {
-        const result = localeCompare('A', 'a', { caseInsensitive: false });
-        expect(result).not.toBe(0);
-    });
-
-    test('sorts strings in order', () => {
-        expect(localeCompare('apple', 'banana')).toBeLessThan(0);
-        expect(localeCompare('banana', 'apple')).toBeGreaterThan(0);
-    });
-
-    test('handles non-string inputs as empty strings', () => {
-        expect(localeCompare(null, 'hello')).not.toBeNaN();
-        expect(localeCompare('hello', null)).not.toBeNaN();
-        expect(localeCompare(null, null)).toBe(0);
-    });
-});
-
-describe('localeIncludes', () => {
-    test('finds substring (case-insensitive by default)', () => {
-        expect(localeIncludes('Hello World', 'hello')).toBe(true);
-        expect(localeIncludes('Hello World', 'WORLD')).toBe(true);
-    });
-
-    test('case-sensitive mode', () => {
-        expect(localeIncludes('Hello World', 'hello', false)).toBe(false);
-        expect(localeIncludes('Hello World', 'Hello', false)).toBe(true);
-    });
-
-    test('returns false for non-string inputs', () => {
-        expect(localeIncludes(null, 'test')).toBe(false);
-        expect(localeIncludes('test', null)).toBe(false);
-        expect(localeIncludes(42, 'test')).toBe(false);
-    });
-
-    test('handles Unicode text', () => {
-        expect(localeIncludes('Café résumé', 'café')).toBe(true);
-    });
-
-    test('empty needle always found', () => {
-        expect(localeIncludes('hello', '')).toBe(true);
-    });
-});

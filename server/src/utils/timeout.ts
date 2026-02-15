@@ -87,34 +87,10 @@ const TIMEOUTS = {
 
 type TimeoutType = keyof typeof TIMEOUTS;
 
-/**
- * Handler function type
- */
-type AsyncHandler<T extends unknown[], R> = (...args: T) => Promise<R>;
-
-/**
- * Create a timeout-wrapped version of an async handler
- * Useful for wrapping entire socket event handlers
- * @param handler - Async handler function
- * @param timeoutMs - Timeout in milliseconds
- * @param operationName - Name of the operation
- * @returns Wrapped handler
- */
-function createTimeoutHandler<T extends unknown[], R>(
-    handler: AsyncHandler<T, R>,
-    timeoutMs: number,
-    operationName: string
-): AsyncHandler<T, R> {
-    return (...args: T): Promise<R> => {
-        return withTimeout(handler(...args), timeoutMs, operationName);
-    };
-}
-
 export {
     withTimeout,
-    createTimeoutHandler,
     TimeoutError,
     TIMEOUTS
 };
 
-export type { TimeoutType, AsyncHandler };
+export type { TimeoutType };

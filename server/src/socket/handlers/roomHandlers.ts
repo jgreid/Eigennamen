@@ -141,13 +141,6 @@ async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> {
     }
 }
 
-// NOTE: isFailedJoinRateLimited was removed because getLimiter() consumes a
-// rate limit token on each call (not a peek). This caused successful joins to
-// count against the failed-join bucket, and failed joins to be double-counted.
-// The handler-level room:join rate limit (10/min via createPreRoomHandler)
-// provides adequate brute-force protection. trackFailedJoinAttempt still
-// tracks failures for monitoring/metrics.
-
 /**
  * Compute room stats from a players array as a fallback when getRoomStats fails.
  * Avoids hardcoding zeros which would show incorrect team/spectator counts.

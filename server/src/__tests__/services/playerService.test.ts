@@ -61,6 +61,7 @@ describe('Player Service', () => {
             get: jest.fn(),
             set: jest.fn(),
             del: jest.fn(),
+            exists: jest.fn(),
             sAdd: jest.fn(),
             sRem: jest.fn(),
             sMembers: jest.fn(),
@@ -1154,6 +1155,207 @@ describe('Player Service', () => {
             playerService.stopCleanupTask();
 
             // Should not throw
+        });
+    });
+
+    describe('updatePlayer - WATCH/MULTI fallback', () => {
+        test('falls back to WATCH/MULTI when Lua eval fails', async () => {
+            const existingPlayer = {
+                sessionId: 's1', nickname: 'OldName', team: 'red',
+                role: 'spectator', isHost: false, connected: true,
+            };
+
+            // Lua script fails (non-ServerError)
+            mockRedis.eval.mockRejectedValue(new Error('NOSCRIPT'));
+            mockRedis.watch.mockResolvedValue('OK');
+            mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
+            mockRedis.multi.mockReturnValue({
+                set: jest.fn().mockReturnThis(),
+                exec: jest.fn().mockResolvedValue([['OK']]),
+            });
+
+            const result = await playerService.updatePlayer('s1', { nickname: 'NewName' });
+
+            expect(result.nickname).toBe('NewName');
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Lua updatePlayer failed'),
+            );
+        });
+
+        test('fallback retries on WATCH/MULTI conflict', async () => {
+            const existingPlayer = {
+                sessionId: 's1', nickname: 'Test', team: null,
+                role: 'spectator', isHost: false, connected: true,
+            };
+
+            // Lua script fails
+            mockRedis.eval.mockRejectedValue(new Error('NOSCRIPT'));
+            mockRedis.watch.mockResolvedValue('OK');
+            mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
+
+            // First attempt: transaction aborted (null)
+            // Second attempt: success
+            const mockMulti1 = { set: jest.fn().mockReturnThis(), exec: jest.fn().mockResolvedValue(null) };
+            const mockMulti2 = { set: jest.fn().mockReturnThis(), exec: jest.fn().mockResolvedValue([['OK']]) };
+            mockRedis.multi
+                .mockReturnValueOnce(mockMulti1)
+                .mockReturnValueOnce(mockMulti2);
+
+            const result = await playerService.updatePlayer('s1', { team: 'blue' });
+
+            expect(result.team).toBe('blue');
+            expect(mockRedis.watch).toHaveBeenCalledTimes(2);
+        });
+
+        test('fallback throws when player not found during WATCH', async () => {
+            mockRedis.eval.mockRejectedValue(new Error('NOSCRIPT'));
+            mockRedis.watch.mockResolvedValue('OK');
+            mockRedis.get.mockResolvedValue(null);
+            mockRedis.unwatch.mockResolvedValue('OK');
+
+            await expect(playerService.updatePlayer('nonexistent', { nickname: 'X' }))
+                .rejects.toThrow('Player not found');
+        });
+
+        test('propagates ServerError from Lua script (player not found)', async () => {
+            // Lua script returns null (player not found)
+            mockRedis.eval.mockResolvedValue(null);
+
+            await expect(playerService.updatePlayer('nonexistent', { nickname: 'X' }))
+                .rejects.toThrow('Player not found');
+        });
+    });
+
+    describe('processScheduledCleanups - additional paths', () => {
+        test('handles null result from eval (player key already gone)', async () => {
+            const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
+            mockRedis.zRangeByScore.mockResolvedValue([entry]);
+            mockRedis.eval.mockResolvedValue(null);
+            mockRedis.zRem.mockResolvedValue(1);
+
+            const count = await playerService.processScheduledCleanups();
+
+            expect(count).toBe(0);
+            expect(mockRedis.zRem).toHaveBeenCalledWith('scheduled:player:cleanup', entry);
+        });
+
+        test('checks for orphaned room when no players remaining', async () => {
+            const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ORPHAN' });
+            const player = { sessionId: 's1', connected: false, roomCode: 'ORPHAN' };
+
+            mockRedis.zRangeByScore.mockResolvedValue([entry]);
+            mockRedis.eval.mockResolvedValue(JSON.stringify(player));
+            mockRedis.zRem.mockResolvedValue(1);
+            mockRedis.sCard.mockResolvedValue(0);
+            mockRedis.exists.mockResolvedValue(0); // room already gone
+
+            const count = await playerService.processScheduledCleanups();
+
+            expect(count).toBe(1);
+            // sCard was called to check remaining players
+            expect(mockRedis.sCard).toHaveBeenCalledWith('room:ORPHAN:players');
+        });
+
+        test('handles reconnection token cleanup failure', async () => {
+            const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
+            const player = { sessionId: 's1', connected: false, roomCode: 'ABC123' };
+
+            mockRedis.zRangeByScore.mockResolvedValue([entry]);
+            mockRedis.eval.mockResolvedValue(JSON.stringify(player));
+            mockRedis.zRem.mockResolvedValue(1);
+            // sCard > 0 means room is not empty
+            mockRedis.sCard.mockResolvedValue(2);
+
+            // The invalidateRoomReconnectToken is called after cleanup
+            // It uses redis.del internally - simulate a failure
+            mockRedis.del.mockRejectedValueOnce(new Error('token cleanup error'));
+
+            const count = await playerService.processScheduledCleanups();
+
+            // Should still complete the cleanup
+            expect(count).toBe(1);
+        });
+    });
+
+    describe('resetRolesForNewGame', () => {
+        test('resets non-spectator roles to spectator', async () => {
+            const players = [
+                { sessionId: 's1', role: 'spymaster', team: 'red' },
+                { sessionId: 's2', role: 'clicker', team: 'blue' },
+                { sessionId: 's3', role: 'spectator', team: null },
+            ];
+
+            mockRedis.sMembers.mockResolvedValue(['s1', 's2', 's3']);
+            mockRedis.mGet.mockResolvedValue(players.map(p => JSON.stringify(p)));
+            mockRedis.eval.mockImplementation(async (_script: any, opts: any) => {
+                // Simulate Lua update returning updated player
+                const key = opts.keys[0];
+                const sessionId = key.replace('player:', '');
+                const updates = JSON.parse(opts.arguments[0]);
+                const player = players.find(p => p.sessionId === sessionId);
+                return JSON.stringify({ ...player, ...updates, lastSeen: Date.now() });
+            });
+
+            const result = await playerService.resetRolesForNewGame('ABC123');
+
+            expect(result).toHaveLength(3);
+            // s1 and s2 should have been updated; s3 should be unchanged
+            expect(mockRedis.eval).toHaveBeenCalledTimes(2);
+        });
+
+        test('returns empty array when no players in room', async () => {
+            mockRedis.sMembers.mockResolvedValue([]);
+
+            const result = await playerService.resetRolesForNewGame('EMPTY1');
+
+            expect(result).toEqual([]);
+        });
+    });
+
+    describe('atomicHostTransfer', () => {
+        test('returns success on successful transfer', async () => {
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: true, newHostSessionId: 's2',
+            }));
+
+            const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
+
+            expect(result.success).toBe(true);
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.stringContaining('Host transferred')
+            );
+        });
+
+        test('returns failure when Lua script returns null', async () => {
+            mockRedis.eval.mockResolvedValue(null);
+
+            const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
+
+            expect(result.success).toBe(false);
+            expect(result.reason).toBe('SCRIPT_FAILED');
+        });
+
+        test('returns failure on Lua script error', async () => {
+            mockRedis.eval.mockRejectedValue(new Error('Redis error'));
+
+            const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
+
+            expect(result.success).toBe(false);
+            expect(result.reason).toBe('SCRIPT_ERROR');
+        });
+
+        test('logs warning when Lua script returns failure', async () => {
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: false, error: 'OLD_HOST_NOT_FOUND',
+            }));
+
+            const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
+
+            expect(result.success).toBe(false);
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Host transfer failed'),
+                expect.any(Object)
+            );
         });
     });
 });

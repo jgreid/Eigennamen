@@ -16,7 +16,7 @@ describe('Database Configuration', () => {
         delete process.env.DATABASE_URL;
     });
 
-    afterAll(() => {
+    afterEach(() => {
         process.env = originalEnv;
     });
 

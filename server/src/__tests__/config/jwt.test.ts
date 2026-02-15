@@ -26,7 +26,7 @@ describe('JWT Configuration', () => {
         process.env.NODE_ENV = 'test';
     });
 
-    afterAll(() => {
+    afterEach(() => {
         process.env = originalEnv;
     });
 

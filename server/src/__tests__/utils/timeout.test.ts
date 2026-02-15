@@ -11,7 +11,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn()
 }));
 
-const { withTimeout, createTimeoutHandler, TimeoutError, TIMEOUTS } = require('../../utils/timeout');
+const { withTimeout, TimeoutError, TIMEOUTS } = require('../../utils/timeout');
 const logger = require('../../utils/logger');
 
 describe('Timeout Utility', () => {
@@ -147,51 +147,6 @@ describe('Timeout Utility', () => {
             jest.advanceTimersByTime(150);
 
             await expect(promise).rejects.toThrow(/operation timed out/i);
-        });
-    });
-
-    describe('createTimeoutHandler', () => {
-        test('creates a wrapped handler function', () => {
-            const handler = jest.fn().mockResolvedValue('result');
-            const wrapped = createTimeoutHandler(handler, 1000, 'wrappedOp');
-
-            expect(typeof wrapped).toBe('function');
-        });
-
-        test('passes arguments to original handler', async () => {
-            const handler = jest.fn().mockResolvedValue('result');
-            const wrapped = createTimeoutHandler(handler, 1000, 'argsOp');
-
-            await wrapped('arg1', 'arg2', { key: 'value' });
-
-            expect(handler).toHaveBeenCalledWith('arg1', 'arg2', { key: 'value' });
-        });
-
-        test('returns result from original handler', async () => {
-            const handler = jest.fn().mockResolvedValue({ success: true });
-            const wrapped = createTimeoutHandler(handler, 1000, 'resultOp');
-
-            const result = await wrapped();
-
-            expect(result).toEqual({ success: true });
-        });
-
-        test('applies timeout to handler', async () => {
-            const handler = jest.fn().mockReturnValue(new Promise(() => {})); // Never resolves
-            const wrapped = createTimeoutHandler(handler, 100, 'timeoutHandler');
-
-            const promise = wrapped();
-
-            jest.advanceTimersByTime(150);
-
-            await expect(promise).rejects.toThrow(TimeoutError);
-        });
-
-        test('propagates handler errors', async () => {
-            const handler = jest.fn().mockRejectedValue(new Error('Handler error'));
-            const wrapped = createTimeoutHandler(handler, 1000, 'errorHandler');
-
-            await expect(wrapped()).rejects.toThrow('Handler error');
         });
     });
 

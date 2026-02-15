@@ -608,6 +608,26 @@ describe('Socket Authentication Middleware', () => {
             expect(socket.sessionId).not.toBe(validUuid);
             expect(logger.warn).toHaveBeenCalledWith('Session validation failed', expect.any(Object));
         });
+
+        test('allows session continuity when connected player has no lastIP recorded', async () => {
+            const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            const socket = createMockSocket({ sessionId: validUuid });
+            const next = jest.fn();
+
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: validUuid,
+                connected: true
+                // no lastIP field — first connection had no IP tracking
+            });
+            playerService.setSocketMapping.mockResolvedValue(true);
+            isJwtEnabled.mockReturnValue(false);
+
+            await authenticateSocket(socket, next);
+
+            // No lastIP = can't distinguish hijacking from legitimate reconnect → allow
+            expect(socket.sessionId).toBe(validUuid);
+            expect(next).toHaveBeenCalledWith();
+        });
     });
 
     describe('requireAuth', () => {
@@ -710,6 +730,106 @@ describe('Socket Authentication Middleware', () => {
             const result = validateOrigin(socket);
             expect(result.valid).toBe(false);
             expect(result.reason).toContain('not allowed');
+        });
+    });
+
+    describe('checkValidationRateLimit - in-memory fallback', () => {
+        const { checkValidationRateLimit } = require('../../middleware/auth/sessionValidator');
+
+        test('falls back to in-memory rate limiting when Redis fails', async () => {
+            mockRedis.eval.mockRejectedValue(new Error('Redis unavailable'));
+
+            const result = await checkValidationRateLimit('192.168.1.1');
+
+            expect(result.allowed).toBe(true);
+            expect(result.attempts).toBe(1);
+            expect(logger.error).toHaveBeenCalledWith(
+                'Rate limit Redis check failed, using in-memory fallback:',
+                'Redis unavailable'
+            );
+        });
+
+        test('in-memory fallback increments across calls for the same IP', async () => {
+            mockRedis.eval.mockRejectedValue(new Error('Redis down'));
+
+            const r1 = await checkValidationRateLimit('10.0.0.50');
+            const r2 = await checkValidationRateLimit('10.0.0.50');
+            const r3 = await checkValidationRateLimit('10.0.0.50');
+
+            expect(r1.attempts).toBe(1);
+            expect(r2.attempts).toBe(2);
+            expect(r3.attempts).toBe(3);
+            expect(r1.allowed).toBe(true);
+            expect(r3.allowed).toBe(true);
+        });
+
+        test('in-memory fallback rate limits after exceeding max attempts', async () => {
+            mockRedis.eval.mockRejectedValue(new Error('Redis down'));
+
+            // MAX_VALIDATION_ATTEMPTS_PER_IP is mocked as 20
+            for (let i = 0; i < 20; i++) {
+                await checkValidationRateLimit('10.0.0.99');
+            }
+
+            const result = await checkValidationRateLimit('10.0.0.99');
+            expect(result.allowed).toBe(false);
+            expect(result.attempts).toBe(21);
+        });
+    });
+
+    describe('validateRoomReconnectToken', () => {
+        const { validateRoomReconnectToken } = require('../../middleware/auth/sessionValidator');
+
+        test('rejects token with invalid format (wrong length)', async () => {
+            const result = await validateRoomReconnectToken('session-1', 'tooshort', '192.168.1.1');
+
+            expect(result).toBe(false);
+            expect(logger.warn).toHaveBeenCalledWith('Invalid reconnection token format', expect.objectContaining({
+                sessionId: 'session-1'
+            }));
+            // Should not even call playerService when format is invalid
+            expect(playerService.validateSocketAuthToken).not.toHaveBeenCalled();
+        });
+
+        test('rejects token with invalid format (non-hex characters)', async () => {
+            // 64 chars but contains 'g' which is not valid hex
+            const badToken = 'g'.repeat(64);
+            const result = await validateRoomReconnectToken('session-1', badToken, '192.168.1.1');
+
+            expect(result).toBe(false);
+            expect(playerService.validateSocketAuthToken).not.toHaveBeenCalled();
+        });
+
+        test('accepts valid token when playerService confirms it', async () => {
+            const validToken = 'a'.repeat(64);
+            playerService.validateSocketAuthToken.mockResolvedValue(true);
+
+            const result = await validateRoomReconnectToken('session-1', validToken, '192.168.1.1');
+
+            expect(result).toBe(true);
+            expect(playerService.validateSocketAuthToken).toHaveBeenCalledWith('session-1', validToken);
+        });
+
+        test('rejects valid-format token when playerService rejects it', async () => {
+            const validToken = 'b'.repeat(64);
+            playerService.validateSocketAuthToken.mockResolvedValue(false);
+
+            const result = await validateRoomReconnectToken('session-1', validToken, '192.168.1.1');
+
+            expect(result).toBe(false);
+            expect(logger.warn).toHaveBeenCalledWith('Reconnection token validation failed', expect.objectContaining({
+                sessionId: 'session-1',
+                hasToken: true
+            }));
+        });
+
+        test('delegates to playerService when no token provided', async () => {
+            playerService.validateSocketAuthToken.mockResolvedValue(true);
+
+            const result = await validateRoomReconnectToken('session-1', undefined, '192.168.1.1');
+
+            expect(result).toBe(true);
+            expect(playerService.validateSocketAuthToken).toHaveBeenCalledWith('session-1', undefined);
         });
     });
 
