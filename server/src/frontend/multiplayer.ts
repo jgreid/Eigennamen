@@ -364,6 +364,13 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
         renderBoard();
         updateScoreboard();
         updateTurnIndicator();
+
+        // Auto-start a game when the host creates a room so the board is
+        // immediately playable. Players who join later receive the game
+        // state via the room:joined response.
+        if (isHostParam && CodenamesClient && CodenamesClient.isConnected()) {
+            CodenamesClient.startGame({});
+        }
     }
 
     // Update URL with room code for shareable links
