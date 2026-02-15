@@ -127,6 +127,14 @@ async function getPlayerContext(
             socket.roomCode = redisRoomCode;
             socket.join(`room:${redisRoomCode}`);
             socket.join(`player:${sessionId}`);
+
+            // Re-join spectator room if player is a spectator so they
+            // continue receiving spectator-specific events (chat, join requests)
+            const isSpectator = !player?.team || player?.role === 'spectator';
+            if (isSpectator) {
+                socket.join(`spectators:${redisRoomCode}`);
+            }
+
             logger.info('Corrected socket room membership to match Redis', {
                 sessionId,
                 roomCode: redisRoomCode

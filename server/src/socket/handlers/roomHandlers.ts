@@ -11,7 +11,7 @@
 import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
 import type { GameSocket, RoomContext } from './types';
-import type { RoomStats } from '../../services/playerService';
+import type { RoomStats, TeamStats } from '../../services/playerService';
 
 import * as roomService from '../../services/roomService';
 import * as gameService from '../../services/gameService';
@@ -148,6 +148,26 @@ async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> {
 // provides adequate brute-force protection. trackFailedJoinAttempt still
 // tracks failures for monitoring/metrics.
 
+/**
+ * Compute room stats from a players array as a fallback when getRoomStats fails.
+ * Avoids hardcoding zeros which would show incorrect team/spectator counts.
+ */
+function computeFallbackStats(players: Player[]): RoomStats {
+    const teamStats = (team: string): TeamStats => {
+        const teamPlayers = players.filter(p => p.team === team);
+        return {
+            total: teamPlayers.length,
+            spymaster: teamPlayers.find(p => p.role === 'spymaster')?.nickname || null,
+            clicker: teamPlayers.find(p => p.role === 'clicker')?.nickname || null
+        };
+    };
+    return {
+        totalPlayers: players.length,
+        spectatorCount: players.filter(p => !p.team || p.role === 'spectator').length,
+        teams: { red: teamStats('red'), blue: teamStats('blue') }
+    };
+}
+
 function roomHandlers(io: Server, socket: GameSocket): void {
 
     /**
@@ -171,14 +191,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             // from failing after the room is already persisted in Redis
             const roomStats: RoomStats = await playerService.getRoomStats(room.code).catch((err: Error) => {
                 logger.warn(`Failed to get room stats during create: ${err.message}`);
-                return {
-                    totalPlayers: 1,
-                    spectatorCount: 0,
-                    teams: {
-                        red: { total: 0, spymaster: null, clicker: null },
-                        blue: { total: 0, spymaster: null, clicker: null }
-                    }
-                } as RoomStats;
+                return computeFallbackStats([player]);
             });
 
             socket.emit(SOCKET_EVENTS.ROOM_CREATED, { room, player, stats: roomStats });
@@ -238,7 +251,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
                 playerService.getRoomStats(room.code).catch((err: Error) => {
                     logger.warn(`Failed to get room stats during join: ${err.message}`);
                     statsUsedFallback = true;
-                    return { totalPlayers: players.length, spectatorCount: 0, teams: { red: { total: 0, spymaster: null, clicker: null }, blue: { total: 0, spymaster: null, clicker: null } } } as RoomStats;
+                    return computeFallbackStats(players);
                 }),
                 Promise.resolve(game ? gameService.getGameStateForPlayer(game, player) : null)
             ]) as [void, RoomStats, PlayerGameState | null];
@@ -360,14 +373,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode).catch((err: Error) => {
                 logger.warn(`Failed to get room stats during resync: ${err.message}`);
-                return {
-                    totalPlayers: players.length,
-                    spectatorCount: 0,
-                    teams: {
-                        red: { total: 0, spymaster: null, clicker: null },
-                        blue: { total: 0, spymaster: null, clicker: null }
-                    }
-                } as RoomStats;
+                return computeFallbackStats(players);
             });
 
             socket.emit(SOCKET_EVENTS.ROOM_RESYNCED, {
@@ -481,14 +487,7 @@ function roomHandlers(io: Server, socket: GameSocket): void {
 
             const roomStats: RoomStats = await playerService.getRoomStats(code).catch((err: Error) => {
                 logger.warn(`Failed to get room stats during reconnect: ${err.message}`);
-                return {
-                    totalPlayers: players.length,
-                    spectatorCount: 0,
-                    teams: {
-                        red: { total: 0, spymaster: null, clicker: null },
-                        blue: { total: 0, spymaster: null, clicker: null }
-                    }
-                } as RoomStats;
+                return computeFallbackStats(players);
             });
 
             let newReconnectionToken: string | null = null;

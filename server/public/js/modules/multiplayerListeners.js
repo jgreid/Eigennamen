@@ -435,6 +435,8 @@ export function setupMultiplayerListeners() {
             // Ensure critical state is always reset even if cleanup fails
             state.isMultiplayerMode = false;
             state.currentRoomId = null;
+            state.multiplayerListenersSetup = false;
+            state.multiplayerPlayers = [];
         }
     });
     // Handle being kicked from the room
