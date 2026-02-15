@@ -355,17 +355,33 @@ async function resolveSessionId(
         return { validatedSessionId: sessionId, sessionValidation: null, ipMismatch: false };
     }
 
-    // Player is currently connected - potential hijacking attempt
-    // Generate new session instead of rejecting (more user-friendly)
+    // Player is currently connected — possible page refresh or network blip
+    // where the old socket's disconnect hasn't been processed yet.
     if (existingPlayer.connected) {
-        logger.warn('Session hijacking attempt blocked', {
+        // Same IP (or no IP recorded) = likely legitimate reconnection
+        if (!existingPlayer.lastIP || existingPlayer.lastIP === currentIP) {
+            logger.info('Allowing session continuity from same IP (previous socket still connected)', {
+                sessionId,
+                clientIP: currentIP
+            });
+            return {
+                validatedSessionId: sessionId,
+                sessionValidation: { valid: true, player: existingPlayer },
+                ipMismatch: false
+            };
+        }
+
+        // Different IP with connected session = potential hijacking
+        logger.warn('Session hijacking attempt blocked: different IP', {
             sessionId,
-            clientIP: currentIP
+            clientIP: currentIP,
+            existingIP: existingPlayer.lastIP
         });
         return noSession;
     }
 
     // Disconnected player - perform full session validation
+    // (rate limit, session age, IP consistency)
     const sessionValidation = await validateSession(sessionId, currentIP);
 
     if (!sessionValidation.valid) {
@@ -377,15 +393,14 @@ async function resolveSessionId(
         return { validatedSessionId: null, sessionValidation, ipMismatch: false };
     }
 
-    // Validate reconnection token
-    const tokenValid = await validateRoomReconnectToken(sessionId, auth.reconnectToken, currentIP);
-
-    if (!tokenValid) {
-        // Token invalid - generate new session
-        return { validatedSessionId: null, sessionValidation, ipMismatch: false };
-    }
-
-    logger.debug('Session validated for reconnection with token', {
+    // For the auth middleware, session ID + IP validation is sufficient.
+    // Reconnection tokens are validated separately in the room:reconnect flow
+    // for cross-device reconnection scenarios.
+    //
+    // Previously, token validation here created a Catch-22: when connected,
+    // the session was blocked as "hijacking"; when disconnected, it was blocked
+    // for missing a token the client never had after a page refresh.
+    logger.debug('Session validated for reconnection', {
         sessionId,
         ipMismatch: sessionValidation.ipMismatch
     });
