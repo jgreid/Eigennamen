@@ -6,6 +6,18 @@ import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 
+/**
+ * Announce a message to screen readers via the sr-announcements live region.
+ * Uses a clear-then-set pattern to ensure repeated identical messages are re-announced.
+ */
+function announceToScreenReader(message: string): void {
+    const el = document.getElementById('sr-announcements');
+    if (!el) return;
+    el.textContent = '';
+    // Defer setting text so the live region registers the change
+    requestAnimationFrame(() => { el.textContent = message; });
+}
+
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler: ((index: number) => void) | null = null;
 
@@ -27,9 +39,10 @@ function buildCardAriaLabel(word: string, isRevealed: boolean, type: string, row
     return t('board.unrevealedCardLabel', { word, position });
 }
 
-// Re-fit card text on resize (debounced)
+// Re-fit card text on resize (debounced).
+// Stored as a named function so it can be removed when leaving a room.
 let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-window.addEventListener('resize', () => {
+function handleResize(): void {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         const board = document.getElementById('board');
@@ -41,7 +54,34 @@ window.addEventListener('resize', () => {
             fitCardText(board);
         }
     }, 150);
-});
+}
+let resizeListenerAttached = false;
+
+/**
+ * Attach the window resize listener (idempotent).
+ * Call once when the board is first rendered.
+ */
+export function attachResizeListener(): void {
+    if (!resizeListenerAttached) {
+        window.addEventListener('resize', handleResize);
+        resizeListenerAttached = true;
+    }
+}
+
+/**
+ * Remove the window resize listener and cancel any pending debounce.
+ * Call when leaving a room to prevent accumulating listeners.
+ */
+export function detachResizeListener(): void {
+    if (resizeListenerAttached) {
+        window.removeEventListener('resize', handleResize);
+        resizeListenerAttached = false;
+    }
+    if (resizeTimer) {
+        clearTimeout(resizeTimer);
+        resizeTimer = null;
+    }
+}
 
 export function setCardClickHandler(fn: (index: number) => void): void {
     cardClickHandler = fn;
@@ -110,6 +150,9 @@ export function initBoardEventDelegation(): void {
     board.setAttribute('data-delegated', 'true');
 }
 
+// Guard against concurrent full re-renders from overlapping socket events
+let renderingInProgress = false;
+
 export function renderBoard(): void {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board) return;
@@ -126,6 +169,13 @@ export function renderBoard(): void {
             updateBoardIncremental();
             return;
         }
+
+        // Prevent concurrent full re-renders from overlapping socket messages.
+        // If a render is already in progress, skip this call. The first render
+        // will set boardInitialized=true, and subsequent calls will use the
+        // incremental path above.
+        if (renderingInProgress) return;
+        renderingInProgress = true;
 
         // Full re-render (only for new games)
         board.innerHTML = '';
@@ -173,8 +223,11 @@ export function renderBoard(): void {
         fitCardText(board);
 
         state.boardInitialized = true;
+        renderingInProgress = false;
         initBoardEventDelegation();
+        attachResizeListener();
     } catch (err) {
+        renderingInProgress = false;
         logger.error('renderBoard failed:', err);
         // Show a minimal fallback so the board area isn't blank
         board.innerHTML = '';
@@ -278,6 +331,10 @@ export function updateSingleCard(index: number): void {
     const row = Math.floor(index / 5) + 1;
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
+
+    // Announce reveal to screen readers
+    const typeLabel = type === 'red' ? 'Red' : type === 'blue' ? 'Blue' : type === 'assassin' ? 'Assassin' : 'Neutral';
+    announceToScreenReader(`${word} revealed as ${typeLabel}`);
 
     // Add animation class
     if (state.lastRevealedWasCorrect) {

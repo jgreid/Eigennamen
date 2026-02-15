@@ -16,10 +16,10 @@
     <meta name="apple-mobile-web-app-title" content="Codenames">
     <title>Codenames Online</title>
     <!-- QR Code library - served locally for reliability -->
-    <script src="/js/qrcode.min.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
-    <!-- Socket.io client - served locally for reliability -->
-    <script src="/js/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
-    <script src="/js/socket-client.js?v=9" integrity="sha384-HCcp4PGAyzLys7HmZDe4HCrqIcPPzrGdzwQ2xC7iWl1k+l9vuCmPnSFlO8Pladnx" crossorigin="anonymous"></script>
+    <script defer src="/js/qrcode.min.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
+    <!-- Socket.io client - deferred to avoid blocking HTML parsing -->
+    <script defer src="/js/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
+    <script defer src="/js/socket-client.js?v=9" integrity="sha384-HCcp4PGAyzLys7HmZDe4HCrqIcPPzrGdzwQ2xC7iWl1k+l9vuCmPnSFlO8Pladnx" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="/css/variables.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -57,7 +57,7 @@
             <div class="multiplayer-indicator" id="mp-indicator" data-testid="mp-indicator">
                 <span class="status-dot"></span>
                 <span>Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></span>
-                <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players">
+                <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players" aria-label="Show player list" aria-expanded="false">
                     <span id="mp-player-count" data-testid="player-count">0 players</span>
                     <span class="expand-icon">▾</span>
                 </button>

@@ -12,7 +12,7 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { REDIS_TTL, PLAYER_CLEANUP } from '../config/constants';
 import { ServerError, ValidationError } from '../errors/GameError';
 import { tryParseJSON, parseJSON } from '../utils/parseJSON';
-import { ATOMIC_REMOVE_PLAYER_SCRIPT, ATOMIC_SET_SOCKET_MAPPING_SCRIPT } from '../scripts';
+import { ATOMIC_REMOVE_PLAYER_SCRIPT, ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT, ATOMIC_SET_SOCKET_MAPPING_SCRIPT } from '../scripts';
 import { z } from 'zod';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './player/reconnection';
 
@@ -716,31 +716,57 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
             try {
                 const { sessionId, roomCode } = parseJSON(entry, cleanupEntrySchema, 'cleanup entry');
 
-                // Check if player reconnected
-                const player = await getPlayer(sessionId);
-                if (player && !player.connected) {
-                    // Player still disconnected - remove them
-                    await removePlayer(sessionId);
-                    cleanedUp++;
-                    logger.info(`Cleaned up disconnected player ${sessionId} from room ${roomCode}`);
+                // Atomically check connected status AND remove in a single Lua script.
+                // This prevents a TOCTOU race where a player reconnects between
+                // reading their status and removing them.
+                const result = await redis.eval(
+                    ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
+                    {
+                        keys: [`player:${sessionId}`],
+                        arguments: [sessionId]
+                    }
+                ) as string | null;
 
-                    // Check if room is now empty and clean it up to prevent orphaned rooms.
-                    // Orphaned rooms block new room creation with the same code (SETNX returns 0)
-                    // and waste memory until their TTL expires.
-                    if (roomCode) {
-                        try {
-                            const remainingCount = await redis.sCard(`room:${roomCode}:players`);
-                            if (remainingCount === 0) {
-                                const roomExists = await redis.exists(`room:${roomCode}`);
-                                if (roomExists === 1) {
-                                    const roomService = require('./roomService');
-                                    await roomService.cleanupRoom(roomCode);
-                                    logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
-                                }
+                if (result === 'RECONNECTED') {
+                    // Player reconnected - skip removal, just clear schedule entry
+                    logger.debug(`Skipping cleanup for reconnected player ${sessionId}`);
+                    await redis.zRem('scheduled:player:cleanup', entry);
+                    continue;
+                }
+
+                if (!result) {
+                    // Player key already gone - just remove from schedule
+                    await redis.zRem('scheduled:player:cleanup', entry);
+                    continue;
+                }
+
+                // Player was atomically removed by the Lua script
+                cleanedUp++;
+                logger.info(`Cleaned up disconnected player ${sessionId} from room ${roomCode}`);
+
+                // Non-critical: clean up reconnection tokens
+                try {
+                    await invalidateRoomReconnectToken(sessionId);
+                } catch (tokenError) {
+                    logger.warn(`Failed to clean up reconnection token for ${sessionId}:`, (tokenError as Error).message);
+                }
+
+                // Check if room is now empty and clean it up to prevent orphaned rooms.
+                // Orphaned rooms block new room creation with the same code (SETNX returns 0)
+                // and waste memory until their TTL expires.
+                if (roomCode) {
+                    try {
+                        const remainingCount = await redis.sCard(`room:${roomCode}:players`);
+                        if (remainingCount === 0) {
+                            const roomExists = await redis.exists(`room:${roomCode}`);
+                            if (roomExists === 1) {
+                                const roomService = require('./roomService');
+                                await roomService.cleanupRoom(roomCode);
+                                logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
                             }
-                        } catch (roomCleanupError) {
-                            logger.warn(`Failed to check/cleanup orphaned room ${roomCode}:`, (roomCleanupError as Error).message);
                         }
+                    } catch (roomCleanupError) {
+                        logger.warn(`Failed to check/cleanup orphaned room ${roomCode}:`, (roomCleanupError as Error).message);
                     }
                 }
 

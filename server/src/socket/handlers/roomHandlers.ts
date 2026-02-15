@@ -248,19 +248,24 @@ function roomHandlers(io: Server, socket: GameSocket): void {
             }
 
             // Run stats fetch, token invalidation, and game state computation in parallel
-            // to reduce total response time and avoid pushing past the client's timeout
+            // to reduce total response time and avoid pushing past the client's timeout.
+            // Overall timeout prevents a single slow Redis operation from blocking indefinitely.
             let statsUsedFallback = false;
-            const [, roomStats, gameState] = await Promise.all([
-                playerService.invalidateRoomReconnectToken(socket.sessionId).catch((err: Error) => {
-                    logger.warn(`Failed to invalidate reconnection token during join: ${err.message}`);
-                }),
-                playerService.getRoomStats(room.code).catch((err: Error) => {
-                    logger.warn(`Failed to get room stats during join: ${err.message}`);
-                    statsUsedFallback = true;
-                    return computeFallbackStats(players);
-                }),
-                Promise.resolve(game ? gameService.getGameStateForPlayer(game, player) : null)
-            ]) as [void, RoomStats, PlayerGameState | null];
+            const [, roomStats, gameState] = await withTimeout(
+                Promise.all([
+                    playerService.invalidateRoomReconnectToken(socket.sessionId).catch((err: Error) => {
+                        logger.warn(`Failed to invalidate reconnection token during join: ${err.message}`);
+                    }),
+                    playerService.getRoomStats(room.code).catch((err: Error) => {
+                        logger.warn(`Failed to get room stats during join: ${err.message}`);
+                        statsUsedFallback = true;
+                        return computeFallbackStats(players);
+                    }),
+                    Promise.resolve(game ? gameService.getGameStateForPlayer(game, player) : null)
+                ]),
+                TIMEOUTS.SOCKET_HANDLER,
+                'room:join-parallel-ops'
+            ) as [void, RoomStats, PlayerGameState | null];
 
             socket.emit(SOCKET_EVENTS.ROOM_JOINED, { room, players, game: gameState, you: player, stats: roomStats });
 

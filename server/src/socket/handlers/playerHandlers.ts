@@ -22,6 +22,7 @@ import type { PlayerContextResult } from '../playerContext';
 import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { safeEmitToRoom } from '../safeEmit';
+import { TIMEOUTS } from '../../utils/timeout';
 
 /**
  * Player team input
@@ -108,7 +109,19 @@ async function syncSpectatorRoomMembership(
     });
 
     roomSyncLocks.set(lockKey, newLock);
-    await newLock;
+
+    // Timeout prevents unbounded queueing if a prior lock operation hangs.
+    // On timeout, the queued operation is abandoned but the lock chain is
+    // cleaned up via .finally() above, so subsequent operations proceed.
+    const MUTEX_TIMEOUT = TIMEOUTS.GAME_ACTION;
+    await Promise.race([
+        newLock,
+        new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error(`Room sync mutex timeout for ${lockKey}`)), MUTEX_TIMEOUT)
+        )
+    ]).catch((err) => {
+        logger.warn(`syncSpectatorRoomMembership mutex timeout or error for ${sessionId}:`, (err as Error).message);
+    });
 }
 
 function playerHandlers(io: Server, socket: GameSocket): void {

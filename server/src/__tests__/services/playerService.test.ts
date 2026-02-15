@@ -965,9 +965,8 @@ describe('Player Service', () => {
             const player = { sessionId: 's1', connected: false, roomCode: 'ABC123' };
 
             mockRedis.zRangeByScore.mockResolvedValue([entry]);
-            mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.sRem.mockResolvedValue(1);
-            mockRedis.del.mockResolvedValue(1);
+            // The atomic cleanup Lua script returns player data JSON on success
+            mockRedis.eval.mockResolvedValue(JSON.stringify(player));
             mockRedis.zRem.mockResolvedValue(1);
 
             const count = await playerService.processScheduledCleanups();
@@ -978,16 +977,16 @@ describe('Player Service', () => {
 
         test('skips reconnected players', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
-            const player = { sessionId: 's1', connected: true, roomCode: 'ABC123' }; // Reconnected
 
             mockRedis.zRangeByScore.mockResolvedValue([entry]);
-            mockRedis.get.mockResolvedValue(JSON.stringify(player));
+            // The atomic cleanup Lua script returns 'RECONNECTED' if player is connected
+            mockRedis.eval.mockResolvedValue('RECONNECTED');
             mockRedis.zRem.mockResolvedValue(1);
 
             const count = await playerService.processScheduledCleanups();
 
             expect(count).toBe(0);
-            expect(mockRedis.del).not.toHaveBeenCalledWith('player:s1');
+            expect(mockRedis.zRem).toHaveBeenCalledWith('scheduled:player:cleanup', entry);
         });
 
         test('returns 0 when no cleanups due', async () => {

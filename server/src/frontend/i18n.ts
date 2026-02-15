@@ -33,7 +33,12 @@ let currentLanguage = DEFAULT_LANGUAGE;
  * Detects language from stored preference or browser, loads translations
  */
 export async function initI18n(): Promise<void> {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    let stored: string | null = null;
+    try {
+        stored = localStorage.getItem(STORAGE_KEY);
+    } catch {
+        // localStorage unavailable (private browsing, storage quota, etc.)
+    }
     const browserLang = navigator.language?.split('-')[0];
     const detected = stored || (browserLang in LANGUAGES ? browserLang : DEFAULT_LANGUAGE);
 
@@ -71,7 +76,11 @@ export async function setLanguage(lang: string, persist: boolean = true): Promis
     document.documentElement.lang = lang;
 
     if (persist) {
-        localStorage.setItem(STORAGE_KEY, lang);
+        try {
+            localStorage.setItem(STORAGE_KEY, lang);
+        } catch {
+            // localStorage unavailable (private browsing, storage quota, etc.)
+        }
     }
 
     // Update state for other modules
