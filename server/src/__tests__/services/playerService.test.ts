@@ -452,14 +452,14 @@ describe('Player Service', () => {
             expect(result.nickname).toBe('NewName');
         });
 
-        test('throws error for empty nickname', () => {
-            expect(() => playerService.setNickname('session-123', ''))
-                .toThrow('Nickname cannot be empty');
+        test('throws error for empty nickname', async () => {
+            await expect(playerService.setNickname('session-123', ''))
+                .rejects.toThrow('Nickname cannot be empty');
         });
 
-        test('throws error for whitespace-only nickname', () => {
-            expect(() => playerService.setNickname('session-123', '   '))
-                .toThrow('Nickname cannot be empty');
+        test('throws error for whitespace-only nickname', async () => {
+            await expect(playerService.setNickname('session-123', '   '))
+                .rejects.toThrow('Nickname cannot be empty');
         });
     });
 
