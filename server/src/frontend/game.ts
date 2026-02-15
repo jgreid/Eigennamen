@@ -10,7 +10,7 @@ import { updateRoleBanner, updateControls } from './roles.js';
 import { UI } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
-import { updateURL, updateQRCode, copyLink } from './url-state.js';
+import { updateURL } from './url-state.js';
 
 // Re-export URL/QR functions so existing consumers don't break
 export { updateURL, updateQRCode, copyLink } from './url-state.js';
