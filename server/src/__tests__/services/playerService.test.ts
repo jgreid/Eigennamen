@@ -46,6 +46,21 @@ jest.mock('../../config/constants', () => ({
 const { getRedis } = require('../../config/redis');
 const logger = require('../../utils/logger');
 
+/** Helper: create a complete mock player with sensible defaults (matches tightened Zod schema) */
+function mockPlayer(overrides = {}) {
+    return {
+        sessionId: 'session-123',
+        roomCode: 'ABC123',
+        nickname: 'TestPlayer',
+        team: null,
+        role: 'spectator',
+        isHost: false,
+        connected: true,
+        lastSeen: 1000,
+        ...overrides
+    };
+}
+
 describe('Player Service', () => {
     let mockRedis;
 
@@ -160,10 +175,7 @@ describe('Player Service', () => {
 
     describe('getPlayer', () => {
         test('returns player when found', async () => {
-            const playerData = {
-                sessionId: 'session-123',
-                nickname: 'TestPlayer'
-            };
+            const playerData = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(playerData));
 
             const player = await playerService.getPlayer('session-123');
@@ -194,11 +206,7 @@ describe('Player Service', () => {
 
     describe('updatePlayer', () => {
         test('updates player with new values', async () => {
-            const existingPlayer = {
-                sessionId: 'session-123',
-                nickname: 'OldName',
-                team: null
-            };
+            const existingPlayer = mockPlayer({ nickname: 'OldName' });
             // Lua script returns the merged player directly
             const updatedPlayer = { ...existingPlayer, nickname: 'NewName', lastSeen: Date.now() };
             mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
@@ -218,12 +226,7 @@ describe('Player Service', () => {
         });
 
         test('preserves existing values not in updates', async () => {
-            const existingPlayer = {
-                sessionId: 'session-123',
-                nickname: 'TestPlayer',
-                team: 'red',
-                role: 'clicker'
-            };
+            const existingPlayer = mockPlayer({ team: 'red', role: 'clicker' });
             // Lua script merges updates into existing data and returns full player
             const updatedPlayer = { ...existingPlayer, connected: false, lastSeen: Date.now() };
             mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
@@ -239,8 +242,8 @@ describe('Player Service', () => {
 
     describe('setTeam', () => {
         test('sets team using Lua script', async () => {
-            const existingPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
-            const updatedPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
+            const existingPlayer = mockPlayer({ team: null });
+            const updatedPlayer = mockPlayer({ team: 'red' });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue(JSON.stringify({ success: true, player: updatedPlayer }));
 
@@ -251,8 +254,8 @@ describe('Player Service', () => {
         });
 
         test('removes from old team set when switching teams', async () => {
-            const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
-            const updatedPlayer = { sessionId: 'session-123', team: 'blue', roomCode: 'ABC123' };
+            const existingPlayer = mockPlayer({ team: 'red' });
+            const updatedPlayer = mockPlayer({ team: 'blue' });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue(JSON.stringify({ success: true, player: updatedPlayer }));
 
@@ -269,7 +272,7 @@ describe('Player Service', () => {
         });
 
         test('throws error when Lua script returns null', async () => {
-            const existingPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
+            const existingPlayer = mockPlayer({ team: null });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue(null);
 
@@ -278,7 +281,7 @@ describe('Player Service', () => {
         });
 
         test('throws error on JSON parse failure', async () => {
-            const existingPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
+            const existingPlayer = mockPlayer({ team: null });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue('invalid json');
 
@@ -287,8 +290,8 @@ describe('Player Service', () => {
         });
 
         test('handles null team with sentinel value', async () => {
-            const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
-            const updatedPlayer = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
+            const existingPlayer = mockPlayer({ team: 'red' });
+            const updatedPlayer = mockPlayer({ team: null });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue(JSON.stringify({ success: true, player: updatedPlayer }));
 
@@ -303,7 +306,7 @@ describe('Player Service', () => {
         });
 
         test('rejects team change when team would become empty', async () => {
-            const existingPlayer = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123' };
+            const existingPlayer = mockPlayer({ team: 'red' });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue(JSON.stringify({
                 success: false,
@@ -318,7 +321,7 @@ describe('Player Service', () => {
     describe('setRole', () => {
         test('sets role for player with team via atomic Lua script', async () => {
             // FIX: Updated to use Lua script instead of lock-based approach
-            const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
+            const player = mockPlayer({ team: 'red' });
             const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns success with updated player
@@ -348,7 +351,7 @@ describe('Player Service', () => {
         });
 
         test('throws error when setting spymaster without team', async () => {
-            const player = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
+            const player = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.eval.mockResolvedValue(JSON.stringify({
                 success: false,
@@ -362,7 +365,7 @@ describe('Player Service', () => {
         });
 
         test('throws error when setting clicker without team', async () => {
-            const player = { sessionId: 'session-123', team: null, roomCode: 'ABC123' };
+            const player = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             mockRedis.eval.mockResolvedValue(JSON.stringify({
                 success: false,
@@ -377,7 +380,7 @@ describe('Player Service', () => {
 
         test('throws error when role is already taken (via Lua script)', async () => {
             // FIX: Updated to use Lua script response format
-            const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
+            const player = mockPlayer({ team: 'red' });
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns ROLE_TAKEN response
             mockRedis.eval.mockResolvedValue(JSON.stringify({
@@ -394,7 +397,7 @@ describe('Player Service', () => {
 
         test('throws error when team already has role (via Lua script)', async () => {
             // FIX: Updated to use Lua script response format
-            const player1 = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
+            const player1 = mockPlayer({ team: 'red' });
 
             mockRedis.get.mockResolvedValue(JSON.stringify(player1));
             // Lua script returns ROLE_TAKEN response
@@ -411,7 +414,7 @@ describe('Player Service', () => {
         });
 
         test('allows setting spectator role without team', async () => {
-            const player = { sessionId: 'session-123', team: null, roomCode: 'ABC123', role: 'spectator' };
+            const player = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // setRole('spectator') calls updatePlayer which uses Lua script
             const updatedPlayer = { ...player, role: 'spectator', lastSeen: Date.now() };
@@ -424,7 +427,7 @@ describe('Player Service', () => {
 
         test('successfully assigns role via atomic Lua script', async () => {
             // FIX: Updated to use Lua script response format
-            const player = { sessionId: 'session-123', team: 'red', roomCode: 'ABC123', role: 'spectator' };
+            const player = mockPlayer({ team: 'red' });
             const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns success with updated player
@@ -443,7 +446,7 @@ describe('Player Service', () => {
 
     describe('setNickname', () => {
         test('updates player nickname', async () => {
-            const player = { sessionId: 'session-123', nickname: 'OldName' };
+            const player = mockPlayer({ nickname: 'OldName' });
             // setNickname calls updatePlayer which uses Lua script
             const updatedPlayer = { ...player, nickname: 'NewName', lastSeen: Date.now() };
             mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
@@ -474,8 +477,8 @@ describe('Player Service', () => {
         });
 
         test('returns players on team', async () => {
-            const player1 = { sessionId: 's1', team: 'red', nickname: 'Player1' };
-            const player2 = { sessionId: 's2', team: 'red', nickname: 'Player2' };
+            const player1 = mockPlayer({ sessionId: 's1', team: 'red', nickname: 'Player1' });
+            const player2 = mockPlayer({ sessionId: 's2', team: 'red', nickname: 'Player2' });
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player1), JSON.stringify(player2)]);
 
@@ -486,7 +489,7 @@ describe('Player Service', () => {
         });
 
         test('cleans up orphaned entries', async () => {
-            const player1 = { sessionId: 's1', team: 'red', nickname: 'Player1' };
+            const player1 = mockPlayer({ sessionId: 's1', team: 'red', nickname: 'Player1' });
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player1), null]);
             mockRedis.sRem.mockResolvedValue(1);
@@ -498,7 +501,7 @@ describe('Player Service', () => {
         });
 
         test('handles player with changed team', async () => {
-            const player1 = { sessionId: 's1', team: 'blue', nickname: 'Player1' }; // Wrong team
+            const player1 = mockPlayer({ sessionId: 's1', team: 'blue', nickname: 'Player1' }); // Wrong team
             mockRedis.sMembers.mockResolvedValue(['s1']);
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player1)]);
             mockRedis.sRem.mockResolvedValue(1);
@@ -511,7 +514,7 @@ describe('Player Service', () => {
 
         test('handles JSON parse errors', async () => {
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
-            mockRedis.mGet.mockResolvedValue(['invalid json', JSON.stringify({ sessionId: 's2', team: 'red' })]);
+            mockRedis.mGet.mockResolvedValue(['invalid json', JSON.stringify(mockPlayer({ sessionId: 's2', team: 'red' }))]);
             mockRedis.sRem.mockResolvedValue(1);
 
             const members = await playerService.getTeamMembers('ABC123', 'red');
@@ -532,8 +535,8 @@ describe('Player Service', () => {
         });
 
         test('returns players sorted by join time', async () => {
-            const player1 = { sessionId: 's1', connectedAt: 2000, nickname: 'Later' };
-            const player2 = { sessionId: 's2', connectedAt: 1000, nickname: 'Earlier' };
+            const player1 = mockPlayer({ sessionId: 's1', connectedAt: 2000, nickname: 'Later' });
+            const player2 = mockPlayer({ sessionId: 's2', connectedAt: 1000, nickname: 'Earlier' });
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player1), JSON.stringify(player2)]);
 
@@ -544,7 +547,7 @@ describe('Player Service', () => {
         });
 
         test('cleans up orphaned session IDs', async () => {
-            const player1 = { sessionId: 's1', connectedAt: 1000 };
+            const player1 = mockPlayer({ sessionId: 's1', connectedAt: 1000 });
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player1), null]);
             mockRedis.sRem.mockResolvedValue(1);
@@ -557,7 +560,7 @@ describe('Player Service', () => {
 
         test('handles JSON parse errors', async () => {
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
-            mockRedis.mGet.mockResolvedValue(['invalid json', JSON.stringify({ sessionId: 's2', connectedAt: 1000 })]);
+            mockRedis.mGet.mockResolvedValue(['invalid json', JSON.stringify(mockPlayer({ sessionId: 's2', connectedAt: 1000 }))]);
             mockRedis.sRem.mockResolvedValue(1);
 
             const players = await playerService.getPlayersInRoom('ABC123');
@@ -568,7 +571,7 @@ describe('Player Service', () => {
         });
 
         test('logs slow queries', async () => {
-            const player = { sessionId: 's1', connectedAt: 1000 };
+            const player = mockPlayer({ sessionId: 's1', connectedAt: 1000 });
             mockRedis.sMembers.mockImplementation(() =>
                 new Promise(resolve => setTimeout(() => resolve(['s1']), 60))
             );
@@ -582,7 +585,7 @@ describe('Player Service', () => {
 
     describe('removePlayer', () => {
         test('removes player from room and team sets', async () => {
-            const player = { sessionId: 's1', roomCode: 'ABC123', team: 'red' };
+            const player = mockPlayer({ sessionId: 's1', team: 'red' });
             // Sprint D2: Lua script tries first; force fallback to test sequential path
             mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
@@ -597,7 +600,7 @@ describe('Player Service', () => {
         });
 
         test('removes player atomically via Lua script', async () => {
-            const player = { sessionId: 's1', roomCode: 'ABC123', team: 'red' };
+            const player = mockPlayer({ sessionId: 's1', team: 'red' });
             mockRedis.eval.mockResolvedValueOnce(JSON.stringify(player));
             mockRedis.del.mockResolvedValue(1);
 
@@ -615,7 +618,7 @@ describe('Player Service', () => {
         });
 
         test('handles player without team', async () => {
-            const player = { sessionId: 's1', roomCode: 'ABC123', team: null };
+            const player = mockPlayer({ sessionId: 's1' });
             // Sprint D2: Force fallback to test sequential path
             mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
@@ -635,7 +638,7 @@ describe('Player Service', () => {
 
     describe('handleDisconnect', () => {
         test('marks player disconnected and schedules cleanup', async () => {
-            const player = { sessionId: 's1', roomCode: 'ABC123', connected: true };
+            const player = mockPlayer({ sessionId: 's1' });
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // updatePlayer uses Lua script
             const disconnectedPlayer = { ...player, connected: false, disconnectedAt: Date.now(), lastSeen: Date.now() };
@@ -713,7 +716,7 @@ describe('Player Service', () => {
 
     describe('generateReconnectionToken', () => {
         test('generates token for existing player', async () => {
-            const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
+            const player = mockPlayer({ sessionId: 's1', nickname: 'Test', team: 'red', role: 'clicker' });
             mockRedis.get.mockImplementation((key: string) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
                 return Promise.resolve(null);
@@ -738,7 +741,7 @@ describe('Player Service', () => {
         });
 
         test('returns existing token if one exists', async () => {
-            const player = { sessionId: 's1', roomCode: 'ABC123', nickname: 'Test', team: 'red', role: 'clicker' };
+            const player = mockPlayer({ sessionId: 's1', nickname: 'Test', team: 'red', role: 'clicker' });
             const existingToken = 'a'.repeat(64);
             mockRedis.get.mockImplementation((key: string) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
@@ -859,7 +862,7 @@ describe('Player Service', () => {
 
     describe('setSocketMapping', () => {
         test('creates socket mapping for existing player via fallback', async () => {
-            const player = { sessionId: 's1', nickname: 'Test' };
+            const player = mockPlayer({ sessionId: 's1', nickname: 'Test' });
             // Sprint D4: Lua script tries first; force fallback to test sequential path
             mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
@@ -903,7 +906,7 @@ describe('Player Service', () => {
         });
 
         test('updates player with lastIP via Lua script', async () => {
-            const player = { sessionId: 's1', nickname: 'Test' };
+            const player = mockPlayer({ sessionId: 's1', nickname: 'Test' });
             // Sprint D4: Force fallback to test updatePlayer Lua path
             mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
@@ -927,7 +930,7 @@ describe('Player Service', () => {
         });
 
         test('handles null clientIP via fallback', async () => {
-            const player = { sessionId: 's1', nickname: 'Test' };
+            const player = mockPlayer({ sessionId: 's1', nickname: 'Test' });
             // Sprint D4: Force fallback to test null IP path
             mockRedis.eval.mockRejectedValueOnce(new Error('Lua not available'));
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
@@ -963,7 +966,7 @@ describe('Player Service', () => {
     describe('processScheduledCleanups', () => {
         test('processes due cleanups', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
-            const player = { sessionId: 's1', connected: false, roomCode: 'ABC123' };
+            const player = mockPlayer({ sessionId: 's1', connected: false });
 
             mockRedis.zRangeByScore.mockResolvedValue([entry]);
             // The atomic cleanup Lua script returns player data JSON on success
@@ -1021,7 +1024,7 @@ describe('Player Service', () => {
 
     describe('validateSocketAuthToken (socket auth)', () => {
         test('allows connected player without token', async () => {
-            const player = { sessionId: 's1', connected: true };
+            const player = mockPlayer({ sessionId: 's1' });
             mockRedis.get.mockImplementation((key) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
                 return Promise.resolve(null);
@@ -1033,7 +1036,7 @@ describe('Player Service', () => {
         });
 
         test('rejects disconnected player without token', async () => {
-            const player = { sessionId: 's1', connected: false };
+            const player = mockPlayer({ sessionId: 's1', connected: false });
             mockRedis.get.mockImplementation((key) => {
                 if (key === 'player:s1') return Promise.resolve(JSON.stringify(player));
                 return Promise.resolve(null);
@@ -1160,10 +1163,7 @@ describe('Player Service', () => {
 
     describe('updatePlayer - WATCH/MULTI fallback', () => {
         test('falls back to WATCH/MULTI when Lua eval fails', async () => {
-            const existingPlayer = {
-                sessionId: 's1', nickname: 'OldName', team: 'red',
-                role: 'spectator', isHost: false, connected: true,
-            };
+            const existingPlayer = mockPlayer({ sessionId: 's1', nickname: 'OldName', team: 'red' });
 
             // Lua script fails (non-ServerError)
             mockRedis.eval.mockRejectedValue(new Error('NOSCRIPT'));
@@ -1183,10 +1183,7 @@ describe('Player Service', () => {
         });
 
         test('fallback retries on WATCH/MULTI conflict', async () => {
-            const existingPlayer = {
-                sessionId: 's1', nickname: 'Test', team: null,
-                role: 'spectator', isHost: false, connected: true,
-            };
+            const existingPlayer = mockPlayer({ sessionId: 's1', nickname: 'Test' });
 
             // Lua script fails
             mockRedis.eval.mockRejectedValue(new Error('NOSCRIPT'));
@@ -1241,7 +1238,7 @@ describe('Player Service', () => {
 
         test('checks for orphaned room when no players remaining', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ORPHAN' });
-            const player = { sessionId: 's1', connected: false, roomCode: 'ORPHAN' };
+            const player = mockPlayer({ sessionId: 's1', connected: false, roomCode: 'ORPHAN' });
 
             mockRedis.zRangeByScore.mockResolvedValue([entry]);
             mockRedis.eval.mockResolvedValue(JSON.stringify(player));
@@ -1258,7 +1255,7 @@ describe('Player Service', () => {
 
         test('handles reconnection token cleanup failure', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
-            const player = { sessionId: 's1', connected: false, roomCode: 'ABC123' };
+            const player = mockPlayer({ sessionId: 's1', connected: false });
 
             mockRedis.zRangeByScore.mockResolvedValue([entry]);
             mockRedis.eval.mockResolvedValue(JSON.stringify(player));
@@ -1280,9 +1277,9 @@ describe('Player Service', () => {
     describe('resetRolesForNewGame', () => {
         test('resets non-spectator roles to spectator', async () => {
             const players = [
-                { sessionId: 's1', role: 'spymaster', team: 'red' },
-                { sessionId: 's2', role: 'clicker', team: 'blue' },
-                { sessionId: 's3', role: 'spectator', team: null },
+                mockPlayer({ sessionId: 's1', role: 'spymaster', team: 'red' }),
+                mockPlayer({ sessionId: 's2', role: 'clicker', team: 'blue' }),
+                mockPlayer({ sessionId: 's3' }),
             ];
 
             mockRedis.sMembers.mockResolvedValue(['s1', 's2', 's3']);
