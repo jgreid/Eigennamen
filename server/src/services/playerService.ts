@@ -492,15 +492,30 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
         }
     }
 
-    // Clean up orphaned entries and their lingering data
+    // Clean up orphaned entries from the team set.
+    // IMPORTANT: Only delete player:{id} keys for players whose data has expired
+    // (null from Redis). Players who changed teams still have valid session data
+    // — only remove them from this team set, don't destroy their player record.
     if (orphanedIds.length > 0) {
-        // Performance fix: Batch DEL operations into single Redis call
-        const playerKeysToDelete = orphanedIds.map(id => `player:${id}`);
-        await Promise.all([
-            redis.sRem(teamKey, ...orphanedIds),
-            redis.del(playerKeysToDelete)
-        ]);
-        logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey}`);
+        // Separate truly expired players (no data in Redis) from team-mismatch players
+        const expiredIds: string[] = [];
+        for (let i = 0; i < sessionIds.length; i++) {
+            const currentSessionId = sessionIds[i];
+            if (currentSessionId && orphanedIds.includes(currentSessionId) && !playerDataArray[i]) {
+                expiredIds.push(currentSessionId);
+            }
+        }
+
+        const cleanupOps: Promise<unknown>[] = [
+            redis.sRem(teamKey, ...orphanedIds)
+        ];
+        // Only delete player keys for truly expired sessions (no data in Redis)
+        if (expiredIds.length > 0) {
+            const playerKeysToDelete = expiredIds.map(id => `player:${id}`);
+            cleanupOps.push(redis.del(playerKeysToDelete));
+        }
+        await Promise.all(cleanupOps);
+        logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey} (${expiredIds.length} expired)`);
 
         // If team set is now empty, delete it
         const remainingCount = await redis.sCard(teamKey);

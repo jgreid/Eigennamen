@@ -13,12 +13,12 @@ import type { RoomStats } from '../../services/playerService';
 
 import * as playerService from '../../services/playerService';
 import * as gameService from '../../services/gameService';
+import { sendSpymasterViewIfNeeded } from './roomHandlers';
 import { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
 import { createRoomHandler, createHostHandler } from '../contextHandler';
-import { canChangeTeamOrRole } from '../playerContext';
-import type { PlayerContextResult } from '../playerContext';
+import { canChangeTeamOrRole, isPlayerSpectator } from '../playerContext';
 import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { safeEmitToRoom } from '../safeEmit';
@@ -67,6 +67,7 @@ interface ChangePermission {
  * and produce inconsistent socket room state (e.g., player in both room:X and spectators:X).
  */
 const roomSyncLocks = new Map<string, Promise<void>>();
+const ROOM_SYNC_LOCKS_MAX_SIZE = 10_000;
 
 /**
  * Bug #14 Fix: Helper to sync spectator room membership based on CURRENT player state.
@@ -78,6 +79,12 @@ async function syncSpectatorRoomMembership(
     roomCode: string,
     sessionId: string
 ): Promise<void> {
+    // Safety valve: clear the map if it grows too large (prevents unbounded memory growth
+    // from accumulated entries where .finally() cleanup was skipped due to reference mismatch)
+    if (roomSyncLocks.size > ROOM_SYNC_LOCKS_MAX_SIZE) {
+        roomSyncLocks.clear();
+    }
+
     // Serialize room membership updates per player to prevent race conditions
     const lockKey = `${sessionId}:${roomCode}`;
     const existingLock = roomSyncLocks.get(lockKey) || Promise.resolve();
@@ -92,7 +99,7 @@ async function syncSpectatorRoomMembership(
         // Player should be in spectators room if:
         // - They have no team, OR
         // - Their role is 'spectator'
-        const shouldBeInSpectatorRoom = !currentPlayer.team || currentPlayer.role === 'spectator';
+        const shouldBeInSpectatorRoom = isPlayerSpectator(currentPlayer);
 
         if (shouldBeInSpectatorRoom) {
             socket.join(spectatorRoom);
@@ -100,7 +107,7 @@ async function syncSpectatorRoomMembership(
             socket.leave(spectatorRoom);
         }
     }).catch((err) => {
-        logger.warn(`syncSpectatorRoomMembership failed for ${sessionId}:`, (err as Error).message);
+        logger.warn(`syncSpectatorRoomMembership failed for ${sessionId}:`, err instanceof Error ? err.message : String(err));
     }).finally(() => {
         // Clean up lock after completion
         if (roomSyncLocks.get(lockKey) === newLock) {
@@ -120,7 +127,7 @@ async function syncSpectatorRoomMembership(
             setTimeout(() => reject(new Error(`Room sync mutex timeout for ${lockKey}`)), MUTEX_TIMEOUT)
         )
     ]).catch((err) => {
-        logger.warn(`syncSpectatorRoomMembership mutex timeout or error for ${sessionId}:`, (err as Error).message);
+        logger.warn(`syncSpectatorRoomMembership mutex timeout or error for ${sessionId}:`, err instanceof Error ? err.message : String(err));
     });
 }
 
@@ -131,7 +138,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx: RoomContext, validated: PlayerTeamInput) => {
-            const canChange: ChangePermission = canChangeTeamOrRole(ctx as unknown as PlayerContextResult, { isTeamChange: true });
+            const canChange: ChangePermission = canChangeTeamOrRole(ctx, { isTeamChange: true });
             if (!canChange.allowed) {
                 const errorCode = (canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN) as ErrorCode;
                 throw new GameStateError(errorCode, canChange.reason ?? '');
@@ -139,11 +146,8 @@ function playerHandlers(io: Server, socket: GameSocket): void {
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
                 ctx.player.team && ctx.player.team !== validated.team);
-            const player: Player | null = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
-
-            if (!player) {
-                throw PlayerError.notFound(ctx.sessionId);
-            }
+            // setTeam always returns a Player or throws — no null return path
+            const player: Player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
             // Bug #14 Fix: Sync spectator room membership based on current state
             // (prevents race with concurrent setRole operations)
@@ -178,7 +182,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
         async (ctx: RoomContext, validated: PlayerRoleInput) => {
             // Skip validation if player already has the requested role (idempotent)
             if (ctx.player.role !== validated.role) {
-                const canChange: ChangePermission = canChangeTeamOrRole(ctx as unknown as PlayerContextResult, { targetRole: validated.role });
+                const canChange: ChangePermission = canChangeTeamOrRole(ctx, { targetRole: validated.role });
                 if (!canChange.allowed) {
                     throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason ?? '');
                 }
@@ -207,9 +211,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             // If becoming spymaster, re-fetch game state to avoid stale context
             if (player.role === 'spymaster') {
                 const freshGame: GameState | null = await gameService.getGame(ctx.roomCode);
-                if (freshGame && !freshGame.gameOver) {
-                    socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: freshGame.types });
-                }
+                await sendSpymasterViewIfNeeded(socket, player, freshGame, ctx.roomCode);
             }
 
             logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);

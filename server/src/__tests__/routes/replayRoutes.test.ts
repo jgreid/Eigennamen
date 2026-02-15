@@ -77,7 +77,7 @@ describe('Replay Routes', () => {
                 .expect(400);
 
             expect(response.body.error.code).toBe('VALIDATION_ERROR');
-            expect(response.body.error.details).toBeDefined();
+            expect(response.body.error.message).toBe('Invalid room code or game ID format');
         });
 
         it('should return 400 for room code too short', async () => {
@@ -114,7 +114,7 @@ describe('Replay Routes', () => {
                 .get(`/api/replays/TEST12/${validGameId}`)
                 .expect(500);
 
-            expect(logger.error).toHaveBeenCalledWith('Error fetching replay:', expect.any(Error));
+            expect(logger.error).toHaveBeenCalledWith('Error fetching replay', expect.objectContaining({ roomCode: 'TEST12', error: 'DB error' }));
             expect(response.body.error.code).toBe('SERVER_ERROR');
         });
     });

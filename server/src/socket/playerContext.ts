@@ -130,7 +130,7 @@ async function getPlayerContext(
 
             // Re-join spectator room if player is a spectator so they
             // continue receiving spectator-specific events (chat, join requests)
-            const isSpectator = !player?.team || player?.role === 'spectator';
+            const isSpectator = player ? isPlayerSpectator(player) : true;
             if (isSpectator) {
                 socket.join(`spectators:${redisRoomCode}`);
             }
@@ -219,7 +219,7 @@ async function getPlayerContext(
  * @returns Object with allowed status and reason if not allowed
  */
 function canChangeTeamOrRole(
-    ctx: PlayerContextResult,
+    ctx: { player: Player | null; game: GameState | null },
     { isTeamChange = false, targetRole = null }: ChangeCheckOptions = {}
 ): CanChangeResult {
     const { player, game } = ctx;
@@ -259,6 +259,17 @@ function canChangeTeamOrRole(
 }
 
 /**
+ * Check if a player is a spectator (no team or spectator role).
+ * Centralizes the spectator detection logic used across multiple modules.
+ *
+ * @param player - Player to check (supports partial objects with optional team/role)
+ * @returns True if the player is a spectator
+ */
+function isPlayerSpectator(player: { team?: Team | null; role?: Role | string | null }): boolean {
+    return !player.team || player.role === 'spectator';
+}
+
+/**
  * Sync socket room memberships based on player state changes.
  * Manages spectator room membership when players transition between
  * team roles and spectator status.
@@ -278,12 +289,11 @@ function syncSocketRooms(
 
     const roomCode = currentPlayer.roomCode;
 
-    // A player is a spectator if they have no team OR their role is 'spectator'
-    const isSpectator = !currentPlayer.team || currentPlayer.role === 'spectator';
+    const isSpectator = isPlayerSpectator(currentPlayer);
 
     // Default previous state to spectator (first call)
     const wasSpectator = previousPlayer
-        ? (!previousPlayer.team || previousPlayer.role === 'spectator')
+        ? isPlayerSpectator(previousPlayer)
         : true;
 
     if (wasSpectator && !isSpectator) {
@@ -298,5 +308,6 @@ function syncSocketRooms(
 export {
     getPlayerContext,
     canChangeTeamOrRole,
-    syncSocketRooms
+    syncSocketRooms,
+    isPlayerSpectator
 };

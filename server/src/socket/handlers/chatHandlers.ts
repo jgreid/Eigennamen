@@ -16,7 +16,7 @@ import { SOCKET_EVENTS } from '../../config/constants';
 import { createRoomHandler } from '../contextHandler';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { PlayerError } from '../../errors/GameError';
-import { safeEmitToRoom, safeEmitToPlayer } from '../safeEmit';
+import { safeEmitToRoom, safeEmitToPlayer, safeEmitToGroup } from '../safeEmit';
 
 /**
  * Chat message input
@@ -78,11 +78,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
             // Spectator-only chat: use the spectators socket room instead of
             // fetching all players from Redis and iterating (O(n) -> O(1))
             if (validated.spectatorOnly) {
-                try {
-                    io.to(`spectators:${ctx.roomCode}`).emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
-                } catch (emitError) {
-                    logger.error(`Failed to emit chat:message to spectators in room ${ctx.roomCode}:`, emitError);
-                }
+                safeEmitToGroup(io, `spectators:${ctx.roomCode}`, SOCKET_EVENTS.CHAT_MESSAGE, message);
             } else if (validated.teamOnly && ctx.player.team) {
                 const teammates: Player[] = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
                 if (!teammates || !Array.isArray(teammates)) {
@@ -121,11 +117,7 @@ function chatHandlers(io: Server, socket: GameSocket): void {
                 timestamp: Date.now()
             };
 
-            try {
-                io.to(`spectators:${ctx.roomCode}`).emit(SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, message);
-            } catch (emitError) {
-                logger.error(`Failed to emit ${SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE} to spectators:`, emitError);
-            }
+            safeEmitToGroup(io, `spectators:${ctx.roomCode}`, SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, message);
         }
     ));
 }

@@ -18,7 +18,8 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { TimerState, TimerCallback } from '../types';
+import type { TimerCallback } from '../types';
+import type { TimerStatus } from '../services/timerService';
 
 /**
  * Socket functions interface - all functions provided by the socket module
@@ -28,7 +29,7 @@ export interface SocketFunctions {
     emitToPlayer: (sessionId: string, event: string, data: unknown) => void;
     startTurnTimer: (roomCode: string, durationSeconds: number) => Promise<TimerInfo>;
     stopTurnTimer: (roomCode: string) => Promise<void>;
-    getTimerStatus: (roomCode: string) => Promise<TimerState | null>;
+    getTimerStatus: (roomCode: string) => Promise<TimerStatus | null>;
     getIO: () => SocketIOServer;
     createTimerExpireCallback: () => TimerCallback;
 }

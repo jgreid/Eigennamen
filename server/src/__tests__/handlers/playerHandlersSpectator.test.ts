@@ -385,8 +385,8 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
         });
     });
 
-    describe('setTeam - null player from service', () => {
-        it('should error when setTeam returns null', async () => {
+    describe('setTeam - service throws', () => {
+        it('should error when setTeam throws ServerError', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'TEST12',
@@ -395,12 +395,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 role: 'spectator',
                 isHost: false,
             });
-            playerService.setTeam.mockResolvedValue(null);
+            playerService.setTeam.mockRejectedValue(new Error('Player not found'));
 
             await handlers['player:setTeam']({ team: 'red' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'PLAYER_NOT_FOUND',
+                code: 'SERVER_ERROR',
             }));
         });
     });

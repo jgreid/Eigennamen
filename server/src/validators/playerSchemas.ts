@@ -42,7 +42,11 @@ const spectatorJoinRequestSchema = z.object({
 
 // Spectator join approval/denial schema
 const spectatorJoinResponseSchema = z.object({
-    requesterId: z.string().min(1, 'Requester ID is required').max(100),
+    requesterId: z.string()
+        .min(1, 'Requester ID is required')
+        .max(100, 'Requester ID too long')
+        .transform((val: string) => removeControlChars(val).trim())
+        .refine((val: string) => sessionIdRegex.test(val), 'Invalid requester ID format'),
     approved: z.boolean()
 });
 

@@ -185,7 +185,7 @@ export async function executeGameTransaction<T>(
                 .exec();
 
             if (txResult === null) {
-                await redis.unwatch();
+                // WATCH is automatically consumed after exec(), no unwatch needed
                 retries++;
                 if (retries < MAX_TRANSACTION_RETRIES) {
                     // Exponential backoff to reduce contention
@@ -198,7 +198,7 @@ export async function executeGameTransaction<T>(
             return result;
 
         } catch (error) {
-            await redis.unwatch();
+            try { await redis.unwatch(); } catch { /* don't mask original error */ }
             throw error;
         }
     }

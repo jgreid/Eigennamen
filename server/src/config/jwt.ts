@@ -91,7 +91,7 @@ function isJwtEnabled(): boolean {
     try {
         return getJwtSecret() !== null;
     } catch (e) {
-        logger.debug('JWT not enabled:', (e as Error).message);
+        logger.debug('JWT not enabled:', e instanceof Error ? e.message : String(e));
         return false;
     }
 }
@@ -172,7 +172,10 @@ function verifyToken(token: string, options: VerifyOptions = {}): JwtPayload | T
     } catch (error) {
         let errorCode: string;
         let errorMessage: string;
-        const err = error as Error & { name: string; expiredAt?: Date; date?: Date };
+        // jwt library throws typed errors with name, expiredAt, date properties
+        const err: Error & { expiredAt?: Date; date?: Date } = error instanceof Error
+            ? error
+            : new Error(String(error));
 
         if (err.name === 'TokenExpiredError') {
             errorCode = JWT_ERROR_CODES.TOKEN_EXPIRED;

@@ -146,19 +146,16 @@ describe('Game Modes', () => {
         });
 
         test('updateSettings enforces blitz timer when switching to blitz mode', async () => {
-            const room = createMockRoom({
-                code: 'testroom',
-                hostSessionId: 'host-123',
+            // updateSettings now uses atomic Lua script via redis.eval
+            mockRedis.eval = jest.fn(async () => JSON.stringify({
+                success: true,
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 120,
+                    turnTimer: 30,
                     allowSpectators: true,
-                    gameMode: 'classic'
+                    gameMode: 'blitz'
                 }
-            });
-
-            mockRedis.get = jest.fn(async () => JSON.stringify(room));
-            mockRedis.set = jest.fn(async () => 'OK');
+            }));
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
                 gameMode: 'blitz'
@@ -166,27 +163,18 @@ describe('Game Modes', () => {
 
             expect(result.gameMode).toBe('blitz');
             expect(result.turnTimer).toBe(30);
-
-            // Verify what was stored in Redis
-            const storedRoom = JSON.parse(mockRedis.set.mock.calls[0][1]);
-            expect(storedRoom.settings.gameMode).toBe('blitz');
-            expect(storedRoom.settings.turnTimer).toBe(30);
         });
 
         test('updateSettings preserves custom timer in classic mode', async () => {
-            const room = createMockRoom({
-                code: 'testroom',
-                hostSessionId: 'host-123',
+            mockRedis.eval = jest.fn(async () => JSON.stringify({
+                success: true,
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 120,
+                    turnTimer: 180,
                     allowSpectators: true,
                     gameMode: 'classic'
                 }
-            });
-
-            mockRedis.get = jest.fn(async () => JSON.stringify(room));
-            mockRedis.set = jest.fn(async () => 'OK');
+            }));
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
                 turnTimer: 180
@@ -197,19 +185,15 @@ describe('Game Modes', () => {
         });
 
         test('updateSettings allows switching from blitz back to classic', async () => {
-            const room = createMockRoom({
-                code: 'testroom',
-                hostSessionId: 'host-123',
+            mockRedis.eval = jest.fn(async () => JSON.stringify({
+                success: true,
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 30,
+                    turnTimer: null,
                     allowSpectators: true,
-                    gameMode: 'blitz'
+                    gameMode: 'classic'
                 }
-            });
-
-            mockRedis.get = jest.fn(async () => JSON.stringify(room));
-            mockRedis.set = jest.fn(async () => 'OK');
+            }));
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
                 gameMode: 'classic',
@@ -221,19 +205,15 @@ describe('Game Modes', () => {
         });
 
         test('updateSettings includes gameMode in allowed keys', async () => {
-            const room = createMockRoom({
-                code: 'testroom',
-                hostSessionId: 'host-123',
+            mockRedis.eval = jest.fn(async () => JSON.stringify({
+                success: true,
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: null,
+                    turnTimer: 30,
                     allowSpectators: true,
-                    gameMode: 'classic'
+                    gameMode: 'blitz'
                 }
-            });
-
-            mockRedis.get = jest.fn(async () => JSON.stringify(room));
-            mockRedis.set = jest.fn(async () => 'OK');
+            }));
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
                 gameMode: 'blitz',
@@ -247,18 +227,7 @@ describe('Game Modes', () => {
         });
 
         test('non-host cannot change game mode', async () => {
-            const room = createMockRoom({
-                code: 'testroom',
-                hostSessionId: 'host-123',
-                settings: {
-                    teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: null,
-                    allowSpectators: true,
-                    gameMode: 'classic'
-                }
-            });
-
-            mockRedis.get = jest.fn(async () => JSON.stringify(room));
+            mockRedis.eval = jest.fn(async () => JSON.stringify({ error: 'NOT_HOST' }));
 
             await expect(
                 roomService.updateSettings('testroom', 'not-host-456', { gameMode: 'blitz' })

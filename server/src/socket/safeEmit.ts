@@ -94,20 +94,21 @@ function safeEmitToRoom(
 
         return true;
     } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
         emissionMetrics.failed++;
         emissionMetrics.lastFailure = {
             event,
             roomCode,
-            error: (error as Error).message,
+            error: errMsg,
             timestamp: Date.now()
         };
 
-        const errorMsg = `Failed to emit ${event} to room:${roomCode}: ${(error as Error).message}`;
+        const errorMsg = `Failed to emit ${event} to room:${roomCode}: ${errMsg}`;
         if (throwOnError) {
             throw new Error(errorMsg);
         }
 
-        logger.error(errorMsg, { event, roomCode, error: (error as Error).message });
+        logger.error(errorMsg, { event, roomCode, error: errMsg });
         return false;
     }
 }
@@ -146,20 +147,21 @@ function safeEmitToPlayer(
 
         return true;
     } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
         emissionMetrics.failed++;
         emissionMetrics.lastFailure = {
             event,
             sessionId,
-            error: (error as Error).message,
+            error: errMsg,
             timestamp: Date.now()
         };
 
-        const errorMsg = `Failed to emit ${event} to player:${sessionId}: ${(error as Error).message}`;
+        const errorMsg = `Failed to emit ${event} to player:${sessionId}: ${errMsg}`;
         if (throwOnError) {
             throw new Error(errorMsg);
         }
 
-        logger.error(errorMsg, { event, sessionId, error: (error as Error).message });
+        logger.error(errorMsg, { event, sessionId, error: errMsg });
         return false;
     }
 }
@@ -204,7 +206,7 @@ function safeEmitToPlayers(
             }
         } catch (error) {
             results.failed++;
-            results.errors.push({ sessionId: player.sessionId, error: (error as Error).message });
+            results.errors.push({ sessionId: player.sessionId, error: error instanceof Error ? error.message : String(error) });
         }
     }
 
@@ -231,10 +233,55 @@ function resetEmissionMetrics(): void {
     };
 }
 
+/**
+ * Safely emit an event to an arbitrary socket.io room/group name
+ * Unlike safeEmitToRoom which prefixes with "room:", this takes the full target name.
+ * Useful for spectator rooms, team rooms, etc.
+ * @param io - Socket.io server instance
+ * @param target - Full room/group name (e.g., "spectators:ROOM1")
+ * @param event - Event name
+ * @param data - Data to emit
+ * @returns True if emission succeeded
+ */
+function safeEmitToGroup(
+    io: SocketIOServer | null,
+    target: string,
+    event: string,
+    data: unknown
+): boolean {
+    emissionMetrics.total++;
+
+    try {
+        if (!io) {
+            throw new Error('Socket.io instance not available');
+        }
+
+        io.to(target).emit(event, data);
+
+        emissionMetrics.successful++;
+        return true;
+    } catch (error) {
+        emissionMetrics.failed++;
+        emissionMetrics.lastFailure = {
+            event,
+            error: error instanceof Error ? error.message : String(error),
+            timestamp: Date.now()
+        };
+
+        logger.error(`Failed to emit ${event} to ${target}`, {
+            event,
+            target,
+            error: error instanceof Error ? error.message : String(error)
+        });
+        return false;
+    }
+}
+
 export {
     safeEmitToRoom,
     safeEmitToPlayer,
     safeEmitToPlayers,
+    safeEmitToGroup,
     getEmissionMetrics,
     resetEmissionMetrics
 };

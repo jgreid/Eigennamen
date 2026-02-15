@@ -94,8 +94,8 @@ if isDuet then
         endReason = 'completed'
         turnEnded = true
     elseif cardType == 'neutral' then
-        game.timerTokens = (game.timerTokens or 0) - 1
-        if (game.timerTokens or 0) <= 0 then
+        game.timerTokens = math.max((game.timerTokens or 0) - 1, 0)
+        if game.timerTokens <= 0 then
             game.gameOver = true
             game.winner = cjson.null
             endReason = 'timerTokens'

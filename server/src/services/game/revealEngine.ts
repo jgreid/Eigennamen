@@ -194,9 +194,9 @@ function determineDuetRevealOutcome(
     }
 
     if (cardType === 'neutral') {
-        game.timerTokens = (game.timerTokens || 0) - 1;
+        game.timerTokens = Math.max((game.timerTokens || 0) - 1, 0);
 
-        if ((game.timerTokens || 0) <= 0) {
+        if (game.timerTokens <= 0) {
             game.gameOver = true;
             game.winner = null;
             outcome.endReason = 'timerTokens';

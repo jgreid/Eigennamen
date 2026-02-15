@@ -51,8 +51,7 @@ router.get('/:roomCode/:gameId', replayLimiter, async (req: Request, res: Respon
             res.status(400).json({
                 error: {
                     code: 'VALIDATION_ERROR',
-                    message: 'Invalid parameters',
-                    details: parsed.error.issues
+                    message: 'Invalid room code or game ID format'
                 }
             });
             return;
@@ -73,7 +72,7 @@ router.get('/:roomCode/:gameId', replayLimiter, async (req: Request, res: Respon
 
         res.json({ replay: replayData });
     } catch (error) {
-        logger.error('Error fetching replay:', error);
+        logger.error('Error fetching replay', { roomCode: req.params.roomCode, error: error instanceof Error ? error.message : String(error) });
         next(error);
     }
 });
