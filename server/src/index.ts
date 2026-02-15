@@ -82,7 +82,7 @@ async function startServer(): Promise<void> {
             stopMemoryMonitoring();
 
             // Clean up all active timers first (prevents pending callbacks)
-            await timerService.cleanupAllTimers();
+            timerService.cleanupAllTimers();
             logger.info('All timers cleaned up');
 
             // Clean up socket module (intervals, io server)

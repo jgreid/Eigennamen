@@ -198,7 +198,7 @@ export async function executeGameTransaction<T>(
             return result;
 
         } catch (error) {
-            await redis.unwatch();
+            try { await redis.unwatch(); } catch { /* don't mask original error */ }
             throw error;
         }
     }

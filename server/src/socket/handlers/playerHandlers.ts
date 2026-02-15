@@ -67,6 +67,7 @@ interface ChangePermission {
  * and produce inconsistent socket room state (e.g., player in both room:X and spectators:X).
  */
 const roomSyncLocks = new Map<string, Promise<void>>();
+const ROOM_SYNC_LOCKS_MAX_SIZE = 10_000;
 
 /**
  * Bug #14 Fix: Helper to sync spectator room membership based on CURRENT player state.
@@ -78,6 +79,12 @@ async function syncSpectatorRoomMembership(
     roomCode: string,
     sessionId: string
 ): Promise<void> {
+    // Safety valve: clear the map if it grows too large (prevents unbounded memory growth
+    // from accumulated entries where .finally() cleanup was skipped due to reference mismatch)
+    if (roomSyncLocks.size > ROOM_SYNC_LOCKS_MAX_SIZE) {
+        roomSyncLocks.clear();
+    }
+
     // Serialize room membership updates per player to prevent race conditions
     const lockKey = `${sessionId}:${roomCode}`;
     const existingLock = roomSyncLocks.get(lockKey) || Promise.resolve();
@@ -139,11 +146,8 @@ function playerHandlers(io: Server, socket: GameSocket): void {
 
             const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
                 ctx.player.team && ctx.player.team !== validated.team);
-            const player: Player | null = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
-
-            if (!player) {
-                throw PlayerError.notFound(ctx.sessionId);
-            }
+            // setTeam always returns a Player or throws — no null return path
+            const player: Player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
             // Bug #14 Fix: Sync spectator room membership based on current state
             // (prevents race with concurrent setRole operations)
@@ -208,7 +212,10 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             if (player.role === 'spymaster') {
                 const freshGame: GameState | null = await gameService.getGame(ctx.roomCode);
                 if (freshGame && !freshGame.gameOver) {
-                    socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: freshGame.types });
+                    // In Duet mode, Blue spymasters see duetTypes (their perspective)
+                    const isDuetBlue = freshGame.gameMode === 'duet' && player.team === 'blue' && freshGame.duetTypes;
+                    const typesToSend = isDuetBlue ? freshGame.duetTypes : freshGame.types;
+                    socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: typesToSend });
                 }
             }
 

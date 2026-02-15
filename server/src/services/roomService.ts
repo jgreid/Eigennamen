@@ -458,8 +458,6 @@ export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
     if (now - last < TTL_REFRESH_DEBOUNCE_MS) {
         return;
     }
-    lastTTLRefresh.set(code, now);
-
     // Prevent unbounded growth: evict stale entries when map gets too large
     if (lastTTLRefresh.size > TTL_REFRESH_MAX_ENTRIES) {
         for (const [key, ts] of lastTTLRefresh) {
@@ -471,8 +469,12 @@ export async function debouncedRefreshRoomTTL(code: string): Promise<void> {
 
     try {
         await refreshRoomTTL(code);
+        // Only record timestamp after successful refresh so that a transient
+        // Redis failure doesn't suppress retries for the debounce window
+        lastTTLRefresh.set(code, now);
     } catch (err) {
-        // Non-critical — log but don't break the game mutation
+        // Non-critical — log but don't break the game mutation.
+        // Timestamp NOT set, so the next call will retry immediately.
         logger.warn(`Debounced TTL refresh failed for room ${code}: ${(err as Error).message}`);
         incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'ttl_refresh_failure' });
     }

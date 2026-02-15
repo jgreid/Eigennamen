@@ -111,7 +111,11 @@ async function sendSpymasterViewIfNeeded(
     _roomCode: string
 ): Promise<void> {
     if (player.role === 'spymaster' && game && !game.gameOver && game.types) {
-        socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: game.types });
+        // In Duet mode, Blue spymasters see duetTypes (their perspective),
+        // not types (Red's perspective). Red spymasters always see types.
+        const isDuetBlue = game.gameMode === 'duet' && player.team === 'blue' && game.duetTypes;
+        const typesToSend = isDuetBlue ? game.duetTypes : game.types;
+        socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: typesToSend });
     }
 }
 
