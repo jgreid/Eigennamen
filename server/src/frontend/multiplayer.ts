@@ -15,7 +15,7 @@ import {
 } from './multiplayerUI.js';
 import {
     syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState,
-    getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL
+    getRoomCodeFromURL, updateURLWithRoomCode
 } from './multiplayerSync.js';
 import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
@@ -233,8 +233,15 @@ async function handleJoinGame(): Promise<void> {
 
         logger.error(`Join failed for room "${roomId}":`, error);
         if (err.code === 'ROOM_NOT_FOUND') {
-            setMpStatus(t('multiplayer.roomNotFoundDetail', { roomId: roomId || '' }), 'error');
-            clearRoomCodeFromURL();
+            // Switch to create mode so user can create the room with one click
+            setMpMode('create');
+            const createRoomInput = document.getElementById('create-room-id') as HTMLInputElement | null;
+            if (createRoomInput) createRoomInput.value = roomId || '';
+            // Copy nickname to create form so user doesn't re-enter it
+            const createNicknameInput = document.getElementById('create-nickname') as HTMLInputElement | null;
+            if (createNicknameInput) createNicknameInput.value = nickname;
+            setMpStatus(t('multiplayer.roomNotFoundCreate', { roomId: roomId || '' }), 'error');
+            // Don't clear room code from URL — user may create the room with the same code
         } else if (err.code === 'ROOM_FULL') {
             setMpStatus(t('errors.roomFull'), 'error');
         } else if (err.code === 'INVALID_INPUT') {

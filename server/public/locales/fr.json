@@ -115,6 +115,7 @@
     "joiningGame": "Connexion à la partie...",
     "creatingGame": "Création de la partie...",
     "roomNotFoundDetail": "Salon \"{{roomId}}\" introuvable – vérifiez l'ID du salon ou créez d'abord un nouveau salon",
+    "roomNotFoundCreate": "Salon \"{{roomId}}\" introuvable — cliquez sur Créer la partie pour le démarrer",
     "invalidInputDetail": "Entrée invalide – vérifiez l'ID du salon et le pseudonyme",
     "connectionFailedDetail": "Impossible de se connecter au serveur – vérifiez votre connexion et réessayez",
     "joinFailed": "Échec de la connexion à la partie – veuillez réessayer",

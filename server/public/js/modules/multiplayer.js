@@ -9,7 +9,7 @@ import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
 import { updateMpIndicator, updateRoomSettingsNavVisibility, updateRoomInfoDisplay, updateForfeitButton, copyRoomId } from './multiplayerUI.js';
-import { syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL } from './multiplayerSync.js';
+import { syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState, getRoomCodeFromURL, updateURLWithRoomCode } from './multiplayerSync.js';
 import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
@@ -193,8 +193,17 @@ async function handleJoinGame() {
             return;
         logger.error(`Join failed for room "${roomId}":`, error);
         if (err.code === 'ROOM_NOT_FOUND') {
-            setMpStatus(t('multiplayer.roomNotFoundDetail', { roomId: roomId || '' }), 'error');
-            clearRoomCodeFromURL();
+            // Switch to create mode so user can create the room with one click
+            setMpMode('create');
+            const createRoomInput = document.getElementById('create-room-id');
+            if (createRoomInput)
+                createRoomInput.value = roomId || '';
+            // Copy nickname to create form so user doesn't re-enter it
+            const createNicknameInput = document.getElementById('create-nickname');
+            if (createNicknameInput)
+                createNicknameInput.value = nickname;
+            setMpStatus(t('multiplayer.roomNotFoundCreate', { roomId: roomId || '' }), 'error');
+            // Don't clear room code from URL — user may create the room with the same code
         }
         else if (err.code === 'ROOM_FULL') {
             setMpStatus(t('errors.roomFull'), 'error');
