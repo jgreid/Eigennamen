@@ -13,6 +13,7 @@ import { REDIS_TTL, PLAYER_CLEANUP } from '../config/constants';
 import { ServerError, ValidationError } from '../errors/GameError';
 import { tryParseJSON, parseJSON } from '../utils/parseJSON';
 import { ATOMIC_REMOVE_PLAYER_SCRIPT, ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT, ATOMIC_SET_SOCKET_MAPPING_SCRIPT } from '../scripts';
+import { sanitizeHtml } from '../utils/sanitize';
 import { z } from 'zod';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './player/reconnection';
 
@@ -410,7 +411,7 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
 
         if (parsed.success === false) {
             if (parsed.reason === 'ROLE_TAKEN') {
-                throw new ValidationError(`${player.team} team already has a ${role} (${parsed.existingNickname})`);
+                throw new ValidationError(`${player.team} team already has a ${role} (${sanitizeHtml(parsed.existingNickname ?? '')})`);
             }
             if (parsed.reason === 'NO_TEAM') {
                 throw new ValidationError('Must join a team before becoming ' + role);

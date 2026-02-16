@@ -404,7 +404,8 @@ export async function resumeTimer(
             return null;
         }
         return await startTimer(roomCode, remainingSeconds, onExpire);
-    } catch {
+    } catch (err) {
+        logger.error(`resumeTimer failed for room ${roomCode}:`, err instanceof Error ? err.message : String(err));
         return null;
     }
 }
