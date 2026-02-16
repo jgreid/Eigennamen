@@ -18,8 +18,10 @@ import { safeSetStorage, safeGetStorage, safeRemoveStorage } from './socket-clie
 import { registerAllEventListeners } from './socket-client-events.js';
 import type {
     SocketClientInstance, Player, ConnectOptions, CreateRoomOptions,
-    SocketListenerEntry, OfflineQueueItem, ErrorData, ListenerMap, CodenamesGlobal
+    SocketListenerEntry, OfflineQueueItem, ErrorData, ListenerMap, CodenamesGlobal,
+    ClientEventMap, ClientEventName
 } from './socket-client-types.js';
+import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
 
 (function (global: (Window & CodenamesGlobal) | (typeof globalThis & CodenamesGlobal)) {
     'use strict';
@@ -141,7 +143,8 @@ import type {
                     resolve(socket);
                 });
 
-                socket.on('disconnect', (reason: string) => {
+                socket.on('disconnect', (...args: unknown[]) => {
+                    const reason = (args[0] as string) || 'unknown';
                     this.connected = false;
                     // Clear operation flags so they don't block new operations after reconnect
                     this.createInProgress = false;
@@ -150,7 +153,8 @@ import type {
                     this._emit('disconnected', { reason, wasConnected: true });
                 });
 
-                socket.on('connect_error', (error: Error) => {
+                socket.on('connect_error', (...args: unknown[]) => {
+                    const error = args[0] as Error;
                     logger.error('Connection error:', error);
                     this.reconnectAttempts++;
 
@@ -192,14 +196,14 @@ import type {
                 logger.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
                 this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
-                this._emit('rejoinFailed', { roomCode: storedRoomCode, error });
+                this._emit('rejoinFailed', { error: error as ServerErrorData | undefined });
             }
         },
 
         /**
          * Register a socket listener with tracking for cleanup
          */
-        _registerSocketListener(event: string, handler: (...args: any[]) => void): void {
+        _registerSocketListener(event: string, handler: (...args: unknown[]) => void): void {
             this.socket!.on(event, handler);
             this._socketListeners.push({ event, handler });
         },
@@ -214,7 +218,7 @@ import type {
 
             // The kicked handler also needs to clear storage, so wrap emit for that case
             const self = this;
-            const wrappedEmit = (event: string, data: any): void => {
+            const wrappedEmit = <K extends ClientEventName>(event: K, data: ClientEventMap[K]): void => {
                 if (event === 'kicked') {
                     safeRemoveStorage(sessionStorage, 'codenames-room-code');
                 }
@@ -337,9 +341,9 @@ import type {
         /**
          * Emit event to listeners
          */
-        _emit(event: string, data: any): void {
-            const callbacks = this.listeners[event] || [];
-            callbacks.forEach((cb: (data: any) => void) => {
+        _emit<K extends ClientEventName>(event: K, data: ClientEventMap[K]): void {
+            const callbacks = (this.listeners[event] || []) as Array<(data: ClientEventMap[K]) => void>;
+            callbacks.forEach((cb) => {
                 try {
                     cb(data);
                 } catch (err) {
@@ -353,11 +357,11 @@ import type {
          * @param event - Event name
          * @param callback - Callback function
          */
-        on(event: string, callback: (data: any) => void): any {
+        on<K extends ClientEventName>(event: K, callback: (data: ClientEventMap[K]) => void): unknown {
             if (!this.listeners[event]) {
-                this.listeners[event] = [];
+                (this.listeners as Record<string, unknown[]>)[event] = [];
             }
-            this.listeners[event].push(callback);
+            ((this.listeners as Record<string, unknown[]>)[event]).push(callback);
             return this;
         },
 
@@ -366,11 +370,14 @@ import type {
          * @param event - Event name
          * @param callback - Callback function (optional, removes all if not provided)
          */
-        off(event: string, callback?: (data: any) => void): any {
+        off<K extends ClientEventName>(event: K, callback?: (data: ClientEventMap[K]) => void): unknown {
             if (!callback) {
                 delete this.listeners[event];
-            } else if (this.listeners[event]) {
-                this.listeners[event] = this.listeners[event].filter((cb: (data: any) => void) => cb !== callback);
+            } else {
+                const listeners = (this.listeners as Record<string, unknown[]>)[event];
+                if (listeners) {
+                    (this.listeners as Record<string, unknown[]>)[event] = listeners.filter((cb) => cb !== callback);
+                }
             }
             return this;
         },
@@ -380,8 +387,8 @@ import type {
          * @param event - Event name
          * @param callback - Callback function
          */
-        once(event: string, callback: (data: any) => void): any {
-            const wrapper = (data: any): void => {
+        once<K extends ClientEventName>(event: K, callback: (data: ClientEventMap[K]) => void): unknown {
+            const wrapper = (data: ClientEventMap[K]): void => {
                 this.off(event, wrapper);
                 callback(data);
             };
@@ -397,7 +404,7 @@ import type {
          * Proper listener cleanup and timeout cancellation
          * @param options - Room options including roomId and settings
          */
-        createRoom(options: CreateRoomOptions = { roomId: '' }): Promise<any> {
+        createRoom(options: CreateRoomOptions = { roomId: '' }): Promise<JoinCreateResult> {
             // Prevent double-create race condition
             if (this.createInProgress) {
                 return Promise.reject(new Error('Room creation already in progress'));
@@ -427,7 +434,7 @@ import type {
                     this.off('error', onError);
                 };
 
-                const onCreated = (data: any): void => {
+                const onCreated = (data: JoinCreateResult): void => {
                     if (settled) return;
                     settled = true;
                     cleanup();
@@ -478,7 +485,7 @@ import type {
          * @param roomId - Room ID to join
          * @param nickname - Player nickname
          */
-        joinRoom(roomId: string, nickname: string): Promise<any> {
+        joinRoom(roomId: string, nickname: string): Promise<JoinCreateResult> {
             // Prevent double-join race condition
             if (this.joinInProgress) {
                 return Promise.reject(new Error('Join already in progress'));
@@ -500,7 +507,7 @@ import type {
                     this.off('error', onError);
                 };
 
-                const onJoined = (data: any): void => {
+                const onJoined = (data: JoinCreateResult): void => {
                     if (settled) return;
                     settled = true;
                     cleanup();
@@ -578,7 +585,7 @@ import type {
          * Proper listener cleanup and timeout cancellation
          * Use this if you detect you're out of sync
          */
-        requestResync(): Promise<any> {
+        requestResync(): Promise<ClientEventMap['roomResynced']> {
             return new Promise((resolve, reject) => {
                 if (!this.roomCode) {
                     reject(new Error('Not in a room'));
@@ -598,7 +605,7 @@ import type {
                     this.off('error', onError);
                 };
 
-                const onResynced = (data: any): void => {
+                const onResynced = (data: ClientEventMap['roomResynced']): void => {
                     if (settled) return;
                     settled = true;
                     cleanup();
@@ -646,7 +653,7 @@ import type {
          * @param team - 'red', 'blue', or null to leave team
          * @param callback - Optional acknowledgement callback
          */
-        setTeam(team: string | null, callback?: (result: any) => void): void {
+        setTeam(team: string | null, callback?: (result: unknown) => void): void {
             this.socket!.emit('player:setTeam', { team }, callback);
         },
 
@@ -655,7 +662,7 @@ import type {
          * @param role - 'spymaster', 'guesser', or 'spectator'
          * @param callback - Optional acknowledgement callback
          */
-        setRole(role: string, callback?: (result: any) => void): void {
+        setRole(role: string, callback?: (result: unknown) => void): void {
             this.socket!.emit('player:setRole', { role }, callback);
         },
 
