@@ -181,7 +181,7 @@ export function validateEnv(): boolean {
  * @returns The environment variable value or default
  */
 export function getEnv(name: string, defaultValue?: string): string | undefined {
-    return process.env[name] || defaultValue;
+    return process.env[name] ?? defaultValue;
 }
 
 /**
