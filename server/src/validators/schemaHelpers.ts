@@ -9,21 +9,16 @@ import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
 import { VALIDATION, RESERVED_NAMES, GAME_MODE_CONFIG } from '../config/constants';
+import { NICKNAME_REGEX, ROOM_CODE_REGEX, TEAM_NAME_REGEX } from '../shared';
 import { removeControlChars, isReservedName, toEnglishLowerCase } from '../utils/sanitize';
 
 // Re-export z for external use
 export { z };
 
-// Team name validation regex - Unicode letters/numbers, spaces, hyphens
-// Uses Unicode property escapes (\p{L} for letters, \p{N} for numbers) to support international characters
-// XSS defense maintained via removeControlChars and HTML escaping on output
-const teamNameRegex = /^[\p{L}\p{N}\s\-]+$/u;
-
-// Room ID validation regex - Unicode letters/numbers, hyphens, underscores (no spaces for easier sharing)
-const roomIdRegex = /^[\p{L}\p{N}\-_]+$/u;
-
-// Nickname validation regex - Unicode letters/numbers, spaces, hyphens, underscores
-const nicknameRegex = /^[\p{L}\p{N}\s\-_]+$/u;
+// Regex patterns sourced from shared module (single source of truth for frontend + backend)
+const teamNameRegex = TEAM_NAME_REGEX;
+const roomIdRegex = ROOM_CODE_REGEX;
+const nicknameRegex = NICKNAME_REGEX;
 
 /**
  * Create a sanitized string schema with control character removal and regex validation.

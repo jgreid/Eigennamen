@@ -4,11 +4,18 @@
  * Room settings, Redis TTLs, turn timer,
  * and player cleanup configuration.
  *
+ * Timer bounds are sourced from the shared module (single source of
+ * truth for frontend + backend).
+ *
  * Memory mode adjustments:
  * When running with REDIS_URL=memory (single-instance, no persistence),
  * TTLs are shortened to prevent unbounded memory growth on constrained VMs.
  * A Codenames game typically lasts 30-60 minutes, so 4 hours is generous.
  */
+
+import {
+    TIMER_MIN_TURN_SECONDS, TIMER_MAX_TURN_SECONDS, TIMER_DEFAULT_TURN_SECONDS
+} from '../shared';
 
 // Room configuration
 export const ROOM_CODE_LENGTH = 6;
@@ -31,11 +38,11 @@ export const REDIS_TTL = {
     SESSION_VALIDATION_WINDOW: 60  // 1 minute window for session validation rate limiting
 } as const;
 
-// Turn timer configuration
+// Turn timer configuration — bounds sourced from shared module
 export const TIMER = {
-    DEFAULT_TURN_SECONDS: 120,  // 2 minutes default
-    MIN_TURN_SECONDS: 30,
-    MAX_TURN_SECONDS: 600,
+    DEFAULT_TURN_SECONDS: TIMER_DEFAULT_TURN_SECONDS,
+    MIN_TURN_SECONDS: TIMER_MIN_TURN_SECONDS,
+    MAX_TURN_SECONDS: TIMER_MAX_TURN_SECONDS,
     WARNING_SECONDS: 30,        // Warn when this many seconds remain
     TIMER_TTL_BUFFER_SECONDS: 60     // Extra TTL buffer for timer keys
 } as const;

@@ -59,7 +59,8 @@ module.exports = {
                 '^@routes/(.*)$': '<rootDir>/src/routes/$1',
                 '^@socket/(.*)$': '<rootDir>/src/socket/$1',
                 '^@validators/(.*)$': '<rootDir>/src/validators/$1',
-                '^@types/(.*)$': '<rootDir>/src/types/$1'
+                '^@types/(.*)$': '<rootDir>/src/types/$1',
+                '^@shared/(.*)$': '<rootDir>/src/shared/$1'
             },
             collectCoverageFrom: [
                 'src/**/*.ts',

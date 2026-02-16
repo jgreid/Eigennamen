@@ -3,18 +3,17 @@
  *
  * Board layout, game modes, teams/roles, card types, game internals,
  * game history, and the default word list.
+ *
+ * Board layout, game modes, teams, and roles are re-exported from
+ * the shared module (single source of truth for frontend + backend).
  */
 
-// Board configuration
-export const BOARD_SIZE = 25;
-export const FIRST_TEAM_CARDS = 9;
-export const SECOND_TEAM_CARDS = 8;
-export const NEUTRAL_CARDS = 7;
-export const ASSASSIN_CARDS = 1;
-
-// Game modes
-export const GAME_MODES = ['classic', 'blitz', 'duet'] as const;
-export type GameMode = typeof GAME_MODES[number];
+// Re-export shared constants so existing `import { BOARD_SIZE } from '@config'` still works
+export {
+    BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS,
+    GAME_MODES, TEAMS, ROLES
+} from '../shared';
+export type { GameMode } from '../shared';
 
 // Game mode configurations
 export const GAME_MODE_CONFIG = {
@@ -60,9 +59,7 @@ export const DUET_BOARD_CONFIG = {
     greenTotal: 15         // Unique greens to find for win
 } as const;
 
-// Game teams and roles
-export const TEAMS = ['red', 'blue'] as const;
-export const ROLES = ['spymaster', 'clicker', 'spectator'] as const;
+// Card types (game-specific, not shared)
 export const CARD_TYPES = ['red', 'blue', 'neutral', 'assassin'] as const;
 
 // Room statuses

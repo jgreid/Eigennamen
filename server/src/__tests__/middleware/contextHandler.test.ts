@@ -14,6 +14,10 @@ jest.mock('../../socket/rateLimitHandler', () => ({
 jest.mock('../../middleware/validation', () => ({
     validateInput: jest.fn((schema, data) => data)
 }));
+jest.mock('../../utils/timeout', () => ({
+    withTimeout: jest.fn((promise) => promise),
+    TIMEOUTS: { SOCKET_HANDLER: 30000 }
+}));
 jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),

@@ -1,6 +1,21 @@
 // ========== SHARED FRONTEND CONSTANTS ==========
-// Centralize hardcoded limits for consistency with server validation
-// These values should match the server-side constants in server/src/config/constants.ts
+// Values shared with the server are imported from the shared module
+// (single source of truth — no manual synchronization needed).
+
+import {
+    NICKNAME_MIN_LENGTH, NICKNAME_MAX_LENGTH,
+    ROOM_CODE_MIN_LENGTH, ROOM_CODE_MAX_LENGTH,
+    CHAT_MESSAGE_MAX_LENGTH,
+    NICKNAME_REGEX as SHARED_NICKNAME_REGEX,
+    ROOM_CODE_REGEX,
+    RESERVED_NAMES as SHARED_RESERVED_NAMES,
+    BOARD_SIZE as SHARED_BOARD_SIZE,
+    FIRST_TEAM_CARDS as SHARED_FIRST_TEAM_CARDS,
+    SECOND_TEAM_CARDS as SHARED_SECOND_TEAM_CARDS,
+    NEUTRAL_CARDS as SHARED_NEUTRAL_CARDS,
+    ASSASSIN_CARDS as SHARED_ASSASSIN_CARDS,
+    TIMER_MIN_TURN_SECONDS, TIMER_MAX_TURN_SECONDS, TIMER_DEFAULT_TURN_SECONDS
+} from '../shared/index.js';
 
 /**
  * Validation result returned by all validate* functions
@@ -11,33 +26,25 @@ export interface ValidationResult {
 }
 
 /**
- * Validation limits for user input
- * Must match server VALIDATION constants
+ * Validation limits for user input — sourced from shared module
  */
 export const VALIDATION = {
-    // Nickname constraints
-    NICKNAME_MIN_LENGTH: 1,
-    NICKNAME_MAX_LENGTH: 30,
-
-    // Room ID constraints
-    ROOM_CODE_MIN_LENGTH: 3,
-    ROOM_CODE_MAX_LENGTH: 20,
-    ROOM_CODE_PATTERN: /^[\p{L}\p{N}\-_]+$/u,
-
-    // Chat message constraints
-    CHAT_MESSAGE_MAX_LENGTH: 500
+    NICKNAME_MIN_LENGTH,
+    NICKNAME_MAX_LENGTH,
+    ROOM_CODE_MIN_LENGTH,
+    ROOM_CODE_MAX_LENGTH,
+    ROOM_CODE_PATTERN: ROOM_CODE_REGEX,
+    CHAT_MESSAGE_MAX_LENGTH
 };
 
 /**
- * Game-related constants
- * Canonical source for board layout values — replaces the scattered
- * BOARD_SIZE / FIRST_TEAM_CARDS / … exports that used to live in state.ts.
+ * Game-related constants — sourced from shared module
  */
-export const BOARD_SIZE = 25;
-export const FIRST_TEAM_CARDS = 9;
-export const SECOND_TEAM_CARDS = 8;
-export const NEUTRAL_CARDS = 7;
-export const ASSASSIN_CARDS = 1;
+export const BOARD_SIZE = SHARED_BOARD_SIZE;
+export const FIRST_TEAM_CARDS = SHARED_FIRST_TEAM_CARDS;
+export const SECOND_TEAM_CARDS = SHARED_SECOND_TEAM_CARDS;
+export const NEUTRAL_CARDS = SHARED_NEUTRAL_CARDS;
+export const ASSASSIN_CARDS = SHARED_ASSASSIN_CARDS;
 
 export const GAME = {
     BOARD_SIZE,
@@ -112,7 +119,7 @@ export const DEFAULT_WORDS: string[] = [
 ];
 
 /**
- * Timer-related constants
+ * Timer-related constants — bounds sourced from shared module
  */
 export const TIMER = {
     // Warning threshold in seconds (shows warning styling)
@@ -122,11 +129,11 @@ export const TIMER = {
     CRITICAL_THRESHOLD_SECONDS: 10,
 
     // Default turn time in seconds
-    DEFAULT_TURN_SECONDS: 120,
+    DEFAULT_TURN_SECONDS: TIMER_DEFAULT_TURN_SECONDS,
 
     // Minimum and maximum turn time
-    MIN_TURN_SECONDS: 30,
-    MAX_TURN_SECONDS: 600
+    MIN_TURN_SECONDS: TIMER_MIN_TURN_SECONDS,
+    MAX_TURN_SECONDS: TIMER_MAX_TURN_SECONDS
 };
 
 /**
@@ -186,22 +193,14 @@ export const CONNECTION = {
 };
 
 /**
- * Reserved nicknames (case-insensitive) - must match server RESERVED_NAMES
+ * Reserved nicknames (case-insensitive) — sourced from shared module
  */
-export const RESERVED_NAMES: string[] = [
-    'admin', 'administrator', 'system', 'host', 'server',
-    'mod', 'moderator', 'bot', 'codenames', 'game',
-    'official', 'support', 'help', 'null', 'undefined'
-];
+export const RESERVED_NAMES: readonly string[] = SHARED_RESERVED_NAMES;
 
 /**
  * Validate a nickname against constraints
- * @param nickname - Nickname to validate
- * @returns Validation result with valid flag and optional error message
  */
-// Nickname regex — matches server-side nicknameRegex in validators/schemas.ts
-// Unicode letters/numbers, spaces, hyphens, underscores
-const NICKNAME_REGEX = /^[\p{L}\p{N}\s\-_]+$/u;
+const NICKNAME_REGEX = SHARED_NICKNAME_REGEX;
 
 export function validateNickname(nickname: string): ValidationResult {
     if (!nickname || typeof nickname !== 'string') {
@@ -231,8 +230,6 @@ export function validateNickname(nickname: string): ValidationResult {
 
 /**
  * Validate a room code against constraints
- * @param roomCode - Room code to validate
- * @returns Validation result with valid flag and optional error message
  */
 export function validateRoomCode(roomCode: string): ValidationResult {
     if (!roomCode || typeof roomCode !== 'string') {
