@@ -5,7 +5,7 @@
  * Validates that mode-specific settings, timers, and constraints work correctly.
  */
 
-const { createMockRedis, createMockRoom, createMockPlayer } = require('../helpers/mocks');
+const { createMockRedis, createMockPlayer } = require('../helpers/mocks');
 
 
 type AnyRecord = Record<string, any>;

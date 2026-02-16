@@ -6,7 +6,7 @@
  */
 
 import type { ZodSchema } from 'zod';
-import type { Player } from '../types';
+import type { Player, GameState } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { PlayerContextOptions, PlayerContextResult } from './playerContext';
 import type { RoomContext, GameContext } from './handlers/types';
@@ -72,8 +72,8 @@ function createContextHandler<T = unknown>(
 function toRoomContext(ctx: PlayerContextResult): RoomContext {
     return {
         sessionId: ctx.sessionId,
-        roomCode: ctx.roomCode!,
-        player: ctx.player!,
+        roomCode: ctx.roomCode as string,
+        player: ctx.player as Player,
         game: ctx.game
     };
 }
@@ -85,9 +85,9 @@ function toRoomContext(ctx: PlayerContextResult): RoomContext {
 function toGameContext(ctx: PlayerContextResult): GameContext {
     return {
         sessionId: ctx.sessionId,
-        roomCode: ctx.roomCode!,
-        player: ctx.player!,
-        game: ctx.game!
+        roomCode: ctx.roomCode as string,
+        player: ctx.player as Player,
+        game: ctx.game as GameState
     };
 }
 
