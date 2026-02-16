@@ -17,6 +17,18 @@ import { sanitizeHtml } from '../utils/sanitize';
 import { z } from 'zod';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './player/reconnection';
 
+// Late-bound room cleanup callback to break circular dependency with roomService.
+// Set via registerRoomCleanup() during server initialization.
+let _roomCleanupFn: ((roomCode: string) => Promise<void>) | null = null;
+
+/**
+ * Register the room cleanup function (called during server init to break
+ * the playerService ↔ roomService circular dependency).
+ */
+export function registerRoomCleanup(fn: (roomCode: string) => Promise<void>): void {
+    _roomCleanupFn = fn;
+}
+
 // Zod schemas for Redis deserialization validation.
 // Validates critical fields when present; non-essential fields are optional
 // so tests with sparse mocks still pass. No .passthrough() — unknown keys are stripped.
@@ -776,14 +788,13 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 // Check if room is now empty and clean it up to prevent orphaned rooms.
                 // Orphaned rooms block new room creation with the same code (SETNX returns 0)
                 // and waste memory until their TTL expires.
-                if (roomCode) {
+                if (roomCode && _roomCleanupFn) {
                     try {
                         const remainingCount = await redis.sCard(`room:${roomCode}:players`);
                         if (remainingCount === 0) {
                             const roomExists = await redis.exists(`room:${roomCode}`);
                             if (roomExists === 1) {
-                                const roomService = require('./roomService');
-                                await roomService.cleanupRoom(roomCode);
+                                await _roomCleanupFn(roomCode);
                                 logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
                             }
                         }

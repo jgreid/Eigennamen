@@ -20,6 +20,8 @@ import type { TimerInfo } from './socketFunctionProvider';
 import logger from '../utils/logger';
 import { authenticateSocket, getClientIP } from '../middleware/socketAuth';
 import * as timerService from '../services/timerService';
+import { registerRoomCleanup } from '../services/playerService';
+import { cleanupRoom } from '../services/roomService';
 import { SOCKET_EVENTS, SOCKET } from '../config/constants';
 import {
     getSocketRateLimiter,
@@ -182,6 +184,9 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
 
     // Register socket functions for edge case of no connections yet
     ensureSocketFunctionsRegistered(socketFns);
+
+    // Wire up room cleanup callback to break playerService ↔ roomService circular dependency
+    registerRoomCleanup(cleanupRoom);
 
     return socketServer;
 }
