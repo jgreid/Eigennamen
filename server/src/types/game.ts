@@ -4,6 +4,8 @@
  * Core types for the Codenames game state, cards, and game logic.
  */
 
+import type { GameMode } from '../config/gameConfig';
+
 /**
  * Card types on the board
  */
@@ -171,7 +173,7 @@ export interface GameState {
   /** When the game was created */
   createdAt: number;
   /** Game mode (classic, blitz, duet) */
-  gameMode?: string;
+  gameMode?: GameMode;
   // Duet mode fields (optional, only present in duet games)
   /** Side B's key card types (blue team's perspective) */
   duetTypes?: CardType[];
@@ -202,7 +204,7 @@ export interface CreateGameOptions {
   /** Custom words to use (takes precedence over wordListId) */
   wordList?: string[];
   /** Game mode (classic, blitz, duet) */
-  gameMode?: string;
+  gameMode?: GameMode;
 }
 
 /**

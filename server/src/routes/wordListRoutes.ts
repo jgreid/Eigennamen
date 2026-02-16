@@ -16,7 +16,7 @@ import { validateBody, validateParams, validateQuery } from '../middleware/valid
 import { z } from 'zod';
 import { BOARD_SIZE } from '../config/constants';
 import logger from '../utils/logger';
-import { getJwtSecret } from '../config/jwt';
+import { getJwtSecret, JWT_CONFIG } from '../config/jwt';
 import { removeControlChars } from '../utils/sanitize';
 
 const router: ExpressRouter = express.Router();
@@ -55,8 +55,12 @@ function extractUser(req: AuthenticatedRequest, _res: Response, next: NextFuncti
 
         try {
             const token = authHeader.substring(7);
-            // Use simple verification with just algorithm check (original behavior)
-            const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtUser;
+            // Verify with full claims (issuer/audience) matching the main JWT config
+            const decoded = jwt.verify(token, secret, {
+                algorithms: [JWT_CONFIG.algorithm],
+                issuer: JWT_CONFIG.issuer,
+                audience: JWT_CONFIG.audience
+            }) as JwtUser;
             // Validate token structure
             if (decoded && typeof decoded.id === 'string') {
                 req.user = decoded;

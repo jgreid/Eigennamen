@@ -32,14 +32,27 @@ function validateOrigin(socket: Socket): OriginValidationResult {
         return { valid: true };
     }
 
-    // If no origin header (e.g., same-origin or non-browser client), allow in dev
+    // If no origin header (e.g., same-origin or non-browser client)
     if (!origin) {
-        if (isProduction) {
-            // In production, missing origin is suspicious - log but allow for backwards compat
-            logger.warn('WebSocket connection without origin header', {
+        if (isProduction && corsOrigin && corsOrigin !== '*') {
+            // In production with explicit CORS origins, reject connections without Origin header.
+            // Missing Origin is the primary WebSocket CSRF vector.
+            logger.warn('WebSocket connection rejected: missing origin header in production', {
                 socketId: socket.id,
                 clientIP: getClientIP(socket)
             });
+
+            audit.suspicious(
+                'WebSocket connection without origin header in production',
+                (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
+                getClientIP(socket),
+                { corsOrigin }
+            );
+
+            return {
+                valid: false,
+                reason: 'Origin header required in production'
+            };
         }
         return { valid: true };
     }

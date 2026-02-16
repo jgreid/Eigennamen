@@ -690,14 +690,15 @@ describe('Socket Authentication Middleware', () => {
             expect(validateOrigin(socket).valid).toBe(true);
         });
 
-        test('warns but allows missing origin in production', () => {
+        test('rejects missing origin in production with explicit CORS', () => {
             process.env.NODE_ENV = 'production';
             process.env.CORS_ORIGIN = 'http://example.com';
-            const socket = { id: 's1', handshake: { headers: {}, address: '127.0.0.1' } };
+            const socket = { id: 's1', handshake: { headers: {}, address: '127.0.0.1', auth: {} } };
             const result = validateOrigin(socket);
-            expect(result.valid).toBe(true);
+            expect(result.valid).toBe(false);
+            expect(result.reason).toBe('Origin header required in production');
             expect(logger.warn).toHaveBeenCalledWith(
-                'WebSocket connection without origin header',
+                'WebSocket connection rejected: missing origin header in production',
                 expect.any(Object)
             );
         });

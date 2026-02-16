@@ -6,6 +6,7 @@
 
 import type { Player } from './player';
 import type { PlayerGameState } from './game';
+import type { GameMode } from '../config/gameConfig';
 
 /**
  * Room status states
@@ -20,10 +21,8 @@ export interface TeamNames {
   blue: string;
 }
 
-/**
- * Game mode type
- */
-export type GameMode = 'classic' | 'blitz' | 'duet';
+// Re-export GameMode from the canonical source (config/gameConfig.ts)
+export type { GameMode };
 
 /**
  * Room settings that can be configured
