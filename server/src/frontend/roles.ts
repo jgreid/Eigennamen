@@ -7,6 +7,7 @@ import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
+import { isClientConnected } from './clientAccessor.js';
 import type { ServerPlayerData } from './multiplayerTypes.js';
 
 // ---- Role-change state machine helpers ----
@@ -198,7 +199,7 @@ export function updateControls(): void {
 
 export function setTeam(team: string | null): void {
     // In multiplayer mode, send to server and let server response update state
-    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && isClientConnected()) {
         // ISSUE FIX: Must be in a room before setting team
         if (!CodenamesClient.isInRoom()) {
             logger.warn('setTeam: Not in a room yet, ignoring');
@@ -301,7 +302,7 @@ function setRoleForTeam(
     clearOther: () => void
 ): void {
     // --- Multiplayer path ---
-    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && isClientConnected()) {
         if (!CodenamesClient.isInRoom()) {
             logger.warn(`set${roleName}: Not in a room yet, ignoring`);
             showToast(t('multiplayer.waitJoiningRoom'), 'info');

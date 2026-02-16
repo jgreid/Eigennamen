@@ -15,7 +15,8 @@ export const SOCKET = {
     MAX_CONNECTIONS_PER_IP: 10,       // Max concurrent socket connections per IP
     MAX_HTTP_BUFFER_SIZE: 100 * 1024, // 100KB max message size
     DISCONNECT_TIMEOUT_MS: 30000,     // Timeout for disconnect handler to prevent hangs
-    CONNECTIONS_CLEANUP_INTERVAL_MS: 5 * 60 * 1000  // Recount connections per IP every 5 minutes
+    CONNECTIONS_CLEANUP_INTERVAL_MS: 5 * 60 * 1000, // Recount connections per IP every 5 minutes
+    SHUTDOWN_DRAIN_MS: 2000           // Grace period before force-disconnecting sockets on shutdown
 } as const;
 
 // Socket event names (centralized to prevent typos and enable IDE autocomplete)

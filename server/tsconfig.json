@@ -60,7 +60,8 @@
       "@routes/*": ["src/routes/*"],
       "@socket/*": ["src/socket/*"],
       "@validators/*": ["src/validators/*"],
-      "@types/*": ["src/types/*"]
+      "@types/*": ["src/types/*"],
+      "@shared/*": ["src/shared/*"]
     }
   },
   "include": [

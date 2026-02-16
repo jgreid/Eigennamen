@@ -3,7 +3,17 @@
  *
  * Session security, validation constraints, reserved names,
  * distributed locks, and retry configuration.
+ *
+ * Validation limits and reserved names are sourced from the shared
+ * module (single source of truth for frontend + backend).
  */
+
+import {
+    NICKNAME_MIN_LENGTH, NICKNAME_MAX_LENGTH,
+    TEAM_NAME_MAX_LENGTH, CHAT_MESSAGE_MAX_LENGTH,
+    RESERVED_NAMES as SHARED_RESERVED_NAMES,
+    BOARD_SIZE
+} from '../shared';
 
 /**
  * Retry configuration
@@ -24,24 +34,20 @@ export const SESSION_SECURITY = {
     ROTATE_SESSION_ON_RECONNECT: true            // Issue new session token after successful reconnection
 } as const;
 
-// Validation constraints
+// Validation constraints — sourced from shared module, extended with backend-only fields
 export const VALIDATION = {
-    NICKNAME_MIN_LENGTH: 1,
-    NICKNAME_MAX_LENGTH: 30,
-    TEAM_NAME_MAX_LENGTH: 32,
-    CHAT_MESSAGE_MAX_LENGTH: 500,
+    NICKNAME_MIN_LENGTH,
+    NICKNAME_MAX_LENGTH,
+    TEAM_NAME_MAX_LENGTH,
+    CHAT_MESSAGE_MAX_LENGTH,
     WORD_MIN_LENGTH: 2,
     WORD_MAX_LENGTH: 30,
-    WORD_LIST_MIN_SIZE: 25,  // BOARD_SIZE
+    WORD_LIST_MIN_SIZE: BOARD_SIZE,
     WORD_LIST_MAX_SIZE: 500
 } as const;
 
-// Reserved nicknames (case-insensitive)
-export const RESERVED_NAMES = [
-    'admin', 'administrator', 'system', 'host', 'server',
-    'mod', 'moderator', 'bot', 'codenames', 'game',
-    'official', 'support', 'help', 'null', 'undefined'
-] as const;
+// Re-export reserved names from shared module
+export const RESERVED_NAMES = SHARED_RESERVED_NAMES;
 
 // Lock timeouts (in seconds)
 export const LOCKS = {

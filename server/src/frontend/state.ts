@@ -114,7 +114,9 @@ const _rawState: AppState = {
     gameMode: 'classic',
 
     spectatorCount: 0,
-    roomStats: null
+    roomStats: null,
+
+    resyncInProgress: false
 };
 
 // ========== EXPORTED STATE ==========

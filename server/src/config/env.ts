@@ -109,15 +109,19 @@ export function validateEnv(): boolean {
 
         // Validate ADMIN_PASSWORD strength if provided
         const adminPassword = process.env['ADMIN_PASSWORD'];
-        if (adminPassword) {
-            if (adminPassword.length < 12) {
-                warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
-            }
-            const hasLower = /[a-z]/.test(adminPassword);
-            const hasUpper = /[A-Z]/.test(adminPassword);
-            const hasDigit = /\d/.test(adminPassword);
-            if (!(hasLower && hasUpper && hasDigit)) {
-                warnings.push('SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters');
+        if (adminPassword !== undefined) {
+            if (!adminPassword.trim()) {
+                errors.push('ADMIN_PASSWORD is set but empty or whitespace-only');
+            } else {
+                if (adminPassword.length < 12) {
+                    warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
+                }
+                const hasLower = /[a-z]/.test(adminPassword);
+                const hasUpper = /[A-Z]/.test(adminPassword);
+                const hasDigit = /\d/.test(adminPassword);
+                if (!(hasLower && hasUpper && hasDigit)) {
+                    warnings.push('SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters');
+                }
             }
         }
 
@@ -131,6 +135,26 @@ export function validateEnv(): boolean {
         }
         if (process.env['CORS_ORIGIN'] === '*') {
             warnings.push('CORS_ORIGIN is set to "*" in production - consider restricting');
+        }
+    }
+
+    // Validate LOG_LEVEL if provided (applies to all environments)
+    const logLevel = process.env['LOG_LEVEL'];
+    if (logLevel) {
+        const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+        if (!validLevels.includes(logLevel)) {
+            warnings.push(`LOG_LEVEL "${logLevel}" is not a standard Winston level (${validLevels.join(', ')})`);
+        }
+    }
+
+    // Validate CORS_ORIGIN format if provided (applies to all environments)
+    const corsOrigin = process.env['CORS_ORIGIN'];
+    if (corsOrigin && corsOrigin !== '*') {
+        const origins = corsOrigin.split(',').map(s => s.trim());
+        for (const origin of origins) {
+            if (origin && !origin.startsWith('http://') && !origin.startsWith('https://')) {
+                warnings.push(`CORS_ORIGIN value "${origin}" does not start with http:// or https://`);
+            }
         }
     }
 

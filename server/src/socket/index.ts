@@ -20,7 +20,7 @@ import type { TimerInfo } from './socketFunctionProvider';
 import logger from '../utils/logger';
 import { authenticateSocket, getClientIP } from '../middleware/socketAuth';
 import * as timerService from '../services/timerService';
-import { SOCKET_EVENTS } from '../config/constants';
+import { SOCKET_EVENTS, SOCKET } from '../config/constants';
 import {
     getSocketRateLimiter,
     createRateLimitedHandler,
@@ -174,6 +174,12 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     startRateLimitCleanup();
     startConnectionsCleanup(socketServer);
 
+    // Periodic sweep of stale local timer entries (piggybacks on the same cadence)
+    const timerSweepInterval = setInterval(() => {
+        timerService.sweepStaleTimers();
+    }, SOCKET.CONNECTIONS_CLEANUP_INTERVAL_MS);
+    timerSweepInterval.unref();
+
     // Register socket functions for edge case of no connections yet
     ensureSocketFunctionsRegistered(socketFns);
 
@@ -183,14 +189,39 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
 // ─── Cleanup ────────────────────────────────────────────────────────
 
 /**
- * Cleanup socket module resources on shutdown
+ * Cleanup socket module resources on shutdown.
+ *
+ * 1. Stop accepting new connections (shuttingDown flag)
+ * 2. Notify all connected clients of the impending shutdown
+ * 3. Wait a brief drain period so clients can save state
+ * 4. Force-disconnect remaining sockets and close the server
  */
-function cleanupSocketModule(): void {
+async function cleanupSocketModule(): Promise<void> {
     shuttingDown = true;
     stopRateLimitCleanup();
     stopConnectionsCleanup();
 
     if (io) {
+        const connectedCount = io.sockets.sockets.size;
+
+        if (connectedCount > 0) {
+            // Notify all connected sockets before disconnecting
+            try {
+                io.emit(SOCKET_EVENTS.ROOM_WARNING, {
+                    type: 'server_shutdown',
+                    message: 'Server is restarting. You will be reconnected automatically.',
+                    timestamp: Date.now()
+                });
+            } catch (emitErr) {
+                logger.warn('Failed to emit shutdown warning:', (emitErr as Error).message);
+            }
+
+            // Brief drain period so clients can process the warning
+            // (capped by the force-exit timeout in index.ts)
+            const drainMs = SOCKET.SHUTDOWN_DRAIN_MS;
+            await new Promise<void>(resolve => setTimeout(resolve, drainMs));
+        }
+
         io.disconnectSockets(true);
         io.close();
         io = null;

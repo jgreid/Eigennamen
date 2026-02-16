@@ -173,19 +173,62 @@ export async function getExistingReconnectionToken(sessionId: string): Promise<s
 }
 
 /**
+ * Lua script to atomically invalidate a reconnection token.
+ * Reads the token from the session mapping, then deletes both the
+ * token→session and session→token keys in a single atomic operation.
+ * Returns 1 if a token was invalidated, 0 if no token existed.
+ */
+const INVALIDATE_TOKEN_SCRIPT = `
+local sessionKey = KEYS[1]
+local existingToken = redis.call('GET', sessionKey)
+if not existingToken then
+    return 0
+end
+redis.call('DEL', 'reconnect:token:' .. existingToken)
+redis.call('DEL', sessionKey)
+return 1
+`;
+
+/**
  * Invalidate any existing reconnection token for a session
- * Called when player successfully reconnects or explicitly leaves
+ * Called when player successfully reconnects or explicitly leaves.
+ * Uses a Lua script for atomicity — prevents orphaned tokens from
+ * concurrent invalidation + reconnection races.
  */
 export async function invalidateRoomReconnectToken(sessionId: string): Promise<void> {
     const redis: RedisClient = getRedis();
 
-    const existingToken = await redis.get(`reconnect:session:${sessionId}`);
-    if (existingToken) {
-        await redis.del(`reconnect:token:${existingToken}`);
-        await redis.del(`reconnect:session:${sessionId}`);
+    const result = await redis.eval(INVALIDATE_TOKEN_SCRIPT, {
+        keys: [`reconnect:session:${sessionId}`],
+        arguments: []
+    });
+
+    if (result === 1) {
         logger.debug(`Invalidated reconnection token for session ${sessionId}`);
     }
 }
+
+/**
+ * Lua script to atomically check if a player exists and, if not,
+ * clean up the orphaned reconnection token pair.
+ * KEYS[1] = reconnect:session:<sessionId>
+ * KEYS[2] = player:<sessionId>
+ * Returns 1 if cleaned, 0 if player still exists.
+ */
+const CLEANUP_ORPHANED_TOKEN_SCRIPT = `
+local sessionKey = KEYS[1]
+local playerKey = KEYS[2]
+local playerData = redis.call('GET', playerKey)
+if playerData then
+    return 0
+end
+local tokenId = redis.call('GET', sessionKey)
+if tokenId then
+    redis.call('DEL', 'reconnect:token:' .. tokenId)
+end
+redis.call('DEL', sessionKey)
+return 1
+`;
 
 /**
  * Clean up orphaned reconnection tokens.
@@ -193,7 +236,8 @@ export async function invalidateRoomReconnectToken(sessionId: string): Promise<v
  * exists in Redis (player was cleaned up), the token is orphaned and
  * should be deleted to prevent unbounded key growth.
  *
- * Uses SCAN to avoid blocking Redis on large datasets.
+ * Uses SCAN to iterate and a Lua script for atomic per-token cleanup
+ * (prevents race conditions with concurrent reconnection attempts).
  */
 export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
     const redis: RedisClient = getRedis();
@@ -205,16 +249,15 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
         if (redis.scanIterator) {
             for await (const key of redis.scanIterator({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
                 const sessionId = key.replace('reconnect:session:', '');
-                // Check if the player session still exists
                 const playerKey = `player:${sessionId}`;
-                const exists = await redis.get(playerKey);
-                if (!exists) {
-                    // Orphaned - clean up both token and session mapping
-                    const tokenId = await redis.get(key);
-                    if (tokenId) {
-                        await redis.del(`reconnect:token:${tokenId}`);
-                    }
-                    await redis.del(key);
+
+                // Atomic check-and-delete: only cleans up if player doesn't exist
+                const result = await redis.eval(CLEANUP_ORPHANED_TOKEN_SCRIPT, {
+                    keys: [key, playerKey],
+                    arguments: []
+                });
+
+                if (result === 1) {
                     cleaned++;
                 }
                 // Limit batch size to avoid long-running operations

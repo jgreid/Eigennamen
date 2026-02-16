@@ -7,6 +7,7 @@ import { openModal, closeModal, showToast } from './ui.js';
 import { t } from './i18n.js';
 import type { GameHistoryEntry, ReplayData, ReplayEvent } from './multiplayerTypes.js';
 import { logger } from './logger.js';
+import { getClient } from './clientAccessor.js';
 
 // Replay speed options (in milliseconds between moves)
 const REPLAY_SPEEDS: Record<string, number> = {
@@ -472,7 +473,7 @@ export async function copyReplayLink(): Promise<void> {
         return;
     }
 
-    const roomCode = CodenamesClient?.getRoomCode() || state.currentRoomId;
+    const roomCode = getClient()?.getRoomCode() || state.currentRoomId;
     const gameId = state.currentReplayData.id;
 
     // Create shareable URL with replay parameters

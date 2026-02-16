@@ -85,8 +85,8 @@ async function startServer(): Promise<void> {
             timerService.cleanupAllTimers();
             logger.info('All timers cleaned up');
 
-            // Clean up socket module (intervals, io server)
-            cleanupSocketModule();
+            // Clean up socket module (notify clients, drain, disconnect)
+            await cleanupSocketModule();
 
             // Stop accepting new connections
             server.close(async () => {

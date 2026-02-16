@@ -3,7 +3,7 @@
 
 import type { ChatMessageData } from './multiplayerTypes.js';
 import { t } from './i18n.js';
-// CodenamesClient is a global declared in globals.d.ts (loaded via <script>)
+import { isClientConnected } from './clientAccessor.js';
 
 let unreadCount = 0;
 let chatOpen = false;
@@ -61,7 +61,7 @@ function sendChatMessage(): void {
 
     const text = input.value.trim();
     if (!text) return;
-    if (!CodenamesClient?.isConnected()) return;
+    if (!isClientConnected()) return;
 
     const teamOnly = (document.getElementById('chat-team-only') as HTMLInputElement | null)?.checked ?? false;
 

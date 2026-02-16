@@ -16,6 +16,7 @@ import {
     setPlayerRole, clearPlayerRole, resetGameState,
     validateTurn, validateWinner, validateGameMode, validateArrayLength
 } from './stateMutations.js';
+import { getClient, isClientConnected } from './clientAccessor.js';
 import type { ServerPlayerData, ServerGameData, ReconnectionData, DOMListenerEntry } from './multiplayerTypes.js';
 
 // List of multiplayer event names for cleanup
@@ -50,11 +51,12 @@ export function cleanupDOMListeners(): void {
 
 export function cleanupMultiplayerListeners(): void {
     // Remove all multiplayer event listeners from CodenamesClient
-    multiplayerEventNames.forEach(eventName => {
-        if (CodenamesClient && typeof CodenamesClient.off === 'function') {
-            CodenamesClient.off(eventName);
-        }
-    });
+    const client = getClient();
+    if (client) {
+        multiplayerEventNames.forEach(eventName => {
+            client.off(eventName);
+        });
+    }
 
     // Clean up any tracked DOM listeners
     cleanupDOMListeners();
@@ -78,6 +80,7 @@ export function syncLocalPlayerState(player: ServerPlayerData): void {
 export function resetMultiplayerState(): void {
     clearPlayerRole();
     state.isHost = false;
+    state.resyncInProgress = false;
     clearRoleChange();
     // Clear pending reveal timeouts to prevent memory leaks
     state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
@@ -103,8 +106,8 @@ export function leaveMultiplayerMode(): void {
     updateForfeitButton();
 
     // Leave room and disconnect
-    if (CodenamesClient && CodenamesClient.isConnected()) {
-        CodenamesClient.leaveRoom();
+    if (isClientConnected()) {
+        getClient()!.leaveRoom();
     }
 
     // Reset all multiplayer state (team, role, clicker flags, etc.)

@@ -343,7 +343,7 @@ async function handleDisconnect(
                             const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
                             await withTimeout(
                                 redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] }),
-                                TIMEOUTS.TIMER_OPERATION,
+                                TIMEOUTS.REDIS_OPERATION,
                                 `release-host-transfer-lock-${roomCode}`
                             );
                         } catch (delErr) {
