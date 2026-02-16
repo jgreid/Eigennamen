@@ -79,10 +79,28 @@ async function syncSpectatorRoomMembership(
     roomCode: string,
     sessionId: string
 ): Promise<void> {
-    // Safety valve: clear the map if it grows too large (prevents unbounded memory growth
-    // from accumulated entries where .finally() cleanup was skipped due to reference mismatch)
+    // Safety valve: evict resolved entries if the map grows too large.
+    // This replaces a previous nuclear clear() that could abandon in-flight operations.
+    // Entries should be cleaned up by .finally() below, but reference mismatches
+    // can leave orphans. We do a targeted sweep of settled promises instead.
     if (roomSyncLocks.size > ROOM_SYNC_LOCKS_MAX_SIZE) {
-        roomSyncLocks.clear();
+        const entries = Array.from(roomSyncLocks.entries());
+        // Race each promise against an already-resolved value to detect settled ones
+        const checks = entries.map(([key, promise]) =>
+            Promise.race([
+                promise.then(() => key, () => key),
+                Promise.resolve(null)
+            ])
+        );
+        const results = await Promise.all(checks);
+        let evicted = 0;
+        for (const key of results) {
+            if (key !== null) {
+                roomSyncLocks.delete(key);
+                evicted++;
+            }
+        }
+        logger.warn(`roomSyncLocks safety valve: evicted ${evicted} settled entries, ${roomSyncLocks.size} remaining`);
     }
 
     // Serialize room membership updates per player to prevent race conditions

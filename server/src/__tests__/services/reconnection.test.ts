@@ -60,18 +60,18 @@ describe('Reconnection Service', () => {
                 for (const key of keys) yield key;
             })());
 
-            mockRedis.get.mockImplementation(async (key: string) => {
-                if (key === 'player:orphan-1') return null;
-                if (key === 'player:active-1') return '{"sessionId":"active-1"}';
-                if (key === 'reconnect:session:orphan-1') return 'token-abc';
-                return null;
+            // Lua script returns 1 if orphaned (cleaned), 0 if player exists
+            mockRedis.eval.mockImplementation(async (_script: string, opts: any) => {
+                const sessionKey = opts.keys[0];
+                if (sessionKey === 'reconnect:session:orphan-1') return 1;
+                return 0; // active-1 player still exists
             });
 
             const cleaned = await cleanupOrphanedReconnectionTokens();
 
             expect(cleaned).toBe(1);
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:token:token-abc');
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:session:orphan-1');
+            // Lua script handles deletion atomically — verify eval was called for both keys
+            expect(mockRedis.eval).toHaveBeenCalledTimes(2);
             expect(logger.info).toHaveBeenCalledWith(
                 expect.stringContaining('Cleaned up 1 orphaned')
             );
@@ -82,16 +82,13 @@ describe('Reconnection Service', () => {
                 yield 'reconnect:session:orphan-1';
             })());
 
-            mockRedis.get.mockImplementation(async (key: string) => {
-                if (key === 'player:orphan-1') return null;
-                if (key === 'reconnect:session:orphan-1') return null;
-                return null;
-            });
+            // Lua script handles missing token mapping internally — still returns 1 (cleaned)
+            mockRedis.eval.mockResolvedValue(1);
 
             const cleaned = await cleanupOrphanedReconnectionTokens();
 
             expect(cleaned).toBe(1);
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:session:orphan-1');
+            expect(mockRedis.eval).toHaveBeenCalledTimes(1);
         });
 
         it('should respect BATCH_SIZE limit', async () => {
@@ -104,11 +101,8 @@ describe('Reconnection Service', () => {
                 for (const key of keys) yield key;
             })());
 
-            mockRedis.get.mockImplementation(async (key: string) => {
-                if (key.startsWith('player:')) return null;
-                if (key.startsWith('reconnect:session:')) return `token-${key.split(':')[2]}`;
-                return null;
-            });
+            // All orphaned — Lua script returns 1 for each
+            mockRedis.eval.mockResolvedValue(1);
 
             const cleaned = await cleanupOrphanedReconnectionTokens();
 
@@ -120,10 +114,8 @@ describe('Reconnection Service', () => {
                 yield 'reconnect:session:active-1';
             })());
 
-            mockRedis.get.mockImplementation(async (key: string) => {
-                if (key === 'player:active-1') return '{"sessionId":"active-1"}';
-                return null;
-            });
+            // Player still exists — Lua script returns 0 (not cleaned)
+            mockRedis.eval.mockResolvedValue(0);
 
             const cleaned = await cleanupOrphanedReconnectionTokens();
 

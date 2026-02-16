@@ -45,6 +45,9 @@ export function registerPlayerHandlers(): void {
 
     // Handle player state updates (role, team, nickname changes)
     CodenamesClient.on('playerUpdated', (data: PlayerUpdatedData) => {
+        // Skip individual updates during a full state resync — the resync
+        // data already contains the latest state for all players.
+        if (state.resyncInProgress) return;
         if (data.sessionId && data.changes) {
             // Update player in local list
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>

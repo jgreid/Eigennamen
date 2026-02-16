@@ -7,6 +7,7 @@ import { showToast, openModal, closeModal } from './ui.js';
 import { VALIDATION, UI } from './constants.js';
 import { t } from './i18n.js';
 import { showChatPanel, hideChatPanel, initChat } from './chat.js';
+import { getClient, isClientConnected } from './clientAccessor.js';
 import type { ServerPlayerData, ServerRoomData, ServerGameData, RoomStats, SpectatorChatData } from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
@@ -192,7 +193,7 @@ export function initPlayerListUI(): void {
 export function updateRoomSettingsNavVisibility(): void {
     const navItem = document.getElementById('nav-room-settings');
     if (navItem) {
-        const isHost = CodenamesClient?.player?.isHost;
+        const isHost = getClient()?.player?.isHost;
         navItem.style.display = (state.isMultiplayerMode && isHost) ? 'flex' : 'none';
     }
 }
@@ -203,7 +204,7 @@ export function updateRoomInfoDisplay(): void {
     const playersEl = document.getElementById('room-info-players');
     const statusEl = document.getElementById('room-info-status');
 
-    if (codeEl) codeEl.textContent = state.currentRoomId || CodenamesClient?.getRoomCode() || '----';
+    if (codeEl) codeEl.textContent = state.currentRoomId || getClient()?.getRoomCode() || '----';
     if (playersEl) playersEl.textContent = String(state.multiplayerPlayers?.length || 0);
     if (statusEl) statusEl.textContent = state.gameState.status === 'ended' ? t('roomSettings.gameOver') : (state.gameState.status === 'playing' ? t('roomSettings.inProgress') : t('roomSettings.waiting'));
 }
@@ -332,7 +333,7 @@ export function handleSpectatorChatMessage(data: SpectatorChatData): void {
 // Send a spectator chat message
 export function sendSpectatorChat(message: string): void {
     if (!message?.trim()) return;
-    if (!CodenamesClient?.isConnected()) return;
+    if (!isClientConnected()) return;
 
     // Only spectators can send spectator messages
     const player = CodenamesClient.player;
@@ -350,7 +351,7 @@ export function sendSpectatorChat(message: string): void {
  * Show forfeit confirmation modal (host only, during active game)
  */
 export function confirmForfeit(): void {
-    if (!state.isMultiplayerMode || !CodenamesClient?.isConnected()) {
+    if (!state.isMultiplayerMode || !isClientConnected()) {
         showToast(t('forfeit.multiplayerOnly'), 'warning');
         return;
     }
@@ -384,7 +385,7 @@ export function closeKickConfirm(): void {
  * Execute the pending kick action
  */
 export function confirmKickPlayer(): void {
-    if (pendingKickSessionId && state.isMultiplayerMode && CodenamesClient?.isConnected()) {
+    if (pendingKickSessionId && state.isMultiplayerMode && isClientConnected()) {
         CodenamesClient.kickPlayer(pendingKickSessionId);
     }
     closeKickConfirm();
@@ -394,7 +395,7 @@ export function confirmKickPlayer(): void {
  * Execute the forfeit action
  */
 export function forfeitGame(): void {
-    if (!state.isMultiplayerMode || !CodenamesClient?.isConnected()) return;
+    if (!state.isMultiplayerMode || !isClientConnected()) return;
     if (!CodenamesClient.player?.isHost) return;
     if (state.gameState.gameOver) return;
 
@@ -410,7 +411,7 @@ export function updateForfeitButton(): void {
     if (!forfeitBtn) return;
 
     const shouldShow = state.isMultiplayerMode
-        && CodenamesClient?.player?.isHost
+        && getClient()?.player?.isHost
         && !state.gameState.gameOver;
 
     forfeitBtn.style.display = shouldShow ? 'inline-block' : 'none';
@@ -434,7 +435,7 @@ export function initNicknameEditUI(): void {
                 form.style.display = 'flex';
                 editBtn.style.display = 'none';
                 // Pre-fill with current nickname
-                if (input && CodenamesClient?.player?.nickname) {
+                if (input && getClient()?.player?.nickname) {
                     input.value = CodenamesClient.player.nickname;
                     input.focus();
                     input.select();
@@ -478,7 +479,7 @@ function saveNickname(): void {
         return;
     }
 
-    if (CodenamesClient?.isConnected()) {
+    if (isClientConnected()) {
         CodenamesClient.setNickname(nickname);
         // Update stored nickname
         try { localStorage.setItem('codenames-nickname', nickname); } catch { /* ignore */ }

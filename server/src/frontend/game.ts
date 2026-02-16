@@ -11,6 +11,7 @@ import { UI } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
 import { updateURL } from './url-state.js';
+import { isClientConnected } from './clientAccessor.js';
 
 // Re-export URL/QR functions so existing consumers don't break
 export { updateURL, updateQRCode, copyLink } from './url-state.js';
@@ -90,7 +91,7 @@ export function newGame(): void {
     setTimeout(() => { state.newGameDebounce = false; }, UI.NEW_GAME_DEBOUNCE_MS);
 
     // In multiplayer mode, request new game from server
-    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && isClientConnected()) {
         // Show loading state on new game button
         const newGameBtn = document.getElementById('btn-new-game') as HTMLButtonElement | null;
         if (newGameBtn) {
@@ -283,7 +284,7 @@ export function revealCard(index: number): void {
     }
 
     // In multiplayer mode, send reveal to server and let it broadcast
-    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && isClientConnected()) {
         // Prevent double-click on same card while waiting for server response
         if (state.revealingCards.has(index)) {
             return;
@@ -516,7 +517,7 @@ export function endTurn(): void {
     }
 
     // In multiplayer mode, send end turn to server
-    if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+    if (state.isMultiplayerMode && isClientConnected()) {
         CodenamesClient.endTurn();
         // Don't update local state - wait for server confirmation via turnEnded event
         return;

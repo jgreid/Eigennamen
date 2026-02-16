@@ -568,8 +568,68 @@ async function expectAsyncError(fn: () => Promise<unknown>, expectedCode?: strin
     }
 }
 
+/**
+ * Create a Redis mock where every operation rejects with an error.
+ * Useful for testing error handling and timeout paths.
+ *
+ * @param errorMessage - Message for the rejection error
+ * @param options - Control which operations fail: { failAfter: N } makes the first N
+ *   calls succeed (using the delegate) then all subsequent calls fail.
+ * @param delegate - Optional working mock to delegate to for initial calls
+ */
+function createFailingRedis(
+    errorMessage = 'Redis connection lost',
+    options: { failAfter?: number } = {},
+    delegate?: AnyRecord
+): AnyRecord {
+    const error = new Error(errorMessage);
+    (error as Error & { code?: string }).code = 'ECONNRESET';
+
+    let callCount = 0;
+    const failAfter = options.failAfter ?? 0;
+
+    function makeFailingFn(name: string): jest.Mock {
+        return jest.fn(async (...args: unknown[]) => {
+            callCount++;
+            if (failAfter > 0 && callCount <= failAfter && delegate && delegate[name]) {
+                return delegate[name](...args);
+            }
+            throw error;
+        });
+    }
+
+    return {
+        get: makeFailingFn('get'),
+        set: makeFailingFn('set'),
+        del: makeFailingFn('del'),
+        exists: makeFailingFn('exists'),
+        expire: makeFailingFn('expire'),
+        ttl: makeFailingFn('ttl'),
+        mGet: makeFailingFn('mGet'),
+        incr: makeFailingFn('incr'),
+        eval: makeFailingFn('eval'),
+        hSet: makeFailingFn('hSet'),
+        hGet: makeFailingFn('hGet'),
+        hGetAll: makeFailingFn('hGetAll'),
+        hDel: makeFailingFn('hDel'),
+        sAdd: makeFailingFn('sAdd'),
+        sRem: makeFailingFn('sRem'),
+        sMembers: makeFailingFn('sMembers'),
+        lPush: makeFailingFn('lPush'),
+        lRange: makeFailingFn('lRange'),
+        lLen: makeFailingFn('lLen'),
+        publish: makeFailingFn('publish'),
+        subscribe: makeFailingFn('subscribe'),
+        ping: makeFailingFn('ping'),
+        scanIterator: jest.fn(function* () { throw error; }),
+        _callCount: () => callCount,
+        _error: error
+    };
+}
+
 module.exports = {
     createMockRedis,
+    createFailingRedis,
     createMockPlayer,
     createMockRoom,
     createMockGame,

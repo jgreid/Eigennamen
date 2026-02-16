@@ -19,6 +19,7 @@ import {
     closeKickConfirm, confirmKickPlayer
 } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad } from './history.js';
+import { isClientConnected } from './clientAccessor.js';
 import {
     openSettings, closeSettings, saveSettings, resetWords, initSettingsNav,
     loadLocalSettings, tryLoadWordlistFile, initSettingsListeners
@@ -78,7 +79,7 @@ function setupEventListeners(): void {
                 break;
             case 'spectate':
                 // Spectate clears team affiliation and roles
-                if (state.isMultiplayerMode && CodenamesClient && CodenamesClient.isConnected()) {
+                if (state.isMultiplayerMode && isClientConnected()) {
                     // In multiplayer, sync to server by setting team to null
                     setTeam(null);
                 } else {

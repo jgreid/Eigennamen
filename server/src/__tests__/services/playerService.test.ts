@@ -842,21 +842,27 @@ describe('Player Service', () => {
 
     describe('invalidateRoomReconnectToken', () => {
         test('invalidates existing token', async () => {
-            mockRedis.get.mockResolvedValue('existingtoken');
-            mockRedis.del.mockResolvedValue(1);
+            // Lua script handles the atomic get+delete; returns 1 when a token was invalidated
+            mockRedis.eval.mockResolvedValue(1);
 
             await playerService.invalidateRoomReconnectToken('s1');
 
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:token:existingtoken');
-            expect(mockRedis.del).toHaveBeenCalledWith('reconnect:session:s1');
+            expect(mockRedis.eval).toHaveBeenCalledWith(
+                expect.stringContaining('redis.call'),
+                expect.objectContaining({
+                    keys: ['reconnect:session:s1'],
+                })
+            );
         });
 
         test('does nothing when no token exists', async () => {
-            mockRedis.get.mockResolvedValue(null);
+            // Lua script returns 0 when no token existed
+            mockRedis.eval.mockResolvedValue(0);
 
             await playerService.invalidateRoomReconnectToken('s1');
 
-            expect(mockRedis.del).not.toHaveBeenCalled();
+            expect(mockRedis.eval).toHaveBeenCalledTimes(1);
+            // No del calls — the Lua script handles everything atomically
         });
     });
 

@@ -209,6 +209,68 @@ describe('Environment Configuration', () => {
             );
             expect(corsWarnings).toHaveLength(0);
         });
+
+        it('should error when ADMIN_PASSWORD is empty string in production', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = '';
+
+            expect(() => validateEnv()).toThrow('ADMIN_PASSWORD is set but empty or whitespace-only');
+        });
+
+        it('should error when ADMIN_PASSWORD is whitespace-only in production', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = '   ';
+
+            expect(() => validateEnv()).toThrow('ADMIN_PASSWORD is set but empty or whitespace-only');
+        });
+
+        it('should warn about invalid LOG_LEVEL', () => {
+            process.env.LOG_LEVEL = 'trace';
+
+            validateEnv();
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('LOG_LEVEL "trace" is not a standard Winston level')
+            );
+        });
+
+        it('should accept valid LOG_LEVEL values', () => {
+            const validLevels = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+            for (const level of validLevels) {
+                jest.clearAllMocks();
+                process.env.LOG_LEVEL = level;
+
+                validateEnv();
+
+                const levelWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+                    (call: string[]) => call[0].includes('LOG_LEVEL')
+                );
+                expect(levelWarnings).toHaveLength(0);
+            }
+        });
+
+        it('should warn about CORS_ORIGIN without protocol', () => {
+            process.env.CORS_ORIGIN = 'example.com';
+
+            validateEnv();
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('does not start with http:// or https://')
+            );
+        });
+
+        it('should not warn about CORS_ORIGIN with valid URLs', () => {
+            process.env.CORS_ORIGIN = 'https://example.com,http://localhost:3000';
+
+            validateEnv();
+
+            const corsFormatWarnings = (logger.warn as jest.Mock).mock.calls.filter(
+                (call: string[]) => call[0].includes('does not start with http')
+            );
+            expect(corsFormatWarnings).toHaveLength(0);
+        });
     });
 
     describe('getEnv', () => {

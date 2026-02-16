@@ -21,6 +21,7 @@ import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
+import { isClientConnected } from './clientAccessor.js';
 import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 
 // ========== BARREL RE-EXPORTS ==========
@@ -210,10 +211,7 @@ async function handleJoinGame(): Promise<void> {
 
         // Set up multiplayer event listeners BEFORE emitting join to prevent
         // race condition where game:started arrives before listeners are ready
-        if (!state.multiplayerListenersSetup) {
-            setupMultiplayerListeners();
-            state.multiplayerListenersSetup = true;
-        }
+        setupMultiplayerListeners();
 
         setMpStatus(t('multiplayer.joiningGame'), 'connecting');
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
@@ -293,10 +291,7 @@ async function handleCreateGame(): Promise<void> {
 
         // Set up multiplayer event listeners BEFORE emitting create to prevent
         // race condition where game:started arrives before listeners are ready
-        if (!state.multiplayerListenersSetup) {
-            setupMultiplayerListeners();
-            state.multiplayerListenersSetup = true;
-        }
+        setupMultiplayerListeners();
 
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
         const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
@@ -343,10 +338,7 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     // Listeners are now set up before join/create (in handleJoinGame/handleCreateGame)
     // to prevent race conditions. This guard handles the auto-rejoin path where
     // onMultiplayerJoined is called without going through handleJoinGame/handleCreateGame.
-    if (!state.multiplayerListenersSetup) {
-        setupMultiplayerListeners();
-        state.multiplayerListenersSetup = true;
-    }
+    setupMultiplayerListeners();
 
     // Store players list
     state.multiplayerPlayers = result.players || (result.player ? [result.player] : []);
@@ -375,7 +367,7 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
         // Auto-start a game when the host creates a room so the board is
         // immediately playable. Players who join later receive the game
         // state via the room:joined response.
-        if (isHostParam && CodenamesClient && CodenamesClient.isConnected()) {
+        if (isHostParam && isClientConnected()) {
             CodenamesClient.startGame({});
         }
     }

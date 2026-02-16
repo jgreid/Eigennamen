@@ -18,6 +18,7 @@ import type {
     SettingsUpdatedData, StatsUpdatedData, KickedData, PlayerKickedData
 } from '../multiplayerTypes.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
+import { getClient } from '../clientAccessor.js';
 
 export function registerRoomHandlers(): void {
     // Handle host change (when previous host disconnects)
@@ -60,23 +61,30 @@ export function registerRoomHandlers(): void {
 
     // Room resync (state recovery)
     CodenamesClient.on('roomResynced', (data: ReconnectionData) => {
-        // Sync current player's state from server response
-        const currentPlayer = data.you || CodenamesClient.player;
-        if (currentPlayer) {
-            syncLocalPlayerState(currentPlayer as ServerPlayerData);
-        }
+        // Guard: prevent individual update events from interleaving with
+        // a full resync, which replaces all state atomically.
+        state.resyncInProgress = true;
+        try {
+            // Sync current player's state from server response
+            const currentPlayer = data.you || CodenamesClient.player;
+            if (currentPlayer) {
+                syncLocalPlayerState(currentPlayer as ServerPlayerData);
+            }
 
-        if (data.game) {
-            syncGameStateFromServer(data.game);
-        }
-        if (data.players) {
-            state.multiplayerPlayers = data.players;
-            updateMpIndicator(data.room || null, state.multiplayerPlayers);
-        }
+            if (data.game) {
+                syncGameStateFromServer(data.game);
+            }
+            if (data.players) {
+                state.multiplayerPlayers = data.players;
+                updateMpIndicator(data.room || null, state.multiplayerPlayers);
+            }
 
-        // Update all UI elements
-        updateControls();
-        updateRoleBanner();
+            // Update all UI elements
+            updateControls();
+            updateRoleBanner();
+        } finally {
+            state.resyncInProgress = false;
+        }
     });
 
     // Disconnect handling
@@ -100,28 +108,34 @@ export function registerRoomHandlers(): void {
     function handleReconnection(data: ReconnectionData): void {
         hideReconnectionOverlay();
 
-        const changes = detectOfflineChanges(data);
+        // Guard: full state replacement — defer individual update events
+        state.resyncInProgress = true;
+        try {
+            const changes = detectOfflineChanges(data);
 
-        const currentPlayer = data?.you || CodenamesClient.player;
-        if (currentPlayer) {
-            syncLocalPlayerState(currentPlayer as ServerPlayerData);
-        }
-        if (data?.game) {
-            syncGameStateFromServer(data.game);
-        }
-        if (data?.players) {
-            state.multiplayerPlayers = data.players;
-            updateMpIndicator(data?.room || null, state.multiplayerPlayers);
-        }
+            const currentPlayer = data?.you || CodenamesClient.player;
+            if (currentPlayer) {
+                syncLocalPlayerState(currentPlayer as ServerPlayerData);
+            }
+            if (data?.game) {
+                syncGameStateFromServer(data.game);
+            }
+            if (data?.players) {
+                state.multiplayerPlayers = data.players;
+                updateMpIndicator(data?.room || null, state.multiplayerPlayers);
+            }
 
-        updateControls();
-        updateRoleBanner();
-        updateForfeitButton();
+            updateControls();
+            updateRoleBanner();
+            updateForfeitButton();
 
-        if (changes.length > 0) {
-            showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
-        } else {
-            showToast('Reconnected!', 'success');
+            if (changes.length > 0) {
+                showToast('Reconnected! ' + changes.join('. '), 'info', 6000);
+            } else {
+                showToast('Reconnected!', 'success');
+            }
+        } finally {
+            state.resyncInProgress = false;
         }
     }
 
@@ -188,7 +202,7 @@ export function registerRoomHandlers(): void {
     const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
     gameModeRadios.forEach(radio => {
         const handler = (e: Event) => {
-            if (!CodenamesClient?.player?.isHost) return;
+            if (!getClient()?.player?.isHost) return;
             const gameMode = (e.target as HTMLInputElement).value;
             CodenamesClient.updateSettings({ gameMode });
         };

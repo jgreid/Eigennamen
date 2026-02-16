@@ -170,4 +170,9 @@ export interface AppState {
     // Spectator/room stats (set dynamically by multiplayer sync)
     spectatorCount: number;
     roomStats: RoomStats | null;
+
+    // Resync guard: when true, individual update events are deferred
+    // until the full resync completes (prevents stale partial updates
+    // from overriding fresh resync data)
+    resyncInProgress: boolean;
 }

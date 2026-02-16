@@ -506,6 +506,40 @@ export async function hasActiveTimer(roomCode: string): Promise<boolean> {
 }
 
 /**
+ * Remove stale entries from the localTimers map.
+ *
+ * A timer is considered stale if its endTime has passed (plus a generous
+ * buffer) and it wasn't cleaned up by its expiration callback. This can
+ * happen if the callback threw or Redis deleted the key before the local
+ * timeout fired.
+ *
+ * Called periodically from the socket module's cleanup interval.
+ */
+export function sweepStaleTimers(): number {
+    const now = Date.now();
+    // 2-minute buffer beyond endTime before considering stale
+    const STALE_BUFFER_MS = 2 * 60 * 1000;
+    let swept = 0;
+
+    for (const [roomCode, timer] of localTimers) {
+        // Skip paused timers — they legitimately have old endTimes
+        if (timer.paused) continue;
+
+        if (timer.endTime + STALE_BUFFER_MS < now) {
+            clearTimeout(timer.timeoutId);
+            localTimers.delete(roomCode);
+            swept++;
+        }
+    }
+
+    if (swept > 0) {
+        logger.info(`Swept ${swept} stale timer entries, ${localTimers.size} remaining`);
+    }
+
+    return swept;
+}
+
+/**
  * Clean up all timers (for shutdown)
  */
 export function cleanupAllTimers(): void {

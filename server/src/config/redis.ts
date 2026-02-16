@@ -13,6 +13,7 @@ import { createClient } from 'redis';
 import { spawn } from 'child_process';
 import { createServer } from 'net';
 import logger from '../utils/logger';
+import * as pubSubHealth from '../utils/pubSubHealth';
 import type { RedisClientType } from 'redis';
 import type { RedisClient } from '../types/redis';
 import type { ChildProcess } from 'child_process';
@@ -328,6 +329,9 @@ export async function connectRedis(): Promise<RedisClients> {
                 subClient.connect()
             ]);
 
+            // Attach pub/sub health monitoring (PING probes + error tracking)
+            pubSubHealth.attachToClients(pubClient, subClient);
+
             if (usingMemoryMode) {
                 logger.info('Connected to embedded Redis (memory mode)');
             } else {
@@ -494,6 +498,9 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
  * Disconnect from Redis and stop embedded server if running
  */
 export async function disconnectRedis(): Promise<void> {
+    // Stop pub/sub health monitoring before disconnecting
+    pubSubHealth.stopPingInterval();
+
     const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
     await Promise.all(clients.map(async (client) => {
         try {

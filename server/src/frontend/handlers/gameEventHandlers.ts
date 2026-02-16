@@ -39,6 +39,8 @@ export function registerGameHandlers(): void {
     });
 
     CodenamesClient.on('cardRevealed', (data: CardRevealedData) => {
+        // Skip stale reveals during a full state resync
+        if (state.resyncInProgress) return;
         // Clear per-card reveal tracking for the revealed card
         if (data.index !== undefined) {
             state.revealingCards.delete(data.index);
@@ -75,6 +77,7 @@ export function registerGameHandlers(): void {
     });
 
     CodenamesClient.on('turnEnded', (data: TurnEndedData) => {
+        if (state.resyncInProgress) return;
         if (data.currentTurn) {
             const previousTurn = state.gameState.currentTurn;
             // Update turn locally
