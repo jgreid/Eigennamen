@@ -24,8 +24,8 @@ const playerSchema = z.object({
     sessionId: z.string(),
     roomCode: z.string(),
     nickname: z.string(),
-    team: z.string().nullable(),
-    role: z.string(),
+    team: z.enum(['red', 'blue']).nullable(),
+    role: z.enum(['spymaster', 'clicker', 'spectator']),
     isHost: z.boolean(),
     connected: z.boolean(),
     lastSeen: z.number(),
@@ -41,7 +41,7 @@ const luaResultSchema = z.object({
     success: z.boolean(),
     error: z.string().optional(),
     reason: z.string().optional(),
-    player: z.unknown().optional(),
+    player: playerSchema.optional(),
     existingNickname: z.string().optional(),
 });
 
@@ -327,7 +327,7 @@ export async function setTeam(
     }
 
     try {
-        const parsed = parseJSON(result, luaResultSchema, `setTeam lua for ${sessionId}`) as { success: boolean; reason?: string; player?: Player };
+        const parsed = parseJSON(result, luaResultSchema, `setTeam lua for ${sessionId}`);
 
         if (parsed.success === false) {
             if (parsed.reason === 'TEAM_WOULD_BE_EMPTY') {
@@ -340,8 +340,11 @@ export async function setTeam(
             throw new ServerError('Failed to update player team');
         }
 
+        if (!parsed.player) {
+            throw new ServerError('Lua script returned success without player data');
+        }
         logger.debug(`Player ${sessionId} team set to ${team}`);
-        return parsed.player as Player;
+        return parsed.player;
     } catch (e) {
         if (e instanceof ValidationError) {
             throw e;
@@ -407,7 +410,7 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
     }
 
     try {
-        const parsed = parseJSON(result, luaResultSchema, `setRole lua for ${sessionId}`) as { success: boolean; reason?: string; existingNickname?: string; player?: Player };
+        const parsed = parseJSON(result, luaResultSchema, `setRole lua for ${sessionId}`);
 
         if (parsed.success === false) {
             if (parsed.reason === 'ROLE_TAKEN') {
@@ -423,8 +426,11 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
             throw new ServerError('Failed to update player role');
         }
 
+        if (!parsed.player) {
+            throw new ServerError('Lua script returned success without player data');
+        }
         logger.debug(`Player ${sessionId} role set to ${role}`);
-        return parsed.player as Player;
+        return parsed.player;
     } catch (e) {
         if (e instanceof ValidationError) {
             throw e;
