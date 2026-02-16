@@ -213,4 +213,98 @@ describe('Timeout Utility', () => {
             expect(result).toBe('just in time');
         });
     });
+
+    describe('envInt (tested via module re-require)', () => {
+        const originalEnv = process.env;
+
+        afterEach(() => {
+            process.env = originalEnv;
+            jest.resetModules();
+        });
+
+        test('returns default when env var is not set', () => {
+            // Already tested by TIMEOUTS defaults above, but let's be explicit
+            expect(TIMEOUTS.SOCKET_HANDLER).toBe(30000);
+        });
+
+        test('uses env var when set to valid value', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '20000' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(20000);
+        });
+
+        test('returns default for NaN env var', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: 'notanumber' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(30000);
+        });
+
+        test('returns default for negative env var', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '-100' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(30000);
+        });
+
+        test('returns default for zero env var', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '0' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(30000);
+        });
+
+        test('clamps value below minimum to minimum', () => {
+            jest.resetModules();
+            // SOCKET_HANDLER min is 5000, max is 120000
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '1000' };
+            // Re-mock logger after resetModules so the fresh require picks it up
+            jest.mock('../../utils/logger', () => ({
+                error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn()
+            }));
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            const freshLogger = require('../../utils/logger');
+            expect(t.SOCKET_HANDLER).toBe(5000);
+            expect(freshLogger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('out of bounds')
+            );
+        });
+
+        test('clamps value above maximum to maximum', () => {
+            jest.resetModules();
+            // SOCKET_HANDLER min is 5000, max is 120000
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '500000' };
+            jest.mock('../../utils/logger', () => ({
+                error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn()
+            }));
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            const freshLogger = require('../../utils/logger');
+            expect(t.SOCKET_HANDLER).toBe(120000);
+            expect(freshLogger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('out of bounds')
+            );
+        });
+
+        test('accepts value at exact minimum boundary', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '5000' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(5000);
+        });
+
+        test('accepts value at exact maximum boundary', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '120000' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(120000);
+        });
+
+        test('returns default for empty string env var', () => {
+            jest.resetModules();
+            process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '' };
+            const { TIMEOUTS: t } = require('../../utils/timeout');
+            expect(t.SOCKET_HANDLER).toBe(30000);
+        });
+    });
 });
