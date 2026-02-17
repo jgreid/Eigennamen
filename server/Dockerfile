@@ -35,12 +35,12 @@ WORKDIR /app
 # memory-mode server, create non-root user, and create logs directory
 RUN apk add --no-cache curl openssl redis && \
     addgroup -g 1001 -S nodejs && \
-    adduser -S codenames -u 1001 && \
-    mkdir -p /app/logs && chown codenames:nodejs /app/logs
+    adduser -S eigennamen -u 1001 && \
+    mkdir -p /app/logs && chown eigennamen:nodejs /app/logs
 
 # Copy package files and prisma schema (needed for generate)
-COPY --chown=codenames:nodejs server/package*.json ./
-COPY --chown=codenames:nodejs server/prisma ./prisma
+COPY --chown=eigennamen:nodejs server/package*.json ./
+COPY --chown=eigennamen:nodejs server/prisma ./prisma
 
 # Install production dependencies and generate prisma client
 RUN npm ci --omit=dev && \
@@ -48,13 +48,13 @@ RUN npm ci --omit=dev && \
     npm cache clean --force
 
 # Copy compiled JavaScript from builder
-COPY --chown=codenames:nodejs --from=builder /app/dist ./dist
+COPY --chown=eigennamen:nodejs --from=builder /app/dist ./dist
 
 # Copy public folder (static assets) from builder
-COPY --chown=codenames:nodejs --from=builder /app/public ./public
+COPY --chown=eigennamen:nodejs --from=builder /app/public ./public
 
 # Switch to non-root user
-USER codenames
+USER eigennamen
 
 # Expose port
 EXPOSE 3000

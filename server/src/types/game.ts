@@ -1,7 +1,7 @@
 /**
  * Game Type Definitions
  *
- * Core types for the Codenames game state, cards, and game logic.
+ * Core types for the Eigennamen game state, cards, and game logic.
  */
 
 import type { GameMode } from '../config/gameConfig';

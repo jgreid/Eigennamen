@@ -9,7 +9,7 @@
  * updatePlayerList and renderGameHistoryItem are local reimplementations
  * that mirror the production code patterns (in multiplayer.ts and history.ts
  * respectively). They are tested here as DOM security pattern tests because
- * the production versions depend on CodenamesClient and specific DOM elements
+ * the production versions depend on EigennamenClient and specific DOM elements
  * that would require complex mocking.
  */
 
@@ -55,7 +55,7 @@ describe('escapeHTML', () => {
 
 // ==================== updatePlayerList (DOM pattern test) ====================
 // Mirrors the production updatePlayerList from multiplayer.ts
-// but takes explicit params instead of reading from CodenamesClient.
+// but takes explicit params instead of reading from EigennamenClient.
 interface MockPlayer {
     sessionId: string;
     nickname: string;

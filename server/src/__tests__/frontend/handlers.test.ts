@@ -2,7 +2,7 @@
  * Frontend Handler Registration Tests
  *
  * Tests the event handler modules extracted from multiplayerListeners.ts.
- * Each handler module registers callbacks on the global CodenamesClient.
+ * Each handler module registers callbacks on the global EigennamenClient.
  */
 
 // Mock all imported modules before any imports
@@ -117,10 +117,10 @@ jest.mock('../../frontend/history', () => ({
     renderReplayData: mockRenderReplayData
 }));
 
-// Set up global CodenamesClient mock
+// Set up global EigennamenClient mock
 type EventHandler = (...args: any[]) => void;
 const handlers: Record<string, EventHandler> = {};
-const mockCodenamesClient = {
+const mockEigennamenClient = {
     on: jest.fn((event: string, handler: EventHandler) => {
         handlers[event] = handler;
     }),
@@ -130,7 +130,7 @@ const mockCodenamesClient = {
     setRole: jest.fn(),
     updateSettings: jest.fn()
 };
-(global as any).CodenamesClient = mockCodenamesClient;
+(global as any).EigennamenClient = mockEigennamenClient;
 
 import { state } from '../../frontend/state';
 import { showToast, announceToScreenReader } from '../../frontend/ui';
@@ -157,7 +157,7 @@ describe('Frontend Handler Registration', () => {
         jest.clearAllMocks();
         // Reset handlers registry
         Object.keys(handlers).forEach(key => delete handlers[key]);
-        mockCodenamesClient.on.mockImplementation((event: string, handler: EventHandler) => {
+        mockEigennamenClient.on.mockImplementation((event: string, handler: EventHandler) => {
             handlers[event] = handler;
         });
 
@@ -183,10 +183,10 @@ describe('Frontend Handler Registration', () => {
     describe('setupMultiplayerListeners', () => {
         test('registers handlers from all domain modules', () => {
             setupMultiplayerListeners();
-            // Should have registered many events via CodenamesClient.on
-            expect(mockCodenamesClient.on).toHaveBeenCalled();
+            // Should have registered many events via EigennamenClient.on
+            expect(mockEigennamenClient.on).toHaveBeenCalled();
             // Check a sample of events across domains
-            const registeredEvents = mockCodenamesClient.on.mock.calls.map((c: any[]) => c[0]);
+            const registeredEvents = mockEigennamenClient.on.mock.calls.map((c: any[]) => c[0]);
             expect(registeredEvents).toContain('gameStarted');
             expect(registeredEvents).toContain('playerJoined');
             expect(registeredEvents).toContain('hostChanged');
@@ -411,7 +411,7 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated syncs local state when update is for current player (idle phase)', () => {
             // Set up current player
-            mockCodenamesClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
+            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
             state.multiplayerPlayers = [
                 { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any
             ];
@@ -427,7 +427,7 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated handles team_then_role phase: team confirmed, sends role', () => {
             jest.useFakeTimers();
-            mockCodenamesClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
+            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
             state.multiplayerPlayers = [
                 { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any
             ];
@@ -441,13 +441,13 @@ describe('Frontend Handler Registration', () => {
             handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue' } });
 
             // Should transition to changing_role and call setRole
-            expect(mockCodenamesClient.setRole).toHaveBeenCalledWith('spymaster');
+            expect(mockEigennamenClient.setRole).toHaveBeenCalledWith('spymaster');
             expect(state.roleChange.phase).toBe('changing_role');
             jest.useRealTimers();
         });
 
         test('playerUpdated clears role change on confirming update', () => {
-            mockCodenamesClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
+            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
             state.multiplayerPlayers = [
                 { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'spymaster' } as any
             ];
@@ -465,7 +465,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated constructs player from changes when not in list (Bug #8)', () => {
-            mockCodenamesClient.player = { sessionId: 'me-123', nickname: 'Me', team: null, role: null, isHost: false, connected: true } as any;
+            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: null, role: null, isHost: false, connected: true } as any;
             state.multiplayerPlayers = []; // player not in list
             state.roleChange = { phase: 'idle' };
 
@@ -538,7 +538,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('hostChanged updates host status when becoming host', () => {
-            mockCodenamesClient.player!.sessionId = 'me-123';
+            mockEigennamenClient.player!.sessionId = 'me-123';
             handlers['hostChanged']({ newHostSessionId: 'me-123', newHostNickname: 'TestPlayer' });
 
             expect(state.isHost).toBe(true);
@@ -546,7 +546,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('hostChanged shows notification when someone else becomes host', () => {
-            mockCodenamesClient.player!.sessionId = 'me-123';
+            mockEigennamenClient.player!.sessionId = 'me-123';
             handlers['hostChanged']({ newHostSessionId: 'other-456', newHostNickname: 'OtherPlayer' });
 
             expect(state.isHost).toBe(false);
@@ -555,7 +555,7 @@ describe('Frontend Handler Registration', () => {
 
         test('roomWarning triggers auto-resync on STATS_STALE', () => {
             handlers['roomWarning']({ code: 'STATS_STALE' });
-            expect(mockCodenamesClient.requestResync).toHaveBeenCalled();
+            expect(mockEigennamenClient.requestResync).toHaveBeenCalled();
         });
 
         test('roomResynced syncs all state', () => {

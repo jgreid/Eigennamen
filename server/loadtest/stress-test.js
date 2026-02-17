@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Codenames Load Test - Stress Test
+ * Eigennamen Load Test - Stress Test
  *
  * Simulates concurrent players to measure server performance.
  *
@@ -208,7 +208,7 @@ async function run() {
     const metrics = new MetricsCollector();
     const clients = [];
 
-    console.log('Codenames Load Test');
+    console.log('Eigennamen Load Test');
     console.log('==================');
     console.log(`URL: ${config.url}`);
     console.log(`Clients: ${config.clients}`);

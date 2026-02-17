@@ -120,7 +120,7 @@ const _rawState: AppState = {
 };
 
 // ========== EXPORTED STATE ==========
-// Debug proxy wraps the state when localStorage.debug === 'codenames'.
+// Debug proxy wraps the state when localStorage.debug === 'eigennamen'.
 // Otherwise the raw object is exported (zero overhead).
 
 export const state: AppState = (() => {

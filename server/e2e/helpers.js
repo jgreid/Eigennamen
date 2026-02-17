@@ -4,7 +4,7 @@
  * E2E Test Helpers
  *
  * Shared selectors (data-testid based) and helper functions
- * for Codenames E2E tests.
+ * for Eigennamen E2E tests.
  */
 
 /** Stable selectors using data-testid attributes */

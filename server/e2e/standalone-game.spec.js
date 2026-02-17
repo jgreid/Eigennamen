@@ -103,7 +103,7 @@ test.describe('Standalone Spymaster View', () => {
             else if (cls.includes('spy-assassin')) types.assassin++;
         }
 
-        // Standard Codenames: 9 + 8 + 7 + 1 = 25
+        // Standard Eigennamen: 9 + 8 + 7 + 1 = 25
         expect(types.red + types.blue).toBe(17);
         expect(types.neutral).toBe(7);
         expect(types.assassin).toBe(1);

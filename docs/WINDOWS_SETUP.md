@@ -1,10 +1,10 @@
-# How to Set Up the Codenames Game Server on Your Windows Computer
+# How to Set Up the Eigennamen Game Server on Your Windows Computer
 
-This guide will walk you through every step to get the Codenames game running on your Windows computer so you can play with friends and family. No technical experience needed - just follow along!
+This guide will walk you through every step to get the Eigennamen game running on your Windows computer so you can play with friends and family. No technical experience needed - just follow along!
 
 **Time needed:** About 20-30 minutes (most of this is waiting for downloads)
 
-**What you'll end up with:** A game server running on your computer that everyone can connect to and play Codenames together in real-time.
+**What you'll end up with:** A game server running on your computer that everyone can connect to and play Eigennamen together in real-time.
 
 ---
 
@@ -187,7 +187,7 @@ You should see a table showing three services all with "running" in their status
 
 1. Open your web browser
 2. Go to: **http://localhost:3000**
-3. You should see the Codenames game board!
+3. You should see the Eigennamen game board!
 
 ### Share with Friends on the Same Wi-Fi Network
 

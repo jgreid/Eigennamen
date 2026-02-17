@@ -5,9 +5,9 @@
  * ES module entry-point (app.ts).
  */
 
-/* ---------- CodenamesClient (socket-client.js) ---------- */
+/* ---------- EigennamenClient (socket-client.js) ---------- */
 
-interface CodenamesPlayer {
+interface EigennamenPlayer {
     sessionId: string;
     nickname: string;
     team: string | null;
@@ -20,11 +20,11 @@ interface AckResult {
     error?: { code?: string; message?: string };
 }
 
-interface CodenamesClientAPI {
+interface EigennamenClientAPI {
     socket: unknown;
     sessionId: string | null;
     roomCode: string | null;
-    player: CodenamesPlayer | null;
+    player: EigennamenPlayer | null;
     connected: boolean;
 
     // Connection
@@ -67,7 +67,7 @@ interface CodenamesClientAPI {
     off(event: string): void;
 }
 
-declare const CodenamesClient: CodenamesClientAPI;
+declare const EigennamenClient: EigennamenClientAPI;
 
 /* ---------- qrcode (qrcode.min.js) ---------- */
 
@@ -95,5 +95,5 @@ declare const io: IoFunction;
 interface Window {
     AudioContext: typeof AudioContext;
     webkitAudioContext: typeof AudioContext;
-    __codenamesDebug?: Record<string, unknown>;
+    __eigennamenDebug?: Record<string, unknown>;
 }

@@ -1,10 +1,10 @@
-# CLAUDE.md - AI Assistant Guide for Codenames Online
+# CLAUDE.md - AI Assistant Guide for Eigennamen Online
 
-This document provides essential context for AI assistants working on the Codenames Online codebase.
+This document provides essential context for AI assistants working on the Eigennamen Online codebase.
 
 ## Project Overview
 
-Codenames Online is a web-based multiplayer implementation of the board game "Codenames". It supports two modes:
+Eigennamen Online is a web-based multiplayer implementation of the board game "Eigennamen". It supports two modes:
 - **Standalone mode**: Works offline with all game state encoded in the URL
 - **Multiplayer mode**: Real-time synchronization via Node.js/Socket.io server
 
@@ -75,12 +75,12 @@ Eigennamen/
     │   │   └── game/       # Game sub-modules (3 files: board, reveal, lua)
     │   ├── socket/         # WebSocket setup and utilities (10 files)
     │   │   └── handlers/   # Event-specific handlers (6 files)
-    │   ├── frontend/       # Frontend TypeScript source (26 modules)
-    │   ├── types/          # TypeScript type definitions (9 files)
+    │   ├── frontend/       # Frontend TypeScript source (31 modules + 6 handler modules)
+    │   ├── types/          # TypeScript type definitions (11 files)
     │   ├── utils/          # Utility modules (9 files)
     │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts for atomic operations
-    │   └── __tests__/      # Jest tests (82 suites, 2,472 tests)
+    │   └── __tests__/      # Jest tests (93 suites, 2,671 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
@@ -92,7 +92,7 @@ Eigennamen/
 ## Technology Stack
 
 ### Frontend
-- TypeScript source in `server/src/frontend/` (26 modules, compiled to `server/public/js/modules/`)
+- TypeScript source in `server/src/frontend/` (37 modules, compiled to `server/public/js/modules/`)
 - Socket.io client for real-time communication
 - Glassmorphism UI design
 - URL-based state encoding for standalone mode
@@ -265,7 +265,7 @@ npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E in headed browser mode
 ```
 
-**Test suite**: 82 suites (2,472 tests — backend + frontend), 9 E2E spec files (64+ tests). Total: ~2,536 tests.
+**Test suite**: 93 suites (2,671 tests — backend + frontend), 9 E2E spec files (64+ tests). Total: ~2,735 tests.
 
 **Code quality**: ESLint reports 0 errors, 0 warnings. TypeScript compiles with 0 errors.
 
@@ -288,7 +288,7 @@ PORT=3000                 # Server port
 LOG_LEVEL=info           # debug | info | warn | error
 
 # Optional - database (works without)
-DATABASE_URL=postgresql://user:pass@localhost:5432/codenames
+DATABASE_URL=postgresql://user:pass@localhost:5432/eigennamen
 DATABASE_DIRECT_URL=...  # Direct connection for migrations (Fly.io)
 
 # Optional - Redis (uses memory mode if not set)
@@ -352,7 +352,7 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 
 ### Game Modes
 Three game modes are supported (`server/src/config/gameConfig.ts`):
-- **Classic**: Standard Codenames rules (9 vs 8 cards)
+- **Classic**: Standard Eigennamen rules (9 vs 8 cards)
 - **Blitz**: 30-second forced timer turns
 - **Duet**: Cooperative 2-player mode with special board configuration
 
@@ -386,7 +386,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 2. Add Zod schema in appropriate `server/src/validators/*Schemas.ts` file (or `schemas.ts` barrel)
 3. Create handler in appropriate `server/src/socket/handlers/*.ts` file
 4. Register handler in `server/src/socket/index.ts`
-5. Add client handling in `server/public/js/modules/multiplayer.js`
+5. Add client handling in `server/src/frontend/multiplayer.ts` (or appropriate handler in `server/src/frontend/handlers/`)
 
 ### Adding a New REST Endpoint
 1. Add route in `server/src/routes/` (or create new route file)
@@ -398,7 +398,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 ### Modifying Game Rules
 1. Update constants in `server/src/config/gameConfig.ts`
 2. Modify logic in `server/src/services/gameService.ts`
-3. Update client logic in `server/public/js/modules/game.js` if needed
+3. Update client logic in `server/src/frontend/game.ts` if needed
 4. Add/update tests in `server/src/__tests__/`
 
 ### Adding Database Models
@@ -411,7 +411,7 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 | File | Why It Matters |
 |------|----------------|
 | `index.html` | Frontend entry point (SPA) |
-| `server/src/frontend/` | TypeScript frontend source (26 modules incl. multiplayer split) |
+| `server/src/frontend/` | TypeScript frontend source (37 modules incl. handler sub-modules) |
 | `server/src/config/constants.ts` | Re-exports all config (game, rate limits, errors, room, security, socket) |
 | `server/src/config/gameConfig.ts` | Game modes, board layout, PRNG constants |
 | `server/src/config/socketConfig.ts` | Socket.io settings and all event name constants |

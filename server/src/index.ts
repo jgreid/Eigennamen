@@ -1,5 +1,5 @@
 /**
- * Codenames Online - Server Entry Point
+ * Eigennamen Online - Server Entry Point
  */
 
 import type { Server as HttpServer } from 'http';

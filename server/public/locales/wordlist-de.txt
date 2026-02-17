@@ -1,5 +1,5 @@
-# German Codenames Word List (400 words)
-# Suitable for Codenames gameplay - concrete nouns, places, concepts
+# German Eigennamen Word List (400 words)
+# Suitable for Eigennamen gameplay - concrete nouns, places, concepts
 AFRIKA
 AGENT
 LUFT

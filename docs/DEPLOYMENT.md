@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying Codenames Online to various platforms.
+This guide covers deploying Eigennamen Online to various platforms.
 
 ## Deployment Options
 
@@ -67,14 +67,14 @@ version: '3.8'
 services:
   server:
     environment:
-      - DATABASE_URL=postgresql://codenames:password@postgres:5432/codenames
+      - DATABASE_URL=postgresql://eigennamen:password@postgres:5432/eigennamen
 
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=codenames
+      - POSTGRES_USER=eigennamen
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=codenames
+      - POSTGRES_DB=eigennamen
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -121,14 +121,14 @@ cd Eigennamen
 fly auth login
 
 # Create app
-fly launch --name your-codenames-app
+fly launch --name your-eigennamen-app
 
 # Create Redis (Upstash)
 fly redis create
 
 # Set Redis URL from output
 fly secrets set REDIS_URL=redis://...
-fly secrets set CORS_ORIGIN=https://your-codenames-app.fly.dev
+fly secrets set CORS_ORIGIN=https://your-eigennamen-app.fly.dev
 
 # Deploy
 fly deploy
@@ -194,7 +194,7 @@ cd Eigennamen
 heroku login
 
 # Create app
-heroku create your-codenames-app
+heroku create your-eigennamen-app
 
 # Add Redis
 heroku addons:create heroku-redis:mini
@@ -204,7 +204,7 @@ heroku buildpacks:set heroku/nodejs
 
 # Configure
 heroku config:set NPM_CONFIG_PRODUCTION=false
-heroku config:set CORS_ORIGIN=https://your-codenames-app.herokuapp.com
+heroku config:set CORS_ORIGIN=https://your-eigennamen-app.herokuapp.com
 
 # Deploy
 git push heroku main
@@ -235,30 +235,30 @@ For enterprise deployments with high availability.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: codenames
+  name: eigennamen
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: codenames
+      app: eigennamen
   template:
     metadata:
       labels:
-        app: codenames
+        app: eigennamen
     spec:
       containers:
-      - name: codenames
-        image: your-registry/codenames:latest
+      - name: eigennamen
+        image: your-registry/eigennamen:latest
         ports:
         - containerPort: 3000
         env:
         - name: REDIS_URL
           valueFrom:
             secretKeyRef:
-              name: codenames-secrets
+              name: eigennamen-secrets
               key: redis-url
         - name: CORS_ORIGIN
-          value: "https://codenames.example.com"
+          value: "https://eigennamen.example.com"
         resources:
           limits:
             memory: "512Mi"
@@ -286,10 +286,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: codenames
+  name: eigennamen
 spec:
   selector:
-    app: codenames
+    app: eigennamen
   ports:
   - port: 80
     targetPort: 3000
@@ -302,21 +302,21 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: codenames
+  name: eigennamen
   annotations:
-    nginx.ingress.kubernetes.io/websocket-services: "codenames"
+    nginx.ingress.kubernetes.io/websocket-services: "eigennamen"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 spec:
   rules:
-  - host: codenames.example.com
+  - host: eigennamen.example.com
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: codenames
+            name: eigennamen
             port:
               number: 80
 ```
@@ -331,21 +331,21 @@ For validating changes before production deployment, create a staging environmen
 
 ```bash
 # Create a staging app (separate from production)
-fly apps create codenames-staging
+fly apps create eigennamen-staging
 
 # Deploy to staging
-fly deploy --app codenames-staging
+fly deploy --app eigennamen-staging
 
 # Use a separate Redis instance
-fly redis create codenames-staging-redis --region iad
-fly redis attach codenames-staging-redis --app codenames-staging
+fly redis create eigennamen-staging-redis --region iad
+fly redis attach eigennamen-staging-redis --app eigennamen-staging
 
 # Run database migrations in staging first
-fly ssh console --app codenames-staging -C "cd /app/server && npx prisma migrate deploy"
+fly ssh console --app eigennamen-staging -C "cd /app/server && npx prisma migrate deploy"
 
 # Verify health
-fly status --app codenames-staging
-curl https://codenames-staging.fly.dev/health/ready
+fly status --app eigennamen-staging
+curl https://eigennamen-staging.fly.dev/health/ready
 ```
 
 ### Docker Compose Staging
@@ -364,7 +364,7 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
 - [ ] Verify health endpoints respond
 - [ ] Test multiplayer flow (create room, join, play)
 - [ ] Check reconnection works
-- [ ] Run E2E tests against staging: `BASE_URL=https://codenames-staging.fly.dev npm run test:e2e`
+- [ ] Run E2E tests against staging: `BASE_URL=https://eigennamen-staging.fly.dev npm run test:e2e`
 
 ---
 
@@ -378,10 +378,10 @@ PostgreSQL stores word lists and optional user data. Even if the database is opt
 
 ```bash
 # Daily backup via cron (add to crontab -e)
-0 3 * * * pg_dump -Fc $DATABASE_URL > /backups/codenames_$(date +\%Y\%m\%d).dump
+0 3 * * * pg_dump -Fc $DATABASE_URL > /backups/eigennamen_$(date +\%Y\%m\%d).dump
 
 # Restore from backup
-pg_restore -d $DATABASE_URL /backups/codenames_20260209.dump
+pg_restore -d $DATABASE_URL /backups/eigennamen_20260209.dump
 ```
 
 #### Fly.io Managed Backups
@@ -390,10 +390,10 @@ Fly.io Postgres clusters include automatic daily backups:
 
 ```bash
 # List available backups
-fly postgres backups list --app codenames-db
+fly postgres backups list --app eigennamen-db
 
 # Restore from a backup
-fly postgres backups restore <backup-id> --app codenames-db
+fly postgres backups restore <backup-id> --app eigennamen-db
 ```
 
 ### Redis Data
@@ -489,7 +489,7 @@ When running multiple server instances behind a load balancer, Socket.io require
 #### Nginx
 
 ```nginx
-upstream codenames {
+upstream eigennamen {
     ip_hash;  # Sticky sessions based on client IP
     server 127.0.0.1:3001;
     server 127.0.0.1:3002;
@@ -498,7 +498,7 @@ upstream codenames {
 
 server {
     location / {
-        proxy_pass http://codenames;
+        proxy_pass http://eigennamen;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -540,7 +540,7 @@ For high-traffic deployments with PostgreSQL, use PgBouncer to manage connection
 ```ini
 ; pgbouncer.ini
 [databases]
-codenames = host=127.0.0.1 port=5432 dbname=codenames
+eigennamen = host=127.0.0.1 port=5432 dbname=eigennamen
 
 [pgbouncer]
 listen_port = 6432
@@ -560,10 +560,10 @@ server_idle_timeout = 600
 
 ```bash
 # Pooled connection (via PgBouncer) for application queries
-DATABASE_URL=postgresql://codenames:pass@localhost:6432/codenames?pgbouncer=true
+DATABASE_URL=postgresql://eigennamen:pass@localhost:6432/eigennamen?pgbouncer=true
 
 # Direct connection (bypasses PgBouncer) for migrations
-DATABASE_DIRECT_URL=postgresql://codenames:pass@localhost:5432/codenames
+DATABASE_DIRECT_URL=postgresql://eigennamen:pass@localhost:5432/eigennamen
 ```
 
 #### Fly.io with Supabase/Neon

@@ -21,7 +21,7 @@ export { getErrorMessage } from './handlers/errorMessages.js';
 export function setupMultiplayerListeners(): void {
     if (state.multiplayerListenersSetup) return;
     if (!getClient()) {
-        console.error('setupMultiplayerListeners: CodenamesClient not loaded');
+        console.error('setupMultiplayerListeners: EigennamenClient not loaded');
         return;
     }
     registerGameHandlers();

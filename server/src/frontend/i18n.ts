@@ -1,7 +1,7 @@
 /**
  * Internationalization (i18n) Module
  *
- * Lightweight i18n for the Codenames frontend.
+ * Lightweight i18n for the Eigennamen frontend.
  * - Loads JSON translation files from /locales/
  * - Provides t() function for string lookups with interpolation
  * - Supports data-i18n attributes for automatic DOM translation
@@ -20,7 +20,7 @@ export const LANGUAGES: Record<string, { name: string; flag: string }> = {
 };
 
 export const DEFAULT_LANGUAGE = 'en';
-const STORAGE_KEY = 'codenames-language';
+const STORAGE_KEY = 'eigennamen-language';
 
 /** Loaded translation data keyed by language code */
 const translations: Record<string, Record<string, any>> = {};

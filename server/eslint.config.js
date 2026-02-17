@@ -1,5 +1,5 @@
 /**
- * ESLint Configuration for Codenames Server (ESLint 9 Flat Config)
+ * ESLint Configuration for Eigennamen Server (ESLint 9 Flat Config)
  * Supports both JavaScript and TypeScript files
  */
 
@@ -90,7 +90,7 @@ module.exports = [
             globals: {
                 ...globals.browser,
                 ...globals.es2021,
-                CodenamesClient: 'readonly',
+                EigennamenClient: 'readonly',
                 qrcode: 'readonly',
                 io: 'readonly'
             },

@@ -1,6 +1,6 @@
-# Architecture Overview - Codenames Online
+# Architecture Overview - Eigennamen Online
 
-This document describes the high-level architecture of Codenames Online, a real-time multiplayer implementation of the board game Codenames.
+This document describes the high-level architecture of Eigennamen Online, a real-time multiplayer implementation of the board game Eigennamen.
 
 ## System Architecture
 
@@ -251,28 +251,17 @@ Eigennamen/
 └── server/                 # Node.js backend
     ├── public/
     │   ├── js/
-    │   │   ├── modules/    # ES6 modules (20 compiled frontend modules)
-    │   │   │   ├── app.js              # Entry point, initialization
-    │   │   │   ├── state.js            # State management
-    │   │   │   ├── ui.js               # UI rendering utilities
-    │   │   │   ├── board.js            # Board rendering
-    │   │   │   ├── game.js             # Game logic
-    │   │   │   ├── roles.js            # Role management
-    │   │   │   ├── multiplayer.js      # Multiplayer core (365 lines, barrel re-export)
-    │   │   │   ├── multiplayerListeners.js  # Socket event handlers (537 lines)
-    │   │   │   ├── multiplayerSync.js  # State synchronization (292 lines)
-    │   │   │   ├── multiplayerUI.js    # Multiplayer UI components (490 lines)
-    │   │   │   ├── multiplayerTypes.js # Multiplayer type definitions
-    │   │   │   ├── history.js          # Game history and replay
-    │   │   │   ├── timer.js            # Turn timer
-    │   │   │   ├── settings.js         # Settings management
-    │   │   │   ├── i18n.js             # Internationalization
-    │   │   │   ├── accessibility.js    # Keyboard nav, colorblind mode
-    │   │   │   ├── notifications.js    # Audio notifications
-    │   │   │   ├── logger.js           # Frontend logging utility
-    │   │   │   ├── constants.js        # Shared constants
-    │   │   │   └── utils.js            # Utility functions
-    │   │   └── socket-client.js    # WebSocket client wrapper
+    │   │   ├── modules/    # Compiled frontend (built from src/frontend/)
+    │   │   │   ├── frontend/          # 31 compiled frontend modules
+    │   │   │   │   ├── handlers/      # 6 domain-specific event handler modules
+    │   │   │   │   ├── multiplayer.js # Multiplayer core (barrel re-export)
+    │   │   │   │   ├── multiplayerListeners.js  # Thin orchestrator (~30 lines)
+    │   │   │   │   ├── multiplayerSync.js       # State synchronization
+    │   │   │   │   ├── multiplayerUI.js         # Multiplayer UI components
+    │   │   │   │   └── ...            # app, board, game, state, ui, etc.
+    │   │   │   ├── shared/            # Shared constants (validation, game rules)
+    │   │   │   └── chunks/            # Build chunks
+    │   │   └── socket-client.js       # WebSocket client wrapper
     │   ├── css/            # Modular stylesheets (8 files)
     │   ├── locales/        # i18n translations (en, de, es, fr)
     │   ├── admin.html      # Admin dashboard UI
@@ -280,25 +269,25 @@ Eigennamen/
     ├── src/
     │   ├── index.ts        # Server entry point
     │   ├── app.ts          # Express configuration + Swagger
-    │   ├── config/         # Configuration modules (13 files)
+    │   ├── config/         # Configuration modules (12 files)
     │   ├── errors/         # Custom error classes (GameError hierarchy)
     │   ├── middleware/      # Express middleware (6 files)
     │   │   └── auth/       # Socket auth sub-modules (4 files)
     │   ├── routes/         # REST API routes (6 files)
     │   ├── services/       # Business logic (7 service files)
-    │   │   └── game/       # Game sub-modules (4 files)
+    │   │   └── game/       # Game sub-modules (3 files)
     │   ├── socket/         # WebSocket setup and utilities (10 files)
     │   │   └── handlers/   # Event-specific handlers (6 files)
-    │   ├── frontend/       # Frontend TypeScript source (22 modules)
-    │   ├── types/          # TypeScript type definitions (9 files)
+    │   ├── frontend/       # Frontend TypeScript source (37 modules)
+    │   ├── types/          # TypeScript type definitions (11 files)
     │   ├── utils/          # Utility modules (9 files)
     │   ├── validators/     # Zod validation schemas (7 files)
     │   ├── scripts/        # Redis Lua scripts (6 atomic operations)
-    │   └── __tests__/      # Jest tests (81 suites, 2,527 tests)
+    │   └── __tests__/      # Jest tests (93 suites, 2,671 tests)
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
-    ├── e2e/                # Playwright E2E tests (8 spec files)
+    ├── e2e/                # Playwright E2E tests (9 spec files)
     └── prisma/
         └── schema.prisma   # Database schema
 ```

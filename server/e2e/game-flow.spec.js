@@ -5,7 +5,7 @@ const { sel, becomeCurrentClicker } = require('./helpers');
 /**
  * Game Flow E2E Tests
  *
- * Tests the core gameplay mechanics of Codenames.
+ * Tests the core gameplay mechanics of Eigennamen.
  */
 
 test.describe('Game Flow', () => {

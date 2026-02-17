@@ -2,7 +2,7 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 /**
- * Playwright Configuration for Codenames E2E Tests
+ * Playwright Configuration for Eigennamen E2E Tests
  *
  * Run with:
  *   npm run test:e2e           - Run all E2E tests

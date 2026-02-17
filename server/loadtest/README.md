@@ -1,6 +1,6 @@
 # Load Testing
 
-Performance and load testing scripts for Codenames Online.
+Performance and load testing scripts for Eigennamen Online.
 
 This directory contains two types of load tests:
 - **k6 scripts** (`room-flow.js`, `websocket-game.js`) for high-concurrency HTTP/WebSocket benchmarking
@@ -46,7 +46,7 @@ Tests room existence checks and info retrieval under load using k6 virtual users
 k6 run loadtest/room-flow.js
 
 # Run against staging
-k6 run -e BASE_URL=https://codenames-staging.fly.dev loadtest/room-flow.js
+k6 run -e BASE_URL=https://eigennamen-staging.fly.dev loadtest/room-flow.js
 ```
 
 **Scenarios:**
@@ -107,7 +107,7 @@ npm run loadtest
 node loadtest/stress-test.js --clients=100 --rooms=20 --duration=120 --ramp-up=15
 
 # Against a remote server
-node loadtest/stress-test.js --url=https://codenames-staging.fly.dev --clients=200
+node loadtest/stress-test.js --url=https://eigennamen-staging.fly.dev --clients=200
 ```
 
 **Options:**
@@ -148,7 +148,7 @@ npm run loadtest:memory
 node loadtest/memory-leak-test.js --iterations=500
 
 # Against a remote server
-node loadtest/memory-leak-test.js --url=https://codenames-staging.fly.dev
+node loadtest/memory-leak-test.js --url=https://eigennamen-staging.fly.dev
 ```
 
 **Options:**
@@ -218,7 +218,7 @@ jobs:
         with:
           filename: server/loadtest/room-flow.js
         env:
-          BASE_URL: https://codenames-staging.fly.dev
+          BASE_URL: https://eigennamen-staging.fly.dev
 
       # Node.js tests (requires running server)
       - uses: actions/setup-node@v4

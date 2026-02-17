@@ -354,7 +354,7 @@ describe('setState(property, value, source)', () => {
     });
 
     it('uses "unknown" as default source when not provided', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true);
         const history = getStateHistory('isHost');
         expect(history.length).toBe(1);
@@ -381,19 +381,19 @@ describe('logStateChange', () => {
     });
 
     it('stores history entries when debug mode is enabled', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         logStateChange('isHost', false, true, 'test');
         expect(getStateHistory().length).toBe(1);
     });
 
     it('stores the correct property name', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         logStateChange('gameState.currentTurn', 'red', 'blue', 'turnEnd');
         expect(getStateHistory()[0].property).toBe('gameState.currentTurn');
     });
 
     it('stores the correct old and new values', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         logStateChange('gameState.redScore', 3, 5, 'cardReveal');
         const entry = getStateHistory()[0];
         expect(entry.oldValue).toBe(3);
@@ -401,26 +401,26 @@ describe('logStateChange', () => {
     });
 
     it('stores the correct source', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         logStateChange('isHost', false, true, 'roomCreated');
         expect(getStateHistory()[0].source).toBe('roomCreated');
     });
 
     it('stores a timestamp in ISO format', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         logStateChange('isHost', false, true, 'test');
         const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
         expect(getStateHistory()[0].timestamp).toMatch(isoRegex);
     });
 
     it('stores a stack trace string', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         logStateChange('isHost', false, true, 'test');
         expect(typeof getStateHistory()[0].stack).toBe('string');
     });
 
     it('deep clones old and new values (modifying originals does not affect history)', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         const obj = { a: 1, b: 2 };
         logStateChange('testProp', obj, { a: 3, b: 4 }, 'test');
         obj.a = 999;
@@ -428,7 +428,7 @@ describe('logStateChange', () => {
     });
 
     it('caps history at 100 entries', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         for (let i = 0; i < 110; i++) {
             logStateChange('counter', i, i + 1, 'loop');
         }
@@ -451,7 +451,7 @@ describe('setState integration with logStateChange', () => {
     });
 
     it('records history when debug is enabled', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'roomCreated');
         const history = getStateHistory();
         expect(history.length).toBe(1);
@@ -467,7 +467,7 @@ describe('setState integration with logStateChange', () => {
     });
 
     it('records multiple state changes in order', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'first');
         setState('gameState.currentTurn', 'blue', 'second');
         setState('gameState.redScore', 3, 'third');
@@ -526,7 +526,7 @@ describe('getStateHistory / clearStateHistory', () => {
     });
 
     it('returns entries after setState calls when debug is enabled', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'test');
         setState('gameState.currentTurn', 'blue', 'test');
         const history = getStateHistory();
@@ -534,7 +534,7 @@ describe('getStateHistory / clearStateHistory', () => {
     });
 
     it('returns a copy of the history array (not the same reference)', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'test');
         const history1 = getStateHistory();
         const history2 = getStateHistory();
@@ -543,7 +543,7 @@ describe('getStateHistory / clearStateHistory', () => {
     });
 
     it('filters by property name', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'test');
         setState('gameState.currentTurn', 'blue', 'test');
         setState('isHost', false, 'test');
@@ -554,13 +554,13 @@ describe('getStateHistory / clearStateHistory', () => {
     });
 
     it('returns empty array when filtering for non-existent property', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'test');
         expect(getStateHistory('nonExistentProp')).toEqual([]);
     });
 
     it('clearStateHistory empties the array', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'test');
         expect(getStateHistory().length).toBe(1);
         clearStateHistory();
@@ -568,7 +568,7 @@ describe('getStateHistory / clearStateHistory', () => {
     });
 
     it('after clearStateHistory, new entries can still be recorded', () => {
-        localStorage.setItem('debug', 'codenames');
+        localStorage.setItem('debug', 'eigennamen');
         setState('isHost', true, 'test');
         clearStateHistory();
         setState('gameState.currentTurn', 'blue', 'test');

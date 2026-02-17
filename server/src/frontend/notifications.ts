@@ -8,8 +8,8 @@ import { logger } from './logger.js';
 
 // Load notification preferences from localStorage
 export function loadNotificationPrefs(): void {
-    state.notificationPrefs.soundEnabled = safeGetItem('codenames-pref-sound') === 'true';
-    state.notificationPrefs.tabNotificationEnabled = safeGetItem('codenames-pref-tab-notification') === 'true';
+    state.notificationPrefs.soundEnabled = safeGetItem('eigennamen-pref-sound') === 'true';
+    state.notificationPrefs.tabNotificationEnabled = safeGetItem('eigennamen-pref-tab-notification') === 'true';
 
     // Update checkboxes if they exist
     const soundCheckbox = document.getElementById('pref-sound-notifications') as HTMLInputElement | null;
@@ -20,8 +20,8 @@ export function loadNotificationPrefs(): void {
 
 // Save notification preferences to localStorage
 export function saveNotificationPrefs(): void {
-    safeSetItem('codenames-pref-sound', state.notificationPrefs.soundEnabled.toString());
-    safeSetItem('codenames-pref-tab-notification', state.notificationPrefs.tabNotificationEnabled.toString());
+    safeSetItem('eigennamen-pref-sound', state.notificationPrefs.soundEnabled.toString());
+    safeSetItem('eigennamen-pref-tab-notification', state.notificationPrefs.tabNotificationEnabled.toString());
 }
 
 // Initialize Audio Context (must be triggered by user gesture)

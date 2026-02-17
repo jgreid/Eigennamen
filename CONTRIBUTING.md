@@ -1,6 +1,6 @@
-# Contributing to Codenames Online
+# Contributing to Eigennamen Online
 
-Thank you for your interest in contributing to Codenames Online! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to Eigennamen Online! This document provides guidelines for contributing to the project.
 
 ## Table of Contents
 

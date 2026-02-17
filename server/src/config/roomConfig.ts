@@ -10,7 +10,7 @@
  * Memory mode adjustments:
  * When running with REDIS_URL=memory (single-instance, no persistence),
  * TTLs are shortened to prevent unbounded memory growth on constrained VMs.
- * A Codenames game typically lasts 30-60 minutes, so 4 hours is generous.
+ * An Eigennamen game typically lasts 30-60 minutes, so 4 hours is generous.
  */
 
 import {

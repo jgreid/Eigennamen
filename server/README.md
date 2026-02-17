@@ -1,6 +1,6 @@
-# Codenames Online - Server
+# Eigennamen Online - Server
 
-Real-time multiplayer server for Codenames Online, built with Node.js, Socket.io, Redis, and PostgreSQL.
+Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.io, Redis, and PostgreSQL.
 
 ## Features
 
@@ -22,7 +22,7 @@ Real-time multiplayer server for Codenames Online, built with Node.js, Socket.io
 
 ## Quick Start
 
-This guide will walk you through getting the Codenames server running on your machine. Choose either Docker (easier, recommended) or Manual Setup depending on your preference.
+This guide will walk you through getting the Eigennamen server running on your machine. Choose either Docker (easier, recommended) or Manual Setup depending on your preference.
 
 ---
 
@@ -127,7 +127,7 @@ Open `.env` in a text editor and configure:
 REDIS_URL=redis://localhost:6379
 
 # Required for persistence: PostgreSQL connection
-DATABASE_URL=postgresql://username:password@localhost:5432/codenames
+DATABASE_URL=postgresql://username:password@localhost:5432/eigennamen
 
 # Optional: Change the port (default is 3000)
 PORT=3000
@@ -162,7 +162,7 @@ If you want persistent game history and custom word lists:
 
 1. **Create a database:**
    ```bash
-   createdb codenames
+   createdb eigennamen
    ```
 
 2. **Run database migrations:**
@@ -230,10 +230,10 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (2,527 across 81 suites, 0 failures)
+npm test              # Run all tests (2,671 across 93 suites, 0 failures)
 npm run test:coverage # Run tests with coverage report (94%+ lines)
 npm run test:frontend # Run frontend unit tests (Jest + jsdom)
-npm run test:e2e      # Run E2E tests (64+ across 8 Playwright specs)
+npm run test:e2e      # Run E2E tests (64+ across 9 Playwright specs)
 ```
 
 ## Configuration
@@ -297,18 +297,18 @@ server/
 ├── src/
 │   ├── index.ts          # Entry point
 │   ├── app.ts            # Express configuration
-│   ├── config/           # Configuration files (13 modules)
+│   ├── config/           # Configuration files (12 modules)
 │   ├── errors/           # Custom error classes
 │   ├── middleware/        # Express & Socket middleware
 │   ├── routes/           # REST API routes
 │   ├── services/         # Business logic (7 services)
 │   ├── socket/           # Socket.io setup
-│   │   └── handlers/     # Event-specific handlers (5 files)
+│   │   └── handlers/     # Event-specific handlers (6 files)
 │   ├── types/            # TypeScript type definitions
 │   ├── utils/            # Utilities (metrics, logging, locks, etc.)
 │   ├── validators/       # Zod validation schemas
 │   ├── scripts/          # Redis Lua scripts for atomic operations
-│   └── __tests__/        # Jest tests (80+ files)
+│   └── __tests__/        # Jest tests (93 suites)
 ├── e2e/                  # Playwright E2E tests
 ├── prisma/
 │   └── schema.prisma     # Database schema

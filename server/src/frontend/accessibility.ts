@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { t } from './i18n.js';
 
-const CB_STORAGE_KEY = 'codenames-colorblind';
+const CB_STORAGE_KEY = 'eigennamen-colorblind';
 
 // ========== COLOR BLIND MODE ==========
 

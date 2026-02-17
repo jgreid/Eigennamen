@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Codenames",
+    "title": "Eigennamen",
     "subtitle": "En ligne"
   },
   "nav": {
@@ -75,7 +75,7 @@
     "teamCard": "carte de l'équipe {{type}}",
     "revealedCardLabel": "{{word}}, révélée comme {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, carte non révélée. {{position}}. Appuyez sur Entrée pour révéler.",
-    "boardAriaLabel": "Plateau de jeu Codenames – grille de 5 par 5 avec des cartes de mots",
+    "boardAriaLabel": "Plateau de jeu Eigennamen – grille de 5 par 5 avec des cartes de mots",
     "renderError": "Erreur d'affichage. Veuillez lancer une nouvelle partie."
   },
   "timer": {
@@ -173,7 +173,7 @@
     "gameMode": "Mode de jeu",
     "gameModeHint": "Choisissez comment vous voulez jouer.",
     "classic": "Classique",
-    "classicDesc": "Règles standard de Codenames",
+    "classicDesc": "Règles standard de Eigennamen",
     "blitz": "Blitz",
     "blitzDesc": "Tours rapides de 30 secondes",
     "duet": "Duo",
@@ -210,7 +210,7 @@
     "note": "L'équipe qui commence cherche 9 mots, l'autre 8. La première à tous les trouver gagne !"
   },
   "about": {
-    "title": "À propos de Codenames Online",
+    "title": "À propos de Eigennamen Online",
     "description": "Une implémentation gratuite et open-source du célèbre jeu de société.",
     "version": "Version",
     "license": "GPL v3.0",
@@ -271,7 +271,7 @@
     "winsShort": "{{team}} gagne"
   },
   "notifications": {
-    "yourTurn": "Votre tour – Codenames"
+    "yourTurn": "Votre tour – Eigennamen"
   },
   "forfeit": {
     "multiplayerOnly": "Abandonner n'est disponible qu'en mode multijoueur",

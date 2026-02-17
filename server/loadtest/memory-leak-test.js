@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Codenames Memory Leak Test
+ * Eigennamen Memory Leak Test
  *
  * Creates and destroys rooms repeatedly to detect memory leaks.
  * Monitors server memory via /health/metrics endpoint.

@@ -1,11 +1,11 @@
 /**
- * Codenames Online - WebSocket Client Adapter
+ * Eigennamen Online - WebSocket Client Adapter
  *
  * This module connects the client to the real-time multiplayer server.
  * Socket.io client library is loaded automatically if not already present.
  *
  * Built as an IIFE -- loaded via <script src="/js/socket-client.js">.
- * NOT an ES module. Exposes CodenamesClient on the global window object.
+ * NOT an ES module. Exposes EigennamenClient on the global window object.
  *
  * Sub-modules (bundled by esbuild into a single IIFE):
  *   socket-client-types.ts    — Type definitions
@@ -18,12 +18,12 @@ import { safeSetStorage, safeGetStorage, safeRemoveStorage } from './socket-clie
 import { registerAllEventListeners } from './socket-client-events.js';
 import type {
     SocketClientInstance, Player, ConnectOptions, CreateRoomOptions,
-    SocketListenerEntry, OfflineQueueItem, ErrorData, ListenerMap, CodenamesGlobal,
+    SocketListenerEntry, OfflineQueueItem, ErrorData, ListenerMap, EigennamenGlobal,
     ClientEventMap, ClientEventName
 } from './socket-client-types.js';
 import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
 
-(function (global: (Window & CodenamesGlobal) | (typeof globalThis & CodenamesGlobal)) {
+(function (global: (Window & EigennamenGlobal) | (typeof globalThis & EigennamenGlobal)) {
     'use strict';
 
     /**
@@ -60,7 +60,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
         });
     }
 
-    const CodenamesClient = {
+    const EigennamenClient = {
         socket: null as SocketClientInstance | null,
         sessionId: null as string | null,
         roomCode: null as string | null,
@@ -99,8 +99,8 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             return new Promise((resolve, reject) => {
 
                 // Use safe storage methods with error handling
-                this.sessionId = this._safeGetStorage(sessionStorage, 'codenames-session-id');
-                this.storedNickname = this._safeGetStorage(localStorage, 'codenames-nickname');
+                this.sessionId = this._safeGetStorage(sessionStorage, 'eigennamen-session-id');
+                this.storedNickname = this._safeGetStorage(localStorage, 'eigennamen-nickname');
                 this.autoRejoin = options.autoRejoin !== false;
 
                 const url = serverUrl || window.location.origin;
@@ -195,7 +195,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             } catch (error) {
                 logger.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
-                this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
+                this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
                 this._emit('rejoinFailed', { error: error as ServerErrorData | undefined });
             }
         },
@@ -220,7 +220,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             const self = this;
             const wrappedEmit = <K extends ClientEventName>(event: K, data: ClientEventMap[K]): void => {
                 if (event === 'kicked') {
-                    safeRemoveStorage(sessionStorage, 'codenames-room-code');
+                    safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
                 }
                 self._emit(event, data);
             };
@@ -262,14 +262,14 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          */
         _saveSession(): void {
             if (this.sessionId) {
-                safeSetStorage(sessionStorage, 'codenames-session-id', this.sessionId);
+                safeSetStorage(sessionStorage, 'eigennamen-session-id', this.sessionId);
             }
             if (this.roomCode) {
                 // Use sessionStorage for room code to prevent multi-tab conflicts
-                safeSetStorage(sessionStorage, 'codenames-room-code', this.roomCode);
+                safeSetStorage(sessionStorage, 'eigennamen-room-code', this.roomCode);
             }
             if (this.player?.nickname) {
-                safeSetStorage(localStorage, 'codenames-nickname', this.player.nickname);
+                safeSetStorage(localStorage, 'eigennamen-nickname', this.player.nickname);
                 this.storedNickname = this.player.nickname;
             }
         },
@@ -557,7 +557,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             this.socket!.emit('room:leave');
             this.roomCode = null;
             this.player = null;
-            this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
+            this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
         },
 
         /**
@@ -831,7 +831,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * Uses sessionStorage to prevent multi-tab conflicts
          */
         getStoredRoomCode(): string | null {
-            return this._safeGetStorage(sessionStorage, 'codenames-room-code');
+            return this._safeGetStorage(sessionStorage, 'eigennamen-room-code');
         },
 
         /**
@@ -839,7 +839,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * Uses safe storage methods
          */
         getStoredNickname(): string | null {
-            return this._safeGetStorage(localStorage, 'codenames-nickname');
+            return this._safeGetStorage(localStorage, 'eigennamen-nickname');
         },
 
         /**
@@ -849,9 +849,9 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * Nickname uses localStorage for user convenience
          */
         clearSession(): void {
-            this._safeRemoveStorage(sessionStorage, 'codenames-session-id');
-            this._safeRemoveStorage(sessionStorage, 'codenames-room-code');
-            this._safeRemoveStorage(localStorage, 'codenames-nickname');
+            this._safeRemoveStorage(sessionStorage, 'eigennamen-session-id');
+            this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
+            this._safeRemoveStorage(localStorage, 'eigennamen-nickname');
             this.sessionId = null;
             this.storedNickname = null;
             this.joinInProgress = false;
@@ -868,6 +868,6 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
     };
 
     // Export to global scope
-    global.CodenamesClient = CodenamesClient;
+    global.EigennamenClient = EigennamenClient;
 
 })(typeof window !== 'undefined' ? window : globalThis as any);

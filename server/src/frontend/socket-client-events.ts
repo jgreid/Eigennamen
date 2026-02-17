@@ -1,5 +1,5 @@
 /**
- * Socket.io event listener registration for the Codenames WebSocket Client.
+ * Socket.io event listener registration for the Eigennamen WebSocket Client.
  *
  * Extracted from socket-client.ts. Registers all server-to-client event
  * listeners and maps them to the adapter's internal event bus.

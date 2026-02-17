@@ -1,11 +1,11 @@
 // ========== DEBUG MODULE ==========
 // State debugging utilities: proxy, mutation logging, history, watchers.
 // Extracted from state.ts to keep the state module focused on data.
-// Enable debug mode by setting localStorage.debug = 'codenames'
+// Enable debug mode by setting localStorage.debug = 'eigennamen'
 
 import type { AppState } from './stateTypes.js';
 
-const DEBUG_KEY = 'codenames';
+const DEBUG_KEY = 'eigennamen';
 
 export const debugEnabled = (): boolean => {
     try {
@@ -177,7 +177,7 @@ export function dumpState(state: AppState): void {
 
 export function attachDebugToWindow(rawState: AppState): void {
     if (typeof window !== 'undefined' && debugEnabled()) {
-        (window as Window).__codenamesDebug = {
+        (window as Window).__eigennamenDebug = {
             getState: () => getStateSnapshot(rawState),
             getHistory: getStateHistory,
             clearHistory: clearStateHistory,
@@ -185,12 +185,12 @@ export function attachDebugToWindow(rawState: AppState): void {
             watchState,
             disableDebug: () => {
                 localStorage.removeItem('debug');
-                delete (window as Window).__codenamesDebug;
+                delete (window as Window).__eigennamenDebug;
                 console.log('%c[Debug] Disabled — reload to take full effect', 'color: #ff0000');
             }
         };
 
-        console.log('%c[Codenames Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
-            '\nUse window.__codenamesDebug for debugging utilities');
+        console.log('%c[Eigennamen Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
+            '\nUse window.__eigennamenDebug for debugging utilities');
     }
 }

@@ -201,7 +201,7 @@ export function setTeam(team: string | null): void {
     // In multiplayer mode, send to server and let server response update state
     if (state.isMultiplayerMode && isClientConnected()) {
         // ISSUE FIX: Must be in a room before setting team
-        if (!CodenamesClient.isInRoom()) {
+        if (!EigennamenClient.isInRoom()) {
             logger.warn('setTeam: Not in a room yet, ignoring');
             showToast(t('multiplayer.waitJoiningRoom'), 'info');
             return;
@@ -239,7 +239,7 @@ export function setTeam(team: string | null): void {
         };
         refreshRoleUI();
 
-        CodenamesClient.setTeam(team, (ack: AckResult) => {
+        EigennamenClient.setTeam(team, (ack: AckResult) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 logger.warn('setTeam: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
@@ -303,7 +303,7 @@ function setRoleForTeam(
 ): void {
     // --- Multiplayer path ---
     if (state.isMultiplayerMode && isClientConnected()) {
-        if (!CodenamesClient.isInRoom()) {
+        if (!EigennamenClient.isInRoom()) {
             logger.warn(`set${roleName}: Not in a room yet, ignoring`);
             showToast(t('multiplayer.waitJoiningRoom'), 'info');
             return;
@@ -345,15 +345,15 @@ function setRoleForTeam(
         if (prevOwn === team) {
             // Toggle off
             state.roleChange = { phase: 'changing_role', target: roleName, operationId, revertFn: revertOptimistic };
-            CodenamesClient.setRole('spectator', ackHandler);
+            EigennamenClient.setRole('spectator', ackHandler);
         } else if (prevTeam !== team) {
             // Need team change first, then role
             state.roleChange = { phase: 'team_then_role', target: roleName, operationId, revertFn: revertOptimistic, pendingRole: roleName };
-            CodenamesClient.setTeam(team, ackHandler);
+            EigennamenClient.setTeam(team, ackHandler);
         } else {
             // Already on correct team, just change role
             state.roleChange = { phase: 'changing_role', target: roleName, operationId, revertFn: revertOptimistic };
-            CodenamesClient.setRole(roleName, ackHandler);
+            EigennamenClient.setRole(roleName, ackHandler);
         }
         refreshRoleUI();
 

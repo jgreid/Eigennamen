@@ -1,7 +1,7 @@
 /**
  * OpenAPI/Swagger Configuration
  *
- * Provides API documentation for the Codenames Online REST API.
+ * Provides API documentation for the Eigennamen Online REST API.
  * Access documentation at /api-docs when server is running.
  */
 
@@ -14,10 +14,10 @@ const options = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Codenames Online API',
+            title: 'Eigennamen Online API',
             version: '1.0.0',
             description: `
-REST API for Codenames Online multiplayer game server.
+REST API for Eigennamen Online multiplayer game server.
 
 ## Overview
 This API provides endpoints for:
@@ -698,7 +698,7 @@ const swaggerSpec = swaggerJsdoc(options);
 export function setupSwagger(app: Express): void {
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
         customCss: '.swagger-ui .topbar { display: none }',
-        customSiteTitle: 'Codenames API Documentation'
+        customSiteTitle: 'Eigennamen API Documentation'
     }));
 
     app.get('/api-docs.json', (_req: Request, res: Response) => {

@@ -1,5 +1,5 @@
 /**
- * Safe browser storage utilities for the Codenames WebSocket Client.
+ * Safe browser storage utilities for the Eigennamen WebSocket Client.
  *
  * Extracted from socket-client.ts. These functions handle
  * QuotaExceededError (private browsing) and other storage access errors

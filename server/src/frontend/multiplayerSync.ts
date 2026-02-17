@@ -50,7 +50,7 @@ export function cleanupDOMListeners(): void {
 }
 
 export function cleanupMultiplayerListeners(): void {
-    // Remove all multiplayer event listeners from CodenamesClient
+    // Remove all multiplayer event listeners from EigennamenClient
     const client = getClient();
     if (client) {
         multiplayerEventNames.forEach(eventName => {

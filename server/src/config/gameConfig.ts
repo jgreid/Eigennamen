@@ -19,7 +19,7 @@ export type { GameMode } from '../shared';
 export const GAME_MODE_CONFIG = {
     classic: {
         label: 'Classic',
-        description: 'Standard Codenames rules',
+        description: 'Standard Eigennamen rules',
         forcedTurnTimer: null,   // Timer is optional, set by host
         minTurnTimer: 30,
         maxTurnTimer: 300,

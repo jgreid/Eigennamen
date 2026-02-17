@@ -4,7 +4,7 @@
 Adopted (2024)
 
 ## Context
-Card reveal operations in Codenames games were causing race conditions when multiple players clicked cards simultaneously. Additionally, the full JSON serialization/deserialization cycle for each operation created CPU overhead, especially in rooms with active games.
+Card reveal operations in Eigennamen games were causing race conditions when multiple players clicked cards simultaneously. Additionally, the full JSON serialization/deserialization cycle for each operation created CPU overhead, especially in rooms with active games.
 
 ### Problem Statement
 1. **Race Conditions**: Without atomic operations, two players clicking cards at the same time could both modify the game state, leading to inconsistent scores or invalid states.
