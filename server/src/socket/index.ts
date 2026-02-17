@@ -29,7 +29,7 @@ import {
     startRateLimitCleanup,
     stopRateLimitCleanup
 } from './rateLimitHandler';
-import { safeEmitToRoom } from './safeEmit';
+import { safeEmitToRoom, safeEmitToPlayer } from './safeEmit';
 import {
     incrementConnectionCount,
     decrementConnectionCount,
@@ -74,7 +74,6 @@ function emitToRoom(roomCode: string, event: string, data: unknown): void {
  * Helper to emit to a specific player
  */
 function emitToPlayer(sessionId: string, event: string, data: unknown): void {
-    const { safeEmitToPlayer } = require('./safeEmit');
     safeEmitToPlayer(io, sessionId, event, data);
 }
 
