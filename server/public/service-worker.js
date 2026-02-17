@@ -1,5 +1,5 @@
 /**
- * Service Worker for Codenames Online PWA
+ * Service Worker for Eigennamen Online PWA
  *
  * Provides offline caching so standalone mode (URL-encoded game state)
  * works without a network connection. Uses network-first strategy to

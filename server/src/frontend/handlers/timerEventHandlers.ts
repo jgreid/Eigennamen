@@ -6,19 +6,19 @@ import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from '../ti
 import type { TimerEventData } from '../multiplayerTypes.js';
 
 export function registerTimerHandlers(): void {
-    CodenamesClient.on('timerStatus', (data: TimerEventData) => {
+    EigennamenClient.on('timerStatus', (data: TimerEventData) => {
         handleTimerStatus(data);
     });
 
-    CodenamesClient.on('timerStarted', (data: TimerEventData) => {
+    EigennamenClient.on('timerStarted', (data: TimerEventData) => {
         handleTimerStarted(data);
     });
 
-    CodenamesClient.on('timerStopped', (_data: unknown) => {
+    EigennamenClient.on('timerStopped', (_data: unknown) => {
         handleTimerStopped();
     });
 
-    CodenamesClient.on('timerExpired', (_data: unknown) => {
+    EigennamenClient.on('timerExpired', (_data: unknown) => {
         handleTimerStopped();
         showToast('Turn time expired!', 'warning');
     });

@@ -1,6 +1,6 @@
 # Backup and Disaster Recovery
 
-This document defines the backup strategy, recovery procedures, and operational runbooks for Codenames Online infrastructure. It covers all deployment modes: single-instance (memory mode), Docker Compose (local/staging), and Fly.io (production).
+This document defines the backup strategy, recovery procedures, and operational runbooks for Eigennamen Online infrastructure. It covers all deployment modes: single-instance (memory mode), Docker Compose (local/staging), and Fly.io (production).
 
 ---
 
@@ -28,7 +28,7 @@ This document defines the backup strategy, recovery procedures, and operational 
 
 ### Data Lifecycle
 
-- **Redis game state is ephemeral by design.** Rooms expire via TTL: 4 hours in memory mode, 24 hours with external Redis (configured in `server/src/config/roomConfig.ts`). A typical Codenames game lasts 30-60 minutes.
+- **Redis game state is ephemeral by design.** Rooms expire via TTL: 4 hours in memory mode, 24 hours with external Redis (configured in `server/src/config/roomConfig.ts`). A typical Eigennamen game lasts 30-60 minutes.
 - **PostgreSQL stores long-lived data** that survives server restarts: user accounts, completed game history, custom word lists, and audit logs.
 - **The application itself is stateless.** Any instance can be rebuilt from the container image and environment variables.
 
@@ -152,22 +152,22 @@ The Prisma schema (`server/prisma/schema.prisma`) defines five tables:
 ```bash
 # Full database dump (custom format, compressed)
 docker compose exec db pg_dump \
-  -U codenames \
-  -d codenames \
+  -U eigennamen \
+  -d eigennamen \
   -Fc \
-  -f /tmp/codenames-backup.dump
+  -f /tmp/eigennamen-backup.dump
 
 # Copy dump out of container
-docker compose cp db:/tmp/codenames-backup.dump \
-  ./backups/codenames-$(date +%Y%m%d-%H%M%S).dump
+docker compose cp db:/tmp/eigennamen-backup.dump \
+  ./backups/eigennamen-$(date +%Y%m%d-%H%M%S).dump
 
 # SQL format (human-readable, useful for debugging)
 docker compose exec db pg_dump \
-  -U codenames \
-  -d codenames \
+  -U eigennamen \
+  -d eigennamen \
   --clean \
   --if-exists \
-  > ./backups/codenames-$(date +%Y%m%d-%H%M%S).sql
+  > ./backups/eigennamen-$(date +%Y%m%d-%H%M%S).sql
 ```
 
 **Direct connection (non-Docker):**
@@ -175,10 +175,10 @@ docker compose exec db pg_dump \
 ```bash
 pg_dump \
   -h localhost \
-  -U codenames \
-  -d codenames \
+  -U eigennamen \
+  -d eigennamen \
   -Fc \
-  -f ./backups/codenames-$(date +%Y%m%d-%H%M%S).dump
+  -f ./backups/eigennamen-$(date +%Y%m%d-%H%M%S).dump
 ```
 
 **Selective backup (high-value tables only):**
@@ -186,12 +186,12 @@ pg_dump \
 ```bash
 # Back up only user data and word lists
 docker compose exec db pg_dump \
-  -U codenames \
-  -d codenames \
+  -U eigennamen \
+  -d eigennamen \
   -Fc \
   -t users \
   -t word_lists \
-  -f /tmp/codenames-critical.dump
+  -f /tmp/eigennamen-critical.dump
 ```
 
 ### 3.3 Automated Backup Script
@@ -211,28 +211,28 @@ mkdir -p "$BACKUP_DIR"
 
 # Create backup
 docker compose exec -T db pg_dump \
-  -U codenames \
-  -d codenames \
+  -U eigennamen \
+  -d eigennamen \
   -Fc \
-  > "$BACKUP_DIR/codenames-$TIMESTAMP.dump"
+  > "$BACKUP_DIR/eigennamen-$TIMESTAMP.dump"
 
 # Verify backup is non-empty
-if [ ! -s "$BACKUP_DIR/codenames-$TIMESTAMP.dump" ]; then
+if [ ! -s "$BACKUP_DIR/eigennamen-$TIMESTAMP.dump" ]; then
   echo "ERROR: Backup file is empty" >&2
   exit 1
 fi
 
-echo "Backup created: $BACKUP_DIR/codenames-$TIMESTAMP.dump"
+echo "Backup created: $BACKUP_DIR/eigennamen-$TIMESTAMP.dump"
 
 # Prune old backups
-find "$BACKUP_DIR" -name "codenames-*.dump" -mtime +$RETENTION_DAYS -delete
+find "$BACKUP_DIR" -name "eigennamen-*.dump" -mtime +$RETENTION_DAYS -delete
 echo "Pruned backups older than $RETENTION_DAYS days"
 ```
 
 Add to crontab for hourly backups:
 
 ```
-0 * * * * /path/to/Eigennamen/scripts/backup-postgres.sh >> /var/log/codenames-backup.log 2>&1
+0 * * * * /path/to/Eigennamen/scripts/backup-postgres.sh >> /var/log/eigennamen-backup.log 2>&1
 ```
 
 ### 3.4 WAL Archiving for Point-in-Time Recovery
@@ -306,7 +306,7 @@ Before any migration in production:
 1. **Always back up first:**
    ```bash
    # Create a backup before migration
-   pg_dump -U codenames -d codenames -Fc -f pre-migration-backup.dump
+   pg_dump -U eigennamen -d eigennamen -Fc -f pre-migration-backup.dump
    ```
 
 2. **Review the migration SQL:**
@@ -408,11 +408,11 @@ docker compose stop api
 
 # Restore (drops and recreates objects)
 docker compose exec -T db pg_restore \
-  -U codenames \
-  -d codenames \
+  -U eigennamen \
+  -d eigennamen \
   --clean \
   --if-exists \
-  < ./backups/codenames-YYYYMMDD-HHMMSS.dump
+  < ./backups/eigennamen-YYYYMMDD-HHMMSS.dump
 
 # Restart application
 docker compose start api
@@ -424,9 +424,9 @@ docker compose start api
 docker compose stop api
 
 docker compose exec -T db psql \
-  -U codenames \
-  -d codenames \
-  < ./backups/codenames-YYYYMMDD-HHMMSS.sql
+  -U eigennamen \
+  -d eigennamen \
+  < ./backups/eigennamen-YYYYMMDD-HHMMSS.sql
 
 docker compose start api
 ```
@@ -489,8 +489,8 @@ cd server && npm run db:migrate
 ```bash
 # Restore PostgreSQL
 docker compose exec -T db pg_restore \
-  -U codenames -d codenames --clean --if-exists \
-  < ./backups/codenames-latest.dump
+  -U eigennamen -d eigennamen --clean --if-exists \
+  < ./backups/eigennamen-latest.dump
 
 # Restore Redis (optional, only if needed)
 docker compose stop redis
@@ -631,7 +631,7 @@ The `/health/metrics/prometheus` endpoint exports metrics in Prometheus text for
 
 ```yaml
 scrape_configs:
-  - job_name: 'codenames'
+  - job_name: 'eigennamen'
     scrape_interval: 30s
     metrics_path: '/health/metrics/prometheus'
     static_configs:
@@ -751,7 +751,7 @@ docker compose ps
 docker compose exec redis redis-cli -a "$REDIS_PASSWORD" PING
 
 # Check PostgreSQL connectivity
-docker compose exec db pg_isready -U codenames -d codenames
+docker compose exec db pg_isready -U eigennamen -d eigennamen
 
 # Check application logs
 docker compose logs api --tail=50
@@ -788,7 +788,7 @@ docker compose logs api --tail=50
    ```bash
    docker compose restart db
    # Wait for health check
-   docker compose exec db pg_isready -U codenames -d codenames
+   docker compose exec db pg_isready -U eigennamen -d eigennamen
    ```
 
 2. **Check disk space** (full disk prevents WAL writes):
@@ -798,7 +798,7 @@ docker compose logs api --tail=50
 
 3. **Check connection limits:**
    ```bash
-   docker compose exec db psql -U codenames -d codenames \
+   docker compose exec db psql -U eigennamen -d eigennamen \
      -c "SELECT count(*) FROM pg_stat_activity;"
    ```
 
@@ -1007,18 +1007,18 @@ docker compose exec redis redis-cli -a "$REDIS_PASSWORD" BGREWRITEAOF
 
 ```bash
 # Connection test
-docker compose exec db pg_isready -U codenames -d codenames
+docker compose exec db pg_isready -U eigennamen -d eigennamen
 
 # Interactive shell
-docker compose exec db psql -U codenames -d codenames
+docker compose exec db psql -U eigennamen -d eigennamen
 
 # Table sizes
-docker compose exec db psql -U codenames -d codenames \
+docker compose exec db psql -U eigennamen -d eigennamen \
   -c "SELECT tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename))
       FROM pg_tables WHERE schemaname = 'public' ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;"
 
 # Row counts
-docker compose exec db psql -U codenames -d codenames \
+docker compose exec db psql -U eigennamen -d eigennamen \
   -c "SELECT 'users' as t, count(*) FROM users
       UNION ALL SELECT 'rooms', count(*) FROM rooms
       UNION ALL SELECT 'games', count(*) FROM games

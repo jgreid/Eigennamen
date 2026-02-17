@@ -1,5 +1,5 @@
 /**
- * Type definitions for the Codenames WebSocket Client Adapter.
+ * Type definitions for the Eigennamen WebSocket Client Adapter.
  *
  * Extracted from socket-client.ts for clarity. These interfaces are
  * internal to the IIFE and only used by the socket-client modules.
@@ -180,7 +180,7 @@ export type ListenerMap = {
     [event: string]: Array<(data: unknown) => void> | undefined;
 };
 
-/** Extended Window to allow setting CodenamesClient globally. */
-export interface CodenamesGlobal {
-    CodenamesClient?: unknown;
+/** Extended Window to allow setting EigennamenClient globally. */
+export interface EigennamenGlobal {
+    EigennamenClient?: unknown;
 }

@@ -15,7 +15,7 @@ import type {
 } from '../multiplayerTypes.js';
 
 export function registerPlayerHandlers(): void {
-    CodenamesClient.on('playerJoined', (data: PlayerJoinedData) => {
+    EigennamenClient.on('playerJoined', (data: PlayerJoinedData) => {
         if (data.players) {
             state.multiplayerPlayers = data.players;
         } else if (data.player) {
@@ -25,26 +25,26 @@ export function registerPlayerHandlers(): void {
                 state.multiplayerPlayers = [...state.multiplayerPlayers, data.player];
             }
         }
-        updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         showToast(`${data.player?.nickname || 'Someone'} joined`, 'success');
         playNotificationSound('join');
     });
 
-    CodenamesClient.on('playerLeft', (data: PlayerLeftData) => {
+    EigennamenClient.on('playerLeft', (data: PlayerLeftData) => {
         if (data.players) {
             state.multiplayerPlayers = data.players;
         } else if (data.sessionId) {
             // Remove player from list
             state.multiplayerPlayers = state.multiplayerPlayers.filter((p: ServerPlayerData) => p.sessionId !== data.sessionId);
         }
-        updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         if (data.nickname) {
             showToast(`${data.nickname} left`, 'info');
         }
     });
 
     // Handle player state updates (role, team, nickname changes)
-    CodenamesClient.on('playerUpdated', (data: PlayerUpdatedData) => {
+    EigennamenClient.on('playerUpdated', (data: PlayerUpdatedData) => {
         // Skip individual updates during a full state resync — the resync
         // data already contains the latest state for all players.
         if (state.resyncInProgress) return;
@@ -53,7 +53,7 @@ export function registerPlayerHandlers(): void {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
                 p.sessionId === data.sessionId ? { ...p, ...data.changes } as ServerPlayerData : p
             );
-            updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+            updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
             // Announce role/team changes to screen readers
             if (data.changes.role || data.changes.team !== undefined) {
@@ -71,16 +71,16 @@ export function registerPlayerHandlers(): void {
             }
 
             // If this is the current player, update local state variables
-            if (data.sessionId === CodenamesClient.player?.sessionId) {
+            if (data.sessionId === EigennamenClient.player?.sessionId) {
                 let updatedPlayer = state.multiplayerPlayers.find((p: ServerPlayerData) => p.sessionId === data.sessionId);
 
-                // Bug #8 fix: If player not in list, construct from changes and CodenamesClient.player
+                // Bug #8 fix: If player not in list, construct from changes and EigennamenClient.player
                 if (!updatedPlayer) {
-                    const basePlayer = CodenamesClient.player || {};
+                    const basePlayer = EigennamenClient.player || {};
                     updatedPlayer = { ...basePlayer, ...data.changes } as ServerPlayerData;
                     if (updatedPlayer.sessionId) {
                         state.multiplayerPlayers = [...state.multiplayerPlayers, updatedPlayer];
-                        updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+                        updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
                     }
                 }
 
@@ -121,7 +121,7 @@ export function registerPlayerHandlers(): void {
                             }
                         };
 
-                        CodenamesClient.setRole(roleToSet);
+                        EigennamenClient.setRole(roleToSet);
 
                         // Dedicated timeout for the role portion of the compound
                         // operation. The original team-phase timeout in setRoleForTeam()
@@ -153,13 +153,13 @@ export function registerPlayerHandlers(): void {
     });
 
     // Handle player disconnection (network issues)
-    CodenamesClient.on('playerDisconnected', (data: PlayerDisconnectedData) => {
+    EigennamenClient.on('playerDisconnected', (data: PlayerDisconnectedData) => {
         // Mark player as disconnected in local list
         if (data.sessionId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
                 p.sessionId === data.sessionId ? { ...p, connected: false } : p
             );
-            updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+            updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
             // Update controls and board - clicker disconnecting enables other team members
             updateControls();
             renderBoard();
@@ -168,13 +168,13 @@ export function registerPlayerHandlers(): void {
     });
 
     // Handle player reconnection
-    CodenamesClient.on('playerReconnected', (data: PlayerDisconnectedData) => {
+    EigennamenClient.on('playerReconnected', (data: PlayerDisconnectedData) => {
         // Mark player as connected in local list
         if (data.sessionId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
                 p.sessionId === data.sessionId ? { ...p, connected: true } : p
             );
-            updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+            updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
             // Update controls and board - clicker reconnecting restores normal behavior
             updateControls();
             renderBoard();

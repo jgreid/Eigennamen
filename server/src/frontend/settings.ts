@@ -27,7 +27,7 @@ export function openSettings(): void {
 
     // Load word list mode
     // Validate savedMode against allowed values before using in CSS selector
-    const rawSavedMode = safeGetItem('codenames-wordlist-mode', 'combined');
+    const rawSavedMode = safeGetItem('eigennamen-wordlist-mode', 'combined');
     const allowedModes = ['default', 'combined', 'custom'];
     const savedMode = allowedModes.includes(rawSavedMode ?? '') ? rawSavedMode : 'combined';
     const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`) as HTMLInputElement | null;
@@ -40,7 +40,7 @@ export function openSettings(): void {
         });
     }
 
-    const customWords = safeGetItem('codenames-custom-words');
+    const customWords = safeGetItem('eigennamen-custom-words');
     if (customWordsTextarea) {
         customWordsTextarea.value = customWords || '';
     }
@@ -169,7 +169,7 @@ export function saveSettings(): void {
     // Get word list mode
     const modeRadio = document.querySelector('input[name="wordlist-mode"]:checked') as HTMLInputElement | null;
     const selectedMode = modeRadio ? modeRadio.value : 'combined';
-    safeSetItem('codenames-wordlist-mode', selectedMode);
+    safeSetItem('eigennamen-wordlist-mode', selectedMode);
     state.wordListMode = selectedMode;
 
     const textarea = document.getElementById('custom-words') as HTMLTextAreaElement | null;
@@ -192,9 +192,9 @@ export function saveSettings(): void {
 
     // Save custom words if any
     if (customWordsText) {
-        safeSetItem('codenames-custom-words', customWordsText);
+        safeSetItem('eigennamen-custom-words', customWordsText);
     } else {
-        safeRemoveItem('codenames-custom-words');
+        safeRemoveItem('eigennamen-custom-words');
     }
 
     // Build active word list based on mode
@@ -241,10 +241,10 @@ export function resetWords(): void {
 
 export function loadLocalSettings(): void {
     // Load word list mode
-    state.wordListMode = safeGetItem('codenames-wordlist-mode', 'combined') || '';
+    state.wordListMode = safeGetItem('eigennamen-wordlist-mode', 'combined') || '';
 
     // Load custom words
-    const customWordsText = safeGetItem('codenames-custom-words');
+    const customWordsText = safeGetItem('eigennamen-custom-words');
     const customWords = customWordsText ? parseWords(customWordsText) : [];
 
     // Apply word list based on mode
@@ -272,7 +272,7 @@ export function loadLocalSettings(): void {
 
 export async function tryLoadWordlistFile(): Promise<void> {
     // Skip if custom words exist or mode is 'default' only
-    if (safeGetItem('codenames-custom-words') || state.wordListMode === 'default') {
+    if (safeGetItem('eigennamen-custom-words') || state.wordListMode === 'default') {
         return;
     }
 

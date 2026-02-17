@@ -1,12 +1,12 @@
 #!/bin/bash
 # Quick system health check script
-# Shows status of all Codenames services
+# Shows status of all Eigennamen services
 
 set -e
 
 URL="${1:-http://localhost:3000}"
 
-echo "=== Codenames Health Check ==="
+echo "=== Eigennamen Health Check ==="
 echo "Target: $URL"
 echo ""
 
@@ -66,7 +66,7 @@ fi
 if command -v docker &> /dev/null; then
     echo ""
     echo "🐳 Docker Containers:"
-    docker ps --filter "name=codenames" --format "  {{.Names}}: {{.Status}}" 2>/dev/null || echo "  No Codenames containers found"
+    docker ps --filter "name=eigennamen" --format "  {{.Names}}: {{.Status}}" 2>/dev/null || echo "  No Eigennamen containers found"
 fi
 
 echo ""

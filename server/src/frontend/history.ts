@@ -19,7 +19,7 @@ const REPLAY_SPEEDS: Record<string, number> = {
 let currentReplaySpeed = '1x';
 
 export function openGameHistory(): void {
-    if (!state.isMultiplayerMode || !CodenamesClient.isConnected()) {
+    if (!state.isMultiplayerMode || !EigennamenClient.isConnected()) {
         showToast(t('history.multiplayerOnly'), 'info');
         return;
     }
@@ -35,7 +35,7 @@ export function openGameHistory(): void {
     openModal('history-modal');
 
     // Request game history from server
-    CodenamesClient.getGameHistory(10);
+    EigennamenClient.getGameHistory(10);
 }
 
 export function closeGameHistory(): void {
@@ -143,7 +143,7 @@ export function openReplay(gameId: string): void {
     openModal('replay-modal');
 
     // Request replay data
-    CodenamesClient.getReplay(gameId);
+    EigennamenClient.getReplay(gameId);
 }
 
 export function closeReplay(): void {

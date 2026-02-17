@@ -4,7 +4,7 @@
 Adopted (2024)
 
 ## Context
-The Codenames client needs to persist session information (session ID, room code, player state) across page refreshes but had issues with multi-tab usage.
+The Eigennamen client needs to persist session information (session ID, room code, player state) across page refreshes but had issues with multi-tab usage.
 
 ### Problem Statement
 Using `localStorage` caused problems when users:

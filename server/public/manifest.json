@@ -1,7 +1,7 @@
 {
-    "name": "Codenames Online",
-    "short_name": "Codenames",
-    "description": "Play the popular party game Codenames online with friends",
+    "name": "Eigennamen Online",
+    "short_name": "Eigennamen",
+    "description": "Play the popular party game Eigennamen online with friends",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#1a1a2e",

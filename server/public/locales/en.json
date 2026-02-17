@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Codenames",
+    "title": "Eigennamen",
     "subtitle": "Online"
   },
   "nav": {
@@ -75,7 +75,7 @@
     "teamCard": "{{type}} team card",
     "revealedCardLabel": "{{word}}, revealed as {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, unrevealed card. {{position}}. Press Enter to reveal.",
-    "boardAriaLabel": "Codenames game board - 5 by 5 grid of word cards",
+    "boardAriaLabel": "Eigennamen game board - 5 by 5 grid of word cards",
     "renderError": "Board rendering error. Please start a new game."
   },
   "timer": {
@@ -173,7 +173,7 @@
     "gameMode": "Game Mode",
     "gameModeHint": "Choose how you want to play.",
     "classic": "Classic",
-    "classicDesc": "Standard Codenames rules",
+    "classicDesc": "Standard Eigennamen rules",
     "blitz": "Blitz",
     "blitzDesc": "Fast-paced 30-second turns",
     "duet": "Duet",
@@ -210,7 +210,7 @@
     "note": "Starting team finds 9 words, other team finds 8. First to find all wins!"
   },
   "about": {
-    "title": "About Codenames Online",
+    "title": "About Eigennamen Online",
     "description": "A free, open-source implementation of the popular board game.",
     "version": "Version",
     "license": "GPL v3.0",
@@ -271,7 +271,7 @@
     "winsShort": "{{team}} wins"
   },
   "notifications": {
-    "yourTurn": "Your Turn - Codenames"
+    "yourTurn": "Your Turn - Eigennamen"
   },
   "forfeit": {
     "multiplayerOnly": "Forfeit is only available in multiplayer mode",

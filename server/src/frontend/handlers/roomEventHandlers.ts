@@ -22,10 +22,10 @@ import { getClient } from '../clientAccessor.js';
 
 export function registerRoomHandlers(): void {
     // Handle host change (when previous host disconnects)
-    CodenamesClient.on('hostChanged', (data: HostChangedData) => {
+    EigennamenClient.on('hostChanged', (data: HostChangedData) => {
         // Update global isHost based on whether we became the new host
         const wasHost = state.isHost;
-        state.isHost = data.newHostSessionId === CodenamesClient.player?.sessionId;
+        state.isHost = data.newHostSessionId === EigennamenClient.player?.sessionId;
 
         // Update host status in players list
         if (data.newHostSessionId) {
@@ -33,7 +33,7 @@ export function registerRoomHandlers(): void {
                 ...p,
                 isHost: p.sessionId === data.newHostSessionId
             }));
-            updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+            updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         }
 
         // Update UI elements that depend on host status
@@ -49,10 +49,10 @@ export function registerRoomHandlers(): void {
     });
 
     // Room warnings (non-fatal issues like stale stats)
-    CodenamesClient.on('roomWarning', (data: RoomWarningData) => {
+    EigennamenClient.on('roomWarning', (data: RoomWarningData) => {
         if (data.code === 'STATS_STALE') {
             // Auto-request resync to get fresh data
-            CodenamesClient.requestResync().catch(() => {
+            EigennamenClient.requestResync().catch(() => {
                 // Resync failed, stats may remain stale - not critical
                 logger.warn('Auto-resync after stale stats warning failed');
             });
@@ -60,13 +60,13 @@ export function registerRoomHandlers(): void {
     });
 
     // Room resync (state recovery)
-    CodenamesClient.on('roomResynced', (data: ReconnectionData) => {
+    EigennamenClient.on('roomResynced', (data: ReconnectionData) => {
         // Guard: prevent individual update events from interleaving with
         // a full resync, which replaces all state atomically.
         state.resyncInProgress = true;
         try {
             // Sync current player's state from server response
-            const currentPlayer = data.you || CodenamesClient.player;
+            const currentPlayer = data.you || EigennamenClient.player;
             if (currentPlayer) {
                 syncLocalPlayerState(currentPlayer as ServerPlayerData);
             }
@@ -88,7 +88,7 @@ export function registerRoomHandlers(): void {
     });
 
     // Disconnect handling
-    CodenamesClient.on('disconnected', () => {
+    EigennamenClient.on('disconnected', () => {
         // Use revertAndClearRoleChange (not clearRoleChange) so that buttons
         // are reverted from 'loading' state back to their previous DOM state.
         revertAndClearRoleChange();
@@ -100,7 +100,7 @@ export function registerRoomHandlers(): void {
     });
 
     // Show reconnection overlay when auto-rejoin is being attempted
-    CodenamesClient.on('rejoining', () => {
+    EigennamenClient.on('rejoining', () => {
         showReconnectionOverlay();
     });
 
@@ -113,7 +113,7 @@ export function registerRoomHandlers(): void {
         try {
             const changes = detectOfflineChanges(data);
 
-            const currentPlayer = data?.you || CodenamesClient.player;
+            const currentPlayer = data?.you || EigennamenClient.player;
             if (currentPlayer) {
                 syncLocalPlayerState(currentPlayer as ServerPlayerData);
             }
@@ -139,10 +139,10 @@ export function registerRoomHandlers(): void {
         }
     }
 
-    CodenamesClient.on('rejoined', handleReconnection);
-    CodenamesClient.on('roomReconnected', handleReconnection);
+    EigennamenClient.on('rejoined', handleReconnection);
+    EigennamenClient.on('roomReconnected', handleReconnection);
 
-    CodenamesClient.on('rejoinFailed', (data: ReconnectionData) => {
+    EigennamenClient.on('rejoinFailed', (data: ReconnectionData) => {
         // Hide reconnection overlay
         hideReconnectionOverlay();
 
@@ -167,21 +167,21 @@ export function registerRoomHandlers(): void {
     });
 
     // Handle being kicked from the room
-    CodenamesClient.on('kicked', (data: KickedData) => {
+    EigennamenClient.on('kicked', (data: KickedData) => {
         leaveMultiplayerMode();
         showToast(data.reason || 'You were kicked from the room', 'error', 5000);
     });
 
     // Handle another player being kicked
-    CodenamesClient.on('playerKicked', (data: PlayerKickedData) => {
+    EigennamenClient.on('playerKicked', (data: PlayerKickedData) => {
         // Update player list
         state.multiplayerPlayers = state.multiplayerPlayers.filter((p: ServerPlayerData) => p.sessionId !== data.sessionId);
-        updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         showToast(`${data.nickname} was kicked by the host`, 'info');
     });
 
     // Handle room settings updates
-    CodenamesClient.on('settingsUpdated', (data: SettingsUpdatedData) => {
+    EigennamenClient.on('settingsUpdated', (data: SettingsUpdatedData) => {
         if (data.settings) {
             // Update room info display
             updateRoomSettingsNavVisibility();
@@ -192,7 +192,7 @@ export function registerRoomHandlers(): void {
             }
 
             // Update multiplayer indicator
-            updateMpIndicator({ code: CodenamesClient.getRoomCode() || '' }, state.multiplayerPlayers);
+            updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
             showToast('Room settings updated', 'info');
         }
@@ -204,14 +204,14 @@ export function registerRoomHandlers(): void {
         const handler = (e: Event) => {
             if (!getClient()?.player?.isHost) return;
             const gameMode = (e.target as HTMLInputElement).value;
-            CodenamesClient.updateSettings({ gameMode });
+            EigennamenClient.updateSettings({ gameMode });
         };
         radio.addEventListener('change', handler);
         domListenerCleanup.push({ element: radio, event: 'change', handler });
     });
 
     // Handle room stats updates (spectator count, team counts)
-    CodenamesClient.on('statsUpdated', (data: StatsUpdatedData) => {
+    EigennamenClient.on('statsUpdated', (data: StatsUpdatedData) => {
         if (data.stats) {
             updateSpectatorCount(data.stats.spectatorCount || 0);
             updateRoomStats(data.stats);

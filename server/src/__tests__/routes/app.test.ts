@@ -323,7 +323,7 @@ describe('Express Application', () => {
             expect(response.status).toBe(200);
             expect(response.body).toHaveProperty('openapi');
             expect(response.body).toHaveProperty('info');
-            expect(response.body.info.title).toBe('Codenames Online API');
+            expect(response.body.info.title).toBe('Eigennamen Online API');
         });
 
         it('should not serve SPA for /api-docs routes', async () => {

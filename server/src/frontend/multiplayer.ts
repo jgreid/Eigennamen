@@ -69,7 +69,7 @@ export function cancelAllOperations(): void {
 
 export function openMultiplayer(): void {
     // Pre-fill nickname from storage
-    const storedNickname = safeGetItem('codenames-nickname', '') ?? '';
+    const storedNickname = safeGetItem('eigennamen-nickname', '') ?? '';
     const joinNicknameEl = document.getElementById('join-nickname') as HTMLInputElement | null;
     if (joinNicknameEl) joinNicknameEl.value = storedNickname;
     const createNicknameEl = document.getElementById('create-nickname') as HTMLInputElement | null;
@@ -203,8 +203,8 @@ async function handleJoinGame(): Promise<void> {
     try {
         setMpStatus(t('multiplayer.connecting'), 'connecting');
 
-        if (!CodenamesClient.isConnected()) {
-            await CodenamesClient.connect();
+        if (!EigennamenClient.isConnected()) {
+            await EigennamenClient.connect();
         }
 
         if (signal.aborted) return;
@@ -218,7 +218,7 @@ async function handleJoinGame(): Promise<void> {
         // (toEnglishLowerCase).  Plain .toLowerCase() can differ for non-ASCII
         // characters depending on the browser locale, causing key mismatches.
         const normalizedRoomId = roomId!.toLocaleLowerCase('en-US');
-        const result: JoinCreateResult = await CodenamesClient.joinRoom(normalizedRoomId, nickname);
+        const result: JoinCreateResult = await EigennamenClient.joinRoom(normalizedRoomId, nickname);
 
         if (signal.aborted) return;
 
@@ -283,8 +283,8 @@ async function handleCreateGame(): Promise<void> {
     try {
         setMpStatus(t('multiplayer.creatingGame'), 'connecting');
 
-        if (!CodenamesClient.isConnected()) {
-            await CodenamesClient.connect();
+        if (!EigennamenClient.isConnected()) {
+            await EigennamenClient.connect();
         }
 
         if (signal.aborted) return;
@@ -295,7 +295,7 @@ async function handleCreateGame(): Promise<void> {
 
         // Use toLocaleLowerCase('en-US') to match the server-side normalization
         const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
-        const result: JoinCreateResult = await CodenamesClient.createRoom({
+        const result: JoinCreateResult = await EigennamenClient.createRoom({
             roomId: normalizedRoomId,
             nickname: nickname
         });
@@ -333,7 +333,7 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     }
 
     state.isMultiplayerMode = true;
-    safeSetItem('codenames-nickname', CodenamesClient.player?.nickname || '');
+    safeSetItem('eigennamen-nickname', EigennamenClient.player?.nickname || '');
 
     // Listeners are now set up before join/create (in handleJoinGame/handleCreateGame)
     // to prevent race conditions. This guard handles the auto-rejoin path where
@@ -344,13 +344,13 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     state.multiplayerPlayers = result.players || (result.player ? [result.player] : []);
 
     // Sync current player's team and role from server
-    const currentPlayer: ServerPlayerData | undefined = result.you || result.player || CodenamesClient.player || undefined;
+    const currentPlayer: ServerPlayerData | undefined = result.you || result.player || EigennamenClient.player || undefined;
     if (currentPlayer) {
         syncLocalPlayerState(currentPlayer);
     }
 
     // Update global isHost from parameter or player data
-    state.isHost = isHostParam || CodenamesClient.player?.isHost || false;
+    state.isHost = isHostParam || EigennamenClient.player?.isHost || false;
 
     // Sync game state from server if available, otherwise clear stale local state
     // (e.g., leftover board from standalone mode) to prevent card clicks when no
@@ -368,7 +368,7 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
         // immediately playable. Players who join later receive the game
         // state via the room:joined response.
         if (isHostParam && isClientConnected()) {
-            CodenamesClient.startGame({});
+            EigennamenClient.startGame({});
         }
     }
 
@@ -441,7 +441,7 @@ export function checkURLForRoomJoin(): void {
     const roomValidation = validateRoomCode(roomCode ?? '');
     if (roomCode && roomValidation.valid) {
         // Pre-fill nickname from storage
-        const storedNickname = safeGetItem('codenames-nickname', '') ?? '';
+        const storedNickname = safeGetItem('eigennamen-nickname', '') ?? '';
         const joinNicknameInput = document.getElementById('join-nickname') as HTMLInputElement | null;
         if (joinNicknameInput) joinNicknameInput.value = storedNickname;
 

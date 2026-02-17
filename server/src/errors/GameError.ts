@@ -1,5 +1,5 @@
 /**
- * Custom Error Classes for Codenames Game
+ * Custom Error Classes for Eigennamen Game
  *
  * Provides consistent error handling across the application with typed errors
  * that include error codes for client-side handling.

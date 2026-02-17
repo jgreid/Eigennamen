@@ -4,7 +4,7 @@
 Adopted (2024)
 
 ## Context
-Codenames runs on multiple Node.js instances behind a load balancer for horizontal scaling. Certain operations require exclusive access to prevent race conditions and data corruption.
+Eigennamen runs on multiple Node.js instances behind a load balancer for horizontal scaling. Certain operations require exclusive access to prevent race conditions and data corruption.
 
 ### Problem Statement
 Critical operations that need mutual exclusion:

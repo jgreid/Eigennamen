@@ -1,4 +1,4 @@
-# Sample Custom Word List for Codenames
+# Sample Custom Word List for Eigennamen
 # Place this file in the same folder as index.html
 # One word per line, blank lines and lines starting with # are ignored
 # You need at least 25 words, but 100+ is recommended for variety

@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Codenames",
+    "title": "Eigennamen",
     "subtitle": "Online"
   },
   "nav": {
@@ -75,7 +75,7 @@
     "teamCard": "{{type}}-Teamkarte",
     "revealedCardLabel": "{{word}}, aufgedeckt als {{typeLabel}}. {{position}}",
     "unrevealedCardLabel": "{{word}}, verdeckte Karte. {{position}}. Eingabetaste zum Aufdecken.",
-    "boardAriaLabel": "Codenames-Spielfeld – 5 mal 5 Raster mit Wortkarten",
+    "boardAriaLabel": "Eigennamen-Spielfeld – 5 mal 5 Raster mit Wortkarten",
     "renderError": "Darstellungsfehler. Bitte starte ein neues Spiel."
   },
   "timer": {
@@ -173,7 +173,7 @@
     "gameMode": "Spielmodus",
     "gameModeHint": "Wähle, wie du spielen möchtest.",
     "classic": "Klassisch",
-    "classicDesc": "Standard-Codenames-Regeln",
+    "classicDesc": "Standard-Eigennamen-Regeln",
     "blitz": "Blitz",
     "blitzDesc": "Schnelle 30-Sekunden-Runden",
     "duet": "Duett",
@@ -210,7 +210,7 @@
     "note": "Das anfangende Team findet 9 Wörter, das andere 8. Wer zuerst alle findet, gewinnt!"
   },
   "about": {
-    "title": "Über Codenames Online",
+    "title": "Über Eigennamen Online",
     "description": "Eine kostenlose Open-Source-Umsetzung des beliebten Brettspiels.",
     "version": "Version",
     "license": "GPL v3.0",
@@ -271,7 +271,7 @@
     "winsShort": "{{team}} gewinnt"
   },
   "notifications": {
-    "yourTurn": "Du bist dran – Codenames"
+    "yourTurn": "Du bist dran – Eigennamen"
   },
   "forfeit": {
     "multiplayerOnly": "Aufgeben ist nur im Multiplayer-Modus verfügbar",

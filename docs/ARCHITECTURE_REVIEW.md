@@ -1,4 +1,4 @@
-# Architectural Review — Codenames Online
+# Architectural Review — Eigennamen Online
 
 **Date**: 2026-02-16
 **Scope**: Full codebase (backend, frontend, infrastructure, testing)
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Codenames Online is a well-architected, production-grade real-time multiplayer game. The codebase demonstrates strong engineering discipline: clean service boundaries, comprehensive type safety, defense-in-depth security, and excellent test coverage (94%+ lines). The architecture successfully supports three operational modes (standalone, single-instance, multi-instance) with graceful degradation.
+Eigennamen Online is a well-architected, production-grade real-time multiplayer game. The codebase demonstrates strong engineering discipline: clean service boundaries, comprehensive type safety, defense-in-depth security, and excellent test coverage (94%+ lines). The architecture successfully supports three operational modes (standalone, single-instance, multi-instance) with graceful degradation.
 
 This review identifies **no critical architectural flaws**. The proposals below are structural improvements that would reduce complexity, improve maintainability, and position the codebase for continued growth. They are ordered by impact-to-effort ratio.
 

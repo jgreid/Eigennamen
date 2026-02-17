@@ -15,17 +15,17 @@ import { getErrorMessage } from './errorMessages.js';
 
 export function registerChatAndErrorHandlers(): void {
     // Handle chat messages
-    CodenamesClient.on('chatMessage', (data: ChatMessageData) => {
+    EigennamenClient.on('chatMessage', (data: ChatMessageData) => {
         handleChatMessage(data);
     });
 
     // Handle spectator chat messages
-    CodenamesClient.on('spectatorChatMessage', (data: SpectatorChatData) => {
+    EigennamenClient.on('spectatorChatMessage', (data: SpectatorChatData) => {
         handleSpectatorChatMessage(data);
     });
 
     // Game history events
-    CodenamesClient.on('historyResult', (data: HistoryResultData) => {
+    EigennamenClient.on('historyResult', (data: HistoryResultData) => {
         // Import dynamically to avoid circular dependency
         import('../history.js').then(({ renderGameHistory }) => {
             renderGameHistory(data.games || []);
@@ -35,7 +35,7 @@ export function registerChatAndErrorHandlers(): void {
         });
     });
 
-    CodenamesClient.on('replayData', (data: ReplayData) => {
+    EigennamenClient.on('replayData', (data: ReplayData) => {
         import('../history.js').then(({ renderReplayData }) => {
             renderReplayData(data);
         }).catch((err: unknown) => {
@@ -45,7 +45,7 @@ export function registerChatAndErrorHandlers(): void {
     });
 
     // Error handling for game actions
-    CodenamesClient.on('error', (error: ServerErrorData) => {
+    EigennamenClient.on('error', (error: ServerErrorData) => {
         // Log full error details for debugging
         logger.error('Multiplayer error:', JSON.stringify(error, null, 2));
 

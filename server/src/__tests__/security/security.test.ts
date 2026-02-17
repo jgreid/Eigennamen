@@ -132,7 +132,7 @@ describe('Reserved Names Validation', () => {
     test('all expected reserved names are present', () => {
         const expectedNames = [
             'admin', 'administrator', 'system', 'host', 'server',
-            'mod', 'moderator', 'bot', 'codenames', 'game',
+            'mod', 'moderator', 'bot', 'eigennamen', 'game',
             'official', 'support', 'help', 'null', 'undefined'
         ];
 

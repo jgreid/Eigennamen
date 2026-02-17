@@ -4,7 +4,7 @@
 Adopted (2024)
 
 ## Context
-Codenames Online is designed to be easy to deploy and run. Requiring PostgreSQL and Redis for all deployments creates barriers for:
+Eigennamen Online is designed to be easy to deploy and run. Requiring PostgreSQL and Redis for all deployments creates barriers for:
 - Local development
 - Simple single-server deployments
 - Quick demos and testing

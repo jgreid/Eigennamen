@@ -1,5 +1,5 @@
 /**
- * Central type exports for Codenames Server
+ * Central type exports for Eigennamen Server
  *
  * This file re-exports all types for convenient importing:
  * import { Room, Player, GameState } from '@types';

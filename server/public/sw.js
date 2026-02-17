@@ -1,5 +1,5 @@
 /**
- * Codenames Online - Service Worker
+ * Eigennamen Online - Service Worker
  *
  * Cache strategy:
  * - Static assets (CSS, JS, icons): Cache-first with network fallback

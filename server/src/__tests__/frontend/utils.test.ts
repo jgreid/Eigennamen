@@ -104,7 +104,7 @@ describe('hashString', () => {
     });
 
     it('returns a non-negative integer', () => {
-        const testStrings = ['hello', 'world', 'CODENAMES', 'test123', '!@#$%'];
+        const testStrings = ['hello', 'world', 'EIGENNAMEN', 'test123', '!@#$%'];
         for (const str of testStrings) {
             const hash = hashString(str);
             expect(hash).toBeGreaterThanOrEqual(0);
@@ -114,11 +114,11 @@ describe('hashString', () => {
 
     it('same string produces same hash (deterministic)', () => {
         expect(hashString('hello')).toBe(hashString('hello'));
-        expect(hashString('CODENAMES')).toBe(hashString('CODENAMES'));
+        expect(hashString('EIGENNAMEN')).toBe(hashString('EIGENNAMEN'));
     });
 
     it('different strings produce different hashes', () => {
-        const strings = ['hello', 'world', 'CODENAMES', 'abc', 'xyz', 'test', 'foo', 'bar'];
+        const strings = ['hello', 'world', 'EIGENNAMEN', 'abc', 'xyz', 'test', 'foo', 'bar'];
         const hashes = strings.map(hashString);
         const uniqueHashes = new Set(hashes);
         expect(uniqueHashes.size).toBe(strings.length);

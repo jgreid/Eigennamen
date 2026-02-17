@@ -43,7 +43,7 @@ describe('Database Configuration', () => {
         });
 
         it('should return true when DATABASE_URL is valid', () => {
-            process.env.DATABASE_URL = 'postgresql://localhost:5432/codenames';
+            process.env.DATABASE_URL = 'postgresql://localhost:5432/eigennamen';
             dbModule = require('../../config/database');
 
             expect(dbModule.isDatabaseConfigured()).toBe(true);
@@ -59,7 +59,7 @@ describe('Database Configuration', () => {
         });
 
         it('should return false when database is not connected', () => {
-            process.env.DATABASE_URL = 'postgresql://localhost:5432/codenames';
+            process.env.DATABASE_URL = 'postgresql://localhost:5432/eigennamen';
             dbModule = require('../../config/database');
 
             // Before connecting, should be false
@@ -76,7 +76,7 @@ describe('Database Configuration', () => {
         });
 
         it('should return null when database is not connected', () => {
-            process.env.DATABASE_URL = 'postgresql://localhost:5432/codenames';
+            process.env.DATABASE_URL = 'postgresql://localhost:5432/eigennamen';
             dbModule = require('../../config/database');
 
             expect(dbModule.getDatabase()).toBeNull();

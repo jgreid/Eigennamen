@@ -1,5 +1,5 @@
-# French Codenames Word List (400 words)
-# Suitable for Codenames gameplay - concrete nouns, places, concepts
+# French Eigennamen Word List (400 words)
+# Suitable for Eigennamen gameplay - concrete nouns, places, concepts
 AFRIQUE
 AGENT
 AIR

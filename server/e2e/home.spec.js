@@ -14,7 +14,7 @@ test.describe('Home Page', () => {
     });
 
     test('page loads successfully', async ({ page }) => {
-        await expect(page).toHaveTitle(/Codenames/i);
+        await expect(page).toHaveTitle(/Eigennamen/i);
     });
 
     test('displays game board', async ({ page }) => {

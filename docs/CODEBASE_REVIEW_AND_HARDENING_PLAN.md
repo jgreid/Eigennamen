@@ -1,7 +1,7 @@
 # Codebase Review & Hardening Development Plan
 
 **Date**: 2026-02-15
-**Scope**: Full codebase review of Codenames Online (Eigennamen)
+**Scope**: Full codebase review of Eigennamen Online (Eigennamen)
 **Version Reviewed**: 2.3.0
 
 ---
@@ -29,7 +29,7 @@
 
 ### Overall Assessment: PRODUCTION-GRADE (8.5/10)
 
-Codenames Online is a mature, well-engineered multiplayer game server demonstrating professional software engineering practices. The codebase is built on a solid foundation of TypeScript strict mode, comprehensive testing (2,536 tests, 94%+ coverage), defense-in-depth security, and thoughtful architecture with graceful degradation patterns.
+Eigennamen Online is a mature, well-engineered multiplayer game server demonstrating professional software engineering practices. The codebase is built on a solid foundation of TypeScript strict mode, comprehensive testing (2,536 tests, 94%+ coverage), defense-in-depth security, and thoughtful architecture with graceful degradation patterns.
 
 ### Strengths
 
@@ -505,4 +505,4 @@ The deployment infrastructure is production-grade with a sophisticated multi-mod
 
 ---
 
-*This document was generated from a comprehensive parallel review of the entire Codenames Online codebase. Each finding includes specific file references and line numbers for traceability.*
+*This document was generated from a comprehensive parallel review of the entire Eigennamen Online codebase. Each finding includes specific file references and line numbers for traceability.*

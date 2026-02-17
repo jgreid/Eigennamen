@@ -1,6 +1,6 @@
-# Testing Guide - Codenames Online
+# Testing Guide - Eigennamen Online
 
-This guide covers how to write and run tests for the Codenames Online project.
+This guide covers how to write and run tests for the Eigennamen Online project.
 
 ## Overview
 

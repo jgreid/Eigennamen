@@ -1,4 +1,4 @@
-# Codenames Quickstart Guide
+# Eigennamen Quickstart Guide
 
 Get from zero to playing your first game in minutes. This guide covers three deployment options and walks you through a complete game.
 

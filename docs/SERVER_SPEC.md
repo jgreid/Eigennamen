@@ -1,8 +1,8 @@
-# Codenames Online - Server Platform Technical Specification
+# Eigennamen Online - Server Platform Technical Specification
 
 ## 1. Overview
 
-This document describes the technical architecture of Codenames Online (Die Eigennamen), a real-time multiplayer web platform with standalone fallback mode.
+This document describes the technical architecture of Eigennamen Online (Die Eigennamen), a real-time multiplayer web platform with standalone fallback mode.
 
 ### 1.1 Goals
 
@@ -801,7 +801,7 @@ WORKDIR /app
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S codenames -u 1001
+    adduser -S eigennamen -u 1001
 
 COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
@@ -809,8 +809,8 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY prisma ./prisma
 
-RUN chown -R codenames:nodejs /app
-USER codenames
+RUN chown -R eigennamen:nodejs /app
+USER eigennamen
 
 EXPOSE 3000
 
@@ -833,7 +833,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_URL=postgresql://codenames:password@db:5432/codenames
+      - DATABASE_URL=postgresql://eigennamen:password@db:5432/eigennamen
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
@@ -844,24 +844,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - codenames-network
+      - eigennamen-network
 
   db:
     image: postgres:15-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=codenames
+      - POSTGRES_USER=eigennamen
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=codenames
+      - POSTGRES_DB=eigennamen
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U codenames -d codenames"]
+      test: ["CMD-SHELL", "pg_isready -U eigennamen -d eigennamen"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     networks:
-      - codenames-network
+      - eigennamen-network
 
   redis:
     image: redis:7-alpine
@@ -875,14 +875,14 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - codenames-network
+      - eigennamen-network
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  codenames-network:
+  eigennamen-network:
     driver: bridge
 ```
 
@@ -894,7 +894,7 @@ NODE_ENV=development
 PORT=3000
 
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/codenames
+DATABASE_URL=postgresql://user:password@localhost:5432/eigennamen
 
 # Redis
 REDIS_URL=redis://localhost:6379

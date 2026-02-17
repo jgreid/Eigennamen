@@ -109,7 +109,7 @@ export function newGame(): void {
         // because a game is already in progress).  The gameStarted
         // listener calls syncGameStateFromServer() which handles the
         // full state reset and board render.
-        CodenamesClient.startGame({});
+        EigennamenClient.startGame({});
         return;
     }
 
@@ -310,7 +310,7 @@ export function revealCard(index: number): void {
             card.classList.add('revealing');
         }
 
-        CodenamesClient.revealCard(index);
+        EigennamenClient.revealCard(index);
         // Don't update local state - wait for server confirmation via cardRevealed event
         // isRevealingCard is cleared in cardRevealed or error handler
         return;
@@ -518,7 +518,7 @@ export function endTurn(): void {
 
     // In multiplayer mode, send end turn to server
     if (state.isMultiplayerMode && isClientConnected()) {
-        CodenamesClient.endTurn();
+        EigennamenClient.endTurn();
         // Don't update local state - wait for server confirmation via turnEnded event
         return;
     }

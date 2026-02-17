@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions made in the Codenames Online project.
+This directory contains Architecture Decision Records (ADRs) documenting significant technical decisions made in the Eigennamen Online project.
 
 ## What is an ADR?
 

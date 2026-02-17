@@ -1,6 +1,6 @@
-# Architecture Overview - Codenames Online
+# Architecture Overview - Eigennamen Online
 
-This document describes the high-level architecture of Codenames Online, a real-time multiplayer implementation of the board game Codenames.
+This document describes the high-level architecture of Eigennamen Online, a real-time multiplayer implementation of the board game Eigennamen.
 
 ## System Architecture
 

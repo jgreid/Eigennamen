@@ -17,7 +17,7 @@ import type {
 } from '../multiplayerTypes.js';
 
 export function registerGameHandlers(): void {
-    CodenamesClient.on('gameStarted', (data: GameStartedData) => {
+    EigennamenClient.on('gameStarted', (data: GameStartedData) => {
         // Clear loading state on new game button
         const newGameBtn = document.getElementById('btn-new-game') as HTMLButtonElement;
         if (newGameBtn) {
@@ -38,7 +38,7 @@ export function registerGameHandlers(): void {
         }
     });
 
-    CodenamesClient.on('cardRevealed', (data: CardRevealedData) => {
+    EigennamenClient.on('cardRevealed', (data: CardRevealedData) => {
         // Skip stale reveals during a full state resync
         if (state.resyncInProgress) return;
         // Clear per-card reveal tracking for the revealed card
@@ -76,7 +76,7 @@ export function registerGameHandlers(): void {
         }
     });
 
-    CodenamesClient.on('turnEnded', (data: TurnEndedData) => {
+    EigennamenClient.on('turnEnded', (data: TurnEndedData) => {
         if (state.resyncInProgress) return;
         if (data.currentTurn) {
             const previousTurn = state.gameState.currentTurn;
@@ -101,7 +101,7 @@ export function registerGameHandlers(): void {
         }
     });
 
-    CodenamesClient.on('gameOver', (data: GameOverData) => {
+    EigennamenClient.on('gameOver', (data: GameOverData) => {
         // Duet mode can have null winner (cooperative loss)
         if (data.winner || state.gameMode === 'duet') {
             // Sync all card types from server so non-spymasters can see the full board
@@ -127,7 +127,7 @@ export function registerGameHandlers(): void {
     });
 
     // Handle spymaster view (card types for spymasters)
-    CodenamesClient.on('spymasterView', (data: SpymasterViewData) => {
+    EigennamenClient.on('spymasterView', (data: SpymasterViewData) => {
         if (data.types && Array.isArray(data.types)) {
             state.gameState.types = data.types;
             renderBoard();

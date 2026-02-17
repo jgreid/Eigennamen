@@ -117,8 +117,8 @@ export async function copyRoomId(): Promise<void> {
 }
 
 export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData[]): void {
-    const mySessionId = CodenamesClient.player?.sessionId;
-    const amHost = CodenamesClient.player?.isHost;
+    const mySessionId = EigennamenClient.player?.sessionId;
+    const amHost = EigennamenClient.player?.isHost;
 
     ul.innerHTML = '';
     for (const p of players) {
@@ -336,13 +336,13 @@ export function sendSpectatorChat(message: string): void {
     if (!isClientConnected()) return;
 
     // Only spectators can send spectator messages
-    const player = CodenamesClient.player;
+    const player = EigennamenClient.player;
     if (player?.role !== 'spectator' && player?.team) {
         showToast(t('multiplayer.spectatorChatOnly'), 'error');
         return;
     }
 
-    CodenamesClient.sendSpectatorChat(message.trim());
+    EigennamenClient.sendSpectatorChat(message.trim());
 }
 
 // ========== FORFEIT GAME ==========
@@ -355,7 +355,7 @@ export function confirmForfeit(): void {
         showToast(t('forfeit.multiplayerOnly'), 'warning');
         return;
     }
-    if (!CodenamesClient.player?.isHost) {
+    if (!EigennamenClient.player?.isHost) {
         showToast(t('forfeit.hostOnly'), 'warning');
         return;
     }
@@ -386,7 +386,7 @@ export function closeKickConfirm(): void {
  */
 export function confirmKickPlayer(): void {
     if (pendingKickSessionId && state.isMultiplayerMode && isClientConnected()) {
-        CodenamesClient.kickPlayer(pendingKickSessionId);
+        EigennamenClient.kickPlayer(pendingKickSessionId);
     }
     closeKickConfirm();
 }
@@ -396,10 +396,10 @@ export function confirmKickPlayer(): void {
  */
 export function forfeitGame(): void {
     if (!state.isMultiplayerMode || !isClientConnected()) return;
-    if (!CodenamesClient.player?.isHost) return;
+    if (!EigennamenClient.player?.isHost) return;
     if (state.gameState.gameOver) return;
 
-    CodenamesClient.forfeit();
+    EigennamenClient.forfeit();
 }
 
 /**
@@ -481,9 +481,9 @@ function saveNickname(): void {
     }
 
     if (isClientConnected()) {
-        CodenamesClient.setNickname(nickname);
+        EigennamenClient.setNickname(nickname);
         // Update stored nickname
-        try { localStorage.setItem('codenames-nickname', nickname); } catch { /* ignore */ }
+        try { localStorage.setItem('eigennamen-nickname', nickname); } catch { /* ignore */ }
         showToast(t('multiplayer.nicknameUpdated'), 'success', 2000);
     }
 

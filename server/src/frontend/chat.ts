@@ -65,7 +65,7 @@ function sendChatMessage(): void {
 
     const teamOnly = (document.getElementById('chat-team-only') as HTMLInputElement | null)?.checked ?? false;
 
-    CodenamesClient.sendMessage(text, teamOnly);
+    EigennamenClient.sendMessage(text, teamOnly);
     input.value = '';
     input.focus();
 }

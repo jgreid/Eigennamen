@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Play Codenames online with friends. No account required, just share a link!">
+    <meta name="description" content="Play Eigennamen online with friends. No account required, just share a link!">
     <meta name="theme-color" content="#1a1a2e">
-    <meta property="og:title" content="Codenames Online">
-    <meta property="og:description" content="Play Codenames online with friends. No account required!">
+    <meta property="og:title" content="Eigennamen Online">
+    <meta property="og:description" content="Play Eigennamen online with friends. No account required!">
     <meta property="og:type" content="website">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icons/icon.svg">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Codenames">
-    <title>Codenames Online</title>
+    <meta name="apple-mobile-web-app-title" content="Eigennamen">
+    <title>Eigennamen Online</title>
     <!-- QR Code library - served locally for reliability -->
     <script defer src="/js/qrcode.min.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
     <!-- Socket.io client - deferred to avoid blocking HTML parsing -->
     <script defer src="/js/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
-    <script defer src="/js/socket-client.js?v=9" integrity="sha384-N6wSsfDytO6yIUlsILNvDJn4HQhHwiTNKaV3uBDmWKIrw7Ok8SkLQjebqFXAzg80" crossorigin="anonymous"></script>
+    <script defer src="/js/socket-client.js?v=9" integrity="sha384-4p2vT2CQdM4DOM8585LDO9UFs6IDTDqlwjVogtebzbK+CxCvOk5u6crKtLIA+S1u" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="/css/variables.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -169,11 +169,11 @@
             <noscript>
                 <div style="text-align:center;padding:40px;color:#e0e0e0;">
                     <h2>JavaScript Required</h2>
-                    <p>Please enable JavaScript to play Codenames Online.</p>
+                    <p>Please enable JavaScript to play Eigennamen Online.</p>
                 </div>
             </noscript>
             <div class="board-container">
-                <div class="board" id="board" data-testid="game-board" role="grid" aria-label="Codenames game board">
+                <div class="board" id="board" data-testid="game-board" role="grid" aria-label="Eigennamen game board">
                     <div id="board-loading" style="grid-column:1/-1;text-align:center;padding:40px;color:#a0a0b0;font-size:1.1rem;">Loading game...</div>
                 </div>
             </div>
@@ -304,7 +304,7 @@
                     <div class="settings-panel" id="panel-about">
                         <h2 data-i18n="about.title">About</h2>
                         <div class="about-content compact">
-                            <p class="about-intro" data-i18n="about.description">A free, open-source Codenames for remote play or in-person games.</p>
+                            <p class="about-intro" data-i18n="about.description">A free, open-source Eigennamen for remote play or in-person games.</p>
                             <div class="features-grid">
                                 <div class="feature-item"><span class="feature-icon">🌐</span> Works offline (URL-encoded state)</div>
                                 <div class="feature-item"><span class="feature-icon">👥</span> Real-time multiplayer sync</div>
@@ -312,7 +312,7 @@
                                 <div class="feature-item"><span class="feature-icon">📱</span> Mobile-friendly design</div>
                             </div>
                             <div class="credits">
-                                <p>Codenames by Vlaada Chvátil (Czech Games Edition)</p>
+                                <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
                                 <p>Open source under GPL v3.0</p>
                             </div>
                         </div>
@@ -429,7 +429,7 @@
                                         <input type="radio" name="gameMode" value="classic" checked>
                                         <span class="game-mode-card">
                                             <strong data-i18n="roomSettings.classic">Classic</strong>
-                                            <small data-i18n="roomSettings.classicDesc">Standard Codenames rules</small>
+                                            <small data-i18n="roomSettings.classicDesc">Standard Eigennamen rules</small>
                                         </span>
                                     </label>
                                     <label class="game-mode-option">

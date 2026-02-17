@@ -1,6 +1,6 @@
-# Codenames Online - Server
+# Eigennamen Online - Server
 
-Real-time multiplayer server for Codenames Online, built with Node.js, Socket.io, Redis, and PostgreSQL.
+Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.io, Redis, and PostgreSQL.
 
 ## Features
 
@@ -22,7 +22,7 @@ Real-time multiplayer server for Codenames Online, built with Node.js, Socket.io
 
 ## Quick Start
 
-This guide will walk you through getting the Codenames server running on your machine. Choose either Docker (easier, recommended) or Manual Setup depending on your preference.
+This guide will walk you through getting the Eigennamen server running on your machine. Choose either Docker (easier, recommended) or Manual Setup depending on your preference.
 
 ---
 
@@ -127,7 +127,7 @@ Open `.env` in a text editor and configure:
 REDIS_URL=redis://localhost:6379
 
 # Required for persistence: PostgreSQL connection
-DATABASE_URL=postgresql://username:password@localhost:5432/codenames
+DATABASE_URL=postgresql://username:password@localhost:5432/eigennamen
 
 # Optional: Change the port (default is 3000)
 PORT=3000
@@ -162,7 +162,7 @@ If you want persistent game history and custom word lists:
 
 1. **Create a database:**
    ```bash
-   createdb codenames
+   createdb eigennamen
    ```
 
 2. **Run database migrations:**

@@ -1,6 +1,6 @@
-# Die Eigennamen — Codenames Online
+# Die Eigennamen — Eigennamen Online
 
-A web-based implementation of the popular board game Codenames, optimized for remote play over video conferencing or direct online multiplayer.
+A web-based implementation of the popular board game Eigennamen, optimized for remote play over video conferencing or direct online multiplayer.
 
 **Version:** v2.3.0 | **License:** GPL v3.0 | **Tests:** 2,571+
 
@@ -24,7 +24,7 @@ A web-based implementation of the popular board game Codenames, optimized for re
 
 ## Quick Start
 
-**New to Codenames?** Check out the [Complete Quickstart Guide](QUICKSTART.md) for step-by-step instructions including your first game walkthrough.
+**New to Eigennamen?** Check out the [Complete Quickstart Guide](QUICKSTART.md) for step-by-step instructions including your first game walkthrough.
 
 ### Option 1: Open directly
 
@@ -233,4 +233,4 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 ---
 
-*Codenames is a trademark of Czech Games Edition. This is an unofficial fan-made implementation for personal use.*
+*Eigennamen is a trademark of Czech Games Edition. This is an unofficial fan-made implementation for personal use.*

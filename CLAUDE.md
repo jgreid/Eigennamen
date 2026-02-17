@@ -1,10 +1,10 @@
-# CLAUDE.md - AI Assistant Guide for Codenames Online
+# CLAUDE.md - AI Assistant Guide for Eigennamen Online
 
-This document provides essential context for AI assistants working on the Codenames Online codebase.
+This document provides essential context for AI assistants working on the Eigennamen Online codebase.
 
 ## Project Overview
 
-Codenames Online is a web-based multiplayer implementation of the board game "Codenames". It supports two modes:
+Eigennamen Online is a web-based multiplayer implementation of the board game "Eigennamen". It supports two modes:
 - **Standalone mode**: Works offline with all game state encoded in the URL
 - **Multiplayer mode**: Real-time synchronization via Node.js/Socket.io server
 
@@ -288,7 +288,7 @@ PORT=3000                 # Server port
 LOG_LEVEL=info           # debug | info | warn | error
 
 # Optional - database (works without)
-DATABASE_URL=postgresql://user:pass@localhost:5432/codenames
+DATABASE_URL=postgresql://user:pass@localhost:5432/eigennamen
 DATABASE_DIRECT_URL=...  # Direct connection for migrations (Fly.io)
 
 # Optional - Redis (uses memory mode if not set)
@@ -352,7 +352,7 @@ The game uses Mulberry32 algorithm for deterministic card shuffling, synced betw
 
 ### Game Modes
 Three game modes are supported (`server/src/config/gameConfig.ts`):
-- **Classic**: Standard Codenames rules (9 vs 8 cards)
+- **Classic**: Standard Eigennamen rules (9 vs 8 cards)
 - **Blitz**: 30-second forced timer turns
 - **Duet**: Cooperative 2-player mode with special board configuration
 

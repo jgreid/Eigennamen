@@ -28,6 +28,6 @@ export const TEAM_NAME_REGEX = /^[\p{L}\p{N}\s\-]+$/u;
 // Reserved nicknames (case-insensitive)
 export const RESERVED_NAMES = [
     'admin', 'administrator', 'system', 'host', 'server',
-    'mod', 'moderator', 'bot', 'codenames', 'game',
+    'mod', 'moderator', 'bot', 'eigennamen', 'game',
     'official', 'support', 'help', 'null', 'undefined'
 ] as const;
