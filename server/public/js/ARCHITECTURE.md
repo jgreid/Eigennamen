@@ -11,188 +11,114 @@ The frontend can operate in two modes:
 
 ## File Structure
 
-All modules are compiled from TypeScript source in `server/src/frontend/` (22 modules).
+All modules are compiled from TypeScript source in `server/src/frontend/`.
 
 ```
 server/public/js/
 ├── modules/
-│   ├── app.js                   # Main application entry point (284 lines)
-│   ├── board.js                  # Board rendering & card interaction (318 lines)
-│   ├── game.js                   # Game logic, PRNG, URL encoding (736 lines)
-│   ├── multiplayer.js            # Multiplayer core & barrel re-export (365 lines)
-│   ├── multiplayerListeners.js   # Socket event handlers (537 lines)
-│   ├── multiplayerSync.js        # State synchronization & cleanup (292 lines)
-│   ├── multiplayerUI.js          # Multiplayer UI components (490 lines)
-│   ├── multiplayerTypes.js       # Multiplayer type definitions (3 lines)
-│   ├── state.js                  # Centralized state management (397 lines)
-│   ├── ui.js                     # Toast, modals, announcements (236 lines)
-│   ├── roles.js                  # Role/team selection & switching (499 lines)
-│   ├── history.js                # Game replay system (503 lines)
-│   ├── settings.js               # Settings panel management (317 lines)
-│   ├── timer.js                  # Timer display & status (112 lines)
-│   ├── i18n.js                   # Internationalization (193 lines)
-│   ├── accessibility.js          # Keyboard shortcuts, colorblind mode (184 lines)
-│   ├── notifications.js          # Sound & tab notifications (156 lines)
-│   ├── logger.js                 # Frontend logging utility (37 lines)
-│   ├── utils.js                  # Helper functions, PRNG, clipboard (240 lines)
-│   └── constants.js              # Shared constants & validators (208 lines)
-├── socket-client.js              # Socket.io communication layer (1,019 lines)
-├── qrcode.min.js                 # QR code generation (vendored)
-├── socket.io.min.js              # Socket.io client (vendored)
-└── ARCHITECTURE.md               # This file
+│   ├── frontend/              # Compiled frontend modules
+│   │   ├── handlers/          # Domain-specific event handlers
+│   │   │   ├── chatEventHandlers.js
+│   │   │   ├── gameEventHandlers.js
+│   │   │   ├── playerEventHandlers.js
+│   │   │   ├── roomEventHandlers.js
+│   │   │   ├── timerEventHandlers.js
+│   │   │   └── errorMessages.js
+│   │   ├── app.js             # Main application entry point
+│   │   ├── board.js           # Board rendering & card interaction
+│   │   ├── chat.js            # Chat UI
+│   │   ├── game.js            # Game logic, PRNG, URL encoding
+│   │   ├── multiplayer.js     # Multiplayer core & barrel re-export
+│   │   ├── multiplayerListeners.js  # Thin orchestrator (delegates to handlers/)
+│   │   ├── multiplayerSync.js       # State synchronization & cleanup
+│   │   ├── multiplayerUI.js         # Multiplayer UI components
+│   │   ├── state.js           # Centralized state management
+│   │   ├── stateMutations.js  # Controlled state mutation helpers
+│   │   ├── ui.js              # Toast, modals, announcements
+│   │   ├── roles.js           # Role/team selection & switching
+│   │   ├── history.js         # Game replay system
+│   │   ├── settings.js        # Settings panel management
+│   │   ├── timer.js           # Timer display & status
+│   │   ├── i18n.js            # Internationalization
+│   │   ├── accessibility.js   # Keyboard shortcuts, colorblind mode
+│   │   ├── notifications.js   # Sound & tab notifications
+│   │   ├── logger.js          # Frontend logging utility
+│   │   ├── debug.js           # Debug utilities
+│   │   ├── url-state.js       # URL state encoding/decoding
+│   │   ├── utils.js           # Helper functions, PRNG, clipboard
+│   │   ├── constants.js       # Shared constants & validators
+│   │   ├── clientAccessor.js  # Socket client accessor
+│   │   ├── socket-client.js         # Socket.io communication layer
+│   │   ├── socket-client-events.js  # Socket event definitions
+│   │   ├── socket-client-storage.js # Socket session storage
+│   │   ├── socket-client-types.js   # Socket type definitions
+│   │   ├── multiplayerTypes.js      # Multiplayer type definitions
+│   │   └── stateTypes.js            # State type definitions
+│   ├── shared/                # Shared constants (validation, game rules)
+│   └── chunks/                # Build chunks
+├── socket-client.js           # Legacy socket client wrapper
+├── qrcode.min.js              # QR code generation (vendored)
+├── socket.io.min.js           # Socket.io client (vendored)
+└── ARCHITECTURE.md            # This file
 ```
 
 ## Module Responsibilities
 
-### `app.js` (284 lines)
-Application orchestration:
-- Module initialization and lifecycle
-- Event routing via `data-action` delegation
-- Modal registration system
-- Dependency injection to break circular imports
+### Core Modules
 
-### `board.js` (318 lines)
-Board rendering:
-- 5x5 card grid creation and management
-- Event delegation (single click handler for all cards)
-- Keyboard navigation (arrow keys between cards)
-- Incremental board updates (avoids full re-renders)
-- Font size scaling for multi-word cards
+- **`app.js`** — Application orchestration: module initialization, event routing via `data-action` delegation, modal registration, dependency injection
+- **`state.js`** — Centralized game state object, cached DOM element references, debug logging
+- **`stateMutations.js`** — Controlled state mutation helpers
+- **`ui.js`** — Toast notification system, modal registry, screen reader announcements, focus management
+- **`board.js`** — 5x5 card grid rendering, event delegation, keyboard navigation, incremental updates, font scaling
+- **`game.js`** — Board generation with seeded PRNG (Mulberry32), card reveal, turn management, win conditions, URL state encoding
+- **`roles.js`** — Team switching (Red/Blue), role assignment (Spymaster/Clicker/Spectator), role banner updates
 
-### `game.js` (736 lines)
-Game logic:
-- Board generation with seeded PRNG (Mulberry32)
-- Card reveal logic and turn management
-- Win condition checking
-- URL state encoding/decoding for standalone mode
-- QR code generation
+### Multiplayer Modules
 
-### `multiplayer.js` (365 lines) — Core + Barrel Re-export
-Multiplayer orchestration and modal control:
-- Room creation and joining workflows
-- AbortController for request cancellation
-- Modal initialization and URL-based auto-join
-- Barrel re-exports from multiplayerUI, multiplayerSync, multiplayerListeners
+- **`multiplayer.js`** — Multiplayer orchestration: room creation/joining, AbortController, barrel re-exports
+- **`multiplayerListeners.js`** — Thin orchestrator that delegates Socket.io events to domain-specific handlers in `handlers/`
+- **`multiplayerSync.js`** — State synchronization (syncGameStateFromServer, syncLocalPlayerState), room code URL management, cleanup
+- **`multiplayerUI.js`** — Player list rendering, nickname editing, forfeit/kick dialogs, room info display
 
-### `multiplayerListeners.js` (537 lines)
-Socket event handlers:
-- 20+ Socket.io event listeners (game, player, room, timer, chat)
-- Two-phase role operations (team then role)
-- Reconnection and state recovery handling
+### Event Handlers (in `handlers/`)
 
-### `multiplayerSync.js` (292 lines)
-State synchronization:
-- syncGameStateFromServer / syncLocalPlayerState
-- Room code URL management
-- leaveMultiplayerMode cleanup
-- Offline change detection
+- **`gameEventHandlers.js`** — Game start, card reveal, turn end, game over events
+- **`roomEventHandlers.js`** — Room join/leave, settings updates, host changes, reconnection
+- **`playerEventHandlers.js`** — Player updates, kicks, disconnection
+- **`timerEventHandlers.js`** — Timer start/pause/resume/stop/tick events
+- **`chatEventHandlers.js`** — Chat message handling
+- **`errorMessages.js`** — Error message formatting
 
-### `multiplayerUI.js` (490 lines)
-Multiplayer UI components:
-- Player list rendering and updates
-- Nickname editing
-- Forfeit and kick confirmation dialogs
-- Room info display and room code copy
+### Feature Modules
 
-### `multiplayerTypes.js` (3 lines)
-Shared type definitions and interfaces for multiplayer modules.
+- **`history.js`** — Game history list, replay playback with speed control (0.5x, 1x, 2x, 4x)
+- **`settings.js`** — Settings panel switching, custom word validation (min 25 words), team name counter, localStorage persistence
+- **`timer.js`** — Timer value updates, status handling (running/paused/stopped), aria-live announcements
+- **`chat.js`** — Chat UI rendering and interaction
+- **`i18n.js`** — Async translation loading, `data-i18n-*` attribute support, `{{variable}}` interpolation, browser language detection
+- **`accessibility.js`** — Colorblind mode toggle (SVG patterns), keyboard shortcuts (n, e, s, m, h, ?), escape key handling
+- **`notifications.js`** — Sound notifications (Web Audio API), tab notification badge, turn notification logic
 
-### `state.js` (397 lines)
-State management:
-- Centralized game state object
-- Cached DOM element references
-- Debug logging capability
-- URL state encoding/decoding
+### Socket Communication
 
-### `ui.js` (236 lines)
-User interface utilities:
-- Toast notification system with auto-dismiss
-- Modal registry pattern
-- Screen reader announcements via aria-live
-- Focus management for modal stack
-- Error modal with details
+- **`socket-client.js`** — Socket.io connection management, event emission/handling, reconnection with auto-rejoin, session management
+- **`socket-client-events.js`** — Socket event name constants
+- **`socket-client-storage.js`** — Session storage for reconnection tokens
+- **`socket-client-types.js`** — Socket-related type definitions
+- **`clientAccessor.js`** — Accessor pattern for socket client instance
 
-### `roles.js` (499 lines)
-Role management:
-- Team switching (Red/Blue)
-- Role assignment (Spymaster/Clicker/Spectator)
-- Role banner updates
-- State validation
+### Utilities
 
-### `history.js` (503 lines)
-Game replay:
-- Game history list rendering
-- Replay playback with speed control (0.5x, 1x, 2x, 4x)
-- Event delegation for replay controls
-
-### `settings.js` (317 lines)
-Settings panel:
-- Settings panel switching and state management
-- Custom word validation (min 25 words)
-- Team name character counter
-- localStorage persistence
-
-### `timer.js` (112 lines)
-Timer display:
-- Timer value updates
-- Status handling (running, paused, stopped)
-- Aria-live announcements
-
-### `i18n.js` (193 lines)
-Internationalization:
-- Async translation file loading
-- Supports `data-i18n`, `data-i18n-placeholder`, `data-i18n-title`
-- Nested key support (e.g., `game.turn.red`)
-- `{{variable}}` interpolation
-- Browser language auto-detection
-- Language persistence in localStorage
-
-### `accessibility.js` (184 lines)
-Accessibility features:
-- Color blind mode toggle (SVG patterns)
-- Keyboard shortcuts (n, e, s, m, h, ?)
-- Shortcut help overlay
-- Input-aware shortcut disabling
-- Escape key modal handling
-
-### `notifications.js` (156 lines)
-Notification system:
-- Sound notifications (Web Audio API)
-- Tab notification badge
-- Turn notification logic
-- User preference storage
-
-### `logger.js` (37 lines)
-Frontend logging utility:
-- Conditional console logging
-- Debug/info/warn/error level support
-
-### `utils.js` (240 lines)
-Utility functions:
-- Mulberry32 PRNG (must match server)
-- Crypto API random with Math.random fallback
-- XSS prevention via textContent
-- Clipboard API with fallback
-- Safe storage with QuotaExceededError handling
-- Word list parsing
-
-### `constants.js` (208 lines)
-Shared constants:
-- Validation constants matching server
-- Unicode-aware regex patterns (`/\p{L}/u`)
-- Validation functions with error messages
-
-### `socket-client.js` (1,019 lines)
-WebSocket communication:
-- Socket.io connection management
-- Event emission and handling
-- Reconnection logic with auto-rejoin
-- Session management with reconnection tokens
-- Offline event queue (max 20)
+- **`utils.js`** — Mulberry32 PRNG (must match server), crypto random fallback, XSS prevention, clipboard API, safe storage
+- **`url-state.js`** — URL state encoding/decoding for standalone mode
+- **`constants.js`** — Validation constants matching server, Unicode-aware regex patterns
+- **`logger.js`** — Conditional console logging with debug/info/warn/error levels
+- **`debug.js`** — Debug mode utilities
 
 ## Relationship to index.html
 
-The main `index.html` (~625 lines of HTML) loads modular CSS and JavaScript:
+The main `index.html` loads modular CSS and JavaScript:
 - CSS is imported via `<link>` tags (8 modular stylesheets)
 - JavaScript modules are loaded via `<script type="module">`
 - Vendored libraries (QR code, Socket.io) loaded via regular script tags
@@ -208,8 +134,9 @@ For **standalone mode**, `index.html` contains a self-contained implementation w
 All frontend modules are written in TypeScript and compiled to JavaScript:
 
 ```
-Source:   server/src/frontend/*.ts   (22 modules)
-Compiled: server/public/js/modules/*.js  (20 compiled files)
+Source:   server/src/frontend/*.ts        (31 modules)
+          server/src/frontend/handlers/   (6 handler modules)
+Compiled: server/public/js/modules/frontend/
 ```
 
 When making code changes, edit the **TypeScript source** in `server/src/frontend/`, not the compiled JS files.
@@ -234,7 +161,7 @@ When making changes:
 
 The Mulberry32 PRNG implementation must be identical in:
 - `server/src/services/gameService.ts` (server)
-- `server/public/js/modules/utils.js` (modular frontend)
+- `server/src/frontend/utils.ts` (modular frontend)
 - `index.html` (standalone frontend)
 
 This ensures deterministic board generation from room codes/seeds. Any divergence breaks standalone mode compatibility.

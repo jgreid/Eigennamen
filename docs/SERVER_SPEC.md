@@ -295,42 +295,24 @@ CREATE INDEX idx_participants_user ON game_participants(user_id);
 
 ### 4.1 REST Endpoints
 
-#### Authentication (Optional)
-
-```
-POST /api/auth/register
-    Body: { email, username, password }
-    Response: { user, token }
-
-POST /api/auth/login
-    Body: { email, password }
-    Response: { user, token }
-
-POST /api/auth/logout
-    Headers: Authorization: Bearer <token>
-    Response: { success: true }
-
-GET /api/auth/me
-    Headers: Authorization: Bearer <token>
-    Response: { user }
-```
-
 #### Rooms
 
 ```
-POST /api/rooms
-    Body: { settings? }
-    Response: { room: { id, code, settings } }
-
 GET /api/rooms/:code
     Response: { room, players, game? }
 
 GET /api/rooms/:code/exists
     Response: { exists: boolean }
+```
 
-DELETE /api/rooms/:code
-    Headers: Authorization (host only)
-    Response: { success: true }
+> **Note:** Room creation and deletion are handled via WebSocket events (`room:create`, `room:leave`),
+> not REST endpoints. Admin room deletion is available at `DELETE /admin/api/rooms/:code`.
+
+#### Replays
+
+```
+GET /api/replays/:roomCode/:gameId
+    Response: { replay data }
 ```
 
 #### Word Lists

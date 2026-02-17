@@ -44,15 +44,15 @@ Global thresholds are set lower because infrastructure modules (redis.ts, socket
 | Functions | 80% | 90%+ |
 | Lines | 75% | 94%+ |
 
-### Current Test Counts (as of Feb 12, 2026)
+### Current Test Counts (as of Feb 17, 2026)
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 81 | 2,527 |
-| E2E (Playwright) | 8 | 64+ |
-| **Total** | **89** | **~2,591** |
+| Jest (backend + frontend) | 93 | 2,671 |
+| E2E (Playwright) | 9 | 64+ |
+| **Total** | **102** | **~2,735** |
 
-All 81 Jest suites pass with 0 failures.
+All 93 Jest suites pass with 0 failures.
 
 ## Backend Testing (Jest)
 

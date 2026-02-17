@@ -230,10 +230,10 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (2,527 across 81 suites, 0 failures)
+npm test              # Run all tests (2,671 across 93 suites, 0 failures)
 npm run test:coverage # Run tests with coverage report (94%+ lines)
 npm run test:frontend # Run frontend unit tests (Jest + jsdom)
-npm run test:e2e      # Run E2E tests (64+ across 8 Playwright specs)
+npm run test:e2e      # Run E2E tests (64+ across 9 Playwright specs)
 ```
 
 ## Configuration
@@ -297,18 +297,18 @@ server/
 ├── src/
 │   ├── index.ts          # Entry point
 │   ├── app.ts            # Express configuration
-│   ├── config/           # Configuration files (13 modules)
+│   ├── config/           # Configuration files (12 modules)
 │   ├── errors/           # Custom error classes
 │   ├── middleware/        # Express & Socket middleware
 │   ├── routes/           # REST API routes
 │   ├── services/         # Business logic (7 services)
 │   ├── socket/           # Socket.io setup
-│   │   └── handlers/     # Event-specific handlers (5 files)
+│   │   └── handlers/     # Event-specific handlers (6 files)
 │   ├── types/            # TypeScript type definitions
 │   ├── utils/            # Utilities (metrics, logging, locks, etc.)
 │   ├── validators/       # Zod validation schemas
 │   ├── scripts/          # Redis Lua scripts for atomic operations
-│   └── __tests__/        # Jest tests (80+ files)
+│   └── __tests__/        # Jest tests (93 suites)
 ├── e2e/                  # Playwright E2E tests
 ├── prisma/
 │   └── schema.prisma     # Database schema
