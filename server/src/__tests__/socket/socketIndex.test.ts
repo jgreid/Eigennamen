@@ -64,14 +64,16 @@ jest.mock('../../services/gameService', () => ({
 }));
 
 jest.mock('../../services/roomService', () => ({
-    getRoom: jest.fn().mockResolvedValue({ code: 'TEST12', settings: { turnTimer: 60 } })
+    getRoom: jest.fn().mockResolvedValue({ code: 'TEST12', settings: { turnTimer: 60 } }),
+    cleanupRoom: jest.fn().mockResolvedValue(undefined)
 }));
 
 jest.mock('../../services/playerService', () => ({
     getPlayer: jest.fn().mockResolvedValue(null),
     getPlayersInRoom: jest.fn().mockResolvedValue([]),
     handleDisconnect: jest.fn().mockResolvedValue(),
-    updatePlayer: jest.fn().mockResolvedValue()
+    updatePlayer: jest.fn().mockResolvedValue(),
+    registerRoomCleanup: jest.fn()
 }));
 
 // Mock timer service

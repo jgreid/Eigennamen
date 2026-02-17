@@ -20,6 +20,8 @@ import type { TimerInfo } from './socketFunctionProvider';
 import logger from '../utils/logger';
 import { authenticateSocket, getClientIP } from '../middleware/socketAuth';
 import * as timerService from '../services/timerService';
+import { registerRoomCleanup } from '../services/playerService';
+import { cleanupRoom } from '../services/roomService';
 import { SOCKET_EVENTS, SOCKET } from '../config/constants';
 import {
     getSocketRateLimiter,
@@ -27,7 +29,7 @@ import {
     startRateLimitCleanup,
     stopRateLimitCleanup
 } from './rateLimitHandler';
-import { safeEmitToRoom } from './safeEmit';
+import { safeEmitToRoom, safeEmitToPlayer } from './safeEmit';
 import {
     incrementConnectionCount,
     decrementConnectionCount,
@@ -72,7 +74,6 @@ function emitToRoom(roomCode: string, event: string, data: unknown): void {
  * Helper to emit to a specific player
  */
 function emitToPlayer(sessionId: string, event: string, data: unknown): void {
-    const { safeEmitToPlayer } = require('./safeEmit');
     safeEmitToPlayer(io, sessionId, event, data);
 }
 
@@ -182,6 +183,9 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
 
     // Register socket functions for edge case of no connections yet
     ensureSocketFunctionsRegistered(socketFns);
+
+    // Wire up room cleanup callback to break playerService ↔ roomService circular dependency
+    registerRoomCleanup(cleanupRoom);
 
     return socketServer;
 }

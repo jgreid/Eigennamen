@@ -66,8 +66,10 @@ interface ChangePermission {
  * Without this, concurrent setTeam + setRole can both call syncSpectatorRoomMembership
  * and produce inconsistent socket room state (e.g., player in both room:X and spectators:X).
  */
-const roomSyncLocks = new Map<string, Promise<void>>();
+interface LockEntry { promise: Promise<void>; createdAt: number; }
+const roomSyncLocks = new Map<string, LockEntry>();
 const ROOM_SYNC_LOCKS_MAX_SIZE = 10_000;
+const ROOM_SYNC_LOCK_MAX_AGE_MS = 60_000;
 
 /**
  * Bug #14 Fix: Helper to sync spectator room membership based on CURRENT player state.
@@ -79,33 +81,25 @@ async function syncSpectatorRoomMembership(
     roomCode: string,
     sessionId: string
 ): Promise<void> {
-    // Safety valve: evict resolved entries if the map grows too large.
-    // This replaces a previous nuclear clear() that could abandon in-flight operations.
+    // Safety valve: evict stale entries if the map grows too large.
     // Entries should be cleaned up by .finally() below, but reference mismatches
-    // can leave orphans. We do a targeted sweep of settled promises instead.
+    // can leave orphans. Evict entries older than ROOM_SYNC_LOCK_MAX_AGE_MS.
     if (roomSyncLocks.size > ROOM_SYNC_LOCKS_MAX_SIZE) {
-        const entries = Array.from(roomSyncLocks.entries());
-        // Race each promise against an already-resolved value to detect settled ones
-        const checks = entries.map(([key, promise]) =>
-            Promise.race([
-                promise.then(() => key, () => key),
-                Promise.resolve(null)
-            ])
-        );
-        const results = await Promise.all(checks);
+        const now = Date.now();
         let evicted = 0;
-        for (const key of results) {
-            if (key !== null) {
+        for (const [key, entry] of roomSyncLocks) {
+            if (now - entry.createdAt > ROOM_SYNC_LOCK_MAX_AGE_MS) {
                 roomSyncLocks.delete(key);
                 evicted++;
             }
         }
-        logger.warn(`roomSyncLocks safety valve: evicted ${evicted} settled entries, ${roomSyncLocks.size} remaining`);
+        logger.warn(`roomSyncLocks safety valve: evicted ${evicted} stale entries, ${roomSyncLocks.size} remaining`);
     }
 
     // Serialize room membership updates per player to prevent race conditions
     const lockKey = `${sessionId}:${roomCode}`;
-    const existingLock = roomSyncLocks.get(lockKey) || Promise.resolve();
+    const existingEntry = roomSyncLocks.get(lockKey);
+    const existingLock = existingEntry?.promise || Promise.resolve();
 
     const newLock = existingLock.then(async () => {
         // Re-fetch current player state to ensure we have the latest team/role
@@ -128,12 +122,12 @@ async function syncSpectatorRoomMembership(
         logger.warn(`syncSpectatorRoomMembership failed for ${sessionId}:`, err instanceof Error ? err.message : String(err));
     }).finally(() => {
         // Clean up lock after completion
-        if (roomSyncLocks.get(lockKey) === newLock) {
+        if (roomSyncLocks.get(lockKey)?.promise === newLock) {
             roomSyncLocks.delete(lockKey);
         }
     });
 
-    roomSyncLocks.set(lockKey, newLock);
+    roomSyncLocks.set(lockKey, { promise: newLock, createdAt: Date.now() });
 
     // Timeout prevents unbounded queueing if a prior lock operation hangs.
     // On timeout, the queued operation is abandoned but the lock chain is

@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
+import { getEnvInt } from '../config/env';
 
 interface RateLimitConfig {
     max: number;
@@ -66,8 +67,8 @@ interface SocketRateLimiter {
 }
 
 const apiLimiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '') || 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '') || 100,
+    windowMs: getEnvInt('RATE_LIMIT_WINDOW_MS', 60 * 1000)!,
+    max: getEnvInt('RATE_LIMIT_MAX_REQUESTS', 100)!,
     message: {
         error: {
             code: 'RATE_LIMITED',

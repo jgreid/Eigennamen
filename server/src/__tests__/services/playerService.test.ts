@@ -1230,6 +1230,11 @@ describe('Player Service', () => {
     });
 
     describe('processScheduledCleanups - additional paths', () => {
+        beforeEach(() => {
+            // Register a mock room cleanup callback so orphaned room checks execute
+            playerService.registerRoomCleanup(jest.fn().mockResolvedValue(undefined));
+        });
+
         test('handles null result from eval (player key already gone)', async () => {
             const entry = JSON.stringify({ sessionId: 's1', roomCode: 'ABC123' });
             mockRedis.zRangeByScore.mockResolvedValue([entry]);
