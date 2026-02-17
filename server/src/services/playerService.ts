@@ -7,7 +7,7 @@ import type { Team, Role, Player, RedisClient } from '../types';
 import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
-import { REDIS_TTL, PLAYER_CLEANUP } from '../config/constants';
+import { REDIS_TTL } from '../config/constants';
 import { ServerError, ValidationError } from '../errors/GameError';
 import { tryParseJSON, parseJSON } from '../utils/parseJSON';
 import {
@@ -16,24 +16,11 @@ import {
     SET_ROLE_SCRIPT,
     HOST_TRANSFER_SCRIPT,
     ATOMIC_REMOVE_PLAYER_SCRIPT,
-    ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
     ATOMIC_SET_SOCKET_MAPPING_SCRIPT
 } from '../scripts';
 import { sanitizeHtml } from '../utils/sanitize';
 import { z } from 'zod';
-import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './player/reconnection';
-
-// Late-bound room cleanup callback to break circular dependency with roomService.
-// Set via registerRoomCleanup() during server initialization.
-let _roomCleanupFn: ((roomCode: string) => Promise<void>) | null = null;
-
-/**
- * Register the room cleanup function (called during server init to break
- * the playerService ↔ roomService circular dependency).
- */
-export function registerRoomCleanup(fn: (roomCode: string) => Promise<void>): void {
-    _roomCleanupFn = fn;
-}
+import { invalidateRoomReconnectToken } from './player/reconnection';
 
 // Zod schemas for Redis deserialization validation.
 // Validates critical fields when present; non-essential fields are optional
@@ -61,11 +48,6 @@ const luaResultSchema = z.object({
     reason: z.string().optional(),
     player: playerSchema.optional(),
     existingNickname: z.string().optional(),
-});
-
-const cleanupEntrySchema = z.object({
-    sessionId: z.string(),
-    roomCode: z.string(),
 });
 
 const hostTransferResultSchema = z.object({
@@ -668,143 +650,8 @@ export async function removePlayer(sessionId: string): Promise<void> {
     }
 }
 
-/**
- * Handle player disconnection
- * Updates player status and schedules cleanup after grace period
- * Note: Token generation is handled by generateReconnectionToken() which
- * should be called before this function in socket/index.ts
- * Schedule player cleanup after grace period
- */
-export async function handleDisconnect(sessionId: string): Promise<Player | null> {
-    const redis: RedisClient = getRedis();
-    const player = await getPlayer(sessionId);
-
-    if (!player) {
-        return null;
-    }
-
-    // Mark as disconnected but don't remove yet (allow reconnection)
-    await updatePlayer(sessionId, { connected: false, disconnectedAt: Date.now() });
-
-    logger.info(`Player ${sessionId} disconnected from room ${player.roomCode}`);
-
-    // Schedule removal after grace period using sorted set
-    const cleanupTime = Date.now() + (REDIS_TTL.DISCONNECTED_PLAYER * 1000);
-    await redis.zAdd('scheduled:player:cleanup', {
-        score: cleanupTime,
-        value: JSON.stringify({ sessionId, roomCode: player.roomCode })
-    });
-
-    // Also set a shorter TTL on the player key as backup
-    await redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER);
-
-    logger.debug(`Scheduled cleanup for player ${sessionId} at ${new Date(cleanupTime).toISOString()}`);
-
-    return player;
-}
-
-/**
- * Process scheduled player cleanups
- * Run this periodically to clean up disconnected players
- */
-export async function processScheduledCleanups(limit: number = 50): Promise<number> {
-    const redis: RedisClient = getRedis();
-    const now = Date.now();
-
-    try {
-        // Get players due for cleanup
-        const toCleanup = await redis.zRangeByScore(
-            'scheduled:player:cleanup',
-            0,
-            now,
-            { LIMIT: { offset: 0, count: limit } }
-        );
-
-        if (toCleanup.length === 0) {
-            return 0;
-        }
-
-        let cleanedUp = 0;
-        for (const entry of toCleanup) {
-            try {
-                const { sessionId, roomCode } = parseJSON(entry, cleanupEntrySchema, 'cleanup entry');
-
-                // Atomically check connected status AND remove in a single Lua script.
-                // This prevents a TOCTOU race where a player reconnects between
-                // reading their status and removing them.
-                const result = await withTimeout(
-                    redis.eval(
-                        ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
-                        {
-                            keys: [`player:${sessionId}`],
-                            arguments: [sessionId]
-                        }
-                    ),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `cleanupDisconnectedPlayer-lua-${sessionId}`
-                ) as string | null;
-
-                if (result === 'RECONNECTED') {
-                    // Player reconnected - skip removal, just clear schedule entry
-                    logger.debug(`Skipping cleanup for reconnected player ${sessionId}`);
-                    await redis.zRem('scheduled:player:cleanup', entry);
-                    continue;
-                }
-
-                if (!result) {
-                    // Player key already gone - just remove from schedule
-                    await redis.zRem('scheduled:player:cleanup', entry);
-                    continue;
-                }
-
-                // Player was atomically removed by the Lua script
-                cleanedUp++;
-                logger.info(`Cleaned up disconnected player ${sessionId} from room ${roomCode}`);
-
-                // Non-critical: clean up reconnection tokens
-                try {
-                    await invalidateRoomReconnectToken(sessionId);
-                } catch (tokenError) {
-                    logger.warn(`Failed to clean up reconnection token for ${sessionId}:`, (tokenError as Error).message);
-                }
-
-                // Check if room is now empty and clean it up to prevent orphaned rooms.
-                // Orphaned rooms block new room creation with the same code (SETNX returns 0)
-                // and waste memory until their TTL expires.
-                if (roomCode && _roomCleanupFn) {
-                    try {
-                        const remainingCount = await redis.sCard(`room:${roomCode}:players`);
-                        if (remainingCount === 0) {
-                            const roomExists = await redis.exists(`room:${roomCode}`);
-                            if (roomExists === 1) {
-                                await _roomCleanupFn(roomCode);
-                                logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
-                            }
-                        }
-                    } catch (roomCleanupError) {
-                        logger.warn(`Failed to check/cleanup orphaned room ${roomCode}:`, (roomCleanupError as Error).message);
-                    }
-                }
-
-                // Remove from cleanup schedule
-                await redis.zRem('scheduled:player:cleanup', entry);
-            } catch (parseError) {
-                logger.error('Failed to parse cleanup entry:', (parseError as Error).message);
-                // Remove invalid entry
-                await redis.zRem('scheduled:player:cleanup', entry);
-            }
-        }
-
-        if (cleanedUp > 0) {
-            logger.info(`Processed ${cleanedUp} scheduled player cleanups`);
-        }
-
-        return cleanedUp;
-    } catch (error) {
-        logger.error('Error processing scheduled cleanups:', (error as Error).message);
-        return 0;
-    }
-}
+// Disconnection and cleanup functions extracted to player/cleanup.ts
+// Re-exported below for backward compatibility
 
 /**
  * Map socket ID to session ID for reconnection and track client IP
@@ -876,45 +723,6 @@ export async function getSocketId(sessionId: string): Promise<string | null> {
         TIMEOUTS.REDIS_OPERATION,
         `getSocketId-${sessionId}`
     );
-}
-
-// Cleanup interval reference
-let cleanupInterval: ReturnType<typeof setInterval> | null = null;
-
-/**
- * Start periodic player cleanup task
- * Process scheduled cleanups every 60 seconds
- */
-export function startCleanupTask(): void {
-    if (cleanupInterval) {
-        clearInterval(cleanupInterval);
-    }
-
-    cleanupInterval = setInterval(async () => {
-        try {
-            await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
-        } catch (error) {
-            logger.error('Error in cleanup task:', (error as Error).message);
-        }
-        try {
-            await cleanupOrphanedReconnectionTokens();
-        } catch (error) {
-            logger.error('Error in reconnection token cleanup:', (error as Error).message);
-        }
-    }, PLAYER_CLEANUP.INTERVAL_MS);
-
-    logger.info('Player cleanup task started');
-}
-
-/**
- * Stop the cleanup task (for graceful shutdown)
- */
-export function stopCleanupTask(): void {
-    if (cleanupInterval) {
-        clearInterval(cleanupInterval);
-        cleanupInterval = null;
-        logger.info('Player cleanup task stopped');
-    }
 }
 
 /**
@@ -990,6 +798,22 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
 }
 
 // Re-export from sub-modules for backward compatibility
+// Cleanup functions (extracted to player/cleanup.ts)
+// Wrapped as functions (not `export { ... } from ...`) to keep writable
+// module properties, preserving test mockability via direct assignment.
+import {
+    registerRoomCleanup as _registerRoomCleanup,
+    handleDisconnect as _handleDisconnect,
+    processScheduledCleanups as _processScheduledCleanups,
+    startCleanupTask as _startCleanupTask,
+    stopCleanupTask as _stopCleanupTask,
+} from './player/cleanup';
+export const registerRoomCleanup = _registerRoomCleanup;
+export const handleDisconnect = _handleDisconnect;
+export const processScheduledCleanups = _processScheduledCleanups;
+export const startCleanupTask = _startCleanupTask;
+export const stopCleanupTask = _stopCleanupTask;
+
 // Reconnection functions (extracted to player/reconnection.ts)
 export {
     generateReconnectionToken,
