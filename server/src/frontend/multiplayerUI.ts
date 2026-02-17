@@ -435,8 +435,9 @@ export function initNicknameEditUI(): void {
                 form.style.display = 'flex';
                 editBtn.style.display = 'none';
                 // Pre-fill with current nickname
-                if (input && getClient()?.player?.nickname) {
-                    input.value = CodenamesClient.player.nickname;
+                const nickname = getClient()?.player?.nickname;
+                if (input && nickname) {
+                    input.value = nickname;
                     input.focus();
                     input.select();
                 }

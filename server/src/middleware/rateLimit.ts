@@ -67,8 +67,8 @@ interface SocketRateLimiter {
 }
 
 const apiLimiter = rateLimit({
-    windowMs: getEnvInt('RATE_LIMIT_WINDOW_MS', 60 * 1000)!,
-    max: getEnvInt('RATE_LIMIT_MAX_REQUESTS', 100)!,
+    windowMs: getEnvInt('RATE_LIMIT_WINDOW_MS', 60 * 1000) ?? 60 * 1000,
+    max: getEnvInt('RATE_LIMIT_MAX_REQUESTS', 100) ?? 100,
     message: {
         error: {
             code: 'RATE_LIMITED',
