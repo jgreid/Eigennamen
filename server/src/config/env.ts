@@ -107,21 +107,24 @@ export function validateEnv(): boolean {
             }
         }
 
-        // Validate ADMIN_PASSWORD strength if provided
+        // Require ADMIN_PASSWORD in production to prevent unprotected admin dashboard
         const adminPassword = process.env['ADMIN_PASSWORD'];
-        if (adminPassword !== undefined) {
-            if (!adminPassword.trim()) {
-                errors.push('ADMIN_PASSWORD is set but empty or whitespace-only');
-            } else {
-                if (adminPassword.length < 12) {
-                    warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
-                }
-                const hasLower = /[a-z]/.test(adminPassword);
-                const hasUpper = /[A-Z]/.test(adminPassword);
-                const hasDigit = /\d/.test(adminPassword);
-                if (!(hasLower && hasUpper && hasDigit)) {
-                    warnings.push('SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters');
-                }
+        if (adminPassword === undefined) {
+            errors.push(
+                'ADMIN_PASSWORD must be set in production to protect the admin dashboard. ' +
+                'Set it with: fly secrets set ADMIN_PASSWORD=$(openssl rand -base64 24)'
+            );
+        } else if (!adminPassword.trim()) {
+            errors.push('ADMIN_PASSWORD is set but empty or whitespace-only');
+        } else {
+            if (adminPassword.length < 12) {
+                warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
+            }
+            const hasLower = /[a-z]/.test(adminPassword);
+            const hasUpper = /[A-Z]/.test(adminPassword);
+            const hasDigit = /\d/.test(adminPassword);
+            if (!(hasLower && hasUpper && hasDigit)) {
+                warnings.push('SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters');
             }
         }
 

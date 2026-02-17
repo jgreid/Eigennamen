@@ -19,12 +19,14 @@ import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
 import logger from '../utils/logger';
-import { SOCKET_EVENTS, LOCKS } from '../config/constants';
+import { SOCKET_EVENTS, LOCKS, SESSION_SECURITY } from '../config/constants';
 import { safeEmitToRoom } from './safeEmit';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
-import { withLock } from '../utils/distributedLock';
-
-// RedisClient imported from '../types' (shared across all services)
+import { withLock, RELEASE_LOCK_SCRIPT } from '../utils/distributedLock';
+import * as gameService from '../services/gameService';
+import * as roomService from '../services/roomService';
+import * as playerService from '../services/playerService';
+import { getRedis, isRedisHealthy } from '../config/redis';
 
 /**
  * Create the callback for timer expiration.
@@ -41,8 +43,6 @@ function createTimerExpireCallback(
     startTurnTimer: (roomCode: string, durationSeconds: number) => Promise<TimerInfo>
 ): TimerCallback {
     return async (roomCode: string): Promise<void> => {
-        const gameService = require('../services/gameService');
-        const roomService = require('../services/roomService');
         try {
             // Use distributed lock to prevent race conditions when
             // multiple instances fire timer expiration for the same room.
@@ -86,7 +86,6 @@ function createTimerExpireCallback(
             // Wrap in IIFE with .catch() to prevent unhandled promise rejections
             setImmediate(() => {
                 (async () => {
-                    const { getRedis, isRedisHealthy } = require('../config/redis');
                     const redis: RedisClient = getRedis();
                     const lockKey = `lock:timer-restart:${roomCode}`;
                     let lockAcquired = false;
@@ -147,7 +146,6 @@ function createTimerExpireCallback(
                         // Always release lock if we acquired it (owner-verified)
                         if (lockAcquired && lockValue) {
                             try {
-                                const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
                                 await withTimeout(
                                     redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
                                     TIMEOUTS.TIMER_OPERATION,
@@ -186,9 +184,6 @@ async function handleDisconnect(
     reason: string,
     abortSignal?: AbortSignal
 ): Promise<void> {
-    const playerService = require('../services/playerService');
-    const { getRedis } = require('../config/redis');
-
     try {
         const player: Player | null = await withTimeout(
             playerService.getPlayer(socket.sessionId),
@@ -237,7 +232,6 @@ async function handleDisconnect(
             );
 
             // Calculate reconnection deadline for frontend display
-            const { SESSION_SECURITY } = require('../config/constants');
             const reconnectionDeadline = Date.now() + (SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000);
 
             // Do NOT broadcast reconnection token to the room!
@@ -340,7 +334,6 @@ async function handleDisconnect(
                     // Only release lock if we acquired it (owner-verified)
                     if (hostTransferLockAcquired && hostLockValue) {
                         try {
-                            const { RELEASE_LOCK_SCRIPT } = require('../utils/distributedLock');
                             await withTimeout(
                                 redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] }),
                                 TIMEOUTS.REDIS_OPERATION,
