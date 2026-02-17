@@ -9,6 +9,7 @@ import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { tryParseJSON } from '../utils/parseJSON';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { z } from 'zod';
 
 import type { Team, CardType, RedisClient } from '../types';
@@ -449,7 +450,11 @@ export async function getGameHistory(
         const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
 
         // Get game IDs from sorted set (most recent first)
-        const gameIds = await redis.zRange(indexKey, 0, limit - 1, { REV: true }) as string[];
+        const gameIds = await withTimeout(
+            redis.zRange(indexKey, 0, limit - 1, { REV: true }),
+            TIMEOUTS.REDIS_OPERATION,
+            `getGameHistory-zRange-${roomCode}`
+        ) as string[];
 
         if (!gameIds || gameIds.length === 0) {
             return [];
@@ -457,7 +462,11 @@ export async function getGameHistory(
 
         // Fetch all game entries in parallel
         const gameKeys = gameIds.map(id => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
-        const gameDataArray = await redis.mGet(gameKeys);
+        const gameDataArray = await withTimeout(
+            redis.mGet(gameKeys),
+            TIMEOUTS.REDIS_OPERATION,
+            `getGameHistory-mGet-${roomCode}`
+        );
 
         // Parse and create summaries
         const summaries: (GameHistorySummary | null)[] = gameDataArray
@@ -515,7 +524,11 @@ export async function getGameById(
 
     try {
         const gameKey = `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${gameId}`;
-        const gameData = await redis.get(gameKey);
+        const gameData = await withTimeout(
+            redis.get(gameKey),
+            TIMEOUTS.REDIS_OPERATION,
+            `getGameById-${roomCode}-${gameId}`
+        );
 
         if (!gameData) {
             logger.debug('Game not found in history', { roomCode, gameId });
@@ -681,7 +694,11 @@ export async function cleanupOldHistory(roomCode: string): Promise<number> {
         const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
 
         // Get all game IDs that exceed the limit
-        const oldGameIds = await redis.zRange(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1)) as string[];
+        const oldGameIds = await withTimeout(
+            redis.zRange(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1)),
+            TIMEOUTS.REDIS_OPERATION,
+            `cleanupOldHistory-zRange-${roomCode}`
+        ) as string[];
 
         if (!oldGameIds || oldGameIds.length === 0) {
             return 0;
@@ -689,10 +706,18 @@ export async function cleanupOldHistory(roomCode: string): Promise<number> {
 
         // Delete old game entries
         const gameKeys = oldGameIds.map(id => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
-        await redis.del(gameKeys);
+        await withTimeout(
+            redis.del(gameKeys),
+            TIMEOUTS.REDIS_OPERATION,
+            `cleanupOldHistory-del-${roomCode}`
+        );
 
         // Remove from index
-        await redis.zRem(indexKey, oldGameIds);
+        await withTimeout(
+            redis.zRem(indexKey, oldGameIds),
+            TIMEOUTS.REDIS_OPERATION,
+            `cleanupOldHistory-zRem-${roomCode}`
+        );
 
         logger.info('Cleaned up old game history', {
             roomCode,
@@ -723,16 +748,24 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
     try {
         const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
 
-        const count = await redis.zCard(indexKey);
+        const count = await withTimeout(
+            redis.zCard(indexKey),
+            TIMEOUTS.REDIS_OPERATION,
+            `getHistoryStats-zCard-${roomCode}`
+        );
         if (count === 0) {
             return { count: 0, oldest: null, newest: null };
         }
 
         // Get oldest and newest entries
-        const [oldestEntries, newestEntries] = await Promise.all([
-            redis.zRange(indexKey, 0, 0, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>,
-            redis.zRange(indexKey, -1, -1, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>
-        ]);
+        const [oldestEntries, newestEntries] = await withTimeout(
+            Promise.all([
+                redis.zRange(indexKey, 0, 0, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>,
+                redis.zRange(indexKey, -1, -1, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>
+            ]),
+            TIMEOUTS.REDIS_OPERATION,
+            `getHistoryStats-zRange-${roomCode}`
+        );
 
         return {
             count,

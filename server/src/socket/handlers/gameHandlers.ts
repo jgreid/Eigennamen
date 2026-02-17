@@ -15,7 +15,6 @@ import * as playerService from '../../services/playerService';
 import * as roomService from '../../services/roomService';
 import { debouncedRefreshRoomTTL } from '../../services/roomService';
 import * as gameHistoryService from '../../services/gameHistoryService';
-import type { GameDataInput } from '../../services/gameHistoryService';
 import { gameRevealSchema, gameStartSchema, gameHistoryLimitSchema, gameReplaySchema } from '../../validators/schemas';
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
@@ -30,6 +29,7 @@ import { audit, AUDIT_EVENTS } from '../../utils/audit';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { getSocketFunctions } from '../socketFunctionProvider';
 import { safeEmitToRoom, safeEmitToPlayers } from '../safeEmit';
+import { saveCompletedGameHistory } from './gameHandlerUtils';
 
 /**
  * Game start input
@@ -71,28 +71,6 @@ interface ReplayData {
     events: unknown[];
     initialBoard: unknown;
     finalState: unknown;
-}
-
-/**
- * Save completed game to history (non-critical — errors are logged but don't break game flow)
- */
-async function saveCompletedGameHistory(roomCode: string): Promise<void> {
-    try {
-        const [completedGame, roomForHistory] = await Promise.all([
-            gameService.getGame(roomCode),
-            roomService.getRoom(roomCode)
-        ]) as [GameState | null, Room | null];
-        if (completedGame) {
-            const gameDataWithTeamNames = {
-                ...completedGame,
-                winner: completedGame.winner ?? undefined,
-                teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
-            } as GameDataInput;
-            await gameHistoryService.saveGameResult(roomCode, gameDataWithTeamNames);
-        }
-    } catch (historyError) {
-        logger.error(`Failed to save game history for room ${roomCode}:`, historyError);
-    }
 }
 
 function gameHandlers(io: Server, socket: GameSocket): void {

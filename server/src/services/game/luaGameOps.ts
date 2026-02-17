@@ -8,8 +8,6 @@
 
 import type { GameState, RedisClient as SharedRedisClient } from '../../types';
 
-import fs from 'fs';
-import path from 'path';
 import { z } from 'zod';
 import { getRedis } from '../../config/redis';
 import logger from '../../utils/logger';
@@ -24,10 +22,11 @@ import {
     GameStateError,
     ServerError
 } from '../../errors/GameError';
+import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT } from '../../scripts';
 
-// Lua scripts loaded once at module initialization
-export const OPTIMIZED_REVEAL_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/revealCard.lua'), 'utf8');
-export const OPTIMIZED_END_TURN_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/endTurn.lua'), 'utf8');
+// Re-export Lua scripts from centralized barrel (previously loaded from disk here)
+export const OPTIMIZED_REVEAL_SCRIPT: string = REVEAL_CARD_SCRIPT;
+export const OPTIMIZED_END_TURN_SCRIPT: string = END_TURN_SCRIPT;
 
 // Zod schemas
 const gameStateSchema = z.object({
@@ -158,18 +157,18 @@ export async function executeGameTransaction<T>(
     /* eslint-disable no-await-in-loop */
     while (retries < MAX_TRANSACTION_RETRIES) {
         try {
-            await redis.watch(gameKey);
+            await withTimeout(redis.watch(gameKey), TIMEOUTS.REDIS_OPERATION, `${_operationName}-watch`);
 
-            const gameData = await redis.get(gameKey);
+            const gameData = await withTimeout(redis.get(gameKey), TIMEOUTS.REDIS_OPERATION, `${_operationName}-get`);
             if (!gameData) {
-                await redis.unwatch();
+                await redis.unwatch().catch(() => { /* best-effort */ });
                 throw GameStateError.noActiveGame();
             }
 
             const game = safeParseGameData(gameData, roomCode);
             if (!game) {
-                await redis.unwatch();
-                await redis.del(gameKey);
+                await redis.unwatch().catch(() => { /* best-effort */ });
+                await withTimeout(redis.del(gameKey), TIMEOUTS.REDIS_OPERATION, `${_operationName}-delCorrupted`);
                 throw GameStateError.corrupted(roomCode);
             }
 
@@ -177,12 +176,16 @@ export async function executeGameTransaction<T>(
 
             incrementVersion(game);
 
-            const currentTTL = await redis.ttl(gameKey);
+            const currentTTL = await withTimeout(redis.ttl(gameKey), TIMEOUTS.REDIS_OPERATION, `${_operationName}-ttl`);
             const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
 
-            const txResult = await redis.multi()
-                .set(gameKey, JSON.stringify(game), { EX: ttl })
-                .exec();
+            const txResult = await withTimeout(
+                redis.multi()
+                    .set(gameKey, JSON.stringify(game), { EX: ttl })
+                    .exec(),
+                TIMEOUTS.REDIS_OPERATION,
+                `${_operationName}-exec`
+            );
 
             if (txResult === null) {
                 // WATCH is automatically consumed after exec(), no unwatch needed
