@@ -19,7 +19,6 @@ jest.mock('../../frontend/i18n', () => ({
 import {
     formatTimerValue,
     updateTimerDisplay,
-    startTimerCountdown,
     stopTimerCountdown,
     handleTimerStarted,
     handleTimerStopped,

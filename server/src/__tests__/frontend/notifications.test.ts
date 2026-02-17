@@ -41,7 +41,7 @@ const mockOscillator = {
     stop: jest.fn(),
 };
 
-const mockGainNode = {
+const _mockGainNode = {
     gain: {
         setValueAtTime: jest.fn(),
         linearRampToValueAtTime: jest.fn(),
