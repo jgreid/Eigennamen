@@ -278,6 +278,143 @@ end
 return 1
 `;
 
+// ─── Room settings script (previously in roomService.ts) ────────────
+
+/**
+ * Atomic room settings update
+ * Previously in: roomService.ts
+ * Validates host, merges allowed keys, enforces blitz constraints
+ */
+export const ATOMIC_UPDATE_SETTINGS_SCRIPT = `
+local roomKey = KEYS[1]
+local sessionId = ARGV[1]
+local settingsJson = ARGV[2]
+local blitzForcedTimer = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+
+local roomData = redis.call('GET', roomKey)
+if not roomData then
+    return cjson.encode({error = 'ROOM_NOT_FOUND'})
+end
+
+local room = cjson.decode(roomData)
+
+if room.hostSessionId ~= sessionId then
+    return cjson.encode({error = 'NOT_HOST'})
+end
+
+local newSettings = cjson.decode(settingsJson)
+
+-- Merge only allowed keys into existing settings
+if not room.settings then
+    room.settings = {}
+end
+if newSettings.teamNames ~= nil then room.settings.teamNames = newSettings.teamNames end
+if newSettings.turnTimer ~= nil then room.settings.turnTimer = newSettings.turnTimer end
+if newSettings.allowSpectators ~= nil then room.settings.allowSpectators = newSettings.allowSpectators end
+if newSettings.gameMode ~= nil then room.settings.gameMode = newSettings.gameMode end
+
+-- Enforce blitz constraints
+if room.settings.gameMode == 'blitz' then
+    room.settings.turnTimer = blitzForcedTimer
+end
+
+redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
+
+return cjson.encode({success = true, settings = room.settings})
+`;
+
+// ─── Timer scripts (previously in timerService.ts) ──────────────────
+
+/**
+ * Atomic addTime operation for turn timers
+ * Previously in: timerService.ts
+ * Reads current timer, calculates new duration, and updates atomically
+ * Returns: new end time if successful, nil if timer doesn't exist or is expired
+ */
+export const ATOMIC_ADD_TIME_SCRIPT = `
+local timerKey = KEYS[1]
+local secondsToAdd = tonumber(ARGV[1])
+local instanceId = ARGV[2]
+
+local timerData = redis.call('GET', timerKey)
+if not timerData then
+    return nil
+end
+
+local timer = cjson.decode(timerData)
+if timer.paused then
+    return nil
+end
+
+local now = tonumber(ARGV[3])
+local remainingMs = timer.endTime - now
+if remainingMs <= 0 then
+    return nil
+end
+
+-- Get TTL buffer from arguments instead of hardcoding
+local ttlBuffer = tonumber(ARGV[4]) or 60
+
+-- Calculate new end time
+local newEndTime = timer.endTime + (secondsToAdd * 1000)
+local newDuration = math.ceil((newEndTime - now) / 1000)
+
+-- Update timer
+timer.endTime = newEndTime
+timer.duration = newDuration
+timer.instanceId = instanceId
+
+-- Calculate new TTL (duration + buffer from constant)
+local newTtl = newDuration + ttlBuffer
+
+redis.call('SET', timerKey, cjson.encode(timer), 'EX', newTtl)
+return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeconds = newDuration})
+`;
+
+// ─── Reconnection scripts (previously in player/reconnection.ts) ────
+
+/**
+ * Atomic reconnection token invalidation
+ * Previously in: player/reconnection.ts
+ * Reads the token from the session mapping, then deletes both the
+ * token->session and session->token keys in a single atomic operation.
+ * Returns 1 if a token was invalidated, 0 if no token existed.
+ */
+export const INVALIDATE_TOKEN_SCRIPT = `
+local sessionKey = KEYS[1]
+local existingToken = redis.call('GET', sessionKey)
+if not existingToken then
+    return 0
+end
+redis.call('DEL', 'reconnect:token:' .. existingToken)
+redis.call('DEL', sessionKey)
+return 1
+`;
+
+/**
+ * Atomic cleanup of orphaned reconnection tokens
+ * Previously in: player/reconnection.ts
+ * Checks if a player exists and, if not, cleans up the orphaned token pair.
+ * KEYS[1] = reconnect:session:<sessionId>
+ * KEYS[2] = player:<sessionId>
+ * Returns 1 if cleaned, 0 if player still exists.
+ */
+export const CLEANUP_ORPHANED_TOKEN_SCRIPT = `
+local sessionKey = KEYS[1]
+local playerKey = KEYS[2]
+local playerData = redis.call('GET', playerKey)
+if playerData then
+    return 0
+end
+local tokenId = redis.call('GET', sessionKey)
+if tokenId then
+    redis.call('DEL', 'reconnect:token:' .. tokenId)
+end
+redis.call('DEL', sessionKey)
+return 1
+`;
+
 // ─── Convenience grouped export ────────────────────────────────────
 
 export const LUA_SCRIPTS = {
@@ -294,9 +431,17 @@ export const LUA_SCRIPTS = {
     ATOMIC_JOIN: ATOMIC_JOIN_SCRIPT,
     ATOMIC_REFRESH_TTL: ATOMIC_REFRESH_TTL_SCRIPT,
     ATOMIC_SET_ROOM_STATUS: ATOMIC_SET_ROOM_STATUS_SCRIPT,
+    ATOMIC_UPDATE_SETTINGS: ATOMIC_UPDATE_SETTINGS_SCRIPT,
 
     // Player operations
     ATOMIC_REMOVE_PLAYER: ATOMIC_REMOVE_PLAYER_SCRIPT,
     ATOMIC_CLEANUP_DISCONNECTED_PLAYER: ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
     ATOMIC_SET_SOCKET_MAPPING: ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
+
+    // Timer operations
+    ATOMIC_ADD_TIME: ATOMIC_ADD_TIME_SCRIPT,
+
+    // Reconnection operations
+    INVALIDATE_TOKEN: INVALIDATE_TOKEN_SCRIPT,
+    CLEANUP_ORPHANED_TOKEN: CLEANUP_ORPHANED_TOKEN_SCRIPT,
 } as const;

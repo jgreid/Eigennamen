@@ -257,10 +257,14 @@ export async function createGame(
 
         // Atomically update room status to 'playing' via Lua to prevent TOCTOU race
         try {
-            await redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
-                keys: [`room:${roomCode}`],
-                arguments: ['playing', REDIS_TTL.ROOM.toString()]
-            });
+            await withTimeout(
+                redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                    keys: [`room:${roomCode}`],
+                    arguments: ['playing', REDIS_TTL.ROOM.toString()]
+                }),
+                TIMEOUTS.REDIS_OPERATION,
+                `setRoomStatus-lua-${roomCode}`
+            );
         } catch (e) {
             logger.error(`Failed to update room status for ${roomCode}:`, (e as Error).message);
         }
@@ -279,7 +283,11 @@ export async function createGame(
  */
 export async function getGame(roomCode: string): Promise<GameState | null> {
     const redis: RedisClient = getRedis();
-    const gameData = await redis.get(`room:${roomCode}:game`);
+    const gameData = await withTimeout(
+        redis.get(`room:${roomCode}:game`),
+        TIMEOUTS.REDIS_OPERATION,
+        `getGame-${roomCode}`
+    );
     if (!gameData) return null;
 
     const game = tryParseJSON(gameData, gameStateSchema, `game state for ${roomCode}`) as GameState | null;

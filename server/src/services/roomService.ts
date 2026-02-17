@@ -35,7 +35,7 @@ import {
 import { RoomError, PlayerError, ServerError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
-import { ATOMIC_CREATE_ROOM_SCRIPT, ATOMIC_JOIN_SCRIPT, ATOMIC_REFRESH_TTL_SCRIPT } from '../scripts';
+import { ATOMIC_CREATE_ROOM_SCRIPT, ATOMIC_JOIN_SCRIPT, ATOMIC_REFRESH_TTL_SCRIPT, ATOMIC_UPDATE_SETTINGS_SCRIPT } from '../scripts';
 import { z } from 'zod';
 
 // Zod schema for Room data from Redis.
@@ -160,7 +160,11 @@ export async function getRoom(roomId: string): Promise<Room | null> {
     const redis: RedisClient = getRedis();
     // Normalize room ID for case-insensitive lookup
     const normalizedId = toEnglishLowerCase(roomId);
-    const roomData = await redis.get(`room:${normalizedId}`);
+    const roomData = await withTimeout(
+        redis.get(`room:${normalizedId}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `getRoom-${normalizedId}`
+    );
 
     if (!roomData) {
         return null;
@@ -364,50 +368,6 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
  * @param sessionId - Session ID of the requester
  * @param newSettings - New settings
  */
-/**
- * Lua script to atomically update room settings.
- * Prevents race conditions where a concurrent createGame or other room
- * mutation could be overwritten by a stale read-modify-write cycle.
- */
-const ATOMIC_UPDATE_SETTINGS_SCRIPT = `
-local roomKey = KEYS[1]
-local sessionId = ARGV[1]
-local settingsJson = ARGV[2]
-local blitzForcedTimer = tonumber(ARGV[3])
-local ttl = tonumber(ARGV[4])
-
-local roomData = redis.call('GET', roomKey)
-if not roomData then
-    return cjson.encode({error = 'ROOM_NOT_FOUND'})
-end
-
-local room = cjson.decode(roomData)
-
-if room.hostSessionId ~= sessionId then
-    return cjson.encode({error = 'NOT_HOST'})
-end
-
-local newSettings = cjson.decode(settingsJson)
-
--- Merge only allowed keys into existing settings
-if not room.settings then
-    room.settings = {}
-end
-if newSettings.teamNames ~= nil then room.settings.teamNames = newSettings.teamNames end
-if newSettings.turnTimer ~= nil then room.settings.turnTimer = newSettings.turnTimer end
-if newSettings.allowSpectators ~= nil then room.settings.allowSpectators = newSettings.allowSpectators end
-if newSettings.gameMode ~= nil then room.settings.gameMode = newSettings.gameMode end
-
--- Enforce blitz constraints
-if room.settings.gameMode == 'blitz' then
-    room.settings.turnTimer = blitzForcedTimer
-end
-
-redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
-
-return cjson.encode({success = true, settings = room.settings})
-`;
-
 export async function updateSettings(
     code: string,
     sessionId: string,
@@ -475,7 +435,11 @@ export async function updateSettings(
 export async function roomExists(code: string): Promise<boolean> {
     const redis: RedisClient = getRedis();
     const normalizedCode = toEnglishLowerCase(code);
-    return await redis.exists(`room:${normalizedCode}`) === 1;
+    return await withTimeout(
+        redis.exists(`room:${normalizedCode}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `roomExists-${normalizedCode}`
+    ) === 1;
 }
 
 /**

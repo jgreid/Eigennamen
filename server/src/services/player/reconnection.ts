@@ -10,6 +10,7 @@ import logger from '../../utils/logger';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { SESSION_SECURITY, PLAYER_CLEANUP } from '../../config/constants';
 import { tryParseJSON } from '../../utils/parseJSON';
+import { INVALIDATE_TOKEN_SCRIPT, CLEANUP_ORPHANED_TOKEN_SCRIPT } from '../../scripts';
 import { z } from 'zod';
 import { getPlayer } from '../playerService';
 
@@ -129,7 +130,11 @@ export async function validateRoomReconnectToken(
     }
 
     // Look up the token
-    const tokenDataStr = await redis.get(`reconnect:token:${token}`);
+    const tokenDataStr = await withTimeout(
+        redis.get(`reconnect:token:${token}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `validateReconnectToken-get-${sessionId}`
+    );
 
     if (!tokenDataStr) {
         logger.warn('Reconnection token not found or expired', { sessionId });
@@ -169,25 +174,12 @@ export async function validateRoomReconnectToken(
  */
 export async function getExistingReconnectionToken(sessionId: string): Promise<string | null> {
     const redis: RedisClient = getRedis();
-    return redis.get(`reconnect:session:${sessionId}`);
+    return withTimeout(
+        redis.get(`reconnect:session:${sessionId}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `getExistingReconnectionToken-${sessionId}`
+    );
 }
-
-/**
- * Lua script to atomically invalidate a reconnection token.
- * Reads the token from the session mapping, then deletes both the
- * token→session and session→token keys in a single atomic operation.
- * Returns 1 if a token was invalidated, 0 if no token existed.
- */
-const INVALIDATE_TOKEN_SCRIPT = `
-local sessionKey = KEYS[1]
-local existingToken = redis.call('GET', sessionKey)
-if not existingToken then
-    return 0
-end
-redis.call('DEL', 'reconnect:token:' .. existingToken)
-redis.call('DEL', sessionKey)
-return 1
-`;
 
 /**
  * Invalidate any existing reconnection token for a session
@@ -198,37 +190,19 @@ return 1
 export async function invalidateRoomReconnectToken(sessionId: string): Promise<void> {
     const redis: RedisClient = getRedis();
 
-    const result = await redis.eval(INVALIDATE_TOKEN_SCRIPT, {
-        keys: [`reconnect:session:${sessionId}`],
-        arguments: []
-    });
+    const result = await withTimeout(
+        redis.eval(INVALIDATE_TOKEN_SCRIPT, {
+            keys: [`reconnect:session:${sessionId}`],
+            arguments: []
+        }),
+        TIMEOUTS.REDIS_OPERATION,
+        `invalidateReconnectToken-lua-${sessionId}`
+    );
 
     if (result === 1) {
         logger.debug(`Invalidated reconnection token for session ${sessionId}`);
     }
 }
-
-/**
- * Lua script to atomically check if a player exists and, if not,
- * clean up the orphaned reconnection token pair.
- * KEYS[1] = reconnect:session:<sessionId>
- * KEYS[2] = player:<sessionId>
- * Returns 1 if cleaned, 0 if player still exists.
- */
-const CLEANUP_ORPHANED_TOKEN_SCRIPT = `
-local sessionKey = KEYS[1]
-local playerKey = KEYS[2]
-local playerData = redis.call('GET', playerKey)
-if playerData then
-    return 0
-end
-local tokenId = redis.call('GET', sessionKey)
-if tokenId then
-    redis.call('DEL', 'reconnect:token:' .. tokenId)
-end
-redis.call('DEL', sessionKey)
-return 1
-`;
 
 /**
  * Clean up orphaned reconnection tokens.
@@ -252,10 +226,14 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
                 const playerKey = `player:${sessionId}`;
 
                 // Atomic check-and-delete: only cleans up if player doesn't exist
-                const result = await redis.eval(CLEANUP_ORPHANED_TOKEN_SCRIPT, {
-                    keys: [key, playerKey],
-                    arguments: []
-                });
+                const result = await withTimeout(
+                    redis.eval(CLEANUP_ORPHANED_TOKEN_SCRIPT, {
+                        keys: [key, playerKey],
+                        arguments: []
+                    }),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `cleanupOrphanedToken-lua-${sessionId}`
+                );
 
                 if (result === 1) {
                     cleaned++;
@@ -296,7 +274,11 @@ export async function validateSocketAuthToken(sessionId: string, token?: string)
     }
 
     // Use same key as generateReconnectionToken stores session->token mapping
-    const storedToken = await redis.get(`reconnect:session:${sessionId}`);
+    const storedToken = await withTimeout(
+        redis.get(`reconnect:session:${sessionId}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `validateSocketAuthToken-get-${sessionId}`
+    );
 
     if (!storedToken) {
         // No stored token - either expired or never set

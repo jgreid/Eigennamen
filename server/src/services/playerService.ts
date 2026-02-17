@@ -4,15 +4,21 @@
 
 import type { Team, Role, Player, RedisClient } from '../types';
 
-import fs from 'fs';
-import path from 'path';
 import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { REDIS_TTL, PLAYER_CLEANUP } from '../config/constants';
 import { ServerError, ValidationError } from '../errors/GameError';
 import { tryParseJSON, parseJSON } from '../utils/parseJSON';
-import { ATOMIC_REMOVE_PLAYER_SCRIPT, ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT, ATOMIC_SET_SOCKET_MAPPING_SCRIPT } from '../scripts';
+import {
+    UPDATE_PLAYER_SCRIPT,
+    SAFE_TEAM_SWITCH_SCRIPT,
+    SET_ROLE_SCRIPT,
+    HOST_TRANSFER_SCRIPT,
+    ATOMIC_REMOVE_PLAYER_SCRIPT,
+    ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
+    ATOMIC_SET_SOCKET_MAPPING_SCRIPT
+} from '../scripts';
 import { sanitizeHtml } from '../utils/sanitize';
 import { z } from 'zod';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './player/reconnection';
@@ -164,19 +170,14 @@ export async function createPlayer(
  */
 export async function getPlayer(sessionId: string): Promise<Player | null> {
     const redis: RedisClient = getRedis();
-    const playerData = await redis.get(`player:${sessionId}`);
+    const playerData = await withTimeout(
+        redis.get(`player:${sessionId}`),
+        TIMEOUTS.REDIS_OPERATION,
+        `getPlayer-${sessionId}`
+    );
     if (!playerData) return null;
     return tryParseJSON(playerData, playerSchema, `player ${sessionId}`) as Player | null;
 }
-
-/**
- * Lua script for atomic player update
- * Replaces WATCH/MULTI read-modify-write with a single atomic Lua operation.
- * Prevents lost updates from concurrent modifications.
- * Takes: KEYS[1] = player key, ARGV[1] = JSON updates, ARGV[2] = TTL, ARGV[3] = timestamp
- * Returns: JSON string of updated player on success, nil if player not found
- */
-const ATOMIC_UPDATE_PLAYER_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../scripts/updatePlayer.lua'), 'utf8');
 
 /**
  * Update player data atomically using Lua script to prevent lost updates
@@ -196,7 +197,7 @@ export async function updatePlayer(
     try {
         const result = await withTimeout(
             redis.eval(
-                ATOMIC_UPDATE_PLAYER_SCRIPT,
+                UPDATE_PLAYER_SCRIPT,
                 {
                     keys: [playerKey],
                     arguments: [
@@ -277,17 +278,6 @@ export async function updatePlayer(
 }
 
 /**
- * Lua script for atomic team switch with empty-team validation AND team set maintenance
- * Team set operations now inside Lua script for atomicity
- * Prevents team from becoming empty during active game
- * Checks all team members' connected status atomically before allowing switch
- * Returns: {success: true, player: {...}} on success
- *          {success: false, reason: 'TEAM_WOULD_BE_EMPTY'} if team would become empty
- *          nil if player not found
- */
-const ATOMIC_SAFE_TEAM_SWITCH_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../scripts/safeTeamSwitch.lua'), 'utf8');
-
-/**
  * Set player's team (atomic operation with optional empty-team check)
  *
  * Uses a single Lua script that handles both simple team changes and
@@ -318,7 +308,7 @@ export async function setTeam(
 
     const result = await withTimeout(
         redis.eval(
-            ATOMIC_SAFE_TEAM_SWITCH_SCRIPT,
+            SAFE_TEAM_SWITCH_SCRIPT,
             {
                 keys: [`player:${sessionId}`, teamSetKey, roomCode],
                 arguments: [
@@ -367,17 +357,6 @@ export async function setTeam(
 }
 
 /**
- * Lua script for atomic role assignment
- * Prevents race condition where two players could both become spymaster/clicker
- * Atomically checks if role is available and assigns it in a single operation
- * Returns: {success: true, player: {...}} on success
- *          {success: false, reason: 'ROLE_TAKEN', existingNickname: '...'} if role already assigned
- *          {success: false, reason: 'NO_TEAM'} if player has no team
- *          nil if player not found
- */
-const ATOMIC_SET_ROLE_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../scripts/setRole.lua'), 'utf8');
-
-/**
  * Set player's role with atomic check to prevent race conditions
  * Uses Lua script for truly atomic role assignment
  * Enforces one spymaster and one clicker per team
@@ -402,7 +381,7 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
     // Atomic Lua script handles team requirement and role-taken checks
     const result = await withTimeout(
         redis.eval(
-            ATOMIC_SET_ROLE_SCRIPT,
+            SET_ROLE_SCRIPT,
             {
                 keys: [`player:${sessionId}`, `room:${player.roomCode}:players`],
                 arguments: [
@@ -753,12 +732,16 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 // Atomically check connected status AND remove in a single Lua script.
                 // This prevents a TOCTOU race where a player reconnects between
                 // reading their status and removing them.
-                const result = await redis.eval(
-                    ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
-                    {
-                        keys: [`player:${sessionId}`],
-                        arguments: [sessionId]
-                    }
+                const result = await withTimeout(
+                    redis.eval(
+                        ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
+                        {
+                            keys: [`player:${sessionId}`],
+                            arguments: [sessionId]
+                        }
+                    ),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `cleanupDisconnectedPlayer-lua-${sessionId}`
                 ) as string | null;
 
                 if (result === 'RECONNECTED') {
@@ -888,7 +871,11 @@ export async function setSocketMapping(
  */
 export async function getSocketId(sessionId: string): Promise<string | null> {
     const redis: RedisClient = getRedis();
-    return redis.get(`session:${sessionId}:socket`);
+    return withTimeout(
+        redis.get(`session:${sessionId}:socket`),
+        TIMEOUTS.REDIS_OPERATION,
+        `getSocketId-${sessionId}`
+    );
 }
 
 // Cleanup interval reference
@@ -931,14 +918,6 @@ export function stopCleanupTask(): void {
 }
 
 /**
- * Lua script for atomic host transfer
- * Atomically transfers host status to prevent race conditions
- * that could result in no host or multiple hosts
- * Returns: success with new host data, or failure reason
- */
-const ATOMIC_HOST_TRANSFER_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../scripts/hostTransfer.lua'), 'utf8');
-
-/**
  * Atomically transfer host status from one player to another
  * Prevents race conditions during host transfer
  */
@@ -953,7 +932,7 @@ export async function atomicHostTransfer(
         // Wrap redis.eval with timeout to prevent hanging operations
         const result = await withTimeout(
             redis.eval(
-                ATOMIC_HOST_TRANSFER_SCRIPT,
+                HOST_TRANSFER_SCRIPT,
                 {
                     keys: [
                         `player:${oldHostSessionId}`,

@@ -8,8 +8,6 @@
 
 import type { GameState, RedisClient as SharedRedisClient } from '../../types';
 
-import fs from 'fs';
-import path from 'path';
 import { z } from 'zod';
 import { getRedis } from '../../config/redis';
 import logger from '../../utils/logger';
@@ -24,10 +22,11 @@ import {
     GameStateError,
     ServerError
 } from '../../errors/GameError';
+import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT } from '../../scripts';
 
-// Lua scripts loaded once at module initialization
-export const OPTIMIZED_REVEAL_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/revealCard.lua'), 'utf8');
-export const OPTIMIZED_END_TURN_SCRIPT: string = fs.readFileSync(path.join(__dirname, '../../scripts/endTurn.lua'), 'utf8');
+// Re-export Lua scripts from centralized barrel (previously loaded from disk here)
+export const OPTIMIZED_REVEAL_SCRIPT: string = REVEAL_CARD_SCRIPT;
+export const OPTIMIZED_END_TURN_SCRIPT: string = END_TURN_SCRIPT;
 
 // Zod schemas
 const gameStateSchema = z.object({

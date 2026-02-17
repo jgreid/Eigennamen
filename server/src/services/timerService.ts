@@ -14,6 +14,7 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
+import { ATOMIC_ADD_TIME_SCRIPT } from '../scripts';
 import { z } from 'zod';
 
 // Zod schema for runtime validation of timer state from Redis.
@@ -104,51 +105,6 @@ const TIMER_TTL_BUFFER: number = TIMER.TIMER_TTL_BUFFER_SECONDS;
 const TIMER_KEY_PREFIX = 'timer:';
 
 /**
- * Lua script for atomic addTime operation
- * Reads current timer, calculates new duration, and updates atomically
- * Returns: new end time if successful, nil if timer doesn't exist or is expired
- */
-const ATOMIC_ADD_TIME_SCRIPT = `
-local timerKey = KEYS[1]
-local secondsToAdd = tonumber(ARGV[1])
-local instanceId = ARGV[2]
-
-local timerData = redis.call('GET', timerKey)
-if not timerData then
-    return nil
-end
-
-local timer = cjson.decode(timerData)
-if timer.paused then
-    return nil
-end
-
-local now = tonumber(ARGV[3])
-local remainingMs = timer.endTime - now
-if remainingMs <= 0 then
-    return nil
-end
-
--- Get TTL buffer from arguments instead of hardcoding
-local ttlBuffer = tonumber(ARGV[4]) or 60
-
--- Calculate new end time
-local newEndTime = timer.endTime + (secondsToAdd * 1000)
-local newDuration = math.ceil((newEndTime - now) / 1000)
-
--- Update timer
-timer.endTime = newEndTime
-timer.duration = newDuration
-timer.instanceId = instanceId
-
--- Calculate new TTL (duration + buffer from constant)
-local newTtl = newDuration + ttlBuffer
-
-redis.call('SET', timerKey, cjson.encode(timer), 'EX', newTtl)
-return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeconds = newDuration})
-`;
-
-/**
  * Creates a timer expiration callback function
  */
 function createTimerExpirationCallback(
@@ -203,10 +159,14 @@ export async function startTimer(
         instanceId: process.pid.toString()
     };
 
-    await redis.set(
-        `${TIMER_KEY_PREFIX}${roomCode}`,
-        JSON.stringify(timerData),
-        { EX: durationSeconds + TIMER_TTL_BUFFER } // TTL slightly longer than timer duration
+    await withTimeout(
+        redis.set(
+            `${TIMER_KEY_PREFIX}${roomCode}`,
+            JSON.stringify(timerData),
+            { EX: durationSeconds + TIMER_TTL_BUFFER } // TTL slightly longer than timer duration
+        ),
+        TIMEOUTS.TIMER_OPERATION,
+        `startTimer-set-${roomCode}`
     );
 
     // Set up local timeout using shared expiration callback
@@ -245,7 +205,11 @@ export async function stopTimer(roomCode: string): Promise<void> {
     }
 
     // Remove from Redis
-    await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+    await withTimeout(
+        redis.del(`${TIMER_KEY_PREFIX}${roomCode}`),
+        TIMEOUTS.TIMER_OPERATION,
+        `stopTimer-del-${roomCode}`
+    );
 
     logger.info(`Timer stopped for room ${roomCode}`);
 }
@@ -257,7 +221,11 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
     const redis: RedisClient = getRedis();
 
     // Check Redis for timer state
-    const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
+    const timerData = await withTimeout(
+        redis.get(`${TIMER_KEY_PREFIX}${roomCode}`),
+        TIMEOUTS.TIMER_OPERATION,
+        `getTimerStatus-${roomCode}`
+    );
     if (!timerData) {
         return null;
     }
@@ -318,7 +286,11 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
 
     // Stop the timer but remember the remaining time
     const redis: RedisClient = getRedis();
-    const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
+    const timerData = await withTimeout(
+        redis.get(`${TIMER_KEY_PREFIX}${roomCode}`),
+        TIMEOUTS.TIMER_OPERATION,
+        `pauseTimer-get-${roomCode}`
+    );
     if (timerData) {
         try {
             const timer = tryParseJSON(timerData, timerStateSchema, `timer pause for ${roomCode}`);
@@ -327,7 +299,11 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
             timer.remainingWhenPaused = remainingSeconds;
             // Store when the timer was paused to detect expiration while paused
             timer.pausedAt = Date.now();
-            await redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: REDIS_TTL.PAUSED_TIMER });
+            await withTimeout(
+                redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: REDIS_TTL.PAUSED_TIMER }),
+                TIMEOUTS.TIMER_OPERATION,
+                `pauseTimer-set-${roomCode}`
+            );
         } catch (e) {
             logger.error(`Failed to parse timer data for ${roomCode}:`, (e as Error).message);
             return null;
@@ -355,7 +331,11 @@ export async function resumeTimer(
 ): Promise<TimerInfo | null> {
     const redis: RedisClient = getRedis();
 
-    const timerData = await redis.get(`${TIMER_KEY_PREFIX}${roomCode}`);
+    const timerData = await withTimeout(
+        redis.get(`${TIMER_KEY_PREFIX}${roomCode}`),
+        TIMEOUTS.TIMER_OPERATION,
+        `resumeTimer-get-${roomCode}`
+    );
 
     if (!timerData) {
         return null;
