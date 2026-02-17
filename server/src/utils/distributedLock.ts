@@ -10,6 +10,15 @@ import logger from './logger';
 import { v4 as uuidv4 } from 'uuid';
 import { withTimeout } from './timeout';
 import { ServerError } from '../errors/GameError';
+import {
+    RELEASE_LOCK_SCRIPT as _RELEASE_LOCK_SCRIPT,
+    EXTEND_LOCK_SCRIPT as _EXTEND_LOCK_SCRIPT,
+} from '../scripts';
+
+// Re-export lock scripts for backward compatibility (writable exports
+// so CommonJS tests can destructure them from require())
+export const RELEASE_LOCK_SCRIPT = _RELEASE_LOCK_SCRIPT;
+export const EXTEND_LOCK_SCRIPT = _EXTEND_LOCK_SCRIPT;
 
 // Timeout for individual lock Redis operations (release, extend)
 const LOCK_OPERATION_TIMEOUT = 5000;
@@ -33,24 +42,6 @@ const DEFAULT_CONFIG: LockConfig = {
     maxRetries: 20,         // Max retry attempts
     extendThreshold: 0.5    // Extend when 50% of time remains
 };
-
-// Lua script for safe lock release (only release if we own the lock)
-const RELEASE_LOCK_SCRIPT = `
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-else
-    return 0
-end
-`;
-
-// Lua script for lock extension (only extend if we own the lock)
-const EXTEND_LOCK_SCRIPT = `
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("pexpire", KEYS[1], ARGV[2])
-else
-    return 0
-end
-`;
 
 /**
  * Lock acquisition result interface
@@ -370,8 +361,6 @@ export {
     isLocked,
     getLockOwner,
     forceRelease,
-    RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT
 };
 
 export type { LockConfig, LockResult, LockOptions };

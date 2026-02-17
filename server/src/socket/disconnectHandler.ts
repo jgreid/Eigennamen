@@ -22,7 +22,8 @@ import logger from '../utils/logger';
 import { SOCKET_EVENTS, LOCKS, SESSION_SECURITY } from '../config/constants';
 import { safeEmitToRoom } from './safeEmit';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
-import { withLock, RELEASE_LOCK_SCRIPT } from '../utils/distributedLock';
+import { withLock } from '../utils/distributedLock';
+import { RELEASE_LOCK_SCRIPT } from '../scripts';
 import * as gameService from '../services/gameService';
 import * as roomService from '../services/roomService';
 import * as playerService from '../services/playerService';
@@ -277,7 +278,11 @@ async function handleDisconnect(
                 try {
                     // Use centralized lock TTL from config with unique value for owner-verified release
                     hostLockValue = `${socket.sessionId}:${Date.now()}`;
-                    const lockResult = await redis.set(lockKey, hostLockValue, { NX: true, EX: LOCKS.HOST_TRANSFER });
+                    const lockResult = await withTimeout(
+                        redis.set(lockKey, hostLockValue, { NX: true, EX: LOCKS.HOST_TRANSFER }),
+                        TIMEOUTS.REDIS_OPERATION,
+                        `disconnect-hostTransferLock-${roomCode}`
+                    );
                     // Redis SET with NX returns 'OK' (node-redis v4) or null on failure.
                     hostTransferLockAcquired = lockResult === 'OK' || !!lockResult;
 

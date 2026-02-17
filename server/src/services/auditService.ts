@@ -11,6 +11,7 @@ import type { RedisClient } from '../types';
 import logger from '../utils/logger';
 import { getRedis, isUsingMemoryMode } from '../config/redis';
 import { tryParseJSON } from '../utils/parseJSON';
+import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { z } from 'zod';
 
 // Minimal Zod schema for audit log entry validation.
@@ -232,15 +233,27 @@ export async function logAuditEvent(
             const logJson = JSON.stringify(logEntry);
 
             // Store in appropriate lists based on event type
-            await redis.lPush(listKey, logJson);
-            await redis.lTrim(listKey, 0, MAX_LOGS_PER_CATEGORY - 1);
-            await redis.expire(listKey, AUDIT_LOG_TTL);
+            await withTimeout(
+                Promise.all([
+                    redis.lPush(listKey, logJson),
+                    redis.lTrim(listKey, 0, MAX_LOGS_PER_CATEGORY - 1),
+                    redis.expire(listKey, AUDIT_LOG_TTL)
+                ]),
+                TIMEOUTS.REDIS_OPERATION,
+                'auditLog-store'
+            );
 
             // Also store in main audit log
             if (listKey !== AUDIT_LOG_KEY) {
-                await redis.lPush(AUDIT_LOG_KEY, logJson);
-                await redis.lTrim(AUDIT_LOG_KEY, 0, MAX_LOGS_PER_CATEGORY - 1);
-                await redis.expire(AUDIT_LOG_KEY, AUDIT_LOG_TTL);
+                await withTimeout(
+                    Promise.all([
+                        redis.lPush(AUDIT_LOG_KEY, logJson),
+                        redis.lTrim(AUDIT_LOG_KEY, 0, MAX_LOGS_PER_CATEGORY - 1),
+                        redis.expire(AUDIT_LOG_KEY, AUDIT_LOG_TTL)
+                    ]),
+                    TIMEOUTS.REDIS_OPERATION,
+                    'auditLog-storeMain'
+                );
             }
         }
     } catch (error) {
@@ -272,7 +285,11 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
             parsed = list.slice(offset, offset + limit);
         } else {
             const redis: RedisClient = getRedis();
-            const logs = await redis.lRange(key, offset, offset + limit - 1);
+            const logs = await withTimeout(
+                redis.lRange(key, offset, offset + limit - 1),
+                TIMEOUTS.REDIS_OPERATION,
+                'getAuditLogs-lRange'
+            );
             parsed = logs.map(log =>
                 tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null
             ).filter((entry): entry is AuditLogEntry => entry !== null);
@@ -305,11 +322,15 @@ export async function getAuditSummary(): Promise<AuditSummary> {
             security = (memoryLogs.get(AUDIT_SECURITY_KEY) || []).length;
         } else {
             const redis: RedisClient = getRedis();
-            [total, admin, security] = await Promise.all([
-                redis.lLen(AUDIT_LOG_KEY),
-                redis.lLen(AUDIT_ADMIN_KEY),
-                redis.lLen(AUDIT_SECURITY_KEY)
-            ]);
+            [total, admin, security] = await withTimeout(
+                Promise.all([
+                    redis.lLen(AUDIT_LOG_KEY),
+                    redis.lLen(AUDIT_ADMIN_KEY),
+                    redis.lLen(AUDIT_SECURITY_KEY)
+                ]),
+                TIMEOUTS.REDIS_OPERATION,
+                'getAuditSummary-lLen'
+            );
         }
 
         // Get recent logs to calculate severity breakdown

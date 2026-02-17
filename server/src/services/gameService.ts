@@ -43,9 +43,8 @@ import {
 } from '../errors/GameError';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { toEnglishUpperCase } from '../utils/sanitize';
-import { RELEASE_LOCK_SCRIPT } from '../utils/distributedLock';
 import { tryParseJSON } from '../utils/parseJSON';
-import { ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../scripts';
+import { ATOMIC_SET_ROOM_STATUS_SCRIPT, RELEASE_LOCK_SCRIPT } from '../scripts';
 
 // Focused modules
 import {
@@ -137,7 +136,11 @@ export async function createGame(
 
     const lockKey = `room:${roomCode}:game:creating`;
     const lockValue = `${process.pid}:${Date.now()}`;
-    const lockAcquired = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE });
+    const lockAcquired = await withTimeout(
+        redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE }),
+        TIMEOUTS.REDIS_OPERATION,
+        `createGame-lock-${roomCode}`
+    );
 
     if (!lockAcquired) {
         // Exponential backoff retry: wait, then check if the other creator finished
@@ -151,7 +154,11 @@ export async function createGame(
                 throw RoomError.gameInProgress(roomCode);
             }
             // Lock may have been released, try to acquire again
-            const retryLock = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE });
+            const retryLock = await withTimeout(
+                redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE }),
+                TIMEOUTS.REDIS_OPERATION,
+                `createGame-retryLock-${roomCode}`
+            );
             if (retryLock) {
                 acquiredOnRetry = true;
                 break;
@@ -179,7 +186,11 @@ export async function createGame(
             throw RoomError.gameInProgress(roomCode);
         }
 
-        const preCheckRoomData = await redis.get(`room:${roomCode}`);
+        const preCheckRoomData = await withTimeout(
+            redis.get(`room:${roomCode}`),
+            TIMEOUTS.REDIS_OPERATION,
+            `createGame-roomCheck-${roomCode}`
+        );
         if (!preCheckRoomData) {
             throw RoomError.notFound(roomCode);
         }
@@ -253,7 +264,11 @@ export async function createGame(
             } : {})
         };
 
-        await redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM });
+        await withTimeout(
+            redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM }),
+            TIMEOUTS.REDIS_OPERATION,
+            `createGame-saveGame-${roomCode}`
+        );
 
         // Atomically update room status to 'playing' via Lua to prevent TOCTOU race
         try {
@@ -269,7 +284,11 @@ export async function createGame(
             logger.error(`Failed to update room status for ${roomCode}:`, (e as Error).message);
         }
 
-        await redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM);
+        await withTimeout(
+            redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM),
+            TIMEOUTS.REDIS_OPERATION,
+            `createGame-expirePlayers-${roomCode}`
+        );
 
         logger.info(`Game created for room ${roomCode} with seed ${seed}`);
         return game;
@@ -316,7 +335,11 @@ export async function revealCard(
     validateCardIndex(index);
 
     const lockValue = `${process.pid}:${Date.now()}`;
-    const lockAcquired = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.CARD_REVEAL });
+    const lockAcquired = await withTimeout(
+        redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.CARD_REVEAL }),
+        TIMEOUTS.REDIS_OPERATION,
+        `revealCard-lock-${roomCode}`
+    );
     if (!lockAcquired) {
         throw new ServerError('Another card reveal is in progress, please try again');
     }
@@ -427,7 +450,11 @@ export async function getGameHistory(roomCode: string): Promise<GameHistoryEntry
  */
 export async function cleanupGame(roomCode: string): Promise<void> {
     const redis: RedisClient = getRedis();
-    await redis.del(`room:${roomCode}:game`);
+    await withTimeout(
+        redis.del(`room:${roomCode}:game`),
+        TIMEOUTS.REDIS_OPERATION,
+        `cleanupGame-${roomCode}`
+    );
     logger.info(`Game data cleaned up for room ${roomCode}`);
 }
 

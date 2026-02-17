@@ -6,10 +6,6 @@
  * - File-based scripts (.lua files loaded from disk)
  * - Inline scripts (defined in this module, previously scattered across services)
  *
- * Note: Lock scripts (RELEASE_LOCK_SCRIPT, EXTEND_LOCK_SCRIPT) remain in
- * distributedLock.ts to avoid circular dependencies. gameService.ts imports
- * them directly from there.
- *
  * Usage:
  *   import { ATOMIC_CREATE_ROOM_SCRIPT } from '../scripts';
  *   await redis.eval(ATOMIC_CREATE_ROOM_SCRIPT, { keys: [...], arguments: [...] });
@@ -415,6 +411,32 @@ redis.call('DEL', sessionKey)
 return 1
 `;
 
+// ─── Lock scripts (previously in utils/distributedLock.ts) ──────────
+
+/**
+ * Safe lock release (only release if we own the lock)
+ * Previously in: utils/distributedLock.ts
+ */
+export const RELEASE_LOCK_SCRIPT = `
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+`;
+
+/**
+ * Lock extension (only extend if we own the lock)
+ * Previously in: utils/distributedLock.ts
+ */
+export const EXTEND_LOCK_SCRIPT = `
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("pexpire", KEYS[1], ARGV[2])
+else
+    return 0
+end
+`;
+
 // ─── Convenience grouped export ────────────────────────────────────
 
 export const LUA_SCRIPTS = {
@@ -444,4 +466,8 @@ export const LUA_SCRIPTS = {
     // Reconnection operations
     INVALIDATE_TOKEN: INVALIDATE_TOKEN_SCRIPT,
     CLEANUP_ORPHANED_TOKEN: CLEANUP_ORPHANED_TOKEN_SCRIPT,
+
+    // Lock operations
+    RELEASE_LOCK: RELEASE_LOCK_SCRIPT,
+    EXTEND_LOCK: EXTEND_LOCK_SCRIPT,
 } as const;
