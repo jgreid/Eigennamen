@@ -66,7 +66,7 @@ interface ChangePermission {
  * Without this, concurrent setTeam + setRole can both call syncSpectatorRoomMembership
  * and produce inconsistent socket room state (e.g., player in both room:X and spectators:X).
  */
-interface LockEntry { promise: Promise<void>; createdAt: number; }
+interface LockEntry { promise: Promise<void>; createdAt: number; settled: boolean; }
 const roomSyncLocks = new Map<string, LockEntry>();
 const ROOM_SYNC_LOCKS_MAX_SIZE = 10_000;
 const ROOM_SYNC_LOCK_MAX_AGE_MS = 60_000;
@@ -82,13 +82,13 @@ async function syncSpectatorRoomMembership(
     sessionId: string
 ): Promise<void> {
     // Safety valve: evict stale entries if the map grows too large.
-    // Entries should be cleaned up by .finally() below, but reference mismatches
-    // can leave orphans. Evict entries older than ROOM_SYNC_LOCK_MAX_AGE_MS.
+    // Only evict entries whose promises have already settled to avoid
+    // deleting locks that are still being awaited by concurrent callers.
     if (roomSyncLocks.size > ROOM_SYNC_LOCKS_MAX_SIZE) {
         const now = Date.now();
         let evicted = 0;
         for (const [key, entry] of roomSyncLocks) {
-            if (now - entry.createdAt > ROOM_SYNC_LOCK_MAX_AGE_MS) {
+            if (entry.settled && now - entry.createdAt > ROOM_SYNC_LOCK_MAX_AGE_MS) {
                 roomSyncLocks.delete(key);
                 evicted++;
             }
@@ -100,6 +100,8 @@ async function syncSpectatorRoomMembership(
     const lockKey = `${sessionId}:${roomCode}`;
     const existingEntry = roomSyncLocks.get(lockKey);
     const existingLock = existingEntry?.promise || Promise.resolve();
+
+    const entry: LockEntry = { promise: null as unknown as Promise<void>, createdAt: Date.now(), settled: false };
 
     const newLock = existingLock.then(async () => {
         // Re-fetch current player state to ensure we have the latest team/role
@@ -121,13 +123,15 @@ async function syncSpectatorRoomMembership(
     }).catch((err) => {
         logger.warn(`syncSpectatorRoomMembership failed for ${sessionId}:`, err instanceof Error ? err.message : String(err));
     }).finally(() => {
-        // Clean up lock after completion
-        if (roomSyncLocks.get(lockKey)?.promise === newLock) {
+        entry.settled = true;
+        // Clean up lock after completion — only if this entry is still the current one
+        if (roomSyncLocks.get(lockKey) === entry) {
             roomSyncLocks.delete(lockKey);
         }
     });
 
-    roomSyncLocks.set(lockKey, { promise: newLock, createdAt: Date.now() });
+    entry.promise = newLock;
+    roomSyncLocks.set(lockKey, entry);
 
     // Timeout prevents unbounded queueing if a prior lock operation hangs.
     // On timeout, the queued operation is abandoned but the lock chain is

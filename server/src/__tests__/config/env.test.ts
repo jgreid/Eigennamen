@@ -74,6 +74,7 @@ describe('Environment Configuration', () => {
         it('should warn about production without DATABASE_URL', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
 
             validateEnv();
 
@@ -86,6 +87,7 @@ describe('Environment Configuration', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
             process.env.DATABASE_URL = 'postgresql://localhost:5432/db';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
 
             validateEnv();
 
@@ -104,6 +106,7 @@ describe('Environment Configuration', () => {
         it('should allow memory mode for REDIS_URL in production with warnings', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'memory';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
 
             validateEnv();
 
@@ -127,6 +130,7 @@ describe('Environment Configuration', () => {
             process.env.REDIS_URL = 'memory';
             process.env.FLY_ALLOC_ID = 'abc123def456';
             process.env.MEMORY_MODE_ALLOW_FLY = 'true';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
 
             expect(() => validateEnv()).not.toThrow();
 
@@ -141,6 +145,7 @@ describe('Environment Configuration', () => {
         it('should not block memory mode when FLY_ALLOC_ID is absent (non-Fly deployment)', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'memory';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
             delete process.env.FLY_ALLOC_ID;
 
             expect(() => validateEnv()).not.toThrow();
@@ -155,6 +160,7 @@ describe('Environment Configuration', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'rediss://production-redis:6379';
             process.env.FLY_ALLOC_ID = 'abc123def456';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
 
             expect(() => validateEnv()).not.toThrow();
 
@@ -168,6 +174,7 @@ describe('Environment Configuration', () => {
         it('should warn about missing JWT_SECRET in production', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
             delete process.env.JWT_SECRET;
 
             validateEnv();
@@ -180,6 +187,7 @@ describe('Environment Configuration', () => {
         it('should throw for short JWT_SECRET in production', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
             process.env.JWT_SECRET = 'short'; // Less than 32 chars
 
             expect(() => validateEnv()).toThrow('JWT_SECRET must be at least 32 characters');
@@ -188,6 +196,7 @@ describe('Environment Configuration', () => {
         it('should warn about wildcard CORS in production', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
             process.env.CORS_ORIGIN = '*';
 
             validateEnv();
@@ -200,6 +209,7 @@ describe('Environment Configuration', () => {
         it('should not warn about CORS when restricted', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
+            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
             process.env.CORS_ORIGIN = 'https://example.com';
 
             validateEnv();
@@ -208,6 +218,14 @@ describe('Environment Configuration', () => {
                 call => call[0].includes('CORS_ORIGIN')
             );
             expect(corsWarnings).toHaveLength(0);
+        });
+
+        it('should error when ADMIN_PASSWORD is not set in production', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.REDIS_URL = 'redis://production-redis:6379';
+            delete process.env.ADMIN_PASSWORD;
+
+            expect(() => validateEnv()).toThrow('ADMIN_PASSWORD must be set in production');
         });
 
         it('should error when ADMIN_PASSWORD is empty string in production', () => {
