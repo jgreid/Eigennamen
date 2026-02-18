@@ -12,6 +12,7 @@ import { getRedis } from '../../config/redis';
 import { z } from 'zod';
 import { normalizeRoomCode } from '../../utils/sanitize';
 import { audit } from '../../services/auditService';
+import { removePlayer } from '../../services/playerService';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
 
 /**
@@ -410,11 +411,13 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
                 playerId,
                 reason: 'Kicked by administrator'
             });
+
+            // Force the player's socket to leave the room
+            io.in(`player:${playerId}`).socketsLeave(`room:${normalizedCode}`);
         }
 
-        // Remove player from room
-        await redis.sRem(`room:${normalizedCode}:players`, playerId);
-        await redis.del(`player:${playerId}`);
+        // Remove player from room (handles player set, team sets, reconnection tokens, and player data)
+        await removePlayer(playerId);
 
         logger.info('Player kicked by admin', {
             code: normalizedCode,
