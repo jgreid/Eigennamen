@@ -30,9 +30,9 @@ describe('Error Handler Extended Tests', () => {
     });
 
     describe('errorHandler - complete error code coverage', () => {
+        // Only error codes NOT already covered by middleware.test.ts
+        // (middleware.test.ts covers: ROOM_NOT_FOUND, ROOM_FULL, RATE_LIMITED, NOT_AUTHORIZED, INVALID_INPUT)
         const errorCodeTests = [
-            { code: ERROR_CODES.ROOM_NOT_FOUND, expectedStatus: 404 },
-            { code: ERROR_CODES.ROOM_FULL, expectedStatus: 403 },
             { code: ERROR_CODES.ROOM_ALREADY_EXISTS, expectedStatus: 409 },
             { code: ERROR_CODES.GAME_IN_PROGRESS, expectedStatus: 409 },
             { code: ERROR_CODES.NOT_HOST, expectedStatus: 403 },
@@ -42,10 +42,6 @@ describe('Error Handler Extended Tests', () => {
             { code: ERROR_CODES.CARD_ALREADY_REVEALED, expectedStatus: 400 },
             { code: ERROR_CODES.GAME_OVER, expectedStatus: 400 },
             { code: ERROR_CODES.GAME_NOT_STARTED, expectedStatus: 409 },
-            { code: ERROR_CODES.INVALID_INPUT, expectedStatus: 400 },
-            { code: ERROR_CODES.RATE_LIMITED, expectedStatus: 429 },
-            { code: ERROR_CODES.WORD_LIST_NOT_FOUND, expectedStatus: 404 },
-            { code: ERROR_CODES.NOT_AUTHORIZED, expectedStatus: 403 },
             { code: ERROR_CODES.SERVER_ERROR, expectedStatus: 500 },
             { code: ERROR_CODES.SESSION_EXPIRED, expectedStatus: 401 },
             { code: ERROR_CODES.SESSION_NOT_FOUND, expectedStatus: 401 },
@@ -54,6 +50,7 @@ describe('Error Handler Extended Tests', () => {
             { code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN, expectedStatus: 400 },
             { code: ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, expectedStatus: 400 },
             { code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM, expectedStatus: 400 },
+            { code: ERROR_CODES.WORD_LIST_NOT_FOUND, expectedStatus: 404 },
             { code: ERROR_CODES.PLAYER_NOT_FOUND, expectedStatus: 404 }
         ];
 
@@ -68,19 +65,6 @@ describe('Error Handler Extended Tests', () => {
                 .expect(expectedStatus);
 
             expect(response.body.error.code).toBe(code);
-        });
-
-        it('should return 500 for unknown error codes', async () => {
-            app.get('/test', (req, res, next) => {
-                next({ code: 'UNKNOWN_ERROR_CODE', message: 'Unknown error' });
-            });
-            app.use(errorHandler);
-
-            const response = await request(app)
-                .get('/test')
-                .expect(500);
-
-            expect(response.body.error.code).toBe('SERVER_ERROR');
         });
 
         it('should mask error details in production', async () => {

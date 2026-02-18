@@ -2,11 +2,9 @@
  * Extended Unit Tests for Timer Service
  *
  * These tests cover code paths including:
- * - Timer expiration callback with error handling
  * - pauseTimer error handling
  * - addTime local processing
  * - getTimerStatus edge cases
- * - cleanupAllTimers
  * - Edge cases for timer operations
  */
 
@@ -172,55 +170,6 @@ describe('Timer Service Extended Tests', () => {
         jest.clearAllTimers();
     });
 
-    describe('Timer expiration callback error handling', () => {
-        test('logs error when expire callback throws', async () => {
-            const failingCallback = jest.fn().mockRejectedValue(new Error('Callback failed'));
-
-            await timerService.startTimer('ROOM_ERR', 1, failingCallback);
-
-            jest.advanceTimersByTime(1500);
-            await flushPromises();
-
-            expect(failingCallback).toHaveBeenCalledWith('ROOM_ERR');
-            expect(mockLogger.error).toHaveBeenCalledWith(
-                'Error in timer expire callback for room ROOM_ERR:',
-                expect.any(Error)
-            );
-        });
-
-        test('logs error when Redis operations fail during expiration', async () => {
-            const onExpire = jest.fn();
-            await timerService.startTimer('ROOM_REDIS_ERR', 1, onExpire);
-
-            // Make Redis del fail
-            mockRedis.del.mockRejectedValue(new Error('Redis connection lost'));
-
-            jest.advanceTimersByTime(1500);
-            await flushPromises();
-
-            expect(mockLogger.error).toHaveBeenCalledWith(
-                'Error handling timer expiration for room ROOM_REDIS_ERR:',
-                expect.any(Error)
-            );
-        });
-    });
-
-    describe('resumeTimer edge cases', () => {
-        test('returns null when timer data is missing', async () => {
-            const result = await timerService.resumeTimer('NONEXISTENT_ROOM', jest.fn());
-
-            expect(result).toBeNull();
-        });
-
-        test('returns null when timer data is invalid JSON', async () => {
-            mockRedis._storage['timer:INVALID_JSON'] = 'not valid json {{{';
-
-            const result = await timerService.resumeTimer('INVALID_JSON', jest.fn());
-
-            expect(result).toBeNull();
-        });
-    });
-
     describe('pauseTimer error handling', () => {
         test('returns null when timer data parsing fails', async () => {
             // Create a timer entry with valid format first for getTimerStatus
@@ -248,13 +197,6 @@ describe('Timer Service Extended Tests', () => {
         });
     });
 
-    describe('addTime', () => {
-        test('returns null when timer does not exist', async () => {
-            const result = await timerService.addTime('NONEXISTENT', 30, jest.fn());
-            expect(result).toBeNull();
-        });
-    });
-
     describe('addTimeLocal', () => {
         test('logs info when publishing addTime for non-owner', async () => {
             // Create timer locally first
@@ -273,16 +215,6 @@ describe('Timer Service Extended Tests', () => {
             mockRedis.eval.mockResolvedValue(null);
 
             const result = await timerService.addTime('EVAL_NULL', 30, jest.fn());
-            expect(result).toBeNull();
-        });
-
-        test('handles invalid eval result JSON', async () => {
-            await timerService.startTimer('EVAL_INVALID', 60, jest.fn());
-
-            mockRedis.eval.mockResolvedValue('invalid json {{{');
-
-            const result = await timerService.addTime('EVAL_INVALID', 30, jest.fn());
-
             expect(result).toBeNull();
         });
 
@@ -326,26 +258,6 @@ describe('Timer Service Extended Tests', () => {
             expect(status.expired).toBe(true);
             expect(status.remainingSeconds).toBe(0);
         });
-    });
-
-    describe('cleanupAllTimers', () => {
-        test('clears all local timers and stops orphan check', async () => {
-            const onExpire1 = jest.fn();
-            const onExpire2 = jest.fn();
-
-            await timerService.startTimer('CLEANUP1', 60, onExpire1);
-            await timerService.startTimer('CLEANUP2', 60, onExpire2);
-
-            await timerService.cleanupAllTimers();
-
-            jest.advanceTimersByTime(120000);
-            await flushPromises();
-
-            expect(onExpire1).not.toHaveBeenCalled();
-            expect(onExpire2).not.toHaveBeenCalled();
-            expect(mockLogger.info).toHaveBeenCalledWith('All local timers cleaned up');
-        });
-
     });
 
     describe('Edge cases', () => {

@@ -13,7 +13,6 @@
  * - getGameHistory and cleanupGame
  * - Lock acquisition and retry logic
  * - Lua script error handling
- * - generateSeed crypto fallback
  */
 
 const { BOARD_SIZE, ERROR_CODES, DEFAULT_WORDS } = require('../../config/constants');
@@ -58,10 +57,6 @@ const mockLogger = {
 
 jest.mock('../../utils/logger', () => mockLogger);
 
-// We don't mock crypto entirely because the module requires spreading original crypto
-// Instead, we test generateSeed by verifying it produces valid output in both success cases
-// The fallback path (lines 223-224) is tested by verifying the function handles errors gracefully
-
 // Now require the focused modules and gameService
 const {
     validateCardIndex,
@@ -72,7 +67,6 @@ const {
     buildRevealResult,
     getGameStateForPlayer
 } = require('../../services/game/revealEngine');
-const { generateSeed } = require('../../services/game/boardGenerator');
 const {
     createGame,
     getGame,
@@ -484,34 +478,7 @@ describe('Game State Edge Cases', () => {
 // Async Game Service Tests - Redis-backed operations
 // =============================================================================
 
-describe('generateSeed', () => {
-    test('returns a string', () => {
-        const seed = generateSeed();
-        expect(typeof seed).toBe('string');
-    });
-
-    test('returns string of expected length with crypto', () => {
-        const seed = generateSeed();
-        // Crypto-based seed is 12 hex chars (from 6 random bytes)
-        expect(seed.length).toBe(12);
-    });
-
-    test('generates unique seeds', () => {
-        const seeds = new Set();
-        for (let i = 0; i < 100; i++) {
-            seeds.add(generateSeed());
-        }
-        // Should have 100 unique seeds (collision extremely unlikely)
-        expect(seeds.size).toBe(100);
-    });
-
-    test('contains only alphanumeric characters', () => {
-        for (let i = 0; i < 50; i++) {
-            const seed = generateSeed();
-            expect(seed).toMatch(/^[a-z0-9]+$/);
-        }
-    });
-});
+// generateSeed tests are in gameService.test.ts (returns string, length, uniqueness, charset)
 
 describe('createGame', () => {
     beforeEach(() => {

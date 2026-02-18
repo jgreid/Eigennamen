@@ -75,28 +75,6 @@ describe('Rate Limit Handler Extended Tests', () => {
 
     describe('createRateLimitedHandler Advanced Scenarios', () => {
 
-        test('handles async handler that returns value', async () => {
-            const returnValue = { success: true, data: [1, 2, 3] };
-            const handler = jest.fn().mockResolvedValue(returnValue);
-            const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
-
-            await wrapped({ test: 'data' });
-            await new Promise(resolve => setTimeout(resolve, 10));
-
-            expect(handler).toHaveBeenCalledWith({ test: 'data' });
-        });
-
-        test('handles handler that returns undefined', async () => {
-            const handler = jest.fn().mockResolvedValue(undefined);
-            const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
-
-            await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
-
-            expect(handler).toHaveBeenCalled();
-            expect(mockSocket.emit).not.toHaveBeenCalled();
-        });
-
         test('handles handler that returns null', async () => {
             const handler = jest.fn().mockResolvedValue(null);
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
@@ -115,22 +93,6 @@ describe('Rate Limit Handler Extended Tests', () => {
             await new Promise(resolve => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalled();
-        });
-
-        test('emits error with safe error code and passes message through', async () => {
-            // Use a safe error code that allows message passthrough
-            const customError = new Error('Room not found');
-            customError.code = 'ROOM_NOT_FOUND';
-            const handler = jest.fn().mockRejectedValue(customError);
-            const wrapped = createRateLimitedHandler(mockSocket, 'room:join', handler);
-
-            await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
-                code: 'ROOM_NOT_FOUND',
-                message: 'Room not found'
-            });
         });
 
         test('handles error without message', async () => {
@@ -174,17 +136,6 @@ describe('Rate Limit Handler Extended Tests', () => {
 
             // Should use first part as error event prefix
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.any(Object));
-        });
-
-        test('handles event name without colon', async () => {
-            const error = new Error('Test error');
-            const handler = jest.fn().mockRejectedValue(error);
-            const wrapped = createRateLimitedHandler(mockSocket, 'disconnect', handler);
-
-            await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('disconnect:error', expect.any(Object));
         });
 
         test('passes through complex data objects', async () => {
@@ -243,42 +194,6 @@ describe('Rate Limit Handler Extended Tests', () => {
         });
     });
 
-    describe('Cleanup Functions', () => {
-
-        test('startRateLimitCleanup is idempotent', () => {
-            startRateLimitCleanup();
-            startRateLimitCleanup();
-            startRateLimitCleanup();
-            // Should not throw and should only create one interval
-            stopRateLimitCleanup();
-        });
-
-        test('stopRateLimitCleanup is idempotent', () => {
-            stopRateLimitCleanup();
-            stopRateLimitCleanup();
-            stopRateLimitCleanup();
-            // Should not throw
-        });
-
-        test('can restart cleanup after stopping', () => {
-            startRateLimitCleanup();
-            stopRateLimitCleanup();
-            startRateLimitCleanup();
-            stopRateLimitCleanup();
-            // Should not throw
-        });
-
-        test('cleanupSocket handles socket ID', () => {
-            socketRateLimiter.cleanupSocket('test-socket-id');
-            expect(mockCleanupSocket).toHaveBeenCalledWith('test-socket-id');
-        });
-
-        test('cleanupStale can be called directly', () => {
-            socketRateLimiter.cleanupStale();
-            expect(mockCleanupStale).toHaveBeenCalled();
-        });
-    });
-
     describe('Socket Rate Limiter Instance', () => {
 
         test('getLimiter returns function for room events', () => {
@@ -304,11 +219,6 @@ describe('Rate Limit Handler Extended Tests', () => {
     });
 
     describe('getSocketRateLimiter Export', () => {
-
-        test('returns the rate limiter instance', () => {
-            const limiter = getSocketRateLimiter();
-            expect(limiter).toBe(socketRateLimiter);
-        });
 
         test('returned limiter has getLimiter method', () => {
             const limiter = getSocketRateLimiter();

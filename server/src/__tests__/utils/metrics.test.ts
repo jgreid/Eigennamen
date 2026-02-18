@@ -224,25 +224,7 @@ describe('Metrics Collection', () => {
         });
     });
 
-    describe('METRIC_NAMES', () => {
-        it('should define counter names', () => {
-            expect(METRIC_NAMES.GAMES_STARTED).toBeDefined();
-            expect(METRIC_NAMES.GAMES_COMPLETED).toBeDefined();
-            expect(METRIC_NAMES.CARDS_REVEALED).toBeDefined();
-            expect(METRIC_NAMES.ERRORS).toBeDefined();
-        });
-
-        it('should define gauge names', () => {
-            expect(METRIC_NAMES.ACTIVE_ROOMS).toBeDefined();
-            expect(METRIC_NAMES.ACTIVE_PLAYERS).toBeDefined();
-            expect(METRIC_NAMES.SOCKET_CONNECTIONS).toBeDefined();
-        });
-
-        it('should define histogram names', () => {
-            expect(METRIC_NAMES.OPERATION_LATENCY).toBeDefined();
-            expect(METRIC_NAMES.REDIS_LATENCY).toBeDefined();
-        });
-    });
+    // METRIC_NAMES constant value assertions are in metricsExtended.test.ts
 
     describe('Convenience Functions', () => {
         describe('Game tracking', () => {
