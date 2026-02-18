@@ -40,9 +40,18 @@ const SHORTCUTS: Record<string, { action: string; descKey: string }> = {
 };
 
 const shortcutsEnabled = true;
+let keyboardShortcutsAttached = false;
 
 export function initKeyboardShortcuts(): void {
+    if (keyboardShortcutsAttached) return;
     document.addEventListener('keydown', handleKeyboardShortcut);
+    keyboardShortcutsAttached = true;
+}
+
+export function removeKeyboardShortcuts(): void {
+    if (!keyboardShortcutsAttached) return;
+    document.removeEventListener('keydown', handleKeyboardShortcut);
+    keyboardShortcutsAttached = false;
 }
 
 function handleKeyboardShortcut(e: KeyboardEvent): void {

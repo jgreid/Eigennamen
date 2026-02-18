@@ -73,7 +73,7 @@ describe('Timer Service', () => {
             }
             return 1;
         });
-        // Mock eval for atomic addTime operation
+        // Mock eval for Lua scripts (addTime + timerStatus)
         mockRedis.eval.mockImplementation(async (script, options) => {
             const key = options.keys[0];
             const timerData = mockRedis._storage?.[key];
@@ -81,6 +81,48 @@ describe('Timer Service', () => {
 
             try {
                 const timer = JSON.parse(timerData);
+
+                // Detect which script is being called by checking argument count/content.
+                // Timer status script passes 1 argument (now timestamp).
+                // AddTime script passes 4 arguments (secondsToAdd, instanceId, now, ttlBuffer).
+                const isTimerStatusScript = options.arguments.length === 1 && !isNaN(parseInt(options.arguments[0], 10));
+
+                if (isTimerStatusScript) {
+                    // Simulate ATOMIC_TIMER_STATUS_SCRIPT
+                    const now = parseInt(options.arguments[0], 10);
+
+                    if (timer.paused && timer.pausedAt !== undefined && timer.remainingWhenPaused !== undefined) {
+                        const pausedDuration = now - timer.pausedAt;
+                        const remainingMs = timer.remainingWhenPaused * 1000;
+                        if (pausedDuration >= remainingMs) {
+                            delete mockRedis._storage[key];
+                            return 'EXPIRED';
+                        }
+                        return JSON.stringify({
+                            startTime: timer.startTime,
+                            endTime: timer.endTime,
+                            duration: timer.duration,
+                            remainingSeconds: timer.remainingWhenPaused,
+                            expired: false,
+                            isPaused: true
+                        });
+                    }
+
+                    const remainingMs = timer.endTime - now;
+                    const expired = remainingMs <= 0;
+                    const remainingSeconds = expired ? 0 : Math.ceil(remainingMs / 1000);
+
+                    return JSON.stringify({
+                        startTime: timer.startTime,
+                        endTime: timer.endTime,
+                        duration: timer.duration,
+                        remainingSeconds,
+                        expired,
+                        isPaused: false
+                    });
+                }
+
+                // Simulate ATOMIC_ADD_TIME_SCRIPT
                 if (timer.paused) return null;
 
                 const now = Date.now();

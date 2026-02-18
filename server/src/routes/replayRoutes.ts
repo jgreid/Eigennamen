@@ -10,9 +10,9 @@ import type { Request, Response, NextFunction, Router as ExpressRouter } from 'e
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import * as gameHistoryService from '../services/gameHistoryService';
-import { toEnglishLowerCase } from '../utils/sanitize';
 import { API_RATE_LIMITS } from '../config/constants';
 import { z } from 'zod';
+import { createRoomIdSchema } from '../validators/schemaHelpers';
 import logger from '../utils/logger';
 
 const router: ExpressRouter = express.Router();
@@ -34,9 +34,9 @@ const replayLimiter = rateLimit({
     }
 });
 
-// Schema for replay params
+// Schema for replay params — uses shared room ID schema for consistent validation
 const replayParamsSchema = z.object({
-    roomCode: z.string().min(3).max(20).transform((s: string) => toEnglishLowerCase(s)),
+    roomCode: createRoomIdSchema(),
     gameId: z.string().uuid('Invalid game ID format')
 });
 

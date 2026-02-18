@@ -10,9 +10,8 @@ import rateLimit from 'express-rate-limit';
 import * as roomService from '../services/roomService';
 import * as playerService from '../services/playerService';
 import { validateParams } from '../middleware/validation';
-import { toEnglishLowerCase } from '../utils/sanitize';
 import { API_RATE_LIMITS } from '../config/constants';
-import { z } from 'zod';
+import { roomCodeSchema } from '../validators/roomSchemas';
 
 const router: ExpressRouter = express.Router();
 
@@ -31,11 +30,6 @@ const roomExistsLimiter = rateLimit({
             }
         });
     }
-});
-
-// Schema for room code param - aligned with socket schema (3-20 chars, Unicode)
-const roomCodeSchema = z.object({
-    code: z.string().min(3).max(20).transform((s: string) => toEnglishLowerCase(s)).refine((s: string) => /^[\p{L}\p{N}\-_]+$/u.test(s), 'Invalid room code format')
 });
 
 /**

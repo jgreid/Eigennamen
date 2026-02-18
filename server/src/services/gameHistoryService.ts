@@ -372,16 +372,19 @@ export async function saveGameResult(
 
         const results = await pipeline.exec();
 
-        // Check for partial pipeline failures (null results indicate errors)
+        // Check for partial pipeline failures (null results indicate errors).
+        // Throw so callers know history + index may be inconsistent.
         if (results) {
             const failedOps = results.filter(r => r === null);
             if (failedOps.length > 0) {
-                logger.warn('Partial pipeline failure in saveGameResult', {
+                const msg = `Partial pipeline failure in saveGameResult: ${failedOps.length}/${results.length} ops failed`;
+                logger.error(msg, {
                     roomCode,
                     gameId: historyId,
                     failedOps: failedOps.length,
                     totalOps: results.length
                 });
+                throw new Error(msg);
             }
         }
 

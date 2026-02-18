@@ -22,9 +22,18 @@ export function announceToScreenReader(message: string): void {
 }
 
 // ========== TOAST NOTIFICATION SYSTEM ==========
+const MAX_TOASTS = 5;
+
 export function showToast(message: string, type: string = 'error', duration: number = 4000): HTMLDivElement | null {
     const container = document.getElementById('toast-container');
     if (!container) return null;
+
+    // Cap concurrent toasts to prevent unbounded DOM growth
+    const existingToasts = container.querySelectorAll('.toast:not(.hiding)');
+    if (existingToasts.length >= MAX_TOASTS) {
+        // Dismiss the oldest toast to make room
+        dismissToast(existingToasts[0] as HTMLDivElement);
+    }
 
     // Validate type against allowed values to prevent arbitrary class/key injection
     const validTypes = ['error', 'success', 'warning', 'info'];

@@ -83,7 +83,7 @@ describe('Timer Service Extended Tests', () => {
             return mockRedis._storage[key] ? 1 : 0;
         });
 
-        // Setup eval for atomic operations
+        // Setup eval for Lua scripts (timerStatus + addTime)
         mockRedis.eval.mockImplementation(async (script, options) => {
             const key = options.keys[0];
             const timerData = mockRedis._storage[key];
@@ -91,13 +91,41 @@ describe('Timer Service Extended Tests', () => {
 
             try {
                 const timer = JSON.parse(timerData);
+
+                // Timer status script: 1 argument (now timestamp)
+                if (options.arguments.length === 1 && !isNaN(parseInt(options.arguments[0], 10)) && !script.includes('claimed')) {
+                    const now = parseInt(options.arguments[0], 10);
+
+                    if (timer.paused && timer.pausedAt !== undefined && timer.remainingWhenPaused !== undefined) {
+                        const pausedDuration = now - timer.pausedAt;
+                        const remainingMs = timer.remainingWhenPaused * 1000;
+                        if (pausedDuration >= remainingMs) {
+                            delete mockRedis._storage[key];
+                            return 'EXPIRED';
+                        }
+                        return JSON.stringify({
+                            startTime: timer.startTime, endTime: timer.endTime,
+                            duration: timer.duration, remainingSeconds: timer.remainingWhenPaused,
+                            expired: false, isPaused: true
+                        });
+                    }
+
+                    const remainingMs = timer.endTime - now;
+                    const expired = remainingMs <= 0;
+                    return JSON.stringify({
+                        startTime: timer.startTime, endTime: timer.endTime,
+                        duration: timer.duration,
+                        remainingSeconds: expired ? 0 : Math.ceil(remainingMs / 1000),
+                        expired, isPaused: false
+                    });
+                }
+
                 if (timer.paused) return null;
                 if (timer.claimed) return null;
 
                 const now = Date.now();
                 const remainingMs = timer.endTime - now;
                 if (remainingMs <= 0) {
-                    // For claim script - mark as claimed and return data
                     if (script.includes('claimed')) {
                         delete mockRedis._storage[key];
                         return timerData;
@@ -205,15 +233,11 @@ describe('Timer Service Extended Tests', () => {
             };
             mockRedis._storage['timer:PARSE_ERR'] = JSON.stringify(validTimer);
 
-            // Make second get (in pauseTimer body) return invalid JSON
-            let getCount = 0;
+            // getTimerStatus() now uses redis.eval (not get), so the first
+            // redis.get call comes from pauseTimer's body — return invalid JSON.
             mockRedis.get.mockImplementation(async (key) => {
-                getCount++;
                 if (key === 'timer:PARSE_ERR') {
-                    if (getCount === 1) {
-                        return JSON.stringify(validTimer); // For getTimerStatus
-                    }
-                    return 'invalid json {{{'; // For pauseTimer
+                    return 'invalid json {{{';
                 }
                 return mockRedis._storage[key] || null;
             });

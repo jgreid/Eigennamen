@@ -332,6 +332,19 @@ export async function connectRedis(): Promise<RedisClients> {
             // Attach pub/sub health monitoring (PING probes + error tracking)
             pubSubHealth.attachToClients(pubClient, subClient);
 
+            // Verify Lua scripting is available (required for atomic game operations)
+            try {
+                const luaResult = await redisClient.eval('return 1', { keys: [], arguments: [] });
+                if (luaResult !== 1) {
+                    throw new Error(`Unexpected Lua result: ${luaResult}`);
+                }
+            } catch (luaErr) {
+                const msg = `Redis Lua scripting unavailable: ${(luaErr as Error).message}. ` +
+                    'Game operations require EVAL. Check redis.conf for "rename-command EVAL".';
+                logger.error(msg);
+                throw new Error(msg);
+            }
+
             if (usingMemoryMode) {
                 logger.info('Connected to embedded Redis (memory mode)');
             } else {

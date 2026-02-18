@@ -14,7 +14,7 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
-import { ATOMIC_ADD_TIME_SCRIPT } from '../scripts';
+import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT } from '../scripts';
 import { z } from 'zod';
 
 // Zod schema for runtime validation of timer state from Redis.
@@ -35,6 +35,16 @@ const addTimeResultSchema = z.object({
     endTime: z.number(),
     duration: z.number(),
     remainingSeconds: z.number()
+});
+
+// Zod schema for atomic timer status Lua script result
+const timerStatusSchema = z.object({
+    startTime: z.number(),
+    endTime: z.number(),
+    duration: z.number(),
+    remainingSeconds: z.number(),
+    expired: z.boolean(),
+    isPaused: z.boolean()
 });
 
 /**
@@ -148,6 +158,14 @@ export async function startTimer(
 ): Promise<TimerInfo> {
     const redis: RedisClient = getRedis();
 
+    // Validate duration bounds (consistent with addTime validation)
+    if (typeof durationSeconds !== 'number' || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+        throw new ValidationError('Invalid duration: must be a positive number');
+    }
+    if (durationSeconds > TIMER.MAX_TURN_SECONDS) {
+        throw new ValidationError(`Invalid duration: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
+    }
+
     // Clear any existing timer
     await stopTimer(roomCode);
 
@@ -224,49 +242,33 @@ export async function stopTimer(roomCode: string): Promise<void> {
 export async function getTimerStatus(roomCode: string): Promise<TimerStatus | null> {
     const redis: RedisClient = getRedis();
 
-    // Check Redis for timer state
-    const timerData = await withTimeout(
-        redis.get(`${TIMER_KEY_PREFIX}${roomCode}`),
+    // Atomic Lua script: reads timer state and checks for expiration in one operation.
+    // Prevents TOCTOU race in multi-instance deployments where another instance
+    // could modify the timer between our GET and our expiration check.
+    const result = await withTimeout(
+        redis.eval(ATOMIC_TIMER_STATUS_SCRIPT, {
+            keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
+            arguments: [Date.now().toString()]
+        }),
         TIMEOUTS.TIMER_OPERATION,
-        `getTimerStatus-${roomCode}`
-    );
-    if (!timerData) {
+        `getTimerStatus-lua-${roomCode}`
+    ) as string | null;
+
+    if (!result) {
+        return null;
+    }
+
+    // Timer expired while paused — Lua script already cleaned it up
+    if (result === 'EXPIRED') {
+        localTimers.delete(roomCode);
         return null;
     }
 
     try {
-        const timer = tryParseJSON(timerData, timerStateSchema, `timer status for ${roomCode}`);
-        if (!timer) return null;
-        const now = Date.now();
-
-        // Account for paused state in timer status
-        // When paused, return the stored remaining time instead of calculating from endTime
-        if (timer.paused && timer.remainingWhenPaused !== undefined) {
-            return {
-                startTime: timer.startTime,
-                endTime: timer.endTime,
-                duration: timer.duration,
-                remainingSeconds: timer.remainingWhenPaused,
-                expired: false,
-                isPaused: true
-            };
-        }
-
-        const remainingMs = timer.endTime - now;
-        const expired = remainingMs <= 0;
-        // If expired, remainingSeconds should be 0, not 1 from Math.ceil
-        const remainingSeconds = expired ? 0 : Math.ceil(remainingMs / 1000);
-
-        return {
-            startTime: timer.startTime,
-            endTime: timer.endTime,
-            duration: timer.duration,
-            remainingSeconds,
-            expired,
-            isPaused: false
-        };
+        const status = tryParseJSON(result, timerStatusSchema, `timer status for ${roomCode}`);
+        return status;
     } catch (e) {
-        logger.warn(`Failed to parse timer data for ${roomCode}:`, (e as Error).message);
+        logger.warn(`Failed to parse timer status for ${roomCode}:`, (e as Error).message);
         return null;
     }
 }
