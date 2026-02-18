@@ -107,11 +107,13 @@ export function validateEnv(): boolean {
             }
         }
 
-        // Require ADMIN_PASSWORD in production to prevent unprotected admin dashboard
+        // Warn if ADMIN_PASSWORD is not set in production
+        // The admin routes already deny access when ADMIN_PASSWORD is unset,
+        // so this is not a fatal condition — just a security recommendation.
         const adminPassword = process.env['ADMIN_PASSWORD'];
         if (adminPassword === undefined) {
-            errors.push(
-                'ADMIN_PASSWORD must be set in production to protect the admin dashboard. ' +
+            warnings.push(
+                'ADMIN_PASSWORD not set - admin dashboard will be inaccessible. ' +
                 'Set it with: fly secrets set ADMIN_PASSWORD=$(openssl rand -base64 24)'
             );
         } else if (!adminPassword.trim()) {

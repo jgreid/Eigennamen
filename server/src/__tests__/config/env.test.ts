@@ -220,12 +220,16 @@ describe('Environment Configuration', () => {
             expect(corsWarnings).toHaveLength(0);
         });
 
-        it('should error when ADMIN_PASSWORD is not set in production', () => {
+        it('should warn when ADMIN_PASSWORD is not set in production', () => {
             process.env.NODE_ENV = 'production';
             process.env.REDIS_URL = 'redis://production-redis:6379';
             delete process.env.ADMIN_PASSWORD;
 
-            expect(() => validateEnv()).toThrow('ADMIN_PASSWORD must be set in production');
+            expect(() => validateEnv()).not.toThrow();
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('ADMIN_PASSWORD not set - admin dashboard will be inaccessible')
+            );
         });
 
         it('should error when ADMIN_PASSWORD is empty string in production', () => {
