@@ -95,6 +95,16 @@ function toEnglishUpperCase(input: unknown): string {
     return input.toLocaleUpperCase('en-US');
 }
 
+/**
+ * Normalize a room code: trim whitespace and lowercase using English locale.
+ * Single source of truth for room code normalization across the codebase.
+ * @param roomCode - The room code to normalize
+ * @returns Normalized room code
+ */
+function normalizeRoomCode(roomCode: string): string {
+    return toEnglishLowerCase(roomCode.trim());
+}
+
 // ES6 exports
 export {
     sanitizeHtml,
@@ -102,5 +112,6 @@ export {
     removeControlChars,
     isReservedName,
     toEnglishLowerCase,
-    toEnglishUpperCase
+    toEnglishUpperCase,
+    normalizeRoomCode
 };

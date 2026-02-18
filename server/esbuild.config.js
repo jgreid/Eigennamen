@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const isWatch = process.argv.includes('--watch');
+const isAnalyze = process.argv.includes('--analyze');
 
 /** @type {import('esbuild').BuildOptions} */
 const appConfig = {
@@ -80,11 +81,17 @@ async function build() {
         await Promise.all([appCtx.watch(), socketCtx.watch()]);
         console.log('Watching for changes...');
     } else {
-        await Promise.all([
-            esbuild.build(appConfig),
-            esbuild.build(socketClientConfig),
+        const [appResult, socketResult] = await Promise.all([
+            esbuild.build({ ...appConfig, metafile: isAnalyze }),
+            esbuild.build({ ...socketClientConfig, metafile: isAnalyze }),
         ]);
         updateSriHash();
+        if (isAnalyze) {
+            console.log('\n=== App Bundle Analysis ===');
+            console.log(await esbuild.analyzeMetafile(appResult.metafile));
+            console.log('\n=== Socket Client Bundle Analysis ===');
+            console.log(await esbuild.analyzeMetafile(socketResult.metafile));
+        }
         console.log('Frontend bundle built successfully');
     }
 }

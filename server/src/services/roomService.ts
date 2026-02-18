@@ -21,7 +21,7 @@ import logger from '../utils/logger';
 import * as playerService from './playerService';
 import * as timerService from './timerService';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
-import { toEnglishLowerCase } from '../utils/sanitize';
+import { normalizeRoomCode } from '../utils/sanitize';
 import {
     REDIS_TTL,
     ROOM_STATUS,
@@ -64,7 +64,7 @@ export async function createRoom(
     const redis: RedisClient = getRedis();
 
     // Normalize room ID (case-insensitive)
-    const normalizedRoomId = toEnglishLowerCase(roomId);
+    const normalizedRoomId = normalizeRoomCode(roomId);
 
     // Extract nickname from settings
     const { nickname: hostNickname, ...cleanSettings } = settings;
@@ -162,7 +162,7 @@ export async function createRoom(
 export async function getRoom(roomId: string): Promise<Room | null> {
     const redis: RedisClient = getRedis();
     // Normalize room ID for case-insensitive lookup
-    const normalizedId = toEnglishLowerCase(roomId);
+    const normalizedId = normalizeRoomCode(roomId);
     const roomData = await withTimeout(
         redis.get(`room:${normalizedId}`),
         TIMEOUTS.REDIS_OPERATION,
@@ -261,7 +261,7 @@ export async function updateSettings(
  */
 export async function roomExists(code: string): Promise<boolean> {
     const redis: RedisClient = getRedis();
-    const normalizedCode = toEnglishLowerCase(code);
+    const normalizedCode = normalizeRoomCode(code);
     return await withTimeout(
         redis.exists(`room:${normalizedCode}`),
         TIMEOUTS.REDIS_OPERATION,

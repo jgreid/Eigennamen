@@ -368,6 +368,59 @@ redis.call('SET', timerKey, cjson.encode(timer), 'EX', newTtl)
 return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeconds = newDuration})
 `;
 
+/**
+ * Atomic timer status check with expiration detection
+ * Prevents TOCTOU race in multi-instance deployments:
+ * reads timer state and checks for expiration in a single atomic operation.
+ * If the timer has expired while paused, it is deleted and 'EXPIRED' is returned.
+ * Returns: JSON timer status, 'EXPIRED' if expired while paused, nil if no timer
+ */
+export const ATOMIC_TIMER_STATUS_SCRIPT = `
+local timerKey = KEYS[1]
+local now = tonumber(ARGV[1])
+
+local timerData = redis.call('GET', timerKey)
+if not timerData then
+    return nil
+end
+
+local timer = cjson.decode(timerData)
+
+-- Handle paused timer: check if it would have expired during pause
+if timer.paused and timer.pausedAt and timer.remainingWhenPaused then
+    local pausedDuration = now - timer.pausedAt
+    local remainingMs = timer.remainingWhenPaused * 1000
+    if pausedDuration >= remainingMs then
+        -- Timer expired while paused — clean it up atomically
+        redis.call('DEL', timerKey)
+        return 'EXPIRED'
+    end
+    -- Still paused, return remaining time
+    return cjson.encode({
+        startTime = timer.startTime,
+        endTime = timer.endTime,
+        duration = timer.duration,
+        remainingSeconds = timer.remainingWhenPaused,
+        expired = false,
+        isPaused = true
+    })
+end
+
+-- Active timer: calculate remaining
+local remainingMs = timer.endTime - now
+local expired = remainingMs <= 0
+local remainingSeconds = expired and 0 or math.ceil(remainingMs / 1000)
+
+return cjson.encode({
+    startTime = timer.startTime,
+    endTime = timer.endTime,
+    duration = timer.duration,
+    remainingSeconds = remainingSeconds,
+    expired = expired,
+    isPaused = false
+})
+`;
+
 // ─── Reconnection scripts (previously in player/reconnection.ts) ────
 
 /**
@@ -462,6 +515,7 @@ export const LUA_SCRIPTS = {
 
     // Timer operations
     ATOMIC_ADD_TIME: ATOMIC_ADD_TIME_SCRIPT,
+    ATOMIC_TIMER_STATUS: ATOMIC_TIMER_STATUS_SCRIPT,
 
     // Reconnection operations
     INVALIDATE_TOKEN: INVALIDATE_TOKEN_SCRIPT,

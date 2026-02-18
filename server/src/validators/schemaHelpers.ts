@@ -10,7 +10,7 @@ import type { z as ZodType } from 'zod';
 import { z } from 'zod';
 import { VALIDATION, RESERVED_NAMES, GAME_MODE_CONFIG } from '../config/constants';
 import { NICKNAME_REGEX, ROOM_CODE_REGEX, TEAM_NAME_REGEX } from '../shared';
-import { removeControlChars, isReservedName, toEnglishLowerCase } from '../utils/sanitize';
+import { removeControlChars, isReservedName, normalizeRoomCode } from '../utils/sanitize';
 
 // Re-export z for external use
 export { z };
@@ -47,7 +47,7 @@ const createRoomIdSchema = () =>
     z.string()
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
-        .transform((val: string) => toEnglishLowerCase(removeControlChars(val).trim()))
+        .transform((val: string) => normalizeRoomCode(removeControlChars(val)))
         .refine((val: string) => val.length >= 3, 'Room ID must be at least 3 characters')
         .refine((val: string) => roomIdRegex.test(val), 'Room ID contains invalid characters');
 

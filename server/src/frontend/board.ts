@@ -8,14 +8,30 @@ import { logger } from './logger.js';
 
 /**
  * Announce a message to screen readers via the sr-announcements live region.
- * Uses a clear-then-set pattern to ensure repeated identical messages are re-announced.
+ * Uses aria-atomic="true" and a timeout-based clearing strategy for reliable
+ * detection across screen readers (NVDA, VoiceOver, JAWS).
  */
+let srClearTimeout: ReturnType<typeof setTimeout> | null = null;
 function announceToScreenReader(message: string): void {
     const el = document.getElementById('sr-announcements');
     if (!el) return;
+    // Ensure aria-atomic is set for reliable re-announcement
+    if (!el.hasAttribute('aria-atomic')) {
+        el.setAttribute('aria-atomic', 'true');
+    }
+    // Clear any pending clear timeout
+    if (srClearTimeout) {
+        clearTimeout(srClearTimeout);
+        srClearTimeout = null;
+    }
     el.textContent = '';
-    // Defer setting text so the live region registers the change
-    requestAnimationFrame(() => { el.textContent = message; });
+    // Use a short timeout (vs requestAnimationFrame) for more reliable
+    // detection — rAF can be batched, causing screen readers to miss changes
+    setTimeout(() => {
+        el.textContent = message;
+        // Clear after 3 seconds so subsequent identical messages are re-announced
+        srClearTimeout = setTimeout(() => { el.textContent = ''; srClearTimeout = null; }, 3000);
+    }, 50);
 }
 
 // Callback for card clicks - set via setCardClickHandler

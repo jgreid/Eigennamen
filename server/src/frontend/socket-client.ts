@@ -557,6 +557,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             this.socket!.emit('room:leave');
             this.roomCode = null;
             this.player = null;
+            this._offlineQueue = [];
             this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
         },
 

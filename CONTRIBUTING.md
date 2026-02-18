@@ -150,16 +150,31 @@ function revealCard(game, index) {
    });
    ```
 
-### Error Handling
+### Error Handling Convention
 
-```javascript
-// Use typed errors
-const { GameError, ValidationError } = require('../errors/GameError');
+Services must follow a consistent error strategy:
 
-// Throw with error codes
-throw new GameError(ERROR_CODES.ROOM_NOT_FOUND, 'Room does not exist');
+| Scenario | Pattern | Example |
+|----------|---------|---------|
+| Business logic violation | **Throw** `GameError` subclass | `throw RoomError.notFound(code)` |
+| Invalid input | **Throw** `ValidationError` | `throw new ValidationError('...')` |
+| Optional resource not found | **Return null** | `getRoom()` returning `null` for missing rooms |
+| Data integrity failure | **Throw** (never swallow) | Pipeline partial failure, corrupted data |
+| Non-critical background task | **Log and continue** | Audit logging, metrics emission |
 
-// Handle in handlers
+**Rules:**
+1. Never silently swallow errors that affect data integrity (pipeline failures, lock failures).
+2. Handlers catch service errors and translate them into client-facing error events.
+3. Use `GameError` subclasses (`RoomError`, `PlayerError`, `ValidationError`, `ServerError`) — never throw plain `Error` from services.
+4. Return `null` only when the caller is expected to handle "not found" as a normal case.
+5. Never mix patterns in the same function (e.g., don't return `null` on validation failure and throw on not-found).
+
+```typescript
+// Services: throw typed errors
+import { RoomError, ValidationError } from '../errors/GameError';
+throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Room does not exist', { roomId });
+
+// Handlers: catch and emit
 try {
     const result = await gameService.revealCard(roomCode, index);
     socket.emit('game:cardRevealed', result);

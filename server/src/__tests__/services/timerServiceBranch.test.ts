@@ -66,7 +66,48 @@ describe('Timer Service Branch Coverage', () => {
             delete mockRedisStorage[key];
             return 1;
         });
-        mockRedis.eval.mockResolvedValue(null);
+        mockRedis.eval.mockImplementation(async (_script: string, options: { keys: string[]; arguments: string[] }) => {
+            const key = options.keys[0];
+            const timerData = mockRedisStorage[key];
+            if (!timerData) return null;
+
+            try {
+                const timer = JSON.parse(timerData);
+
+                // Timer status script: 1 arg (now timestamp)
+                if (options.arguments.length === 1) {
+                    const now = parseInt(options.arguments[0], 10);
+
+                    if (timer.paused && timer.pausedAt !== undefined && timer.remainingWhenPaused !== undefined) {
+                        const pausedDuration = now - timer.pausedAt;
+                        const remainingMs = timer.remainingWhenPaused * 1000;
+                        if (pausedDuration >= remainingMs) {
+                            delete mockRedisStorage[key];
+                            return 'EXPIRED';
+                        }
+                        return JSON.stringify({
+                            startTime: timer.startTime, endTime: timer.endTime,
+                            duration: timer.duration, remainingSeconds: timer.remainingWhenPaused,
+                            expired: false, isPaused: true
+                        });
+                    }
+
+                    const remainingMs = timer.endTime - now;
+                    const expired = remainingMs <= 0;
+                    return JSON.stringify({
+                        startTime: timer.startTime, endTime: timer.endTime,
+                        duration: timer.duration,
+                        remainingSeconds: expired ? 0 : Math.ceil(remainingMs / 1000),
+                        expired, isPaused: false
+                    });
+                }
+
+                // AddTime script fallback
+                return null;
+            } catch {
+                return null;
+            }
+        });
     });
 
     afterEach(async () => {

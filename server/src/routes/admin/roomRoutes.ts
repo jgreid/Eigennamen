@@ -10,7 +10,7 @@ import express from 'express';
 import logger from '../../utils/logger';
 import { getRedis } from '../../config/redis';
 import { z } from 'zod';
-import { toEnglishLowerCase } from '../../utils/sanitize';
+import { normalizeRoomCode } from '../../utils/sanitize';
 import { audit } from '../../services/auditService';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
 
@@ -243,7 +243,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             return;
         }
 
-        const normalizedCode = toEnglishLowerCase(code);
+        const normalizedCode = normalizeRoomCode(code);
         const redis: RedisClient = getRedis();
 
         // Get room data
@@ -357,7 +357,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             return;
         }
 
-        const normalizedCode = toEnglishLowerCase(code);
+        const normalizedCode = normalizeRoomCode(code);
         const redis: RedisClient = getRedis();
 
         // Check if room exists
@@ -470,7 +470,7 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
             return;
         }
 
-        const normalizedCode = toEnglishLowerCase(code);
+        const normalizedCode = normalizeRoomCode(code);
         const redis: RedisClient = getRedis();
 
         // Check if room exists

@@ -64,6 +64,13 @@ async function startServer(): Promise<void> {
             logger.info(`Server running on http://0.0.0.0:${PORT}`);
             logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
+            // Log feature availability so operators know what's active
+            const features = {
+                database: isDatabaseEnabled() ? 'enabled' : 'disabled (word lists, game history, accounts unavailable)',
+                redis: isUsingMemoryMode() ? 'in-memory (embedded)' : 'external',
+            };
+            logger.info('Feature status:', features);
+
             // Start memory monitoring
             startMemoryMonitoring();
         });

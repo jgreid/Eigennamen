@@ -16,7 +16,7 @@ import logger from '../../utils/logger';
 import * as playerService from '../playerService';
 import * as gameService from '../gameService';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
-import { toEnglishLowerCase } from '../../utils/sanitize';
+import { normalizeRoomCode } from '../../utils/sanitize';
 import {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
@@ -40,7 +40,7 @@ export async function joinRoom(
     const redis: RedisClient = getRedis();
 
     // Normalize room ID (case-insensitive)
-    const normalizedRoomId = toEnglishLowerCase(roomId);
+    const normalizedRoomId = normalizeRoomCode(roomId);
 
     // Get room
     const room = await getRoom(normalizedRoomId);
@@ -161,7 +161,7 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
         return { newHostId: null, roomDeleted: false };
     }
     const redis: RedisClient = getRedis();
-    code = toEnglishLowerCase(code);
+    code = normalizeRoomCode(code);
     const room = await getRoom(code);
 
     if (!room) {

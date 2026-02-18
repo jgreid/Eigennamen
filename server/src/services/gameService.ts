@@ -126,14 +126,13 @@ function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
 // ─── Game Lifecycle ─────────────────────────────────────────────────
 
 /**
- * Create a new game for a room
+ * Acquire game creation lock with exponential backoff retry.
+ * Returns the lock value for release, or throws if a game is already in progress.
  */
-export async function createGame(
-    roomCode: string,
-    options: CreateGameOptions = {}
-): Promise<GameState> {
-    const redis: RedisClient = getRedis();
-
+async function acquireGameCreationLock(
+    redis: RedisClient,
+    roomCode: string
+): Promise<{ lockKey: string; lockValue: string }> {
     const lockKey = `room:${roomCode}:game:creating`;
     const lockValue = `${process.pid}:${Date.now()}`;
     const lockAcquired = await withTimeout(
@@ -142,43 +141,173 @@ export async function createGame(
         `createGame-lock-${roomCode}`
     );
 
-    if (!lockAcquired) {
-        // Exponential backoff retry: wait, then check if the other creator finished
-        const maxRetries = 3;
-        let acquiredOnRetry = false;
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            const delayMs = RETRY_CONFIG.RACE_CONDITION.delayMs * Math.pow(2, attempt);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-            const existingGame = await getGame(roomCode);
-            if (existingGame && !existingGame.gameOver) {
-                throw RoomError.gameInProgress(roomCode);
-            }
-            // Lock may have been released, try to acquire again
-            const retryLock = await withTimeout(
-                redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE }),
-                TIMEOUTS.REDIS_OPERATION,
-                `createGame-retryLock-${roomCode}`
-            );
-            if (retryLock) {
-                acquiredOnRetry = true;
-                break;
-            }
-            if (attempt === maxRetries - 1) {
-                throw RoomError.gameInProgress(roomCode);
-            }
-        }
+    if (lockAcquired) {
+        return { lockKey, lockValue };
+    }
 
-        // After acquiring on retry, wait briefly and re-check to handle the case where
-        // the previous lock holder's TTL expired but their game creation is still in-flight.
-        if (acquiredOnRetry) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
-            const lateGame = await getGame(roomCode);
-            if (lateGame && !lateGame.gameOver) {
-                await releaseLockWithRetry(redis, lockKey, lockValue, `creation-lock-${roomCode}`);
-                throw RoomError.gameInProgress(roomCode);
-            }
+    const maxRetries = 3;
+    let acquiredOnRetry = false;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const delayMs = RETRY_CONFIG.RACE_CONDITION.delayMs * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        const existingGame = await getGame(roomCode);
+        if (existingGame && !existingGame.gameOver) {
+            throw RoomError.gameInProgress(roomCode);
+        }
+        const retryLock = await withTimeout(
+            redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE }),
+            TIMEOUTS.REDIS_OPERATION,
+            `createGame-retryLock-${roomCode}`
+        );
+        if (retryLock) {
+            acquiredOnRetry = true;
+            break;
+        }
+        if (attempt === maxRetries - 1) {
+            throw RoomError.gameInProgress(roomCode);
         }
     }
+
+    // Re-check after acquiring on retry: the previous holder's game creation may still be in-flight
+    if (acquiredOnRetry) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
+        const lateGame = await getGame(roomCode);
+        if (lateGame && !lateGame.gameOver) {
+            await releaseLockWithRetry(redis, lockKey, lockValue, `creation-lock-${roomCode}`);
+            throw RoomError.gameInProgress(roomCode);
+        }
+    }
+
+    return { lockKey, lockValue };
+}
+
+/**
+ * Resolve the word list to use for a game.
+ * Priority: direct wordList > wordListId from DB > default words.
+ */
+async function resolveGameWords(
+    roomCode: string,
+    options: CreateGameOptions
+): Promise<{ words: string[]; usedWordListId: string | null }> {
+    const { wordListId, wordList } = options;
+    let words: string[] = [...DEFAULT_WORDS];
+    let usedWordListId: string | null = null;
+
+    if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
+        const cleanedWords = [...new Set(
+            wordList
+                .map((w: string) => toEnglishUpperCase(String(w).trim()))
+                .filter((w: string) => w.length > 0)
+        )];
+        if (cleanedWords.length >= BOARD_SIZE) {
+            words = cleanedWords;
+            logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
+        } else {
+            logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
+        }
+    } else if (wordListId) {
+        try {
+            const customWords = await wordListService.getWordsForGame(wordListId);
+            if (customWords && customWords.length >= BOARD_SIZE) {
+                words = customWords;
+                usedWordListId = wordListId;
+                logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
+            } else {
+                logger.warn(`Database word list ${wordListId} not found or too small, using default`);
+            }
+        } catch (error) {
+            logger.error(`Error fetching database word list ${wordListId}:`, error);
+        }
+    }
+
+    return { words, usedWordListId };
+}
+
+/**
+ * Build a GameState object from resolved words and layout.
+ */
+function buildGameState(
+    seed: string,
+    usedWordListId: string | null,
+    boardWords: string[],
+    layout: ReturnType<typeof generateBoardLayout>,
+    isDuet: boolean
+): GameState {
+    return {
+        id: uuidv4(),
+        seed,
+        wordListId: usedWordListId,
+        words: boardWords,
+        types: layout.types,
+        revealed: Array(BOARD_SIZE).fill(false),
+        currentTurn: layout.firstTeam,
+        redScore: 0,
+        blueScore: 0,
+        redTotal: layout.redTotal,
+        blueTotal: layout.blueTotal,
+        gameOver: false,
+        winner: null,
+        currentClue: null,
+        guessesUsed: 0,
+        guessesAllowed: 0,
+        clues: [],
+        history: [],
+        stateVersion: 1,
+        createdAt: Date.now(),
+        ...(isDuet ? {
+            gameMode: 'duet',
+            duetTypes: layout.duetTypes,
+            timerTokens: DUET_BOARD_CONFIG.timerTokens,
+            greenFound: 0,
+            greenTotal: DUET_BOARD_CONFIG.greenTotal
+        } : {})
+    };
+}
+
+/**
+ * Persist game state to Redis and update room status.
+ */
+async function persistGameState(
+    redis: RedisClient,
+    roomCode: string,
+    game: GameState
+): Promise<void> {
+    await withTimeout(
+        redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM }),
+        TIMEOUTS.REDIS_OPERATION,
+        `createGame-saveGame-${roomCode}`
+    );
+
+    // Atomically update room status to 'playing' via Lua to prevent TOCTOU race
+    try {
+        await withTimeout(
+            redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                keys: [`room:${roomCode}`],
+                arguments: ['playing', REDIS_TTL.ROOM.toString()]
+            }),
+            TIMEOUTS.REDIS_OPERATION,
+            `setRoomStatus-lua-${roomCode}`
+        );
+    } catch (e) {
+        logger.error(`Failed to update room status for ${roomCode}:`, (e as Error).message);
+    }
+
+    await withTimeout(
+        redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM),
+        TIMEOUTS.REDIS_OPERATION,
+        `createGame-expirePlayers-${roomCode}`
+    );
+}
+
+/**
+ * Create a new game for a room
+ */
+export async function createGame(
+    roomCode: string,
+    options: CreateGameOptions = {}
+): Promise<GameState> {
+    const redis: RedisClient = getRedis();
+    const { lockKey, lockValue } = await acquireGameCreationLock(redis, roomCode);
 
     try {
         const existingGame = await getGame(roomCode);
@@ -197,98 +326,14 @@ export async function createGame(
 
         const seed = generateSeed();
         const numericSeed = hashString(seed);
-        const { wordListId, wordList, gameMode } = options;
-        const isDuet = gameMode === 'duet';
+        const isDuet = options.gameMode === 'duet';
 
-        // Resolve words: direct wordList > wordListId > default
-        let words: string[] = [...DEFAULT_WORDS];
-        let usedWordListId: string | null = null;
-
-        if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
-            const cleanedWords = [...new Set(
-                wordList
-                    .map((w: string) => toEnglishUpperCase(String(w).trim()))
-                    .filter((w: string) => w.length > 0)
-            )];
-            if (cleanedWords.length >= BOARD_SIZE) {
-                words = cleanedWords;
-                logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
-            } else {
-                logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
-            }
-        } else if (wordListId) {
-            try {
-                const customWords = await wordListService.getWordsForGame(wordListId);
-                if (customWords && customWords.length >= BOARD_SIZE) {
-                    words = customWords;
-                    usedWordListId = wordListId;
-                    logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
-                } else {
-                    logger.warn(`Database word list ${wordListId} not found or too small, using default`);
-                }
-            } catch (error) {
-                logger.error(`Error fetching database word list ${wordListId}:`, error);
-            }
-        }
-
+        const { words, usedWordListId } = await resolveGameWords(roomCode, options);
         const boardWords = selectBoardWords(words, numericSeed);
         const layout = generateBoardLayout(numericSeed, isDuet);
+        const game = buildGameState(seed, usedWordListId, boardWords, layout, isDuet);
 
-        const game: GameState = {
-            id: uuidv4(),
-            seed,
-            wordListId: usedWordListId,
-            words: boardWords,
-            types: layout.types,
-            revealed: Array(BOARD_SIZE).fill(false),
-            currentTurn: layout.firstTeam,
-            redScore: 0,
-            blueScore: 0,
-            redTotal: layout.redTotal,
-            blueTotal: layout.blueTotal,
-            gameOver: false,
-            winner: null,
-            currentClue: null,
-            guessesUsed: 0,
-            guessesAllowed: 0,
-            clues: [],
-            history: [],
-            stateVersion: 1,
-            createdAt: Date.now(),
-            ...(isDuet ? {
-                gameMode: 'duet',
-                duetTypes: layout.duetTypes,
-                timerTokens: DUET_BOARD_CONFIG.timerTokens,
-                greenFound: 0,
-                greenTotal: DUET_BOARD_CONFIG.greenTotal
-            } : {})
-        };
-
-        await withTimeout(
-            redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM }),
-            TIMEOUTS.REDIS_OPERATION,
-            `createGame-saveGame-${roomCode}`
-        );
-
-        // Atomically update room status to 'playing' via Lua to prevent TOCTOU race
-        try {
-            await withTimeout(
-                redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
-                    keys: [`room:${roomCode}`],
-                    arguments: ['playing', REDIS_TTL.ROOM.toString()]
-                }),
-                TIMEOUTS.REDIS_OPERATION,
-                `setRoomStatus-lua-${roomCode}`
-            );
-        } catch (e) {
-            logger.error(`Failed to update room status for ${roomCode}:`, (e as Error).message);
-        }
-
-        await withTimeout(
-            redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM),
-            TIMEOUTS.REDIS_OPERATION,
-            `createGame-expirePlayers-${roomCode}`
-        );
+        await persistGameState(redis, roomCode, game);
 
         logger.info(`Game created for room ${roomCode} with seed ${seed}`);
         return game;

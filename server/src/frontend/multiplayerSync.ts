@@ -81,7 +81,10 @@ export function resetMultiplayerState(): void {
     clearPlayerRole();
     state.isHost = false;
     state.resyncInProgress = false;
+    state.boardInitialized = false;
     clearRoleChange();
+    // Stop any running timer to prevent ghost ticks across room changes
+    handleTimerStopped();
     // Clear pending reveal timeouts to prevent memory leaks
     state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
