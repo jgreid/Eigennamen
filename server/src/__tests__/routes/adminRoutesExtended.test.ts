@@ -473,7 +473,7 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle Redis errors in player kick', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host' }));
+            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host', status: 'waiting' }));
             mockRedis.sIsMember.mockRejectedValueOnce(new Error('Redis error'));
 
             const response = await request(app)
@@ -485,7 +485,7 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle errors in room deletion', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM' }));
+            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host-session-123', status: 'waiting' }));
 
             // Make roomService.deleteRoom throw
             const roomService = require('../../services/roomService');

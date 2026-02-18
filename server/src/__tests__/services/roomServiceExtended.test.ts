@@ -186,6 +186,7 @@ describe('Room Service', () => {
                 code: 'test-room',
                 roomId: 'test-room',
                 hostSessionId: 'host-1',
+                status: 'waiting',
                 settings: {}
             };
             mockRedisStorage['room:test-room'] = JSON.stringify(roomData);
@@ -211,6 +212,7 @@ describe('Room Service', () => {
                 code: 'test-room',
                 roomId: 'Test-Room',
                 hostSessionId: 'host-1',
+                status: 'waiting',
                 settings: {}
             };
             mockRedisStorage['room:test-room'] = JSON.stringify(roomData);
@@ -227,6 +229,7 @@ describe('Room Service', () => {
                 code: 'game-room',
                 roomId: 'game-room',
                 hostSessionId: 'host-1',
+                status: 'waiting',
                 settings: {}
             };
             mockRedisStorage['room:game-room'] = JSON.stringify(roomData);
@@ -280,6 +283,7 @@ describe('Room Service', () => {
                 code: 'leave-room',
                 roomId: 'leave-room',
                 hostSessionId: 'host-1',
+                status: 'waiting',
                 settings: {}
             };
             mockRedisStorage['room:leave-room'] = JSON.stringify(roomData);
@@ -345,6 +349,7 @@ describe('Room Service', () => {
                 code: 'settings-room',
                 roomId: 'settings-room',
                 hostSessionId: 'host-1',
+                status: 'waiting',
                 settings: {
                     turnTimer: 60,
                     allowSpectators: true,

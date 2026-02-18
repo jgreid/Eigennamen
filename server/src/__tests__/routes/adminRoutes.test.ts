@@ -355,6 +355,7 @@ describe('Admin Routes', () => {
             const room1 = {
                 code: 'ABC123',
                 status: 'waiting',
+                hostSessionId: 'host-session-123',
                 hasPassword: false,
                 createdAt: Date.now(),
                 settings: { teamNames: { red: 'Red', blue: 'Blue' } }
@@ -362,6 +363,7 @@ describe('Admin Routes', () => {
             const room2 = {
                 code: 'XYZ789',
                 status: 'playing',
+                hostSessionId: 'host-session-456',
                 createdAt: Date.now() - 1000,
                 settings: { teamNames: { red: 'Fire', blue: 'Ice' }, turnTimer: 60 }
             };
@@ -517,6 +519,7 @@ describe('Admin Routes', () => {
             const room = {
                 code: 'delete',
                 status: 'waiting',
+                hostSessionId: 'host-session-123',
                 createdAt: Date.now(),
                 settings: {}
             };
@@ -535,6 +538,7 @@ describe('Admin Routes', () => {
             const room = {
                 code: 'notify',
                 status: 'playing',
+                hostSessionId: 'host-session-123',
                 createdAt: Date.now(),
                 settings: {}
             };
@@ -571,6 +575,7 @@ describe('Admin Routes', () => {
             const room = {
                 code: 'lower1',
                 status: 'waiting',
+                hostSessionId: 'host-session-123',
                 createdAt: Date.now(),
                 settings: {}
             };

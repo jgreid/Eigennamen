@@ -153,6 +153,8 @@ describe('Extended Room Service Tests', () => {
         const mockRoom = {
             code: 'test-room',
             roomId: 'test-room',
+            hostSessionId: 'host-session-123',
+            status: 'waiting',
             settings: {}
         };
 
@@ -259,7 +261,8 @@ describe('Extended Room Service Tests', () => {
         test('transfers host when host leaves', async () => {
             const mockRoom = {
                 code: 'test-room',
-                hostSessionId: 'host-session'
+                hostSessionId: 'host-session',
+                status: 'waiting'
             };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.set.mockResolvedValue('OK');
@@ -281,7 +284,8 @@ describe('Extended Room Service Tests', () => {
         test('cleans up room when last player leaves', async () => {
             const mockRoom = {
                 code: 'test-room',
-                hostSessionId: 'host-session'
+                hostSessionId: 'host-session',
+                status: 'waiting'
             };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.sMembers.mockResolvedValue([]);
@@ -381,7 +385,7 @@ describe('Extended Room Service Tests', () => {
 
     describe('getRoom', () => {
         test('returns room when found', async () => {
-            const mockRoom = { code: 'test-room', settings: {} };
+            const mockRoom = { code: 'test-room', hostSessionId: 'host-session-123', status: 'waiting', settings: {} };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
 
             const result = await roomService.getRoom('test-room');
@@ -406,7 +410,7 @@ describe('Extended Room Service Tests', () => {
         });
 
         test('normalizes room ID for lookup', async () => {
-            const mockRoom = { code: 'test-room', settings: {} };
+            const mockRoom = { code: 'test-room', hostSessionId: 'host-session-123', status: 'waiting', settings: {} };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
 
             await roomService.getRoom('TEST-ROOM');
@@ -418,7 +422,9 @@ describe('Extended Room Service Tests', () => {
     describe('cleanupRoom', () => {
         test('cleans up all room data', async () => {
             const mockRoom = {
-                code: 'test-room'
+                code: 'test-room',
+                hostSessionId: 'host-session-123',
+                status: 'waiting'
             };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.sMembers.mockResolvedValue(['player1', 'player2']);
@@ -434,7 +440,9 @@ describe('Extended Room Service Tests', () => {
 
         test('handles cleanup when room has no players', async () => {
             const mockRoom = {
-                code: 'test-room'
+                code: 'test-room',
+                hostSessionId: 'host-session-123',
+                status: 'waiting'
             };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.sMembers.mockResolvedValue([]);
@@ -450,7 +458,7 @@ describe('Extended Room Service Tests', () => {
 
     describe('deleteRoom', () => {
         test('delegates to cleanupRoom', async () => {
-            const mockRoom = { code: 'test-room' };
+            const mockRoom = { code: 'test-room', hostSessionId: 'host-session-123', status: 'waiting' };
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.sMembers.mockResolvedValue([]);
             mockRedis.del.mockResolvedValue(3);

@@ -11,6 +11,7 @@ import logger from '../../utils/logger';
 import { getRedis } from '../../config/redis';
 import { z } from 'zod';
 import { normalizeRoomCode } from '../../utils/sanitize';
+import { tryParseJSON } from '../../utils/parseJSON';
 import { audit } from '../../services/auditService';
 import { removePlayer } from '../../services/playerService';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
@@ -74,6 +75,28 @@ interface RoomSummary {
     };
 }
 
+// Zod schemas for safe Redis data deserialization
+const roomDataSchema = z.object({
+    id: z.string().optional(),
+    code: z.string(),
+    roomId: z.string().optional(),
+    hostSessionId: z.string(),
+    status: z.string(),
+    createdAt: z.number().optional(),
+    expiresAt: z.number().optional(),
+    settings: z.record(z.unknown()).optional(),
+}).passthrough();
+
+const playerDataSchema = z.object({
+    sessionId: z.string().optional(),
+    nickname: z.string().optional(),
+    team: z.string().nullable().optional(),
+    role: z.string().optional(),
+    joinedAt: z.number().optional(),
+    isHost: z.boolean().optional(),
+    connected: z.boolean().optional(),
+}).passthrough();
+
 const router: ExpressRouter = express.Router();
 
 /**
@@ -114,7 +137,8 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
             try {
                 const roomData = await redis.get(key);
                 if (roomData) {
-                    const room: RoomData = JSON.parse(roomData);
+                    const room = tryParseJSON(roomData, roomDataSchema, `admin room list: ${key}`) as RoomData | null;
+                    if (!room) continue;
                     const code = key.replace('room:', '');
 
                     // Get player count
@@ -259,7 +283,16 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             return;
         }
 
-        const room: RoomData = JSON.parse(roomData);
+        const room = tryParseJSON(roomData, roomDataSchema, `admin room details: ${normalizedCode}`) as RoomData | null;
+        if (!room) {
+            res.status(500).json({
+                error: {
+                    code: 'ROOM_DATA_CORRUPT',
+                    message: 'Room data could not be parsed'
+                }
+            });
+            return;
+        }
 
         // Get all player IDs
         const playerIds = await redis.sMembers(`room:${normalizedCode}:players`);
@@ -277,7 +310,8 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             try {
                 const playerData = await redis.get(`player:${playerId}`);
                 if (playerData) {
-                    const player: PlayerData = JSON.parse(playerData);
+                    const player = tryParseJSON(playerData, playerDataSchema, `admin player: ${playerId}`) as PlayerData | null;
+                    if (!player) continue;
                     players.push({
                         id: playerId,
                         nickname: player.nickname || 'Unknown',
@@ -373,7 +407,16 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             return;
         }
 
-        const room: RoomData = JSON.parse(roomData);
+        const room = tryParseJSON(roomData, roomDataSchema, `admin kick: ${normalizedCode}`) as RoomData | null;
+        if (!room) {
+            res.status(500).json({
+                error: {
+                    code: 'ROOM_DATA_CORRUPT',
+                    message: 'Room data could not be parsed'
+                }
+            });
+            return;
+        }
 
         // Don't allow kicking the host
         if (room.hostSessionId === playerId) {

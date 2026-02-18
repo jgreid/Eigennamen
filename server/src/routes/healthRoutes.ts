@@ -54,14 +54,14 @@ interface MetricsResponse {
     redis: {
         mode: string;
         healthy: boolean;
-        memory: RedisMemoryInfo;
+        memory?: RedisMemoryInfo;
     };
     pubsub: {
         healthy: boolean;
-        totalPublishes: number;
-        totalFailures: number;
-        failureRate: string;
-        consecutiveFailures: number;
+        totalPublishes?: number;
+        totalFailures?: number;
+        failureRate?: string;
+        consecutiveFailures?: number;
     };
     process?: {
         pid: number;
@@ -72,7 +72,7 @@ interface MetricsResponse {
         type: string;
         level: string;
         message: string;
-        details: Record<string, unknown>;
+        details?: Record<string, unknown>;
     }>;
 }
 
@@ -171,6 +171,8 @@ router.get('/metrics', async (_req: Request, res: Response) => {
             'Redis memory check'
         );
 
+        const isProduction = process.env.NODE_ENV === 'production';
+
         const metrics: MetricsResponse = {
             timestamp: new Date().toISOString(),
             uptime: {
@@ -186,20 +188,24 @@ router.get('/metrics', async (_req: Request, res: Response) => {
             redis: {
                 mode: isUsingMemoryMode() ? 'memory' : 'redis',
                 healthy: await withTimeout(isRedisHealthy(), HEALTH_CHECK_TIMEOUT_MS, 'Redis health check'),
-                memory: redisMemory
+                // Only expose Redis memory details outside production
+                ...(isProduction ? {} : { memory: redisMemory })
             },
             pubsub: {
                 healthy: pubSubStatus.isHealthy,
-                totalPublishes: pubSubStatus.totalPublishes,
-                totalFailures: pubSubStatus.totalFailures,
-                failureRate: pubSubStatus.failureRate,
-                consecutiveFailures: pubSubStatus.consecutiveFailures
+                // Only expose pubsub counters outside production
+                ...(isProduction ? {} : {
+                    totalPublishes: pubSubStatus.totalPublishes,
+                    totalFailures: pubSubStatus.totalFailures,
+                    failureRate: pubSubStatus.failureRate,
+                    consecutiveFailures: pubSubStatus.consecutiveFailures
+                })
             }
         };
 
         // Only expose process details (PID, Node version, platform) outside production
         // to prevent fingerprinting attacks
-        if (process.env.NODE_ENV !== 'production') {
+        if (!isProduction) {
             metrics.process = {
                 pid: process.pid,
                 nodeVersion: process.version,
@@ -208,16 +214,19 @@ router.get('/metrics', async (_req: Request, res: Response) => {
         }
 
         // Add alert status at top level if Redis memory is concerning
+        // Only expose details outside production
         if (redisMemory.alert) {
             metrics.alerts = metrics.alerts || [];
             metrics.alerts.push({
                 type: 'redis_memory',
                 level: redisMemory.alert,
                 message: `Redis memory usage at ${redisMemory.memory_usage_percent}%`,
-                details: {
-                    used: redisMemory.used_memory_human,
-                    max: redisMemory.maxmemory_human
-                }
+                ...(isProduction ? {} : {
+                    details: {
+                        used: redisMemory.used_memory_human,
+                        max: redisMemory.maxmemory_human
+                    }
+                })
             });
         }
 
