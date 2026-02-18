@@ -29,6 +29,7 @@ import {
     checkAndNotifyTurn,
     playNotificationSound,
     playTone,
+    initNotificationPrefsUI,
 } from '../../frontend/notifications';
 import { state } from '../../frontend/state';
 
@@ -254,5 +255,107 @@ describe('playTone', () => {
 
         expect(ctx.createOscillator).toHaveBeenCalled();
         expect(ctx.createGain).toHaveBeenCalled();
+    });
+});
+
+// ========== NOTIFICATION PREFS UI ==========
+
+describe('initNotificationPrefsUI', () => {
+    test('sound checkbox change updates state and saves prefs', () => {
+        initNotificationPrefsUI();
+
+        const checkbox = document.getElementById('pref-sound-notifications') as HTMLInputElement;
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(state.notificationPrefs.soundEnabled).toBe(true);
+        expect(localStorage.getItem('eigennamen-pref-sound')).toBe('true');
+    });
+
+    test('sound checkbox unchecked updates state to false', () => {
+        state.notificationPrefs.soundEnabled = true;
+        initNotificationPrefsUI();
+
+        const checkbox = document.getElementById('pref-sound-notifications') as HTMLInputElement;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(state.notificationPrefs.soundEnabled).toBe(false);
+        expect(localStorage.getItem('eigennamen-pref-sound')).toBe('false');
+    });
+
+    test('sound checkbox checked=true initializes audio context', () => {
+        initNotificationPrefsUI();
+
+        const checkbox = document.getElementById('pref-sound-notifications') as HTMLInputElement;
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // AudioContext constructor should have been called (via initAudioContext)
+        expect((window as any).AudioContext).toHaveBeenCalled();
+    });
+
+    test('sound checkbox checked=false does not initialize audio context', () => {
+        initNotificationPrefsUI();
+
+        const checkbox = document.getElementById('pref-sound-notifications') as HTMLInputElement;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // AudioContext should not be called when unchecking
+        expect((window as any).AudioContext).not.toHaveBeenCalled();
+    });
+
+    test('tab checkbox change updates state and saves prefs', () => {
+        initNotificationPrefsUI();
+
+        const checkbox = document.getElementById('pref-tab-notification') as HTMLInputElement;
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(state.notificationPrefs.tabNotificationEnabled).toBe(true);
+        expect(localStorage.getItem('eigennamen-pref-tab-notification')).toBe('true');
+    });
+
+    test('tab checkbox unchecked updates state to false', () => {
+        state.notificationPrefs.tabNotificationEnabled = true;
+        initNotificationPrefsUI();
+
+        const checkbox = document.getElementById('pref-tab-notification') as HTMLInputElement;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(state.notificationPrefs.tabNotificationEnabled).toBe(false);
+        expect(localStorage.getItem('eigennamen-pref-tab-notification')).toBe('false');
+    });
+
+    test('test sound button plays sound temporarily enabling it', () => {
+        state.notificationPrefs.soundEnabled = false;
+        initNotificationPrefsUI();
+
+        const btn = document.getElementById('btn-test-sound')!;
+        btn.click();
+
+        // AudioContext should have been initialized for the test sound
+        expect((window as any).AudioContext).toHaveBeenCalled();
+        // Sound should be restored to original value (false) after test
+        expect(state.notificationPrefs.soundEnabled).toBe(false);
+    });
+
+    test('test sound button restores original enabled state when was true', () => {
+        state.notificationPrefs.soundEnabled = true;
+        initNotificationPrefsUI();
+
+        const btn = document.getElementById('btn-test-sound')!;
+        btn.click();
+
+        // Sound should remain true after test
+        expect(state.notificationPrefs.soundEnabled).toBe(true);
+    });
+
+    test('handles missing DOM elements gracefully', () => {
+        document.body.innerHTML = ''; // Remove all elements
+
+        expect(() => initNotificationPrefsUI()).not.toThrow();
     });
 });

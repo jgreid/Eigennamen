@@ -20,6 +20,7 @@ import {
     formatTimerValue,
     updateTimerDisplay,
     stopTimerCountdown,
+    startTimerCountdown,
     handleTimerStarted,
     handleTimerStopped,
     handleTimerStatus
@@ -259,5 +260,128 @@ describe('stopTimerCountdown', () => {
     test('handles no interval gracefully', () => {
         state.timerState.intervalId = null;
         expect(() => stopTimerCountdown()).not.toThrow();
+    });
+});
+
+describe('startTimerCountdown', () => {
+    test('returns early when timer is not active', () => {
+        state.timerState.active = false;
+        state.timerState.serverRemainingSeconds = 30;
+
+        startTimerCountdown();
+
+        expect(state.timerState.countdownStartTime).toBeNull();
+        expect(state.timerState.intervalId).toBeNull();
+    });
+
+    test('returns early when serverRemainingSeconds is null', () => {
+        state.timerState.active = true;
+        state.timerState.serverRemainingSeconds = null;
+
+        startTimerCountdown();
+
+        expect(state.timerState.countdownStartTime).toBeNull();
+        expect(state.timerState.intervalId).toBeNull();
+    });
+
+    test('sets countdownStartTime on start', () => {
+        state.timerState.active = true;
+        state.timerState.serverRemainingSeconds = 60;
+
+        startTimerCountdown();
+
+        expect(state.timerState.countdownStartTime).not.toBeNull();
+        expect(typeof state.timerState.countdownStartTime).toBe('number');
+    });
+
+    test('creates interval that updates remainingSeconds', () => {
+        state.timerState.active = true;
+        state.timerState.serverRemainingSeconds = 60;
+
+        // Mock performance.now to control elapsed time
+        const perfNowSpy = jest.spyOn(performance, 'now');
+        const startTime = 1000;
+        perfNowSpy.mockReturnValue(startTime);
+
+        startTimerCountdown();
+
+        expect(state.timerState.intervalId).not.toBeNull();
+
+        // Advance performance.now by 2 seconds
+        perfNowSpy.mockReturnValue(startTime + 2000);
+        jest.advanceTimersByTime(250);
+
+        // remaining should be ceil(60 - 2) = 58
+        expect(state.timerState.remainingSeconds).toBe(58);
+
+        perfNowSpy.mockRestore();
+    });
+
+    test('stops countdown when remaining reaches 0', () => {
+        state.timerState.active = true;
+        state.timerState.serverRemainingSeconds = 1;
+
+        const perfNowSpy = jest.spyOn(performance, 'now');
+        const startTime = 1000;
+        perfNowSpy.mockReturnValue(startTime);
+
+        startTimerCountdown();
+
+        expect(state.timerState.intervalId).not.toBeNull();
+
+        // Advance past the full duration
+        perfNowSpy.mockReturnValue(startTime + 2000);
+        jest.advanceTimersByTime(250);
+
+        // Timer should have stopped (remaining <= 0)
+        expect(state.timerState.remainingSeconds).toBe(0);
+        expect(state.timerState.intervalId).toBeNull();
+
+        perfNowSpy.mockRestore();
+    });
+
+    test('updates timer display on each tick', () => {
+        state.timerState.active = true;
+        state.timerState.serverRemainingSeconds = 90;
+
+        const perfNowSpy = jest.spyOn(performance, 'now');
+        const startTime = 1000;
+        perfNowSpy.mockReturnValue(startTime);
+
+        startTimerCountdown();
+
+        // Advance by 500ms (2 ticks at 250ms interval)
+        perfNowSpy.mockReturnValue(startTime + 500);
+        jest.advanceTimersByTime(500);
+
+        // Timer display should show the updated value
+        const display = document.getElementById('timer-display')!;
+        const value = document.getElementById('timer-value')!;
+        expect(display.classList.contains('active')).toBe(true);
+        // remaining = ceil(90 - 0.5) = 90
+        expect(value.textContent).toBe('1:30');
+
+        perfNowSpy.mockRestore();
+    });
+
+    test('clears existing interval before starting new one', () => {
+        state.timerState.active = true;
+        state.timerState.serverRemainingSeconds = 60;
+
+        const perfNowSpy = jest.spyOn(performance, 'now');
+        perfNowSpy.mockReturnValue(1000);
+
+        startTimerCountdown();
+        const firstIntervalId = state.timerState.intervalId;
+
+        // Start a second countdown - should clear the first
+        perfNowSpy.mockReturnValue(2000);
+        startTimerCountdown();
+        const secondIntervalId = state.timerState.intervalId;
+
+        expect(secondIntervalId).not.toBeNull();
+        expect(secondIntervalId).not.toBe(firstIntervalId);
+
+        perfNowSpy.mockRestore();
     });
 });

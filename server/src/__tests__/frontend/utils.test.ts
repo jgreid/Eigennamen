@@ -20,7 +20,11 @@ import {
     safeGetItem,
     safeSetItem,
     safeRemoveItem,
-    escapeHTML
+    escapeHTML,
+    copyToClipboard,
+    generateGameSeed,
+    formatGameTimestamp,
+    updateCharCounter
 } from '../../frontend/utils';
 
 // ==================== Tests ====================
@@ -425,5 +429,295 @@ describe('localStorage wrappers integration', () => {
         safeSetItem('color', 'blue');
         safeRemoveItem('color');
         expect(safeGetItem('color', 'none')).toBe('none');
+    });
+});
+
+// ==================== copyToClipboard ====================
+
+describe('copyToClipboard', () => {
+    let originalClipboard: Clipboard;
+
+    beforeEach(() => {
+        originalClipboard = navigator.clipboard;
+    });
+
+    afterEach(() => {
+        // Restore navigator.clipboard
+        Object.defineProperty(navigator, 'clipboard', {
+            value: originalClipboard,
+            writable: true,
+            configurable: true
+        });
+    });
+
+    it('uses navigator.clipboard.writeText when available and returns true', async () => {
+        const writeTextMock = jest.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: writeTextMock },
+            writable: true,
+            configurable: true
+        });
+
+        const result = await copyToClipboard('hello');
+        expect(result).toBe(true);
+        expect(writeTextMock).toHaveBeenCalledWith('hello');
+    });
+
+    it('falls back to textarea execCommand when clipboard API is not available', async () => {
+        Object.defineProperty(navigator, 'clipboard', {
+            value: undefined,
+            writable: true,
+            configurable: true
+        });
+
+        // execCommand is deprecated and may not exist on jsdom's document type,
+        // so we define it directly on the document object
+        const execCommandMock = jest.fn().mockReturnValue(true);
+        (document as unknown as Record<string, unknown>).execCommand = execCommandMock;
+        const appendChildSpy = jest.spyOn(document.body, 'appendChild');
+        const removeChildSpy = jest.spyOn(document.body, 'removeChild');
+
+        const result = await copyToClipboard('fallback text');
+        expect(result).toBe(true);
+        expect(execCommandMock).toHaveBeenCalledWith('copy');
+        expect(appendChildSpy).toHaveBeenCalled();
+        expect(removeChildSpy).toHaveBeenCalled();
+    });
+
+    it('falls back to textarea when clipboard.writeText throws', async () => {
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: jest.fn().mockRejectedValue(new Error('Not allowed')) },
+            writable: true,
+            configurable: true
+        });
+
+        const execCommandMock = jest.fn().mockReturnValue(true);
+        (document as unknown as Record<string, unknown>).execCommand = execCommandMock;
+
+        const result = await copyToClipboard('retry text');
+        expect(result).toBe(true);
+        expect(execCommandMock).toHaveBeenCalledWith('copy');
+    });
+
+    it('returns false when both approaches fail', async () => {
+        Object.defineProperty(navigator, 'clipboard', {
+            value: undefined,
+            writable: true,
+            configurable: true
+        });
+
+        (document as unknown as Record<string, unknown>).execCommand = () => {
+            throw new Error('execCommand not supported');
+        };
+
+        const result = await copyToClipboard('will fail');
+        expect(result).toBe(false);
+    });
+});
+
+// ==================== generateGameSeed ====================
+
+describe('generateGameSeed', () => {
+    it('returns a non-empty string', () => {
+        const seed = generateGameSeed();
+        expect(typeof seed).toBe('string');
+        expect(seed.length).toBeGreaterThan(0);
+    });
+
+    it('returns different values on successive calls (with crypto API)', () => {
+        const seeds = new Set<string>();
+        for (let i = 0; i < 20; i++) {
+            seeds.add(generateGameSeed());
+        }
+        // With crypto.getRandomValues, collisions are astronomically unlikely
+        expect(seeds.size).toBeGreaterThan(1);
+    });
+
+    it('falls back to Math.random when crypto is undefined', () => {
+        const originalCrypto = globalThis.crypto;
+        // Remove crypto entirely
+        Object.defineProperty(globalThis, 'crypto', {
+            value: undefined,
+            writable: true,
+            configurable: true
+        });
+
+        try {
+            const mathRandomSpy = jest.spyOn(Math, 'random').mockReturnValueOnce(0.123456789).mockReturnValueOnce(0.987654321);
+            const seed = generateGameSeed();
+            expect(typeof seed).toBe('string');
+            expect(seed.length).toBeGreaterThan(0);
+            expect(mathRandomSpy).toHaveBeenCalled();
+        } finally {
+            Object.defineProperty(globalThis, 'crypto', {
+                value: originalCrypto,
+                writable: true,
+                configurable: true
+            });
+        }
+    });
+});
+
+// ==================== formatGameTimestamp ====================
+
+describe('formatGameTimestamp', () => {
+    beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-02-18T12:00:00Z'));
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('returns "Unknown" for falsy input', () => {
+        expect(formatGameTimestamp('')).toBe('Unknown');
+        expect(formatGameTimestamp(0)).toBe('Unknown');
+    });
+
+    it('returns "Just now" for timestamps less than a minute ago', () => {
+        const thirtySecondsAgo = new Date('2026-02-18T11:59:30Z').getTime();
+        expect(formatGameTimestamp(thirtySecondsAgo)).toBe('Just now');
+    });
+
+    it('returns minutes ago format for timestamps within the hour', () => {
+        const fiveMinutesAgo = new Date('2026-02-18T11:55:00Z').getTime();
+        expect(formatGameTimestamp(fiveMinutesAgo)).toBe('5 minutes ago');
+    });
+
+    it('uses singular "minute" for exactly 1 minute ago', () => {
+        const oneMinuteAgo = new Date('2026-02-18T11:59:00Z').getTime();
+        expect(formatGameTimestamp(oneMinuteAgo)).toBe('1 minute ago');
+    });
+
+    it('returns hours ago format for timestamps within the day', () => {
+        const twoHoursAgo = new Date('2026-02-18T10:00:00Z').getTime();
+        expect(formatGameTimestamp(twoHoursAgo)).toBe('2 hours ago');
+    });
+
+    it('uses singular "hour" for exactly 1 hour ago', () => {
+        const oneHourAgo = new Date('2026-02-18T11:00:00Z').getTime();
+        expect(formatGameTimestamp(oneHourAgo)).toBe('1 hour ago');
+    });
+
+    it('returns days ago format for timestamps within the week', () => {
+        const threeDaysAgo = new Date('2026-02-15T12:00:00Z').getTime();
+        expect(formatGameTimestamp(threeDaysAgo)).toBe('3 days ago');
+    });
+
+    it('uses singular "day" for exactly 1 day ago', () => {
+        const oneDayAgo = new Date('2026-02-17T12:00:00Z').getTime();
+        expect(formatGameTimestamp(oneDayAgo)).toBe('1 day ago');
+    });
+
+    it('returns a date string for timestamps older than 7 days', () => {
+        const twoWeeksAgo = new Date('2026-02-04T10:30:00Z').getTime();
+        const result = formatGameTimestamp(twoWeeksAgo);
+        // Should contain a formatted date string, not a relative time
+        expect(result).not.toContain('ago');
+        expect(result).not.toBe('Unknown');
+        expect(result).not.toBe('Just now');
+        // Should contain month/day and time components
+        expect(result.length).toBeGreaterThan(5);
+    });
+
+    it('accepts string timestamps', () => {
+        const result = formatGameTimestamp('2026-02-18T11:59:30Z');
+        expect(result).toBe('Just now');
+    });
+});
+
+// ==================== updateCharCounter ====================
+
+describe('updateCharCounter', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    function setupDOM(value: string): { input: HTMLInputElement; counter: HTMLElement } {
+        const input = document.createElement('input');
+        input.id = 'test-input';
+        input.value = value;
+        document.body.appendChild(input);
+
+        const counter = document.createElement('span');
+        counter.id = 'test-counter';
+        document.body.appendChild(counter);
+
+        return { input, counter };
+    }
+
+    it('updates counter text with current/max format', () => {
+        const { counter } = setupDOM('hello');
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.textContent).toBe('5/50');
+    });
+
+    it('adds "warning" class when length reaches 80% of max', () => {
+        const { counter } = setupDOM('a'.repeat(40));
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.classList.contains('warning')).toBe(true);
+        expect(counter.classList.contains('limit')).toBe(false);
+    });
+
+    it('adds "limit" class when length reaches max', () => {
+        const { counter } = setupDOM('a'.repeat(50));
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.classList.contains('limit')).toBe(true);
+        expect(counter.classList.contains('warning')).toBe(false);
+    });
+
+    it('adds "limit" class when length exceeds max', () => {
+        const { counter } = setupDOM('a'.repeat(55));
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.classList.contains('limit')).toBe(true);
+    });
+
+    it('does not add warning or limit class for short input', () => {
+        const { counter } = setupDOM('hi');
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.classList.contains('warning')).toBe(false);
+        expect(counter.classList.contains('limit')).toBe(false);
+        expect(counter.textContent).toBe('2/50');
+    });
+
+    it('removes previous classes when length drops below thresholds', () => {
+        const { input, counter } = setupDOM('a'.repeat(50));
+
+        // First call at limit
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.classList.contains('limit')).toBe(true);
+
+        // Change input to short value and update again
+        input.value = 'short';
+        updateCharCounter('test-input', 'test-counter', 50);
+        expect(counter.classList.contains('limit')).toBe(false);
+        expect(counter.classList.contains('warning')).toBe(false);
+        expect(counter.textContent).toBe('5/50');
+    });
+
+    it('handles missing input element gracefully', () => {
+        const counter = document.createElement('span');
+        counter.id = 'test-counter';
+        document.body.appendChild(counter);
+
+        // Should not throw
+        expect(() => updateCharCounter('nonexistent', 'test-counter', 50)).not.toThrow();
+        // Counter should not be updated since input is missing
+        expect(counter.textContent).toBe('');
+    });
+
+    it('handles missing counter element gracefully', () => {
+        const input = document.createElement('input');
+        input.id = 'test-input';
+        input.value = 'hello';
+        document.body.appendChild(input);
+
+        // Should not throw
+        expect(() => updateCharCounter('test-input', 'nonexistent', 50)).not.toThrow();
+    });
+
+    it('handles both elements missing gracefully', () => {
+        expect(() => updateCharCounter('no-input', 'no-counter', 50)).not.toThrow();
     });
 });

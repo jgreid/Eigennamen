@@ -31,6 +31,35 @@ jest.mock('../../frontend/url-state', () => ({
     copyLink: jest.fn(),
 }));
 
+// Mock board module for render calls
+jest.mock('../../frontend/board', () => ({
+    renderBoard: jest.fn(),
+    updateBoardIncremental: jest.fn(),
+    updateSingleCard: jest.fn(),
+    canClickCards: jest.fn(() => true),
+    setCardClickHandler: jest.fn(),
+}));
+
+// Mock ui module for toast/modal/screen reader
+jest.mock('../../frontend/ui', () => ({
+    showToast: jest.fn(),
+    openModal: jest.fn(),
+    closeModal: jest.fn(),
+    announceToScreenReader: jest.fn(),
+}));
+
+// Mock roles module
+jest.mock('../../frontend/roles', () => ({
+    updateRoleBanner: jest.fn(),
+    updateControls: jest.fn(),
+}));
+
+// Mock clientAccessor
+jest.mock('../../frontend/clientAccessor', () => ({
+    getClient: () => null,
+    isClientConnected: jest.fn(() => false),
+}));
+
 import {
     setupGameBoard,
     initGameWithWords,
@@ -38,9 +67,18 @@ import {
     revealCardFromServer,
     checkGameOver,
     updateScoreboard,
-    updateTurnIndicator
+    updateTurnIndicator,
+    loadGameFromURL,
+    endTurn,
+    confirmNewGame,
+    showGameOverModal,
+    closeGameOver,
 } from '../../frontend/game';
-import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS } from '../../frontend/state';
+import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, DEFAULT_WORDS } from '../../frontend/state';
+import { encodeWordsForURL } from '../../frontend/utils';
+import { renderBoard } from '../../frontend/board';
+import { showToast, openModal, closeModal, announceToScreenReader } from '../../frontend/ui';
+import { updateURL } from '../../frontend/url-state';
 
 const SAMPLE_WORDS = [
     'AFRICA', 'AGENT', 'AIR', 'ALIEN', 'ALPS',
@@ -458,5 +496,512 @@ describe('updateTurnIndicator', () => {
 
         const indicator = document.getElementById('turn-indicator')!;
         expect(indicator.className).not.toContain('your-turn');
+    });
+});
+
+// ========== LOAD GAME FROM URL ==========
+
+describe('loadGameFromURL', () => {
+    function setURL(search: string) {
+        // Use history.replaceState to change URL in jsdom without triggering navigation
+        window.history.replaceState({}, '', 'http://localhost' + search);
+    }
+
+    afterEach(() => {
+        // Reset URL to clean state
+        window.history.replaceState({}, '', 'http://localhost/');
+        jest.clearAllMocks();
+    });
+
+    test('loads a game from URL with seed parameter', () => {
+        setURL('?game=test-seed');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.gameState.seed).toBe('test-seed');
+        expect(state.gameState.words.length).toBe(BOARD_SIZE);
+        expect(state.gameState.types.length).toBe(BOARD_SIZE);
+        expect(renderBoard).toHaveBeenCalled();
+    });
+
+    test('restores revealed cards from URL', () => {
+        setURL('?game=test-seed&r=1010000000000000000000000');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.gameState.revealed[0]).toBe(true);
+        expect(state.gameState.revealed[1]).toBe(false);
+        expect(state.gameState.revealed[2]).toBe(true);
+        expect(state.gameState.revealed[3]).toBe(false);
+        // Remaining should be false
+        for (let i = 4; i < BOARD_SIZE; i++) {
+            expect(state.gameState.revealed[i]).toBe(false);
+        }
+    });
+
+    test('restores scores from revealed cards', () => {
+        setURL('?game=test-seed&r=1010000000000000000000000');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        // Scores depend on which types were at indices 0 and 2
+        const type0 = state.gameState.types[0];
+        const type2 = state.gameState.types[2];
+        let expectedRed = 0;
+        let expectedBlue = 0;
+        if (type0 === 'red') expectedRed++;
+        if (type0 === 'blue') expectedBlue++;
+        if (type2 === 'red') expectedRed++;
+        if (type2 === 'blue') expectedBlue++;
+        expect(state.gameState.redScore).toBe(expectedRed);
+        expect(state.gameState.blueScore).toBe(expectedBlue);
+    });
+
+    test('restores turn from URL with t=b for blue', () => {
+        setURL('?game=test-seed&t=b');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.gameState.currentTurn).toBe('blue');
+    });
+
+    test('restores turn from URL with t=r for red', () => {
+        setURL('?game=test-seed&t=r');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.gameState.currentTurn).toBe('red');
+    });
+
+    test('loads team names from URL', () => {
+        setURL('?game=test-seed&rn=FireTeam&bn=IceTeam');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.teamNames.red).toBe('FireTeam');
+        expect(state.teamNames.blue).toBe('IceTeam');
+    });
+
+    test('sanitizes team names by stripping special characters', () => {
+        setURL('?game=test-seed&rn=Fire%3CScript%3E&bn=Ice%26Squad');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        // <Script> characters stripped; & stripped
+        expect(state.teamNames.red).toBe('FireScript');
+        expect(state.teamNames.blue).toBe('IceSquad');
+    });
+
+    test('sanitizes team names to max 32 characters', () => {
+        const longName = 'A'.repeat(50);
+        setURL(`?game=test-seed&rn=${longName}`);
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.teamNames.red.length).toBeLessThanOrEqual(32);
+    });
+
+    test('falls back to default team name when sanitized name is empty', () => {
+        // Name with only special characters that get stripped
+        setURL('?game=test-seed&rn=%3C%3E%26%23');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.teamNames.red).toBe('Red Team');
+    });
+
+    test('falls back to default on malformed URL encoding for team names', () => {
+        setURL('?game=test-seed&rn=%E0%A4%A');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.teamNames.red).toBe('Red Team');
+    });
+
+    test('loads custom words from URL', () => {
+        const customWords = SAMPLE_WORDS.slice(0, BOARD_SIZE);
+        const encoded = encodeWordsForURL(customWords);
+        setURL(`?game=test-seed&w=${encoded}`);
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.gameState.words).toEqual(customWords);
+        expect(state.gameState.customWords).toBe(true);
+    });
+
+    test('falls back to default words when custom words decode fails', () => {
+        setURL('?game=test-seed&w=invalid-base64!!!');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        // Should still initialize with DEFAULT_WORDS
+        expect(state.gameState.seed).toBe('test-seed');
+        expect(state.gameState.words.length).toBe(BOARD_SIZE);
+    });
+
+    test('falls back to newGame() when no seed parameter', () => {
+        setURL('');
+        state.activeWords = [...DEFAULT_WORDS];
+        state.newGameDebounce = false;
+
+        loadGameFromURL();
+
+        // newGame() generates a random seed and sets up the board
+        expect(state.gameState.words.length).toBe(BOARD_SIZE);
+        expect(state.gameState.types.length).toBe(BOARD_SIZE);
+        expect(state.gameState.seed).toBeTruthy();
+        expect(renderBoard).toHaveBeenCalled();
+    });
+
+    test('sets player as non-host when loading from URL', () => {
+        setURL('?game=test-seed');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        expect(state.isHost).toBe(false);
+        expect(state.spymasterTeam).toBeNull();
+        expect(state.clickerTeam).toBeNull();
+        expect(state.playerTeam).toBeNull();
+    });
+
+    test('calls checkGameOver after restoring revealed cards', () => {
+        // Set up URL where all red cards will be revealed (game over via URL)
+        setURL('?game=test-seed&r=1111111111111111111111111');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        // With all cards revealed, the game should be over
+        expect(state.gameState.gameOver).toBe(true);
+        expect(state.gameState.winner).toBeTruthy();
+    });
+
+    test('shows game over modal when game loaded from URL is already over', () => {
+        // Reveal all cards to trigger game over
+        setURL('?game=test-seed&r=1111111111111111111111111');
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        // showGameOverModal calls renderBoard
+        expect(state.gameState.gameOver).toBe(true);
+        // renderBoard is called at least once for the initial render and once more via showGameOverModal
+        expect(renderBoard).toHaveBeenCalled();
+    });
+
+    test('custom words with wrong count falls back to default words', () => {
+        // Encode only 10 words (not enough for BOARD_SIZE=25)
+        const tooFewWords = SAMPLE_WORDS.slice(0, 10);
+        const encoded = encodeWordsForURL(tooFewWords);
+        setURL(`?game=test-seed&w=${encoded}`);
+        state.activeWords = [...DEFAULT_WORDS];
+
+        loadGameFromURL();
+
+        // Should fall back to DEFAULT_WORDS since custom words count doesn't match
+        expect(state.gameState.seed).toBe('test-seed');
+        expect(state.gameState.words.length).toBe(BOARD_SIZE);
+    });
+});
+
+// ========== END TURN ==========
+
+describe('endTurn', () => {
+    beforeEach(() => {
+        state.gameState.currentTurn = 'red';
+        state.gameState.gameOver = false;
+        state.isMultiplayerMode = false;
+        state.clickerTeam = 'red';
+        state.teamNames = { red: 'Red', blue: 'Blue' };
+        jest.clearAllMocks();
+    });
+
+    test('returns early with toast when game is over', () => {
+        state.gameState.gameOver = true;
+
+        endTurn();
+
+        expect(showToast).toHaveBeenCalledWith(
+            expect.stringContaining('game.gameOverStartNew'),
+            'warning'
+        );
+        // Turn should not change
+        expect(state.gameState.currentTurn).toBe('red');
+    });
+
+    test('returns early with toast when no clicker team set', () => {
+        state.clickerTeam = null;
+
+        endTurn();
+
+        expect(showToast).toHaveBeenCalledWith(
+            expect.stringContaining('game.onlyClickerCanEndTurn'),
+            'warning'
+        );
+        expect(state.gameState.currentTurn).toBe('red');
+    });
+
+    test('returns early with toast when clicker is not on current team', () => {
+        state.clickerTeam = 'blue';
+        state.gameState.currentTurn = 'red';
+
+        endTurn();
+
+        expect(showToast).toHaveBeenCalledWith(
+            expect.stringContaining('game.notYourTurn'),
+            'warning'
+        );
+        expect(state.gameState.currentTurn).toBe('red');
+    });
+
+    test('switches turn from red to blue in standalone mode', () => {
+        state.isMultiplayerMode = false;
+        state.clickerTeam = 'red';
+        state.gameState.currentTurn = 'red';
+
+        endTurn();
+
+        expect(state.gameState.currentTurn).toBe('blue');
+        expect(updateURL).toHaveBeenCalled();
+    });
+
+    test('switches turn from blue to red in standalone mode', () => {
+        state.isMultiplayerMode = false;
+        state.clickerTeam = 'blue';
+        state.gameState.currentTurn = 'blue';
+
+        endTurn();
+
+        expect(state.gameState.currentTurn).toBe('red');
+    });
+
+    test('announces turn change to screen reader', () => {
+        state.isMultiplayerMode = false;
+        state.clickerTeam = 'red';
+        state.gameState.currentTurn = 'red';
+
+        endTurn();
+
+        expect(announceToScreenReader).toHaveBeenCalledWith(
+            expect.stringContaining('game.turnEndedAnnounce')
+        );
+    });
+
+    test('uses team name in turn change announcement', () => {
+        state.isMultiplayerMode = false;
+        state.clickerTeam = 'red';
+        state.gameState.currentTurn = 'red';
+        state.teamNames.blue = 'IceSquad';
+
+        endTurn();
+
+        // The t() mock replaces {{team}} in the key with the team name
+        // t('game.turnEndedAnnounce', { team: 'IceSquad' }) -> key with {{team}} replaced
+        expect(announceToScreenReader).toHaveBeenCalledTimes(1);
+        // Verify endTurn switched to blue and called announceToScreenReader
+        expect(state.gameState.currentTurn).toBe('blue');
+    });
+});
+
+// ========== CONFIRM NEW GAME ==========
+
+describe('confirmNewGame', () => {
+    beforeEach(() => {
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.activeWords = [...DEFAULT_WORDS];
+        state.newGameDebounce = false;
+        state.isMultiplayerMode = false;
+        jest.clearAllMocks();
+    });
+
+    test('starts new game directly when no cards are revealed', () => {
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+
+        confirmNewGame();
+
+        // newGame() was called, which sets up a new game
+        expect(state.gameState.seed).toBeTruthy();
+        expect(state.gameState.words.length).toBe(BOARD_SIZE);
+        expect(renderBoard).toHaveBeenCalled();
+    });
+
+    test('opens confirm modal when cards are revealed', () => {
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        state.gameState.revealed[0] = true; // At least one card revealed
+
+        confirmNewGame();
+
+        expect(openModal).toHaveBeenCalledWith('confirm-modal');
+    });
+
+    test('does not open modal when no cards revealed', () => {
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+
+        confirmNewGame();
+
+        expect(openModal).not.toHaveBeenCalled();
+    });
+});
+
+// ========== SHOW GAME OVER / CLOSE GAME OVER ==========
+
+describe('showGameOverModal', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('calls renderBoard to reveal the full board', () => {
+        showGameOverModal();
+
+        expect(renderBoard).toHaveBeenCalled();
+    });
+
+    test('calls renderBoard with no arguments', () => {
+        showGameOverModal();
+
+        expect(renderBoard).toHaveBeenCalledWith();
+    });
+});
+
+describe('closeGameOver', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('calls closeModal with game-over-modal id', () => {
+        closeGameOver();
+
+        expect(closeModal).toHaveBeenCalledWith('game-over-modal');
+    });
+});
+
+// ========== TURN INDICATOR DUET MODE & ADDITIONAL BRANCHES ==========
+
+describe('updateTurnIndicator duet mode branches', () => {
+    beforeEach(() => {
+        state.gameState.types = [
+            'red', 'red', 'red', 'red', 'red',
+            'red', 'red', 'red', 'red', 'blue',
+            'blue', 'blue', 'blue', 'blue', 'blue',
+            'blue', 'blue', 'neutral', 'neutral', 'neutral',
+            'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+        ];
+        state.gameState.revealed = Array(BOARD_SIZE).fill(false);
+        jest.clearAllMocks();
+    });
+
+    test('shows duet victory when winner exists in duet mode', () => {
+        state.gameMode = 'duet';
+        state.gameState.gameOver = true;
+        state.gameState.winner = 'red';
+
+        updateTurnIndicator();
+
+        const indicator = document.getElementById('turn-indicator')!;
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(indicator.className).toContain('game-over');
+        expect(turnText.textContent).toBe('game.duetVictory');
+    });
+
+    test('shows duet game over assassin when assassin is revealed', () => {
+        state.gameMode = 'duet';
+        state.gameState.gameOver = true;
+        state.gameState.winner = null;
+        state.gameState.revealed[24] = true; // assassin at index 24
+
+        updateTurnIndicator();
+
+        const turnText = document.getElementById('turn-indicator')!.querySelector('.turn-text')!;
+        expect(turnText.textContent).toBe('game.duetGameOverAssassin');
+    });
+
+    test('shows duet game over timeout (no winner, no assassin revealed)', () => {
+        state.gameMode = 'duet';
+        state.gameState.gameOver = true;
+        state.gameState.winner = null;
+        // assassin not revealed
+
+        updateTurnIndicator();
+
+        const turnText = document.getElementById('turn-indicator')!.querySelector('.turn-text')!;
+        expect(turnText.textContent).toBe('game.duetGameOverTimeout');
+    });
+
+    test('shows winner assassin message in classic mode when assassin revealed', () => {
+        state.gameMode = 'classic';
+        state.gameState.gameOver = true;
+        state.gameState.winner = 'blue';
+        state.gameState.currentTurn = 'red';
+        state.gameState.revealed[24] = true; // assassin at index 24
+
+        updateTurnIndicator();
+
+        const indicator = document.getElementById('turn-indicator')!;
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(indicator.className).toContain('game-over');
+        // t('game.winnerAssassin', { team: 'Blue' }) returns the interpolated key
+        expect(turnText.textContent).toContain('game.winnerAssassin');
+    });
+
+    test('shows standard winner message in classic mode when no assassin', () => {
+        state.gameMode = 'classic';
+        state.gameState.gameOver = true;
+        state.gameState.winner = 'red';
+        state.teamNames.red = 'FireTeam';
+
+        updateTurnIndicator();
+
+        const indicator = document.getElementById('turn-indicator')!;
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(indicator.className).toContain('game-over');
+        // t('game.winner', { team: 'FireTeam' }) returns the interpolated key
+        expect(turnText.textContent).toContain('game.winner');
+        // The key itself does not contain 'Assassin' - that differentiates it
+        expect(turnText.textContent).not.toContain('Assassin');
+    });
+
+    test('shows your-turn text when clicker matches current team', () => {
+        state.gameMode = 'classic';
+        state.gameState.gameOver = false;
+        state.gameState.currentTurn = 'blue';
+        state.clickerTeam = 'blue';
+        state.teamNames.blue = 'IceSquad';
+
+        updateTurnIndicator();
+
+        const indicator = document.getElementById('turn-indicator')!;
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(indicator.className).toContain('your-turn');
+        expect(indicator.className).toContain('blue-turn');
+        expect(turnText.textContent).toContain('game.yourTurnGo');
+    });
+
+    test('shows generic team turn when clicker does not match', () => {
+        state.gameMode = 'classic';
+        state.gameState.gameOver = false;
+        state.gameState.currentTurn = 'red';
+        state.clickerTeam = 'blue';
+        state.teamNames.red = 'FireTeam';
+
+        updateTurnIndicator();
+
+        const indicator = document.getElementById('turn-indicator')!;
+        const turnText = indicator.querySelector('.turn-text')!;
+        expect(indicator.className).not.toContain('your-turn');
+        expect(indicator.className).toContain('red-turn');
+        expect(turnText.textContent).toContain('game.teamsTurn');
     });
 });
