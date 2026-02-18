@@ -47,7 +47,11 @@ export async function joinRoom(
     if (!room) {
         // Distinguish "key missing" from "data corrupted" for diagnostics.
         // getRoom returns null in both cases; check if the key actually exists.
-        const keyExists = await redis.exists(`room:${normalizedRoomId}`);
+        const keyExists = await withTimeout(
+            redis.exists(`room:${normalizedRoomId}`),
+            TIMEOUTS.REDIS_OPERATION,
+            `joinRoom-exists-${normalizedRoomId}`
+        );
         if (keyExists === 1) {
             logger.error('joinRoom: room key exists but getRoom returned null (data corrupted)', {
                 roomId: normalizedRoomId,
@@ -182,7 +186,11 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
             logger.warn(`Non-atomic host transfer fallback for room ${code}: ${transferResult.reason}`);
             // Fallback to non-atomic if Lua script fails (e.g., memory mode)
             room.hostSessionId = newHostId;
-            await redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM });
+            await withTimeout(
+                redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM }),
+                TIMEOUTS.REDIS_OPERATION,
+                `leaveRoom-set-hostTransfer-${code}`
+            );
             await playerService.updatePlayer(newHostId, { isHost: true });
         }
     }

@@ -118,7 +118,11 @@ function createTimerExpirationCallback(
             localTimers.delete(roomCode);
 
             // Remove from Redis
-            await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+            await withTimeout(
+                redis.del(`${TIMER_KEY_PREFIX}${roomCode}`),
+                TIMEOUTS.TIMER_OPERATION,
+                `timerExpired-del-${roomCode}`
+            );
 
             // Call user callback if provided
             if (onExpire) {
@@ -363,7 +367,11 @@ export async function resumeTimer(
             if (pausedDuration >= remainingWhenPausedMs) {
                 logger.info(`Timer for room ${roomCode} would have expired while paused (paused for ${Math.round(pausedDuration/1000)}s, had ${remainingSeconds}s remaining), treating as expired`);
                 // Clean up the expired timer
-                await redis.del(`${TIMER_KEY_PREFIX}${roomCode}`);
+                await withTimeout(
+                    redis.del(`${TIMER_KEY_PREFIX}${roomCode}`),
+                    TIMEOUTS.TIMER_OPERATION,
+                    `resumeTimer-del-expired-${roomCode}`
+                );
                 localTimers.delete(roomCode);
 
                 // Call expire callback if provided

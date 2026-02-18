@@ -1,17 +1,23 @@
 // ========== GAME MODULE ==========
-// Core game logic (reveal, turns, scoring, board setup)
-// URL/QR/sharing concerns extracted to url-state.ts
+// Orchestrator: board setup, game init, new game flow, URL loading, turn management.
+// Reveal logic extracted to game/reveal.ts, scoring/UI to game/scoring.ts.
+// URL/QR/sharing concerns in url-state.ts.
 
 import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS } from './state.js';
 import { hashString, shuffleWithSeed, generateGameSeed, seededRandom, decodeWordsFromURL } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
-import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from './board.js';
+import { renderBoard } from './board.js';
 import { updateRoleBanner, updateControls } from './roles.js';
 import { UI } from './constants.js';
-import { logger } from './logger.js';
 import { t } from './i18n.js';
 import { updateURL } from './url-state.js';
 import { isClientConnected } from './clientAccessor.js';
+import { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
+import { showGameOverModal } from './game/reveal.js';
+
+// Re-export sub-module APIs so existing consumers don't break
+export { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
+export { revealCard, revealCardFromServer, showGameOverModal, showGameOver, closeGameOver } from './game/reveal.js';
 
 // Re-export URL/QR functions so existing consumers don't break
 export { updateURL, updateQRCode, copyLink } from './url-state.js';
@@ -250,256 +256,6 @@ export function loadGameFromURL(): void {
     }
 }
 
-export function revealCard(index: number): void {
-    // Bounds check: prevent out-of-bounds array access
-    if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
-        logger.error(`revealCard: invalid index ${index}`);
-        return;
-    }
-    // Provide specific feedback for why card click is blocked
-    if (state.gameState.gameOver) {
-        showToast(t('game.gameOverStartNew'), 'warning');
-        return;
-    }
-    if (state.gameState.revealed[index]) {
-        // Card already revealed - silent return is OK here as it's visually obvious
-        return;
-    }
-    if (!canClickCards()) {
-        // Determine specific reason
-        if (state.spymasterTeam) {
-            showToast(t('game.spymasterCannotReveal'), 'warning');
-        } else if (state.clickerTeam && state.clickerTeam !== state.gameState.currentTurn) {
-            const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-            showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
-        } else if (!state.clickerTeam && !state.playerTeam) {
-            showToast(t('game.joinTeamToClick'), 'warning');
-        } else if (state.playerTeam && state.playerTeam !== state.gameState.currentTurn) {
-            const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-            showToast(t('game.notYourTurn', { team: currentTeamName }), 'warning');
-        } else {
-            showToast(t('game.onlyClickerCanReveal'), 'warning');
-        }
-        return;
-    }
-
-    // In multiplayer mode, send reveal to server and let it broadcast
-    if (state.isMultiplayerMode && isClientConnected()) {
-        // Prevent double-click on same card while waiting for server response
-        if (state.revealingCards.has(index)) {
-            return;
-        }
-        state.revealingCards.add(index);
-        state.isRevealingCard = state.revealingCards.size > 0;
-
-        // Per-card safety timeout: if server doesn't respond in time,
-        // clear only this card's pending state (not all cards)
-        const timeoutId = setTimeout(() => {
-            if (state.revealingCards.has(index)) {
-                state.revealingCards.delete(index);
-                state.isRevealingCard = state.revealingCards.size > 0;
-                const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
-                if (pendingCard) (pendingCard as HTMLElement).classList.remove('revealing');
-            }
-        }, UI.CARD_REVEAL_TIMEOUT_MS);
-        state.revealTimeouts.set(index, timeoutId);
-
-        // Add visual feedback - show card as "pending"
-        const card = document.querySelector(`.card[data-index="${index}"]`);
-        if (card) {
-            card.classList.add('revealing');
-        }
-
-        EigennamenClient.revealCard(index);
-        // Don't update local state - wait for server confirmation via cardRevealed event
-        // isRevealingCard is cleared in cardRevealed or error handler
-        return;
-    }
-
-    state.gameState.revealed[index] = true;
-    const type = state.gameState.types[index];
-
-    // Track for animation
-    state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
-
-    if (type === 'red') {
-        state.gameState.redScore++;
-    } else if (type === 'blue') {
-        state.gameState.blueScore++;
-    }
-
-    // Check for assassin
-    if (type === 'assassin') {
-        state.gameState.gameOver = true;
-        state.gameState.winner = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
-    }
-
-    // Check for win by completing all words
-    checkGameOver();
-
-    // End turn if wrong guess (and game not over)
-    if (!state.gameState.gameOver && type !== state.gameState.currentTurn) {
-        state.gameState.currentTurn = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
-    }
-
-    updateURL();
-
-    // Batch DOM updates using requestAnimationFrame for better performance
-    if (!state.pendingUIUpdate) {
-        state.pendingUIUpdate = true;
-        requestAnimationFrame(() => {
-            updateSingleCard(index);  // Only update the revealed card
-            updateBoardIncremental(); // Update board classes
-            updateScoreboard();
-            updateTurnIndicator();
-            updateRoleBanner();
-            updateControls();
-            state.pendingUIUpdate = false;
-        });
-    }
-
-    // Clear animation tracking after animation completes (animation duration + buffer)
-    setTimeout(() => {
-        state.lastRevealedIndex = -1;
-        state.lastRevealedWasCorrect = false;
-    }, UI.ANIMATION_CLEAR_MS);
-
-    // Screen reader announcement
-    const word = state.gameState.words[index];
-    const typeNames: Record<string, string> = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
-    const typeName = typeNames[type] || type;
-    announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
-
-    if (state.gameState.gameOver) {
-        showGameOverModal();
-    }
-}
-
-/**
- * Reveal a card from server sync (bypasses local validation)
- * @param index - Card index to reveal
- * @param serverData - Data from server including currentTurn, scores, etc.
- */
-export function revealCardFromServer(index: number, serverData: Record<string, any> = {}): void {
-    // Bounds check: reject invalid index to prevent array growth from malformed server data
-    if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
-        logger.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
-        return;
-    }
-    if (state.gameState.revealed[index]) return; // Already revealed
-
-    state.gameState.revealed[index] = true;
-    // Use server-provided type; fall back to local only if non-null (spymasters have types,
-    // non-spymasters have null for unrevealed cards — using null causes wrong scoring)
-    const type = serverData.type || state.gameState.types[index] || 'neutral';
-
-    // Bug fix: Update the types array with the revealed type from server
-    // This is critical for non-spymasters who have null for unrevealed cards
-    if (serverData.type) {
-        state.gameState.types[index] = serverData.type;
-    }
-
-    // Track for animation (same as local reveal)
-    state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
-
-    // Use server-provided scores if available, otherwise calculate locally
-    if (typeof serverData.redScore === 'number') {
-        state.gameState.redScore = serverData.redScore;
-    } else if (type === 'red') {
-        state.gameState.redScore++;
-    }
-
-    if (typeof serverData.blueScore === 'number') {
-        state.gameState.blueScore = serverData.blueScore;
-    } else if (type === 'blue') {
-        state.gameState.blueScore++;
-    }
-
-    // Use server game over state if provided
-    if (serverData.gameOver !== undefined) {
-        state.gameState.gameOver = serverData.gameOver;
-        state.gameState.winner = serverData.winner || null;
-    } else {
-        // Check for assassin locally
-        if (type === 'assassin') {
-            state.gameState.gameOver = true;
-            state.gameState.winner = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
-        }
-        // Check for win by completing all words
-        checkGameOver();
-    }
-
-    // Use server-provided turn state (authoritative)
-    if (serverData.currentTurn) {
-        state.gameState.currentTurn = serverData.currentTurn;
-    } else if (!state.gameState.gameOver && type !== state.gameState.currentTurn) {
-        // Fallback: end turn if wrong guess (and game not over)
-        state.gameState.currentTurn = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
-    }
-
-    // Sync guess tracking from server
-    if (typeof serverData.guessesUsed === 'number') {
-        state.gameState.guessesUsed = serverData.guessesUsed;
-    }
-    if (typeof serverData.guessesAllowed === 'number') {
-        state.gameState.guessesAllowed = serverData.guessesAllowed;
-    }
-
-    // Clear clue state when a reveal causes the turn to end (wrong guess, max guesses)
-    // The server clears currentClue on turn change but the cardRevealed event only
-    // includes a turnEnded flag — no separate turnEnded event is emitted for this path.
-    if (serverData.turnEnded && !state.gameState.gameOver) {
-        state.gameState.currentClue = null;
-    }
-
-    // Batch DOM updates using requestAnimationFrame for better performance
-    requestAnimationFrame(() => {
-        updateSingleCard(index);
-        updateBoardIncremental();
-        updateScoreboard();
-        updateTurnIndicator();
-        updateRoleBanner();
-        updateControls();
-    });
-}
-
-export function checkGameOver(): void {
-    // Check for assassin reveal
-    const assassinIndex = state.gameState.types.indexOf('assassin');
-    if (assassinIndex >= 0 && state.gameState.revealed[assassinIndex]) {
-        state.gameState.gameOver = true;
-        if (!state.gameState.winner) {
-            state.gameState.winner = state.gameState.currentTurn === 'red' ? 'blue' : 'red';
-        }
-        return;
-    }
-
-    // Check for completing all words
-    if (state.gameState.redScore >= state.gameState.redTotal) {
-        state.gameState.gameOver = true;
-        state.gameState.winner = 'red';
-    } else if (state.gameState.blueScore >= state.gameState.blueTotal) {
-        state.gameState.gameOver = true;
-        state.gameState.winner = 'blue';
-    }
-}
-
-export function showGameOverModal(_winner?: string | null, _reason?: string): void {
-    // Instead of showing a modal, reveal the spymaster view to all players
-    // so they can see the board and discuss before the next game.
-    // The turn indicator already shows the winner at the top of the board.
-    renderBoard();
-}
-
-// Alias for multiplayer listener compatibility
-export const showGameOver = showGameOverModal;
-
-export function closeGameOver(): void {
-    closeModal('game-over-modal');
-}
-
 export function endTurn(): void {
     // Provide specific feedback for why end turn is blocked
     if (state.gameState.gameOver) {
@@ -533,63 +289,3 @@ export function endTurn(): void {
     const newTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
     announceToScreenReader(t('game.turnEndedAnnounce', { team: newTeamName }));
 }
-
-export function updateScoreboard(): void {
-    const redRemaining = state.gameState.redTotal - state.gameState.redScore;
-    const blueRemaining = state.gameState.blueTotal - state.gameState.blueScore;
-    // Use cached elements with fallback
-    const redRemainingEl = state.cachedElements.redRemaining || document.getElementById('red-remaining');
-    const blueRemainingEl = state.cachedElements.blueRemaining || document.getElementById('blue-remaining');
-    const redTeamNameEl = state.cachedElements.redTeamName || document.getElementById('red-team-name');
-    const blueTeamNameEl = state.cachedElements.blueTeamName || document.getElementById('blue-team-name');
-    if (redRemainingEl) redRemainingEl.textContent = String(redRemaining);
-    if (blueRemainingEl) blueRemainingEl.textContent = String(blueRemaining);
-    if (redTeamNameEl) redTeamNameEl.textContent = state.teamNames.red;
-    if (blueTeamNameEl) blueTeamNameEl.textContent = state.teamNames.blue;
-}
-
-export function updateTurnIndicator(): void {
-    const indicator = state.cachedElements.turnIndicator || document.getElementById('turn-indicator');
-    if (!indicator) return;
-    const turnText = indicator.querySelector('.turn-text');
-    if (!turnText) return;
-    const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-    const winnerTeamName = state.gameState.winner === 'red' ? state.teamNames.red : state.teamNames.blue;
-
-    if (state.gameState.gameOver) {
-        indicator.className = 'turn-indicator game-over';
-        if (state.gameMode === 'duet') {
-            if (state.gameState.winner) {
-                turnText.textContent = t('game.duetVictory');
-            } else {
-                const assassinIndex = state.gameState.types.indexOf('assassin');
-                if (state.gameState.revealed[assassinIndex]) {
-                    turnText.textContent = t('game.duetGameOverAssassin');
-                } else {
-                    turnText.textContent = t('game.duetGameOverTimeout');
-                }
-            }
-        } else {
-            const assassinIndex = state.gameState.types.indexOf('assassin');
-            if (state.gameState.revealed[assassinIndex]) {
-                turnText.textContent = t('game.winnerAssassin', { team: winnerTeamName });
-            } else {
-                turnText.textContent = t('game.winner', { team: winnerTeamName });
-            }
-        }
-    } else {
-        const isYourTurn = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
-        indicator.className = `turn-indicator ${state.gameState.currentTurn}-turn${isYourTurn ? ' your-turn' : ''}`;
-
-        if (isYourTurn) {
-            turnText.textContent = t('game.yourTurnGo', { team: currentTeamName });
-        } else {
-            turnText.textContent = t('game.teamsTurn', { team: currentTeamName });
-        }
-    }
-}
-
-// updateRoleBanner and updateControls are imported directly from roles.ts.
-// No circular dependency exists: roles.ts imports from state, utils, ui, board
-// but does NOT import from game.ts.
-// updateURL, updateQRCode, copyLink are in url-state.ts (re-exported above).

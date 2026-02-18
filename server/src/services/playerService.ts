@@ -93,14 +93,26 @@ export async function createPlayer(
     };
 
     // Save player data
-    await redis.set(`player:${sessionId}`, JSON.stringify(player), { EX: REDIS_TTL.PLAYER });
+    await withTimeout(
+        redis.set(`player:${sessionId}`, JSON.stringify(player), { EX: REDIS_TTL.PLAYER }),
+        TIMEOUTS.REDIS_OPERATION,
+        `createPlayer-set-${sessionId}`
+    );
 
     // Add to room's player list if requested
     if (addToSet) {
         const playersKey = `room:${roomCode}:players`;
-        await redis.sAdd(playersKey, sessionId);
+        await withTimeout(
+            redis.sAdd(playersKey, sessionId),
+            TIMEOUTS.REDIS_OPERATION,
+            `createPlayer-sAdd-${sessionId}`
+        );
         // Ensure the players set has a TTL matching the room
-        await redis.expire(playersKey, REDIS_TTL.ROOM);
+        await withTimeout(
+            redis.expire(playersKey, REDIS_TTL.ROOM),
+            TIMEOUTS.REDIS_OPERATION,
+            `createPlayer-expire-${sessionId}`
+        );
     }
 
     logger.info(`Player ${nickname} (${sessionId}) created in room ${roomCode}${addToSet ? '' : ' (data only)'}`);
@@ -183,9 +195,17 @@ export async function updatePlayer(
             await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
 
-        await redis.watch(playerKey);
+        await withTimeout(
+            redis.watch(playerKey),
+            TIMEOUTS.REDIS_OPERATION,
+            `updatePlayer-watch-${sessionId}`
+        );
 
-        const playerData = await redis.get(playerKey);
+        const playerData = await withTimeout(
+            redis.get(playerKey),
+            TIMEOUTS.REDIS_OPERATION,
+            `updatePlayer-get-${sessionId}`
+        );
         if (!playerData) {
             await redis.unwatch();
             throw new ServerError('Player not found');
@@ -268,11 +288,19 @@ export async function removePlayer(sessionId: string): Promise<void> {
 
     if (player) {
         // Remove from room's player set
-        await redis.sRem(`room:${player.roomCode}:players`, sessionId);
+        await withTimeout(
+            redis.sRem(`room:${player.roomCode}:players`, sessionId),
+            TIMEOUTS.REDIS_OPERATION,
+            `removePlayer-sRem-players-${sessionId}`
+        );
 
         // Remove from team set if player was on a team
         if (player.team) {
-            await redis.sRem(`room:${player.roomCode}:team:${player.team}`, sessionId);
+            await withTimeout(
+                redis.sRem(`room:${player.roomCode}:team:${player.team}`, sessionId),
+                TIMEOUTS.REDIS_OPERATION,
+                `removePlayer-sRem-team-${sessionId}`
+            );
         }
 
         // Clean up reconnection tokens to prevent orphaned keys.
@@ -283,7 +311,11 @@ export async function removePlayer(sessionId: string): Promise<void> {
         }
 
         // Delete player data
-        await redis.del(`player:${sessionId}`);
+        await withTimeout(
+            redis.del(`player:${sessionId}`),
+            TIMEOUTS.REDIS_OPERATION,
+            `removePlayer-del-${sessionId}`
+        );
         logger.info(`Player ${sessionId} removed from room ${player.roomCode}`);
     }
 }
@@ -341,7 +373,11 @@ export async function setSocketMapping(
     }
 
     // Create socket mapping
-    await redis.set(`session:${sessionId}:socket`, socketId, { EX: REDIS_TTL.SESSION_SOCKET });
+    await withTimeout(
+        redis.set(`session:${sessionId}:socket`, socketId, { EX: REDIS_TTL.SESSION_SOCKET }),
+        TIMEOUTS.REDIS_OPERATION,
+        `setSocketMapping-set-${sessionId}`
+    );
 
     // Update last known IP for session security
     if (clientIP) {

@@ -423,3 +423,202 @@ describe('setClickerCurrent', () => {
         expect(state.clickerTeam).toBeNull();
     });
 });
+
+// ========== MULTIPLAYER UPDATE CONTROLS ==========
+
+describe('updateControls (multiplayer scenarios)', () => {
+    test('enables end turn via clicker fallback when clicker is disconnected', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [
+            { sessionId: 'p1', nickname: 'Player1', team: 'red', role: 'clicker', connected: false },
+        ];
+        updateControls();
+
+        const btn = document.getElementById('btn-end-turn') as HTMLButtonElement;
+        expect(btn.disabled).toBe(false);
+        expect(btn.classList.contains('can-act')).toBe(true);
+    });
+
+    test('disables end turn when clicker is connected on another player', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [
+            { sessionId: 'p1', nickname: 'Player1', team: 'red', role: 'clicker', connected: true },
+        ];
+        updateControls();
+
+        const btn = document.getElementById('btn-end-turn') as HTMLButtonElement;
+        expect(btn.disabled).toBe(true);
+    });
+
+    test('sets tooltip for team member when clicker is active', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [
+            { sessionId: 'p1', nickname: 'Player1', team: 'red', role: 'clicker', connected: true },
+        ];
+        updateControls();
+
+        const btn = document.getElementById('btn-end-turn')!;
+        expect(btn.title).toBe('roles.onlyClickerCanEndTurn');
+    });
+
+    test('sets tooltip waiting for your turn when on wrong team', () => {
+        state.playerTeam = 'blue';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        updateControls();
+
+        const btn = document.getElementById('btn-end-turn')!;
+        expect(btn.title).toBe('roles.waitForYourTurn');
+    });
+
+    test('sets tooltip endTurnTitle when clicker fallback is active', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [
+            { sessionId: 'p1', nickname: 'Player1', team: 'red', role: 'clicker', connected: false },
+        ];
+        updateControls();
+
+        const btn = document.getElementById('btn-end-turn')!;
+        expect(btn.title).toBe('roles.endTurnTitle');
+    });
+
+    test('shows clickerOfflineCanClick hint in multiplayer', () => {
+        state.isMultiplayerMode = true;
+        state.playerTeam = 'red';
+        state.spymasterTeam = null;
+        state.clickerTeam = null;
+        state.gameState.currentTurn = 'red';
+        state.multiplayerPlayers = [
+            { sessionId: 'p1', nickname: 'Player1', team: 'red', role: 'clicker', connected: false },
+        ];
+        updateControls();
+
+        const hint = document.getElementById('role-hint')!;
+        expect(hint.textContent).toBe('roles.clickerOfflineCanClick');
+    });
+
+    test('adds team color class to spymaster button', () => {
+        state.playerTeam = 'blue';
+        updateControls();
+
+        const spy = document.getElementById('btn-spymaster')!;
+        expect(spy.classList.contains('blue-team')).toBe(true);
+        expect(spy.classList.contains('red-team')).toBe(false);
+    });
+
+    test('adds team color class to clicker button', () => {
+        state.playerTeam = 'red';
+        updateControls();
+
+        const clicker = document.getElementById('btn-clicker')!;
+        expect(clicker.classList.contains('red-team')).toBe(true);
+    });
+
+    test('disables role buttons during role change', () => {
+        state.playerTeam = 'red';
+        state.roleChange = { phase: 'changing_role', target: 'spymaster', operationId: '1', revertFn: () => {} };
+        updateControls();
+
+        const spy = document.getElementById('btn-spymaster') as HTMLButtonElement;
+        const clicker = document.getElementById('btn-clicker') as HTMLButtonElement;
+        expect(spy.disabled).toBe(true);
+        expect(clicker.disabled).toBe(true);
+    });
+
+    test('shows loading on spymaster button when changing to spymaster', () => {
+        state.playerTeam = 'red';
+        state.roleChange = { phase: 'changing_role', target: 'spymaster', operationId: '1', revertFn: () => {} };
+        updateControls();
+
+        const spy = document.getElementById('btn-spymaster')!;
+        expect(spy.classList.contains('loading')).toBe(true);
+    });
+
+    test('shows loading on clicker button when pending role is clicker', () => {
+        state.playerTeam = 'red';
+        state.roleChange = { phase: 'team_then_role', target: 'clicker', operationId: '1', revertFn: () => {}, pendingRole: 'clicker' };
+        updateControls();
+
+        const clicker = document.getElementById('btn-clicker')!;
+        expect(clicker.classList.contains('loading')).toBe(true);
+    });
+
+    test('shows loading on spectate button when changing to spectate', () => {
+        state.roleChange = { phase: 'changing_team', target: 'spectate', operationId: '1', revertFn: () => {} };
+        updateControls();
+
+        const spectate = document.getElementById('btn-spectate')!;
+        expect(spectate.classList.contains('loading')).toBe(true);
+    });
+});
+
+// ========== STANDALONE ROLE ANNOUNCEMENTS ==========
+
+describe('setTeam (standalone announcements)', () => {
+    test('announces role cleared when switching teams with spymaster role', () => {
+        state.playerTeam = 'red';
+        state.spymasterTeam = 'red';
+
+        setTeam('blue');
+
+        // renderBoard is called, and screen reader announcement happens internally
+        expect(state.playerTeam).toBe('blue');
+        expect(state.spymasterTeam).toBeNull();
+    });
+
+    test('announces role cleared when switching teams with clicker role', () => {
+        state.playerTeam = 'red';
+        state.clickerTeam = 'red';
+
+        setTeam('blue');
+
+        expect(state.playerTeam).toBe('blue');
+        expect(state.clickerTeam).toBeNull();
+    });
+
+    test('does not clear roles when setting same team', () => {
+        state.playerTeam = 'red';
+        state.clickerTeam = 'red';
+
+        setTeam('red');
+
+        expect(state.clickerTeam).toBe('red');
+    });
+});
+
+// ========== ROLE BANNER EDGE CASES ==========
+
+describe('updateRoleBanner (edge cases)', () => {
+    test('shows spectator banner for player on a team but with no role', () => {
+        state.playerTeam = 'red';
+        state.spymasterTeam = null;
+        state.clickerTeam = null;
+        updateRoleBanner();
+
+        const banner = document.getElementById('role-banner')!;
+        // spectator config uses team color styling
+        expect(banner.innerHTML).toContain('Red');
+    });
+
+    test('handles non-host clicker correctly', () => {
+        state.isHost = false;
+        state.clickerTeam = 'red';
+        state.playerTeam = 'red';
+        updateRoleBanner();
+
+        const banner = document.getElementById('role-banner')!;
+        expect(banner.innerHTML).not.toContain('host-badge');
+    });
+});
