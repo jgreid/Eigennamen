@@ -113,7 +113,11 @@ export async function createRoom(
     // The Lua SETNX returning 1 guarantees the write, so this is a safety net.
     // Non-fatal: log error for operators but don't block room creation.
     try {
-        const verifyExists = await redis.exists(`room:${normalizedRoomId}`);
+        const verifyExists = await withTimeout(
+            redis.exists(`room:${normalizedRoomId}`),
+            TIMEOUTS.REDIS_OPERATION,
+            `createRoom-verify-${normalizedRoomId}`
+        );
         if (verifyExists !== 1) {
             logger.error('createRoom: room key missing immediately after Lua SETNX returned 1', {
                 roomId: normalizedRoomId,
@@ -139,8 +143,11 @@ export async function createRoom(
     } catch (playerError) {
         // Rollback: delete the room we just created
         logger.warn(`Player creation failed for room "${roomId}", rolling back room creation`);
-        await redis.del(`room:${normalizedRoomId}`);
-        await redis.del(`room:${normalizedRoomId}:players`);
+        await withTimeout(
+            redis.del([`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`]),
+            TIMEOUTS.REDIS_OPERATION,
+            `createRoom-rollback-${normalizedRoomId}`
+        );
         throw playerError;
     }
 
@@ -346,11 +353,21 @@ export async function cleanupRoom(code: string): Promise<void> {
     await timerService.stopTimer(code);
 
     // Get all players in room
-    const sessionIds: string[] = await redis.sMembers(`room:${code}:players`);
+    const sessionIds: string[] = await withTimeout(
+        redis.sMembers(`room:${code}:players`),
+        TIMEOUTS.REDIS_OPERATION,
+        `cleanupRoom-sMembers-${code}`
+    );
 
     // Performance fix: Use mGet for batch token lookup instead of N individual gets
     const tokenKeys = sessionIds.map(id => `reconnect:session:${id}`);
-    const reconnectTokens = tokenKeys.length > 0 ? await redis.mGet(tokenKeys) : [];
+    const reconnectTokens = tokenKeys.length > 0
+        ? await withTimeout(
+            redis.mGet(tokenKeys),
+            TIMEOUTS.REDIS_OPERATION,
+            `cleanupRoom-mGet-tokens-${code}`
+        )
+        : [];
 
     // Build list of all keys to delete including team sets
     const keysToDelete: string[] = [
@@ -367,7 +384,11 @@ export async function cleanupRoom(code: string): Promise<void> {
 
     // Delete all keys in parallel using DEL with multiple keys (single Redis call)
     if (keysToDelete.length > 0) {
-        await redis.del(keysToDelete);
+        await withTimeout(
+            redis.del(keysToDelete),
+            TIMEOUTS.REDIS_OPERATION,
+            `cleanupRoom-del-${code}`
+        );
     }
 
     logger.info(`Room ${code} and all associated data cleaned up`);

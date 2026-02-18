@@ -59,13 +59,31 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
 
     // Schedule removal after grace period using sorted set
     const cleanupTime = Date.now() + (REDIS_TTL.DISCONNECTED_PLAYER * 1000);
-    await redis.zAdd('scheduled:player:cleanup', {
-        score: cleanupTime,
-        value: JSON.stringify({ sessionId, roomCode: player.roomCode })
-    });
+    try {
+        await withTimeout(
+            redis.zAdd('scheduled:player:cleanup', {
+                score: cleanupTime,
+                value: JSON.stringify({ sessionId, roomCode: player.roomCode })
+            }),
+            TIMEOUTS.REDIS_OPERATION,
+            `handleDisconnect-zAdd-${sessionId}`
+        );
+    } catch (scheduleError) {
+        logger.error(`Failed to schedule cleanup for player ${sessionId}:`, (scheduleError as Error).message);
+        // Don't throw — player is already marked disconnected; the TTL backup below
+        // and periodic cleanup will still handle eventual removal.
+    }
 
     // Also set a shorter TTL on the player key as backup
-    await redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER);
+    try {
+        await withTimeout(
+            redis.expire(`player:${sessionId}`, REDIS_TTL.DISCONNECTED_PLAYER),
+            TIMEOUTS.REDIS_OPERATION,
+            `handleDisconnect-expire-${sessionId}`
+        );
+    } catch (expireError) {
+        logger.warn(`Failed to set backup TTL for player ${sessionId}:`, (expireError as Error).message);
+    }
 
     logger.debug(`Scheduled cleanup for player ${sessionId} at ${new Date(cleanupTime).toISOString()}`);
 
@@ -82,11 +100,15 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
 
     try {
         // Get players due for cleanup
-        const toCleanup = await redis.zRangeByScore(
-            'scheduled:player:cleanup',
-            0,
-            now,
-            { LIMIT: { offset: 0, count: limit } }
+        const toCleanup = await withTimeout(
+            redis.zRangeByScore(
+                'scheduled:player:cleanup',
+                0,
+                now,
+                { LIMIT: { offset: 0, count: limit } }
+            ),
+            TIMEOUTS.REDIS_OPERATION,
+            'processScheduledCleanups-zRangeByScore'
         );
 
         if (toCleanup.length === 0) {
@@ -117,13 +139,21 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 if (result === 'RECONNECTED') {
                     // Player reconnected - skip removal, just clear schedule entry
                     logger.debug(`Skipping cleanup for reconnected player ${sessionId}`);
-                    await redis.zRem('scheduled:player:cleanup', entry);
+                    await withTimeout(
+                        redis.zRem('scheduled:player:cleanup', entry),
+                        TIMEOUTS.REDIS_OPERATION,
+                        `processCleanups-zRem-reconnected-${sessionId}`
+                    );
                     continue;
                 }
 
                 if (!result) {
                     // Player key already gone - just remove from schedule
-                    await redis.zRem('scheduled:player:cleanup', entry);
+                    await withTimeout(
+                        redis.zRem('scheduled:player:cleanup', entry),
+                        TIMEOUTS.REDIS_OPERATION,
+                        `processCleanups-zRem-gone-${sessionId}`
+                    );
                     continue;
                 }
 
@@ -143,9 +173,17 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 // and waste memory until their TTL expires.
                 if (roomCode && _roomCleanupFn) {
                     try {
-                        const remainingCount = await redis.sCard(`room:${roomCode}:players`);
+                        const remainingCount = await withTimeout(
+                            redis.sCard(`room:${roomCode}:players`),
+                            TIMEOUTS.REDIS_OPERATION,
+                            `processCleanups-sCard-${roomCode}`
+                        );
                         if (remainingCount === 0) {
-                            const roomExists = await redis.exists(`room:${roomCode}`);
+                            const roomExists = await withTimeout(
+                                redis.exists(`room:${roomCode}`),
+                                TIMEOUTS.REDIS_OPERATION,
+                                `processCleanups-exists-${roomCode}`
+                            );
                             if (roomExists === 1) {
                                 await _roomCleanupFn(roomCode);
                                 logger.info(`Cleaned up orphaned room ${roomCode} (no players remaining)`);
@@ -157,11 +195,19 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 }
 
                 // Remove from cleanup schedule
-                await redis.zRem('scheduled:player:cleanup', entry);
+                await withTimeout(
+                    redis.zRem('scheduled:player:cleanup', entry),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `processCleanups-zRem-done-${sessionId}`
+                );
             } catch (parseError) {
                 logger.error('Failed to parse cleanup entry:', (parseError as Error).message);
                 // Remove invalid entry
-                await redis.zRem('scheduled:player:cleanup', entry);
+                await withTimeout(
+                    redis.zRem('scheduled:player:cleanup', entry),
+                    TIMEOUTS.REDIS_OPERATION,
+                    'processCleanups-zRem-invalid'
+                );
             }
         }
         /* eslint-enable no-await-in-loop */

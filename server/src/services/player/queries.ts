@@ -9,6 +9,7 @@ import type { Team, Role, Player, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';
 import logger from '../../utils/logger';
+import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { tryParseJSON } from '../../utils/parseJSON';
 import { playerSchema } from './schemas';
 import { updatePlayer } from '../playerService';
@@ -23,7 +24,11 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
     const teamKey = `room:${roomCode}:team:${team}`;
 
     // Get session IDs from team set
-    const sessionIds = await redis.sMembers(teamKey);
+    const sessionIds = await withTimeout(
+        redis.sMembers(teamKey),
+        TIMEOUTS.REDIS_OPERATION,
+        `getTeamMembers-sMembers-${roomCode}-${team}`
+    );
 
     if (sessionIds.length === 0) {
         return [];
@@ -31,7 +36,11 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
 
     // Batch fetch all player data
     const playerKeys = sessionIds.map(id => `player:${id}`);
-    const playerDataArray = await redis.mGet(playerKeys);
+    const playerDataArray = await withTimeout(
+        redis.mGet(playerKeys),
+        TIMEOUTS.REDIS_OPERATION,
+        `getTeamMembers-mGet-${roomCode}-${team}`
+    );
 
     const players: Player[] = [];
     const orphanedIds: string[] = [];
@@ -72,22 +81,42 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
             }
         }
 
-        const cleanupOps: Promise<unknown>[] = [
-            redis.sRem(teamKey, ...orphanedIds)
-        ];
-        // Only delete player keys for truly expired sessions (no data in Redis)
-        if (expiredIds.length > 0) {
-            const playerKeysToDelete = expiredIds.map(id => `player:${id}`);
-            cleanupOps.push(redis.del(playerKeysToDelete));
-        }
-        await Promise.all(cleanupOps);
-        logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey} (${expiredIds.length} expired)`);
+        try {
+            const cleanupOps: Promise<unknown>[] = [
+                withTimeout(
+                    redis.sRem(teamKey, ...orphanedIds),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getTeamMembers-sRem-${roomCode}-${team}`
+                )
+            ];
+            // Only delete player keys for truly expired sessions (no data in Redis)
+            if (expiredIds.length > 0) {
+                const playerKeysToDelete = expiredIds.map(id => `player:${id}`);
+                cleanupOps.push(withTimeout(
+                    redis.del(playerKeysToDelete),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getTeamMembers-del-${roomCode}-${team}`
+                ));
+            }
+            await Promise.all(cleanupOps);
+            logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey} (${expiredIds.length} expired)`);
 
-        // If team set is now empty, delete it
-        const remainingCount = await redis.sCard(teamKey);
-        if (remainingCount === 0) {
-            await redis.del(teamKey);
-            logger.debug(`Deleted empty team set ${teamKey}`);
+            // If team set is now empty, delete it
+            const remainingCount = await withTimeout(
+                redis.sCard(teamKey),
+                TIMEOUTS.REDIS_OPERATION,
+                `getTeamMembers-sCard-${roomCode}-${team}`
+            );
+            if (remainingCount === 0) {
+                await withTimeout(
+                    redis.del(teamKey),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getTeamMembers-delTeamKey-${roomCode}-${team}`
+                );
+                logger.debug(`Deleted empty team set ${teamKey}`);
+            }
+        } catch (cleanupError) {
+            logger.warn(`Failed to clean up orphaned entries from ${teamKey}:`, (cleanupError as Error).message);
         }
     }
 
@@ -102,7 +131,11 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
 export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
     const startTime = Date.now();
     const redis: RedisClient = getRedis();
-    const sessionIds = await redis.sMembers(`room:${roomCode}:players`);
+    const sessionIds = await withTimeout(
+        redis.sMembers(`room:${roomCode}:players`),
+        TIMEOUTS.REDIS_OPERATION,
+        `getPlayersInRoom-sMembers-${roomCode}`
+    );
 
     if (sessionIds.length === 0) {
         return [];
@@ -110,7 +143,11 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 
     // Use MGET to fetch all players in a single Redis call (much faster than N individual GETs)
     const playerKeys = sessionIds.map(sessionId => `player:${sessionId}`);
-    const playerDataArray = await redis.mGet(playerKeys);
+    const playerDataArray = await withTimeout(
+        redis.mGet(playerKeys),
+        TIMEOUTS.REDIS_OPERATION,
+        `getPlayersInRoom-mGet-${roomCode}`
+    );
 
     // Log slow queries for debugging
     const elapsed = Date.now() - startTime;
@@ -139,21 +176,45 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 
     // Clean up all orphaned data atomically
     if (orphanedSessionIds.length > 0) {
-        // Remove from players set
-        await redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds);
+        try {
+            // Remove from players set
+            await withTimeout(
+                redis.sRem(`room:${roomCode}:players`, ...orphanedSessionIds),
+                TIMEOUTS.REDIS_OPERATION,
+                `getPlayersInRoom-sRem-players-${roomCode}`
+            );
 
-        // Also remove from team sets (both teams since we don't know which team they were on)
-        // Performance fix: Batch DEL operations into single Redis calls
-        const playerKeysToDelete = orphanedSessionIds.map(id => `player:${id}`);
-        const socketKeysToDelete = orphanedSessionIds.map(id => `session:${id}:socket`);
+            // Also remove from team sets (both teams since we don't know which team they were on)
+            // Performance fix: Batch DEL operations into single Redis calls
+            const playerKeysToDelete = orphanedSessionIds.map(id => `player:${id}`);
+            const socketKeysToDelete = orphanedSessionIds.map(id => `session:${id}:socket`);
 
-        await Promise.all([
-            redis.sRem(`room:${roomCode}:team:red`, ...orphanedSessionIds),
-            redis.sRem(`room:${roomCode}:team:blue`, ...orphanedSessionIds),
-            redis.del(playerKeysToDelete),
-            redis.del(socketKeysToDelete)
-        ]);
-        logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
+            await Promise.all([
+                withTimeout(
+                    redis.sRem(`room:${roomCode}:team:red`, ...orphanedSessionIds),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getPlayersInRoom-sRem-red-${roomCode}`
+                ),
+                withTimeout(
+                    redis.sRem(`room:${roomCode}:team:blue`, ...orphanedSessionIds),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getPlayersInRoom-sRem-blue-${roomCode}`
+                ),
+                withTimeout(
+                    redis.del(playerKeysToDelete),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getPlayersInRoom-del-players-${roomCode}`
+                ),
+                withTimeout(
+                    redis.del(socketKeysToDelete),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `getPlayersInRoom-del-sockets-${roomCode}`
+                )
+            ]);
+            logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
+        } catch (cleanupError) {
+            logger.warn(`Failed to clean up orphaned session IDs from room ${roomCode}:`, (cleanupError as Error).message);
+        }
     }
 
     // Sort by join time, with sessionId as secondary key for stability
