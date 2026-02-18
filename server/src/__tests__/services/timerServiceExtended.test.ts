@@ -233,15 +233,11 @@ describe('Timer Service Extended Tests', () => {
             };
             mockRedis._storage['timer:PARSE_ERR'] = JSON.stringify(validTimer);
 
-            // Make second get (in pauseTimer body) return invalid JSON
-            let getCount = 0;
+            // getTimerStatus() now uses redis.eval (not get), so the first
+            // redis.get call comes from pauseTimer's body — return invalid JSON.
             mockRedis.get.mockImplementation(async (key) => {
-                getCount++;
                 if (key === 'timer:PARSE_ERR') {
-                    if (getCount === 1) {
-                        return JSON.stringify(validTimer); // For getTimerStatus
-                    }
-                    return 'invalid json {{{'; // For pauseTimer
+                    return 'invalid json {{{';
                 }
                 return mockRedis._storage[key] || null;
             });
