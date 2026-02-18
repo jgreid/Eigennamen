@@ -204,7 +204,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * Register a socket listener with tracking for cleanup
          */
         _registerSocketListener(event: string, handler: (...args: unknown[]) => void): void {
-            this.socket!.on(event, handler);
+            this.socket?.on(event, handler);
             this._socketListeners.push({ event, handler });
         },
 
@@ -281,7 +281,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
         _cleanupSocketListeners(): void {
             if (this.socket && this._socketListeners.length > 0) {
                 this._socketListeners.forEach(({ event, handler }: SocketListenerEntry) => {
-                    this.socket!.off(event, handler);
+                    this.socket?.off(event, handler);
                 });
             }
             this._socketListeners = [];
@@ -295,7 +295,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          */
         _queueOrEmit(event: string, data: Record<string, unknown>): void {
             if (this.isConnected()) {
-                this.socket!.emit(event, data);
+                this.socket?.emit(event, data);
             } else {
                 // Only queue certain safe events (chat messages)
                 const queueableEvents = ['chat:message', 'chat:spectator'];
@@ -318,7 +318,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
 
             for (const item of this._offlineQueue) {
                 if (now - item.timestamp < maxAge && this.isConnected()) {
-                    this.socket!.emit(item.event, item.data);
+                    this.socket?.emit(item.event, item.data);
                     replayed++;
                 }
             }
@@ -463,7 +463,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 this.on('error', onError);
 
                 // Send roomId, settings, and requestId to server
-                this.socket!.emit('room:create', {
+                this.socket?.emit('room:create', {
                     roomId,
                     settings: { nickname, ...settings },
                     requestId
@@ -536,7 +536,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 this.on('error', onError);
 
                 // Send roomId, nickname, and requestId to server
-                this.socket!.emit('room:join', { roomId, nickname, requestId });
+                this.socket?.emit('room:join', { roomId, nickname, requestId });
 
                 // Client timeout (20s) exceeds server JOIN_ROOM timeout (15s) to
                 // account for post-join processing (stats, token invalidation) and network latency.
@@ -554,7 +554,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * Use safe storage methods
          */
         leaveRoom(): void {
-            this.socket!.emit('room:leave');
+            this._getSocket()?.emit('room:leave');
             this.roomCode = null;
             this.player = null;
             this._offlineQueue = [];
@@ -566,7 +566,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param settings - New settings
          */
         updateSettings(settings: Record<string, unknown>): void {
-            this.socket!.emit('room:settings', settings);
+            this._getSocket()?.emit('room:settings', settings);
         },
 
         /**
@@ -578,7 +578,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 logger.warn('Only the host can kick players');
                 return;
             }
-            this.socket!.emit('player:kick', { targetSessionId });
+            this._getSocket()?.emit('player:kick', { targetSessionId });
         },
 
         /**
@@ -634,7 +634,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 this.on('roomResynced', onResynced);
                 this.on('error', onError);
 
-                this.socket!.emit('room:resync', { requestId });
+                this._getSocket()?.emit('room:resync', { requestId });
 
                 timeoutId = setTimeout(() => {
                     if (settled) return;
@@ -655,7 +655,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param callback - Optional acknowledgement callback
          */
         setTeam(team: string | null, callback?: (result: unknown) => void): void {
-            this.socket!.emit('player:setTeam', { team }, callback);
+            this._getSocket()?.emit('player:setTeam', { team }, callback);
         },
 
         /**
@@ -664,7 +664,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param callback - Optional acknowledgement callback
          */
         setRole(role: string, callback?: (result: unknown) => void): void {
-            this.socket!.emit('player:setRole', { role }, callback);
+            this._getSocket()?.emit('player:setRole', { role }, callback);
         },
 
         /**
@@ -672,7 +672,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param nickname - New nickname
          */
         setNickname(nickname: string): void {
-            this.socket!.emit('player:setNickname', { nickname });
+            this._getSocket()?.emit('player:setNickname', { nickname });
         },
 
         // =====================
@@ -684,7 +684,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param options - Game options
          */
         startGame(options: Record<string, unknown> = {}): void {
-            this.socket!.emit('game:start', options);
+            this._getSocket()?.emit('game:start', options);
         },
 
         /**
@@ -692,28 +692,28 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param index - Card index (0-24)
          */
         revealCard(index: number): void {
-            this.socket!.emit('game:reveal', { index });
+            this._getSocket()?.emit('game:reveal', { index });
         },
 
         /**
          * End current turn (host only)
          */
         endTurn(): void {
-            this.socket!.emit('game:endTurn');
+            this._getSocket()?.emit('game:endTurn');
         },
 
         /**
          * Forfeit the game (host only)
          */
         forfeit(): void {
-            this.socket!.emit('game:forfeit');
+            this._getSocket()?.emit('game:forfeit');
         },
 
         /**
          * Request game history (current game moves)
          */
         getHistory(): void {
-            this.socket!.emit('game:history');
+            this._getSocket()?.emit('game:history');
         },
 
         /**
@@ -721,7 +721,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param limit - Maximum number of games to return
          */
         getGameHistory(limit: number = 10): void {
-            this.socket!.emit('game:getHistory', { limit });
+            this._getSocket()?.emit('game:getHistory', { limit });
         },
 
         /**
@@ -729,7 +729,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param gameId - Game ID to replay
          */
         getReplay(gameId: string): void {
-            this.socket!.emit('game:getReplay', { gameId });
+            this._getSocket()?.emit('game:getReplay', { gameId });
         },
 
         // =====================
@@ -782,6 +782,18 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          */
         isSocketIOAvailable(): boolean {
             return isSocketIOReady();
+        },
+
+        /**
+         * Get socket or null if not connected, with a warning log.
+         * Use this instead of this.socket! in action methods.
+         */
+        _getSocket(): SocketClientInstance | null {
+            if (!this.socket) {
+                logger.warn('Socket action attempted but not connected');
+                return null;
+            }
+            return this.socket;
         },
 
         /**

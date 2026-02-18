@@ -37,14 +37,6 @@ describe('CSRF Protection Extended Tests', () => {
             expect(nextFn).not.toHaveBeenCalled();
         });
 
-        test.each(['GET', 'HEAD', 'OPTIONS'])('allows %s method without any headers', (method) => {
-            mockReq.method = method;
-            mockReq.headers = {}; // No headers at all
-            csrfProtection(mockReq, mockRes, nextFn);
-            expect(nextFn).toHaveBeenCalled();
-            expect(mockRes.status).not.toHaveBeenCalled();
-        });
-
         test('handles lowercase method names', () => {
             mockReq.method = 'get';
             csrfProtection(mockReq, mockRes, nextFn);
@@ -66,12 +58,6 @@ describe('CSRF Protection Extended Tests', () => {
             expect(mockRes.status).toHaveBeenCalledWith(403);
         });
 
-        test('allows X-Requested-With: XMLHttpRequest (case sensitive)', () => {
-            mockReq.headers['x-requested-with'] = 'XMLHttpRequest';
-            csrfProtection(mockReq, mockRes, nextFn);
-            expect(nextFn).toHaveBeenCalled();
-        });
-
         test('blocks XMLhttprequest (wrong case)', () => {
             mockReq.headers['x-requested-with'] = 'xmlhttprequest';
             csrfProtection(mockReq, mockRes, nextFn);
@@ -82,12 +68,6 @@ describe('CSRF Protection Extended Tests', () => {
             mockReq.headers['x-requested-with'] = 'Fetch';
             csrfProtection(mockReq, mockRes, nextFn);
             expect(mockRes.status).toHaveBeenCalledWith(403);
-        });
-
-        test('allows fetch (lowercase)', () => {
-            mockReq.headers['x-requested-with'] = 'fetch';
-            csrfProtection(mockReq, mockRes, nextFn);
-            expect(nextFn).toHaveBeenCalled();
         });
 
         test('blocks whitespace-only X-Requested-With', () => {

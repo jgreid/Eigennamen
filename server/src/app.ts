@@ -331,11 +331,11 @@ interface MetricsResponse {
     timestamp: string;
     process: {
         uptime: number;
-        memory: NodeJS.MemoryUsage;
-        cpu: NodeJS.CpuUsage;
+        memory?: NodeJS.MemoryUsage;
+        cpu?: NodeJS.CpuUsage;
     };
     instance?: {
-        flyAllocId: string;
+        flyAllocId?: string;
         flyRegion?: string;
     };
     socketio?: {
@@ -357,19 +357,16 @@ interface MetricsResponse {
 app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
     const metricsData: MetricsResponse = {
         timestamp: new Date().toISOString(),
-        process: {
-            uptime: process.uptime(),
-            memory: process.memoryUsage(),
-            cpu: process.cpuUsage()
-        }
+        process: isProduction
+            ? { uptime: process.uptime() }
+            : { uptime: process.uptime(), memory: process.memoryUsage(), cpu: process.cpuUsage() }
     };
 
-    // Add Fly.io instance info if available
+    // Add Fly.io instance info if available (region only in production; full details in dev)
     if (process.env.FLY_ALLOC_ID) {
-        metricsData.instance = {
-            flyAllocId: process.env.FLY_ALLOC_ID,
-            flyRegion: process.env.FLY_REGION
-        };
+        metricsData.instance = isProduction
+            ? { flyRegion: process.env.FLY_REGION }
+            : { flyAllocId: process.env.FLY_ALLOC_ID, flyRegion: process.env.FLY_REGION };
     }
 
     // Add socket.io stats with cached count

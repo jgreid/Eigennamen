@@ -35,14 +35,14 @@ import { ATOMIC_CREATE_ROOM_SCRIPT, ATOMIC_REFRESH_TTL_SCRIPT, ATOMIC_UPDATE_SET
 import { z } from 'zod';
 
 // Zod schema for Room data from Redis.
-// Validates critical fields when present; non-essential fields are optional
-// so tests with sparse mocks still pass.
+// Critical fields (code, hostSessionId, status) are required so that
+// corrupt data is rejected rather than silently passed downstream.
 const roomSchema = z.object({
     code: z.string(),
     id: z.string().optional(),
     roomId: z.string().optional(),
-    hostSessionId: z.string().optional(),
-    status: z.string().optional(),
+    hostSessionId: z.string(),
+    status: z.string(),
     settings: z.unknown().optional(),
     createdAt: z.number().optional(),
     expiresAt: z.number().optional(),

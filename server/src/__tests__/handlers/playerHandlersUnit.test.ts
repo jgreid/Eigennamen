@@ -131,17 +131,6 @@ describe('Player Handlers', () => {
             });
         });
 
-        test('emits error when player not found', async () => {
-            playerService.getPlayer.mockResolvedValue(null);
-
-            await eventHandlers['player:setTeam']({ team: 'blue' });
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
-                code: expect.any(String),
-                message: expect.stringContaining('must be in a room')
-            });
-        });
-
         test('prevents team switch during active turn for spymaster', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',

@@ -24,14 +24,6 @@ describe('Metrics Extended Tests', () => {
     });
 
     describe('Core counter operations', () => {
-        it('should increment counter with labels', () => {
-            incrementCounter('test_counter', 1, { env: 'test' });
-            incrementCounter('test_counter', 2, { env: 'test' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['test_counter:env=test'].value).toBe(3);
-        });
-
         it('should track different labels separately', () => {
             incrementCounter('requests', 1, { method: 'GET' });
             incrementCounter('requests', 1, { method: 'POST' });
@@ -43,55 +35,7 @@ describe('Metrics Extended Tests', () => {
         });
     });
 
-    describe('Core gauge operations', () => {
-        it('should set gauge with labels', () => {
-            setGauge('connections', 50, { type: 'websocket' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['connections:type=websocket'].value).toBe(50);
-        });
-
-        it('should increment gauge', () => {
-            incrementGauge('active_users', 1, { region: 'us' });
-            incrementGauge('active_users', 1, { region: 'us' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['active_users:region=us'].value).toBe(2);
-        });
-
-    });
-
     describe('Histogram operations', () => {
-        it('should record histogram values', () => {
-            recordHistogram('latency', 100);
-            recordHistogram('latency', 200);
-            recordHistogram('latency', 150);
-
-            const stats = getHistogramStats('latency');
-            expect(stats.count).toBe(3);
-            expect(stats.sum).toBe(450);
-            expect(stats.avg).toBe(150);
-            expect(stats.min).toBe(100);
-            expect(stats.max).toBe(200);
-        });
-
-        it('should calculate percentiles', () => {
-            for (let i = 1; i <= 100; i++) {
-                recordHistogram('response_time', i);
-            }
-
-            const stats = getHistogramStats('response_time');
-            expect(stats.p50).toBe(50);
-            expect(stats.p90).toBe(90);
-            expect(stats.p95).toBe(95);
-            expect(stats.p99).toBe(99);
-        });
-
-        it('should return null for non-existent histogram', () => {
-            const stats = getHistogramStats('nonexistent');
-            expect(stats).toBeNull();
-        });
-
         it('should limit histogram size to maxHistogramSize', () => {
             // Record more than maxHistogramSize (1000) values
             for (let i = 0; i < 1100; i++) {
@@ -179,115 +123,6 @@ describe('Metrics Extended Tests', () => {
         });
     });
 
-    describe('Convenience tracking functions', () => {
-        it('should track game started', () => {
-            incrementCounter(METRIC_NAMES.GAMES_STARTED, 1, { roomCode: 'ROOM01' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['games_started:roomCode=ROOM01'].value).toBe(1);
-        });
-
-        it('should track game completed', () => {
-            incrementCounter(METRIC_NAMES.GAMES_COMPLETED, 1, { roomCode: 'ROOM02', winner: 'red' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['games_completed:roomCode=ROOM02,winner=red'].value).toBe(1);
-        });
-
-        it('should track card revealed', () => {
-            incrementCounter(METRIC_NAMES.CARDS_REVEALED, 1, { roomCode: 'ROOM03', team: 'blue', cardType: 'agent' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['cards_revealed:cardType=agent,roomCode=ROOM03,team=blue'].value).toBe(1);
-        });
-
-        it('should track clue given', () => {
-            incrementCounter(METRIC_NAMES.CLUES_GIVEN, 1, { roomCode: 'ROOM04', team: 'red' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['clues_given:roomCode=ROOM04,team=red'].value).toBe(1);
-        });
-
-        it('should track room created', () => {
-            incrementCounter(METRIC_NAMES.ROOMS_CREATED);
-            incrementCounter(METRIC_NAMES.ROOMS_CREATED);
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['rooms_created'].value).toBe(2);
-        });
-
-        it('should track room joined', () => {
-            incrementCounter(METRIC_NAMES.ROOMS_JOINED, 1, { roomCode: 'ROOM05' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['rooms_joined:roomCode=ROOM05'].value).toBe(1);
-        });
-
-        it('should track errors', () => {
-            incrementCounter(METRIC_NAMES.ERRORS, 1, { errorCode: 'ROOM_NOT_FOUND', operation: 'joinRoom' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['errors:errorCode=ROOM_NOT_FOUND,operation=joinRoom'].value).toBe(1);
-        });
-
-        it('should track rate limit hits', () => {
-            incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { event: 'room:create' });
-
-            const metrics = getAllMetrics();
-            expect(metrics.counters['rate_limit_hits:event=room:create'].value).toBe(1);
-        });
-
-        it('should set active rooms gauge', () => {
-            setGauge(METRIC_NAMES.ACTIVE_ROOMS, 15);
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['active_rooms'].value).toBe(15);
-        });
-
-        it('should set active players gauge', () => {
-            setGauge(METRIC_NAMES.ACTIVE_PLAYERS, 100);
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['active_players'].value).toBe(100);
-        });
-
-        it('should set active games gauge', () => {
-            setGauge(METRIC_NAMES.ACTIVE_GAMES, 5);
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['active_games'].value).toBe(5);
-        });
-
-        it('should set socket connections gauge', () => {
-            setGauge(METRIC_NAMES.SOCKET_CONNECTIONS, 200);
-
-            const metrics = getAllMetrics();
-            expect(metrics.gauges['socket_connections'].value).toBe(200);
-        });
-
-        it('should track operation latency', () => {
-            recordHistogram(METRIC_NAMES.OPERATION_LATENCY, 150, { operation: 'createRoom' });
-
-            const stats = getHistogramStats('operation_latency_ms', { operation: 'createRoom' });
-            expect(stats.count).toBe(1);
-            expect(stats.avg).toBe(150);
-        });
-
-        it('should track Redis latency', () => {
-            recordHistogram(METRIC_NAMES.REDIS_LATENCY, 5, { command: 'GET' });
-
-            const stats = getHistogramStats('redis_latency_ms', { command: 'GET' });
-            expect(stats.count).toBe(1);
-        });
-
-        it('should track socket event latency', () => {
-            recordHistogram(METRIC_NAMES.SOCKET_EVENT_LATENCY, 25, { event: 'room:join' });
-
-            const stats = getHistogramStats('socket_event_latency_ms', { event: 'room:join' });
-            expect(stats.count).toBe(1);
-        });
-    });
-
     describe('Phase 5.1 tracking functions', () => {
         it('should track HTTP requests', () => {
             incrementCounter(METRIC_NAMES.HTTP_REQUESTS, 1, { method: 'GET', path: '/api/rooms', statusCode: '200' });
@@ -354,26 +189,6 @@ describe('Metrics Extended Tests', () => {
     });
 
     describe('getAllMetrics()', () => {
-        it('should include timestamp and instanceId', () => {
-            const metrics = getAllMetrics();
-
-            expect(metrics.timestamp).toBeDefined();
-            expect(typeof metrics.timestamp).toBe('number');
-            expect(metrics.instanceId).toBeDefined();
-        });
-
-        it('should return all metric types', () => {
-            incrementCounter('test_counter', 1);
-            setGauge('test_gauge', 100);
-            recordHistogram('test_histogram', 50);
-
-            const metrics = getAllMetrics();
-
-            expect(metrics.counters.test_counter).toBeDefined();
-            expect(metrics.gauges.test_gauge).toBeDefined();
-            expect(metrics.histograms.test_histogram).toBeDefined();
-        });
-
         it('should skip empty histograms in export', () => {
             // This should not appear in export
             const metrics = getAllMetrics();

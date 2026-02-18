@@ -121,6 +121,11 @@ jest.mock('../../middleware/rateLimit', () => ({
     strictLimiter: (req, res, next) => next()
 }));
 
+// Mock player service
+jest.mock('../../services/playerService', () => ({
+    removePlayer: jest.fn(async () => {})
+}));
+
 // Mock room service
 jest.mock('../../services/roomService', () => ({
     deleteRoom: jest.fn(async () => {}),
@@ -158,6 +163,7 @@ describe('Admin Routes Extended Tests', () => {
         // Setup mock Socket.io
         mockIo = {
             to: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnValue({ socketsLeave: jest.fn() }),
             emit: jest.fn(),
             fetchSockets: jest.fn(async () => [])
         };
@@ -291,6 +297,8 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should kick player successfully', async () => {
+            const { removePlayer } = require('../../services/playerService');
+
             const response = await request(app)
                 .delete(`/admin/api/rooms/${roomCode}/players/${playerId}`)
                 .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
@@ -300,8 +308,15 @@ describe('Admin Routes Extended Tests', () => {
             expect(response.body.message).toContain('kicked');
 
             // Verify socket.io notifications
-            expect(mockIo.to).toHaveBeenCalledWith(playerId);
+            expect(mockIo.to).toHaveBeenCalledWith(`player:${playerId}`);
             expect(mockIo.emit).toHaveBeenCalledWith('room:kicked', expect.any(Object));
+
+            // Verify player's socket forced to leave the room
+            expect(mockIo.in).toHaveBeenCalledWith(`player:${playerId}`);
+            expect(mockIo.in(`player:${playerId}`).socketsLeave).toHaveBeenCalledWith(`room:${roomCode.toLowerCase()}`);
+
+            // Verify proper cleanup via playerService
+            expect(removePlayer).toHaveBeenCalledWith(playerId);
 
             // Verify metrics and audit
             expect(incrementCounter).toHaveBeenCalledWith(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode: roomCode.toLowerCase(), reason: 'admin' });
@@ -458,7 +473,7 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle Redis errors in player kick', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host' }));
+            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host', status: 'waiting' }));
             mockRedis.sIsMember.mockRejectedValueOnce(new Error('Redis error'));
 
             const response = await request(app)
@@ -470,7 +485,7 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle errors in room deletion', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM' }));
+            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host-session-123', status: 'waiting' }));
 
             // Make roomService.deleteRoom throw
             const roomService = require('../../services/roomService');
