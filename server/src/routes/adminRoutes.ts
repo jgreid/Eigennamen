@@ -77,7 +77,8 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login
-                audit.adminLogin(req.ip ?? '', true);
+                Promise.resolve(audit.adminLogin(req.ip ?? '', true))
+                    .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
                 return next();
             }
         }
@@ -86,7 +87,8 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
     }
 
     // Audit failed login
-    audit.adminLogin(req.ip ?? '', false);
+    Promise.resolve(audit.adminLogin(req.ip ?? '', false))
+        .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
 
     res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
     return res.status(401).json({

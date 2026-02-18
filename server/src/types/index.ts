@@ -24,8 +24,5 @@ export * from './services';
 // Configuration types
 export * from './config';
 
-// Utility types
-export * from './utils';
-
 // Redis types
 export * from './redis';

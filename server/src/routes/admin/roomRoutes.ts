@@ -400,7 +400,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         // Notify the player they've been kicked
         const io = req.app.get('io');
         if (io) {
-            io.to(playerId).emit('room:kicked', {
+            io.to(`player:${playerId}`).emit('room:kicked', {
                 reason: 'Kicked by administrator',
                 timestamp: new Date().toISOString()
             });
@@ -425,7 +425,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         incrementCounter(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode: normalizedCode, reason: 'admin' });
 
         // Audit the player kick action
-        audit.adminKickPlayer(normalizedCode, playerId, req.ip ?? '', 'Admin action');
+        Promise.resolve(audit.adminKickPlayer(normalizedCode, playerId, req.ip ?? '', 'Admin action'))
+            .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
 
         res.json({
             success: true,
@@ -504,7 +505,8 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         });
 
         // Audit the room deletion
-        audit.adminDeleteRoom(normalizedCode, req.ip ?? '', 'Admin action');
+        Promise.resolve(audit.adminDeleteRoom(normalizedCode, req.ip ?? '', 'Admin action'))
+            .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
 
         res.json({
             success: true,

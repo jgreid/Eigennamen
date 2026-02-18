@@ -300,7 +300,7 @@ describe('Admin Routes Extended Tests', () => {
             expect(response.body.message).toContain('kicked');
 
             // Verify socket.io notifications
-            expect(mockIo.to).toHaveBeenCalledWith(playerId);
+            expect(mockIo.to).toHaveBeenCalledWith(`player:${playerId}`);
             expect(mockIo.emit).toHaveBeenCalledWith('room:kicked', expect.any(Object));
 
             // Verify metrics and audit

@@ -79,11 +79,19 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.PLAYER_NOT_FOUND]: 404
         };
 
+        // Strip internal identifiers from details before sending to client
+        const rawDetails = (err as AppError).details;
+        let safeDetails = rawDetails;
+        if (rawDetails && typeof rawDetails === 'object' && !Array.isArray(rawDetails)) {
+            const { sessionId: _s, roomId: _r, operation: _o, ...rest } = rawDetails as Record<string, unknown>;
+            safeDetails = Object.keys(rest).length > 0 ? rest : undefined;
+        }
+
         return res.status(statusMap[err.code] || 500).json({
             error: {
                 code: err.code,
                 message: err.message,
-                details: (err as AppError).details
+                ...(safeDetails !== undefined && { details: safeDetails })
             }
         });
     }
