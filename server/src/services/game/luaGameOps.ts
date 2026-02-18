@@ -28,6 +28,14 @@ import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT } from '../../scripts';
 export const OPTIMIZED_REVEAL_SCRIPT: string = REVEAL_CARD_SCRIPT;
 export const OPTIMIZED_END_TURN_SCRIPT: string = END_TURN_SCRIPT;
 
+// Lua cjson roundtrip converts empty arrays [] to empty objects {}.
+// This preprocessor normalizes empty objects back to empty arrays so
+// Zod's z.array() validation succeeds after Lua script re-encodes game state.
+const emptyObjToArray = (val: unknown) =>
+    val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val as object).length === 0
+        ? []
+        : val;
+
 // Zod schemas
 const gameStateSchema = z.object({
     id: z.string(),
@@ -45,13 +53,13 @@ const gameStateSchema = z.object({
     currentClue: z.unknown().optional(),
     guessesUsed: z.number().optional(),
     guessesAllowed: z.number().optional(),
-    clues: z.array(z.unknown()).optional(),
-    history: z.array(z.unknown()).optional(),
+    clues: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
+    history: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
     stateVersion: z.number().optional(),
     createdAt: z.number().optional(),
     gameMode: z.string().optional(),
     wordListId: z.string().nullable().optional(),
-    duetTypes: z.array(z.string()).optional(),
+    duetTypes: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),
     timerTokens: z.number().optional(),
     greenFound: z.number().optional(),
     greenTotal: z.number().optional(),
