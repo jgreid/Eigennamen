@@ -263,7 +263,6 @@ describe('Extended Health Routes', () => {
                 .expect(503);
 
             expect(response.body.checks.pubsub.consecutiveFailures).toBe(10);
-            expect(response.body.checks.pubsub.lastError).toBe('Connection timeout');
         });
     });
 

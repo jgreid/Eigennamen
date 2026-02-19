@@ -2,20 +2,14 @@
  * Rate-limited Socket Handler Utility
  */
 
-import type { Socket } from 'socket.io';
-
 import { createSocketRateLimiter } from '../middleware/rateLimit';
 import { RATE_LIMITS, ERROR_CODES } from '../config/constants';
 import logger from '../utils/logger';
 import { sanitizeErrorForClient } from '../errors/GameError';
 
-export interface GameSocket extends Socket {
-    sessionId: string;
-    roomCode: string | null;
-    clientIP?: string;
-    flyInstanceId?: string;
-    rateLimiter?: SocketRateLimiter;
-}
+// Import and re-export the canonical GameSocket from handlers/types
+import type { GameSocket } from './handlers/types';
+export type { GameSocket } from './handlers/types';
 
 type RateLimiterMiddleware = (
     socket: GameSocket,

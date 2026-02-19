@@ -33,14 +33,19 @@ async function withTimeout<T>(
     operationName: string = 'operation'
 ): Promise<T> {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
+            timedOut = true;
             const error = new TimeoutError(
                 `${operationName} timed out after ${timeoutMs}ms`,
                 operationName
             );
             logger.error(`Operation timeout: ${operationName} exceeded ${timeoutMs}ms`);
+            // Attach a no-op catch to the original promise so that if it rejects
+            // after the timeout wins the race, Node.js doesn't see an unhandled rejection.
+            promise.catch(() => {});
             reject(error);
         }, timeoutMs);
     });
@@ -51,6 +56,11 @@ async function withTimeout<T>(
         return result;
     } catch (error) {
         if (timeoutId !== undefined) clearTimeout(timeoutId);
+        // If the original promise rejected (not a timeout), attach a no-op
+        // catch to the timeout promise to prevent unhandled rejection warnings.
+        if (!timedOut) {
+            timeoutPromise.catch(() => {});
+        }
         throw error;
     }
 }

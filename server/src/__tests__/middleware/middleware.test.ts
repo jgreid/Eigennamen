@@ -56,17 +56,20 @@ describe('Error Handler Middleware', () => {
 
             expect(response.body.error).toBeDefined();
             expect(response.body.error.code).toBe('NOT_FOUND');
-            expect(response.body.error.message).toContain('/nonexistent/route');
+            expect(response.body.error.message).toBe('The requested resource was not found');
         });
 
-        it('should include HTTP method in error message', async () => {
+        it('should return generic message without reflecting path', async () => {
             app.use(notFoundHandler);
 
             const response = await request(app)
                 .post('/nonexistent')
                 .expect(404);
 
-            expect(response.body.error.message).toContain('POST');
+            expect(response.body.error.message).toBe('The requested resource was not found');
+            // Should NOT reflect the path or method back (prevents information leakage)
+            expect(response.body.error.message).not.toContain('POST');
+            expect(response.body.error.message).not.toContain('/nonexistent');
         });
     });
 

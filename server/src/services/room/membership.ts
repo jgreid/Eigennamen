@@ -20,9 +20,10 @@ import { normalizeRoomCode } from '../../utils/sanitize';
 import {
     ROOM_MAX_PLAYERS,
     REDIS_TTL,
+    LOCKS,
 } from '../../config/constants';
 import { RoomError, ServerError } from '../../errors/GameError';
-import { ATOMIC_JOIN_SCRIPT } from '../../scripts';
+import { ATOMIC_JOIN_SCRIPT, RELEASE_LOCK_SCRIPT } from '../../scripts';
 import { getRoom, refreshRoomTTL, cleanupRoom } from '../roomService';
 
 /**
@@ -178,20 +179,53 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     // Transfer host BEFORE removing the player so atomicHostTransfer can read old host data.
     // Previously removePlayer was called first, which deleted the old host's data and caused
     // atomicHostTransfer to always fail with OLD_HOST_NOT_FOUND, falling back to non-atomic path.
+    // Uses distributed lock to prevent race with disconnectHandler's host transfer.
     const firstPlayer = remainingPlayers[0];
     if (room.hostSessionId === sessionId && remainingPlayers.length > 0 && firstPlayer) {
-        newHostId = firstPlayer.sessionId;
-        const transferResult = await playerService.atomicHostTransfer(sessionId, newHostId, code);
-        if (!transferResult.success) {
-            logger.warn(`Non-atomic host transfer fallback for room ${code}: ${transferResult.reason}`);
-            // Fallback to non-atomic if Lua script fails (e.g., memory mode)
-            room.hostSessionId = newHostId;
-            await withTimeout(
-                redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM }),
+        const lockKey = `lock:host-transfer:${code}`;
+        let lockAcquired = false;
+        let lockValue: string | undefined;
+
+        try {
+            lockValue = `leave:${sessionId}:${Date.now()}`;
+            const lockResult = await withTimeout(
+                redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.HOST_TRANSFER }),
                 TIMEOUTS.REDIS_OPERATION,
-                `leaveRoom-set-hostTransfer-${code}`
+                `leaveRoom-hostTransferLock-${code}`
             );
-            await playerService.updatePlayer(newHostId, { isHost: true });
+            lockAcquired = lockResult === 'OK' || !!lockResult;
+
+            if (lockAcquired) {
+                newHostId = firstPlayer.sessionId;
+                const transferResult = await playerService.atomicHostTransfer(sessionId, newHostId, code);
+                if (!transferResult.success) {
+                    logger.warn(`Non-atomic host transfer fallback for room ${code}: ${transferResult.reason}`);
+                    // Fallback to non-atomic if Lua script fails (e.g., memory mode)
+                    room.hostSessionId = newHostId;
+                    await withTimeout(
+                        redis.set(`room:${code}`, JSON.stringify(room), { EX: REDIS_TTL.ROOM }),
+                        TIMEOUTS.REDIS_OPERATION,
+                        `leaveRoom-set-hostTransfer-${code}`
+                    );
+                    await playerService.updatePlayer(newHostId, { isHost: true });
+                }
+            } else {
+                logger.debug(`Host transfer lock not acquired in leaveRoom for room ${code}, another handler is transferring`);
+            }
+        } catch (lockError) {
+            logger.error(`Host transfer lock error in leaveRoom for room ${code}: ${(lockError as Error).message}`);
+        } finally {
+            if (lockAcquired && lockValue) {
+                try {
+                    await withTimeout(
+                        redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
+                        TIMEOUTS.REDIS_OPERATION,
+                        `release-host-transfer-lock-leave-${code}`
+                    );
+                } catch (delErr) {
+                    logger.error(`Failed to release host transfer lock in leaveRoom for ${code}: ${(delErr as Error).message}`);
+                }
+            }
         }
     }
 

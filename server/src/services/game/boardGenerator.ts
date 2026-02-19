@@ -146,6 +146,13 @@ export function generateBoardLayout(numericSeed: number, isDuet: boolean): Board
         blueTotal = FIRST_TEAM_CARDS;
     }
     types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral') as CardType[], 'assassin'];
+
+    if (types.length !== BOARD_SIZE) {
+        throw new Error(
+            `Board generation error: card types count (${types.length}) does not match BOARD_SIZE (${BOARD_SIZE})`
+        );
+    }
+
     types = shuffleWithSeed(types, numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);
 
     return { types, redTotal, blueTotal, firstTeam };
