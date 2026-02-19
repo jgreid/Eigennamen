@@ -76,8 +76,10 @@ export function openMultiplayer(): void {
     if (createNicknameEl) createNicknameEl.value = storedNickname;
 
     // Reset forms
-    (document.getElementById('join-room-id') as HTMLInputElement).value = '';
-    (document.getElementById('create-room-id') as HTMLInputElement).value = '';
+    const joinRoomEl = document.getElementById('join-room-id') as HTMLInputElement | null;
+    if (joinRoomEl) joinRoomEl.value = '';
+    const createRoomEl = document.getElementById('create-room-id') as HTMLInputElement | null;
+    if (createRoomEl) createRoomEl.value = '';
     setMpStatus('', '');
     clearFormErrors();
 
@@ -174,8 +176,10 @@ export async function handleMpAction(): Promise<void> {
 async function handleJoinGame(): Promise<void> {
     clearFormErrors();
 
-    const nickname = (document.getElementById('join-nickname') as HTMLInputElement).value.trim();
-    const roomIdInput = (document.getElementById('join-room-id') as HTMLInputElement).value.trim();
+    const joinNicknameEl = document.getElementById('join-nickname') as HTMLInputElement | null;
+    const joinRoomIdEl = document.getElementById('join-room-id') as HTMLInputElement | null;
+    const nickname = joinNicknameEl?.value.trim() ?? '';
+    const roomIdInput = joinRoomIdEl?.value.trim() ?? '';
     const urlRoomCode = getRoomCodeFromURL();
     const joinBtn = document.getElementById('btn-mp-action') as HTMLButtonElement;
 
@@ -258,8 +262,10 @@ async function handleJoinGame(): Promise<void> {
 async function handleCreateGame(): Promise<void> {
     clearFormErrors();
 
-    const nickname = (document.getElementById('create-nickname') as HTMLInputElement).value.trim();
-    const roomId = (document.getElementById('create-room-id') as HTMLInputElement).value.trim();
+    const createNicknameEl = document.getElementById('create-nickname') as HTMLInputElement | null;
+    const createRoomIdEl = document.getElementById('create-room-id') as HTMLInputElement | null;
+    const nickname = createNicknameEl?.value.trim() ?? '';
+    const roomId = createRoomIdEl?.value.trim() ?? '';
     const createBtn = document.getElementById('btn-mp-action') as HTMLButtonElement;
 
     const nicknameValidation = validateNickname(nickname);

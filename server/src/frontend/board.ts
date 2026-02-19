@@ -268,8 +268,11 @@ export function updateBoardIncremental(): void {
 
         let needsFit = false;
         const cards = board.children;
+        const wordCount = state.gameState.words.length;
         for (let index = 0; index < cards.length; index++) {
             const card = cards[index] as HTMLElement;
+            // Guard against array length mismatch between DOM and state
+            if (index >= wordCount) break;
             const isRevealed = state.gameState.revealed[index];
             const type = state.gameState.types[index];
             const word = state.gameState.words[index];
@@ -337,6 +340,8 @@ export function updateBoardIncremental(): void {
 export function updateSingleCard(index: number): void {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board || !board.children[index]) return;
+    // Guard against array length mismatch
+    if (index >= state.gameState.types.length || index >= state.gameState.words.length) return;
 
     const card = board.children[index] as HTMLElement;
     const type = state.gameState.types[index];
