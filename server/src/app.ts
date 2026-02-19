@@ -17,6 +17,7 @@ import { csrfProtection } from './middleware/csrf';
 import { requestTiming } from './middleware/timing';
 import routes from './routes';
 import adminRoutes from './routes/adminRoutes';
+import healthRoutes from './routes/healthRoutes';
 import logger from './utils/logger';
 import { setupSwagger } from './config/swagger';
 import { getAllMetrics, setGauge, METRIC_NAMES } from './utils/metrics';
@@ -121,8 +122,7 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"], // Game uses inline scripts, all libs bundled locally
-            scriptSrcAttr: ["'unsafe-inline'"],       // Game uses onclick handlers
+            scriptSrc: ["'self'"],                    // All scripts loaded from external files
             styleSrc: ["'self'", "'unsafe-inline'"],  // Game uses inline styles
             imgSrc: ["'self'", 'data:', 'blob:'],
             connectSrc: ["'self'", 'wss:', 'ws:'],    // WebSocket connections
@@ -211,117 +211,9 @@ app.use(express.static(path.join(__dirname, '../public'), {
     lastModified: true
 }));
 
-// Basic health check (fast, for load balancer keep-alive)
-app.get('/health', (_req: Request, res: Response) => {
-    res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
-
-// Health check response interface
-interface HealthCheckResponse {
-    status: string;
-    timestamp: string;
-    uptime: number;
-    memory: NodeJS.MemoryUsage;
-    instance?: {
-        flyAllocId: string;
-        flyRegion?: string;
-    };
-    checks: {
-        database?: { status: string; note?: string; message?: string };
-        storage?: { status: string; type?: string; note?: string; message?: string };
-        socketio?: { status: string; connections?: number; cached?: boolean; note?: string; message?: string };
-    };
-}
-
-// Detailed health check with all dependencies (Redis, Database, Socket.io)
-// This is the endpoint Fly.io should use for readiness checks
-app.get('/health/ready', async (_req: Request, res: Response) => {
-    const checks: HealthCheckResponse = {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        checks: {}
-    };
-
-    // Add Fly.io instance info if available
-    if (process.env.FLY_ALLOC_ID) {
-        checks.instance = {
-            flyAllocId: process.env.FLY_ALLOC_ID,
-            flyRegion: process.env.FLY_REGION
-        };
-    }
-
-    // Check Database (PostgreSQL via Prisma) - Optional
-    try {
-        const { isDatabaseEnabled } = require('./config/database');
-        if (isDatabaseEnabled()) {
-            const getDatabase = app.get('database') as () => { $queryRaw: (query: TemplateStringsArray) => Promise<unknown> };
-            const prisma = getDatabase();
-            // Simple query to verify database connectivity
-            await prisma.$queryRaw`SELECT 1`;
-            checks.checks.database = { status: 'ok' };
-        } else {
-            checks.checks.database = { status: 'disabled', note: 'Game works without database' };
-        }
-    } catch (error) {
-        checks.checks.database = { status: 'error', message: (error as Error).message };
-        // Database errors don't degrade overall status since it's optional
-        logger.warn('Health check: Database error (non-critical)', (error as Error).message);
-    }
-
-    // Check Redis/Storage
-    try {
-        const { isRedisHealthy, isUsingMemoryMode } = require('./config/redis');
-        const healthy: boolean = await isRedisHealthy();
-        const memoryMode: boolean = isUsingMemoryMode();
-        if (healthy) {
-            checks.checks.storage = {
-                status: 'ok',
-                type: memoryMode ? 'memory' : 'redis',
-                note: memoryMode ? 'Single-instance mode, data will not persist across restarts' : undefined
-            };
-        } else {
-            checks.checks.storage = { status: 'error', message: 'Storage not connected' };
-            checks.status = 'degraded';
-        }
-    } catch (error) {
-        checks.checks.storage = { status: 'error', message: (error as Error).message };
-        checks.status = 'degraded';
-        logger.error('Health check: Storage error', (error as Error).message);
-    }
-
-    // Check Socket.io with cached count for fast response
-    try {
-        const io = app.get('io') as SocketServer | undefined;
-        if (io) {
-            const { count, cached, stale } = await getCachedSocketCount(io);
-            checks.checks.socketio = {
-                status: 'ok',
-                connections: count,
-                cached,
-                ...(stale && { note: 'Count may be stale' })
-            };
-        } else {
-            checks.checks.socketio = { status: 'not_configured' };
-        }
-    } catch (error) {
-        checks.checks.socketio = { status: 'error', message: (error as Error).message };
-        checks.status = 'degraded';
-    }
-
-    const statusCode = checks.status === 'ok' ? 200 : 503;
-    res.status(statusCode).json(checks);
-});
-
-// Liveness probe (Kubernetes/Fly.io) - just confirms process is running
-app.get('/health/live', (_req: Request, res: Response) => {
-    res.status(200).json({ status: 'alive' });
-});
+// Health check routes (readiness, liveness, metrics)
+// Mounted before static files so /health/* is handled by the router
+app.use('/health', healthRoutes);
 
 // OpenAPI/Swagger documentation (accessible at /api-docs)
 setupSwagger(app as unknown as Express);
@@ -385,7 +277,7 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
         logger.warn('Failed to fetch socket stats for metrics:', (error as Error).message);
         metricsData.socketio = {
             status: 'error',
-            error: (error as Error).message
+            error: 'Failed to fetch socket stats'
         };
     }
 
@@ -397,7 +289,7 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
         logger.warn('Failed to fetch application metrics:', (error as Error).message);
         metricsData.application = {
             status: 'error',
-            error: (error as Error).message
+            error: 'Failed to fetch application metrics'
         };
     }
 

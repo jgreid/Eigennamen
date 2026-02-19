@@ -3,16 +3,12 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
+import type { GameSocket } from '../socket/handlers/types';
 
 import logger from '../utils/logger';
 
 interface TimedRequest extends Request {
     requestId?: string;
-}
-
-interface GameSocket {
-    id: string;
-    sessionId?: string;
 }
 
 function requestTiming(req: TimedRequest, res: Response, next: NextFunction): void {

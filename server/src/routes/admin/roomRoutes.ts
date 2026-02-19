@@ -2,9 +2,9 @@
  * Admin Room Routes - Room management, player kick, and broadcast endpoints
  */
 
-import type { Request, Response, Router as ExpressRouter, Application } from 'express';
-import type { Server } from 'socket.io';
+import type { Request, Response, Router as ExpressRouter } from 'express';
 import type { RedisClient } from '../../types';
+import type { AdminRequest } from '../../types/admin';
 
 import express from 'express';
 import logger from '../../utils/logger';
@@ -14,17 +14,8 @@ import { normalizeRoomCode } from '../../utils/sanitize';
 import { tryParseJSON } from '../../utils/parseJSON';
 import { audit } from '../../services/auditService';
 import { removePlayer } from '../../services/playerService';
+import * as roomService from '../../services/roomService';
 import { incrementCounter, METRIC_NAMES } from '../../utils/metrics';
-
-/**
- * Admin request with username
- */
-interface AdminRequest extends Request {
-    adminUsername?: string;
-    app: Application & {
-        get(key: 'io'): Server | undefined;
-    };
-}
 
 /**
  * Room data from Redis — aligned with the canonical Room type in types/room.ts.
@@ -103,6 +94,9 @@ const router: ExpressRouter = express.Router();
  * Zod schema for broadcast validation
  * Replaces manual type assertion with proper schema validation
  */
+// Shared room code validation regex (matches the Zod roomCodeSchema in validators/)
+const ROOM_CODE_REGEX = /^[\p{L}\p{N}\-_]{3,20}$/u;
+
 const broadcastSchema = z.object({
     message: z.string().min(1, 'Broadcast message is required').max(500, 'Broadcast message must be 500 characters or less'),
     type: z.enum(['info', 'warning', 'error']).default('info')
@@ -258,7 +252,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
         }
 
         // Validate room code format
-        if (!/^[\p{L}\p{N}\-_]{3,20}$/u.test(code)) {
+        if (!ROOM_CODE_REGEX.test(code)) {
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
@@ -371,7 +365,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         }
 
         // Validate room code format
-        if (!/^[\p{L}\p{N}\-_]{3,20}$/u.test(code)) {
+        if (!ROOM_CODE_REGEX.test(code)) {
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
@@ -507,7 +501,7 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         }
 
         // Validate room code format (Unicode letters/numbers, hyphens, underscores)
-        if (!/^[\p{L}\p{N}\-_]{3,20}$/u.test(code)) {
+        if (!ROOM_CODE_REGEX.test(code)) {
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
@@ -542,7 +536,6 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         }
 
         // Use roomService to properly clean up the room
-        const roomService = require('../../services/roomService');
         await roomService.deleteRoom(normalizedCode);
 
         logger.info('Room force closed by admin', {

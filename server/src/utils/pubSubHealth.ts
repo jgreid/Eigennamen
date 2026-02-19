@@ -97,14 +97,24 @@ function recordFailure(err: Error): void {
  * @param subClient - The Redis subscribe client (must support .ping())
  */
 function attachToClients(
-    pubClient: { on: (event: string, cb: (...args: unknown[]) => void) => void; ping: () => Promise<string> },
-    subClient: { on: (event: string, cb: (...args: unknown[]) => void) => void; ping: () => Promise<string> }
+    pubClient: { on: (event: string, cb: (...args: unknown[]) => void) => void; removeAllListeners?: (event: string) => void; ping: () => Promise<string> },
+    subClient: { on: (event: string, cb: (...args: unknown[]) => void) => void; removeAllListeners?: (event: string) => void; ping: () => Promise<string> }
 ): void {
     // Mark both as healthy on attach (they just connected)
     const now = Date.now();
     lastPubSuccess = now;
     lastSubSuccess = now;
     consecutiveFailures = 0;
+
+    // Remove prior listeners to prevent accumulation on reconnection
+    if (pubClient.removeAllListeners) {
+        pubClient.removeAllListeners('error');
+        pubClient.removeAllListeners('ready');
+    }
+    if (subClient.removeAllListeners) {
+        subClient.removeAllListeners('error');
+        subClient.removeAllListeners('ready');
+    }
 
     // Listen for client-level errors
     pubClient.on('error', (err: unknown) => {

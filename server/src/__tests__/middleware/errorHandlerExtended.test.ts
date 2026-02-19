@@ -159,8 +159,7 @@ describe('Error Handler Extended Tests', () => {
                 .delete('/unknown/resource')
                 .expect(404);
 
-            expect(response.body.error.message).toContain('DELETE');
-            expect(response.body.error.message).toContain('/unknown/resource');
+            expect(response.body.error.message).toBe('The requested resource was not found');
         });
 
         it('should handle PUT requests', async () => {
@@ -168,7 +167,7 @@ describe('Error Handler Extended Tests', () => {
                 .put('/api/nonexistent')
                 .expect(404);
 
-            expect(response.body.error.message).toContain('PUT');
+            expect(response.body.error.message).toBe('The requested resource was not found');
         });
 
         it('should handle PATCH requests', async () => {
@@ -176,7 +175,7 @@ describe('Error Handler Extended Tests', () => {
                 .patch('/api/resource/123')
                 .expect(404);
 
-            expect(response.body.error.message).toContain('PATCH');
+            expect(response.body.error.message).toBe('The requested resource was not found');
         });
 
         it('should handle paths with query parameters', async () => {
@@ -184,7 +183,8 @@ describe('Error Handler Extended Tests', () => {
                 .get('/search?q=test&page=1')
                 .expect(404);
 
-            expect(response.body.error.message).toContain('/search');
+            // Should not reflect path back in message
+            expect(response.body.error.message).toBe('The requested resource was not found');
         });
 
         it('should handle paths with special characters', async () => {

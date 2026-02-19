@@ -5,8 +5,8 @@
  * Protected by HTTP Basic Authentication using ADMIN_PASSWORD environment variable.
  */
 
-import type { Request, Response, NextFunction, Router as ExpressRouter, Application } from 'express';
-import type { Server } from 'socket.io';
+import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
+import type { AdminRequest } from '../types/admin';
 
 import express from 'express';
 import path from 'path';
@@ -21,16 +21,6 @@ import roomRouter from './admin/roomRoutes';
 import auditRouter from './admin/auditRoutes';
 
 const router: ExpressRouter = express.Router();
-
-/**
- * Admin request with username
- */
-interface AdminRequest extends Request {
-    adminUsername?: string;
-    app: Application & {
-        get(key: 'io'): Server | undefined;
-    };
-}
 
 /**
  * Basic Authentication Middleware

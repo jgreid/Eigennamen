@@ -74,30 +74,20 @@ describe('Admin Audit Routes', () => {
             });
         });
 
-        it('should cap limit at 1000', async () => {
-            auditService.getAuditLogs.mockResolvedValue([]);
-            auditService.getAuditSummary.mockResolvedValue({});
-
-            await request(app)
+        it('should reject limit exceeding 1000', async () => {
+            const response = await request(app)
                 .get('/admin/api/audit?limit=5000')
-                .expect(200);
+                .expect(400);
 
-            expect(auditService.getAuditLogs).toHaveBeenCalledWith(
-                expect.objectContaining({ limit: 1000 })
-            );
+            expect(response.body.error.code).toBe('VALIDATION_ERROR');
         });
 
-        it('should default invalid limit to 100', async () => {
-            auditService.getAuditLogs.mockResolvedValue([]);
-            auditService.getAuditSummary.mockResolvedValue({});
-
-            await request(app)
+        it('should reject non-numeric limit', async () => {
+            const response = await request(app)
                 .get('/admin/api/audit?limit=notanumber')
-                .expect(200);
+                .expect(400);
 
-            expect(auditService.getAuditLogs).toHaveBeenCalledWith(
-                expect.objectContaining({ limit: 100 })
-            );
+            expect(response.body.error.code).toBe('VALIDATION_ERROR');
         });
 
         it('should return 500 when service throws', async () => {

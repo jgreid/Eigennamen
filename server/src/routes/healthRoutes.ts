@@ -32,8 +32,6 @@ interface HealthCheck {
     mode?: string;
     status?: string;
     consecutiveFailures?: number;
-    lastError?: string | null;
-    error?: string;
 }
 
 /**
@@ -117,8 +115,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
             checks.pubsub = {
                 healthy: pubSubStatus.isHealthy,
                 status: pubSubStatus.isHealthy ? 'connected' : 'degraded',
-                consecutiveFailures: pubSubStatus.consecutiveFailures,
-                lastError: pubSubStatus.lastError?.message ?? null
+                consecutiveFailures: pubSubStatus.consecutiveFailures
             };
         }
 
@@ -137,7 +134,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
         res.status(503).json({
             status: 'error',
             timestamp: new Date().toISOString(),
-            error: (error as Error).message,
+            error: 'Health check failed',
             checks
         });
     }
@@ -234,8 +231,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
     } catch (error) {
         logger.error('Metrics collection failed:', error);
         res.status(500).json({
-            error: 'Failed to collect metrics',
-            message: (error as Error).message
+            error: 'Failed to collect metrics'
         });
     }
 });

@@ -869,8 +869,7 @@ describe('Health Routes (/api/health)', () => {
                     pubsub: {
                         healthy: false,
                         status: 'degraded',
-                        consecutiveFailures: 5,
-                        lastError: 'Connection lost'
+                        consecutiveFailures: 5
                     }
                 }
             });
@@ -886,7 +885,7 @@ describe('Health Routes (/api/health)', () => {
 
             expect(response.body).toMatchObject({
                 status: 'error',
-                error: 'Redis connection failed'
+                error: 'Health check failed'
             });
         });
     });
@@ -998,8 +997,7 @@ describe('Health Routes (/api/health)', () => {
                 .expect(500);
 
             expect(response.body).toMatchObject({
-                error: 'Failed to collect metrics',
-                message: 'Metrics collection error'
+                error: 'Failed to collect metrics'
             });
         });
     });

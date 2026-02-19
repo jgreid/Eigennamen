@@ -35,11 +35,11 @@ type ErrorStatusMap = Record<string, number>;
 /**
  * Handle 404 Not Found
  */
-function notFoundHandler(req: Request, res: Response, _next: NextFunction): void {
+function notFoundHandler(_req: Request, res: Response, _next: NextFunction): void {
     res.status(404).json({
         error: {
             code: 'NOT_FOUND',
-            message: `Route ${req.method} ${req.path} not found`
+            message: 'The requested resource was not found'
         }
     });
 }

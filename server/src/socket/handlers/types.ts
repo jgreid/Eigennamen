@@ -12,11 +12,16 @@ import type { Player, GameState } from '../../types';
 /**
  * Extended Socket type with game-specific properties.
  * Set during socket authentication middleware.
+ *
+ * This is the single canonical definition — all socket code should
+ * import GameSocket from this file (or re-export it).
  */
 export interface GameSocket extends Socket {
     sessionId: string;
     roomCode: string | null;
     clientIP?: string;
+    flyInstanceId?: string;
+    rateLimiter?: { cleanupSocket: (socketId: string) => void };
 }
 
 /**

@@ -2,22 +2,15 @@
  * Admin Stats Routes - Server statistics and SSE metrics stream
  */
 
-import type { Request, Response, Router as ExpressRouter, Application } from 'express';
-import type { Server } from 'socket.io';
+import type { Response, Router as ExpressRouter } from 'express';
 import type { RedisClient } from '../../types';
+import type { AdminRequest } from '../../types/admin';
 
 import express from 'express';
 import logger from '../../utils/logger';
 import { getRedis, isRedisHealthy, isUsingMemoryMode } from '../../config/redis';
 import { isDatabaseEnabled } from '../../config/database';
 import { getAllMetrics } from '../../utils/metrics';
-
-interface AdminRequest extends Request {
-    adminUsername?: string;
-    app: Application & {
-        get(key: 'io'): Server | undefined;
-    };
-}
 
 const router: ExpressRouter = express.Router();
 
