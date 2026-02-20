@@ -47,7 +47,7 @@ const {
     socketRateLimiter,
     createRateLimitedHandler,
     getSocketRateLimiter,
-    startRateLimitCleanup,
+    _startRateLimitCleanup,
     stopRateLimitCleanup
 } = require('../../socket/rateLimitHandler');
 

@@ -9,7 +9,6 @@ import type { AdminRequest } from '../../types/admin';
 import express from 'express';
 import logger from '../../utils/logger';
 import { getRedis, isRedisHealthy, isUsingMemoryMode } from '../../config/redis';
-import { isDatabaseEnabled } from '../../config/database';
 import { getAllMetrics } from '../../utils/metrics';
 
 const router: ExpressRouter = express.Router();
@@ -81,10 +80,7 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
                 activeRooms: roomCount
             },
             health: {
-                redis: redisStatus,
-                database: {
-                    enabled: isDatabaseEnabled()
-                }
+                redis: redisStatus
             },
             metrics: {
                 counters: appMetrics.counters,
@@ -138,7 +134,6 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
                 },
                 uptime: Math.round(process.uptime()),
                 redis: redisHealthy ? 'connected' : (isUsingMemoryMode() ? 'memory' : 'disconnected'),
-                database: isDatabaseEnabled() ? 'connected' : 'not configured',
                 metrics: {
                     counters: metrics.counters || {},
                     gauges: metrics.gauges || {}

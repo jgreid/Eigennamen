@@ -66,7 +66,6 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.GAME_NOT_STARTED]: 409,
             [ERROR_CODES.INVALID_INPUT]: 400,
             [ERROR_CODES.RATE_LIMITED]: 429,
-            [ERROR_CODES.WORD_LIST_NOT_FOUND]: 404,
             [ERROR_CODES.NOT_AUTHORIZED]: 403,
             [ERROR_CODES.SERVER_ERROR]: 500,
             [ERROR_CODES.SESSION_EXPIRED]: 401,

@@ -64,13 +64,6 @@ jest.mock('../../config/redis', () => {
     };
 });
 
-// Mock database module
-jest.mock('../../config/database', () => ({
-    getDatabase: jest.fn(() => null),
-    connectDatabase: jest.fn(async () => {}),
-    disconnectDatabase: jest.fn(async () => {}),
-    isDatabaseEnabled: jest.fn(() => false)
-}));
 
 // Mock logger
 jest.mock('../../utils/logger', () => ({
@@ -294,8 +287,7 @@ describe('Admin Routes', () => {
                     activeRooms: expect.any(Number)
                 }),
                 health: expect.objectContaining({
-                    redis: expect.any(Object),
-                    database: expect.any(Object)
+                    redis: expect.any(Object)
                 })
             });
         });

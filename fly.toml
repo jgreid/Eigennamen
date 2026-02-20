@@ -17,10 +17,7 @@ primary_region = "iad"
 
 [deploy]
   strategy = "immediate"
-  # Database migrations are skipped - database is optional
   # The game works fully with just in-memory storage (REDIS_URL=memory)
-  # To enable database: set DATABASE_URL secret and uncomment the release_command below
-  # release_command = "sh -c 'npx prisma migrate deploy || npx prisma db push --skip-generate'"
 
 [env]
   NODE_ENV = "production"
@@ -37,8 +34,6 @@ primary_region = "iad"
   # Then delete these two lines:
   REDIS_URL = "memory"
   MEMORY_MODE_ALLOW_FLY = "true"
-  # DATABASE_URL is NOT required - the game works fully without a database
-  # Database only needed for: user accounts, game history, persistent word lists
 
 [http_service]
   internal_port = 3000

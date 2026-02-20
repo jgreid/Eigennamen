@@ -8,7 +8,7 @@
 const {
     incrementCounter,
     setGauge,
-    incrementGauge,
+    _incrementGauge,
     recordHistogram,
     getHistogramStats,
     getAllMetrics,

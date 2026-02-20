@@ -61,13 +61,6 @@ jest.mock('../../config/redis', () => {
     };
 });
 
-jest.mock('../../config/database', () => ({
-    getDatabase: jest.fn(() => null),
-    connectDatabase: jest.fn(async () => {}),
-    disconnectDatabase: jest.fn(async () => {}),
-    isDatabaseEnabled: jest.fn(() => false)
-}));
-
 jest.mock('../../utils/pubSubHealth', () => ({
     getHealth: jest.fn(() => ({
         isHealthy: true,
