@@ -10,11 +10,123 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Shared environment for all server jobs
+env:
+  NODE_VERSION: 22
+  WORKING_DIR: server
+
 jobs:
+  # ── Install & cache dependencies (shared by downstream jobs) ──────────
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+
+      # Cache the entire node_modules so downstream jobs skip npm ci
+      - uses: actions/cache/save@v4
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+  # ── Lint ───────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    needs: install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Run ESLint
+        run: npx eslint --ext .ts src/ --max-warnings 0
+
+  # ── Type check ─────────────────────────────────────────────────────────
+  typecheck:
+    name: Typecheck
+    needs: install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Run TypeScript type checking
+        run: npx tsc --noEmit && npx tsc --noEmit -p tsconfig.frontend.json
+
+  # ── Build verification ─────────────────────────────────────────────────
+  build:
+    name: Build
+    needs: install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need root index.html for Dockerfile context, but build only needs server/
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Build production artifacts
+        run: npm run build
+
+      # Cache the build output for E2E and other jobs
+      - uses: actions/cache/save@v4
+        with:
+          path: |
+            server/dist
+            server/public/js/modules
+          key: build-${{ github.sha }}
+
+  # ── Unit & integration tests ───────────────────────────────────────────
   test:
     name: Test (Node ${{ matrix.node-version }})
+    needs: install
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node-version: [20, 22]
     defaults:
@@ -26,13 +138,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
-          cache-dependency-path: server/package-lock.json
 
-      - run: npm ci
+      # For the primary version, restore the cached node_modules.
+      # For other versions, run npm ci since native modules may differ.
+      - uses: actions/cache/restore@v4
+        if: matrix.node-version == env.NODE_VERSION
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Install dependencies
+        if: matrix.node-version != env.NODE_VERSION
+        run: npm ci
 
       - name: Run tests with coverage
-        run: npm run test:coverage -- --ci
+        run: npx jest --config jest.config.ts.js --ci --coverage --forceExit
         env:
           NODE_ENV: test
           REDIS_URL: memory
@@ -45,80 +165,91 @@ jobs:
           path: server/coverage/
           retention-days: 14
 
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-
-      - run: npm ci
-
-      - name: Run TypeScript type checking
-        run: npm run typecheck
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-
-      - run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint -- --max-warnings 0
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: server/package-lock.json
-
-      - run: npm ci
-
-      - name: Check for known vulnerabilities
+      # Post coverage summary to PR
+      - name: Coverage summary
+        if: matrix.node-version == 22 && github.event_name == 'pull_request'
         run: |
-          # Run audit and capture output
-          npm audit --json > audit-results.json 2>/dev/null || true
+          # Extract coverage percentages from the text summary
+          COVERAGE_FILE="coverage/coverage-summary.json"
+          if [ -f "$COVERAGE_FILE" ]; then
+            LINES=$(node -e "const c=require('./$COVERAGE_FILE');console.log(c.total.lines.pct)")
+            BRANCHES=$(node -e "const c=require('./$COVERAGE_FILE');console.log(c.total.branches.pct)")
+            FUNCTIONS=$(node -e "const c=require('./$COVERAGE_FILE');console.log(c.total.functions.pct)")
+            STMTS=$(node -e "const c=require('./$COVERAGE_FILE');console.log(c.total.statements.pct)")
 
-          # Check for critical vulnerabilities
-          CRITICAL=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
-          HIGH=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
+            echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Statements | ${STMTS}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Branches | ${BRANCHES}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Functions | ${FUNCTIONS}% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | ${LINES}% |" >> $GITHUB_STEP_SUMMARY
+          fi
 
-          echo "Critical vulnerabilities: $CRITICAL"
-          echo "High vulnerabilities: $HIGH"
+  # ── Security audit ─────────────────────────────────────────────────────
+  security:
+    name: Security Audit
+    needs: install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
 
-          # Fail if critical or high vulnerabilities exist
-          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-            echo "::error::Critical or high vulnerabilities found! (critical=$CRITICAL, high=$HIGH)"
-            cat audit-results.json | jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | .key'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
+
+      - name: Audit production dependencies
+        run: |
+          echo "## Security Audit" >> $GITHUB_STEP_SUMMARY
+
+          # Audit production dependencies only (dev deps don't ship)
+          npm audit --omit=dev --json > audit-prod.json 2>/dev/null || true
+
+          PROD_CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' audit-prod.json)
+          PROD_HIGH=$(jq '.metadata.vulnerabilities.high // 0' audit-prod.json)
+          PROD_MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' audit-prod.json)
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Production Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Critical | ${PROD_CRITICAL} |" >> $GITHUB_STEP_SUMMARY
+          echo "| High | ${PROD_HIGH} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Moderate | ${PROD_MODERATE} |" >> $GITHUB_STEP_SUMMARY
+
+          # Fail on critical/high in production deps
+          if [ "$PROD_CRITICAL" -gt 0 ] || [ "$PROD_HIGH" -gt 0 ]; then
+            echo ""
+            echo "::error::Production dependency vulnerabilities found (critical=${PROD_CRITICAL}, high=${PROD_HIGH})"
+            jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | "\(.key): \(.value.severity) - \(.value.title // "No title")"' audit-prod.json
             exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No critical or high vulnerabilities in production dependencies." >> $GITHUB_STEP_SUMMARY
+
+      - name: Audit all dependencies (informational)
+        if: always()
+        run: |
+          npm audit --json > audit-all.json 2>/dev/null || true
+
+          ALL_CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' audit-all.json)
+          ALL_HIGH=$(jq '.metadata.vulnerabilities.high // 0' audit-all.json)
+
+          if [ "$ALL_CRITICAL" -gt 0 ] || [ "$ALL_HIGH" -gt 0 ]; then
+            echo "::warning::Dev dependency vulnerabilities: critical=${ALL_CRITICAL}, high=${ALL_HIGH} (non-blocking)"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### All Dependencies (informational)" >> $GITHUB_STEP_SUMMARY
+            echo "Dev dependency vulnerabilities: critical=${ALL_CRITICAL}, high=${ALL_HIGH}" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload audit results
@@ -126,67 +257,73 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-audit
-          path: server/audit-results.json
+          path: |
+            server/audit-prod.json
+            server/audit-all.json
           retention-days: 30
 
+  # ── Docker build & container scan ──────────────────────────────────────
   docker:
-    name: Docker Build
+    name: Docker Build & Scan
+    needs: [lint, typecheck, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -f server/Dockerfile -t eigennamen:ci .
-        env:
-          DOCKER_BUILDKIT: 1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Verify image starts
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          load: true
+          tags: eigennamen:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify container starts and serves traffic
         run: |
           docker run -d --name ci-test \
             -e NODE_ENV=production \
             -e REDIS_URL=memory \
-            -e JWT_SECRET=ci-test-secret \
+            -e JWT_SECRET=ci-test-secret-that-is-long-enough-for-production \
             -e CORS_ORIGIN='*' \
+            -e MEMORY_MODE_ALLOW_FLY=true \
             -p 3000:3000 \
             eigennamen:ci
 
-          # Wait for server to be ready
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+          # Wait for server to be ready (up to 60s for Redis init)
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/health/ready > /dev/null 2>&1; then
               echo "Server healthy after ${i}s"
               break
             fi
-            if [ "$i" -eq 30 ]; then
-              echo "Server failed to start"
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Server failed to start within 60s"
               docker logs ci-test
               exit 1
             fi
             sleep 1
           done
 
-          # Verify health endpoint returns ok
-          curl -sf http://localhost:3000/health | grep -q "ok" || {
-            echo "Health check returned unexpected response:"
-            curl -sf http://localhost:3000/health
+          # Verify health endpoint
+          HEALTH=$(curl -sf http://localhost:3000/health)
+          echo "Health response: $HEALTH"
+          echo "$HEALTH" | grep -q "ok" || {
+            echo "::error::Health check returned unexpected response"
             exit 1
           }
 
+          # Verify ready endpoint (checks all dependencies)
+          READY=$(curl -sf http://localhost:3000/health/ready)
+          echo "Ready response: $READY"
+
           docker stop ci-test
 
-  trivy:
-    name: Container Security Scan
-    runs-on: ubuntu-latest
-    needs: docker
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -f server/Dockerfile -t eigennamen:ci .
-        env:
-          DOCKER_BUILDKIT: 1
-
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: 'eigennamen:ci'
           format: 'sarif'
@@ -194,15 +331,16 @@ jobs:
           severity: 'HIGH,CRITICAL'
           exit-code: '0'
 
-      - name: Upload Trivy scan results to GitHub Security tab
+      - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # E2E tests with Playwright
+  # ── E2E tests ──────────────────────────────────────────────────────────
   e2e:
     name: E2E Tests
+    needs: build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -212,27 +350,32 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: server/package-lock.json
+          node-version: ${{ env.NODE_VERSION }}
 
-      - run: npm ci
+      - uses: actions/cache/restore@v4
+        with:
+          path: server/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('server/package-lock.json') }}
 
-      - name: Build server
-        run: npm run build
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            server/dist
+            server/public/js/modules
+          key: build-${{ github.sha }}
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Start server in background
+      - name: Start server
         run: |
-          npm run start &
+          node dist/index.js &
           echo $! > /tmp/server.pid
         env:
           NODE_ENV: test
           REDIS_URL: memory
           PORT: 3000
-          JWT_SECRET: e2e-test-secret
+          JWT_SECRET: e2e-test-secret-long-enough-for-validation
 
       - name: Wait for server
         run: |
@@ -243,13 +386,14 @@ jobs:
             fi
             sleep 1
           done
-          echo "Server failed to start"
+          echo "::error::Server failed to start within 30s"
           exit 1
 
       - name: Run Playwright tests
         run: npx playwright test --project=chromium
         env:
           BASE_URL: http://localhost:3000
+          CI: true
 
       - name: Upload Playwright report
         if: always()
@@ -259,9 +403,48 @@ jobs:
           path: server/playwright-report/
           retention-days: 7
 
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: server/test-results/
+          retention-days: 7
+
       - name: Stop server
         if: always()
         run: |
           if [ -f /tmp/server.pid ]; then
-            kill $(cat /tmp/server.pid) || true
+            kill "$(cat /tmp/server.pid)" 2>/dev/null || true
           fi
+
+  # ── Gate: all checks must pass before merge ────────────────────────────
+  ci-passed:
+    name: CI Passed
+    if: always()
+    needs: [lint, typecheck, build, test, security, docker, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Typecheck: ${{ needs.typecheck.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Docker: ${{ needs.docker.result }}"
+          echo "E2E: ${{ needs.e2e.result }}"
+
+          # Fail if any required job failed
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ] || \
+             [ "${{ needs.docker.result }}" != "success" ] || \
+             [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+
+          echo "All CI checks passed!"

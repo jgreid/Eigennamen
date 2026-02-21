@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      release_notes:
+        description: 'Release notes (leave empty for auto-generated)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT"
+
+      - name: Bump version
+        id: bump
+        run: |
+          npm version ${{ inputs.version_bump }} --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the latest tag (if any)
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+          else
+            RANGE="HEAD~50..HEAD"
+          fi
+
+          echo "Generating changelog for range: $RANGE"
+
+          {
+            echo "changelog<<CHANGELOG_EOF"
+
+            if [ -n "${{ inputs.release_notes }}" ]; then
+              echo "${{ inputs.release_notes }}"
+              echo ""
+            fi
+
+            echo "## Changes"
+            echo ""
+
+            # Features
+            FEATS=$(git log "$RANGE" --pretty=format:"- %s" --grep="^feat" 2>/dev/null || true)
+            if [ -n "$FEATS" ]; then
+              echo "### Features"
+              echo "$FEATS"
+              echo ""
+            fi
+
+            # Fixes
+            FIXES=$(git log "$RANGE" --pretty=format:"- %s" --grep="^fix" 2>/dev/null || true)
+            if [ -n "$FIXES" ]; then
+              echo "### Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+
+            # Other changes (refactor, chore, docs, etc.)
+            # Show recent commits that aren't feat/fix
+            OTHER=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -v "^feat\|^fix\|^Merge" | head -20 | sed 's/^/- /' || true)
+            if [ -n "$OTHER" ]; then
+              echo "### Other Changes"
+              echo "$OTHER"
+              echo ""
+            fi
+
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG:-v${{ steps.current.outputs.version }}}...v${{ steps.bump.outputs.version }}"
+
+            echo "CHANGELOG_EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Commit version bump
+        run: |
+          cd ..
+          git add server/package.json server/package-lock.json
+          git commit -m "chore: release v${{ steps.bump.outputs.version }}"
+          git tag -a "v${{ steps.bump.outputs.version }}" -m "Release v${{ steps.bump.outputs.version }}"
+          git push origin main --follow-tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump.outputs.version }}
+          name: v${{ steps.bump.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## Release v${{ steps.bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Previous**: v${{ steps.current.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New**: v${{ steps.bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bump**: ${{ inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The deployment workflow will automatically deploy this release." >> $GITHUB_STEP_SUMMARY

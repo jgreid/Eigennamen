@@ -1,0 +1,126 @@
+name: Deploy
+
+on:
+  # Auto-deploy when CI passes on main
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+  # Manual deployment trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false  # Never cancel an in-progress deployment
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    # Only deploy if CI succeeded (for workflow_run trigger) or manual trigger
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://die-eigennamen.fly.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Pre-deploy validation
+        run: |
+          echo "## Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deploy to Fly.io
+        run: |
+          flyctl deploy --remote-only \
+            --strategy immediate \
+            --wait-timeout 300
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Verify deployment health
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Wait for the new deployment to be healthy
+          sleep 10
+
+          for i in $(seq 1 30); do
+            HEALTH=$(curl -sf https://die-eigennamen.fly.dev/health/ready 2>/dev/null || echo "unreachable")
+            if echo "$HEALTH" | grep -q "ok"; then
+              echo "Deployment healthy after ${i}0s"
+              echo "- **Status**: Healthy" >> $GITHUB_STEP_SUMMARY
+              exit 0
+            fi
+            echo "Waiting for health check (attempt $i/30)..."
+            sleep 10
+          done
+
+          echo "::error::Deployment health check failed after 5 minutes"
+          echo "- **Status**: UNHEALTHY" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Deployment completed successfully." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Deployment failed. Check logs with: \`flyctl logs --app die-eigennamen\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Rollback job - only available via manual trigger
+  rollback:
+    name: Rollback
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && failure()
+    needs: deploy
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Setup Fly.io CLI
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Get previous release
+        id: prev
+        run: |
+          PREV_VERSION=$(flyctl releases --json | jq -r '.[1].Version // empty')
+          echo "version=$PREV_VERSION" >> $GITHUB_OUTPUT
+          echo "Previous version: $PREV_VERSION"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Rollback to previous version
+        if: steps.prev.outputs.version != ''
+        run: |
+          echo "Rolling back to version ${{ steps.prev.outputs.version }}"
+          flyctl deploy --image registry.fly.io/die-eigennamen:deployment-${{ steps.prev.outputs.version }} --strategy immediate
+          echo "## Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "Rolled back to version ${{ steps.prev.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
