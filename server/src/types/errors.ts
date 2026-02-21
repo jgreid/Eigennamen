@@ -21,7 +21,6 @@ export type ErrorCode =
   | 'INVALID_INPUT'
   | 'RATE_LIMITED'
   | 'SERVER_ERROR'
-  | 'WORD_LIST_NOT_FOUND'
   | 'NOT_AUTHORIZED'
   | 'SESSION_EXPIRED'
   | 'SESSION_NOT_FOUND'

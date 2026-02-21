@@ -275,33 +275,6 @@ export class ServerError extends GameError {
 }
 
 /**
- * Word list errors
- */
-export class WordListError extends GameError {
-    public override readonly name: string = 'WordListError';
-
-    constructor(code: ErrorCode, message: string, details: GameErrorDetails | null = null) {
-        super(code, message, details);
-    }
-
-    static notFound(id: string): WordListError {
-        return new WordListError(
-            ERROR_CODES.WORD_LIST_NOT_FOUND,
-            'Word list not found',
-            { id } as GameErrorDetails
-        );
-    }
-
-    static notAuthorized(id: string): WordListError {
-        return new WordListError(
-            ERROR_CODES.NOT_AUTHORIZED,
-            'Not authorized to modify this word list',
-            { id } as GameErrorDetails
-        );
-    }
-}
-
-/**
  * Error codes that are safe to expose to clients.
  * Errors with codes NOT in this list will have their message replaced
  * with a generic message to prevent information disclosure.

@@ -40,13 +40,6 @@ jest.mock('../../config/redis', () => ({
     getRedis: () => mockRedis
 }));
 
-// Mock wordListService
-const mockWordListService = {
-    getWordsForGame: jest.fn()
-};
-
-jest.mock('../../services/wordListService', () => mockWordListService);
-
 // Mock logger
 const mockLogger = {
     debug: jest.fn(),
@@ -493,7 +486,6 @@ describe('createGame', () => {
             return Promise.resolve(null);
         });
         mockRedis.expire.mockResolvedValue(1);
-        mockWordListService.getWordsForGame.mockResolvedValue(null);
     });
 
     test('creates a game with default words', async () => {
@@ -554,40 +546,6 @@ describe('createGame', () => {
 
         // Should fall back to default words (only 1 unique word)
         expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('too small after cleaning'));
-    });
-
-    test('creates a game with database word list (wordListId)', async () => {
-        const dbWords = Array.from({ length: 50 }, (_, i) => `DBWORD${i}`);
-        mockWordListService.getWordsForGame.mockResolvedValue(dbWords);
-
-        const game = await createGame('TEST06', { wordListId: 'test-uuid-123' });
-
-        expect(game.words.length).toBe(BOARD_SIZE);
-        expect(game.wordListId).toBe('test-uuid-123');
-        expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('database word list'));
-    });
-
-    test('falls back when database word list not found', async () => {
-        mockWordListService.getWordsForGame.mockResolvedValue(null);
-
-        const game = await createGame('TEST07', { wordListId: 'invalid-uuid' });
-
-        expect(game.words.length).toBe(BOARD_SIZE);
-        expect(game.wordListId).toBeNull();
-        expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('not found or too small'));
-    });
-
-    test('falls back when database word list fetch fails', async () => {
-        mockWordListService.getWordsForGame.mockRejectedValue(new Error('DB error'));
-
-        const game = await createGame('TEST08', { wordListId: 'error-uuid' });
-
-        expect(game.words.length).toBe(BOARD_SIZE);
-        expect(game.wordListId).toBeNull();
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Error fetching database word list'),
-            expect.any(Error)
-        );
     });
 
     test('updates room status when room data exists', async () => {

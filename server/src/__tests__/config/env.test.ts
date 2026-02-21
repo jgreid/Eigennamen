@@ -32,7 +32,6 @@ describe('Environment Configuration', () => {
         delete process.env.NODE_ENV;
         delete process.env.PORT;
         delete process.env.REDIS_URL;
-        delete process.env.DATABASE_URL;
         delete process.env.JWT_SECRET;
         delete process.env.CORS_ORIGIN;
         delete process.env.LOG_LEVEL;
@@ -69,31 +68,6 @@ describe('Environment Configuration', () => {
             process.env.PORT = 'not-a-number';
 
             expect(() => validateEnv()).toThrow('PORT must be a number');
-        });
-
-        it('should warn about production without DATABASE_URL', () => {
-            process.env.NODE_ENV = 'production';
-            process.env.REDIS_URL = 'redis://production-redis:6379';
-            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
-
-            validateEnv();
-
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('DATABASE_URL not configured')
-            );
-        });
-
-        it('should warn about localhost DATABASE_URL in production', () => {
-            process.env.NODE_ENV = 'production';
-            process.env.REDIS_URL = 'redis://production-redis:6379';
-            process.env.DATABASE_URL = 'postgresql://localhost:5432/db';
-            process.env.ADMIN_PASSWORD = 'SecureTestPass1';
-
-            validateEnv();
-
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('DATABASE_URL points to localhost')
-            );
         });
 
         it('should throw on localhost REDIS_URL in production', () => {

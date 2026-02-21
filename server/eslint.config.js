@@ -41,7 +41,7 @@ const baseRules = {
 module.exports = [
     {
         // Global ignores
-        ignores: ['node_modules/**', 'coverage/**', 'prisma/**', 'dist/**', '.stryker-tmp/**']
+        ignores: ['node_modules/**', 'coverage/**', 'dist/**', '.stryker-tmp/**']
     },
     {
         // TypeScript files configuration (non-type-checked rules for faster linting)

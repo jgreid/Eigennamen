@@ -381,8 +381,7 @@ describe('GameError Classes', () => {
         GameStateError,
         ValidationError,
         RateLimitError,
-        ServerError,
-        WordListError
+        ServerError
     } = require('../../errors/GameError');
 
     describe('GameError base class', () => {
@@ -511,16 +510,4 @@ describe('GameError Classes', () => {
         });
     });
 
-    describe('WordListError', () => {
-        it('should create notFound error', () => {
-            const error = WordListError.notFound('list-123');
-            expect(error.code).toBe(ERROR_CODES.WORD_LIST_NOT_FOUND);
-            expect(error.details.id).toBe('list-123');
-        });
-
-        it('should create notAuthorized error', () => {
-            const error = WordListError.notAuthorized('list-123');
-            expect(error.code).toBe(ERROR_CODES.NOT_AUTHORIZED);
-        });
-    });
 });

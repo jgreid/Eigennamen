@@ -24,7 +24,6 @@ import type {
 import { v4 as uuidv4 } from 'uuid';
 import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
-import * as wordListService from './wordListService';
 import {
     BOARD_SIZE,
     DEFAULT_WORDS,
@@ -183,15 +182,14 @@ async function acquireGameCreationLock(
 
 /**
  * Resolve the word list to use for a game.
- * Priority: direct wordList > wordListId from DB > default words.
+ * Priority: direct wordList > default words.
  */
 async function resolveGameWords(
     roomCode: string,
     options: CreateGameOptions
 ): Promise<{ words: string[]; usedWordListId: string | null }> {
-    const { wordListId, wordList } = options;
+    const { wordList } = options;
     let words: string[] = [...DEFAULT_WORDS];
-    let usedWordListId: string | null = null;
 
     if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
         const cleanedWords = [...new Set(
@@ -205,22 +203,9 @@ async function resolveGameWords(
         } else {
             logger.warn(`Custom word list too small after cleaning (${cleanedWords.length}), using default`);
         }
-    } else if (wordListId) {
-        try {
-            const customWords = await wordListService.getWordsForGame(wordListId);
-            if (customWords && customWords.length >= BOARD_SIZE) {
-                words = customWords;
-                usedWordListId = wordListId;
-                logger.info(`Using database word list ${wordListId} for room ${roomCode}`);
-            } else {
-                logger.warn(`Database word list ${wordListId} not found or too small, using default`);
-            }
-        } catch (error) {
-            logger.error(`Error fetching database word list ${wordListId}:`, error);
-        }
     }
 
-    return { words, usedWordListId };
+    return { words, usedWordListId: null };
 }
 
 /**

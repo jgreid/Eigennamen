@@ -50,7 +50,6 @@ describe('Error Handler Extended Tests', () => {
             { code: ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN, expectedStatus: 400 },
             { code: ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, expectedStatus: 400 },
             { code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM, expectedStatus: 400 },
-            { code: ERROR_CODES.WORD_LIST_NOT_FOUND, expectedStatus: 404 },
             { code: ERROR_CODES.PLAYER_NOT_FOUND, expectedStatus: 404 }
         ];
 

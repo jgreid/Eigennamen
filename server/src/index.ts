@@ -11,7 +11,6 @@ import http from 'http';
 import app from './app';
 import { initializeSocket, cleanupSocketModule } from './socket';
 import { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } from './config/redis';
-import { connectDatabase, disconnectDatabase, getDatabase, isDatabaseEnabled } from './config/database';
 import { validateEnv, getEnvInt } from './config/env';
 import * as timerService from './services/timerService';
 import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
@@ -23,12 +22,6 @@ async function startServer(): Promise<void> {
     try {
         // Validate environment variables first
         validateEnv();
-
-        // Connect to database (optional - game works without it)
-        await connectDatabase();
-        if (isDatabaseEnabled()) {
-            logger.info('Database connected');
-        }
 
         await connectRedis();
         logger.info('Redis connected');
@@ -43,7 +36,6 @@ async function startServer(): Promise<void> {
         // Attach dependencies to app for health checks
         app.set('io', io);
         app.set('redis', getRedis);
-        app.set('database', getDatabase);
 
         // Log Fly.io instance info if available
         if (process.env.FLY_ALLOC_ID) {
@@ -66,7 +58,6 @@ async function startServer(): Promise<void> {
 
             // Log feature availability so operators know what's active
             const features = {
-                database: isDatabaseEnabled() ? 'enabled' : 'disabled (word lists, game history, accounts unavailable)',
                 redis: isUsingMemoryMode() ? 'in-memory (embedded)' : 'external',
             };
             logger.info('Feature status:', features);
@@ -101,7 +92,6 @@ async function startServer(): Promise<void> {
 
                 try {
                     // Close connections with individual timeouts to prevent hanging
-                    // (e.g., if Redis is unresponsive, don't block DB disconnect)
                     const disconnectWithTimeout = (fn: () => Promise<unknown>, name: string, ms: number) =>
                         Promise.race([
                             fn().then(() => logger.info(`${name} disconnected`)),
@@ -113,10 +103,7 @@ async function startServer(): Promise<void> {
                             )
                         ]);
 
-                    await Promise.all([
-                        disconnectWithTimeout(disconnectRedis, 'Redis', 3000),
-                        disconnectWithTimeout(disconnectDatabase, 'Database', 3000),
-                    ]);
+                    await disconnectWithTimeout(disconnectRedis, 'Redis', 3000);
                 } catch (error) {
                     logger.error('Error during cleanup:', error);
                 }

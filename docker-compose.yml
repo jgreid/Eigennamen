@@ -22,53 +22,23 @@ services:
       - PORT=3000
       # Secrets are read from .env file (see .env.example for template)
       # Run: cp .env.example .env  to get started
-      - DATABASE_URL=postgresql://eigennamen:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/eigennamen
       - REDIS_URL=redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
       - LOG_LEVEL=debug
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    # Run database migration before starting the server
-    command: sh -c "./node_modules/.bin/prisma db push --skip-generate && node dist/index.js"
+    command: node dist/index.js
     restart: unless-stopped
     networks:
       - eigennamen-network
     healthcheck:
-      # Use /health/ready for comprehensive dependency check (DB, Redis, Socket.io)
       test: ["CMD", "curl", "-f", "http://localhost:3000/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # PostgreSQL Database
-  db:
-    image: postgres:15-alpine
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-    environment:
-      - POSTGRES_USER=eigennamen
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      - POSTGRES_DB=eigennamen
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eigennamen -d eigennamen"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - eigennamen-network
 
   # Redis Cache
   redis:
@@ -93,7 +63,6 @@ services:
       - eigennamen-network
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
