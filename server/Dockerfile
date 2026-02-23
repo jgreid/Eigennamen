@@ -1,6 +1,6 @@
 # Build stage
 # Note: Build context is repo root (where fly.toml is located)
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY index.html ./public/index.html
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:25-alpine
 
 WORKDIR /app
 
