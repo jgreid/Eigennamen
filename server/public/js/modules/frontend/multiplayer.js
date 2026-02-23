@@ -51,8 +51,12 @@ export function openMultiplayer() {
     if (createNicknameEl)
         createNicknameEl.value = storedNickname;
     // Reset forms
-    document.getElementById('join-room-id').value = '';
-    document.getElementById('create-room-id').value = '';
+    const joinRoomEl = document.getElementById('join-room-id');
+    if (joinRoomEl)
+        joinRoomEl.value = '';
+    const createRoomEl = document.getElementById('create-room-id');
+    if (createRoomEl)
+        createRoomEl.value = '';
     setMpStatus('', '');
     clearFormErrors();
     // Reset to join mode
@@ -143,8 +147,10 @@ export async function handleMpAction() {
 }
 async function handleJoinGame() {
     clearFormErrors();
-    const nickname = document.getElementById('join-nickname').value.trim();
-    const roomIdInput = document.getElementById('join-room-id').value.trim();
+    const joinNicknameEl = document.getElementById('join-nickname');
+    const joinRoomIdEl = document.getElementById('join-room-id');
+    const nickname = joinNicknameEl?.value.trim() ?? '';
+    const roomIdInput = joinRoomIdEl?.value.trim() ?? '';
     const urlRoomCode = getRoomCodeFromURL();
     const joinBtn = document.getElementById('btn-mp-action');
     const nicknameValidation = validateNickname(nickname);
@@ -224,8 +230,10 @@ async function handleJoinGame() {
 }
 async function handleCreateGame() {
     clearFormErrors();
-    const nickname = document.getElementById('create-nickname').value.trim();
-    const roomId = document.getElementById('create-room-id').value.trim();
+    const createNicknameEl = document.getElementById('create-nickname');
+    const createRoomIdEl = document.getElementById('create-room-id');
+    const nickname = createNicknameEl?.value.trim() ?? '';
+    const roomId = createRoomIdEl?.value.trim() ?? '';
     const createBtn = document.getElementById('btn-mp-action');
     const nicknameValidation = validateNickname(nickname);
     if (!nicknameValidation.valid) {

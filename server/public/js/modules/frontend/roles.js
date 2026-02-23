@@ -18,7 +18,12 @@ export function clearRoleChange() {
 /** Revert optimistic UI then transition to idle. */
 export function revertAndClearRoleChange() {
     if (state.roleChange.phase !== 'idle') {
-        state.roleChange.revertFn();
+        try {
+            state.roleChange.revertFn();
+        }
+        catch (err) {
+            logger.error('revertAndClearRoleChange: revertFn threw', err);
+        }
     }
     state.roleChange = { phase: 'idle' };
 }

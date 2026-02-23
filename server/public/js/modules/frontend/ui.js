@@ -19,10 +19,17 @@ export function announceToScreenReader(message) {
     }
 }
 // ========== TOAST NOTIFICATION SYSTEM ==========
+const MAX_TOASTS = 5;
 export function showToast(message, type = 'error', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container)
         return null;
+    // Cap concurrent toasts to prevent unbounded DOM growth
+    const existingToasts = container.querySelectorAll('.toast:not(.hiding)');
+    if (existingToasts.length >= MAX_TOASTS) {
+        // Dismiss the oldest toast to make room
+        dismissToast(existingToasts[0]);
+    }
     // Validate type against allowed values to prevent arbitrary class/key injection
     const validTypes = ['error', 'success', 'warning', 'info'];
     const safeType = validTypes.includes(type) ? type : 'error';
