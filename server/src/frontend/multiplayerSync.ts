@@ -172,17 +172,20 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
 
         state.gameState.words = serverGame.words;
 
-        // Validate parallel arrays match word count
+        // Validate parallel arrays match word count — reject mismatched arrays
+        // to prevent undefined reads in revealCardFromServer() and renderBoard()
         const types = serverGame.types || [];
         const revealed = serverGame.revealed || [];
-        if (types.length > 0) {
-            validateArrayLength('types', types, wordCount);
+        if (types.length > 0 && !validateArrayLength('types', types, wordCount)) {
+            state.gameState.types = new Array(wordCount).fill(null);
+        } else {
+            state.gameState.types = types;
         }
-        if (revealed.length > 0) {
-            validateArrayLength('revealed', revealed, wordCount);
+        if (revealed.length > 0 && !validateArrayLength('revealed', revealed, wordCount)) {
+            state.gameState.revealed = new Array(wordCount).fill(false);
+        } else {
+            state.gameState.revealed = revealed;
         }
-        state.gameState.types = types;
-        state.gameState.revealed = revealed;
 
         // Use server-provided scores if available, with range validation
         if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {

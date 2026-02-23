@@ -54,10 +54,14 @@ export function seededRandom(seed: number): number {
 
 export function hashString(str: string): number {
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
+    // Use for...of + codePointAt to handle characters outside the BMP (emoji, etc.)
+    // Must stay in sync with server-side implementation in boardGenerator.ts
+    for (const char of str) {
+        const codePoint = char.codePointAt(0);
+        if (codePoint !== undefined) {
+            hash = ((hash << 5) - hash) + codePoint;
+            hash = hash & hash;
+        }
     }
     return Math.abs(hash);
 }

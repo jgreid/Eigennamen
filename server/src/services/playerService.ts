@@ -55,6 +55,7 @@ export function buildPlayerData(
     nickname: string,
     isHost: boolean
 ): Player {
+    const now = Date.now();
     return {
         sessionId,
         roomCode,
@@ -63,8 +64,9 @@ export function buildPlayerData(
         role: 'spectator',
         isHost,
         connected: true,
-        connectedAt: Date.now(),
-        lastSeen: Date.now()
+        createdAt: now,
+        connectedAt: now,
+        lastSeen: now
     };
 }
 
@@ -80,6 +82,7 @@ export async function createPlayer(
 ): Promise<Player> {
     const redis: RedisClient = getRedis();
 
+    const now = Date.now();
     const player: Player = {
         sessionId,
         roomCode,
@@ -88,8 +91,9 @@ export async function createPlayer(
         role: 'spectator',
         isHost,
         connected: true,
-        connectedAt: Date.now(),
-        lastSeen: Date.now()
+        createdAt: now,
+        connectedAt: now,
+        lastSeen: now
     };
 
     // Save player data

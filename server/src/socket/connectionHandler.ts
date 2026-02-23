@@ -22,6 +22,7 @@ import {
     handleDisconnect,
     createTimerExpireCallback as createTimerExpireCallbackImpl
 } from './disconnectHandler';
+import { decrementConnectionCount } from './connectionTracker';
 
 // Import handlers
 import roomHandlers from './handlers/roomHandlers';
@@ -108,7 +109,6 @@ function handleConnection(
         logger.info(`Client disconnected: ${socket.id} (reason: ${reason})`);
 
         // Decrement connection count for this IP
-        const { decrementConnectionCount } = require('./connectionTracker');
         if (gameSocket.clientIP) {
             decrementConnectionCount(gameSocket.clientIP);
         }
