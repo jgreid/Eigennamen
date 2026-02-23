@@ -319,7 +319,67 @@ RATE_LIMIT_MAX_REQUESTS=100
 # TIMEOUT_ADMIN_ACTION=30000
 ```
 
-## Deployment
+## CI/CD Pipeline
+
+### GitHub Actions Workflows
+
+| Workflow | File | Trigger | Purpose |
+|----------|------|---------|---------|
+| **CI** | `.github/workflows/ci.yml` | Push/PR to main | Lint, typecheck, build, test, security, Docker, E2E |
+| **Deploy** | `.github/workflows/deploy.yml` | CI passes on main / manual | Deploy to Fly.io with health verification |
+| **Release** | `.github/workflows/release.yml` | Manual dispatch | Semantic versioning, changelog, GitHub Release |
+| **CodeQL** | `.github/workflows/codeql.yml` | Push/PR/weekly | Static analysis for security vulnerabilities |
+
+### CI Pipeline Jobs (runs on every PR)
+
+```
+install ─┬─ lint          Fast checks (~30s each)
+         ├─ typecheck
+         ├─ build ────── e2e          E2E uses cached build artifacts
+         ├─ test ─────┐
+         └─ security  ├─ docker ──── Trivy scan (after tests pass)
+                      │
+              ci-passed ◄── gate job (all must pass)
+```
+
+- **Caching**: `npm ci` runs once; `node_modules` cached for all downstream jobs
+- **Build cache**: Docker layers cached via GitHub Actions cache (BuildKit)
+- **Security audit**: Only fails on production dependency vulnerabilities (dev deps are informational)
+- **Coverage**: Summary posted to GitHub Step Summary on PRs
+- **E2E**: Runs against compiled production build (not dev server)
+
+### Deployment
+
+Deployments happen automatically when CI passes on main, or via manual trigger:
+```bash
+# Manual deploy via GitHub Actions UI:
+# Actions → Deploy → Run workflow → Select environment
+
+# Direct deploy via Fly CLI (requires FLY_API_TOKEN):
+fly deploy
+```
+
+### Release Process
+
+```bash
+# Via GitHub Actions UI:
+# Actions → Release → Run workflow → Select version bump (patch/minor/major)
+```
+This bumps `package.json` version, creates a git tag, generates a changelog, and publishes a GitHub Release.
+
+### Required Secrets
+
+| Secret | Where | Purpose |
+|--------|-------|---------|
+| `FLY_API_TOKEN` | GitHub repo secrets | Fly.io deployment authentication |
+
+### Dependabot
+
+Configured in `.github/dependabot.yml`:
+- **npm**: Weekly updates, grouped by category (TypeScript, testing, security, dev, prod)
+- **GitHub Actions**: Weekly action version updates
+- **Docker**: Weekly base image updates
+- Major version bumps for critical deps (socket.io, express, redis) are ignored (manual review)
 
 ### Docker Compose (Local)
 ```bash
@@ -328,9 +388,7 @@ docker compose up -d --build
 Starts: API server, PostgreSQL, Redis with health checks.
 
 ### Fly.io (Production)
-```bash
-fly deploy
-```
+
 Configuration in `fly.toml`:
 - Primary region: IAD
 - WebSocket-only transport

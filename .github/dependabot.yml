@@ -1,27 +1,86 @@
 version: 2
 updates:
+  # NPM dependencies
   - package-ecosystem: "npm"
     directory: "/server"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    reviewers:
+      - "jgreid"
+    commit-message:
+      prefix: "chore(deps):"
+      prefix-development: "chore(dev-deps):"
     groups:
+      # Group minor/patch dev dependency updates into a single PR
       dev-dependencies:
         dependency-type: "development"
         update-types:
           - "minor"
           - "patch"
+      # Group minor/patch production dependency updates
       production-dependencies:
         dependency-type: "production"
         update-types:
           - "patch"
+      # TypeScript tooling
+      typescript:
+        patterns:
+          - "typescript"
+          - "@typescript-eslint/*"
+          - "ts-jest"
+          - "ts-node*"
+      # Testing
+      testing:
+        patterns:
+          - "jest"
+          - "@types/jest"
+          - "@playwright/test"
+          - "supertest"
+          - "@types/supertest"
+      # Security
+      security:
+        patterns:
+          - "helmet"
+          - "jsonwebtoken"
+          - "express-rate-limit"
+    # Ignore major version bumps for critical dependencies (review manually)
+    ignore:
+      - dependency-name: "socket.io"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "redis"
+        update-types: ["version-update:semver-major"]
 
+  # GitHub Actions versions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 5
     labels:
       - "ci"
+    commit-message:
+      prefix: "ci(deps):"
+    groups:
+      # Group all action updates together
+      actions:
+        patterns:
+          - "*"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "docker"
+    commit-message:
+      prefix: "chore(docker):"
