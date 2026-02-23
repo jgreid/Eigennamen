@@ -226,16 +226,40 @@ jobs:
           echo "| High | ${PROD_HIGH} |" >> $GITHUB_STEP_SUMMARY
           echo "| Moderate | ${PROD_MODERATE} |" >> $GITHUB_STEP_SUMMARY
 
-          # Fail on critical/high in production deps
-          if [ "$PROD_CRITICAL" -gt 0 ] || [ "$PROD_HIGH" -gt 0 ]; then
+          # Known/accepted vulnerabilities (no fix available):
+          # - GHSA-3ppc-4f35-3m26: minimatch ReDoS via swagger-jsdoc -> glob@7 -> minimatch@3
+          #   Not exploitable: swagger-jsdoc only uses glob with developer-controlled patterns at startup.
+          #   swagger-jsdoc v7 (still RC) also uses the same vulnerable glob@7.
+          KNOWN_ADVISORIES="GHSA-3ppc-4f35-3m26"
+
+          # Count unknown high/critical vulnerabilities (excluding known accepted ones)
+          UNKNOWN_HIGH_CRITICAL=$(jq --arg known "$KNOWN_ADVISORIES" '
+            [.vulnerabilities | to_entries[]
+             | select(.value.severity == "critical" or .value.severity == "high")
+             | select(
+                 # Check if ALL via entries for this vulnerability are known advisories
+                 ([.value.via[] | if type == "object" then .url // "" else "" end]
+                  | map(. as $url | ($known | split(" ") | map(. as $id | $url | contains($id))) | any)
+                  | all | not)
+               )
+            ] | length
+          ' audit-prod.json)
+
+          # Fail only on unknown critical/high vulnerabilities
+          if [ "$PROD_CRITICAL" -gt 0 ] || [ "$UNKNOWN_HIGH_CRITICAL" -gt 0 ]; then
             echo ""
-            echo "::error::Production dependency vulnerabilities found (critical=${PROD_CRITICAL}, high=${PROD_HIGH})"
+            echo "::error::Production dependency vulnerabilities found (critical=${PROD_CRITICAL}, unknown high=${UNKNOWN_HIGH_CRITICAL})"
             jq '.vulnerabilities | to_entries[] | select(.value.severity == "critical" or .value.severity == "high") | "\(.key): \(.value.severity) - \(.value.title // "No title")"' audit-prod.json
             exit 1
           fi
 
+          if [ "$PROD_HIGH" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note**: ${PROD_HIGH} high-severity finding(s) from known/accepted advisories (no fix available)." >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "No critical or high vulnerabilities in production dependencies." >> $GITHUB_STEP_SUMMARY
+          echo "No actionable critical or high vulnerabilities in production dependencies." >> $GITHUB_STEP_SUMMARY
 
       - name: Audit all dependencies (informational)
         if: always()

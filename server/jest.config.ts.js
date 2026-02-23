@@ -17,7 +17,6 @@ const sharedConfig = {
         }]
     },
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-    testTimeout: 15000,
     clearMocks: true,
     restoreMocks: true,
 };
@@ -27,6 +26,7 @@ module.exports = {
     verbose: true,
     forceExit: true,
     detectOpenHandles: true,
+    testTimeout: 15000,
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov', 'html'],
 
