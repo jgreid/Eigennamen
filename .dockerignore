@@ -53,6 +53,3 @@ server/logs
 # Debug logs
 npm-debug.log
 yarn-error.log
-
-# Prisma local files (schema is needed, but not migrations in dev mode)
-# Note: schema.prisma IS needed for prisma generate
