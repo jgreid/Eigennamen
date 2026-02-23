@@ -467,7 +467,7 @@ describe('Socket Auth Middleware', () => {
             expect(ip).toBe('192.168.1.1');
         });
 
-        it('should return X-Forwarded-For when TRUST_PROXY is set', () => {
+        it('should return rightmost X-Forwarded-For IP when TRUST_PROXY is set', () => {
             const originalEnv = process.env.TRUST_PROXY;
             process.env.TRUST_PROXY = 'true';
 
@@ -481,7 +481,7 @@ describe('Socket Auth Middleware', () => {
             };
 
             const ip = getClientIP(socket);
-            expect(ip).toBe('203.0.113.50');
+            expect(ip).toBe('70.41.3.18');
 
             process.env.TRUST_PROXY = originalEnv;
         });

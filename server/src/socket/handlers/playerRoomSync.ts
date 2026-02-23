@@ -57,7 +57,7 @@ export async function syncSpectatorRoomMembership(
     const existingEntry = roomSyncLocks.get(lockKey);
     const existingLock = existingEntry?.promise || Promise.resolve();
 
-    const entry: LockEntry = { promise: null as unknown as Promise<void>, createdAt: Date.now(), settled: false };
+    const entry: LockEntry = { promise: Promise.resolve(), createdAt: Date.now(), settled: false };
 
     const newLock = existingLock.then(async () => {
         // Re-fetch current player state to ensure we have the latest team/role

@@ -47,7 +47,9 @@ function validateOrigin(socket: Socket): OriginValidationResult {
                 (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
                 getClientIP(socket),
                 { corsOrigin }
-            );
+            ).catch((err: Error) => {
+                logger.debug('Failed to audit origin violation:', err.message);
+            });
 
             return {
                 valid: false,
@@ -90,7 +92,9 @@ function validateOrigin(socket: Socket): OriginValidationResult {
             (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
             getClientIP(socket),
             { origin, allowedOrigins }
-        );
+        ).catch((err: Error) => {
+            logger.debug('Failed to audit origin violation:', err.message);
+        });
 
         return {
             valid: false,

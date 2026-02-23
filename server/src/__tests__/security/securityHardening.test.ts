@@ -46,7 +46,7 @@ describe('Trust Proxy Configuration', () => {
             expect(ip).toBe('127.0.0.1');
         });
 
-        test('trusts proxy when TRUST_PROXY=true', () => {
+        test('trusts proxy when TRUST_PROXY=true (uses rightmost IP to prevent spoofing)', () => {
             process.env.TRUST_PROXY = 'true';
             jest.resetModules();
             const { getClientIP } = require('../../middleware/socketAuth');
@@ -59,7 +59,7 @@ describe('Trust Proxy Configuration', () => {
             };
 
             const ip = getClientIP(mockSocket);
-            expect(ip).toBe('1.2.3.4'); // First IP in chain
+            expect(ip).toBe('5.6.7.8'); // Rightmost IP (added by trusted proxy)
         });
 
         test('trusts proxy when TRUST_PROXY=1', () => {
@@ -126,7 +126,7 @@ describe('Trust Proxy Configuration', () => {
             expect(ip).toBe('192.168.1.1');
         });
 
-        test('handles multiple IPs in X-Forwarded-For correctly', () => {
+        test('handles multiple IPs in X-Forwarded-For correctly (rightmost = real client)', () => {
             process.env.TRUST_PROXY = 'true';
             jest.resetModules();
             const { getClientIP } = require('../../middleware/socketAuth');
@@ -139,7 +139,7 @@ describe('Trust Proxy Configuration', () => {
             };
 
             const ip = getClientIP(mockSocket);
-            expect(ip).toBe('203.0.113.1'); // First IP, trimmed
+            expect(ip).toBe('192.0.2.1'); // Rightmost IP (added by trusted proxy), trimmed
         });
     });
 });

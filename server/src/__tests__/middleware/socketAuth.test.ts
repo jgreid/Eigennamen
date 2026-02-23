@@ -136,11 +136,11 @@ describe('Socket Authentication Middleware', () => {
             expect(ip).toBe('192.0.2.100');
         });
 
-        test('extracts first IP from multiple X-Forwarded-For entries', () => {
+        test('extracts rightmost IP from multiple X-Forwarded-For entries (anti-spoofing)', () => {
             process.env.TRUST_PROXY = 'true';
             const socket = createMockSocket('172.16.0.1', '203.0.113.50, 198.51.100.25, 192.0.2.100');
             const ip = getClientIP(socket);
-            expect(ip).toBe('203.0.113.50');
+            expect(ip).toBe('192.0.2.100');
         });
 
         test('returns socket address when X-Forwarded-For is empty', () => {
