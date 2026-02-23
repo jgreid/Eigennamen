@@ -67,7 +67,10 @@ export function resetMultiplayerState() {
     clearPlayerRole();
     state.isHost = false;
     state.resyncInProgress = false;
+    state.boardInitialized = false;
     clearRoleChange();
+    // Stop any running timer to prevent ghost ticks across room changes
+    handleTimerStopped();
     // Clear pending reveal timeouts to prevent memory leaks
     state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
@@ -138,17 +141,22 @@ export function syncGameStateFromServer(serverGame) {
             state.boardInitialized = false;
         }
         state.gameState.words = serverGame.words;
-        // Validate parallel arrays match word count
+        // Validate parallel arrays match word count — reject mismatched arrays
+        // to prevent undefined reads in revealCardFromServer() and renderBoard()
         const types = serverGame.types || [];
         const revealed = serverGame.revealed || [];
-        if (types.length > 0) {
-            validateArrayLength('types', types, wordCount);
+        if (types.length > 0 && !validateArrayLength('types', types, wordCount)) {
+            state.gameState.types = new Array(wordCount).fill(null);
         }
-        if (revealed.length > 0) {
-            validateArrayLength('revealed', revealed, wordCount);
+        else {
+            state.gameState.types = types;
         }
-        state.gameState.types = types;
-        state.gameState.revealed = revealed;
+        if (revealed.length > 0 && !validateArrayLength('revealed', revealed, wordCount)) {
+            state.gameState.revealed = new Array(wordCount).fill(false);
+        }
+        else {
+            state.gameState.revealed = revealed;
+        }
         // Use server-provided scores if available, with range validation
         if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
             state.gameState.redScore = serverGame.redScore;

@@ -177,7 +177,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
          * Register a socket listener with tracking for cleanup
          */
         _registerSocketListener(event, handler) {
-            this.socket.on(event, handler);
+            this.socket?.on(event, handler);
             this._socketListeners.push({ event, handler });
         },
         /**
@@ -242,7 +242,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
         _cleanupSocketListeners() {
             if (this.socket && this._socketListeners.length > 0) {
                 this._socketListeners.forEach(({ event, handler }) => {
-                    this.socket.off(event, handler);
+                    this.socket?.off(event, handler);
                 });
             }
             this._socketListeners = [];
@@ -255,7 +255,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
          */
         _queueOrEmit(event, data) {
             if (this.isConnected()) {
-                this.socket.emit(event, data);
+                this.socket?.emit(event, data);
             }
             else {
                 // Only queue certain safe events (chat messages)
@@ -277,7 +277,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
             let replayed = 0;
             for (const item of this._offlineQueue) {
                 if (now - item.timestamp < maxAge && this.isConnected()) {
-                    this.socket.emit(item.event, item.data);
+                    this.socket?.emit(item.event, item.data);
                     replayed++;
                 }
             }
@@ -411,7 +411,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
                 this.on('roomCreated', onCreated);
                 this.on('error', onError);
                 // Send roomId, settings, and requestId to server
-                this.socket.emit('room:create', {
+                this.socket?.emit('room:create', {
                     roomId,
                     settings: { nickname, ...settings },
                     requestId
@@ -480,7 +480,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
                 this.on('roomJoined', onJoined);
                 this.on('error', onError);
                 // Send roomId, nickname, and requestId to server
-                this.socket.emit('room:join', { roomId, nickname, requestId });
+                this.socket?.emit('room:join', { roomId, nickname, requestId });
                 // Client timeout (20s) exceeds server JOIN_ROOM timeout (15s) to
                 // account for post-join processing (stats, token invalidation) and network latency.
                 timeoutId = setTimeout(() => {
@@ -497,9 +497,10 @@ import { registerAllEventListeners } from './socket-client-events.js';
          * Use safe storage methods
          */
         leaveRoom() {
-            this.socket.emit('room:leave');
+            this._getSocket()?.emit('room:leave');
             this.roomCode = null;
             this.player = null;
+            this._offlineQueue = [];
             this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
         },
         /**
@@ -507,7 +508,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
          * @param settings - New settings
          */
         updateSettings(settings) {
-            this.socket.emit('room:settings', settings);
+            this._getSocket()?.emit('room:settings', settings);
         },
         /**
          * Kick a player from the room (host only)
@@ -518,7 +519,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
                 logger.warn('Only the host can kick players');
                 return;
             }
-            this.socket.emit('player:kick', { targetSessionId });
+            this._getSocket()?.emit('player:kick', { targetSessionId });
         },
         /**
          * Request full state resync from server
@@ -570,7 +571,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
                 };
                 this.on('roomResynced', onResynced);
                 this.on('error', onError);
-                this.socket.emit('room:resync', { requestId });
+                this._getSocket()?.emit('room:resync', { requestId });
                 timeoutId = setTimeout(() => {
                     if (settled)
                         return;
@@ -589,7 +590,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
          * @param callback - Optional acknowledgement callback
          */
         setTeam(team, callback) {
-            this.socket.emit('player:setTeam', { team }, callback);
+            this._getSocket()?.emit('player:setTeam', { team }, callback);
         },
         /**
          * Set player role
@@ -597,14 +598,14 @@ import { registerAllEventListeners } from './socket-client-events.js';
          * @param callback - Optional acknowledgement callback
          */
         setRole(role, callback) {
-            this.socket.emit('player:setRole', { role }, callback);
+            this._getSocket()?.emit('player:setRole', { role }, callback);
         },
         /**
          * Change nickname
          * @param nickname - New nickname
          */
         setNickname(nickname) {
-            this.socket.emit('player:setNickname', { nickname });
+            this._getSocket()?.emit('player:setNickname', { nickname });
         },
         // =====================
         // Game Actions
@@ -614,46 +615,46 @@ import { registerAllEventListeners } from './socket-client-events.js';
          * @param options - Game options
          */
         startGame(options = {}) {
-            this.socket.emit('game:start', options);
+            this._getSocket()?.emit('game:start', options);
         },
         /**
          * Reveal a card (host only)
          * @param index - Card index (0-24)
          */
         revealCard(index) {
-            this.socket.emit('game:reveal', { index });
+            this._getSocket()?.emit('game:reveal', { index });
         },
         /**
          * End current turn (host only)
          */
         endTurn() {
-            this.socket.emit('game:endTurn');
+            this._getSocket()?.emit('game:endTurn');
         },
         /**
          * Forfeit the game (host only)
          */
         forfeit() {
-            this.socket.emit('game:forfeit');
+            this._getSocket()?.emit('game:forfeit');
         },
         /**
          * Request game history (current game moves)
          */
         getHistory() {
-            this.socket.emit('game:history');
+            this._getSocket()?.emit('game:history');
         },
         /**
          * Request past games history for replay
          * @param limit - Maximum number of games to return
          */
         getGameHistory(limit = 10) {
-            this.socket.emit('game:getHistory', { limit });
+            this._getSocket()?.emit('game:getHistory', { limit });
         },
         /**
          * Request replay data for a specific game
          * @param gameId - Game ID to replay
          */
         getReplay(gameId) {
-            this.socket.emit('game:getReplay', { gameId });
+            this._getSocket()?.emit('game:getReplay', { gameId });
         },
         // =====================
         // Chat Actions
@@ -700,6 +701,17 @@ import { registerAllEventListeners } from './socket-client-events.js';
          */
         isSocketIOAvailable() {
             return isSocketIOReady();
+        },
+        /**
+         * Get socket or null if not connected, with a warning log.
+         * Use this instead of this.socket! in action methods.
+         */
+        _getSocket() {
+            if (!this.socket) {
+                logger.warn('Socket action attempted but not connected');
+                return null;
+            }
+            return this.socket;
         },
         /**
          * Check if connected

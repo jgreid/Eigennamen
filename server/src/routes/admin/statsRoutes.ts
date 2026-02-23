@@ -156,7 +156,9 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
     sendStats();
 
     // Stream updates every 5 seconds
+    // unref() so the interval doesn't prevent clean process shutdown
     const interval = setInterval(sendStats, 5000);
+    interval.unref();
 
     // Clean up on client disconnect
     req.on('close', () => {

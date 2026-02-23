@@ -18,7 +18,12 @@ export function clearRoleChange() {
 /** Revert optimistic UI then transition to idle. */
 export function revertAndClearRoleChange() {
     if (state.roleChange.phase !== 'idle') {
-        state.roleChange.revertFn();
+        try {
+            state.roleChange.revertFn();
+        }
+        catch (err) {
+            logger.error('revertAndClearRoleChange: revertFn threw', err);
+        }
     }
     state.roleChange = { phase: 'idle' };
 }
@@ -60,7 +65,7 @@ export function updateRoleBanner() {
         const config = ROLE_BANNER_CONFIG[role];
         banner.className = `role-banner ${config[team]}`;
         // Use nullish coalescing in case teamNames doesn't have the team key
-        banner.innerHTML = `<strong>${escapeHTML(state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${config.label}${hostBadge}`;
+        banner.innerHTML = `<strong>${escapeHTML(state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${escapeHTML(config.label)}${hostBadge}`;
     }
     else if (state.isHost) {
         banner.className = 'role-banner host';

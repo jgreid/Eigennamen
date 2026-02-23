@@ -4,10 +4,14 @@ import { t } from './i18n.js';
 import { isClientConnected } from './clientAccessor.js';
 let unreadCount = 0;
 let chatOpen = false;
+let chatInitialized = false;
 /**
- * Initialize chat UI event listeners
+ * Initialize chat UI event listeners (idempotent)
  */
 export function initChat() {
+    if (chatInitialized)
+        return;
+    chatInitialized = true;
     const toggle = document.getElementById('chat-toggle');
     const sendBtn = document.getElementById('chat-send-btn');
     const input = document.getElementById('chat-input');
@@ -144,8 +148,10 @@ export function hideChatPanel() {
     const panel = document.getElementById('chat-panel');
     if (panel)
         panel.style.display = 'none';
-    // Reset state
+    // Reset state — includes chatInitialized so listeners are re-attached
+    // when the panel is shown again (DOM elements are recreated between rooms)
     chatOpen = false;
+    chatInitialized = false;
     unreadCount = 0;
     updateUnreadBadge();
     const body = document.getElementById('chat-body');

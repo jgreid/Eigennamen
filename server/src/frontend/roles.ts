@@ -75,7 +75,7 @@ export function updateRoleBanner(): void {
         const config = ROLE_BANNER_CONFIG[role];
         banner.className = `role-banner ${config[team]}`;
         // Use nullish coalescing in case teamNames doesn't have the team key
-        banner.innerHTML = `<strong>${escapeHTML(state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${config.label}${hostBadge}`;
+        banner.innerHTML = `<strong>${escapeHTML(state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${escapeHTML(config.label)}${hostBadge}`;
     } else if (state.isHost) {
         banner.className = 'role-banner host';
         banner.innerHTML = `<span class="host-badge">${escapeHTML(t('multiplayer.host'))}</span> ${escapeHTML(t('roles.spectator'))}`;

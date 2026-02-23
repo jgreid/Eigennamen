@@ -121,10 +121,11 @@ function signToken(payload: JwtPayload, options: SignOptions = {}): string | nul
     const expiresIn = options.expiresIn || JWT_CONFIG.expiresIn;
 
     const signOptions = {
+        ...options,
+        // Security-critical fields placed AFTER spread to prevent caller override
         algorithm: JWT_CONFIG.algorithm,
         issuer: JWT_CONFIG.issuer,
         audience: JWT_CONFIG.audience,
-        ...options,
         expiresIn
     };
 

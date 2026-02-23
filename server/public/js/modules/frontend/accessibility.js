@@ -31,8 +31,18 @@ const SHORTCUTS = {
     '?': { action: 'show-shortcuts', descKey: 'accessibility.showShortcuts' }
 };
 const shortcutsEnabled = true;
+let keyboardShortcutsAttached = false;
 export function initKeyboardShortcuts() {
+    if (keyboardShortcutsAttached)
+        return;
     document.addEventListener('keydown', handleKeyboardShortcut);
+    keyboardShortcutsAttached = true;
+}
+export function removeKeyboardShortcuts() {
+    if (!keyboardShortcutsAttached)
+        return;
+    document.removeEventListener('keydown', handleKeyboardShortcut);
+    keyboardShortcutsAttached = false;
 }
 function handleKeyboardShortcut(e) {
     // Don't trigger when typing in inputs, textareas, or selects

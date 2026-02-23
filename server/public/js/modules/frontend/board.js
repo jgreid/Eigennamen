@@ -6,15 +6,31 @@ import { t } from './i18n.js';
 import { logger } from './logger.js';
 /**
  * Announce a message to screen readers via the sr-announcements live region.
- * Uses a clear-then-set pattern to ensure repeated identical messages are re-announced.
+ * Uses aria-atomic="true" and a timeout-based clearing strategy for reliable
+ * detection across screen readers (NVDA, VoiceOver, JAWS).
  */
+let srClearTimeout = null;
 function announceToScreenReader(message) {
     const el = document.getElementById('sr-announcements');
     if (!el)
         return;
+    // Ensure aria-atomic is set for reliable re-announcement
+    if (!el.hasAttribute('aria-atomic')) {
+        el.setAttribute('aria-atomic', 'true');
+    }
+    // Clear any pending clear timeout
+    if (srClearTimeout) {
+        clearTimeout(srClearTimeout);
+        srClearTimeout = null;
+    }
     el.textContent = '';
-    // Defer setting text so the live region registers the change
-    requestAnimationFrame(() => { el.textContent = message; });
+    // Use a short timeout (vs requestAnimationFrame) for more reliable
+    // detection — rAF can be batched, causing screen readers to miss changes
+    setTimeout(() => {
+        el.textContent = message;
+        // Clear after 3 seconds so subsequent identical messages are re-announced
+        srClearTimeout = setTimeout(() => { el.textContent = ''; srClearTimeout = null; }, 3000);
+    }, 50);
 }
 // Callback for card clicks - set via setCardClickHandler
 let cardClickHandler = null;
@@ -233,8 +249,12 @@ export function updateBoardIncremental() {
         board.className = className;
         let needsFit = false;
         const cards = board.children;
+        const wordCount = state.gameState.words.length;
         for (let index = 0; index < cards.length; index++) {
             const card = cards[index];
+            // Guard against array length mismatch between DOM and state
+            if (index >= wordCount)
+                break;
             const isRevealed = state.gameState.revealed[index];
             const type = state.gameState.types[index];
             const word = state.gameState.words[index];
@@ -301,6 +321,9 @@ export function updateBoardIncremental() {
 export function updateSingleCard(index) {
     const board = state.cachedElements.board || document.getElementById('board');
     if (!board || !board.children[index])
+        return;
+    // Guard against array length mismatch
+    if (index >= state.gameState.types.length || index >= state.gameState.words.length)
         return;
     const card = board.children[index];
     const type = state.gameState.types[index];
