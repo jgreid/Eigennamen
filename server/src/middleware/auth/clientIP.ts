@@ -35,14 +35,28 @@ function shouldTrustProxy(): boolean {
  * Only trusts X-Forwarded-For when behind a known/configured proxy
  */
 function getClientIP(socket: Socket): string {
-    // Only check X-Forwarded-For if we're configured to trust proxy
+    // Only check proxy headers if we're configured to trust proxy
     if (shouldTrustProxy()) {
+        // Prefer platform-specific headers that cannot be spoofed by clients
+        // Fly.io sets Fly-Client-IP at the edge proxy
+        const flyClientIP = socket.handshake.headers['fly-client-ip'];
+        if (flyClientIP) {
+            const ip = Array.isArray(flyClientIP) ? flyClientIP[0] : flyClientIP;
+            if (ip) return ip.trim();
+        }
+
         const xForwardedFor = socket.handshake.headers['x-forwarded-for'];
         if (xForwardedFor) {
-            // X-Forwarded-For can contain multiple IPs; the first one is the original client
+            // X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+            // Each proxy appends the connecting IP to the RIGHT side.
+            // The leftmost IP is client-provided and can be spoofed.
+            // With a single trusted proxy layer, the rightmost IP is the real
+            // client IP (added by the trusted proxy closest to us).
             const headerValue = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
-            const ips = (headerValue || '').split(',').map(ip => ip.trim());
-            return ips[0] || socket.handshake.address;
+            const ips = (headerValue || '').split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
+            if (ips.length > 0) {
+                return ips[ips.length - 1] || socket.handshake.address;
+            }
         }
     }
     // Fall back to direct connection address

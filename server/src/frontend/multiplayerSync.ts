@@ -168,6 +168,12 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         if (wordsChanged) {
             // Force full board re-render when words change (new game started)
             state.boardInitialized = false;
+            // Clear stale reveal tracking from previous game to prevent
+            // blocking card clicks on indices that were pending in the old game
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
         }
 
         state.gameState.words = serverGame.words;
