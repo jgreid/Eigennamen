@@ -49,9 +49,14 @@ const socketClientConfig = {
  */
 function updateSriHash() {
     const scriptPath = socketClientConfig.outfile;
-    const indexPath = path.join(__dirname, '../index.html');
+    // Check both local dev path (../index.html) and Docker path (public/index.html)
+    const candidates = [
+        path.join(__dirname, '../index.html'),
+        path.join(__dirname, 'public/index.html'),
+    ];
+    const indexPath = candidates.find(p => fs.existsSync(p));
 
-    if (!fs.existsSync(scriptPath) || !fs.existsSync(indexPath)) {
+    if (!fs.existsSync(scriptPath) || !indexPath) {
         console.warn('SRI update skipped: missing socket-client.js or index.html');
         return;
     }

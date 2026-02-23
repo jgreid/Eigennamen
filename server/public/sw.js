@@ -8,7 +8,7 @@
  * - WebSocket: Bypassed (not cacheable)
  */
 
-const CACHE_NAME = 'eigennamen-v1';
+const CACHE_NAME = 'eigennamen-v2';
 const STATIC_ASSETS = [
     '/',
     '/css/variables.css',
@@ -20,29 +20,6 @@ const STATIC_ASSETS = [
     '/css/multiplayer.css',
     '/css/replay.css',
     '/js/modules/app.js',
-    '/js/modules/game.js',
-    '/js/modules/board.js',
-    '/js/modules/state.js',
-    '/js/modules/ui.js',
-    '/js/modules/settings.js',
-    '/js/modules/roles.js',
-    '/js/modules/utils.js',
-    '/js/modules/constants.js',
-    '/js/modules/i18n.js',
-    '/js/modules/accessibility.js',
-    '/js/modules/notifications.js',
-    '/js/modules/timer.js',
-    '/js/modules/chat.js',
-    '/js/modules/history.js',
-    '/js/modules/multiplayer.js',
-    '/js/modules/multiplayerUI.js',
-    '/js/modules/multiplayerSync.js',
-    '/js/modules/multiplayerListeners.js',
-    '/js/modules/multiplayerTypes.js',
-    '/js/modules/stateMutations.js',
-    '/js/modules/stateTypes.js',
-    '/js/modules/debug.js',
-    '/js/modules/logger.js',
     '/js/socket-client.js',
     '/js/socket.io.min.js',
     '/js/qrcode.min.js',

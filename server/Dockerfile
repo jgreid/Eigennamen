@@ -12,8 +12,9 @@ COPY server/package*.json ./
 RUN npm ci
 
 # E-11: Optimized layer ordering — tsconfig changes less than source code
-# Copy TypeScript config (separate layer — rarely changes)
+# Copy TypeScript config and esbuild config (separate layer — rarely changes)
 COPY server/tsconfig*.json ./
+COPY server/esbuild.config.js ./
 
 # Copy source code and static assets (most frequently changing layer)
 COPY server/src/ ./src/
@@ -22,8 +23,8 @@ COPY server/public/ ./public/
 # Copy root index.html (symlinked from server/public/index.html)
 COPY index.html ./public/index.html
 
-# Compile TypeScript (build script also copies Lua scripts to dist/scripts/)
-RUN npm run build
+# Compile TypeScript backend + bundle frontend with esbuild (auto-updates SRI hash)
+RUN npm run build:prod
 
 # Production stage
 FROM node:20-alpine
