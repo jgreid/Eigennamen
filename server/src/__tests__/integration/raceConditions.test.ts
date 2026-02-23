@@ -320,8 +320,11 @@ describe('Race Condition Tests', () => {
                 expect(successful.length).toBe(1);
                 expect(successful[0].data.room.code).toBe('race-test');
 
-                // Others should fail with ROOM_ALREADY_EXISTS
-                expect(failed.length).toBeGreaterThanOrEqual(0); // Some might timeout
+                // All non-successful attempts should either fail with ROOM_ALREADY_EXISTS or timeout
+                const nonSuccessful = results.filter(r => !r.success);
+                expect(nonSuccessful.length).toBe(4); // 5 total - 1 success = 4 failures
+                // At least some should have the explicit duplicate error (others may timeout)
+                expect(failed.length + nonSuccessful.filter(r => r.error === 'timeout').length).toBe(4);
             } finally {
                 clients.forEach(c => c.disconnect());
             }

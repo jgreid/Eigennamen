@@ -12,7 +12,7 @@ import type { Server as SocketIOServer, Socket } from 'socket.io';
 import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
 
 import logger from '../utils/logger';
-import { SOCKET } from '../config/constants';
+import { SOCKET, ERROR_CODES } from '../config/constants';
 import {
     socketRateLimiter,
 } from './rateLimitHandler';
@@ -167,7 +167,7 @@ function handleConnection(
         });
 
         socket.emit('socket:error', {
-            code: 'INTERNAL_ERROR',
+            code: ERROR_CODES.SERVER_ERROR,
             message: 'An unexpected error occurred. Please try again.'
         });
     });

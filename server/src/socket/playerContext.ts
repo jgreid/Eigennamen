@@ -237,7 +237,7 @@ function canChangeTeamOrRole(
         return {
             allowed: false,
             reason: 'Cannot change teams as spymaster during an active game (card information would leak)',
-            code: 'SPYMASTER_CANNOT_CHANGE_TEAM'
+            code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM
         };
     }
 

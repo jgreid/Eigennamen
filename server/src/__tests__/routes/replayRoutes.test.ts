@@ -76,7 +76,7 @@ describe('Replay Routes', () => {
                 .get('/api/replays/TEST12/not-a-uuid')
                 .expect(400);
 
-            expect(response.body.error.code).toBe('VALIDATION_ERROR');
+            expect(response.body.error.code).toBe('INVALID_INPUT');
             expect(response.body.error.message).toBe('Invalid room code or game ID format');
         });
 
@@ -85,7 +85,7 @@ describe('Replay Routes', () => {
                 .get(`/api/replays/AB/${validGameId}`)
                 .expect(400);
 
-            expect(response.body.error.code).toBe('VALIDATION_ERROR');
+            expect(response.body.error.code).toBe('INVALID_INPUT');
         });
 
         it('should return 400 for room code too long', async () => {
@@ -94,7 +94,7 @@ describe('Replay Routes', () => {
                 .get(`/api/replays/${longCode}/${validGameId}`)
                 .expect(400);
 
-            expect(response.body.error.code).toBe('VALIDATION_ERROR');
+            expect(response.body.error.code).toBe('INVALID_INPUT');
         });
 
         it('should normalize room code to lowercase', async () => {

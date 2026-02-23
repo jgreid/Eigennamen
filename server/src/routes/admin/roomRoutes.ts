@@ -112,19 +112,26 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
             res.json({ count: 0, rooms: [] });
             return;
         }
-        // Use SCAN to avoid blocking Redis
+        // Use SCAN to avoid blocking Redis.
+        // Cap iterations to prevent unbounded looping on very large keyspaces.
+        const MAX_SCAN_ITERATIONS = 1000;
         const validRoomKeys: string[] = [];
         let cursor = '0';
+        let iterations = 0;
         do {
             const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
             cursor = result.cursor.toString();
+            iterations++;
             // Filter to only room codes (excluding sub-keys like room:abc:players)
             for (const key of result.keys) {
                 if (/^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)) {
                     validRoomKeys.push(key);
                 }
             }
-        } while (cursor !== '0');
+        } while (cursor !== '0' && iterations < MAX_SCAN_ITERATIONS);
+        if (iterations >= MAX_SCAN_ITERATIONS) {
+            logger.warn(`Room listing SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), results may be incomplete`);
+        }
 
         const rooms: RoomSummary[] = [];
         for (const key of validRoomKeys) {
