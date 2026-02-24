@@ -49,20 +49,7 @@
     ],
 
     // Base URL for module resolution
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@config/*": ["src/config/*"],
-      "@services/*": ["src/services/*"],
-      "@errors/*": ["src/errors/*"],
-      "@utils/*": ["src/utils/*"],
-      "@middleware/*": ["src/middleware/*"],
-      "@routes/*": ["src/routes/*"],
-      "@socket/*": ["src/socket/*"],
-      "@validators/*": ["src/validators/*"],
-      "@types/*": ["src/types/*"],
-      "@shared/*": ["src/shared/*"]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/**/*.ts"

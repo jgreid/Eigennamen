@@ -31,8 +31,6 @@
     "health": "../scripts/health-check.sh",
     "predeploy": "../scripts/pre-deploy-check.sh",
     "redis:inspect": "../scripts/redis-inspect.sh",
-    "test:mutation": "npx stryker run",
-    "test:mutation:dry": "npx stryker run --dryRunOnly",
     "loadtest": "node loadtest/stress-test.js",
     "loadtest:memory": "node loadtest/memory-leak-test.js"
   },
@@ -54,9 +52,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "@stryker-mutator/core": "^9.5.1",
-    "@stryker-mutator/jest-runner": "^9.5.1",
-    "@stryker-mutator/typescript-checker": "^9.5.1",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
