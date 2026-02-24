@@ -29,7 +29,6 @@ import {
     DEFAULT_WORDS,
     REDIS_TTL,
     LOCKS,
-    RETRY_CONFIG,
     GAME_INTERNALS,
     DUET_BOARD_CONFIG
 } from '../config/constants';
@@ -37,13 +36,13 @@ import {
     GameStateError,
     ValidationError,
     PlayerError,
-    ServerError,
     RoomError
 } from '../errors/GameError';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { toEnglishUpperCase } from '../utils/sanitize';
 import { tryParseJSON } from '../utils/parseJSON';
-import { ATOMIC_SET_ROOM_STATUS_SCRIPT, RELEASE_LOCK_SCRIPT } from '../scripts';
+import { ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../scripts';
+import { withLock } from '../utils/distributedLock';
 
 // Focused modules
 import {
@@ -75,39 +74,6 @@ export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult };
 // Re-export getGameStateForPlayer from revealEngine for consumers that access it via gameService
 export { getGameStateForPlayer };
 
-/**
- * Release a distributed lock with retry and exponential backoff.
- * Prevents permanent lock when release fails (lock self-heals via TTL,
- * but retry reduces the window where subsequent operations are blocked).
- */
-async function releaseLockWithRetry(
-    redis: RedisClient,
-    lockKey: string,
-    lockValue: string,
-    context: string,
-    maxRetries: number = 3
-): Promise<void> {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            await withTimeout(
-                redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
-                TIMEOUTS.TIMER_OPERATION,
-                `${context}-attempt-${attempt}`
-            );
-            return; // Success
-        } catch (err: unknown) {
-            const errorMsg = (err as Error).message;
-            if (attempt < maxRetries) {
-                const backoffMs = Math.min(50 * Math.pow(2, attempt), 400);
-                logger.warn(`Lock release failed for ${context} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoffMs}ms: ${errorMsg}`);
-                await new Promise(resolve => setTimeout(resolve, backoffMs));
-            } else {
-                // Lock will self-heal via TTL expiration (LOCKS.CARD_REVEAL = 15s)
-                logger.error(`Failed to release lock for ${context} after ${maxRetries + 1} attempts: ${errorMsg}`);
-            }
-        }
-    }
-}
 
 /**
  * Add entry to game history with cap to prevent unbounded growth
@@ -124,61 +90,6 @@ function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
 
 // ─── Game Lifecycle ─────────────────────────────────────────────────
 
-/**
- * Acquire game creation lock with exponential backoff retry.
- * Returns the lock value for release, or throws if a game is already in progress.
- */
-async function acquireGameCreationLock(
-    redis: RedisClient,
-    roomCode: string
-): Promise<{ lockKey: string; lockValue: string }> {
-    const lockKey = `room:${roomCode}:game:creating`;
-    const lockValue = `${process.pid}:${Date.now()}`;
-    const lockAcquired = await withTimeout(
-        redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE }),
-        TIMEOUTS.REDIS_OPERATION,
-        `createGame-lock-${roomCode}`
-    );
-
-    if (lockAcquired) {
-        return { lockKey, lockValue };
-    }
-
-    const maxRetries = 3;
-    let acquiredOnRetry = false;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const delayMs = RETRY_CONFIG.RACE_CONDITION.delayMs * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-        const existingGame = await getGame(roomCode);
-        if (existingGame && !existingGame.gameOver) {
-            throw RoomError.gameInProgress(roomCode);
-        }
-        const retryLock = await withTimeout(
-            redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.GAME_CREATE }),
-            TIMEOUTS.REDIS_OPERATION,
-            `createGame-retryLock-${roomCode}`
-        );
-        if (retryLock) {
-            acquiredOnRetry = true;
-            break;
-        }
-        if (attempt === maxRetries - 1) {
-            throw RoomError.gameInProgress(roomCode);
-        }
-    }
-
-    // Re-check after acquiring on retry: the previous holder's game creation may still be in-flight
-    if (acquiredOnRetry) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.RACE_CONDITION.delayMs));
-        const lateGame = await getGame(roomCode);
-        if (lateGame && !lateGame.gameOver) {
-            await releaseLockWithRetry(redis, lockKey, lockValue, `creation-lock-${roomCode}`);
-            throw RoomError.gameInProgress(roomCode);
-        }
-    }
-
-    return { lockKey, lockValue };
-}
 
 /**
  * Resolve the word list to use for a game.
@@ -291,10 +202,9 @@ export async function createGame(
     roomCode: string,
     options: CreateGameOptions = {}
 ): Promise<GameState> {
-    const redis: RedisClient = getRedis();
-    const { lockKey, lockValue } = await acquireGameCreationLock(redis, roomCode);
+    return withLock(`game-create:${roomCode}`, async () => {
+        const redis: RedisClient = getRedis();
 
-    try {
         const existingGame = await getGame(roomCode);
         if (existingGame && !existingGame.gameOver) {
             throw RoomError.gameInProgress(roomCode);
@@ -322,9 +232,7 @@ export async function createGame(
 
         logger.info(`Game created for room ${roomCode} with seed ${seed}`);
         return game;
-    } finally {
-        await releaseLockWithRetry(redis, lockKey, lockValue, `creation-lock-${roomCode}`);
-    }
+    }, { lockTimeout: LOCKS.GAME_CREATE * 1000, maxRetries: 10 });
 }
 
 /**
@@ -358,23 +266,11 @@ export async function revealCard(
     playerNickname: string = 'Unknown',
     playerTeam: string = ''
 ): Promise<RevealResult> {
-    const redis: RedisClient = getRedis();
     const gameKey = `room:${roomCode}:game`;
-    const lockKey = `lock:reveal:${roomCode}`;
 
     validateCardIndex(index);
 
-    const lockValue = `${process.pid}:${Date.now()}`;
-    const lockAcquired = await withTimeout(
-        redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.CARD_REVEAL }),
-        TIMEOUTS.REDIS_OPERATION,
-        `revealCard-lock-${roomCode}`
-    );
-    if (!lockAcquired) {
-        throw new ServerError('Another card reveal is in progress, please try again');
-    }
-
-    try {
+    return withLock(`reveal:${roomCode}`, async () => {
         const errorMap: Record<string, Error> = {
             'NO_GAME': GameStateError.noActiveGame(),
             'GAME_OVER': GameStateError.gameOver(),
@@ -397,9 +293,7 @@ export async function revealCard(
             errorMap,
             `revealCard-${roomCode}`
         );
-    } finally {
-        await releaseLockWithRetry(redis, lockKey, lockValue, `reveal-lock-${roomCode}`);
-    }
+    }, { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 });
 }
 
 // ─── End Turn ───────────────────────────────────────────────────────

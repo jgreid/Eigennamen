@@ -798,13 +798,17 @@ describe('revealCard', () => {
     });
 
     test('fails when lock cannot be acquired', async () => {
-        mockRedis.set.mockResolvedValueOnce(null); // Lock not acquired
+        // All set calls return null — withLock retries exhaust and throw
+        const origSet = mockRedis.set;
+        mockRedis.set = jest.fn().mockResolvedValue(null);
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.SERVER_ERROR,
-            message: 'Another card reveal is in progress, please try again'
+            message: expect.stringContaining('Failed to acquire lock')
         });
-    });
+
+        mockRedis.set = origSet;
+    }, 30000);
 
     test('propagates game logic errors from Lua script', async () => {
         mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
@@ -830,21 +834,21 @@ describe('revealCard', () => {
         expect(mockRedis.eval).toHaveBeenCalled();
     });
 
-    test('logs error when lock release fails after retries', async () => {
-        mockRedis.set.mockResolvedValueOnce('OK');
+    test('logs error when lock release fails', async () => {
+        mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
         const luaResult = { success: true, index: 5, type: 'red' };
-        // First eval: Lua reveal succeeds. Remaining evals: lock release fails on all retry attempts (4 total).
+        // First eval: Lua reveal succeeds. Second eval: lock release fails.
         mockRedis.eval
             .mockResolvedValueOnce(JSON.stringify(luaResult))
-            .mockRejectedValueOnce(new Error('Redis down'))
-            .mockRejectedValueOnce(new Error('Redis down'))
-            .mockRejectedValueOnce(new Error('Redis down'))
             .mockRejectedValueOnce(new Error('Redis down'));
 
         await revealCard('TEST01', 5);
 
         expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Failed to release lock for reveal-lock-TEST01')
+            'Lock release error',
+            expect.objectContaining({
+                error: 'Redis down'
+            })
         );
     });
 });

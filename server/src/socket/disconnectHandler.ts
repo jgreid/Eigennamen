@@ -14,7 +14,7 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { Player, GameState, TimerCallback, RedisClient } from '../types';
+import type { Player, GameState, TimerCallback } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 import type { TimerInfo } from './socketFunctionProvider';
 
@@ -23,11 +23,10 @@ import { SOCKET_EVENTS, LOCKS, SESSION_SECURITY } from '../config/constants';
 import { safeEmitToRoom } from './safeEmit';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { withLock } from '../utils/distributedLock';
-import { RELEASE_LOCK_SCRIPT } from '../scripts';
 import * as gameService from '../services/gameService';
 import * as roomService from '../services/roomService';
 import * as playerService from '../services/playerService';
-import { getRedis, isRedisHealthy } from '../config/redis';
+import { isRedisHealthy } from '../config/redis';
 
 /**
  * Create the callback for timer expiration.
@@ -82,16 +81,11 @@ function createTimerExpireCallback(
             emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
 
             // Restart timer for the new turn (if timer is configured and game not over)
-            // Use distributed lock with improved error handling
-            // when multiple timer expirations queue setImmediate callbacks.
+            // Use distributed lock to prevent duplicate restarts when multiple
+            // timer expirations queue setImmediate callbacks.
             // Wrap in IIFE with .catch() to prevent unhandled promise rejections
             setImmediate(() => {
                 (async () => {
-                    const redis: RedisClient = getRedis();
-                    const lockKey = `lock:timer-restart:${roomCode}`;
-                    let lockAcquired = false;
-                    let lockValue: string | undefined;
-
                     try {
                         // Check Redis availability before attempting lock
                         const redisHealthy = await isRedisHealthy();
@@ -100,62 +94,33 @@ function createTimerExpireCallback(
                             return;
                         }
 
-                        // Use centralized lock TTL from config
-                        lockValue = `${process.pid}:${Date.now()}`;
-                        const lockResult = await redis.set(lockKey, lockValue, { NX: true, EX: LOCKS.TIMER_RESTART });
-                        // Redis SET with NX returns 'OK' (node-redis v4) or null on failure.
-                        lockAcquired = lockResult === 'OK' || !!lockResult;
+                        await withLock(`timer-restart:${roomCode}`, async () => {
+                            const room = await roomService.getRoom(roomCode);
+                            const currentGame: GameState | null = await gameService.getGame(roomCode);
 
-                        if (!lockAcquired) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: another instance handling it`, {
-                                lockKey
-                            });
-                            return;
-                        }
-
-                        logger.debug(`Timer restart lock acquired for room ${roomCode}`, {
-                            lockKey,
-                            lockValue,
-                            ttlSeconds: LOCKS.TIMER_RESTART
-                        });
-
-                        const room = await roomService.getRoom(roomCode);
-                        const currentGame: GameState | null = await gameService.getGame(roomCode);
-
-                        if (!room) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
-                            return;
-                        }
-                        if (!room.settings || !room.settings.turnTimer) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
-                            return;
-                        }
-                        if (!currentGame) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
-                            return;
-                        }
-                        if (currentGame.gameOver) {
-                            logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${currentGame.winner})`);
-                            return;
-                        }
-
-                        await startTurnTimer(roomCode, room.settings.turnTimer);
-                        logger.debug(`Timer restarted for room ${roomCode}, new turn: ${currentGame.currentTurn}`);
-                    } catch (err) {
-                        logger.error(`Timer restart failed for room ${roomCode}: ${(err as Error).message}`);
-                    } finally {
-                        // Always release lock if we acquired it (owner-verified)
-                        if (lockAcquired && lockValue) {
-                            try {
-                                await withTimeout(
-                                    redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [lockValue] }),
-                                    TIMEOUTS.TIMER_OPERATION,
-                                    `release-timer-restart-lock-${roomCode}`
-                                );
-                            } catch (delErr) {
-                                logger.error(`Failed to release timer restart lock for ${roomCode}: ${(delErr as Error).message}`);
+                            if (!room) {
+                                logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
+                                return;
                             }
-                        }
+                            if (!room.settings || !room.settings.turnTimer) {
+                                logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
+                                return;
+                            }
+                            if (!currentGame) {
+                                logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
+                                return;
+                            }
+                            if (currentGame.gameOver) {
+                                logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${currentGame.winner})`);
+                                return;
+                            }
+
+                            await startTurnTimer(roomCode, room.settings.turnTimer);
+                            logger.debug(`Timer restarted for room ${roomCode}, new turn: ${currentGame.currentTurn}`);
+                        }, { lockTimeout: LOCKS.TIMER_RESTART * 1000, maxRetries: 3 });
+                    } catch (err) {
+                        // If lock acquisition fails, another instance is handling this restart
+                        logger.debug(`Timer restart skipped for room ${roomCode}: ${(err as Error).message}`);
                     }
                 })().catch(err => {
                     // Catch any unhandled promise rejections from the async IIFE
@@ -268,86 +233,54 @@ async function handleDisconnect(
                 return;
             }
 
-            // Check if disconnected player was host - use lock with longer TTL
+            // Check if disconnected player was host - use distributed lock
             if (player.isHost) {
-                const redis: RedisClient = getRedis();
-                const lockKey = `lock:host-transfer:${roomCode}`;
-                let hostTransferLockAcquired = false;
-                let hostLockValue: string | undefined;
-
                 try {
-                    // Use centralized lock TTL from config with unique value for owner-verified release
-                    hostLockValue = `${socket.sessionId}:${Date.now()}`;
-                    const lockResult = await withTimeout(
-                        redis.set(lockKey, hostLockValue, { NX: true, EX: LOCKS.HOST_TRANSFER }),
-                        TIMEOUTS.REDIS_OPERATION,
-                        `disconnect-hostTransferLock-${roomCode}`
-                    );
-                    // Redis SET with NX returns 'OK' (node-redis v4) or null on failure.
-                    hostTransferLockAcquired = lockResult === 'OK' || !!lockResult;
-
-                    if (hostTransferLockAcquired) {
+                    await withLock(`host-transfer:${roomCode}`, async () => {
                         // Re-check if the disconnected host has reconnected
                         // This prevents transferring host to someone else when the original host
                         // successfully reconnected within the grace period
                         const currentHostPlayer: Player | null = await playerService.getPlayer(socket.sessionId);
                         if (currentHostPlayer && currentHostPlayer.connected) {
                             logger.info(`Host ${socket.sessionId} reconnected before transfer, skipping host transfer for room ${roomCode}`);
-                            // Skip host transfer - host is back
-                        } else {
-                            const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
-                            // Don't early return - just skip transfer if we can't get players
-                            // Early return was causing the rest of disconnect handling to be skipped
-                            if (!players || !Array.isArray(players)) {
-                                logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
-                                // Continue to finally block to release lock, but skip transfer
+                            return;
+                        }
+
+                        const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
+                        if (!players || !Array.isArray(players)) {
+                            logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
+                            return;
+                        }
+
+                        const connectedPlayers = players.filter((p: Player) => p.connected && p.sessionId !== socket.sessionId);
+
+                        if (connectedPlayers.length > 0) {
+                            // Transfer host to first connected player
+                            // Safe to cast: we just verified length > 0
+                            const newHost = connectedPlayers[0] as Player;
+
+                            // Use atomic host transfer to prevent race conditions
+                            // This atomically updates old host, new host, and room in a single Lua script
+                            const transferResult = await playerService.atomicHostTransfer(
+                                socket.sessionId,
+                                newHost.sessionId,
+                                roomCode
+                            );
+
+                            if (transferResult.success) {
+                                safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
+                                    newHostSessionId: newHost.sessionId,
+                                    newHostNickname: newHost.nickname,
+                                    reason: 'previousHostDisconnected'
+                                });
                             } else {
-                                const connectedPlayers = players.filter((p: Player) => p.connected && p.sessionId !== socket.sessionId);
-
-                                if (connectedPlayers.length > 0) {
-                                    // Transfer host to first connected player
-                                    // Safe to cast: we just verified length > 0
-                                    const newHost = connectedPlayers[0] as Player;
-
-                                    // Use atomic host transfer to prevent race conditions
-                                    // This atomically updates old host, new host, and room in a single Lua script
-                                    const transferResult = await playerService.atomicHostTransfer(
-                                        socket.sessionId,
-                                        newHost.sessionId,
-                                        roomCode
-                                    );
-
-                                    if (transferResult.success) {
-                                        safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
-                                            newHostSessionId: newHost.sessionId,
-                                            newHostNickname: newHost.nickname,
-                                            reason: 'previousHostDisconnected'
-                                        });
-
-                                    } else {
-                                        logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
-                                    }
-                                }
+                                logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
                             }
                         }
-                    } else {
-                        logger.debug(`Host transfer lock not acquired for room ${roomCode}, another instance handling it`);
-                    }
+                    }, { lockTimeout: LOCKS.HOST_TRANSFER * 1000, maxRetries: 5 });
                 } catch (hostTransferError) {
-                    logger.error(`Host transfer failed for room ${roomCode}: ${(hostTransferError as Error).message}`);
-                } finally {
-                    // Only release lock if we acquired it (owner-verified)
-                    if (hostTransferLockAcquired && hostLockValue) {
-                        try {
-                            await withTimeout(
-                                redis.eval(RELEASE_LOCK_SCRIPT, { keys: [lockKey], arguments: [hostLockValue] }),
-                                TIMEOUTS.REDIS_OPERATION,
-                                `release-host-transfer-lock-${roomCode}`
-                            );
-                        } catch (delErr) {
-                            logger.error(`Failed to release host transfer lock for ${roomCode}: ${(delErr as Error).message}`);
-                        }
-                    }
+                    // If lock acquisition fails, another instance is handling this transfer
+                    logger.debug(`Host transfer lock not acquired for room ${roomCode}: ${(hostTransferError as Error).message}`);
                 }
             }
         }

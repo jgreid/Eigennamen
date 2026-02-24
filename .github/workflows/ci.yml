@@ -227,10 +227,8 @@ jobs:
           echo "| Moderate | ${PROD_MODERATE} |" >> $GITHUB_STEP_SUMMARY
 
           # Known/accepted vulnerabilities (no fix available):
-          # - GHSA-3ppc-4f35-3m26: minimatch ReDoS via swagger-jsdoc -> glob@7 -> minimatch@3
-          #   Not exploitable: swagger-jsdoc only uses glob with developer-controlled patterns at startup.
-          #   swagger-jsdoc v7 (still RC) also uses the same vulnerable glob@7.
-          KNOWN_ADVISORIES="GHSA-3ppc-4f35-3m26"
+          # (none currently — swagger-jsdoc was removed to eliminate GHSA-3ppc-4f35-3m26)
+          KNOWN_ADVISORIES=""
 
           # Count unknown high/critical vulnerabilities (excluding known accepted ones)
           UNKNOWN_HIGH_CRITICAL=$(jq --arg known "$KNOWN_ADVISORIES" '

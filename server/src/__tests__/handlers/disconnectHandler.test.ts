@@ -44,9 +44,9 @@ jest.mock('../../socket/safeEmit', () => ({
     safeEmitToRoom: jest.fn(),
 }));
 
+const mockWithLock = jest.fn((_key: string, fn: () => Promise<unknown>) => fn());
 jest.mock('../../utils/distributedLock', () => ({
-    RELEASE_LOCK_SCRIPT: 'mock-release-script',
-    withLock: jest.fn((_key: string, fn: () => Promise<unknown>) => fn()),
+    withLock: mockWithLock,
 }));
 
 const { handleDisconnect, createTimerExpireCallback } = require('../../socket/disconnectHandler');
@@ -64,6 +64,7 @@ describe('disconnectHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockRedis.set.mockResolvedValue('OK');
+        mockWithLock.mockImplementation((_key: string, fn: () => Promise<unknown>) => fn());
         mockIo = { to: jest.fn().mockReturnThis(), emit: jest.fn() };
         mockSocket = { id: 'sock-1', sessionId: 'sess-1', roomCode: 'ROOM01' };
     });
@@ -135,7 +136,8 @@ describe('disconnectHandler', () => {
                 team: 'red', isHost: true, connected: true,
             });
             playerService.getPlayersInRoom.mockResolvedValue([]);
-            mockRedis.set.mockResolvedValue(null); // lock failed
+            // Simulate withLock failing to acquire the host-transfer lock
+            mockWithLock.mockRejectedValueOnce(new Error('Lock not acquired'));
 
             await handleDisconnect(mockIo, mockSocket, 'transport close');
 
@@ -226,25 +228,17 @@ describe('disconnectHandler', () => {
             );
         });
 
-        it('should handle lock release failure without crashing', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
-                    team: 'red', isHost: true, connected: true,
-                })
-                .mockResolvedValueOnce(null);
+        it('should handle withLock errors without crashing', async () => {
+            playerService.getPlayer.mockResolvedValueOnce({
+                sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                team: 'red', isHost: true, connected: true,
+            });
+            playerService.getPlayersInRoom.mockResolvedValue([]);
 
-            playerService.getPlayersInRoom
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([
-                    { sessionId: 'sess-2', nickname: 'Bob', connected: true },
-                ]);
-            playerService.atomicHostTransfer.mockResolvedValue({ success: true });
+            // withLock rejects (e.g. internal Redis failure)
+            mockWithLock.mockRejectedValueOnce(new Error('Lock internal error'));
 
-            // Lock release will fail
-            mockRedis.eval.mockRejectedValue(new Error('Redis eval failed'));
-
-            // Should not throw despite lock release failure
+            // Should not throw despite lock error
             await expect(
                 handleDisconnect(mockIo, mockSocket, 'transport close')
             ).resolves.not.toThrow();
@@ -302,21 +296,21 @@ describe('disconnectHandler', () => {
         });
 
         it('should handle host transfer error gracefully', async () => {
-            playerService.getPlayer
-                .mockResolvedValueOnce({
-                    sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
-                    team: 'red', isHost: true, connected: true,
-                })
-                .mockRejectedValueOnce(new Error('Redis error during recheck'));
-
+            playerService.getPlayer.mockResolvedValueOnce({
+                sessionId: 'sess-1', roomCode: 'ROOM01', nickname: 'Host',
+                team: 'red', isHost: true, connected: true,
+            });
             playerService.getPlayersInRoom.mockResolvedValue([]);
+
+            // Simulate withLock throwing (e.g. Redis error inside the callback)
+            mockWithLock.mockRejectedValueOnce(new Error('Redis error during recheck'));
 
             await expect(
                 handleDisconnect(mockIo, mockSocket, 'transport close')
             ).resolves.not.toThrow();
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Host transfer failed'),
+            expect(logger.debug).toHaveBeenCalledWith(
+                expect.stringContaining('Host transfer lock not acquired'),
             );
         });
 
@@ -426,7 +420,11 @@ describe('disconnectHandler', () => {
             gameService.getGame.mockResolvedValue({ gameOver: false });
             gameService.endTurn.mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' });
             (isRedisHealthy as jest.Mock).mockResolvedValue(true);
-            mockRedis.set.mockResolvedValue(null); // lock failed
+
+            // Make withLock reject for the timer-restart lock (second call — first is timer-expire)
+            mockWithLock
+                .mockImplementationOnce((_key: string, fn: () => Promise<unknown>) => fn()) // timer-expire: pass through
+                .mockRejectedValueOnce(new Error('Lock not acquired')); // timer-restart: reject
 
             await callback('ROOM01');
             await new Promise(resolve => setImmediate(resolve));
