@@ -72,7 +72,7 @@ router.get('/:roomCode/:gameId', replayLimiter, async (req: Request, res: Respon
 
         res.json({ replay: replayData });
     } catch (error) {
-        logger.error('Error fetching replay', { roomCode: req.params.roomCode, error: error instanceof Error ? error.message : String(error) });
+        logger.error('Error fetching replay', { roomCode: String(req.params.roomCode), error: error instanceof Error ? error.message : String(error) });
         next(error);
     }
 });

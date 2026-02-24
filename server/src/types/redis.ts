@@ -77,7 +77,7 @@ export interface RedisClient {
     eval(script: string, options: { keys: string[]; arguments: string[] }): Promise<unknown>;
 
     // ── Scan ─────────────────────────────────────────────────────────
-    // cursor return type is string (matching Redis protocol)
-    scan?(cursor: string, options: { MATCH: string; COUNT: number }): Promise<{ cursor: string; keys: string[] }>;
+    // cursor return type is number in redis v5+ (was string in v4)
+    scan?(cursor: number, options: { MATCH: string; COUNT: number }): Promise<{ cursor: number; keys: string[] }>;
     scanIterator?(options: { MATCH: string; COUNT?: number }): AsyncIterable<string>;
 }

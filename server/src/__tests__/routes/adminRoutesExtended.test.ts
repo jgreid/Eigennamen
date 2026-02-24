@@ -101,7 +101,7 @@ const mockRedis = {
         return members ? members.size : 0;
     }),
     keys: jest.fn(async () => []),
-    scan: jest.fn(async () => ({ cursor: '0', keys: [] })),
+    scan: jest.fn(async () => ({ cursor: 0, keys: [] })),
     scanIterator: jest.fn(() => ({
         [Symbol.asyncIterator]: async function* () {
             // Empty iterator

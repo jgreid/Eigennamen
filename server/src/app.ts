@@ -195,7 +195,7 @@ app.get(['/sw.js', '/service-worker.js'], (_req: Request, res: Response, next: N
 // (e.g. socket-client.js?v=6) take effect immediately after deploys.
 // Without this, browsers serve stale HTML for up to 1 day, loading old JS
 // versions that may have known bugs (like the io.protocol check in ?v=5).
-app.get('*.html', (_req: Request, res: Response, next: NextFunction) => {
+app.get('{/*path}.html', (_req: Request, res: Response, next: NextFunction) => {
     res.set('Cache-Control', 'no-cache');
     next();
 });
@@ -311,7 +311,7 @@ app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
 // no-cache ensures browsers always revalidate after deploys so cache-busted
 // asset references (e.g. socket-client.js?v=7) take effect immediately.
 const RESERVED_PATH_PREFIXES = ['/api', '/socket.io', '/health', '/metrics', '/api-docs', '/admin'];
-app.get('*', (req: Request, res: Response, next: NextFunction) => {
+app.get('/{*splat}', (req: Request, res: Response, next: NextFunction) => {
     if (RESERVED_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
         return next();
     }

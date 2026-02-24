@@ -36,7 +36,7 @@ jest.mock('../../config/redis', () => {
             const pattern = options?.MATCH || '*';
             const regex = new RegExp('^' + pattern.replace('*', '.*') + '$');
             const keys = Array.from(mockRedisStorage.keys()).filter(key => regex.test(key));
-            return { cursor: '0', keys };
+            return { cursor: 0, keys };
         }),
         exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
         expire: jest.fn(async () => 1),

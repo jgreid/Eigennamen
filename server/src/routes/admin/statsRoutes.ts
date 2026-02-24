@@ -53,15 +53,15 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
         try {
             const redis: RedisClient = getRedis();
             if (redis.scan) {
-                let cursor = '0';
+                let cursor = 0;
                 let iterations = 0;
                 do {
                     const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
-                    cursor = result.cursor.toString();
+                    cursor = result.cursor;
                     iterations++;
                     // Filter to only room codes (excluding sub-keys like room:abc:players)
                     roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
-                } while (cursor !== '0' && iterations < MAX_SCAN_ITERATIONS);
+                } while (cursor !== 0 && iterations < MAX_SCAN_ITERATIONS);
                 if (iterations >= MAX_SCAN_ITERATIONS) {
                     logger.warn(`Stats SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), room count may be approximate`);
                 }

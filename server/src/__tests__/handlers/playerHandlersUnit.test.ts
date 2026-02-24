@@ -418,7 +418,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringMatching(/required/i)  // Case-insensitive match for Zod validation
+                message: expect.stringMatching(/required|expected string/i)  // Zod v3: "Required", Zod v4: "expected string, received undefined"
             });
         });
 
