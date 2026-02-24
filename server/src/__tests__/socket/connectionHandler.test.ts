@@ -35,6 +35,7 @@ jest.mock('../../socket/connectionTracker', () => ({
 
 jest.mock('../../config/constants', () => ({
     SOCKET: { DISCONNECT_TIMEOUT_MS: 5000 },
+    ERROR_CODES: { SERVER_ERROR: 'SERVER_ERROR' },
 }));
 
 const { handleConnection, ensureSocketFunctionsRegistered, createTimerExpireCallback } =
@@ -300,7 +301,7 @@ describe('connectionHandler', () => {
                 expect.objectContaining({ message: 'test error', sessionId: 'sess-1' })
             );
             expect(mockSocket.emit).toHaveBeenCalledWith('socket:error', {
-                code: 'INTERNAL_ERROR',
+                code: 'SERVER_ERROR',
                 message: 'An unexpected error occurred. Please try again.'
             });
         });

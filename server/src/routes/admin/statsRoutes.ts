@@ -46,18 +46,25 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
             socketStats.error = (error as Error).message;
         }
 
-        // Get room count using SCAN to avoid blocking Redis
+        // Get room count using SCAN to avoid blocking Redis.
+        // Cap iterations to prevent unbounded looping on very large keyspaces.
+        const MAX_SCAN_ITERATIONS = 1000;
         let roomCount = 0;
         try {
             const redis: RedisClient = getRedis();
             if (redis.scan) {
                 let cursor = '0';
+                let iterations = 0;
                 do {
                     const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
                     cursor = result.cursor.toString();
+                    iterations++;
                     // Filter to only room codes (excluding sub-keys like room:abc:players)
                     roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
-                } while (cursor !== '0');
+                } while (cursor !== '0' && iterations < MAX_SCAN_ITERATIONS);
+                if (iterations >= MAX_SCAN_ITERATIONS) {
+                    logger.warn(`Stats SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), room count may be approximate`);
+                }
             }
         } catch (error) {
             logger.warn('Failed to count rooms', { error: (error as Error).message });
@@ -119,7 +126,13 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
         'X-Accel-Buffering': 'no'  // Disable nginx buffering
     });
 
+    // Guard against writing to a closed connection. Without this flag,
+    // an in-flight sendStats() could call res.write() after the client
+    // disconnects, causing an error or silently corrupting state.
+    let closed = false;
+
     const sendStats = async () => {
+        if (closed) return;
         try {
             const redisHealthy = await isRedisHealthy();
             const memUsage = process.memoryUsage();
@@ -146,9 +159,13 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
                 data.alerts.push(`High memory usage: ${data.memory.rss}MB`);
             }
 
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
+            if (!closed) {
+                res.write(`data: ${JSON.stringify(data)}\n\n`);
+            }
         } catch (error) {
-            logger.error('SSE stats error:', (error as Error).message);
+            if (!closed) {
+                logger.error('SSE stats error:', (error as Error).message);
+            }
         }
     };
 
@@ -162,6 +179,7 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
 
     // Clean up on client disconnect
     req.on('close', () => {
+        closed = true;
         clearInterval(interval);
     });
 });

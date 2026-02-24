@@ -10,7 +10,7 @@ import type { Request, Response, NextFunction, Router as ExpressRouter } from 'e
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import * as gameHistoryService from '../services/gameHistoryService';
-import { API_RATE_LIMITS } from '../config/constants';
+import { API_RATE_LIMITS, ERROR_CODES } from '../config/constants';
 import { z } from 'zod';
 import { createRoomIdSchema } from '../validators/schemaHelpers';
 import logger from '../utils/logger';
@@ -27,7 +27,7 @@ const replayLimiter = rateLimit({
     handler: (_req: Request, res: Response) => {
         res.status(429).json({
             error: {
-                code: 'RATE_LIMITED',
+                code: ERROR_CODES.RATE_LIMITED,
                 message: 'Too many requests. Please try again later.'
             }
         });
@@ -50,7 +50,7 @@ router.get('/:roomCode/:gameId', replayLimiter, async (req: Request, res: Respon
         if (!parsed.success) {
             res.status(400).json({
                 error: {
-                    code: 'VALIDATION_ERROR',
+                    code: ERROR_CODES.INVALID_INPUT,
                     message: 'Invalid room code or game ID format'
                 }
             });

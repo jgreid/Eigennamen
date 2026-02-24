@@ -147,7 +147,8 @@ export async function copyLink(): Promise<void> {
         btn.textContent = t('game.copiedShort');
     }
     if (linkPanelBtn) {
-        linkPanelBtn.querySelector('.copy-text')!.textContent = t('game.copiedShort');
+        const copyText = linkPanelBtn.querySelector('.copy-text');
+        if (copyText) copyText.textContent = t('game.copiedShort');
     }
     if (feedback) {
         feedback.textContent = t('toast.linkCopied');
@@ -155,7 +156,10 @@ export async function copyLink(): Promise<void> {
 
     state.copyButtonTimeoutId = setTimeout(() => {
         if (btn) btn.textContent = COPY_BUTTON_TEXT;
-        if (linkPanelBtn) linkPanelBtn.querySelector('.copy-text')!.textContent = t('game.copy');
+        if (linkPanelBtn) {
+            const copyText = linkPanelBtn.querySelector('.copy-text');
+            if (copyText) copyText.textContent = t('game.copy');
+        }
         if (feedback) feedback.textContent = '';
         state.copyButtonTimeoutId = null;
     }, 3000);

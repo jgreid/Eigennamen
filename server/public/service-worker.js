@@ -59,6 +59,9 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             })
-            .catch(() => caches.match(event.request))
+            .catch(() => caches.match(event.request).then((cached) => {
+                if (cached) return cached;
+                return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+            }))
     );
 });
