@@ -32,16 +32,17 @@ Review `server/src/socket/handlers/` and the `contextHandler.ts` pattern:
 
 ### 1.3 Frontend Module Organization
 Analyze `server/src/frontend/` (39 modules):
-- `socket-client.ts` is ~886 LOC. Is this a monolithic event handler that should be decomposed like the backend handlers? The backend has `handlers/gameHandlers.ts`, `handlers/roomHandlers.ts`, etc. — does the frontend follow the same decomposition in `handlers/`?
-- How is frontend state managed? Is there a centralized state object, or is state scattered across modules with ad-hoc DOM manipulation?
-- Check `clientAccessor.ts` — is this a proper singleton pattern or a global mutable state bag?
-- Is there dead code in the frontend? Are all 39 modules actually imported and used?
+- `socket-client.ts` is ~886 LOC and is built as an IIFE bundle (separate from the ES module system), exposing a global `EigennamenClient`. Is this separation justified? Could it be an ES module like everything else?
+- The frontend has a sophisticated state management pattern: `state.ts` (singleton), `stateTypes.ts` (discriminated unions), `stateMutations.ts` (updates), with a `setState()` function that logs to a debug history. Is this pattern consistently used, or do some modules bypass it and mutate state directly?
+- The multiplayer system has its own module decomposition (`multiplayer.ts`, `multiplayerUI.ts`, `multiplayerSync.ts`, `multiplayerListeners.ts`, `multiplayerTypes.ts`). Is this decomposition clean? Are the responsibilities between `Sync` and `Listeners` clearly separated?
+- Is there dead code in the frontend? Are all 40 modules actually imported and used? Is there an `app.ts` entry point that wires everything, or are there orphaned modules?
+- The frontend uses event delegation via `data-action` attributes on a central click listener. Is this pattern applied consistently, or do some modules add their own click handlers directly?
 
 ### 1.4 Build Pipeline Analysis
 Review the build process:
 - The frontend uses `tsc -p tsconfig.frontend.json` to compile TypeScript to `public/js/modules/`. Is there tree-shaking? Does dead code get shipped to clients?
-- There's also `esbuild.config.js` and a `build:frontend:bundle` script. When is esbuild used vs. plain tsc? Is there a dual build path that could diverge?
-- Compare `build` vs `build:prod` scripts in `package.json`. Are there production optimizations (minification, source maps, etc.) that are missing?
+- There's also `esbuild.config.js` and a `build:frontend:bundle` script. The esbuild config produces code-split chunks (`chunks/[name]-[hash].js`). When is esbuild used vs. plain tsc? Is there a dual build path that could diverge? Is the `build` script (tsc-only) missing esbuild optimizations that `build:prod` includes?
+- Compare `build` vs `build:prod` scripts in `package.json`. Are there production optimizations (minification, source maps, tree-shaking) that are missing from the default build?
 - Is the compiled frontend output (`server/public/js/modules/`) checked into git? Should it be?
 
 ### 1.5 Middleware Layer
@@ -168,7 +169,13 @@ The project includes load testing scripts (`server/loadtest/`):
 - Is there connection-level rate limiting (max connections per IP) in addition to event-level rate limiting?
 - Can a malicious client exhaust server resources by opening many Socket.io connections before rate limiting kicks in?
 
-### 4.4 Data Exposure
+### 4.4 Client-Side Security
+- `index.html` uses Subresource Integrity (SRI) hashes on external scripts. Are all external resources covered? Are the hashes up-to-date with the actual file contents?
+- The `socket-client.ts` IIFE exposes a global `EigennamenClient` object. Could a malicious page script tamper with this object before the ES module code runs?
+- Is Content Security Policy (CSP via Helmet) strict enough? Does it allow `unsafe-inline` for styles (and if so, can it be tightened with nonces)?
+- The `app-fallback.js` script handles module load failures. Could this fallback path be exploited?
+
+### 4.5 Data Exposure
 - When game state is sent to clients, is the spymaster key (card types) properly filtered for non-spymaster players? Check `game:started`, `room:resynced`, and `game:cardRevealed` events.
 - Review admin routes authentication. Is the admin API protected against CSRF? Is the admin password hashed or compared in constant time?
 - Check for any PII in logs (session IDs, IP addresses, nicknames). Is log rotation configured?
@@ -233,19 +240,22 @@ The project includes load testing scripts (`server/loadtest/`):
 ## Phase 7: Frontend Quality & UX
 
 ### 7.1 CSS Architecture
-Review `server/public/css/` (8 stylesheets):
-- Are styles modular and scoped, or is there a global cascade that makes changes risky?
-- Is there CSS duplication across the 8 files? Are shared values (colors, spacing, breakpoints) defined as CSS custom properties?
-- The project uses "glassmorphism UI design" — is this consistent across all views, or are some components styled differently?
-- Are there responsive design breakpoints? How does the UI work on mobile?
-- Check for accessibility issues: sufficient color contrast, focus indicators, reduced motion support.
+Review `server/public/css/` (8 stylesheets, ~3,940 lines, ~612 selectors):
+- `variables.css` defines design tokens as CSS custom properties. Are all variables actually used? Are there orphaned variables?
+- `modals.css` is 983 lines with 152 selectors — the largest CSS file. Should it be split by modal type (settings, game-over, multiplayer)?
+- `components.css` (886 lines, 136 selectors) — is there selector duplication or overly specific selectors that could be simplified?
+- The project uses glassmorphism (`backdrop-filter: blur()`, semi-transparent backgrounds). Is this consistent across all views? Are there fallbacks for browsers that don't support `backdrop-filter`?
+- Responsive breakpoints exist in `responsive.css` at 500px, 768px, 1024px. Is the mobile experience functional or just shrunk desktop?
+- Check for accessibility: sufficient color contrast ratios, visible focus indicators, `prefers-reduced-motion` support, `prefers-color-scheme` support (the app appears dark-mode only — is that intentional?).
 
 ### 7.2 i18n Completeness
-Review `server/public/locales/` (en, de, es, fr):
-- Are all user-facing strings in the locale files, or are some hardcoded in JS/HTML?
-- Are all 4 locale files in sync (same keys, no missing translations)?
-- How is the active locale detected and loaded? Is it a full page reload or dynamic?
+Review `server/public/locales/` (en, de, es, fr — ~294 lines each, 100+ keys):
+- Are all user-facing strings in the locale files, or are some hardcoded in JS/HTML? Check `index.html` for strings not wrapped with `data-i18n` attributes.
+- Are all 4 locale files in sync (same keys, no missing translations)? Diff the key sets.
+- The system uses `{{param}}` interpolation. Are all interpolation parameters supplied correctly in all languages?
+- Locale-specific word lists exist (`wordlist-de.txt`, `wordlist-es.txt`, `wordlist-fr.txt`). Are these loaded dynamically when the language changes?
 - Are error messages from the server also translated, or only client-side UI strings?
+- Is there a mechanism to detect missing translations at build time or in CI?
 
 ### 7.3 Accessibility
 The project claims colorblind mode, keyboard navigation, and screen reader support:
@@ -307,8 +317,10 @@ Review `server/src/services/auditService.ts`:
   - The Lua scripts (which are inherently harder to understand without context)
   - The auth chain in `middleware/auth/`
   - The reconnection flow across `playerService` and `roomHandlers`
+  - The frontend state management pattern (`state.ts` / `stateMutations.ts` / `stateTypes.ts`)
 - Are JSDoc comments present on public service methods? Are they accurate and up-to-date?
 - Is `CLAUDE.md` accurate? Do file counts, test counts, and directory descriptions match reality?
+- Review the 4 Architecture Decision Records in `docs/adr/`. Are they still current? Are there significant architectural decisions that lack an ADR (e.g., the choice to use vanilla TypeScript with no framework, the IIFE pattern for socket-client)?
 
 ### 9.2 Error Messages
 - Are user-facing error messages (sent via socket events) helpful and non-leaky? Do they avoid exposing internals?
