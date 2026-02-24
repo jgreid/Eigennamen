@@ -1,36 +1,31 @@
-# ADR 004: Graceful Degradation Without Database
+# ADR 004: Graceful Degradation Without External Redis
 
 ## Status
-Adopted (2024)
+Adopted (2024), Updated (2026)
 
 ## Context
-Eigennamen Online is designed to be easy to deploy and run. Requiring PostgreSQL and Redis for all deployments creates barriers for:
+Eigennamen Online is designed to be easy to deploy and run. Requiring external Redis for all deployments creates barriers for:
 - Local development
 - Simple single-server deployments
 - Quick demos and testing
-- Environments without managed database services
+- Environments without managed cache services
 
 ### Problem Statement
 How can we support the full feature set when infrastructure is available while still working in minimal environments?
 
 ## Decision
-Implement a tiered architecture where each external dependency is optional:
+Implement a tiered architecture where Redis is optional:
 
-### Tier 1: Full Stack (PostgreSQL + Redis)
-- Persistent user accounts and word lists
-- Multi-instance horizontal scaling
-- Pub/sub for real-time coordination
-- Durable game history
-
-### Tier 2: Redis Only
+### Tier 1: External Redis
 - All game functionality works
-- Multi-instance scaling via Redis pub/sub
+- Multi-instance horizontal scaling via Redis pub/sub
 - Session persistence across restarts
-- No persistent user accounts
+- Distributed locks for concurrency control
+- Game history and replay data stored in Redis
 
-### Tier 3: Memory Only (Single Instance)
+### Tier 2: Memory Only (Single Instance)
 - All game functionality works
-- `REDIS_URL=memory` triggers in-memory storage
+- `REDIS_URL=memory` triggers an embedded redis-server process
 - Data lost on restart
 - Single instance only (no horizontal scaling)
 
@@ -46,17 +41,10 @@ function isMemoryMode() {
 // Redis client with memory fallback
 async function connectRedis() {
     if (isMemoryMode()) {
-        return getMemoryStorage();
+        // Spawns an embedded redis-server process
+        return startEmbeddedRedis();
     }
     return createRedisClient(process.env.REDIS_URL);
-}
-
-// Database-optional word lists
-async function getWordsForGame(wordListId) {
-    if (!prisma) {
-        return null; // Fall back to default words
-    }
-    return await prisma.wordList.findUnique({ where: { id: wordListId }});
 }
 ```
 
@@ -65,81 +53,59 @@ async function getWordsForGame(wordListId) {
 ### Positive
 - **Easy Development**: `npm run dev` works without Docker or external services
 - **Flexible Deployment**: Works on anything from Raspberry Pi to Kubernetes
-- **Reduced Costs**: Small deployments don't need managed databases
+- **Reduced Costs**: Small deployments don't need managed cache services
 - **Fast CI/CD**: Tests run without external dependencies
 
 ### Negative
-- **Feature Gaps**: Some features unavailable in lower tiers
-- **Code Complexity**: Conditional logic for optional dependencies
-- **Testing Surface**: Need to test all tier combinations
+- **Feature Gaps**: Multi-instance scaling unavailable in memory mode
+- **Code Complexity**: Conditional logic for pub/sub adapter setup
+- **Testing Surface**: Need to test both tier configurations
 - **Documentation**: Must clearly explain tier differences
 
 ### Feature Availability by Tier
 
-| Feature | Memory | Redis | Full Stack |
-|---------|--------|-------|------------|
-| Create/Join Rooms | ✅ | ✅ | ✅ |
-| Play Games | ✅ | ✅ | ✅ |
-| Turn Timers | ✅ | ✅ | ✅ |
-| Reconnection | ✅ | ✅ | ✅ |
-| Multi-Instance | ❌ | ✅ | ✅ |
-| Data Persistence | ❌ | ✅ | ✅ |
-| Custom Word Lists (DB) | ❌ | ❌ | ✅ |
-| User Accounts | ❌ | ❌ | ✅ |
-| Game History | ❌ | ❌ | ✅ |
+| Feature | Memory | Redis |
+|---------|--------|-------|
+| Create/Join Rooms | ✅ | ✅ |
+| Play Games | ✅ | ✅ |
+| Turn Timers | ✅ | ✅ |
+| Reconnection | ✅ | ✅ |
+| Game History/Replays | ✅ | ✅ |
+| Multi-Instance | ❌ | ✅ |
+| Data Persistence | ❌ | ✅ |
 
 ## Alternatives Considered
 
-### 1. Require All Dependencies
-Make PostgreSQL and Redis mandatory for all deployments.
+### 1. Require Redis for All Deployments
+Make Redis mandatory for all deployments.
 **Rejected**: Creates unnecessary barriers for simple use cases
 
 ### 2. SQLite Fallback
-Use SQLite instead of PostgreSQL for single-instance deployments.
-**Rejected**: Added complexity; most features work without any database
+Use SQLite for single-instance deployments.
+**Rejected**: Added complexity; embedded redis-server is simpler and provides a compatible API
 
-### 3. Embedded Redis
-Bundle an embedded Redis-compatible server.
-**Rejected**: Significant complexity; memory mode is simpler
+### 3. In-Memory Map Implementation
+Implement a custom in-memory Redis-compatible API.
+**Rejected**: Significant complexity maintaining compatibility; embedded redis-server is simpler
 
 ## Implementation Examples
 
-### Memory Storage Service
+### Embedded Redis (Memory Mode)
 ```javascript
-class MemoryStorage {
-    constructor() {
-        this.data = new Map();
-        this.sets = new Map();
-        this.ttls = new Map();
-    }
-
-    async get(key) { return this.data.get(key) || null; }
-    async set(key, value, options = {}) {
-        this.data.set(key, value);
-        if (options.EX) {
-            this.ttls.set(key, Date.now() + options.EX * 1000);
-        }
-        return 'OK';
-    }
-    // ... other Redis-compatible methods
-}
-```
-
-### Prisma Optional Pattern
-```javascript
-let prisma = null;
-
-async function initDatabase() {
-    if (!process.env.DATABASE_URL) {
-        logger.info('Running without database (user accounts disabled)');
-        return null;
-    }
-    prisma = new PrismaClient();
-    await prisma.$connect();
-    return prisma;
+// server/src/config/redis.ts
+async function startEmbeddedRedis() {
+    const { spawn } = require('child_process');
+    const redisProcess = spawn('redis-server', [
+        '--port', port.toString(),
+        '--save', '""',           // No RDB persistence
+        '--appendonly', 'no',     // No AOF persistence
+        '--maxmemory', '100mb',
+        '--maxmemory-policy', 'allkeys-lru'
+    ]);
+    // Connect client to embedded server
+    return createRedisClient(`redis://localhost:${port}`);
 }
 ```
 
 ## References
 - [The Twelve-Factor App: Backing Services](https://12factor.net/backing-services)
-- Issue #12: Default word list for database-free mode

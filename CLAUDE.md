@@ -37,10 +37,6 @@ cd server && npm run lint
 # Type check
 cd server && npm run typecheck
 
-# Database commands (if using PostgreSQL)
-cd server && npm run db:migrate    # Run migrations
-cd server && npm run db:generate   # Generate Prisma client
-cd server && npm run db:studio     # Visual database editor
 ```
 
 ## Directory Structure
@@ -84,9 +80,7 @@ Eigennamen/
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
-    ├── e2e/                # Playwright E2E tests
-    └── prisma/
-        └── schema.prisma   # Database schema (optional)
+    └── e2e/                # Playwright E2E tests
 ```
 
 ## Technology Stack
@@ -104,12 +98,11 @@ Eigennamen/
 - **Language**: TypeScript 5.3+ (compiled to `dist/` via `npm run build`)
 - **Framework**: Express.js 4.18
 - **Real-time**: Socket.io 4.7 (with Redis adapter for multi-instance)
-- **Database**: PostgreSQL 15+ via Prisma 5.6 (optional)
 - **Cache**: Redis 7+ (optional, has in-memory fallback)
 - **Validation**: Zod 3.22 schemas
 - **Testing**: Jest 29 + Supertest + ts-jest + Playwright (E2E)
 - **Logging**: Winston
-- **API Docs**: Swagger (swagger-jsdoc + swagger-ui-express)
+- **API Docs**: Swagger (swagger-ui-express)
 - **Auth**: JWT (jsonwebtoken) + session tokens
 - **Security**: Helmet.js, CSRF protection, rate limiting (express-rate-limit)
 
@@ -121,7 +114,6 @@ Eigennamen/
 | `roomService` | `server/src/services/roomService.ts` | Room lifecycle management |
 | `playerService` | `server/src/services/playerService.ts` | Player/team management, reconnection tokens |
 | `timerService` | `server/src/services/timerService.ts` | Turn timers with Redis backing, pause/resume |
-| `wordListService` | `server/src/services/wordListService.ts` | Custom word list CRUD with DB persistence |
 | `gameHistoryService` | `server/src/services/gameHistoryService.ts` | Game history storage, replay data |
 | `auditService` | `server/src/services/auditService.ts` | Security audit logging with severity levels |
 
@@ -196,16 +188,6 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 | GET | `/api/rooms/:code` | Get room info |
 | GET | `/api/replays/:roomCode/:gameId` | Get replay data (public, no room membership needed) |
 
-### Word Lists
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/wordlists` | List word lists (with search) |
-| GET | `/api/wordlists/:id` | Get specific word list |
-| POST | `/api/wordlists` | Create word list |
-| PUT | `/api/wordlists/:id` | Update word list |
-| DELETE | `/api/wordlists/:id` | Delete word list |
-
 ### Admin Dashboard
 
 | Method | Path | Purpose |
@@ -250,7 +232,7 @@ All event names are defined in `server/src/config/socketConfig.ts`.
 3. Rate limiter checks frequency
 4. Context handler resolves player context
 5. Service executes business logic
-6. Results saved to Redis/PostgreSQL
+6. Results saved to Redis
 7. Events broadcast to affected players via `safeEmit`
 
 ## Testing
@@ -286,10 +268,6 @@ Key variables (see `server/.env.example` for full list):
 NODE_ENV=development      # development | production
 PORT=3000                 # Server port
 LOG_LEVEL=info           # debug | info | warn | error
-
-# Optional - database (works without)
-DATABASE_URL=postgresql://user:pass@localhost:5432/eigennamen
-DATABASE_DIRECT_URL=...  # Direct connection for migrations (Fly.io)
 
 # Optional - Redis (uses memory mode if not set)
 REDIS_URL=redis://localhost:6379
@@ -385,7 +363,7 @@ Configured in `.github/dependabot.yml`:
 ```bash
 docker compose up -d --build
 ```
-Starts: API server, PostgreSQL, Redis with health checks.
+Starts: API server and Redis with health checks.
 
 ### Fly.io (Production)
 
@@ -396,7 +374,7 @@ Configuration in `fly.toml`:
 - Auto-scaling enabled
 
 ### Single Instance Mode
-Works without Docker, Redis, or PostgreSQL:
+Works without Docker or Redis:
 ```bash
 cd server
 npm install
@@ -415,7 +393,6 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 - **Duet**: Cooperative 2-player mode with special board configuration
 
 ### Graceful Degradation
-- Database is optional - game works fully without PostgreSQL
 - Redis is optional - `REDIS_URL=memory` spawns an embedded redis-server process
 - Standalone mode works without any server
 
@@ -459,11 +436,6 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 3. Update client logic in `server/src/frontend/game.ts` if needed
 4. Add/update tests in `server/src/__tests__/`
 
-### Adding Database Models
-1. Update schema in `server/prisma/schema.prisma`
-2. Run `npm run db:migrate` to create migration
-3. Run `npm run db:generate` to update Prisma client
-
 ## Files to Know
 
 | File | Why It Matters |
@@ -483,7 +455,6 @@ Three game modes are supported (`server/src/config/gameConfig.ts`):
 | `server/src/validators/schemas.ts` | Barrel re-export for domain schema files (room, player, game, chat, timer) |
 | `server/src/errors/GameError.ts` | Error class hierarchy (GameError, RoomError, ValidationError, etc.) |
 | `server/src/utils/metrics.ts` | Metrics collection and tracking |
-| `server/prisma/schema.prisma` | Database schema definition |
 | `docker-compose.yml` | Local development infrastructure |
 | `fly.toml` | Production deployment config |
 | `server/public/admin.html` | Admin dashboard UI |

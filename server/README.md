@@ -1,6 +1,6 @@
 # Eigennamen Online - Server
 
-Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.io, Redis, and PostgreSQL.
+Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.io, and Redis.
 
 ## Features
 
@@ -8,14 +8,12 @@ Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.i
 - Room-based multiplayer with join codes
 - Secure spymaster view (card types hidden from guessers)
 - Redis for fast in-memory state and pub/sub scaling
-- PostgreSQL for persistence and game history
 - Rate limiting and input validation
 
 ## Prerequisites
 
 - Node.js 18+
-- Redis 7+
-- PostgreSQL 15+ (optional, for persistence)
+- Redis 7+ (optional — uses embedded redis-server with `REDIS_URL=memory`)
 - Docker & Docker Compose (optional)
 
 **Windows users:** See the dedicated [Windows Setup Guide](../docs/WINDOWS_SETUP.md) for step-by-step instructions.
@@ -28,7 +26,7 @@ This guide will walk you through getting the Eigennamen server running on your m
 
 ### Option 1: Using Docker (Recommended)
 
-Docker packages everything you need into containers, so you don't have to install Redis or PostgreSQL separately.
+Docker packages everything you need into containers, so you don't have to install Redis separately.
 
 #### Step 1: Install Docker
 
@@ -52,7 +50,7 @@ docker compose up -d --build
 ```
 
 This command:
-- Downloads the required images (Node.js, Redis, PostgreSQL)
+- Downloads the required images (Node.js, Redis)
 - Creates and starts all containers in the background (`-d` = detached mode)
 - Sets up networking between containers automatically
 
@@ -63,7 +61,7 @@ Check that all containers are up:
 docker compose ps
 ```
 
-You should see three services running: `api`, `redis`, and `postgres`.
+You should see two services running: `api` and `redis`.
 
 View the server logs:
 ```bash
@@ -102,7 +100,8 @@ Use this if you prefer to run services directly on your machine without Docker.
 |-------------|--------------|----------------|
 | **Node.js 18+** | Runs the JavaScript server code | [nodejs.org](https://nodejs.org/) or use `nvm` |
 | **Redis 7+** | Stores game state in memory for fast access | `brew install redis` (Mac) or `apt install redis-server` (Linux) |
-| **PostgreSQL 15+** | Stores persistent data (game history, word lists) | [postgresql.org](https://www.postgresql.org/download/) or `apt install postgresql` |
+
+> **Note:** Redis is optional. Set `REDIS_URL=memory` to run without an external Redis server.
 
 #### Step 1: Install Node.js Dependencies
 
@@ -123,11 +122,8 @@ cp .env.example .env
 
 Open `.env` in a text editor and configure:
 ```bash
-# Required: Redis connection
+# Required: Redis connection (or use REDIS_URL=memory for no Redis)
 REDIS_URL=redis://localhost:6379
-
-# Required for persistence: PostgreSQL connection
-DATABASE_URL=postgresql://username:password@localhost:5432/eigennamen
 
 # Optional: Change the port (default is 3000)
 PORT=3000
@@ -136,9 +132,9 @@ PORT=3000
 CORS_ORIGIN=http://localhost:8080
 ```
 
-#### Step 3: Start Redis
+#### Step 3: Start Redis (if using external Redis)
 
-Redis must be running before you start the server.
+Redis must be running before you start the server (skip if using `REDIS_URL=memory`).
 
 **On Mac (Homebrew):**
 ```bash
@@ -156,28 +152,7 @@ redis-cli ping
 # Should respond: PONG
 ```
 
-#### Step 4: Set Up PostgreSQL (Optional but Recommended)
-
-If you want persistent game history and custom word lists:
-
-1. **Create a database:**
-   ```bash
-   createdb eigennamen
-   ```
-
-2. **Run database migrations:**
-   ```bash
-   npx prisma migrate dev
-   ```
-   This creates all the tables defined in `prisma/schema.prisma`.
-
-3. **Verify with Prisma Studio (optional):**
-   ```bash
-   npm run db:studio
-   ```
-   Opens a web UI at `http://localhost:5555` to browse your database.
-
-#### Step 5: Start the Server
+#### Step 4: Start the Server
 
 **For development** (auto-restarts when you change code):
 ```bash
@@ -193,18 +168,16 @@ You should see output like:
 ```
 [INFO] Server listening on port 3000
 [INFO] Redis connected
-[INFO] Database connected
 ```
 
-#### Step 6: Verify Everything Works
+#### Step 5: Verify Everything Works
 
 Test these URLs in your browser:
 
 | URL | Expected Result |
 |-----|-----------------|
 | `http://localhost:3000/health` | `{"status":"ok","timestamp":"..."}` |
-| `http://localhost:3000/health/ready` | Shows status of Redis and PostgreSQL |
-| `http://localhost:3000/api/health` | `{"status":"ok","timestamp":"..."}` |
+| `http://localhost:3000/health/ready` | Shows status of Redis |
 
 ---
 
@@ -220,8 +193,7 @@ Once the server is running:
 
 | Problem | Solution |
 |---------|----------|
-| "Redis connection refused" | Make sure Redis is running: `redis-cli ping` |
-| "Database connection failed" | Check `DATABASE_URL` in `.env` and ensure PostgreSQL is running |
+| "Redis connection refused" | Make sure Redis is running: `redis-cli ping` (or use `REDIS_URL=memory`) |
 | "Port 3000 already in use" | Change `PORT` in `.env` or stop the other process using that port |
 | "CORS error in browser" | Set `CORS_ORIGIN` in `.env` to your client's URL |
 | Docker containers won't start | Run `docker compose logs` to see error messages |
@@ -243,8 +215,7 @@ See `.env.example` for all available configuration options.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 3000 | Server port |
-| `REDIS_URL` | redis://localhost:6379 | Redis connection URL |
-| `DATABASE_URL` | - | PostgreSQL connection URL |
+| `REDIS_URL` | redis://localhost:6379 | Redis connection URL (or `memory` for in-memory mode) |
 | `JWT_SECRET` | - | Secret for JWT signing |
 | `CORS_ORIGIN` | * | Allowed CORS origins |
 
@@ -258,12 +229,7 @@ See [SERVER_SPEC.md](../docs/SERVER_SPEC.md) for full API documentation.
 |--------|------|-------------|
 | GET | `/api/rooms/:code/exists` | Check if room exists |
 | GET | `/api/rooms/:code` | Get room info |
-| GET | `/api/wordlists` | List public word lists (with optional search) |
-| GET | `/api/wordlists/:id` | Get a specific word list |
-| POST | `/api/wordlists` | Create a new word list |
-| PUT | `/api/wordlists/:id` | Update a word list |
-| DELETE | `/api/wordlists/:id` | Delete a word list |
-| GET | `/api/health` | API health check |
+| GET | `/api/replays/:roomCode/:gameId` | Get replay data |
 | GET | `/health` | Basic health check |
 | GET | `/health/ready` | Readiness check with dependency status |
 | GET | `/health/live` | Kubernetes liveness probe |
@@ -310,8 +276,6 @@ server/
 │   ├── scripts/          # Redis Lua scripts for atomic operations
 │   └── __tests__/        # Jest tests (93 suites)
 ├── e2e/                  # Playwright E2E tests
-├── prisma/
-│   └── schema.prisma     # Database schema
 ├── Dockerfile
 └── package.json
 ```
@@ -330,11 +294,8 @@ npm run test:coverage
 # Lint code
 npm run lint
 
-# Database migrations
-npm run db:migrate
-
-# Prisma Studio (database GUI)
-npm run db:studio
+# Type check
+npm run typecheck
 ```
 
 ## Scaling

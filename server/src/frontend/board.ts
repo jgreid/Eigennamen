@@ -353,9 +353,10 @@ export function updateSingleCard(index: number): void {
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
 
-    // Announce reveal to screen readers
-    const typeLabel = type === 'red' ? 'Red' : type === 'blue' ? 'Blue' : type === 'assassin' ? 'Assassin' : 'Neutral';
-    announceToScreenReader(`${word} revealed as ${typeLabel}`);
+    // Announce reveal to screen readers (localized)
+    const typeNames: Record<string, string> = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
+    const typeName = typeNames[type] || type;
+    announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
 
     // Add animation class
     if (state.lastRevealedWasCorrect) {

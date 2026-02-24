@@ -8,11 +8,10 @@ This document defines the backup strategy, recovery procedures, and operational 
 
 1. [Overview](#1-overview)
 2. [Redis Backup Strategy](#2-redis-backup-strategy)
-3. [PostgreSQL Backup Strategy](#3-postgresql-backup-strategy)
-4. [Recovery Procedures](#4-recovery-procedures)
-5. [RTO/RPO Targets](#5-rtorpo-targets)
-6. [Monitoring and Alerting](#6-monitoring-and-alerting)
-7. [Runbook for Common Issues](#7-runbook-for-common-issues)
+3. [Recovery Procedures](#3-recovery-procedures)
+4. [RTO/RPO Targets](#4-rtorpo-targets)
+5. [Monitoring and Alerting](#5-monitoring-and-alerting)
+6. [Runbook for Common Issues](#6-runbook-for-common-issues)
 
 ---
 
@@ -23,22 +22,20 @@ This document defines the backup strategy, recovery procedures, and operational 
 | Store | Data | Persistence | Required |
 |-------|------|-------------|----------|
 | **Redis** | Active rooms, players, game state, timers, distributed locks, session-socket mappings, reconnection tokens | Ephemeral (TTL-based) | Yes (or memory-mode fallback) |
-| **PostgreSQL** | Users, game history, word lists, game participants, audit logs, room records | Persistent | No (optional) |
 | **Filesystem** | Application code, static assets, Lua scripts, locale files | Immutable (deployed via container image) | Yes |
 
 ### Data Lifecycle
 
 - **Redis game state is ephemeral by design.** Rooms expire via TTL: 4 hours in memory mode, 24 hours with external Redis (configured in `server/src/config/roomConfig.ts`). A typical Eigennamen game lasts 30-60 minutes.
-- **PostgreSQL stores long-lived data** that survives server restarts: user accounts, completed game history, custom word lists, and audit logs.
 - **The application itself is stateless.** Any instance can be rebuilt from the container image and environment variables.
 
 ### Deployment Modes
 
-| Mode | Redis | PostgreSQL | Typical Use |
-|------|-------|------------|-------------|
-| **Single instance** (`REDIS_URL=memory`) | Embedded redis-server process (no persistence, `--save "" --appendonly no`) | Not configured | Local development, quick demos |
-| **Docker Compose** | `redis:7-alpine` with AOF enabled (`--appendonly yes`), data on `redis_data` volume | `postgres:15-alpine` on `postgres_data` volume | Local development, staging |
-| **Fly.io** | Fly Redis (Upstash) or `REDIS_URL=memory` | Fly Postgres or external (optional) | Production |
+| Mode | Redis | Typical Use |
+|------|-------|-------------|
+| **Single instance** (`REDIS_URL=memory`) | Embedded redis-server process (no persistence, `--save "" --appendonly no`) | Local development, quick demos |
+| **Docker Compose** | `redis:7-alpine` with AOF enabled (`--appendonly yes`), data on `redis_data` volume | Local development, staging |
+| **Fly.io** | Fly Redis (Upstash) or `REDIS_URL=memory` | Production |
 
 ---
 
@@ -124,226 +121,13 @@ For most deployments, full Redis backup is unnecessary because:
    - Session-socket mapping: 5 minutes
    - Disconnected player grace period: 10 minutes
    - Reconnection tokens: 5 minutes
-2. **No user-critical data lives solely in Redis** when PostgreSQL is enabled.
-3. **Players expect interruptions** in a casual game. Reconnection logic handles brief outages.
-
-**Exception**: If you run without PostgreSQL and rely on Redis for game history or word lists (via services that cache to Redis), then Redis persistence becomes more important.
+2. **Players expect interruptions** in a casual game. Reconnection logic handles brief outages.
 
 ---
 
-## 3. PostgreSQL Backup Strategy
+## 3. Recovery Procedures
 
-### 3.1 Database Schema Overview
-
-The Prisma schema (`server/prisma/schema.prisma`) defines five tables:
-
-| Table | Data | Criticality |
-|-------|------|-------------|
-| `users` | User accounts, stats (games played/won) | High |
-| `rooms` | Room records with settings, host, expiry | Medium (ephemeral) |
-| `games` | Game boards, scores, clues, outcomes | Medium |
-| `word_lists` | Custom word lists (user-created content) | High |
-| `game_participants` | Per-game player records (team, role, nickname) | Low |
-
-### 3.2 Manual Backup with pg_dump
-
-**Docker Compose:**
-
-```bash
-# Full database dump (custom format, compressed)
-docker compose exec db pg_dump \
-  -U eigennamen \
-  -d eigennamen \
-  -Fc \
-  -f /tmp/eigennamen-backup.dump
-
-# Copy dump out of container
-docker compose cp db:/tmp/eigennamen-backup.dump \
-  ./backups/eigennamen-$(date +%Y%m%d-%H%M%S).dump
-
-# SQL format (human-readable, useful for debugging)
-docker compose exec db pg_dump \
-  -U eigennamen \
-  -d eigennamen \
-  --clean \
-  --if-exists \
-  > ./backups/eigennamen-$(date +%Y%m%d-%H%M%S).sql
-```
-
-**Direct connection (non-Docker):**
-
-```bash
-pg_dump \
-  -h localhost \
-  -U eigennamen \
-  -d eigennamen \
-  -Fc \
-  -f ./backups/eigennamen-$(date +%Y%m%d-%H%M%S).dump
-```
-
-**Selective backup (high-value tables only):**
-
-```bash
-# Back up only user data and word lists
-docker compose exec db pg_dump \
-  -U eigennamen \
-  -d eigennamen \
-  -Fc \
-  -t users \
-  -t word_lists \
-  -f /tmp/eigennamen-critical.dump
-```
-
-### 3.3 Automated Backup Script
-
-Create a cron job for regular backups:
-
-```bash
-#!/bin/bash
-# scripts/backup-postgres.sh
-set -euo pipefail
-
-BACKUP_DIR="./backups/postgres"
-RETENTION_DAYS=30
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-
-mkdir -p "$BACKUP_DIR"
-
-# Create backup
-docker compose exec -T db pg_dump \
-  -U eigennamen \
-  -d eigennamen \
-  -Fc \
-  > "$BACKUP_DIR/eigennamen-$TIMESTAMP.dump"
-
-# Verify backup is non-empty
-if [ ! -s "$BACKUP_DIR/eigennamen-$TIMESTAMP.dump" ]; then
-  echo "ERROR: Backup file is empty" >&2
-  exit 1
-fi
-
-echo "Backup created: $BACKUP_DIR/eigennamen-$TIMESTAMP.dump"
-
-# Prune old backups
-find "$BACKUP_DIR" -name "eigennamen-*.dump" -mtime +$RETENTION_DAYS -delete
-echo "Pruned backups older than $RETENTION_DAYS days"
-```
-
-Add to crontab for hourly backups:
-
-```
-0 * * * * /path/to/Eigennamen/scripts/backup-postgres.sh >> /var/log/eigennamen-backup.log 2>&1
-```
-
-### 3.4 WAL Archiving for Point-in-Time Recovery
-
-For production deployments where RPO matters, enable WAL (Write-Ahead Log) archiving:
-
-**PostgreSQL configuration (postgresql.conf):**
-
-```
-wal_level = replica
-archive_mode = on
-archive_command = 'cp %p /var/lib/postgresql/wal_archive/%f'
-archive_timeout = 300   # Force a WAL switch every 5 minutes
-```
-
-**Docker Compose override (docker-compose.prod.yml):**
-
-```yaml
-services:
-  db:
-    command: >-
-      postgres
-      -c wal_level=replica
-      -c archive_mode=on
-      -c archive_command='cp %p /var/lib/postgresql/data/wal_archive/%f'
-      -c archive_timeout=300
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - postgres_wal_archive:/var/lib/postgresql/data/wal_archive
-```
-
-### 3.5 Fly.io PostgreSQL Backup
-
-If using Fly Postgres:
-
-```bash
-# List available backups
-fly postgres backup list -a <postgres-app-name>
-
-# Create an on-demand backup
-fly postgres backup create -a <postgres-app-name>
-
-# Restore from a backup (creates new database cluster)
-fly postgres backup restore <backup-id> -a <postgres-app-name>
-```
-
-Fly Postgres provides automatic daily snapshots with 7-day retention by default.
-
-### 3.6 Docker Compose Volume Backup
-
-Back up the entire PostgreSQL data volume:
-
-```bash
-# Stop the database to ensure consistency
-docker compose stop db
-
-# Back up the volume
-docker run --rm \
-  -v eigennamen_postgres_data:/data \
-  -v "$(pwd)/backups":/backup \
-  alpine tar czf /backup/postgres-volume-$(date +%Y%m%d-%H%M%S).tar.gz -C /data .
-
-# Restart
-docker compose start db
-```
-
-### 3.7 Prisma Migration Safety
-
-Before any migration in production:
-
-1. **Always back up first:**
-   ```bash
-   # Create a backup before migration
-   pg_dump -U eigennamen -d eigennamen -Fc -f pre-migration-backup.dump
-   ```
-
-2. **Review the migration SQL:**
-   ```bash
-   cd server
-   npx prisma migrate diff \
-     --from-schema-datamodel prisma/schema.prisma \
-     --to-migrations prisma/migrations \
-     --script
-   ```
-
-3. **Run migrations:**
-   ```bash
-   cd server
-   npm run db:migrate
-   # Or on Fly.io (if release_command is enabled in fly.toml):
-   # npx prisma migrate deploy
-   ```
-
-4. **Verify after migration:**
-   ```bash
-   npx prisma db pull    # Compare pulled schema against expected
-   npx prisma validate   # Validate schema consistency
-   ```
-
-The project's `fly.toml` has the release command commented out by default since the database is optional. Uncomment it when enabling PostgreSQL on Fly.io:
-
-```toml
-[deploy]
-  release_command = "sh -c 'npx prisma migrate deploy || npx prisma db push --skip-generate'"
-```
-
----
-
-## 4. Recovery Procedures
-
-### 4.1 Redis Recovery
+### 3.1 Redis Recovery
 
 #### Scenario A: Redis restarts (Docker Compose with AOF)
 
@@ -398,65 +182,7 @@ No recovery is possible. Active games are lost. Players reconnect and create new
 
 3. If data is lost, restore from Upstash dashboard backups or accept the loss (game state is ephemeral).
 
-### 4.2 PostgreSQL Recovery
-
-#### Restore from pg_dump (custom format)
-
-```bash
-# Stop the application to prevent writes during restore
-docker compose stop api
-
-# Restore (drops and recreates objects)
-docker compose exec -T db pg_restore \
-  -U eigennamen \
-  -d eigennamen \
-  --clean \
-  --if-exists \
-  < ./backups/eigennamen-YYYYMMDD-HHMMSS.dump
-
-# Restart application
-docker compose start api
-```
-
-#### Restore from pg_dump (SQL format)
-
-```bash
-docker compose stop api
-
-docker compose exec -T db psql \
-  -U eigennamen \
-  -d eigennamen \
-  < ./backups/eigennamen-YYYYMMDD-HHMMSS.sql
-
-docker compose start api
-```
-
-#### Point-in-Time Recovery (if WAL archiving is enabled)
-
-1. Stop PostgreSQL.
-2. Clear the data directory.
-3. Restore the base backup.
-4. Create a `recovery.conf` (PostgreSQL < 12) or `recovery.signal` file:
-   ```
-   restore_command = 'cp /var/lib/postgresql/data/wal_archive/%f %p'
-   recovery_target_time = '2026-02-13 14:30:00 UTC'
-   ```
-5. Start PostgreSQL. It will replay WAL segments up to the target time.
-
-#### Fly.io PostgreSQL Restore
-
-```bash
-# Restore from automatic backup
-fly postgres backup restore <backup-id> -a <postgres-app-name>
-
-# Connect to verify
-fly postgres connect -a <postgres-app-name>
-# \dt    -- list tables
-# SELECT count(*) FROM users;
-# SELECT count(*) FROM word_lists;
-```
-
-### 4.3 Full Environment Rebuild
+### 3.2 Full Environment Rebuild
 
 Complete rebuild from scratch (new infrastructure, all data lost):
 
@@ -465,34 +191,19 @@ Complete rebuild from scratch (new infrastructure, all data lost):
 ```bash
 # Docker Compose
 cp .env.example .env
-# Edit .env: set POSTGRES_PASSWORD, REDIS_PASSWORD, JWT_SECRET
+# Edit .env: set REDIS_PASSWORD, JWT_SECRET
 docker compose up -d --build
 ```
 
-**Step 2: Database schema**
-
-```bash
-# Applied automatically by the Docker Compose command:
-#   prisma db push --skip-generate
-# Or manually:
-cd server && npm run db:migrate
-```
-
-**Step 3: Verify health**
+**Step 2: Verify health**
 
 ```bash
 ./scripts/health-check.sh http://localhost:3000
 ```
 
-**Step 4: Restore data (if backups available)**
+**Step 3: Restore Redis data (if backups available)**
 
 ```bash
-# Restore PostgreSQL
-docker compose exec -T db pg_restore \
-  -U eigennamen -d eigennamen --clean --if-exists \
-  < ./backups/eigennamen-latest.dump
-
-# Restore Redis (optional, only if needed)
 docker compose stop redis
 docker run --rm \
   -v eigennamen_redis_data:/data \
@@ -501,7 +212,7 @@ docker run --rm \
 docker compose start redis
 ```
 
-**Step 5: Verify application**
+**Step 4: Verify application**
 
 ```bash
 curl -s http://localhost:3000/health/ready | python3 -m json.tool
@@ -516,7 +227,6 @@ fly secrets set JWT_SECRET="$(openssl rand -base64 32)"
 fly secrets set ADMIN_PASSWORD="your-secure-password"
 # Optionally:
 # fly secrets set REDIS_URL="rediss://..."
-# fly secrets set DATABASE_URL="postgresql://..."
 
 # Deploy
 fly deploy
@@ -528,7 +238,7 @@ curl -s https://die-eigennamen.fly.dev/health/ready
 
 ---
 
-## 5. RTO/RPO Targets
+## 4. RTO/RPO Targets
 
 ### Definitions
 
@@ -542,10 +252,6 @@ curl -s https://die-eigennamen.fly.dev/health/ready
 | Active game state (rooms, players, timers) | Redis | ~0 (acceptable loss) | < 5 minutes | Ephemeral by design. Games last 30-60 minutes. Players create new rooms. |
 | Distributed locks | Redis | ~0 (acceptable loss) | < 5 minutes | Locks have 5-second TTL and auto-expire. No manual recovery needed. |
 | Session/reconnection tokens | Redis | ~0 (acceptable loss) | < 5 minutes | 5-minute TTL. Players re-authenticate on reconnect. |
-| User accounts | PostgreSQL | < 1 hour | < 30 minutes | Restored from hourly pg_dump or Fly Postgres backup. |
-| Custom word lists | PostgreSQL | < 1 hour | < 30 minutes | User-created content. Most valuable persistent data. |
-| Game history/replays | PostgreSQL | < 1 hour | < 30 minutes | Nice-to-have. Not critical for gameplay. |
-| Audit logs | PostgreSQL | < 1 hour | < 30 minutes | Important for security review, not for gameplay. |
 | Application code | Container image | 0 (immutable) | < 10 minutes | Redeploy from Git or registry. |
 
 ### Target Summary
@@ -554,16 +260,14 @@ curl -s https://die-eigennamen.fly.dev/health/ready
 |----------|-----|-----|
 | Redis restart (AOF enabled) | ~0 | < 2 minutes |
 | Redis total data loss | N/A (ephemeral) | < 5 minutes |
-| PostgreSQL restore from dump | < 1 hour | < 30 minutes |
-| PostgreSQL PITR (WAL archive) | < 5 minutes | < 30 minutes |
 | Full environment rebuild | Depends on backup age | < 1 hour |
 | Fly.io machine restart | N/A (auto-restart) | < 2 minutes |
 
 ---
 
-## 6. Monitoring and Alerting
+## 5. Monitoring and Alerting
 
-### 6.1 Health Check Endpoints
+### 5.1 Health Check Endpoints
 
 The application exposes several health endpoints (defined in `server/src/routes/healthRoutes.ts`):
 
@@ -597,7 +301,7 @@ healthcheck:
   start_period: 40s
 ```
 
-### 6.2 Key Metrics to Monitor
+### 5.2 Key Metrics to Monitor
 
 The `/health/metrics` endpoint returns:
 
@@ -607,7 +311,7 @@ The `/health/metrics` endpoint returns:
 - **Pub/Sub health**: total publishes, failures, failure rate, consecutive failures
 - **Alerts**: Auto-generated when Redis memory exceeds 75% (warning) or 90% (critical)
 
-### 6.3 Prometheus Metrics
+### 5.3 Prometheus Metrics
 
 The `/health/metrics/prometheus` endpoint exports metrics in Prometheus text format. Key metrics:
 
@@ -638,7 +342,7 @@ scrape_configs:
       - targets: ['localhost:3000']
 ```
 
-### 6.4 Admin Dashboard
+### 5.4 Admin Dashboard
 
 The admin dashboard (`GET /admin`, protected by `ADMIN_PASSWORD`) provides:
 
@@ -649,19 +353,19 @@ The admin dashboard (`GET /admin`, protected by `ADMIN_PASSWORD`) provides:
 - Audit log viewer
 - Broadcast messages to all connected clients
 
-### 6.5 Recommended Alert Rules
+### 5.5 Recommended Alert Rules
 
 | Alert | Condition | Severity | Action |
 |-------|-----------|----------|--------|
-| High memory | RSS > 480MB (of 512MB limit) | Critical | See [7.3 High Memory Usage](#73-high-memory-usage) |
-| Redis memory | usage_percent > 90% | Critical | See [7.1 Redis Out of Memory](#71-redis-out-of-memory) |
+| High memory | RSS > 480MB (of 512MB limit) | Critical | See [6.3 High Memory Usage](#63-high-memory-usage) |
+| Redis memory | usage_percent > 90% | Critical | See [6.1 Redis Out of Memory](#61-redis-out-of-memory) |
 | Redis memory | usage_percent > 75% | Warning | Monitor and plan capacity |
-| Redis disconnected | `/health/ready` returns 503 | Critical | See [7.2 Database Connection Failures](#72-database-connection-failures) |
+| Redis disconnected | `/health/ready` returns 503 | Critical | See [6.2 Redis Connection Failures](#62-redis-connection-failures) |
 | Health check failing | `/health/ready` returns non-200 for 3+ checks | Critical | Check logs, restart if needed |
 | High error rate | `errors` counter spike | Warning | Check application logs |
 | Event loop lag | `event_loop_lag_ms` > 100ms sustained | Warning | Investigate CPU-bound operations |
 
-### 6.6 Using Existing Scripts
+### 5.6 Using Existing Scripts
 
 The project includes utility scripts for quick health assessment:
 
@@ -676,9 +380,9 @@ The project includes utility scripts for quick health assessment:
 
 ---
 
-## 7. Runbook for Common Issues
+## 6. Runbook for Common Issues
 
-### 7.1 Redis Out of Memory
+### 6.1 Redis Out of Memory
 
 **Symptoms:**
 - `/health/metrics` shows `memory_usage_percent` above 90%
@@ -734,12 +438,11 @@ docker compose exec redis redis-cli -a "$REDIS_PASSWORD" INFO memory
            memory: 256M  # Increase from 128M
    ```
 
-### 7.2 Database Connection Failures
+### 6.2 Redis Connection Failures
 
 **Symptoms:**
 - `/health/ready` returns 503 with Redis check failing
 - Application logs show "Redis Client Error" or "Max reconnection attempts reached"
-- PostgreSQL-dependent features (word lists, game history) return errors
 
 **Diagnosis:**
 
@@ -750,14 +453,11 @@ docker compose ps
 # Check Redis connectivity
 docker compose exec redis redis-cli -a "$REDIS_PASSWORD" PING
 
-# Check PostgreSQL connectivity
-docker compose exec db pg_isready -U eigennamen -d eigennamen
-
 # Check application logs
 docker compose logs api --tail=50
 ```
 
-**Resolution for Redis:**
+**Resolution:**
 
 1. **Restart Redis:**
    ```bash
@@ -782,29 +482,7 @@ docker compose logs api --tail=50
    docker compose up -d api
    ```
 
-**Resolution for PostgreSQL:**
-
-1. **Restart PostgreSQL:**
-   ```bash
-   docker compose restart db
-   # Wait for health check
-   docker compose exec db pg_isready -U eigennamen -d eigennamen
-   ```
-
-2. **Check disk space** (full disk prevents WAL writes):
-   ```bash
-   docker compose exec db df -h /var/lib/postgresql/data
-   ```
-
-3. **Check connection limits:**
-   ```bash
-   docker compose exec db psql -U eigennamen -d eigennamen \
-     -c "SELECT count(*) FROM pg_stat_activity;"
-   ```
-
-4. **The application works without PostgreSQL.** If the database cannot be recovered immediately, the game continues to function -- only word list persistence, game history, and user accounts are affected.
-
-### 7.3 High Memory Usage
+### 6.3 High Memory Usage
 
 **Symptoms:**
 - Admin dashboard SSE reports RSS > 480MB
@@ -855,7 +533,7 @@ docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}"
 
 5. **Long-term**: Monitor the `memory_heap_used_bytes` Prometheus metric to identify growth trends.
 
-### 7.4 Stuck Distributed Locks
+### 6.4 Stuck Distributed Locks
 
 **Symptoms:**
 - Game actions (card reveals, clue submissions, team switches) hang or timeout
@@ -904,7 +582,7 @@ done
 - Slow Redis responses (check `redis_latency_ms` metric)
 - Network issues between the API and Redis
 
-### 7.5 Orphaned Player Data
+### 6.5 Orphaned Player Data
 
 **Symptoms:**
 - Room shows more players than are actually connected
@@ -1003,29 +681,6 @@ docker compose exec redis redis-cli -a "$REDIS_PASSWORD" BGSAVE
 docker compose exec redis redis-cli -a "$REDIS_PASSWORD" BGREWRITEAOF
 ```
 
-### PostgreSQL Operations
-
-```bash
-# Connection test
-docker compose exec db pg_isready -U eigennamen -d eigennamen
-
-# Interactive shell
-docker compose exec db psql -U eigennamen -d eigennamen
-
-# Table sizes
-docker compose exec db psql -U eigennamen -d eigennamen \
-  -c "SELECT tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename))
-      FROM pg_tables WHERE schemaname = 'public' ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;"
-
-# Row counts
-docker compose exec db psql -U eigennamen -d eigennamen \
-  -c "SELECT 'users' as t, count(*) FROM users
-      UNION ALL SELECT 'rooms', count(*) FROM rooms
-      UNION ALL SELECT 'games', count(*) FROM games
-      UNION ALL SELECT 'word_lists', count(*) FROM word_lists
-      UNION ALL SELECT 'game_participants', count(*) FROM game_participants;"
-```
-
 ### Fly.io Operations
 
 ```bash
@@ -1046,7 +701,4 @@ fly apps restart die-eigennamen
 
 # Redis dashboard (if provisioned)
 fly redis dashboard <redis-app-name>
-
-# Postgres backup
-fly postgres backup list -a <postgres-app-name>
 ```

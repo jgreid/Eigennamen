@@ -19,13 +19,13 @@ The prior CODEBASE_REVIEW.md identified 15 recommendations. Here's the current s
 | 6 | Decompose complex functions | **Partially done** — sub-modules extracted, createGame() still 168 lines |
 | 7 | Add timeout to disconnect handler timer | **Fixed** — withTimeout() added to all unprotected Redis calls |
 | 8 | Increase frontend test coverage to 70%+ | **Fixed** — expanded from 8 to 19 test files |
-| 9 | Add database integration tests | Not started |
+| 9 | Add database integration tests | **N/A** — PostgreSQL removed |
 | 10 | Strengthen RedisClient typing | Not started |
 | 11 | Centralize room ID normalization | Not started |
 | 12 | Add bounds validation to timerService.startTimer() | Not started |
 | 13 | Fix listener cleanup gaps | Not started |
 | 14 | Move duplicated room code validation schema | Not started |
-| 15 | Add startup logging for disabled features | Not started |
+| 15 | Add startup logging for disabled features | **N/A** — database removed |
 
 **Summary**: 6 of 15 items fully resolved, 1 partially resolved, 8 remain.
 
@@ -115,15 +115,8 @@ The same room code regex validation is written twice. Schema drift could cause i
 
 ### Tier 3 — Robustness & Observability (Lower Impact)
 
-#### 9. Add database integration tests
-**Scope**: New test file(s) in `server/src/__tests__/integration/`
-
-The Prisma schema has migrations and relationships, but no tests verify that migrations apply cleanly or that queries work against a real database. Schema changes could break silently.
-
-**Fix**: Add a small integration test suite that:
-- Applies migrations to an ephemeral PostgreSQL (via Docker or pg-mem)
-- Verifies CRUD operations for Users, Rooms, Games, WordLists
-- Runs in CI alongside existing tests
+#### 9. ~~Add database integration tests~~ (N/A — PostgreSQL removed)
+**Status**: No longer applicable. The project uses Redis exclusively for all state storage. There is no relational database or Prisma ORM.
 
 ---
 
@@ -144,12 +137,8 @@ Uses `as unknown as RedisClient` cast. If the Redis client API changes on upgrad
 
 ---
 
-#### 12. Add startup logging for disabled features
-**File**: `server/src/config/database.ts:88-93`
-
-When database connection fails, it's silently caught and features are disabled. Operators may not realize word lists, game history, and user accounts are unavailable.
-
-**Fix**: Log a clear startup banner showing which optional features are active/inactive.
+#### 12. ~~Add startup logging for disabled features~~ (N/A — database removed)
+**Status**: No longer applicable. The `database.ts` module no longer exists. The application runs entirely on Redis (or memory-mode fallback). Redis connection status is already logged at startup.
 
 ---
 
@@ -170,11 +159,10 @@ The clear-then-set pattern with `requestAnimationFrame` isn't reliably detected 
 ### Tier 4 — Architecture Improvements (Larger Scope)
 
 #### 15. Further decompose createGame()
-**File**: `server/src/services/gameService.ts:131-298`
+**File**: `server/src/services/gameService.ts`
 
-Still 168 lines. Could be split into:
-- `acquireGameCreationLock()` — lock acquisition + retry logic
-- `resolveGameWords()` — word list resolution with 3-tier fallback
+Lock acquisition was unified into `distributedLock.withLock()` (completed). Remaining opportunities:
+- `resolveGameWords()` — word list resolution with fallback
 - `buildGameState()` — game state object construction
 - `persistGameState()` — Redis write + TTL management
 

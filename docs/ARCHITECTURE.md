@@ -53,14 +53,6 @@ This document describes the high-level architecture of Eigennamen Online, a real
 │  │  │   (Rooms)   │  │  (Players)  │  │  (Events)   │           │        │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘           │        │
 │  └───────────────────────────────────────────────────────────────┘        │
-│                                 │                                          │
-│  ┌──────────────────────────────┴────────────────────────────────┐        │
-│  │                      PostgreSQL 15+ (Optional)                 │        │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │        │
-│  │  │   Users     │  │  Word Lists │  │   Games     │           │        │
-│  │  │ (Accounts)  │  │  (Custom)   │  │  (History)  │           │        │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘           │        │
-│  └───────────────────────────────────────────────────────────────┘        │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -93,7 +85,6 @@ This document describes the high-level architecture of Eigennamen Online, a real
 - `roomService.ts` - Room lifecycle, settings
 - `playerService.ts` - Player management, team assignment, reconnection
 - `timerService.ts` - Turn timers with Redis backing
-- `wordListService.ts` - Custom word list CRUD with DB persistence
 - `gameHistoryService.ts` - Game history storage, replay data
 - `auditService.ts` - Security audit logging with severity levels
 
@@ -101,8 +92,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 
 | Store | Purpose | Fallback |
 |-------|---------|----------|
-| Redis | Ephemeral game state, sessions, pub/sub | In-memory (single instance) |
-| PostgreSQL | Persistent data (users, word lists, history) | Works without (graceful degradation) |
+| Redis | Game state, sessions, pub/sub, game history | In-memory (single instance) |
 
 ## Data Flow
 
@@ -233,8 +223,7 @@ This document describes the high-level architecture of Eigennamen Online, a real
 ```
 docker-compose.yml
 ├── api (Node.js server, port 3000)
-├── redis (Redis 7, port 6379)
-└── postgres (PostgreSQL 15, port 5432)
+└── redis (Redis 7, port 6379)
 ```
 
 ## Directory Structure
@@ -287,9 +276,7 @@ Eigennamen/
     │       ├── helpers/    # Test utilities and mocks
     │       ├── integration/ # Integration tests
     │       └── frontend/   # Frontend unit tests
-    ├── e2e/                # Playwright E2E tests (9 spec files)
-    └── prisma/
-        └── schema.prisma   # Database schema
+    └── e2e/                # Playwright E2E tests (9 spec files)
 ```
 
 ## Technology Choices
@@ -301,7 +288,6 @@ Eigennamen/
 | Real-time | Socket.io | Robust WebSocket abstraction, fallbacks |
 | Validation | Zod | TypeScript-first, runtime validation |
 | State Store | Redis | Fast, pub/sub support, atomic operations |
-| Database | PostgreSQL + Prisma | Type-safe ORM, migrations |
 | Testing | Jest + Playwright | Unit + E2E coverage |
 
 ## Scaling Considerations

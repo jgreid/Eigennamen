@@ -59,10 +59,11 @@ This document describes the technical architecture of Eigennamen Online (Die Eig
 ┌────────────────────────────┼─────────────────────────────────────┐
 │                       DATA LAYER                                 │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │   Redis      │    │  PostgreSQL  │    │ S3/Storage   │       │
-│  │  (Sessions,  │    │   (Users,    │    │ (Word Lists) │       │
-│  │   Pub/Sub)   │    │   History)   │    │              │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
+│  │   Redis      │                                                │
+│  │  (Sessions,  │                                                │
+│  │   Pub/Sub,   │                                                │
+│  │  Game State) │                                                │
+│  └──────────────┘                                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -73,9 +74,7 @@ This document describes the technical architecture of Eigennamen Online (Die Eig
 | **Runtime** | Node.js 18+ | JavaScript everywhere, excellent WebSocket support |
 | **Framework** | Express.js | Simple, well-documented, middleware ecosystem |
 | **WebSockets** | Socket.io | Automatic reconnection, rooms, fallback support |
-| **Database** | PostgreSQL | ACID compliance, JSON support, reliable |
-| **Cache/Sessions** | Redis | Fast, pub/sub for scaling, session store |
-| **ORM** | Prisma | Type-safe, migrations, excellent DX |
+| **State Store** | Redis | Fast, pub/sub for scaling, session store |
 | **Validation** | Zod | Runtime type validation, TypeScript integration |
 | **Testing** | Jest + Supertest | Standard, good async support |
 
@@ -83,151 +82,9 @@ This document describes the technical architecture of Eigennamen Online (Die Eig
 
 ## 3. Data Models
 
-### 3.1 Entity Relationship Diagram
+### 3.1 Redis Schema (In-Memory State)
 
-```
-┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-│    User     │       │    Room     │       │    Game     │
-├─────────────┤       ├─────────────┤       ├─────────────┤
-│ id (PK)     │       │ id (PK)     │       │ id (PK)     │
-│ email       │       │ code        │◄──────│ room_id(FK) │
-│ username    │       │ host_id(FK) │       │ seed        │
-│ password    │       │ settings    │       │ words[]     │
-│ created_at  │       │ status      │       │ types[]     │
-└──────┬──────┘       │ created_at  │       │ revealed[]  │
-       │              │ expires_at  │       │ current_turn│
-       │              └──────┬──────┘       │ scores      │
-       │                     │              │ game_over   │
-       │              ┌──────┴──────┐       │ winner      │
-       │              │             │       │ clues[]     │
-       │         ┌────┴────┐  ┌─────┴─────┐ │ created_at  │
-       │         │  Player │  │  Player   │ └─────────────┘
-       │         │ (Redis) │  │  (Redis)  │
-       │         └─────────┘  └───────────┘
-       │
-┌──────┴──────┐
-│  WordList   │
-├─────────────┤
-│ id (PK)     │
-│ name        │
-│ words[]     │
-│ owner_id(FK)│
-│ is_public   │
-└─────────────┘
-```
-
-### 3.2 PostgreSQL Schema
-
-```sql
--- Users (optional, for accounts)
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE,
-    username VARCHAR(30) UNIQUE NOT NULL,
-    password_hash VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_login TIMESTAMP WITH TIME ZONE,
-    games_played INT DEFAULT 0,
-    games_won INT DEFAULT 0
-);
-
--- Rooms
-CREATE TABLE rooms (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    code VARCHAR(6) UNIQUE NOT NULL,
-    host_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-
-    -- Settings stored as JSON
-    settings JSONB DEFAULT '{
-        "teamNames": {"red": "Red", "blue": "Blue"},
-        "turnTimer": null,
-        "allowSpectators": true,
-        "wordListId": null
-    }',
-
-    status VARCHAR(20) DEFAULT 'waiting', -- waiting, playing, finished
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours'),
-
-    -- Indexes
-    CONSTRAINT valid_status CHECK (status IN ('waiting', 'playing', 'finished'))
-);
-
-CREATE INDEX idx_rooms_code ON rooms(code);
-CREATE INDEX idx_rooms_expires ON rooms(expires_at);
-
--- Games (one per room, new row each game)
-CREATE TABLE games (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-    game_number INT NOT NULL DEFAULT 1, -- Which game in this room
-
-    -- Board state
-    seed VARCHAR(20) NOT NULL,
-    words TEXT[25] NOT NULL,
-    types TEXT[25] NOT NULL, -- red, blue, neutral, assassin
-    revealed BOOLEAN[25] DEFAULT ARRAY_FILL(false, ARRAY[25]),
-
-    -- Game state
-    current_turn VARCHAR(4) DEFAULT 'red',
-    red_score INT DEFAULT 0,
-    blue_score INT DEFAULT 0,
-    red_total INT DEFAULT 9,
-    blue_total INT DEFAULT 8,
-
-    -- Clue history
-    clues JSONB DEFAULT '[]', -- [{team, word, number, timestamp}]
-
-    -- End state
-    game_over BOOLEAN DEFAULT false,
-    winner VARCHAR(4),
-    end_reason VARCHAR(20), -- completed, assassin, forfeit
-
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    ended_at TIMESTAMP WITH TIME ZONE,
-
-    CONSTRAINT valid_turn CHECK (current_turn IN ('red', 'blue')),
-    CONSTRAINT valid_winner CHECK (winner IN ('red', 'blue', NULL))
-);
-
-CREATE INDEX idx_games_room ON games(room_id);
-
--- Custom Word Lists
-CREATE TABLE word_lists (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    words TEXT[] NOT NULL,
-    word_count INT GENERATED ALWAYS AS (array_length(words, 1)) STORED,
-    is_public BOOLEAN DEFAULT false,
-    times_used INT DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    CONSTRAINT min_words CHECK (array_length(words, 1) >= 25)
-);
-
-CREATE INDEX idx_word_lists_public ON word_lists(is_public) WHERE is_public = true;
-
--- Game History (for stats)
-CREATE TABLE game_participants (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    session_id VARCHAR(64), -- For anonymous players
-    nickname VARCHAR(30) NOT NULL,
-    team VARCHAR(4),
-    role VARCHAR(10), -- spymaster, guesser, spectator
-
-    CONSTRAINT valid_team CHECK (team IN ('red', 'blue', NULL)),
-    CONSTRAINT valid_role CHECK (role IN ('spymaster', 'guesser', 'spectator'))
-);
-
-CREATE INDEX idx_participants_game ON game_participants(game_id);
-CREATE INDEX idx_participants_user ON game_participants(user_id);
-```
-
-### 3.3 Redis Schema (In-Memory State)
+All game state is stored in Redis (or in-memory fallback). There is no relational database.
 
 ```javascript
 // Active room state (fast access)
@@ -313,26 +170,6 @@ GET /api/rooms/:code/exists
 ```
 GET /api/replays/:roomCode/:gameId
     Response: { replay data }
-```
-
-#### Word Lists
-
-```
-GET /api/wordlists
-    Query: ?public=true&search=movies
-    Response: { wordLists: [...] }
-
-GET /api/wordlists/:id
-    Response: { wordList }
-
-POST /api/wordlists
-    Headers: Authorization
-    Body: { name, words[], isPublic }
-    Response: { wordList }
-
-DELETE /api/wordlists/:id
-    Headers: Authorization (owner only)
-    Response: { success: true }
 ```
 
 ### 4.2 WebSocket Events
@@ -770,35 +607,34 @@ upstream api_servers {
 ```dockerfile
 # Dockerfile (multi-stage build with security)
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
+COPY server/package*.json ./
 RUN npm ci
-COPY . .
-RUN npx prisma generate
+COPY server/tsconfig*.json server/esbuild.config.js ./
+COPY server/src/ ./src/
+COPY server/public/ ./public/
+RUN npm run build:prod
 
 # Production stage
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
+# Install curl for healthcheck, redis for embedded memory-mode server
+RUN apk add --no-cache curl redis && \
+    addgroup -g 1001 -S nodejs && \
     adduser -S eigennamen -u 1001
 
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY prisma ./prisma
+COPY --chown=eigennamen:nodejs server/package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --chown=eigennamen:nodejs --from=builder /app/dist ./dist
+COPY --chown=eigennamen:nodejs --from=builder /app/public ./public
 
-RUN chown -R eigennamen:nodejs /app
 USER eigennamen
-
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/health/ready || exit 1
 
 CMD ["node", "dist/index.js"]
 ```
@@ -809,49 +645,31 @@ version: '3.8'
 
 services:
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: server/Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://eigennamen:password@db:5432/eigennamen
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - eigennamen-network
 
-  db:
-    image: postgres:15-alpine
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=eigennamen
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=eigennamen
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U eigennamen -d eigennamen"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - eigennamen-network
-
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -860,7 +678,6 @@ services:
       - eigennamen-network
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
@@ -875,29 +692,22 @@ networks:
 NODE_ENV=development
 PORT=3000
 
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/eigennamen
-
-# Redis
+# Redis (or REDIS_URL=memory for in-memory mode)
 REDIS_URL=redis://localhost:6379
 
 # Authentication
 JWT_SECRET=your-secret-key-min-32-chars
 JWT_EXPIRES_IN=7d
 
+# CORS
+CORS_ORIGIN=*
+
+# Admin Dashboard
+# ADMIN_PASSWORD=your-secure-admin-password
+
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=100
-
-# Room Settings
-ROOM_CODE_LENGTH=6
-ROOM_MAX_PLAYERS=20
-ROOM_EXPIRY_HOURS=24
-
-# Feature Flags
-ENABLE_ACCOUNTS=false
-ENABLE_CHAT=true
-ENABLE_SPECTATORS=true
 ```
 
 ---
@@ -932,8 +742,7 @@ The server platform has been fully implemented with all core features:
 - **Room Management**: Room creation/joining with 6-character codes
 - **Real-time Sync**: WebSocket-based game state synchronization
 - **Security**: Spymaster card type protection, role-based authorization
-- **Database**: PostgreSQL with Prisma ORM for persistence
-- **Caching**: Redis for session management and fast state access
+- **State Store**: Redis for session management, game state, and fast access
 - **Chat**: Team-only and broadcast messaging
 - **Turn Timers**: Configurable per-turn time limits
 - **Spectator Mode**: Watch games without participating
