@@ -25,7 +25,7 @@ The prior CODEBASE_REVIEW.md identified 15 recommendations. Here's the current s
 | 12 | Add bounds validation to timerService.startTimer() | Not started |
 | 13 | Fix listener cleanup gaps | Not started |
 | 14 | Move duplicated room code validation schema | Not started |
-| 15 | Add startup logging for disabled features | Not started |
+| 15 | Add startup logging for disabled features | **N/A** — database removed |
 
 **Summary**: 6 of 15 items fully resolved, 1 partially resolved, 8 remain.
 

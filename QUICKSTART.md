@@ -149,7 +149,7 @@ Deploy to Fly.io for a permanent URL accessible from anywhere. Free for typical 
    ```
    Wait 2-3 minutes for the build to complete.
 
-6. **Open your game**
+5. **Open your game**
    ```bash
    fly open
    ```
