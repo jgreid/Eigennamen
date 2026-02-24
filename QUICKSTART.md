@@ -141,16 +141,9 @@ Deploy to Fly.io for a permanent URL accessible from anywhere. Free for typical 
    | Copy configuration? | **Yes** |
    | App name | Press Enter (or choose your own) |
    | Region | Press Enter (default is fine) |
-   | Set up PostgreSQL? | **Yes** → Select **Development** |
    | Set up Redis? | **Yes** → Select **Free** |
 
-4. **Configure database connection**
-   ```bash
-   fly secrets set DATABASE_DIRECT_URL="$(fly postgres config show -a YOUR-APP-NAME-db --format=json | jq -r '.direct_url')"
-   ```
-   Replace `YOUR-APP-NAME-db` with your actual database app name (shown during launch).
-
-5. **Deploy**
+4. **Deploy**
    ```bash
    fly deploy
    ```
@@ -167,7 +160,6 @@ Your game is now live at `https://YOUR-APP-NAME.fly.dev` - share this link with 
 
 Everything runs on free tiers:
 - **App:** Free (includes $5/month credit)
-- **PostgreSQL:** Free (Development tier)
 - **Redis:** Free (Upstash free tier)
 
 **Total: $0/month** for typical usage

@@ -14,7 +14,7 @@ This guide covers deploying Eigennamen Online to various platforms.
 
 ---
 
-## Quick Start: Single Instance (No Redis/Database)
+## Quick Start: Single Instance (No Redis)
 
 The simplest deployment uses in-memory storage. Data is lost on restart.
 
@@ -31,19 +31,18 @@ REDIS_URL=memory PORT=3000 npm start
 **Limitations:**
 - Single instance only (no horizontal scaling)
 - Data lost on restart
-- No persistent word lists or user accounts
 
 ---
 
 ## Docker Compose (Recommended for Self-Hosting)
 
-Full stack with Redis and optional PostgreSQL.
+Full stack with Redis for game state and pub/sub.
 
 ### Prerequisites
 - Docker and Docker Compose installed
 - 1GB+ RAM recommended
 
-### Basic Setup (Redis only)
+### Setup
 
 ```bash
 # Clone repository
@@ -54,41 +53,10 @@ cd Eigennamen
 docker compose up -d
 
 # View logs
-docker compose logs -f server
+docker compose logs -f api
 ```
 
 The app will be available at `http://localhost:3000`.
-
-### Full Stack (with PostgreSQL)
-
-```yaml
-# docker-compose.override.yml
-version: '3.8'
-services:
-  server:
-    environment:
-      - DATABASE_URL=postgresql://eigennamen:password@postgres:5432/eigennamen
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=eigennamen
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=eigennamen
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-```
-
-Then run:
-```bash
-docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
-
-# Run database migrations
-docker compose exec server npm run db:migrate
-```
 
 ### Configuration
 
@@ -98,7 +66,6 @@ Environment variables in `docker-compose.yml`:
 |----------|---------|-------------|
 | `PORT` | 3000 | Server port |
 | `REDIS_URL` | redis://redis:6379 | Redis connection URL |
-| `DATABASE_URL` | (optional) | PostgreSQL connection URL |
 | `LOG_LEVEL` | info | debug, info, warn, error |
 | `CORS_ORIGIN` | * | Allowed origins (set in production!) |
 
@@ -340,9 +307,6 @@ fly deploy --app eigennamen-staging
 fly redis create eigennamen-staging-redis --region iad
 fly redis attach eigennamen-staging-redis --app eigennamen-staging
 
-# Run database migrations in staging first
-fly ssh console --app eigennamen-staging -C "cd /app/server && npx prisma migrate deploy"
-
 # Verify health
 fly status --app eigennamen-staging
 curl https://eigennamen-staging.fly.dev/health/ready
@@ -360,7 +324,6 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
 ### Staging Checklist
 
 - [ ] Deploy to staging before production
-- [ ] Run database migrations in staging
 - [ ] Verify health endpoints respond
 - [ ] Test multiplayer flow (create room, join, play)
 - [ ] Check reconnection works
@@ -368,35 +331,7 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
 
 ---
 
-## Database Backup Strategy
-
-### PostgreSQL Backups
-
-PostgreSQL stores word lists and optional user data. Even if the database is optional, backups protect against data loss.
-
-#### Automated Backups with pg_dump
-
-```bash
-# Daily backup via cron (add to crontab -e)
-0 3 * * * pg_dump -Fc $DATABASE_URL > /backups/eigennamen_$(date +\%Y\%m\%d).dump
-
-# Restore from backup
-pg_restore -d $DATABASE_URL /backups/eigennamen_20260209.dump
-```
-
-#### Fly.io Managed Backups
-
-Fly.io Postgres clusters include automatic daily backups:
-
-```bash
-# List available backups
-fly postgres backups list --app eigennamen-db
-
-# Restore from a backup
-fly postgres backups restore <backup-id> --app eigennamen-db
-```
-
-### Redis Data
+## Redis Data
 
 Redis stores ephemeral game state (rooms, players, timers). It is designed to be losable - the application recovers gracefully. However, for multi-day tournaments:
 
@@ -412,7 +347,6 @@ cp /var/lib/redis/dump.rdb /backups/redis_$(date +%Y%m%d).rdb
 
 | Data | Frequency | Retention | Priority |
 |------|-----------|-----------|----------|
-| PostgreSQL (word lists) | Daily | 30 days | Medium |
 | Redis (game state) | Manual/none | Ephemeral | Low |
 | Application logs | Continuous | 7 days | Medium |
 
@@ -430,7 +364,6 @@ Before going to production:
 - [ ] Set `NODE_ENV=production`
 - [ ] Review Redis TLS settings (`rediss://` URLs)
 - [ ] Set up monitoring and alerting
-- [ ] Configure backup strategy for Redis/PostgreSQL
 
 ### CORS Configuration (Critical)
 
@@ -459,7 +392,7 @@ CORS_ORIGIN=https://your-app.fly.dev,https://custom-domain.com
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /health` | Basic health check |
-| `GET /health/ready` | Full readiness check (Redis, optional DB) |
+| `GET /health/ready` | Full readiness check (Redis) |
 | `GET /health/live` | Liveness probe for Kubernetes |
 | `GET /metrics` | Server metrics |
 
@@ -530,64 +463,6 @@ To verify events propagate across instances:
 3. Join the room on instance B (different browser/client)
 4. Send a chat message — it should appear on both instances
 5. Reveal a card — both instances should see the update
-
-### Database Connection Pooling
-
-For high-traffic deployments with PostgreSQL, use PgBouncer to manage connection pooling.
-
-#### PgBouncer Configuration
-
-```ini
-; pgbouncer.ini
-[databases]
-eigennamen = host=127.0.0.1 port=5432 dbname=eigennamen
-
-[pgbouncer]
-listen_port = 6432
-listen_addr = 127.0.0.1
-auth_type = md5
-auth_file = /etc/pgbouncer/userlist.txt
-pool_mode = transaction          ; Best for Prisma
-max_client_conn = 200
-default_pool_size = 20
-min_pool_size = 5
-reserve_pool_size = 5
-reserve_pool_timeout = 3
-server_idle_timeout = 600
-```
-
-#### Environment Configuration
-
-```bash
-# Pooled connection (via PgBouncer) for application queries
-DATABASE_URL=postgresql://eigennamen:pass@localhost:6432/eigennamen?pgbouncer=true
-
-# Direct connection (bypasses PgBouncer) for migrations
-DATABASE_DIRECT_URL=postgresql://eigennamen:pass@localhost:5432/eigennamen
-```
-
-#### Fly.io with Supabase/Neon
-
-External databases like Supabase and Neon provide built-in connection pooling:
-
-```bash
-# Supabase pooled connection (port 6543)
-DATABASE_URL=postgresql://user:pass@db.xxxxx.supabase.co:6543/postgres?pgbouncer=true
-
-# Direct connection (port 5432) for migrations
-DATABASE_DIRECT_URL=postgresql://user:pass@db.xxxxx.supabase.co:5432/postgres
-```
-
-#### Query Performance Monitoring
-
-Enable slow query logging in PostgreSQL:
-
-```sql
--- postgresql.conf
-ALTER SYSTEM SET log_min_duration_statement = 100;  -- Log queries > 100ms
-ALTER SYSTEM SET log_statement = 'none';             -- Don't log all statements
-SELECT pg_reload_conf();
-```
 
 ---
 

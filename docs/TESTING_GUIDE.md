@@ -76,7 +76,6 @@ server/src/__tests__/
 ├── gameService.test.ts          # Game logic tests
 ├── playerService.test.ts        # Player management tests
 ├── timerService.test.ts         # Timer functionality tests
-├── wordListService.test.ts      # Word list tests
 ├── gameHistoryService.test.ts   # Game history tests
 ├── auditService.test.ts         # Audit logging tests
 ├── gameHandlers.test.ts         # Game event handlers
