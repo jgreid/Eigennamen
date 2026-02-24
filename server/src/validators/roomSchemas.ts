@@ -24,7 +24,7 @@ const roomCreateSchema = z.object({
         wordListId: z.string().uuid().nullable().optional(),
         gameMode: z.enum(['classic', 'blitz', 'duet']).optional().default('classic'),
         nickname: createNicknameSchema().optional()
-    }).superRefine(validateModeTimer).optional().default({})
+    }).superRefine(validateModeTimer).optional().default({ gameMode: 'classic' as const })
 });
 
 const roomJoinSchema = z.object({

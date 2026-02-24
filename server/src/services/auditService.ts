@@ -16,7 +16,7 @@ import { z } from 'zod';
 
 // Minimal Zod schema for audit log entry validation.
 // Only validates it's a JSON object (not a primitive or array).
-const auditLogEntrySchema = z.record(z.unknown());
+const auditLogEntrySchema = z.record(z.string(), z.unknown());
 
 /**
  * Severity levels for audit events

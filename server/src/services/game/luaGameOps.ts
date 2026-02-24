@@ -65,7 +65,7 @@ const gameStateSchema = z.object({
     greenTotal: z.number().optional(),
 });
 
-const luaResultObjectSchema = z.record(z.unknown());
+const luaResultObjectSchema = z.record(z.string(), z.unknown());
 
 // Re-export schemas for use by gameService
 export { gameStateSchema, luaResultObjectSchema };

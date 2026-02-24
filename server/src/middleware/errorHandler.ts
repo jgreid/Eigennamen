@@ -21,7 +21,7 @@ interface AppError extends Error {
  */
 interface ZodError extends Error {
     name: 'ZodError';
-    errors: Array<{
+    issues: Array<{
         path: (string | number)[];
         message: string;
     }>;
@@ -102,7 +102,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             error: {
                 code: ERROR_CODES.INVALID_INPUT,
                 message: 'Validation error',
-                details: zodErr.errors
+                details: zodErr.issues
             }
         });
     }

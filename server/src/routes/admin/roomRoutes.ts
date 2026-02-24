@@ -75,7 +75,7 @@ const roomDataSchema = z.object({
     status: z.string(),
     createdAt: z.number().optional(),
     expiresAt: z.number().optional(),
-    settings: z.record(z.unknown()).optional(),
+    settings: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 const playerDataSchema = z.object({
@@ -116,11 +116,11 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
         // Cap iterations to prevent unbounded looping on very large keyspaces.
         const MAX_SCAN_ITERATIONS = 1000;
         const validRoomKeys: string[] = [];
-        let cursor = '0';
+        let cursor = 0;
         let iterations = 0;
         do {
             const result = await redis.scan(cursor, { MATCH: 'room:*', COUNT: 100 });
-            cursor = result.cursor.toString();
+            cursor = result.cursor;
             iterations++;
             // Filter to only room codes (excluding sub-keys like room:abc:players)
             for (const key of result.keys) {
@@ -128,7 +128,7 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
                     validRoomKeys.push(key);
                 }
             }
-        } while (cursor !== '0' && iterations < MAX_SCAN_ITERATIONS);
+        } while (cursor !== 0 && iterations < MAX_SCAN_ITERATIONS);
         if (iterations >= MAX_SCAN_ITERATIONS) {
             logger.warn(`Room listing SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), results may be incomplete`);
         }
@@ -187,7 +187,7 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
     try {
         const parsed = broadcastSchema.safeParse(req.body);
         if (!parsed.success) {
-            const firstError = parsed.error.errors[0];
+            const firstError = parsed.error.issues[0];
             res.status(400).json({
                 error: {
                     code: 'INVALID_INPUT',
@@ -247,7 +247,7 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
  */
 router.get('/api/rooms/:code/details', async (req: Request, res: Response): Promise<void> => {
     try {
-        const code = req.params.code;
+        const code = String(req.params.code);
         if (!code) {
             res.status(400).json({
                 error: {
@@ -343,7 +343,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             createdAt: room.createdAt
         });
     } catch (error) {
-        logger.error('Failed to fetch room details', { error: (error as Error).message, code: req.params.code });
+        logger.error('Failed to fetch room details', { error: (error as Error).message, code: String(req.params.code) });
         res.status(500).json({
             error: {
                 code: 'ROOM_DETAILS_ERROR',
@@ -358,8 +358,8 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
  */
 router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, res: Response): Promise<void> => {
     try {
-        const code = req.params.code;
-        const playerId = req.params.playerId;
+        const code = String(req.params.code);
+        const playerId = String(req.params.playerId);
 
         if (!code) {
             res.status(400).json({
@@ -480,7 +480,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             message: 'Player has been kicked'
         });
     } catch (error) {
-        logger.error('Failed to kick player', { error: (error as Error).message, code: req.params.code, playerId: req.params.playerId });
+        logger.error('Failed to kick player', { error: (error as Error).message, code: String(req.params.code), playerId: String(req.params.playerId) });
         res.status(500).json({
             error: {
                 code: 'KICK_ERROR',
@@ -495,7 +495,7 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
  */
 router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Promise<void> => {
     try {
-        const code = req.params.code;
+        const code = String(req.params.code);
 
         if (!code) {
             res.status(400).json({
@@ -559,7 +559,7 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
             message: `Room ${normalizedCode} has been closed`
         });
     } catch (error) {
-        logger.error('Failed to close room', { error: (error as Error).message, code: req.params.code });
+        logger.error('Failed to close room', { error: (error as Error).message, code: String(req.params.code) });
         res.status(500).json({
             error: {
                 code: 'ROOM_CLOSE_ERROR',

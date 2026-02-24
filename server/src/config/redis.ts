@@ -22,28 +22,8 @@ import type { ChildProcess } from 'child_process';
 // Types
 // ============================================================================
 
-/**
- * Redis client options for connection configuration
- */
-interface RedisSocketOptions {
-    reconnectStrategy?: (retries: number) => number | Error;
-    keepAlive?: number;
-    connectTimeout?: number;
-    noDelay?: boolean;
-    tls?: boolean;
-    rejectUnauthorized?: boolean;
-}
-
-/**
- * Redis client configuration options
- */
-interface RedisClientOptions {
-    url: string;
-    socket: RedisSocketOptions;
-    lazyConnect: boolean;
-    enableOfflineQueue: boolean;
-    commandsQueueMaxLength: number;
-}
+// Redis client options are passed directly to createClient() from the redis package.
+// No custom interface needed — the redis v5 package provides its own types.
 
 /**
  * Redis memory information from INFO command
@@ -219,47 +199,42 @@ async function stopEmbeddedRedis(): Promise<void> {
 }
 
 /**
+ * Shared reconnect strategy with exponential backoff
+ */
+function reconnectStrategy(retries: number): number | Error {
+    if (retries > 10) {
+        logger.error('Redis max reconnection attempts reached');
+        return new Error('Max reconnection attempts reached');
+    }
+    const delay = Math.min(retries * 100, 3000);
+    logger.warn(`Redis reconnecting in ${delay}ms (attempt ${retries})`);
+    return delay;
+}
+
+/**
  * Create Redis client options with TLS support and performance tuning
  * Handles both redis:// and rediss:// (TLS) URLs
  */
-function createClientOptions(redisUrl: string): RedisClientOptions {
-    const options: RedisClientOptions = {
+function createClientOptions(redisUrl: string) {
+    const sharedSocket = {
+        reconnectStrategy,
+        keepAlive: true,
+        keepAliveInitialDelay: 10000,
+        connectTimeout: 10000,
+        noDelay: true,
+    };
+
+    const sharedOptions = {
         url: redisUrl,
-        socket: {
-            // Reconnect strategy with exponential backoff
-            reconnectStrategy: (retries: number): number | Error => {
-                if (retries > 10) {
-                    logger.error('Redis max reconnection attempts reached');
-                    return new Error('Max reconnection attempts reached');
-                }
-                const delay = Math.min(retries * 100, 3000);
-                logger.warn(`Redis reconnecting in ${delay}ms (attempt ${retries})`);
-                return delay;
-            },
-            // Keep connection alive - more aggressive for better latency
-            keepAlive: 10000, // 10 seconds
-            connectTimeout: 10000, // 10 seconds
-            // Disable Nagle's algorithm for lower latency
-            noDelay: true
-        },
-        // Performance tuning options
-        // Don't lazily connect - establish connection immediately
-        lazyConnect: false,
-        // Queue commands when disconnected (fail-open for better UX)
-        enableOfflineQueue: true,
-        // Limit command queue to prevent memory issues during extended outages
-        commandsQueueMaxLength: 1000
+        disableOfflineQueue: false,
+        commandsQueueMaxLength: 1000,
     };
 
     // Handle TLS for rediss:// URLs (Fly.io Upstash Redis)
     if (redisUrl.startsWith('rediss://')) {
-        options.socket.tls = true;
-        // Only allow disabling TLS validation in development mode
-        // In production, TLS certificate validation is always enabled for security
         const isProduction = process.env['NODE_ENV'] === 'production';
         const wantToDisable = process.env['REDIS_TLS_REJECT_UNAUTHORIZED'] === 'false';
         const rejectUnauthorized = isProduction ? true : !wantToDisable;
-        options.socket.rejectUnauthorized = rejectUnauthorized;
 
         if (!rejectUnauthorized) {
             logger.warn('Redis TLS certificate validation is disabled (development mode only)');
@@ -267,9 +242,17 @@ function createClientOptions(redisUrl: string): RedisClientOptions {
         if (isProduction && wantToDisable) {
             logger.warn('REDIS_TLS_REJECT_UNAUTHORIZED=false is ignored in production for security');
         }
+
+        return {
+            ...sharedOptions,
+            socket: { ...sharedSocket, tls: true as const, rejectUnauthorized },
+        };
     }
 
-    return options;
+    return {
+        ...sharedOptions,
+        socket: sharedSocket,
+    };
 }
 
 // ============================================================================

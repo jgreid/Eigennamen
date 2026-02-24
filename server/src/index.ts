@@ -5,7 +5,8 @@
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketServer } from 'socket.io';
 
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ quiet: true });
 
 import http from 'http';
 import app from './app';

@@ -268,15 +268,15 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         scriptLoad: jest.fn(async () => 'mock-sha'),
 
         // E-12: Added scan operation (used in adminRoutes.ts)
-        scan: jest.fn(async (cursor: string | number, options: AnyRecord = {}) => {
+        scan: jest.fn(async (cursor: number, options: AnyRecord = {}) => {
             const pattern = options.MATCH || '*';
             const count = options.COUNT || 10;
             const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
             const allKeys = [...storage.keys()].filter(key => regex.test(key));
-            const startIdx = Number(cursor);
+            const startIdx = cursor;
             const endIdx = Math.min(startIdx + count, allKeys.length);
             const keys = allKeys.slice(startIdx, endIdx);
-            const nextCursor = endIdx >= allKeys.length ? '0' : String(endIdx);
+            const nextCursor = endIdx >= allKeys.length ? 0 : endIdx;
             return { cursor: nextCursor, keys };
         }),
 
