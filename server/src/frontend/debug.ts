@@ -1,4 +1,6 @@
 import type { AppState } from './stateTypes.js';
+import { subscribe as busSubscribe } from './store/eventBus.js';
+import type { StateChangeEvent } from './store/eventBus.js';
 
 const DEBUG_KEY = 'eigennamen';
 
@@ -163,6 +165,33 @@ export function dumpState(state: AppState): void {
     console.groupEnd();
 }
 
+
+/**
+ * Subscribe to the store event bus for debug logging and watcher dispatch.
+ * Called once from state.ts initialization. This bridges the new reactive
+ * proxy (which emits via the event bus) with the existing debug/watcher system.
+ */
+let debugSubscriptionsInitialized = false;
+export function initDebugSubscriptions(): void {
+    if (debugSubscriptionsInitialized) return;
+    debugSubscriptionsInitialized = true;
+
+    // Subscribe to all state changes via the event bus.
+    // Use a catch-all by subscribing to 'state.*' — the reactive proxy
+    // emits paths like 'state.gameState.currentTurn'.
+    busSubscribe('state.*', (event: StateChangeEvent) => {
+        // Debug logging (gated)
+        logStateChange(event.path, event.oldValue, event.newValue, 'proxy');
+
+        // Dispatch to legacy watchers
+        const watcherList = watchers.get(event.path);
+        if (watcherList) {
+            for (const cb of watcherList) {
+                try { cb(event.oldValue, event.newValue); } catch { /* non-fatal */ }
+            }
+        }
+    });
+}
 
 export function attachDebugToWindow(rawState: AppState): void {
     if (typeof window !== 'undefined' && debugEnabled()) {

@@ -1,4 +1,5 @@
 import { state, BOARD_SIZE } from './state.js';
+import { showSpymasterView } from './store/selectors.js';
 import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
@@ -173,7 +174,7 @@ export function renderBoard(): void {
     try {
         // Update board class
         let className = 'board';
-        if (state.spymasterTeam || state.gameState.gameOver) className += ' spymaster-mode';
+        if (showSpymasterView()) className += ' spymaster-mode';
         if (!canClickCards()) className += ' no-click';
         board.className = className;
 
@@ -220,7 +221,7 @@ export function renderBoard(): void {
             }
 
             // Add spymaster hints (show all card types when game is over)
-            if (state.spymasterTeam || state.gameState.gameOver) {
+            if (showSpymasterView()) {
                 card.classList.add(`spy-${state.gameState.types[index]}`);
             }
 
@@ -259,7 +260,7 @@ export function updateBoardIncremental(): void {
     try {
         // Update board class
         let className = 'board';
-        if (state.spymasterTeam || state.gameState.gameOver) className += ' spymaster-mode';
+        if (showSpymasterView()) className += ' spymaster-mode';
         if (!canClickCards()) className += ' no-click';
         board.className = className;
 
@@ -303,7 +304,7 @@ export function updateBoardIncremental(): void {
             }
 
             // Handle spymaster mode (show all card types when game is over)
-            if (state.spymasterTeam || state.gameState.gameOver) {
+            if (showSpymasterView()) {
                 card.classList.add(`spy-${type}`);
             } else {
                 // Remove all spy- classes
