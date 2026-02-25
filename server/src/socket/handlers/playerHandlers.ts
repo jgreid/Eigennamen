@@ -110,7 +110,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
                 logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
-            }, { lockTimeout: 5000, maxRetries: 10 });
+            }, { lockTimeout: 5000, maxRetries: 3 });
         }
     ));
 
@@ -168,7 +168,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);
 
                 return { player };
-            }, { lockTimeout: 5000, maxRetries: 10 });
+            }, { lockTimeout: 5000, maxRetries: 3 });
         }
     ));
 
@@ -251,6 +251,10 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 newHost: null,
                 players: remainingPlayers || []
             });
+
+            // Broadcast updated stats so clients refresh team counters
+            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             logger.info(`Host ${sanitizeHtml(ctx.player.nickname)} kicked player ${sanitizeHtml(targetPlayer.nickname)} from room ${ctx.roomCode}`);
 
