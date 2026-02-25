@@ -57,6 +57,7 @@ function sleep(ms: number): Promise<void> {
 
 // Re-export from centralized module (single source of truth for memory mode detection)
 export { isMemoryMode } from './memoryMode';
+import { isMemoryMode } from './memoryMode';
 
 async function findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
