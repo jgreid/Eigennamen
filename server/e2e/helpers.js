@@ -139,7 +139,9 @@ async function selectTeam(page, team) {
     const btn = page.locator(team === 'red' ? sel.teamRedBtn : sel.teamBlueBtn);
     if (await btn.isVisible({ timeout: 3000 }).catch(() => false)) {
         await btn.click();
-        await page.waitForTimeout(500);
+        // Wait for the player list to reflect the team change instead of arbitrary timeout
+        await page.locator(`${sel.playerList} .${team}-team, ${sel.playerList} [class*="${team}"]`)
+            .first().waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
     }
 }
 

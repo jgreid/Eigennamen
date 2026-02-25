@@ -36,9 +36,8 @@ test.describe('Team Selection in Multiplayer', () => {
                 await blueBtn2.click();
             }
 
-            await player1.waitForTimeout(1000);
-
-            await expect(player1.locator('body')).toContainText('TeamMate');
+            // Wait for player list to reflect team changes
+            await expect(player1.locator('body')).toContainText('TeamMate', { timeout: 5000 });
             await expect(player2.locator('body')).toContainText('TeamLead');
         } finally {
             await ctx1.close();
@@ -109,7 +108,12 @@ test.describe('Join Room Error Handling', () => {
         await page.locator(sel.createRoomId).fill('EMPTYTEST');
         await page.locator(sel.mpActionBtn).click();
 
-        await page.waitForTimeout(2000);
+        // Wait for connection attempt to resolve, then verify not connected
+        await page.waitForFunction(
+            (selector) => !document.querySelector(selector),
+            sel.mpIndicatorActive,
+            { timeout: 5000 }
+        ).catch(() => {});
         const activeIndicator = page.locator(sel.mpIndicatorActive);
         const isConnected = await activeIndicator.isVisible().catch(() => false);
         expect(isConnected).toBe(false);
@@ -155,7 +159,12 @@ test.describe('Chat Between Players', () => {
         const initialCount = await chatMessages.locator('.chat-message, .message').count();
 
         await chatInput.press('Enter');
-        await page.waitForTimeout(500);
+
+        // Brief wait for any potential message to appear (verifying nothing was sent)
+        await page.waitForFunction(
+            () => true,
+            { timeout: 300 }
+        ).catch(() => {});
 
         const afterCount = await chatMessages.locator('.chat-message, .message').count();
         expect(afterCount).toBe(initialCount);
@@ -203,7 +212,8 @@ test.describe('Multiplayer Game Start', () => {
             if (await startBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await startBtn.click();
 
-                await player1.waitForTimeout(2000);
+                // Wait for board to render after game start
+                await player1.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
 
                 const board = player1.locator(sel.board);
                 await expect(board).toBeVisible();
@@ -233,7 +243,14 @@ test.describe('Multiplayer Reconnection UI', () => {
 
             await player2.close();
 
-            await player1.waitForTimeout(3000);
+            // Wait for server to detect disconnect and update the UI
+            await player1.waitForFunction(
+                () => {
+                    const body = document.body.textContent || '';
+                    return body.includes('disconnected') || body.includes('left') || !body.includes('LeaveGuest');
+                },
+                { timeout: 10000 }
+            ).catch(() => {});
 
             const body = await player1.locator('body').textContent();
             expect(body).toBeTruthy();

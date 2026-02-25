@@ -235,7 +235,11 @@ test.describe('Settings Panel', () => {
         if (await langSelect.isVisible()) {
             await langSelect.selectOption('de');
             await page.keyboard.press('Escape');
-            await page.waitForTimeout(500);
+            // Wait for modal to close (CSS transition)
+            await page.waitForFunction(
+                () => !document.querySelector('.modal.active, [class*="modal"].active'),
+                { timeout: 3000 }
+            ).catch(() => {});
 
             const body = await page.locator('body').textContent();
             expect(body).toBeTruthy();
