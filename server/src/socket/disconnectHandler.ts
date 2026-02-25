@@ -83,10 +83,10 @@ function createTimerExpireCallback(
             // Restart timer for the new turn (if timer is configured and game not over)
             // Use distributed lock to prevent duplicate restarts when multiple
             // timer expirations queue setImmediate callbacks.
-            // Wrap in IIFE with .catch() to prevent unhandled promise rejections
+            // Wrapped in withTimeout to prevent indefinite hangs if Redis/lock ops stall.
             setImmediate(() => {
-                (async () => {
-                    try {
+                withTimeout(
+                    (async () => {
                         // Check Redis availability before attempting lock
                         const redisHealthy = await isRedisHealthy();
                         if (!redisHealthy) {
@@ -118,13 +118,12 @@ function createTimerExpireCallback(
                             await startTurnTimer(roomCode, room.settings.turnTimer);
                             logger.debug(`Timer restarted for room ${roomCode}, new turn: ${currentGame.currentTurn}`);
                         }, { lockTimeout: LOCKS.TIMER_RESTART * 1000, maxRetries: 3 });
-                    } catch (err) {
-                        // If lock acquisition fails, another instance is handling this restart
-                        logger.debug(`Timer restart skipped for room ${roomCode}: ${(err as Error).message}`);
-                    }
-                })().catch(err => {
-                    // Catch any unhandled promise rejections from the async IIFE
-                    logger.error(`Unhandled timer restart error for room ${roomCode}:`, err);
+                    })(),
+                    TIMEOUTS.SOCKET_HANDLER,
+                    `timer-restart-${roomCode}`
+                ).catch(err => {
+                    // Lock contention, timeout, or Redis failure — non-critical
+                    logger.debug(`Timer restart skipped for room ${roomCode}: ${(err as Error).message}`);
                 });
             });
         } catch (error) {
