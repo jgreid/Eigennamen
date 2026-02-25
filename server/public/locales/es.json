@@ -119,7 +119,7 @@
     "invalidInputDetail": "Entrada no válida – comprueba el ID de sala y el apodo",
     "connectionFailedDetail": "No se pudo conectar al servidor – comprueba tu conexión e inténtalo de nuevo",
     "joinFailed": "Error al unirse a la partida – inténtalo de nuevo",
-    "roomAlreadyExists": "Ya existe una sala con este ID. Prueba con un ID de sala diferente.",
+    "roomAlreadyExists": "La partida ya existe; únete o crea un nuevo ID de sala para jugar.",
     "createFailed": "Error al crear la partida – inténtalo de nuevo",
     "gameCreatedShare": "¡Partida creada! Comparte el ID de sala: {{roomId}}",
     "connectedToGame": "¡Conectado a la partida multijugador!",

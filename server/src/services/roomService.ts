@@ -95,7 +95,7 @@ export async function createRoom(
         // Room already exists
         throw new RoomError(
             ERROR_CODES.ROOM_ALREADY_EXISTS,
-            `Room "${roomId}" already exists. Choose a different room ID or join the existing room.`,
+            `Game already exists; join or create a new Room ID to play.`,
             { roomId }
         );
     }

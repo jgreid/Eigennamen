@@ -119,7 +119,7 @@
     "invalidInputDetail": "Entrée invalide – vérifiez l'ID du salon et le pseudonyme",
     "connectionFailedDetail": "Impossible de se connecter au serveur – vérifiez votre connexion et réessayez",
     "joinFailed": "Échec de la connexion à la partie – veuillez réessayer",
-    "roomAlreadyExists": "Un salon avec cet ID existe déjà. Essayez un autre ID de salon.",
+    "roomAlreadyExists": "La partie existe déjà ; rejoignez-la ou créez un nouvel ID de salon pour jouer.",
     "createFailed": "Échec de la création de la partie – veuillez réessayer",
     "gameCreatedShare": "Partie créée ! Partagez l'ID du salon : {{roomId}}",
     "connectedToGame": "Connecté à la partie multijoueur !",
