@@ -24,7 +24,10 @@ import {
     isConnectionLimitReached,
     getConnectionCount,
     startConnectionsCleanup,
-    stopConnectionsCleanup
+    stopConnectionsCleanup,
+    recordAuthFailure,
+    isAuthBlocked,
+    clearAuthFailures
 } from './connectionTracker';
 import {
     createTimerExpireCallback as createTimerExpireCallbackImpl
@@ -123,6 +126,12 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     socketServer.use((socket: Socket, next: (err?: Error) => void) => {
         const clientIP = getClientIP(socket) || 'unknown';
 
+        // Check auth failure block before allowing connection
+        if (isAuthBlocked(clientIP)) {
+            logger.warn('Connection rejected: IP blocked due to auth failures', { ip: clientIP });
+            return next(new Error('Too many failed authentication attempts. Try again later.'));
+        }
+
         if (isConnectionLimitReached(clientIP)) {
             logger.warn('Connection limit exceeded', { ip: clientIP, count: getConnectionCount(clientIP) });
             return next(new Error('Too many connections from this IP'));
@@ -133,15 +142,21 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
         next();
     });
 
-    // Authentication middleware - decrement IP counter on auth failure
+    // Authentication middleware - decrement IP counter on auth failure, track failures
     socketServer.use((socket: Socket, next: (err?: Error) => void) => {
         authenticateSocket(socket, (err?: Error) => {
             if (err) {
                 const gameSocket = socket as GameSocket;
                 if (gameSocket.clientIP) {
                     decrementConnectionCount(gameSocket.clientIP);
+                    recordAuthFailure(gameSocket.clientIP);
                 }
                 return next(err);
+            }
+            // Clear failure record on successful auth
+            const gameSocket = socket as GameSocket;
+            if (gameSocket.clientIP) {
+                clearAuthFailures(gameSocket.clientIP);
             }
             next();
         });

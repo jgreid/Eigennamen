@@ -192,6 +192,15 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 this._emit('rejoined', result);
                 // Replay any queued offline events
                 this._flushOfflineQueue();
+
+                // Request a full state resync to ensure local state is up-to-date
+                // after potentially missing events while disconnected
+                try {
+                    await this.requestResync();
+                } catch {
+                    // Non-critical: rejoin already provides initial state
+                    logger.debug('Post-rejoin resync failed (non-critical)');
+                }
             } catch (error) {
                 logger.error('Failed to rejoin room:', error);
                 // Clear stored room code since it's no longer valid
@@ -297,8 +306,14 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             if (this.isConnected()) {
                 this.socket?.emit(event, data);
             } else {
-                // Only queue certain safe events (chat messages)
-                const queueableEvents = ['chat:message', 'chat:spectator'];
+                // Queue safe-to-replay events while disconnected.
+                // State-mutating events (team/role changes) are included because
+                // the server validates them against current state on replay.
+                const queueableEvents = [
+                    'chat:message', 'chat:spectator',
+                    'player:setTeam', 'player:setRole', 'player:setNickname',
+                    'game:endTurn'
+                ];
                 if (queueableEvents.includes(event) && this._offlineQueue.length < this._offlineQueueMaxSize) {
                     this._offlineQueue.push({ event, data, timestamp: Date.now() });
                 }
@@ -655,7 +670,12 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param callback - Optional acknowledgement callback
          */
         setTeam(team: string | null, callback?: (result: unknown) => void): void {
-            this._getSocket()?.emit('player:setTeam', { team }, callback);
+            if (callback) {
+                // Callbacks can't be queued — emit directly or skip
+                this._getSocket()?.emit('player:setTeam', { team }, callback);
+            } else {
+                this._queueOrEmit('player:setTeam', { team });
+            }
         },
 
         /**
@@ -664,7 +684,11 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param callback - Optional acknowledgement callback
          */
         setRole(role: string, callback?: (result: unknown) => void): void {
-            this._getSocket()?.emit('player:setRole', { role }, callback);
+            if (callback) {
+                this._getSocket()?.emit('player:setRole', { role }, callback);
+            } else {
+                this._queueOrEmit('player:setRole', { role });
+            }
         },
 
         /**
@@ -672,7 +696,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * @param nickname - New nickname
          */
         setNickname(nickname: string): void {
-            this._getSocket()?.emit('player:setNickname', { nickname });
+            this._queueOrEmit('player:setNickname', { nickname });
         },
 
         // =====================
@@ -699,7 +723,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          * End current turn (host only)
          */
         endTurn(): void {
-            this._getSocket()?.emit('game:endTurn');
+            this._queueOrEmit('game:endTurn', {});
         },
 
         /**

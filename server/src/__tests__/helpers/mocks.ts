@@ -627,6 +627,49 @@ function createFailingRedis(
     };
 }
 
+/**
+ * Error codes that are safe to expose to clients (used by rate limit handler mock).
+ * Centralized here to prevent duplication across 11+ handler test files.
+ */
+const SAFE_ERROR_CODES = [
+    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN',
+    'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER',
+    'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND',
+    'GAME_IN_PROGRESS', 'CANNOT_SWITCH_TEAM_DURING_TURN',
+    'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM',
+    'GAME_NOT_STARTED'
+];
+
+/**
+ * Create a mock implementation for createRateLimitedHandler.
+ * Bypasses rate limiting and executes the handler directly, emitting
+ * errors to the socket with safe/sanitized messages.
+ *
+ * Usage in test files:
+ *   const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
+ *   jest.mock('../../socket/rateLimitHandler', () => ({
+ *       createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+ *   }));
+ */
+function createMockRateLimitHandler(safeErrorCodes: string[] = SAFE_ERROR_CODES) {
+    return jest.fn((socket: AnyRecord, eventName: string, handler: (data: unknown) => Promise<unknown>) => {
+        return async (data: unknown): Promise<unknown> => {
+            try {
+                return await handler(data);
+            } catch (error: any) {
+                const errorEvent = `${eventName.split(':')[0]}:error`;
+                const code = error.code || 'SERVER_ERROR';
+                const isSafe = safeErrorCodes.includes(code);
+                socket.emit(errorEvent, {
+                    code,
+                    message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+                });
+                return undefined;
+            }
+        };
+    });
+}
+
 module.exports = {
     createMockRedis,
     createFailingRedis,
@@ -640,5 +683,7 @@ module.exports = {
     generateRoomCode,
     sleep,
     flushPromises,
-    expectAsyncError
+    expectAsyncError,
+    SAFE_ERROR_CODES,
+    createMockRateLimitHandler
 };
