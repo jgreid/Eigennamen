@@ -8,6 +8,9 @@
 jest.mock('../../services/playerService');
 jest.mock('../../services/gameService');
 jest.mock('../../utils/logger');
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
+}));
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
     createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)

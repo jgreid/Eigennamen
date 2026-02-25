@@ -23,6 +23,10 @@ jest.mock('../../socket/disconnectHandler', () => ({
     createTimerExpireCallback: jest.fn(() => jest.fn()),
 }));
 
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key, fn) => fn()),
+}));
+
 jest.mock('../../socket/handlers/roomHandlers', () => jest.fn());
 jest.mock('../../socket/handlers/gameHandlers', () => jest.fn());
 jest.mock('../../socket/handlers/playerHandlers', () => jest.fn());

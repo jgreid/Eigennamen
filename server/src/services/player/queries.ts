@@ -6,6 +6,7 @@ import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { tryParseJSON } from '../../utils/parseJSON';
 import { playerSchema } from './schemas';
 import { updatePlayer } from '../playerService';
+import { withLock } from '../../utils/distributedLock';
 
 /**
  * Get all players on a specific team - O(1) lookup using team sets
@@ -226,7 +227,8 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 /**
  * Reset all players' roles to 'spectator' for a new game while preserving teams.
  * This ensures spymaster/clicker roles are re-chosen each game.
- * Uses parallel updates instead of sequential for better performance.
+ * Acquires each player's mutation lock to prevent races with in-flight
+ * setRole/setTeam operations that could restore a stale role after the reset.
  */
 export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> {
     const players = await getPlayersInRoom(roomCode);
@@ -234,7 +236,9 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
     const results = await Promise.all(
         players.map(player => {
             if (player.role && player.role !== 'spectator') {
-                return updatePlayer(player.sessionId, { role: 'spectator' as Role });
+                return withLock(`player-mutation:${player.sessionId}`, async () => {
+                    return updatePlayer(player.sessionId, { role: 'spectator' as Role });
+                }, { lockTimeout: 3000, maxRetries: 5 });
             }
             return Promise.resolve(player);
         })

@@ -109,20 +109,22 @@ describe('setRole edge cases', () => {
         await expect(setRole('p1', 'spymaster')).rejects.toThrow('not associated with a room');
     });
 
-    test('delegates to updatePlayer for spectator role', async () => {
+    test('sets spectator role via Lua script (same atomic path as other roles)', async () => {
         getPlayer.mockResolvedValue({
             sessionId: 'p1',
             team: 'red',
             role: 'clicker',
             roomCode: 'ROOM1'
         });
-        updatePlayer.mockResolvedValue({
-            sessionId: 'p1',
-            role: 'spectator'
-        });
+        mockRedis.eval.mockResolvedValue(JSON.stringify({
+            success: true,
+            player: { sessionId: 'p1', role: 'spectator', team: 'red', roomCode: 'ROOM1', nickname: 'Test', isHost: false, connected: true, lastSeen: Date.now() },
+            oldRole: 'clicker'
+        }));
 
         const result = await setRole('p1', 'spectator');
-        expect(updatePlayer).toHaveBeenCalledWith('p1', { role: 'spectator' });
+        expect(mockRedis.eval).toHaveBeenCalled();
+        expect(updatePlayer).not.toHaveBeenCalled();
         expect(result.role).toBe('spectator');
     });
 

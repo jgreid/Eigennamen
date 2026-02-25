@@ -107,12 +107,8 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
         throw new ServerError('Player is not associated with a room');
     }
 
-    // For spectator role, no need for atomic check - just update
-    if (role === 'spectator') {
-        return updatePlayer(sessionId, { role });
-    }
-
-    // Atomic Lua script handles team requirement and role-taken checks
+    // All roles (including spectator) go through the atomic Lua script to prevent
+    // lost updates when a concurrent setTeam operation modifies the same player key.
     const result = await withTimeout(
         redis.eval(
             SET_ROLE_SCRIPT,

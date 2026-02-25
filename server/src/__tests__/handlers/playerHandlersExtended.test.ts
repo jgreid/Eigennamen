@@ -23,6 +23,9 @@ jest.mock('../../utils/sanitize', () => ({
     removeControlChars: jest.fn((str) => str),  // FIX: Include for Zod schema validation
     isReservedName: jest.fn(() => false)        // FIX: Include for nickname validation
 }));
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key, fn) => fn()),
+}));
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
