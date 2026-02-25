@@ -119,7 +119,7 @@
     "invalidInputDetail": "Ungültige Eingabe – überprüfe Raum-ID und Spitznamen",
     "connectionFailedDetail": "Verbindung zum Server fehlgeschlagen – überprüfe deine Verbindung und versuche es erneut",
     "joinFailed": "Beitritt fehlgeschlagen – bitte erneut versuchen",
-    "roomAlreadyExists": "Ein Raum mit dieser ID existiert bereits. Versuche eine andere Raum-ID.",
+    "roomAlreadyExists": "Spiel existiert bereits; tritt bei oder erstelle eine neue Raum-ID.",
     "createFailed": "Erstellen fehlgeschlagen – bitte erneut versuchen",
     "gameCreatedShare": "Spiel erstellt! Raum-ID teilen: {{roomId}}",
     "connectedToGame": "Mit Multiplayer-Spiel verbunden!",

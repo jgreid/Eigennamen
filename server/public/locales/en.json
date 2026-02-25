@@ -119,7 +119,7 @@
     "invalidInputDetail": "Invalid input - check Room ID and nickname",
     "connectionFailedDetail": "Could not connect to server - check your connection and try again",
     "joinFailed": "Failed to join game - please try again",
-    "roomAlreadyExists": "A room with this ID already exists. Try a different Room ID.",
+    "roomAlreadyExists": "Game already exists; join or create a new Room ID to play.",
     "createFailed": "Failed to create game - please try again",
     "gameCreatedShare": "Game created! Share Room ID: {{roomId}}",
     "connectedToGame": "Connected to multiplayer game!",
