@@ -223,29 +223,36 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
     const redis: RedisClient = getRedis();
     let cleaned = 0;
 
-    // Scan for reconnect:session:* keys
+    // Scan for reconnect:session:* keys and process in parallel batches
+    // instead of sequentially, leveraging node-redis automatic pipelining.
     try {
-        // Use scanIterator if available (node-redis v4+)
         if (redis.scanIterator) {
+            const batch: { key: string; sessionId: string }[] = [];
+            const BATCH_PROCESS_SIZE = 20;
+            let scanned = 0;
+
             for await (const key of redis.scanIterator({ MATCH: 'reconnect:session:*', COUNT: 100 })) {
                 const sessionId = key.replace('reconnect:session:', '');
-                const playerKey = `player:${sessionId}`;
+                batch.push({ key, sessionId });
+                scanned++;
 
-                // Atomic check-and-delete: only cleans up if player doesn't exist
-                const result = await withTimeout(
-                    redis.eval(CLEANUP_ORPHANED_TOKEN_SCRIPT, {
-                        keys: [key, playerKey],
-                        arguments: []
-                    }),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `cleanupOrphanedToken-lua-${sessionId}`
-                );
-
-                if (result === 1) {
-                    cleaned++;
+                // Limit total scanned to avoid long-running operations
+                if (scanned >= PLAYER_CLEANUP.BATCH_SIZE) {
+                    cleaned += await processBatchCleanup(redis, batch);
+                    batch.length = 0;
+                    break;
                 }
-                // Limit batch size to avoid long-running operations
-                if (cleaned >= PLAYER_CLEANUP.BATCH_SIZE) break;
+
+                // Process in parallel batches
+                if (batch.length >= BATCH_PROCESS_SIZE) {
+                    cleaned += await processBatchCleanup(redis, batch);
+                    batch.length = 0;
+                }
+            }
+
+            // Process remaining items
+            if (batch.length > 0) {
+                cleaned += await processBatchCleanup(redis, batch);
             }
         }
     } catch (error) {
@@ -257,6 +264,33 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
         logger.info(`Cleaned up ${cleaned} orphaned reconnection token(s)`);
     }
     return cleaned;
+}
+
+/**
+ * Process a batch of orphaned token cleanups in parallel.
+ * Each cleanup uses an atomic Lua script, but we fire them concurrently
+ * so node-redis can pipeline the requests in a single round-trip.
+ */
+async function processBatchCleanup(
+    redis: RedisClient,
+    batch: { key: string; sessionId: string }[]
+): Promise<number> {
+    const results = await Promise.all(
+        batch.map(({ key, sessionId }) =>
+            withTimeout(
+                redis.eval(CLEANUP_ORPHANED_TOKEN_SCRIPT, {
+                    keys: [key, `player:${sessionId}`],
+                    arguments: []
+                }),
+                TIMEOUTS.REDIS_OPERATION,
+                `cleanupOrphanedToken-lua-${sessionId}`
+            ).catch(err => {
+                logger.debug(`Failed to cleanup orphaned token for ${sessionId}:`, (err as Error).message);
+                return 0;
+            })
+        )
+    );
+    return results.filter(r => r === 1).length;
 }
 
 /**
