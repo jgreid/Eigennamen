@@ -9,12 +9,38 @@ import type { ServerPlayerData } from './multiplayerTypes.js';
 
 // ---- Role-change state machine helpers ----
 
+/** Absolute failsafe: if *any* role-change operation is stuck for this
+ *  long (regardless of operation ID), force-clear it so the UI unblocks.
+ *  The per-operation 5 s timeouts handle normal lost-ack cases; this is
+ *  purely a safety-net for unexpected state-machine stalls. */
+const ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS = 10_000;
+let absoluteTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+function startAbsoluteTimeout(): void {
+    clearAbsoluteTimeout();
+    absoluteTimeoutHandle = setTimeout(() => {
+        if (state.roleChange.phase !== 'idle') {
+            logger.warn('Role change absolute failsafe fired — forcing idle');
+            clearRoleChange();
+            updateControls();
+        }
+    }, ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS);
+}
+
+function clearAbsoluteTimeout(): void {
+    if (absoluteTimeoutHandle !== null) {
+        clearTimeout(absoluteTimeoutHandle);
+        absoluteTimeoutHandle = null;
+    }
+}
+
 function generateOperationId(): string {
     return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 }
 
 /** Transition to idle, discarding any in-flight state. */
 export function clearRoleChange(): void {
+    clearAbsoluteTimeout();
     state.roleChange = { phase: 'idle' };
 }
 
@@ -216,6 +242,7 @@ export function setTeam(team: string | null): void {
 
         const operationId = generateOperationId();
         const target = team || 'spectate';
+        startAbsoluteTimeout();
 
         // Optimistic UI update — apply team change immediately
         const prevTeam = state.playerTeam;
@@ -316,6 +343,7 @@ function setRoleForTeam(
         logger.debug(`set${roleName}: setting ${roleName} for team`, team, 'current playerTeam:', state.playerTeam);
 
         const operationId = generateOperationId();
+        startAbsoluteTimeout();
         const prevTeam = state.playerTeam;
         const prevSpymaster = state.spymasterTeam;
         const prevClicker = state.clickerTeam;

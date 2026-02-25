@@ -190,6 +190,9 @@ jest.mock('../../services/timerService', () => ({
     stopTimer: jest.fn(async () => {}),
     getTimerStatus: jest.fn(async () => null)
 }));
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key, fn) => fn()),
+}));
 
 const { createSocketRateLimiter } = require('../../middleware/rateLimit');
 const { RATE_LIMITS, ERROR_CODES } = require('../../config/constants');

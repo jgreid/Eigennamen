@@ -35,6 +35,11 @@ export function registerPlayerHandlers(): void {
             state.multiplayerPlayers = state.multiplayerPlayers.filter((p: ServerPlayerData) => p.sessionId !== data.sessionId);
         }
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        // Refresh controls and board — the departed player may have been the
+        // active clicker, so remaining team members need their UI updated to
+        // reflect fallback clicker permissions.
+        updateControls();
+        renderBoard();
         if (data.nickname) {
             showToast(`${data.nickname} left`, 'info');
         }

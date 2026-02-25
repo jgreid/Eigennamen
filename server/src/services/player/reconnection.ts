@@ -11,13 +11,20 @@ import { z } from 'zod';
 import { getPlayer } from '../playerService';
 
 /**
- * Token data stored for reconnection
+ * Token data stored for reconnection.
+ *
+ * NOTE: `team` and `role` are captured at disconnect time for audit/logging
+ * purposes only.  On reconnection the authoritative player state is always
+ * loaded fresh from Redis (see roomHandlers.ts ROOM_RECONNECT), so these
+ * fields are never used to restore a player's role or team assignment.
  */
 export interface ReconnectionTokenData {
     sessionId: string;
     roomCode: string;
     nickname: string;
+    /** Snapshot at disconnect — informational only, not used for restoration */
     team: Team | null;
+    /** Snapshot at disconnect — informational only, not used for restoration */
     role: Role;
     createdAt: number;
 }

@@ -58,7 +58,7 @@ const { getRedis } = require('../../config/redis');
 
 // Valid UUID for testing
 const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
-const VALID_UUID_2 = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+const _VALID_UUID_2 = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 function createMockPlayer(overrides: Record<string, unknown> = {}) {
     return {
@@ -82,6 +82,7 @@ describe('Session Validator', () => {
     // We need to re-require the module for each describe block that tests
     // internal state (memory map), because the map persists across tests.
     // For blocks that don't need isolated internal state, a single require suffices.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- dynamic require
     let sessionValidator: typeof import('../../middleware/auth/sessionValidator');
 
     beforeEach(() => {

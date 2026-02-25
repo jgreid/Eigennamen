@@ -8,6 +8,10 @@
 const playerService = require('../../services/playerService');
 
 // Mock dependencies
+jest.mock('../../utils/distributedLock', () => ({
+    withLock: jest.fn(async (_key, fn) => fn()),
+}));
+
 jest.mock('../../config/redis', () => ({
     getRedis: jest.fn()
 }));
@@ -411,13 +415,18 @@ describe('Player Service', () => {
         test('allows setting spectator role without team', async () => {
             const player = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            // setRole('spectator') calls updatePlayer which uses Lua script
+            // setRole('spectator') now uses the same Lua script as other roles
             const updatedPlayer = { ...player, role: 'spectator', lastSeen: Date.now() };
-            mockRedis.eval.mockResolvedValue(JSON.stringify(updatedPlayer));
+            mockRedis.eval.mockResolvedValue(JSON.stringify({
+                success: true,
+                player: updatedPlayer,
+                oldRole: player.role
+            }));
 
             const result = await playerService.setRole('session-123', 'spectator');
 
             expect(result.role).toBe('spectator');
+            expect(mockRedis.eval).toHaveBeenCalled();
         });
 
         test('successfully assigns role via atomic Lua script', async () => {

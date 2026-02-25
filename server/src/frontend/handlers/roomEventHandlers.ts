@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
+import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
 import {
     updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility,
@@ -174,6 +175,10 @@ export function registerRoomHandlers(): void {
         // Update player list
         state.multiplayerPlayers = state.multiplayerPlayers.filter((p: ServerPlayerData) => p.sessionId !== data.sessionId);
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        // Refresh controls and board — kicked player may have held the active
+        // clicker role, so remaining team members need UI updated for fallback.
+        updateControls();
+        renderBoard();
         showToast(`${data.nickname} was kicked by the host`, 'info');
     });
 

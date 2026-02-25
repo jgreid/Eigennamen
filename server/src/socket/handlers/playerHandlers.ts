@@ -16,6 +16,7 @@ import { canChangeTeamOrRole } from '../playerContext';
 import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { safeEmitToRoom } from '../safeEmit';
+import { withLock } from '../../utils/distributedLock';
 
 /**
  * Player team input
@@ -61,40 +62,55 @@ function playerHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_TEAM, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_TEAM, playerTeamSchema,
         async (ctx: RoomContext, validated: PlayerTeamInput) => {
-            const canChange: ChangePermission = canChangeTeamOrRole(ctx, { isTeamChange: true });
-            if (!canChange.allowed) {
-                const errorCode = (canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN) as ErrorCode;
-                throw new GameStateError(errorCode, canChange.reason ?? '');
-            }
+            // Per-player lock serializes team/role mutations to prevent TOCTOU races
+            // where concurrent setTeam+setRole could interleave at await boundaries,
+            // causing the canChangeTeamOrRole check to pass on stale state.
+            return await withLock(`player-mutation:${ctx.sessionId}`, async () => {
+                // Re-fetch player and game state after acquiring lock to validate
+                // against fresh state (the snapshot in ctx may be stale)
+                const freshPlayer: Player | null = await playerService.getPlayer(ctx.sessionId);
+                if (!freshPlayer) {
+                    throw PlayerError.notFound(ctx.sessionId);
+                }
+                const freshGame: GameState | null = ctx.roomCode
+                    ? await gameService.getGame(ctx.roomCode)
+                    : null;
+                const freshCtx = { player: freshPlayer, game: freshGame };
 
-            const shouldCheckEmpty = !!(ctx.game && !ctx.game.gameOver &&
-                ctx.player.team && ctx.player.team !== validated.team);
-            // setTeam always returns a Player or throws — no null return path
-            const player: Player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
+                const canChange: ChangePermission = canChangeTeamOrRole(freshCtx, { isTeamChange: true });
+                if (!canChange.allowed) {
+                    const errorCode = (canChange.code || ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN) as ErrorCode;
+                    throw new GameStateError(errorCode, canChange.reason ?? '');
+                }
 
-            // Bug #14 Fix: Sync spectator room membership based on current state
-            // (prevents race with concurrent setRole operations)
-            await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
+                const shouldCheckEmpty = !!(freshGame && !freshGame.gameOver &&
+                    freshPlayer.team && freshPlayer.team !== validated.team);
+                // setTeam always returns a Player or throws — no null return path
+                const player: Player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
-            // Build changes object - include role if it was changed by the team switch
-            // (e.g., clicker/spymaster role is reset to spectator when switching teams)
-            const changes: { team: Team | null; role?: Role } = { team: player.team };
-            if (player.role !== ctx.player.role) {
-                changes.role = player.role;
-            }
+                // Bug #14 Fix: Sync spectator room membership based on current state
+                // (prevents race with concurrent setRole operations)
+                await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
 
-            // Broadcast to room
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                sessionId: ctx.sessionId,
-                changes
-            });
+                // Build changes object - include role if it was changed by the team switch
+                // (e.g., clicker/spymaster role is reset to spectator when switching teams)
+                const changes: { team: Team | null; role?: Role } = { team: player.team };
+                if (player.role !== freshPlayer.role) {
+                    changes.role = player.role;
+                }
 
-            // Broadcast updated stats
-            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+                // Broadcast to room
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
+                    sessionId: ctx.sessionId,
+                    changes
+                });
 
-            logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
+                // Broadcast updated stats
+                const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
+                logger.info(`Player ${ctx.sessionId} joined team ${player.team}`);
+            }, { lockTimeout: 5000, maxRetries: 3 });
         }
     ));
 
@@ -103,43 +119,56 @@ function playerHandlers(io: Server, socket: GameSocket): void {
      */
     socket.on(SOCKET_EVENTS.PLAYER_SET_ROLE, createRoomHandler(socket, SOCKET_EVENTS.PLAYER_SET_ROLE, playerRoleSchema,
         async (ctx: RoomContext, validated: PlayerRoleInput) => {
-            // Skip validation if player already has the requested role (idempotent)
-            if (ctx.player.role !== validated.role) {
-                const canChange: ChangePermission = canChangeTeamOrRole(ctx, { targetRole: validated.role });
-                if (!canChange.allowed) {
-                    throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason ?? '');
+            // Per-player lock serializes team/role mutations to prevent TOCTOU races
+            return await withLock(`player-mutation:${ctx.sessionId}`, async () => {
+                // Re-fetch player and game state after acquiring lock
+                const freshPlayer: Player | null = await playerService.getPlayer(ctx.sessionId);
+                if (!freshPlayer) {
+                    throw PlayerError.notFound(ctx.sessionId);
                 }
-            }
+                const freshGame: GameState | null = ctx.roomCode
+                    ? await gameService.getGame(ctx.roomCode)
+                    : null;
+                const freshCtx = { player: freshPlayer, game: freshGame };
 
-            const player: Player | null = await playerService.setRole(ctx.sessionId, validated.role);
+                // Skip validation if player already has the requested role (idempotent)
+                if (freshPlayer.role !== validated.role) {
+                    const canChange: ChangePermission = canChangeTeamOrRole(freshCtx, { targetRole: validated.role });
+                    if (!canChange.allowed) {
+                        throw new GameStateError(ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN, canChange.reason ?? '');
+                    }
+                }
 
-            if (!player) {
-                throw PlayerError.notFound(ctx.sessionId);
-            }
+                const player: Player | null = await playerService.setRole(ctx.sessionId, validated.role);
 
-            // Bug #14 Fix: Sync spectator room membership based on current state
-            // (prevents race with concurrent setTeam operations)
-            await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
+                if (!player) {
+                    throw PlayerError.notFound(ctx.sessionId);
+                }
 
-            // Broadcast to room
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
-                sessionId: ctx.sessionId,
-                changes: { role: player.role }
-            });
+                // Bug #14 Fix: Sync spectator room membership based on current state
+                // (prevents race with concurrent setTeam operations)
+                await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
 
-            // Broadcast updated stats
-            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
-            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
+                // Broadcast to room
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
+                    sessionId: ctx.sessionId,
+                    changes: { role: player.role }
+                });
 
-            // If becoming spymaster, re-fetch game state to avoid stale context
-            if (player.role === 'spymaster') {
-                const freshGame: GameState | null = await gameService.getGame(ctx.roomCode);
-                await sendSpymasterViewIfNeeded(socket, player, freshGame, ctx.roomCode);
-            }
+                // Broadcast updated stats
+                const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
-            logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);
+                // If becoming spymaster, re-fetch game state to avoid stale context
+                if (player.role === 'spymaster') {
+                    const spymasterGame: GameState | null = await gameService.getGame(ctx.roomCode);
+                    await sendSpymasterViewIfNeeded(socket, player, spymasterGame, ctx.roomCode);
+                }
 
-            return { player };
+                logger.info(`Player ${ctx.sessionId} set role to ${player.role}`);
+
+                return { player };
+            }, { lockTimeout: 5000, maxRetries: 3 });
         }
     ));
 
@@ -222,6 +251,10 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 newHost: null,
                 players: remainingPlayers || []
             });
+
+            // Broadcast updated stats so clients refresh team counters
+            const roomStats: RoomStats = await playerService.getRoomStats(ctx.roomCode);
+            safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.ROOM_STATS_UPDATED, { stats: roomStats });
 
             logger.info(`Host ${sanitizeHtml(ctx.player.nickname)} kicked player ${sanitizeHtml(targetPlayer.nickname)} from room ${ctx.roomCode}`);
 
