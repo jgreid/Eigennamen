@@ -13,6 +13,8 @@ import {
     setPlayerRole, clearPlayerRole, resetGameState,
     validateTurn, validateWinner, validateGameMode, validateArrayLength
 } from './stateMutations.js';
+import { batch } from './store/batch.js';
+import { isPlayerTurn } from './store/selectors.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
 import { removeKeyboardShortcuts } from './accessibility.js';
 import type { ServerPlayerData, ServerGameData, ReconnectionData, DOMListenerEntry } from './multiplayerTypes.js';
@@ -157,108 +159,112 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
         return;
     }
 
-    // Server sends arrays: words, types, revealed (not a board object)
-    if (serverGame.words && Array.isArray(serverGame.words)) {
-        const wordCount = serverGame.words.length;
+    // Batch all state mutations so subscribers see one coherent transition
+    // instead of 20+ intermediate states.
+    batch(() => {
+        // Server sends arrays: words, types, revealed (not a board object)
+        if (serverGame.words && Array.isArray(serverGame.words)) {
+            const wordCount = serverGame.words.length;
 
-        // Check if words have changed - if so, force full board re-render
-        const wordsChanged = !state.gameState.words ||
-            state.gameState.words.length !== wordCount ||
-            state.gameState.words.some((w: string, i: number) => w !== serverGame.words![i]);
+            // Check if words have changed - if so, force full board re-render
+            const wordsChanged = !state.gameState.words ||
+                state.gameState.words.length !== wordCount ||
+                state.gameState.words.some((w: string, i: number) => w !== serverGame.words![i]);
 
-        if (wordsChanged) {
-            // Force full board re-render when words change (new game started)
-            state.boardInitialized = false;
-            // Clear stale reveal tracking from previous game to prevent
-            // blocking card clicks on indices that were pending in the old game
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
-            state.revealTimeouts.clear();
-            state.revealingCards.clear();
-            state.isRevealingCard = false;
+            if (wordsChanged) {
+                // Force full board re-render when words change (new game started)
+                state.boardInitialized = false;
+                // Clear stale reveal tracking from previous game to prevent
+                // blocking card clicks on indices that were pending in the old game
+                state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+                state.revealTimeouts.clear();
+                state.revealingCards.clear();
+                state.isRevealingCard = false;
+            }
+
+            state.gameState.words = serverGame.words;
+
+            // Validate parallel arrays match word count — reject mismatched arrays
+            // to prevent undefined reads in revealCardFromServer() and renderBoard()
+            const types = serverGame.types || [];
+            const revealed = serverGame.revealed || [];
+            if (types.length > 0 && !validateArrayLength('types', types, wordCount)) {
+                state.gameState.types = new Array(wordCount).fill(null);
+            } else {
+                state.gameState.types = types;
+            }
+            if (revealed.length > 0 && !validateArrayLength('revealed', revealed, wordCount)) {
+                state.gameState.revealed = new Array(wordCount).fill(false);
+            } else {
+                state.gameState.revealed = revealed;
+            }
+
+            // Use server-provided scores if available, with range validation
+            if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
+                state.gameState.redScore = serverGame.redScore;
+            }
+            if (typeof serverGame.blueScore === 'number' && serverGame.blueScore >= 0 && serverGame.blueScore <= MAX_BOARD_SIZE) {
+                state.gameState.blueScore = serverGame.blueScore;
+            }
+            if (typeof serverGame.redTotal === 'number' && serverGame.redTotal >= 0 && serverGame.redTotal <= MAX_BOARD_SIZE) {
+                state.gameState.redTotal = serverGame.redTotal;
+            }
+            if (typeof serverGame.blueTotal === 'number' && serverGame.blueTotal >= 0 && serverGame.blueTotal <= MAX_BOARD_SIZE) {
+                state.gameState.blueTotal = serverGame.blueTotal;
+            }
         }
 
-        state.gameState.words = serverGame.words;
+        // Validate currentTurn is a known team
+        if (serverGame.currentTurn) {
+            state.gameState.currentTurn = validateTurn(serverGame.currentTurn, state.gameState.currentTurn);
+        }
 
-        // Validate parallel arrays match word count — reject mismatched arrays
-        // to prevent undefined reads in revealCardFromServer() and renderBoard()
-        const types = serverGame.types || [];
-        const revealed = serverGame.revealed || [];
-        if (types.length > 0 && !validateArrayLength('types', types, wordCount)) {
-            state.gameState.types = new Array(wordCount).fill(null);
+        // Sync game over state with validated winner
+        if (serverGame.gameOver || serverGame.winner) {
+            state.gameState.gameOver = true;
+            state.gameState.winner = validateWinner(serverGame.winner);
         } else {
-            state.gameState.types = types;
-        }
-        if (revealed.length > 0 && !validateArrayLength('revealed', revealed, wordCount)) {
-            state.gameState.revealed = new Array(wordCount).fill(false);
-        } else {
-            state.gameState.revealed = revealed;
+            state.gameState.gameOver = false;
+            state.gameState.winner = null;
         }
 
-        // Use server-provided scores if available, with range validation
-        if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
-            state.gameState.redScore = serverGame.redScore;
+        // Sync seed if available
+        if (serverGame.seed) {
+            state.gameState.seed = serverGame.seed;
         }
-        if (typeof serverGame.blueScore === 'number' && serverGame.blueScore >= 0 && serverGame.blueScore <= MAX_BOARD_SIZE) {
-            state.gameState.blueScore = serverGame.blueScore;
+
+        // Sync clue state (explicitly handle null to clear old clue)
+        if (serverGame.currentClue !== undefined) {
+            state.gameState.currentClue = serverGame.currentClue || null;
         }
-        if (typeof serverGame.redTotal === 'number' && serverGame.redTotal >= 0 && serverGame.redTotal <= MAX_BOARD_SIZE) {
-            state.gameState.redTotal = serverGame.redTotal;
+
+        // Sync guess tracking state
+        if (typeof serverGame.guessesUsed === 'number') {
+            state.gameState.guessesUsed = serverGame.guessesUsed;
         }
-        if (typeof serverGame.blueTotal === 'number' && serverGame.blueTotal >= 0 && serverGame.blueTotal <= MAX_BOARD_SIZE) {
-            state.gameState.blueTotal = serverGame.blueTotal;
+        if (typeof serverGame.guessesAllowed === 'number') {
+            state.gameState.guessesAllowed = serverGame.guessesAllowed;
         }
-    }
 
-    // Validate currentTurn is a known team
-    if (serverGame.currentTurn) {
-        state.gameState.currentTurn = validateTurn(serverGame.currentTurn, state.gameState.currentTurn);
-    }
+        // Sync Duet mode fields
+        if (serverGame.duetTypes) {
+            state.gameState.duetTypes = serverGame.duetTypes;
+        }
+        if (typeof serverGame.timerTokens === 'number') {
+            state.gameState.timerTokens = serverGame.timerTokens;
+        }
+        if (typeof serverGame.greenFound === 'number') {
+            state.gameState.greenFound = serverGame.greenFound;
+        }
+        if (typeof serverGame.greenTotal === 'number') {
+            state.gameState.greenTotal = serverGame.greenTotal;
+        }
+        if (serverGame.gameMode) {
+            state.gameMode = validateGameMode(serverGame.gameMode);
+        }
+    });
 
-    // Sync game over state with validated winner
-    if (serverGame.gameOver || serverGame.winner) {
-        state.gameState.gameOver = true;
-        state.gameState.winner = validateWinner(serverGame.winner);
-    } else {
-        state.gameState.gameOver = false;
-        state.gameState.winner = null;
-    }
-
-    // Sync seed if available
-    if (serverGame.seed) {
-        state.gameState.seed = serverGame.seed;
-    }
-
-    // Sync clue state (explicitly handle null to clear old clue)
-    if (serverGame.currentClue !== undefined) {
-        state.gameState.currentClue = serverGame.currentClue || null;
-    }
-
-    // Sync guess tracking state
-    if (typeof serverGame.guessesUsed === 'number') {
-        state.gameState.guessesUsed = serverGame.guessesUsed;
-    }
-    if (typeof serverGame.guessesAllowed === 'number') {
-        state.gameState.guessesAllowed = serverGame.guessesAllowed;
-    }
-
-    // Sync Duet mode fields
-    if (serverGame.duetTypes) {
-        state.gameState.duetTypes = serverGame.duetTypes;
-    }
-    if (typeof serverGame.timerTokens === 'number') {
-        state.gameState.timerTokens = serverGame.timerTokens;
-    }
-    if (typeof serverGame.greenFound === 'number') {
-        state.gameState.greenFound = serverGame.greenFound;
-    }
-    if (typeof serverGame.greenTotal === 'number') {
-        state.gameState.greenTotal = serverGame.greenTotal;
-    }
-    if (serverGame.gameMode) {
-        state.gameMode = validateGameMode(serverGame.gameMode);
-    }
-
-    // Update all UI components
+    // Update all UI components (after batch completes, state is consistent)
     renderBoard();
     updateScoreboard();
     updateTurnIndicator();
@@ -268,8 +274,7 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
     updateDuetUI(serverGame);
 
     // Update tab notification based on current turn
-    const isYourTurn = Boolean(state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver);
-    setTabNotification(isYourTurn);
+    setTabNotification(isPlayerTurn());
 }
 
 

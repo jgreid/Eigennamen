@@ -1,5 +1,6 @@
 import { DEFAULT_WORDS } from './constants.js';
-import { createStateProxy, attachDebugToWindow, debugEnabled } from './debug.js';
+import { attachDebugToWindow, initDebugSubscriptions } from './debug.js';
+import { createReactiveProxy } from './store/index.js';
 import type { AppState } from './stateTypes.js';
 
 // Re-export types so existing `import { X } from './state.js'` still works.
@@ -114,18 +115,13 @@ const _rawState: AppState = {
     resyncInProgress: false
 };
 
-// Debug proxy wraps the state when localStorage.debug === 'eigennamen'.
-// Otherwise the raw object is exported (zero overhead).
+// Always-on reactive proxy emits change events via the store event bus.
+// Debug logging (console output, history tracking) is still gated behind
+// localStorage.debug === 'eigennamen' — the proxy itself is lightweight.
+export const state: AppState = createReactiveProxy(_rawState);
 
-export const state: AppState = (() => {
-    try {
-        if (debugEnabled()) {
-            return createStateProxy(_rawState);
-        }
-    } catch { /* SSR / test environments without localStorage */ }
-    return _rawState;
-})();
-
+// Wire debug logging and legacy watchers to the event bus
+initDebugSubscriptions();
 attachDebugToWindow(_rawState);
 
 

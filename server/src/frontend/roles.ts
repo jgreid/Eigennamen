@@ -1,11 +1,14 @@
 import { state, ROLE_BANNER_CONFIG } from './state.js';
+import {
+    isSpymaster, isClicker as isClickerSelector,
+    canActAsClicker, isClickerFallback
+} from './store/selectors.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { isClientConnected } from './clientAccessor.js';
-import type { ServerPlayerData } from './multiplayerTypes.js';
 
 // ---- Role-change state machine helpers ----
 
@@ -117,18 +120,8 @@ export function updateControls(): void {
     const spectateBtn = document.getElementById('btn-spectate');
     const roleHint = document.getElementById('role-hint');
 
-    // Clicker can end turn when it's their team's turn
-    const isActiveClicker = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
-    // Also allow non-clicker team members to end turn if clicker is disconnected
-    const clickerFallback: boolean = state.isMultiplayerMode && !isActiveClicker
-        && state.playerTeam === state.gameState.currentTurn
-        && (() => {
-            const teamClicker = state.multiplayerPlayers.find(
-                (p: ServerPlayerData) => p.team === state.gameState.currentTurn && p.role === 'clicker'
-            );
-            return !teamClicker || !teamClicker.connected;
-        })();
-    const clickerCanAct = (isActiveClicker || clickerFallback) && !state.gameState.gameOver;
+    // Clicker (or fallback) can end turn when it's their team's turn
+    const clickerCanAct = canActAsClicker();
     if (endTurnBtn) {
         endTurnBtn.disabled = !clickerCanAct;
         endTurnBtn.classList.toggle('can-act', clickerCanAct);
@@ -136,7 +129,7 @@ export function updateControls(): void {
         // Update tooltip/title based on state
         if (state.gameState.gameOver) {
             endTurnBtn.title = t('roles.gameIsOver');
-        } else if (isActiveClicker || clickerFallback) {
+        } else if (clickerCanAct) {
             endTurnBtn.title = t('roles.endTurnTitle');
         } else if (state.playerTeam === state.gameState.currentTurn) {
             endTurnBtn.title = t('roles.onlyClickerCanEndTurn');
@@ -167,8 +160,8 @@ export function updateControls(): void {
     }
 
     // Role buttons - styled based on selected team
-    const isSpy = !!state.spymasterTeam;
-    const isClicker = !!state.clickerTeam;
+    const isSpy = isSpymaster();
+    const isClickerRole = isClickerSelector();
 
     if (spymasterBtn) {
         // Enable only if on a team and not currently changing role
@@ -184,13 +177,13 @@ export function updateControls(): void {
     if (clickerBtn) {
         // Enable only if on a team and not currently changing role
         clickerBtn.disabled = !state.playerTeam || isChangingRole();
-        clickerBtn.classList.toggle('active', isClicker);
+        clickerBtn.classList.toggle('active', isClickerRole);
         clickerBtn.classList.toggle('loading', isChangingRole() && (changingTarget() === 'clicker' || pendingRole() === 'clicker'));
         clickerBtn.classList.remove('red-team', 'blue-team');
         if (state.playerTeam) {
             clickerBtn.classList.add(state.playerTeam + '-team');
         }
-        clickerBtn.setAttribute('aria-pressed', isClicker.toString());
+        clickerBtn.setAttribute('aria-pressed', isClickerRole.toString());
     }
 
     // Update role hint - only show when helpful (hide when role is in banner)
@@ -198,22 +191,11 @@ export function updateControls(): void {
         if (!state.playerTeam) {
             roleHint.textContent = t('roles.selectTeamFirst');
             roleHint.classList.remove('hidden');
-        } else if (isSpy || isClicker) {
+        } else if (isSpy || isClickerRole) {
             // Role already displayed in banner - hide redundant hint
             roleHint.classList.add('hidden');
         } else {
-            // Check if player can click due to clicker disconnected
-            const canClickDueToDisconnect = state.isMultiplayerMode &&
-                state.playerTeam === state.gameState.currentTurn &&
-                !state.gameState.gameOver &&
-                (() => {
-                    const teamClicker = state.multiplayerPlayers.find(
-                        (p: ServerPlayerData) => p.team === state.gameState.currentTurn && p.role === 'clicker'
-                    );
-                    return !teamClicker || !teamClicker.connected;
-                })();
-
-            if (canClickDueToDisconnect) {
+            if (isClickerFallback()) {
                 roleHint.textContent = t('roles.clickerOfflineCanClick');
                 roleHint.classList.remove('hidden');
             } else {
