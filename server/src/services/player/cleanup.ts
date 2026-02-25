@@ -14,7 +14,9 @@ import { setGauge, METRIC_NAMES } from '../../utils/metrics';
 // Backpressure: when the cleanup queue exceeds this threshold,
 // additional sweep passes are run to prevent unbounded growth.
 const CLEANUP_BACKPRESSURE_THRESHOLD = 500;
-const CLEANUP_MAX_ADDITIONAL_SWEEPS = 3;
+// Hard cap on total items processed per cycle to prevent event-loop starvation.
+// At 50 items/batch, this allows up to 500 items per cycle (10 batches).
+const CLEANUP_MAX_ITEMS_PER_CYCLE = 500;
 
 // Late-bound room cleanup callback to break circular dependency with roomService.
 // Set via registerRoomCleanup() during server initialization.
@@ -256,12 +258,29 @@ export function startCleanupTask(): void {
                 if (queueDepth > CLEANUP_BACKPRESSURE_THRESHOLD) {
                     logger.warn(`Cleanup queue depth (${queueDepth}) exceeds threshold (${CLEANUP_BACKPRESSURE_THRESHOLD}), running additional sweeps`);
 
+                    // Continue sweeping until queue is drained below threshold
+                    // or we hit the per-cycle hard cap to prevent event-loop starvation.
+                    let totalProcessed = cleaned;
                     /* eslint-disable no-await-in-loop */
-                    for (let i = 0; i < CLEANUP_MAX_ADDITIONAL_SWEEPS; i++) {
+                    while (totalProcessed < CLEANUP_MAX_ITEMS_PER_CYCLE) {
                         const additional = await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
+                        totalProcessed += additional;
                         if (additional < PLAYER_CLEANUP.BATCH_SIZE) break;
                     }
                     /* eslint-enable no-await-in-loop */
+
+                    const finalDepth = await withTimeout(
+                        redis.zCard('scheduled:player:cleanup'),
+                        TIMEOUTS.REDIS_OPERATION,
+                        'cleanupBackpressure-zCard-final'
+                    );
+                    setGauge(METRIC_NAMES.CLEANUP_QUEUE_DEPTH, finalDepth);
+
+                    if (finalDepth > CLEANUP_BACKPRESSURE_THRESHOLD) {
+                        logger.warn(`Cleanup queue still elevated after draining (${finalDepth} remaining, processed ${totalProcessed} this cycle)`);
+                    } else {
+                        logger.info(`Cleanup backpressure resolved: processed ${totalProcessed} items, ${finalDepth} remaining`);
+                    }
                 }
             }
         } catch (error) {

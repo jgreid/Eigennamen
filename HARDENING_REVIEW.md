@@ -36,55 +36,45 @@ Three high-criticality source files have zero dedicated unit tests:
 
 ---
 
-#### 1.2 Scheduled Cleanup Backpressure
+#### 1.2 Scheduled Cleanup Backpressure — RESOLVED
 
 **Problem:** `player/cleanup.ts` processes 50 entries per 60-second cycle from a Redis sorted set. Under sustained high disconnect rates (>50/min), the `scheduled:player:cleanup` ZSET grows unbounded.
 
-**Fix:**
-- Add a secondary cleanup sweep when ZSET size exceeds a threshold (e.g., 500 entries)
-- Log a warning when cleanup falls behind so operators can investigate
-- Add a metric for cleanup queue depth to `/health/metrics`
+**Resolution:** Implemented dynamic backpressure scaling: when queue depth exceeds threshold (500), additional sweeps continue until queue drains below threshold or a hard cap (500 items/cycle) is reached. Final queue depth is logged and tracked via metrics gauge.
 
-**Files:** `src/services/player/cleanup.ts`, `src/utils/metrics.ts`
+**Files:** `src/services/player/cleanup.ts`
 
 ---
 
-#### 1.3 Game History Pipeline Atomicity
+#### 1.3 Game History Pipeline Atomicity — RESOLVED
 
-**Problem:** `gameHistoryService.ts:350-366` uses `redis.multi()` for 4 operations (set, zAdd, zRemRangeByRank, expire). This is a pipeline, **not** an atomic transaction — partial writes are possible if the server crashes mid-execution.
+**Problem:** `gameHistoryService.ts` previously used `redis.multi()` for 4 operations (set, zAdd, zRemRangeByRank, expire). This was a pipeline, not an atomic transaction.
 
-**Options (choose one):**
-- **A.** Convert to a Lua script for true atomicity (preferred — consistent with the rest of the codebase)
-- **B.** Add idempotency checks so partial writes can be retried safely
-- **C.** Accept partial writes but add a reconciliation check on history read
+**Resolution:** Converted to `ATOMIC_SAVE_GAME_HISTORY_SCRIPT` Lua script (option A). All 4 operations execute atomically in a single Redis eval call, preventing partial writes on crash.
 
-**Files:** `src/services/gameHistoryService.ts`, potentially `src/scripts/`
+**Files:** `src/services/gameHistoryService.ts`, `src/scripts/index.ts`
 
 ---
 
-#### 1.4 Paused Timer TTL Expiration
+#### 1.4 Paused Timer TTL Expiration — RESOLVED
 
-**Problem:** Active timers have a TTL of `duration + 60s buffer`. When a timer is paused, this TTL keeps ticking. A timer started with 30s duration has a Redis TTL of ~90s — if paused for more than 90 seconds, the key expires and the timer data is lost. `resumeTimer()` then returns null, and the game hangs.
+**Problem:** Active timers had a TTL of `duration + 60s buffer`. When paused, the TTL kept ticking, causing key expiration and game hangs.
 
-**Example scenario:**
-1. Timer started with 30s duration → Redis TTL = 90s
-2. Timer paused at 15s remaining
-3. 2 minutes later, player resumes
-4. Redis key expired → timer data gone → turn never ends
+**Resolution:** `pauseTimer()` now refreshes TTL to `REDIS_TTL.PAUSED_TIMER` (24h/4h) when pausing. `resumeTimer()` validates whether the timer would have expired during pause and calls onExpire callback if so. The `ATOMIC_TIMER_STATUS_SCRIPT` also detects and cleans up expired-while-paused timers atomically.
 
-**Fix:** When pausing a timer, refresh its TTL to `REDIS_TTL.PAUSED_TIMER` (24h/4h) so it survives indefinitely while paused. Restore the duration-based TTL on resume.
-
-**Files:** `src/services/timerService.ts`
+**Files:** `src/services/timerService.ts`, `src/scripts/index.ts`
 
 ---
 
-#### 1.5 Token Batch Cleanup Efficiency
+#### 1.5 Token Batch Cleanup Efficiency — RESOLVED
 
-**Problem:** `roomService.ts:353-366` fetches all reconnection tokens with `mGet()` (atomic, good) but then deletes them in a loop with individual `DEL` calls. This creates a window where tokens could be re-created between fetch and delete, and is unnecessarily slow.
+**Problem:** Token cleanup used sequential individual operations instead of batched calls.
 
-**Fix:** Use a single `redis.del(...keys)` call for all tokens, or a small Lua script. This is both faster and eliminates the race window.
+**Resolution:** Two fixes applied:
+- `roomService.ts cleanupRoom()`: Uses `mGet()` for batch token lookup + single `redis.del(keysToDelete)` call for all keys.
+- `player/reconnection.ts cleanupOrphanedReconnectionTokens()`: Refactored from sequential Lua script calls to parallel batch processing (batches of 20 via `Promise.all`), leveraging node-redis automatic pipelining.
 
-**Files:** `src/services/roomService.ts`
+**Files:** `src/services/roomService.ts`, `src/services/player/reconnection.ts`
 
 ---
 
