@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document describes the technical architecture of Eigennamen Online (Die Eigennamen), a real-time multiplayer web platform with standalone fallback mode.
+This document describes the technical architecture of Eigennamen Online, a real-time multiplayer web platform with standalone fallback mode.
 
 ### 1.1 Goals
 
@@ -376,6 +376,226 @@ socket.on('chat:message', {
 });
 ```
 
+#### Timer Events
+
+```javascript
+// ===== CLIENT → SERVER =====
+
+// Start turn timer (host only)
+socket.emit('timer:start', {
+    duration: 60 // seconds
+});
+
+// Pause timer (host only)
+socket.emit('timer:pause');
+
+// Resume timer (host only)
+socket.emit('timer:resume');
+
+// Stop timer (host only)
+socket.emit('timer:stop');
+
+// Add time to running timer (host only)
+socket.emit('timer:addTime', {
+    seconds: 30
+});
+
+// ===== SERVER → CLIENT =====
+
+// Timer started
+socket.on('timer:started', {
+    duration: 60,
+    endTime: 1234567890000 // Unix timestamp ms
+});
+
+// Timer tick (periodic update)
+socket.on('timer:tick', {
+    remainingSeconds: 45
+});
+
+// Timer paused
+socket.on('timer:paused', {
+    remainingSeconds: 30
+});
+
+// Timer resumed
+socket.on('timer:resumed', {
+    endTime: 1234567920000
+});
+
+// Timer stopped
+socket.on('timer:stopped');
+
+// Timer expired
+socket.on('timer:expired');
+
+// Timer time added
+socket.on('timer:timeAdded', {
+    seconds: 30,
+    newEndTime: 1234567950000
+});
+
+// Timer status (sent on join/reconnect)
+socket.on('timer:status', {
+    startTime: 1234567890000,
+    endTime: 1234567950000,
+    duration: 60,
+    remainingSeconds: 45,
+    expired: false,
+    isPaused: false
+});
+```
+
+#### Reconnection Events
+
+```javascript
+// ===== CLIENT → SERVER =====
+
+// Request reconnection token (for cross-tab recovery)
+socket.emit('room:getReconnectionToken');
+
+// Reconnect with token
+socket.emit('room:reconnect', {
+    token: "reconnection-token-uuid",
+    nickname: "Alice"
+});
+
+// Request full state resync
+socket.emit('room:resync');
+
+// ===== SERVER → CLIENT =====
+
+// Reconnection token issued
+socket.on('room:reconnectionToken', {
+    token: "reconnection-token-uuid",
+    expiresIn: 300 // seconds
+});
+
+// Reconnected successfully
+socket.on('room:reconnected', {
+    room: {...},
+    players: [...],
+    game: {...},
+    you: { sessionId, nickname, team, role }
+});
+
+// Room resynced (response to room:resync)
+socket.on('room:resynced', {
+    room: {...},
+    players: [...],
+    game: {...},
+    you: { sessionId, nickname, team, role }
+});
+
+// Player disconnected (broadcast to room)
+socket.on('player:disconnected', {
+    sessionId: "uuid",
+    nickname: "Alice"
+});
+
+// Player reconnected (broadcast to room)
+socket.on('room:playerReconnected', {
+    sessionId: "uuid",
+    nickname: "Alice"
+});
+
+// Host changed (when previous host disconnects)
+socket.on('room:hostChanged', {
+    newHostSessionId: "uuid",
+    newHostNickname: "Bob"
+});
+```
+
+#### Spectator & Admin Events
+
+```javascript
+// ===== CLIENT → SERVER =====
+
+// Spectator chat message
+socket.emit('chat:spectator', {
+    text: "Great game!"
+});
+
+// Kick a player (host only)
+socket.emit('player:kick', {
+    sessionId: "uuid-to-kick"
+});
+
+// ===== SERVER → CLIENT =====
+
+// Spectator chat message (broadcast to all)
+socket.on('chat:spectatorMessage', {
+    from: { nickname: "Spectator1" },
+    text: "Great game!",
+    timestamp: 1234567890
+});
+
+// Player kicked
+socket.on('player:kicked', {
+    sessionId: "uuid",
+    nickname: "BadPlayer"
+});
+
+// You were kicked
+socket.on('room:kicked', {
+    reason: "Kicked by host"
+});
+
+// Room warning (non-fatal)
+socket.on('room:warning', {
+    code: "STATS_STALE",
+    message: "Room statistics may be outdated"
+});
+
+// Room stats updated
+socket.on('room:statsUpdated', {
+    stats: {
+        spectatorCount: 2,
+        redCount: 3,
+        blueCount: 3
+    }
+});
+```
+
+#### Game History & Replay Events
+
+```javascript
+// ===== CLIENT → SERVER =====
+
+// Get game history list
+socket.emit('game:getHistory');
+
+// Get replay data for a specific game
+socket.emit('game:getReplay', {
+    gameId: "game-uuid"
+});
+
+// ===== SERVER → CLIENT =====
+
+// History list response
+socket.on('game:historyResult', {
+    games: [
+        { id: "uuid", startedAt: 1234567890, winner: "red", mode: "classic" }
+    ]
+});
+
+// Replay data response
+socket.on('game:replayData', {
+    gameId: "uuid",
+    moves: [
+        { type: "reveal", index: 5, team: "red", timestamp: 1234567890 },
+        { type: "clue", word: "ANIMALS", number: 3, team: "red" },
+        { type: "endTurn", team: "red" }
+    ],
+    finalState: {...}
+});
+
+// Spymaster view (card types for spymasters only)
+socket.on('game:spymasterView', {
+    types: ["red", "blue", "neutral", ...] // Full 25-card type array
+});
+```
+
 ---
 
 ## 5. Security Design
@@ -569,22 +789,33 @@ upstream api_servers {
 
 ## 7. Error Handling
 
-### 7.1 Error Codes
+### 7.1 Error Codes (Complete Reference)
 
 | Code | HTTP | Description |
 |------|------|-------------|
 | `ROOM_NOT_FOUND` | 404 | Room code doesn't exist |
 | `ROOM_FULL` | 403 | Room at max capacity |
-| `ROOM_EXPIRED` | 410 | Room has expired |
-| `GAME_IN_PROGRESS` | 409 | Can't join mid-game |
+| `ROOM_ALREADY_EXISTS` | 409 | Room with this code already exists |
+| `GAME_IN_PROGRESS` | 409 | Can't modify while game is active |
+| `GAME_NOT_STARTED` | 400 | Action requires an active game |
+| `GAME_OVER` | 400 | Game has ended |
 | `NOT_HOST` | 403 | Action requires host role |
 | `NOT_SPYMASTER` | 403 | Action requires spymaster role |
+| `NOT_CLICKER` | 403 | Action requires clicker role |
 | `NOT_YOUR_TURN` | 400 | Wrong team's turn |
+| `NOT_AUTHORIZED` | 403 | Insufficient permissions |
 | `CARD_ALREADY_REVEALED` | 400 | Card already flipped |
-| `GAME_OVER` | 400 | Game has ended |
-| `INVALID_INPUT` | 400 | Validation failed |
+| `INVALID_INPUT` | 400 | Validation failed (Zod schema) |
 | `RATE_LIMITED` | 429 | Too many requests |
-| `SERVER_ERROR` | 500 | Internal error |
+| `PLAYER_NOT_FOUND` | 404 | Player session not found |
+| `SESSION_EXPIRED` | 401 | Session has expired |
+| `SESSION_NOT_FOUND` | 401 | Session ID not found |
+| `SESSION_VALIDATION_RATE_LIMITED` | 429 | Too many session validation attempts |
+| `RESERVED_NAME` | 400 | Nickname is a reserved name |
+| `CANNOT_SWITCH_TEAM_DURING_TURN` | 400 | Cannot change team while game is in progress |
+| `CANNOT_CHANGE_ROLE_DURING_TURN` | 400 | Cannot change role while game is in progress |
+| `SPYMASTER_CANNOT_CHANGE_TEAM` | 400 | Spymasters cannot switch teams |
+| `SERVER_ERROR` | 500 | Internal server error |
 
 ### 7.2 Error Response Format
 

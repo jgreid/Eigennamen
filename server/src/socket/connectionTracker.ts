@@ -10,6 +10,14 @@ const connectionsPerIP = new Map<string, number>();
 // Track last-seen time per IP for LRU eviction
 const ipLastSeen = new Map<string, number>();
 
+// Track auth failures per IP to prevent session ID brute-forcing
+interface AuthFailureEntry {
+    count: number;
+    windowStart: number;
+    blockedUntil: number;
+}
+const authFailuresPerIP = new Map<string, AuthFailureEntry>();
+
 // Maximum distinct IPs to track before triggering LRU eviction
 const MAX_TRACKED_IPS = 10000;
 
@@ -160,6 +168,72 @@ function stopConnectionsCleanup(): void {
     }
 }
 
+/**
+ * Record an authentication failure for the given IP.
+ * If the failure count exceeds AUTH_FAILURE_MAX_PER_IP within the window,
+ * the IP is blocked for AUTH_FAILURE_BLOCK_MS.
+ * @param ip - Client IP address
+ * @returns true if the IP is now blocked
+ */
+function recordAuthFailure(ip: string): boolean {
+    const now = Date.now();
+    const entry = authFailuresPerIP.get(ip);
+
+    if (!entry || now - entry.windowStart > SOCKET.AUTH_FAILURE_WINDOW_MS) {
+        // Start a new window
+        authFailuresPerIP.set(ip, { count: 1, windowStart: now, blockedUntil: 0 });
+        return false;
+    }
+
+    entry.count++;
+
+    if (entry.count >= SOCKET.AUTH_FAILURE_MAX_PER_IP) {
+        entry.blockedUntil = now + SOCKET.AUTH_FAILURE_BLOCK_MS;
+        logger.warn('Auth failure limit exceeded, blocking IP', {
+            ip,
+            failures: entry.count,
+            blockedUntilMs: SOCKET.AUTH_FAILURE_BLOCK_MS
+        });
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Check whether the given IP is currently blocked due to excessive auth failures.
+ * Automatically clears expired blocks.
+ * @param ip - Client IP address
+ * @returns true if the IP is blocked
+ */
+function isAuthBlocked(ip: string): boolean {
+    const entry = authFailuresPerIP.get(ip);
+    if (!entry || entry.blockedUntil === 0) return false;
+
+    if (Date.now() >= entry.blockedUntil) {
+        // Block expired, clear the entry
+        authFailuresPerIP.delete(ip);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Clear auth failure tracking for an IP (e.g., after successful auth).
+ * @param ip - Client IP address
+ */
+function clearAuthFailures(ip: string): void {
+    authFailuresPerIP.delete(ip);
+}
+
+/**
+ * Get the auth failures map (for testing).
+ */
+function getAuthFailuresMap(): Map<string, AuthFailureEntry> {
+    return authFailuresPerIP;
+}
+
 export {
     incrementConnectionCount,
     decrementConnectionCount,
@@ -167,5 +241,10 @@ export {
     getConnectionCount,
     getConnectionsMap,
     startConnectionsCleanup,
-    stopConnectionsCleanup
+    stopConnectionsCleanup,
+    recordAuthFailure,
+    isAuthBlocked,
+    clearAuthFailures,
+    getAuthFailuresMap
 };
+export type { AuthFailureEntry };

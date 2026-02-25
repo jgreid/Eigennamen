@@ -149,6 +149,15 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
     }
     if (state.gameState.revealed[index]) return; // Already revealed
 
+    // Clear pending reveal state for this card (safety net — also cleared in cardRevealed handler)
+    const pendingTimeout = state.revealTimeouts.get(index);
+    if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        state.revealTimeouts.delete(index);
+    }
+    state.revealingCards.delete(index);
+    state.isRevealingCard = state.revealingCards.size > 0;
+
     state.gameState.revealed[index] = true;
     // Use server-provided type; fall back to local only if non-null (spymasters have types,
     // non-spymasters have null for unrevealed cards — using null causes wrong scoring)
@@ -226,6 +235,12 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
 }
 
 export function showGameOverModal(_winner?: string | null, _reason?: string): void {
+    // Clear all pending reveal timeouts — game is over, no more reveals expected
+    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.clear();
+    state.revealingCards.clear();
+    state.isRevealingCard = false;
+
     // Instead of showing a modal, reveal the spymaster view to all players
     // so they can see the board and discuss before the next game.
     // The turn indicator already shows the winner at the top of the board.

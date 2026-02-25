@@ -131,10 +131,25 @@ interface ModalStackEntry {
 }
 
 const modalStack: ModalStackEntry[] = [];
+const MAX_MODAL_STACK_SIZE = 10;
 
 export function openModal(modalId: string): void {
     const modal = document.getElementById(modalId);
     if (!modal) return;
+
+    // Prevent unbounded stack growth (defensive — normal usage stays under 3)
+    if (modalStack.length >= MAX_MODAL_STACK_SIZE) {
+        const oldest = modalStack.shift();
+        if (oldest) {
+            oldest.modal.classList.remove('active');
+        }
+    }
+
+    // Prevent duplicate entries for the same modal
+    const existingIndex = modalStack.findIndex(entry => entry.modal === modal);
+    if (existingIndex !== -1) {
+        modalStack.splice(existingIndex, 1);
+    }
 
     // Push current state onto modal stack before opening new modal
     // This preserves focus context when multiple modals are opened

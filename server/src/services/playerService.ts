@@ -241,9 +241,9 @@ export async function updatePlayer(
         logger.debug(`updatePlayer WATCH/MULTI conflict for ${sessionId}, attempt ${attempt + 1}`);
     }
 
-    // All atomic retries exhausted — throw rather than falling back to a non-atomic
+    // All WATCH/MULTI retries exhausted — throw rather than falling back to a non-atomic
     // write that could silently overwrite concurrent updates
-    logger.error(`updatePlayer failed atomically after ${maxRetries} retries for ${sessionId}`);
+    logger.error(`updatePlayer WATCH/MULTI failed after ${maxRetries} retries for ${sessionId}`);
     throw ServerError.concurrentModification(null, `updatePlayer(${sessionId})`);
 }
 

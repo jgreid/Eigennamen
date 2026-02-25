@@ -72,11 +72,9 @@ test.describe('Full Multiplayer Game Lifecycle', () => {
 
             // Host joins Red team
             await selectTeam(host, 'red');
-            await host.waitForTimeout(1000);
 
             // Guest joins Blue team
             await selectTeam(guest, 'blue');
-            await guest.waitForTimeout(1000);
 
             // Verify both players see player names
             const hostBody = await host.locator('body').textContent();
@@ -134,8 +132,15 @@ test.describe('Full Multiplayer Game Lifecycle', () => {
             // Guest leaves by closing their context
             await ctx2.close();
 
-            // Wait for disconnect detection
-            await host.waitForTimeout(3000);
+            // Wait for server to detect disconnect and update player list
+            // (uses explicit condition instead of arbitrary timeout)
+            await host.waitForFunction(
+                () => {
+                    const body = document.body.textContent || '';
+                    return body.includes('disconnected') || body.includes('left') || !body.includes('LeavingGuest');
+                },
+                { timeout: 10000 }
+            ).catch(() => {});
 
             const bodyText = await host.locator('body').textContent();
             expect(bodyText).toBeDefined();
@@ -176,9 +181,13 @@ test.describe('Multiplayer Room Join Errors', () => {
         await page.locator(sel.createRoomId).fill('EMPTYNAME123');
         await page.locator(sel.mpActionBtn).click();
 
-        await page.waitForTimeout(1000);
+        // Wait briefly for any connection attempt to settle, then verify not connected
+        await page.waitForFunction(
+            (selector) => !document.querySelector(selector),
+            sel.mpIndicatorActive,
+            { timeout: 3000 }
+        ).catch(() => {});
 
-        // Should NOT be connected
         const connected = await page.locator(sel.mpIndicatorActive).isVisible({ timeout: 2000 }).catch(() => false);
         expect(connected).toBeFalsy();
     });
@@ -219,11 +228,10 @@ test.describe('Multiplayer Connection Management', () => {
             await guest.reload();
 
             await guest.waitForSelector(sel.multiplayerBtn, { timeout: 10000 });
-            await guest.waitForTimeout(3000);
 
-            // Check if auto-reconnected
+            // Wait for auto-reconnection (indicated by active multiplayer indicator)
             const autoReconnected = await guest.locator(sel.mpIndicatorActive)
-                .isVisible({ timeout: 5000 }).catch(() => false);
+                .isVisible({ timeout: 10000 }).catch(() => false);
 
             if (!autoReconnected) {
                 await joinRoom(guest, roomId, 'ReconnGuest');
@@ -272,16 +280,16 @@ test.describe('Multiplayer Game Board Sync', () => {
             await expect(host.locator('body')).toContainText('BoardGuest', { timeout: 5000 });
 
             await selectTeam(host, 'red');
-            await guest.waitForTimeout(500);
             await selectTeam(guest, 'blue');
-            await host.waitForTimeout(500);
 
             const startBtn = host.locator(sel.startGameBtn);
-            const canStart = await startBtn.isVisible({ timeout: 3000 }).catch(() => false);
+            const canStart = await startBtn.isVisible({ timeout: 5000 }).catch(() => false);
 
             if (canStart) {
                 await startBtn.click();
-                await host.waitForTimeout(2000);
+
+                // Wait for board cards to appear instead of arbitrary timeout
+                await host.locator(sel.boardCard).first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
 
                 const hostCards = host.locator(sel.boardCard);
                 const guestCards = guest.locator(sel.boardCard);

@@ -167,7 +167,7 @@ describe('JWT Configuration', () => {
             const token = jwt.sign(
                 { userId: 'test' },
                 'a-valid-secret-that-is-long-enough-32chars',
-                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'die-eigennamen', audience: 'game-client' }
+                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'eigennamen', audience: 'game-client' }
             );
 
             const decoded = jwtModule.verifyToken(token);
@@ -299,7 +299,7 @@ describe('JWT Configuration', () => {
             const token = jwt.sign(
                 { userId: 'test' },
                 'a-valid-secret-that-is-long-enough-32chars',
-                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'die-eigennamen', audience: 'game-client' }
+                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'eigennamen', audience: 'game-client' }
             );
 
             const result = jwtModule.verifyToken(token, { returnError: true });
@@ -350,7 +350,7 @@ describe('JWT Configuration', () => {
             const token = jwt.sign(
                 { userId: 'test' },
                 'a-valid-secret-that-is-long-enough-32chars',
-                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'die-eigennamen', audience: 'game-client' }
+                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'eigennamen', audience: 'game-client' }
             );
 
             const result = jwtModule.verifyTokenWithClaims(token, { userId: 'test' });

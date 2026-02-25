@@ -35,7 +35,7 @@ jobs:
 
     environment:
       name: ${{ github.event.inputs.environment || 'production' }}
-      url: https://die-eigennamen.fly.dev
+      url: https://eigennamen.fly.dev
 
     steps:
       - uses: actions/checkout@v6
@@ -67,7 +67,7 @@ jobs:
           sleep 10
 
           for i in $(seq 1 30); do
-            HEALTH=$(curl -sf https://die-eigennamen.fly.dev/health/ready 2>/dev/null || echo "unreachable")
+            HEALTH=$(curl -sf https://eigennamen.fly.dev/health/ready 2>/dev/null || echo "unreachable")
             if echo "$HEALTH" | grep -q "ok"; then
               echo "Deployment healthy after ${i}0s"
               echo "- **Status**: Healthy" >> $GITHUB_STEP_SUMMARY
@@ -91,7 +91,7 @@ jobs:
             echo "Deployment completed successfully." >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Deployment failed. Check logs with: \`flyctl logs --app die-eigennamen\`" >> $GITHUB_STEP_SUMMARY
+            echo "Deployment failed. Check logs with: \`flyctl logs --app eigennamen\`" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Rollback job - only available via manual trigger
@@ -119,7 +119,7 @@ jobs:
         if: steps.prev.outputs.version != ''
         run: |
           echo "Rolling back to version ${{ steps.prev.outputs.version }}"
-          flyctl deploy --image registry.fly.io/die-eigennamen:deployment-${{ steps.prev.outputs.version }} --strategy immediate
+          flyctl deploy --image registry.fly.io/eigennamen:deployment-${{ steps.prev.outputs.version }} --strategy immediate
           echo "## Rollback" >> $GITHUB_STEP_SUMMARY
           echo "Rolled back to version ${{ steps.prev.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         env:

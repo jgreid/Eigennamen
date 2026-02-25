@@ -233,7 +233,7 @@ fly deploy
 
 # Verify
 fly status
-curl -s https://die-eigennamen.fly.dev/health/ready
+curl -s https://eigennamen.fly.dev/health/ready
 ```
 
 ---
@@ -372,7 +372,7 @@ The project includes utility scripts for quick health assessment:
 ```bash
 # Full health check against any target
 ./scripts/health-check.sh http://localhost:3000
-./scripts/health-check.sh https://die-eigennamen.fly.dev
+./scripts/health-check.sh https://eigennamen.fly.dev
 
 # Redis inspection (memory, key counts, client connections)
 ./scripts/redis-inspect.sh
@@ -697,7 +697,7 @@ fly ssh console
 fly scale memory 1024
 
 # Restart
-fly apps restart die-eigennamen
+fly apps restart eigennamen
 
 # Redis dashboard (if provisioned)
 fly redis dashboard <redis-app-name>
