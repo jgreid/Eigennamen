@@ -7,6 +7,7 @@ import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
 import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT } from '../scripts';
+import { setGauge, incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
 
 // Zod schema for runtime validation of timer state from Redis.
@@ -517,7 +518,10 @@ export function sweepStaleTimers(): number {
 
     if (swept > 0) {
         logger.info(`Swept ${swept} stale timer entries, ${localTimers.size} remaining`);
+        incrementCounter(METRIC_NAMES.TIMER_SWEEP_ORPHANS, swept);
     }
+
+    setGauge(METRIC_NAMES.ACTIVE_TIMERS, localTimers.size);
 
     return swept;
 }

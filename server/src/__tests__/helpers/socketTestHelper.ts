@@ -284,6 +284,7 @@ const {
     generateRoomCode,
     sleep,
     flushPromises,
+    drainMicrotasks,
     expectAsyncError
 } = require('./mocks');
 
@@ -296,6 +297,7 @@ module.exports = {
     generateRoomCode,
     sleep,
     flushPromises,
+    drainMicrotasks,
     expectAsyncError,
     DEFAULT_CONFIG
 };

@@ -543,10 +543,22 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Flush all pending promises
+ * Flush all pending promises (single cycle)
  */
 function flushPromises(): Promise<void> {
     return new Promise(resolve => setImmediate(resolve));
+}
+
+/**
+ * Drain the microtask queue deterministically.
+ * Runs multiple flush cycles to ensure all chained promises resolve.
+ * Use this instead of chaining multiple flushPromises() calls.
+ * @param cycles - Number of flush cycles (default: 3)
+ */
+async function drainMicrotasks(cycles: number = 3): Promise<void> {
+    for (let i = 0; i < cycles; i++) {
+        await new Promise(resolve => setImmediate(resolve));
+    }
 }
 
 /**
@@ -683,6 +695,7 @@ module.exports = {
     generateRoomCode,
     sleep,
     flushPromises,
+    drainMicrotasks,
     expectAsyncError,
     SAFE_ERROR_CODES,
     createMockRateLimitHandler

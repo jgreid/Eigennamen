@@ -350,6 +350,8 @@ const METRIC_NAMES = {
     MEMORY_RSS: 'memory_rss_bytes',
     EVENT_LOOP_LAG: 'event_loop_lag_ms',
     SPECTATORS: 'spectators_total',
+    CLEANUP_QUEUE_DEPTH: 'cleanup_queue_depth',
+    TIMER_SWEEP_ORPHANS: 'timer_sweep_orphans',
 
     // Histograms
     OPERATION_LATENCY: 'operation_latency_ms',

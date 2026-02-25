@@ -1,4 +1,5 @@
 import logger from '../utils/logger';
+import { isMemoryMode } from './memoryMode';
 
 /**
  * Required environment variables (currently none - game works anonymously)
@@ -54,11 +55,11 @@ export function validateEnv(): boolean {
     if (process.env['NODE_ENV'] === 'production') {
         // Allow REDIS_URL=memory for single-instance deployments without Redis
         const redisUrl = process.env['REDIS_URL'] || '';
-        const isMemoryMode = redisUrl === 'memory' || redisUrl === 'memory://';
-        if (!isMemoryMode && (!redisUrl || redisUrl.includes('localhost'))) {
+        const memoryMode = isMemoryMode();
+        if (!memoryMode && (!redisUrl || redisUrl.includes('localhost'))) {
             errors.push('REDIS_URL must be set to a real Redis URL in production (or use "memory" for single-instance mode)');
         }
-        if (isMemoryMode) {
+        if (memoryMode) {
             warnings.push('PRODUCTION WARNING: Running in memory storage mode');
             warnings.push('  - Data will NOT persist across restarts');
             warnings.push('  - Multi-instance scaling is DISABLED');

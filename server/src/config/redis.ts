@@ -55,10 +55,8 @@ function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function isMemoryMode(): boolean {
-    const redisUrl = process.env['REDIS_URL'] || '';
-    return redisUrl === 'memory' || redisUrl === 'memory://';
-}
+// Re-export from centralized module (single source of truth for memory mode detection)
+export { isMemoryMode } from './memoryMode';
 
 async function findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
@@ -93,6 +91,12 @@ async function startEmbeddedRedis(): Promise<string> {
         '--loglevel', 'notice'
     ];
 
+    // Configurable timeout for slow hardware or high-load environments
+    const timeoutMs = Math.min(
+        Math.max(parseInt(process.env['EMBEDDED_REDIS_TIMEOUT_MS'] || '5000', 10) || 5000, 1000),
+        15000
+    );
+
     return new Promise<string>((resolve, reject) => {
         const proc = spawn('redis-server', args, {
             stdio: ['ignore', 'pipe', 'pipe']
@@ -101,18 +105,21 @@ async function startEmbeddedRedis(): Promise<string> {
         embeddedRedisProcess = proc;
 
         let started = false;
+        const startedAt = Date.now();
         const timeout = setTimeout(() => {
             if (!started) {
                 proc.kill();
-                reject(new Error('Embedded redis-server failed to start within 5s'));
+                reject(new Error(`Embedded redis-server failed to start within ${timeoutMs}ms`));
             }
-        }, 5000);
+        }, timeoutMs);
 
         proc.stdout?.on('data', (data: Buffer) => {
             const output = data.toString();
             if (output.includes('Ready to accept connections') || output.includes('ready to accept connections')) {
                 started = true;
                 clearTimeout(timeout);
+                const startupTime = Date.now() - startedAt;
+                logger.info(`Embedded redis-server started in ${startupTime}ms`);
                 resolve(`redis://127.0.0.1:${port}`);
             }
         });
@@ -311,10 +318,13 @@ async function cleanupPartialConnections(): Promise<void> {
     for (const client of clients) {
         try {
             if (client.isOpen) {
-                await client.quit();
+                await Promise.race([
+                    client.quit(),
+                    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000))
+                ]);
             }
-        } catch {
-            // Ignore cleanup errors
+        } catch (err) {
+            logger.warn('Error during partial connection cleanup', { error: (err as Error).message });
         }
     }
     redisClient = pubClient = subClient = null;

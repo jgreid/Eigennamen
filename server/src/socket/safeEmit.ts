@@ -43,13 +43,35 @@ export interface BatchEmitResult {
     errors: Array<{ sessionId?: string; reason?: string; error?: string }>;
 }
 
-// Metrics tracking for emission failures (optional monitoring)
+// Metrics tracking for emission failures (optional monitoring).
+// Resets hourly to prevent unbounded counter growth on long-running servers.
+const METRICS_RESET_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 let emissionMetrics: EmissionMetrics = {
     total: 0,
     successful: 0,
     failed: 0,
     lastFailure: null
 };
+let metricsWindowStart = Date.now();
+
+function maybeResetMetricsWindow(): void {
+    if (Date.now() - metricsWindowStart > METRICS_RESET_INTERVAL_MS) {
+        if (emissionMetrics.failed > 0) {
+            logger.info('Emission metrics hourly snapshot', {
+                total: emissionMetrics.total,
+                successful: emissionMetrics.successful,
+                failed: emissionMetrics.failed
+            });
+        }
+        emissionMetrics = {
+            total: 0,
+            successful: 0,
+            failed: 0,
+            lastFailure: emissionMetrics.lastFailure // Preserve last failure for debugging
+        };
+        metricsWindowStart = Date.now();
+    }
+}
 
 /**
  * Safely emit an event to a room with error handling
@@ -68,6 +90,7 @@ function safeEmitToRoom(
     options: SafeEmitOptions = {}
 ): boolean {
     const { logSuccess = false, throwOnError = false } = options;
+    maybeResetMetricsWindow();
     emissionMetrics.total++;
 
     try {
@@ -121,6 +144,7 @@ function safeEmitToPlayer(
     options: SafeEmitOptions = {}
 ): boolean {
     const { logSuccess = false, throwOnError = false } = options;
+    maybeResetMetricsWindow();
     emissionMetrics.total++;
 
     try {
@@ -242,6 +266,7 @@ function safeEmitToGroup(
     options: SafeEmitOptions = {}
 ): boolean {
     const { logSuccess = false, throwOnError = false } = options;
+    maybeResetMetricsWindow();
     emissionMetrics.total++;
 
     try {

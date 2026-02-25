@@ -1,17 +1,17 @@
 import {
     TIMER_MIN_TURN_SECONDS, TIMER_MAX_TURN_SECONDS, TIMER_DEFAULT_TURN_SECONDS
 } from '../shared';
+import { isMemoryMode } from './memoryMode';
 
 // Room configuration
 export const ROOM_CODE_LENGTH = 6;
 export const ROOM_MAX_PLAYERS = 20;
 
-// Detect memory mode at startup for TTL adjustment
-const _isMemoryMode = (process.env['REDIS_URL'] || '') === 'memory' || (process.env['REDIS_URL'] || '') === 'memory://';
-const ROOM_TTL_SECONDS = _isMemoryMode ? 4 * 60 * 60 : 24 * 60 * 60;  // 4h memory / 24h Redis
-const PAUSED_TIMER_TTL = _isMemoryMode ? 4 * 60 * 60 : 24 * 60 * 60;
+// TTL adjustment based on memory mode (evaluated at startup)
+const ROOM_TTL_SECONDS = isMemoryMode() ? 4 * 60 * 60 : 24 * 60 * 60;  // 4h memory / 24h Redis
+const PAUSED_TIMER_TTL = isMemoryMode() ? 4 * 60 * 60 : 24 * 60 * 60;
 
-export const ROOM_EXPIRY_HOURS = _isMemoryMode ? 4 : 24;
+export const ROOM_EXPIRY_HOURS = isMemoryMode() ? 4 : 24;
 
 // Redis TTLs (in seconds)
 export const REDIS_TTL = {

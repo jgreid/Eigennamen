@@ -55,7 +55,14 @@ const gameStateSchema = z.object({
     timerTokens: z.number().optional(),
     greenFound: z.number().optional(),
     greenTotal: z.number().optional(),
-});
+}).refine(
+    (data) => {
+        // Only validate length consistency when all three arrays are present
+        if (!data.words || !data.types || !data.revealed) return true;
+        return data.words.length === data.types.length && data.types.length === data.revealed.length;
+    },
+    { message: 'Game state arrays (words, types, revealed) must have the same length' }
+);
 
 const luaResultObjectSchema = z.record(z.string(), z.unknown());
 
