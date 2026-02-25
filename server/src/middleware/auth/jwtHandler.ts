@@ -44,12 +44,15 @@ function handleJwtVerification(
 
     // Build expected claims for validation
     const expectedClaims: Record<string, unknown> = {};
-    // If we have a validated session, the token's sessionId must match
+    // Validate the JWT's sessionId matches the socket's session.
+    // This prevents a stolen token from one session being used with another.
     if (validatedSessionId) {
         expectedClaims.sessionId = validatedSessionId;
-        if (sessionValidation?.player?.userId) {
-            expectedClaims.userId = sessionValidation.player.userId;
-        }
+    } else if (authSocket.sessionId) {
+        expectedClaims.sessionId = authSocket.sessionId;
+    }
+    if (sessionValidation?.player?.userId) {
+        expectedClaims.userId = sessionValidation.player.userId;
     }
 
     const tokenResult: TokenVerificationResult = verifyTokenWithClaims(token, expectedClaims);

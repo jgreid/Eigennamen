@@ -3,7 +3,6 @@
  *
  * Tests meaningful behavior of logger.ts configuration paths:
  * - level(): environment-based log level selection
- * - loadCorrelationId: graceful fallback when module unavailable
  * - Production mode: file transport error handling
  *
  * Note: sanitizeForLog tests are in sanitize.test.ts (the sanitize.ts version)
@@ -83,23 +82,6 @@ describe('Logger Configuration', () => {
             const config = createLoggerSpy.mock.calls[0][0];
             expect(config.level).toBe('debug');
             createLoggerSpy.mockRestore();
-        });
-    });
-
-    describe('loadCorrelationId - graceful fallback', () => {
-        it('should return empty context when correlationId module fails to load', () => {
-            // Mock correlationId to throw on require
-            jest.doMock('../../utils/correlationId', () => {
-                throw new Error('Module not available');
-            });
-
-            const logger = require('../../utils/logger');
-
-            // _buildMeta should still work - returning empty context fields
-            const meta = logger._buildMeta({ custom: 'field' });
-            expect(meta).toEqual(expect.objectContaining({ custom: 'field' }));
-            // No correlationId since module failed to load
-            expect(meta.correlationId).toBeUndefined();
         });
     });
 

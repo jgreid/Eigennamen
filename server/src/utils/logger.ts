@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 
 import type { Logger as WinstonLogger } from 'winston';
+import { getContextFields } from './correlationId';
 
 interface ContextFields {
     correlationId?: string;
@@ -38,22 +39,6 @@ interface ChildLogger {
 interface Logger extends ChildLogger {
     _buildMeta(metaOrError: LogMeta | Error | unknown): LogMeta;
     child(defaultMeta: LogMeta): ChildLogger;
-}
-
-// Lazy load correlation ID to avoid circular dependencies
-let getContextFields: (() => ContextFields) | null = null;
-
-function loadCorrelationId(): () => ContextFields {
-    if (getContextFields === null) {
-        try {
-            const correlationModule = require('./correlationId');
-            getContextFields = correlationModule.getContextFields;
-        } catch {
-            // Module not available yet, return empty function
-            getContextFields = () => ({});
-        }
-    }
-    return getContextFields as () => ContextFields;
 }
 
 const levels: Record<string, number> = {
@@ -204,7 +189,7 @@ const logger: Logger = {
 
     _buildMeta(metaOrError: LogMeta | Error | unknown): LogMeta {
         // Get correlation context
-        const contextFields = loadCorrelationId()();
+        const contextFields = getContextFields();
 
         // Handle Error objects
         if (metaOrError instanceof Error) {

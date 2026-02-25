@@ -17,6 +17,7 @@ import {
     validateTurn, validateWinner, validateGameMode, validateArrayLength
 } from './stateMutations.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
+import { removeKeyboardShortcuts } from './accessibility.js';
 import type { ServerPlayerData, ServerGameData, ReconnectionData, DOMListenerEntry } from './multiplayerTypes.js';
 
 // List of multiplayer event names for cleanup
@@ -97,6 +98,9 @@ export function resetMultiplayerState(): void {
 export function leaveMultiplayerMode(): void {
     // Clean up listeners
     cleanupMultiplayerListeners();
+
+    // Remove keyboard shortcuts to prevent stale listeners accumulating
+    removeKeyboardShortcuts();
 
     // Stop timer display
     handleTimerStopped();

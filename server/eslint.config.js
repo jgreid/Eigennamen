@@ -41,7 +41,7 @@ const baseRules = {
 module.exports = [
     {
         // Global ignores
-        ignores: ['node_modules/**', 'coverage/**', 'dist/**', '.stryker-tmp/**']
+        ignores: ['node_modules/**', 'coverage/**', 'dist/**']
     },
     {
         // TypeScript files configuration (non-type-checked rules for faster linting)
@@ -125,10 +125,7 @@ module.exports = [
             'src/services/playerService.ts',
             'src/services/player/reconnection.ts',
             'src/config/redis.ts',
-            'src/config/database.ts',
-            'src/utils/retry.ts',
             'src/utils/distributedLock.ts',
-            'src/socket/reliableEmit.ts',
             'src/routes/adminRoutes.ts',
             'src/routes/admin/statsRoutes.ts',
             'src/routes/admin/roomRoutes.ts'

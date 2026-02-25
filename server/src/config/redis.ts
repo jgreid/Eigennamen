@@ -315,6 +315,9 @@ export async function connectRedis(): Promise<RedisClients> {
             // Attach pub/sub health monitoring (PING probes + error tracking)
             pubSubHealth.attachToClients(pubClient, subClient);
 
+            // Verify Redis client has all required methods (catches API drift early)
+            assertRedisClientShape(redisClient);
+
             // Verify Lua scripting is available (required for atomic game operations)
             try {
                 const luaResult = await redisClient.eval('return 1', { keys: [], arguments: [] });
@@ -368,6 +371,38 @@ async function cleanupPartialConnections(): Promise<void> {
         }
     }
     redisClient = pubClient = subClient = null;
+}
+
+/**
+ * Required methods on the Redis client that the application depends on.
+ * Used for startup assertion to catch API incompatibilities early.
+ */
+const REQUIRED_REDIS_METHODS = [
+    'get', 'set', 'del', 'exists', 'expire', 'ttl', 'mGet',
+    'sAdd', 'sRem', 'sMembers', 'sCard', 'sIsMember',
+    'zAdd', 'zRem', 'zRange', 'zRangeByScore', 'zRemRangeByRank', 'zCard',
+    'lPush', 'lTrim', 'lRange', 'lLen',
+    'watch', 'unwatch', 'multi', 'eval'
+] as const;
+
+/**
+ * Verify that the Redis client exposes all methods defined in the RedisClient interface.
+ * Runs once at connect time. Throws on mismatch so API drift is caught immediately
+ * rather than surfacing as cryptic runtime errors during game operations.
+ */
+function assertRedisClientShape(client: RedisClientType): void {
+    const missing: string[] = [];
+    for (const method of REQUIRED_REDIS_METHODS) {
+        if (typeof (client as unknown as Record<string, unknown>)[method] !== 'function') {
+            missing.push(method);
+        }
+    }
+    if (missing.length > 0) {
+        throw new Error(
+            `Redis client is missing required methods: ${missing.join(', ')}. ` +
+            'The redis package API may have changed — update types/redis.ts to match.'
+        );
+    }
 }
 
 /**
