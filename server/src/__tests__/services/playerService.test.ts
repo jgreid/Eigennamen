@@ -191,16 +191,11 @@ describe('Player Service', () => {
             expect(player).toBeNull();
         });
 
-        test('returns null and logs error on invalid JSON', async () => {
+        test('throws and cleans up on invalid JSON', async () => {
             mockRedis.get.mockResolvedValue('invalid json');
 
-            const player = await playerService.getPlayer('session-123');
-
-            expect(player).toBeNull();
-            // tryParseJSON logs via logger.warn internally
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Failed to parse JSON')
-            );
+            await expect(playerService.getPlayer('session-123')).rejects.toThrow('Corrupted player data');
+            expect(mockRedis.del).toHaveBeenCalledWith('player:session-123');
         });
     });
 

@@ -616,12 +616,10 @@ describe('getGame', () => {
         expect(result).toEqual(gameData);
     });
 
-    test('handles corrupted game data', async () => {
+    test('throws on corrupted game data and cleans up', async () => {
         mockRedis.get.mockResolvedValue('invalid-json{corrupted');
 
-        const result = await getGame('CORRUPT');
-
-        expect(result).toBeNull();
+        await expect(getGame('CORRUPT')).rejects.toThrow('Game data corrupted');
         expect(mockLogger.error).toHaveBeenCalledWith(
             expect.stringContaining('Corrupted game data')
         );

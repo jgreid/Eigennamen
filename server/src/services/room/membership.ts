@@ -43,32 +43,20 @@ export async function joinRoom(
     // Normalize room ID (case-insensitive)
     const normalizedRoomId = normalizeRoomCode(roomId);
 
-    // Get room
+    // Get room (throws GameStateError on corrupted data)
     const room = await getRoom(normalizedRoomId);
     if (!room) {
-        // Distinguish "key missing" from "data corrupted" for diagnostics.
-        // getRoom returns null in both cases; check if the key actually exists.
-        const keyExists = await withTimeout(
-            redis.exists(`room:${normalizedRoomId}`),
-            TIMEOUTS.REDIS_OPERATION,
-            `joinRoom-exists-${normalizedRoomId}`
-        );
-        if (keyExists === 1) {
-            logger.error('joinRoom: room key exists but getRoom returned null (data corrupted)', {
-                roomId: normalizedRoomId,
-                sessionId
-            });
-        } else {
-            logger.warn('joinRoom: room key does not exist in Redis', {
-                roomId: normalizedRoomId,
-                sessionId
-            });
-        }
         throw RoomError.notFound(roomId);
     }
 
     // Check if player is already in room (reconnecting)
-    let player: Player | null = await playerService.getPlayer(sessionId);
+    // Corrupted player data is cleaned up by getPlayer and treated as fresh join
+    let player: Player | null;
+    try {
+        player = await playerService.getPlayer(sessionId);
+    } catch {
+        player = null;
+    }
     let isReconnecting = false;
 
     if (player && player.roomCode === normalizedRoomId) {
@@ -126,9 +114,14 @@ export async function joinRoom(
         logger.info(`Player ${nickname} (${sessionId}) joined room "${roomId}"`);
     }
 
-    // Get current game if any
-    const game = await gameService.getGame(normalizedRoomId);
-    const gameState: PlayerGameState | null = game ? gameService.getGameStateForPlayer(game, player) : null;
+    // Get current game if any (non-critical — don't fail join on corrupted game data)
+    let gameState: PlayerGameState | null = null;
+    try {
+        const game = await gameService.getGame(normalizedRoomId);
+        gameState = game ? gameService.getGameStateForPlayer(game, player) : null;
+    } catch {
+        logger.warn('Failed to load game state during join, proceeding without it', { roomId: normalizedRoomId });
+    }
 
     // Refresh all room-related TTLs (non-critical — don't fail join if TTL refresh fails)
     try {
@@ -163,9 +156,17 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     }
     const redis: RedisClient = getRedis();
     code = normalizeRoomCode(code);
-    const room = await getRoom(code);
 
+    // Corrupted room data treated as "room gone" for leave purposes
+    let room;
+    try {
+        room = await getRoom(code);
+    } catch {
+        room = null;
+    }
     if (!room) {
+        // Still remove the player even if room data is missing/corrupted
+        await playerService.removePlayer(sessionId);
         return { newHostId: null, roomDeleted: false };
     }
 

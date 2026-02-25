@@ -28,7 +28,7 @@ import {
     ERROR_CODES,
     GAME_MODE_CONFIG
 } from '../config/constants';
-import { RoomError, PlayerError, ServerError } from '../errors/GameError';
+import { RoomError, PlayerError, ServerError, GameStateError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { ATOMIC_CREATE_ROOM_SCRIPT, ATOMIC_REFRESH_TTL_SCRIPT, ATOMIC_UPDATE_SETTINGS_SCRIPT } from '../scripts';
@@ -176,14 +176,14 @@ export async function getRoom(roomId: string): Promise<Room | null> {
     const room = tryParseJSON(roomData, roomSchema, `room ${normalizedId}`) as Room | null;
 
     if (!room) {
-        // Room key exists but data failed validation — log at error level
-        // so operators can investigate.  parseJSON already logged a warn;
-        // this adds structured context for monitoring dashboards.
+        // Room key exists but data failed validation — throw so callers
+        // can distinguish "not found" (null) from "corrupted" (error).
         logger.error('Room data exists in Redis but failed to parse', {
             roomId: normalizedId,
             rawDataLength: roomData.length,
             rawDataPreview: roomData.substring(0, 200)
         });
+        throw GameStateError.corrupted(normalizedId, { operation: 'getRoom' });
     }
 
     return room;

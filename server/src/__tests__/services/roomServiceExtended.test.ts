@@ -200,11 +200,10 @@ describe('Room Service', () => {
             expect(room).toBeNull();
         });
 
-        test('handles corrupted room data', async () => {
+        test('throws on corrupted room data', async () => {
             mockRedisStorage['room:corrupt'] = 'not valid json';
 
-            const room = await roomService.getRoom('corrupt');
-            expect(room).toBeNull();
+            await expect(roomService.getRoom('corrupt')).rejects.toThrow('Game data corrupted');
         });
 
         test('normalizes room ID for lookup', async () => {

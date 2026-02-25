@@ -46,7 +46,13 @@ const cleanupEntrySchema = z.object({
  */
 export async function handleDisconnect(sessionId: string): Promise<Player | null> {
     const redis: RedisClient = getRedis();
-    const player = await getPlayer(sessionId);
+    let player: Player | null;
+    try {
+        player = await getPlayer(sessionId);
+    } catch {
+        // Corrupted player data — already cleaned up by getPlayer
+        return null;
+    }
 
     if (!player) {
         return null;
