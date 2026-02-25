@@ -9,7 +9,6 @@ import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
 import { TIMER } from '../config/constants';
-import { removeControlChars, normalizeRoomCode } from '../utils/sanitize';
 import { createRoomIdSchema, createTeamNameSchema, createNicknameSchema, validateModeTimer } from './schemaHelpers';
 
 const roomCreateSchema = z.object({
@@ -46,21 +45,16 @@ const roomSettingsSchema = z.object({
 const reconnectionTokenRegex = /^[0-9a-f]{64}$/i;
 
 const roomReconnectSchema = z.object({
-    code: z.string()
-        .min(3, 'Room code must be at least 3 characters')
-        .max(20, 'Room code must be at most 20 characters')
-        .transform((val: string) => normalizeRoomCode(removeControlChars(val))),
+    code: createRoomIdSchema(),
     reconnectionToken: z.string()
         .length(64, 'Invalid reconnection token format')
         .refine((val: string) => reconnectionTokenRegex.test(val), 'Invalid reconnection token format')
 });
 
 // HTTP route validation schema for room code parameter
+// Reuses createRoomIdSchema() for consistent validation with socket schemas
 const roomCodeSchema = z.object({
-    code: z.string()
-        .min(3, 'Room code must be at least 3 characters')
-        .max(20, 'Room code must be at most 20 characters')
-        .transform((val: string) => normalizeRoomCode(removeControlChars(val)))
+    code: createRoomIdSchema()
 });
 
 // HTTP route validation schema for word list ID parameter

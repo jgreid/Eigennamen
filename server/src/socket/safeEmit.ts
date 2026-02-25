@@ -247,8 +247,10 @@ function safeEmitToGroup(
     io: SocketIOServer | null,
     target: string,
     event: string,
-    data: unknown
+    data: unknown,
+    options: SafeEmitOptions = {}
 ): boolean {
+    const { logSuccess = false, throwOnError = false } = options;
     emissionMetrics.total++;
 
     try {
@@ -259,20 +261,26 @@ function safeEmitToGroup(
         io.to(target).emit(event, data);
 
         emissionMetrics.successful++;
+        if (logSuccess) {
+            logger.debug(`Emitted ${event} to ${target}`, { dataKeys: Object.keys((data || {}) as object) });
+        }
+
         return true;
     } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
         emissionMetrics.failed++;
         emissionMetrics.lastFailure = {
             event,
-            error: error instanceof Error ? error.message : String(error),
+            error: errMsg,
             timestamp: Date.now()
         };
 
-        logger.error(`Failed to emit ${event} to ${target}`, {
-            event,
-            target,
-            error: error instanceof Error ? error.message : String(error)
-        });
+        const errorMsg = `Failed to emit ${event} to ${target}: ${errMsg}`;
+        if (throwOnError) {
+            throw new Error(errorMsg);
+        }
+
+        logger.error(errorMsg, { event, target, error: errMsg });
         return false;
     }
 }
