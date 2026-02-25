@@ -1,6 +1,6 @@
 # Hardening & Optimization Review
 
-**Date:** 2025-02-25
+**Date:** 2026-02-25
 **Scope:** Existing functionality only — hardening, robustness, optimization. No new features.
 
 ---
@@ -62,6 +62,32 @@ Three high-criticality source files have zero dedicated unit tests:
 
 ---
 
+#### 1.4 Paused Timer TTL Expiration
+
+**Problem:** Active timers have a TTL of `duration + 60s buffer`. When a timer is paused, this TTL keeps ticking. A timer started with 30s duration has a Redis TTL of ~90s — if paused for more than 90 seconds, the key expires and the timer data is lost. `resumeTimer()` then returns null, and the game hangs.
+
+**Example scenario:**
+1. Timer started with 30s duration → Redis TTL = 90s
+2. Timer paused at 15s remaining
+3. 2 minutes later, player resumes
+4. Redis key expired → timer data gone → turn never ends
+
+**Fix:** When pausing a timer, refresh its TTL to `REDIS_TTL.PAUSED_TIMER` (24h/4h) so it survives indefinitely while paused. Restore the duration-based TTL on resume.
+
+**Files:** `src/services/timerService.ts`
+
+---
+
+#### 1.5 Token Batch Cleanup Efficiency
+
+**Problem:** `roomService.ts:353-366` fetches all reconnection tokens with `mGet()` (atomic, good) but then deletes them in a loop with individual `DEL` calls. This creates a window where tokens could be re-created between fetch and delete, and is unnecessarily slow.
+
+**Fix:** Use a single `redis.del(...keys)` call for all tokens, or a small Lua script. This is both faster and eliminates the race window.
+
+**Files:** `src/services/roomService.ts`
+
+---
+
 ### Priority 2: Moderate-Impact Hardening
 
 #### 2.1 Emission Metrics Unbounded Growth
@@ -113,6 +139,26 @@ Three high-criticality source files have zero dedicated unit tests:
 
 ---
 
+#### 2.5 Memory Mode Detection Duplication
+
+**Problem:** The `isMemoryMode()` check is independently implemented in three places: `redis.ts:58-61`, `roomConfig.ts:10`, and `env.ts:57`. Same logic, three copies. If one diverges, TTL configuration and memory-mode detection disagree.
+
+**Fix:** Centralize into a single exported constant or function (e.g., in `constants.ts`) and import everywhere.
+
+**Files:** `src/config/redis.ts`, `src/config/roomConfig.ts`, `src/config/env.ts`
+
+---
+
+#### 2.6 Game State Array Length Validation
+
+**Problem:** The `gameStateSchema` Zod schema validates individual array types (`words`, `types`, `revealed`) but doesn't validate that they all have the same length. If Redis data is corrupted and arrays are mismatched, `revealCard.lua` reads `game.types[index]` which could be nil for a valid word index.
+
+**Fix:** Add a Zod `.refine()` cross-field check asserting `words.length === types.length === revealed.length`. This catches corruption at deserialization time rather than during game operations.
+
+**Files:** `src/services/game/luaGameOps.ts` (gameStateSchema)
+
+---
+
 ### Priority 3: Polish & Defense-in-Depth
 
 #### 3.1 Frontend: Manual Reconnect Button
@@ -151,7 +197,17 @@ Three high-criticality source files have zero dedicated unit tests:
 
 ---
 
-#### 3.4 Per-Room Rate Limiting (Optional)
+#### 3.4 Connection Cleanup Error Logging
+
+**Current state:** `redis.ts:309-321` (`cleanupPartialConnections`) silently swallows errors when quitting Redis clients during connection retry. If `quit()` hangs or throws, the error is invisible.
+
+**Fix:** Log at `warn` level instead of silencing, and add a timeout wrapper to prevent hanging cleanup.
+
+**Files:** `src/config/redis.ts`
+
+---
+
+#### 3.5 Per-Room Rate Limiting (Optional)
 
 **Current state:** Rate limiting is per-socket and per-IP. A coordinated attack from multiple IPs targeting a single room can spam events without hitting per-IP limits.
 
@@ -186,11 +242,14 @@ These areas need no changes — they represent strong engineering:
 ## Suggested Implementation Order
 
 ```
-Week 1:  1.1 (tests for socket-client, sessionValidator, healthRoutes)
+Week 1:  1.1 (tests for critical untested paths)
+         1.4 (paused timer TTL — small fix, high impact)
 Week 2:  1.2 (cleanup backpressure) + 1.3 (history atomicity)
-Week 3:  2.1-2.4 (emission metrics, timer observability, test stabilization, Redis timeout)
-Week 4:  3.1-3.3 (reconnect button, token test, health metrics)
-Backlog: 3.4 (per-room rate limiting — evaluate need based on production traffic)
+         1.5 (token batch cleanup)
+Week 3:  2.1-2.6 (emission metrics, timer observability, test stabilization,
+                   Redis timeout, memory mode dedup, array validation)
+Week 4:  3.1-3.4 (reconnect button, token test, health metrics, cleanup logging)
+Backlog: 3.5 (per-room rate limiting — evaluate need based on production traffic)
 ```
 
 Each item is independent and can be tackled in any order. Nothing here blocks anything else.
