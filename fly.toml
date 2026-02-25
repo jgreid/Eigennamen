@@ -1,4 +1,4 @@
-# Fly.io configuration for Die Eigennamen game server
+# Fly.io configuration for Eigennamen game server
 # See https://fly.io/docs/reference/configuration/ for details
 #
 # STORAGE: This app defaults to in-memory storage (REDIS_URL=memory).
@@ -9,7 +9,7 @@
 #   3. Remove REDIS_URL and MEMORY_MODE_ALLOW_FLY from [env] below
 # Until then, keep exactly 1 machine: fly scale count 1
 
-app = "die-eigennamen"
+app = "eigennamen"
 primary_region = "iad"
 
 [build]
@@ -26,7 +26,7 @@ primary_region = "iad"
 
   # CORS origin - set to your Fly app domain
   # Override with: fly secrets set CORS_ORIGIN=https://yourdomain.com
-  CORS_ORIGIN = "https://die-eigennamen.fly.dev"
+  CORS_ORIGIN = "https://eigennamen.fly.dev"
 
   # Storage backend for game state (rooms, players, timers).
   # RECOMMENDED: Provision Redis and move REDIS_URL to a Fly secret:

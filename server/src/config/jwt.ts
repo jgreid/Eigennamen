@@ -37,7 +37,7 @@ export interface TokenVerificationResult {
 export const JWT_CONFIG = {
     algorithm: 'HS256',
     expiresIn: '24h',
-    issuer: 'die-eigennamen',
+    issuer: 'eigennamen',
     audience: 'game-client'
 } as const;
 

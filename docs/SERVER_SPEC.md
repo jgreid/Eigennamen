@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document describes the technical architecture of Eigennamen Online (Die Eigennamen), a real-time multiplayer web platform with standalone fallback mode.
+This document describes the technical architecture of Eigennamen Online, a real-time multiplayer web platform with standalone fallback mode.
 
 ### 1.1 Goals
 

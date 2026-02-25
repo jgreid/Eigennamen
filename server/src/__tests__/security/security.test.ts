@@ -45,7 +45,7 @@ describe('JWT Configuration', () => {
         });
 
         test('has issuer and audience', () => {
-            expect(JWT_CONFIG.issuer).toBe('die-eigennamen');
+            expect(JWT_CONFIG.issuer).toBe('eigennamen');
             expect(JWT_CONFIG.audience).toBe('game-client');
         });
     });

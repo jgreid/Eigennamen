@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Defaults matching fly.toml
-DEFAULT_APP_NAME="die-eigennamen"
+DEFAULT_APP_NAME="eigennamen"
 DEFAULT_REGION="iad"
 DEFAULT_VM_MEMORY="512"
 

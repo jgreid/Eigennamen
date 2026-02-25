@@ -1,4 +1,4 @@
-# Die Eigennamen — Eigennamen Online
+# Eigennamen Online
 
 A web-based implementation of the popular board game Eigennamen, optimized for remote play over video conferencing or direct online multiplayer.
 
