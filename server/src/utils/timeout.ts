@@ -1,7 +1,3 @@
-/**
- * Timeout utility for async operations
- * Prevents socket handlers from hanging indefinitely when Redis/DB operations stall
- */
 
 import logger from './logger';
 

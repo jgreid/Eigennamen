@@ -1,10 +1,3 @@
-/**
- * Room Validation Schemas
- *
- * Zod schemas for room creation, joining, settings, reconnection,
- * and HTTP route parameter validation.
- */
-
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';

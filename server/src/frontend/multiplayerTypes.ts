@@ -1,6 +1,3 @@
-// ========== MULTIPLAYER TYPES ==========
-// Shared type definitions for multiplayer data structures
-
 export interface ServerPlayerData {
     sessionId: string;
     nickname: string;

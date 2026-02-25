@@ -1,10 +1,3 @@
-/**
- * Reveal Engine - Pure card reveal logic
- *
- * Handles card reveal execution, outcome determination, and result building.
- * All functions are pure (mutate the passed game state but have no external effects).
- */
-
 import type {
     Team,
     CardType,

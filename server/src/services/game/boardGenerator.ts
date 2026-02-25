@@ -1,10 +1,3 @@
-/**
- * Board Generator - Pure functions for board creation
- *
- * Contains PRNG, shuffling, and board generation logic.
- * All functions are pure (no Redis, no side effects) and deterministic given a seed.
- */
-
 import type { CardType } from '../../types';
 
 import crypto from 'crypto';

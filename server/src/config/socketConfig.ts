@@ -1,9 +1,3 @@
-/**
- * Socket Configuration
- *
- * Socket.io connection settings and centralized event name constants.
- */
-
 // Socket.io configuration
 export const SOCKET = {
     PING_TIMEOUT_MS: 60000,           // Ping timeout (60 seconds)

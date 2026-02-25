@@ -1,15 +1,3 @@
-/**
- * Game Service - Orchestration layer
- *
- * Delegates to focused modules:
- *   - game/boardGenerator: PRNG, shuffling, board layout
- *   - game/revealEngine: Player state view, card validation
- *   - game/luaGameOps: Lua script execution, transactions, schemas
- *
- * This file handles game lifecycle (create, get, cleanup) and
- * the async operations that coordinate Redis + Lua.
- */
-
 import type {
     Team,
     GameState,
@@ -88,13 +76,6 @@ function addToHistory(game: GameState, entry: ForfeitHistoryEntry): void {
     }
 }
 
-// ─── Game Lifecycle ─────────────────────────────────────────────────
-
-
-/**
- * Resolve the word list to use for a game.
- * Priority: direct wordList > default words.
- */
 async function resolveGameWords(
     roomCode: string,
     options: CreateGameOptions
@@ -256,7 +237,6 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
     return game;
 }
 
-// ─── Card Reveal ────────────────────────────────────────────────────
 
 /**
  * Reveal a card with distributed lock and atomic Lua execution
@@ -297,7 +277,6 @@ export async function revealCard(
     }, { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 });
 }
 
-// ─── End Turn ───────────────────────────────────────────────────────
 
 /**
  * End the current turn — atomic Lua execution
@@ -324,7 +303,6 @@ export async function endTurn(
     );
 }
 
-// ─── Forfeit / History / Cleanup ────────────────────────────────────
 
 /**
  * Forfeit the game
@@ -389,5 +367,4 @@ export async function cleanupGame(roomCode: string): Promise<void> {
     logger.info(`Game data cleaned up for room ${roomCode}`);
 }
 
-// ─── Exports ────────────────────────────────────────────────────────
 // All exports use `export` keyword on function declarations above.

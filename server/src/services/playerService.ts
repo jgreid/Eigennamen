@@ -1,7 +1,3 @@
-/**
- * Player Service - Player management logic
- */
-
 import type { Team, Role, Player, RedisClient } from '../types';
 
 import { getRedis } from '../config/redis';
@@ -461,7 +457,6 @@ export async function atomicHostTransfer(
     }
 }
 
-// ─── Re-exports from sub-modules (backward compatibility) ───────────
 
 // Cleanup functions (extracted to player/cleanup.ts)
 // Wrapped as functions (not `export { ... } from ...`) to keep writable

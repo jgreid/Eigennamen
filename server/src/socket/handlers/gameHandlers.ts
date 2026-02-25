@@ -1,10 +1,3 @@
-/**
- * Game Socket Event Handlers
- *
- * Migrated to use context handler architecture for consistent
- * validation, error handling, and socket room management.
- */
-
 import type { Server } from 'socket.io';
 import type { Player, GameState, Room, RevealResult, EndTurnResult, ForfeitResult } from '../../types';
 import type { GameSocket, RoomContext, GameContext } from './types';

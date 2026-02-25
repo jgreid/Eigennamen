@@ -1,6 +1,3 @@
-// ========== UI MODULE ==========
-// Toast, screen reader, error modal, modal system with registry pattern
-
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { UI } from './constants.js';
@@ -8,7 +5,6 @@ import { UI } from './constants.js';
 // Store timer IDs for toast auto-dismiss without extending HTMLDivElement
 const toastTimers = new WeakMap<HTMLDivElement, { autoDismiss?: ReturnType<typeof setTimeout>; hide?: ReturnType<typeof setTimeout> }>();
 
-// ========== SCREEN READER ANNOUNCEMENTS ==========
 export function announceToScreenReader(message: string): void {
     const announcer = state.cachedElements.srAnnouncements;
     if (announcer) {
@@ -21,7 +17,6 @@ export function announceToScreenReader(message: string): void {
     }
 }
 
-// ========== TOAST NOTIFICATION SYSTEM ==========
 const MAX_TOASTS = 5;
 
 export function showToast(message: string, type: string = 'error', duration: number = 4000): HTMLDivElement | null {
@@ -96,7 +91,6 @@ export function dismissToast(toast: HTMLDivElement): void {
     }
 }
 
-// ========== ERROR MODAL ==========
 export function showErrorModal(message: string, details: string | null = null): void {
     const msgEl = document.getElementById('error-message');
     const detailsEl = document.getElementById('error-details');
@@ -118,7 +112,6 @@ export function closeError(): void {
     closeModal('error-modal');
 }
 
-// ========== MODAL REGISTRY ==========
 // Maps modal IDs to their close handler functions
 const modalCloseHandlers: Map<string, () => void> = new Map();
 
@@ -130,7 +123,6 @@ function getModalCloseHandler(modalId: string): (() => void) | undefined {
     return modalCloseHandlers.get(modalId);
 }
 
-// ========== MODAL STACK ==========
 // Implement modal stack for proper focus management when stacking modals
 // Each entry contains: { modal, previousFocus }
 interface ModalStackEntry {
@@ -140,7 +132,6 @@ interface ModalStackEntry {
 
 const modalStack: ModalStackEntry[] = [];
 
-// ========== MODAL MANAGEMENT ==========
 export function openModal(modalId: string): void {
     const modal = document.getElementById(modalId);
     if (!modal) return;

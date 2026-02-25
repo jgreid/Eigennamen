@@ -1,8 +1,3 @@
-// ========== DEBUG MODULE ==========
-// State debugging utilities: proxy, mutation logging, history, watchers.
-// Extracted from state.ts to keep the state module focused on data.
-// Enable debug mode by setting localStorage.debug = 'eigennamen'
-
 import type { AppState } from './stateTypes.js';
 
 const DEBUG_KEY = 'eigennamen';
@@ -15,7 +10,6 @@ export const debugEnabled = (): boolean => {
     }
 };
 
-// ========== STATE CHANGE HISTORY ==========
 
 interface StateHistoryEntry {
     timestamp: string;
@@ -62,7 +56,6 @@ export function logStateChange(property: string, oldValue: unknown, newValue: un
     );
 }
 
-// ========== WATCHER SYSTEM ==========
 
 type WatcherCallback = (oldValue: unknown, newValue: unknown) => void;
 const watchers: Map<string, WatcherCallback[]> = new Map();
@@ -80,7 +73,6 @@ export function watchState(property: string, callback: WatcherCallback): () => v
     };
 }
 
-// ========== STATE PROXY ==========
 
 /**
  * Create a recursive Proxy that logs property mutations.
@@ -121,7 +113,6 @@ export function createStateProxy<T extends object>(target: T, path: string = 'st
     });
 }
 
-// ========== STRING-PATH STATE SETTER ==========
 
 export function setState(state: AppState, property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
@@ -142,7 +133,6 @@ export function setState(state: AppState, property: string, value: unknown, sour
     logStateChange(property, oldValue, value, source);
 }
 
-// ========== INSPECTION UTILITIES ==========
 
 export function getStateHistory(property: string | null = null): StateHistoryEntry[] {
     if (property) {
@@ -173,7 +163,6 @@ export function dumpState(state: AppState): void {
     console.groupEnd();
 }
 
-// ========== WINDOW DEBUG ATTACHMENT ==========
 
 export function attachDebugToWindow(rawState: AppState): void {
     if (typeof window !== 'undefined' && debugEnabled()) {

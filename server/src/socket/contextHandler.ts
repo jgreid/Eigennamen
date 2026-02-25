@@ -1,10 +1,3 @@
-/**
- * Context-Aware Handler Wrapper
- *
- * Combines rate limiting with player context validation to eliminate
- * boilerplate across all socket handlers.
- */
-
 import type { ZodSchema } from 'zod';
 import type { Player, GameState } from '../types';
 import type { GameSocket } from './rateLimitHandler';

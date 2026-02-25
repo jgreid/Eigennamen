@@ -1,7 +1,3 @@
-/**
- * Eigennamen Online - Server Entry Point
- */
-
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketServer } from 'socket.io';
 

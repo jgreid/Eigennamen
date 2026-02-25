@@ -1,6 +1,3 @@
-// ========== MULTIPLAYER SYNC ==========
-// State synchronization, cleanup, and URL management for multiplayer mode
-
 import { state } from './state.js';
 import { renderBoard, detachResizeListener } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
@@ -275,7 +272,6 @@ export function syncGameStateFromServer(serverGame: ServerGameData): void {
     setTabNotification(isYourTurn);
 }
 
-// ========== URL MANAGEMENT ==========
 
 /**
  * Parse room code from URL query parameters
@@ -310,7 +306,6 @@ export function clearRoomCodeFromURL(): void {
     window.history.replaceState({}, '', url.toString());
 }
 
-// ========== OFFLINE CHANGE DETECTION ==========
 
 /**
  * Detect significant state changes that occurred while the player was offline.

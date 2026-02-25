@@ -1,6 +1,3 @@
-// ========== PLAYER EVENT HANDLERS ==========
-// Socket event handlers for player lifecycle events
-
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard } from '../board.js';

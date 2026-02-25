@@ -1,15 +1,3 @@
-/**
- * Socket.io Module - Entry Point
- *
- * Thin wiring layer that delegates to focused sub-modules:
- *   - serverConfig: Socket.io server creation and configuration
- *   - connectionHandler: Per-connection handler registration and lifecycle
- *   - connectionTracker: IP-based connection counting
- *   - rateLimitHandler: Per-socket event rate limiting
- *   - disconnectHandler: Disconnect cleanup logic
- *   - socketFunctionProvider: Shared function registry for handlers
- */
-
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import type { TimerCallback } from '../types';
@@ -50,7 +38,6 @@ let io: SocketIOServer | null = null;
 let app: ExpressAppWithSockets | null = null;
 let shuttingDown = false;
 
-// ─── Socket Helper Functions ────────────────────────────────────────
 
 /**
  * Get the Socket.io server instance
@@ -109,7 +96,6 @@ function createTimerExpireCallback(): TimerCallback {
     return createTimerExpireCallbackImpl(emitToRoom, startTurnTimer);
 }
 
-// ─── Socket Functions Bundle ────────────────────────────────────────
 
 /** Bundle of socket functions passed to connectionHandler */
 const socketFns = {
@@ -122,7 +108,6 @@ const socketFns = {
     createTimerExpireCallback
 };
 
-// ─── Initialization ─────────────────────────────────────────────────
 
 /**
  * Initialize Socket.io with the HTTP server
@@ -190,7 +175,6 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     return socketServer;
 }
 
-// ─── Cleanup ────────────────────────────────────────────────────────
 
 /**
  * Cleanup socket module resources on shutdown.
@@ -234,7 +218,6 @@ async function cleanupSocketModule(): Promise<void> {
     logger.info('Socket module cleaned up');
 }
 
-// ─── Exports ────────────────────────────────────────────────────────
 
 export {
     initializeSocket,

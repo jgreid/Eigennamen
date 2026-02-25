@@ -1,9 +1,3 @@
-/**
- * Error Codes
- *
- * Centralized error code constants used throughout the application.
- */
-
 // Error codes
 export const ERROR_CODES = {
     ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',

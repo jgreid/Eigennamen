@@ -1,13 +1,3 @@
-/**
- * Game Configuration
- *
- * Board layout, game modes, teams/roles, card types, game internals,
- * game history, and the default word list.
- *
- * Board layout, game modes, teams, and roles are re-exported from
- * the shared module (single source of truth for frontend + backend).
- */
-
 // Re-export shared constants so existing `import { BOARD_SIZE } from '@config'` still works
 export {
     BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS,

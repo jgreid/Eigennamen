@@ -1,7 +1,3 @@
-/**
- * Admin Audit Routes - Audit log retrieval endpoints
- */
-
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
 import express from 'express';

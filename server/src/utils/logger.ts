@@ -1,8 +1,3 @@
-/**
- * Logging Utility (Winston)
- *
- * Structured logging with automatic correlation ID injection.
- */
 
 import winston from 'winston';
 import fs from 'fs';

@@ -1,6 +1,3 @@
-// ========== GAME REVEAL MODULE ==========
-// Card reveal logic (local + server-synced) and game-over display
-
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from '../board.js';

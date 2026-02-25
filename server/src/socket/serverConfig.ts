@@ -1,16 +1,3 @@
-/**
- * Socket.io Server Configuration
- *
- * Creates and configures the Socket.io server instance with:
- *   - CORS settings (production safety)
- *   - Transport configuration (WebSocket-only in prod for Fly.io)
- *   - Ping/timeout tuning
- *   - Message size limits
- *   - Connection state recovery
- *   - Per-message deflate compression
- *   - Redis adapter for horizontal scaling
- */
-
 import type { Server as HttpServer } from 'http';
 import type { Server as SocketIOServer } from 'socket.io';
 

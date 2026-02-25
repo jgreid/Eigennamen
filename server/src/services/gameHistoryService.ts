@@ -1,10 +1,3 @@
-/**
- * Game History Service
- *
- * Stores completed game results and provides replay functionality.
- * Uses Redis with 30-day TTL for game history storage.
- */
-
 import { getRedis } from '../config/redis';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';

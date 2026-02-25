@@ -1,6 +1,3 @@
-// ========== ROLES MODULE ==========
-// Team and role management
-
 import { state, ROLE_BANNER_CONFIG } from './state.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';

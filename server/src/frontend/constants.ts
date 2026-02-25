@@ -1,7 +1,3 @@
-// ========== SHARED FRONTEND CONSTANTS ==========
-// Values shared with the server are imported from the shared module
-// (single source of truth — no manual synchronization needed).
-
 import {
     NICKNAME_MIN_LENGTH, NICKNAME_MAX_LENGTH,
     ROOM_CODE_MIN_LENGTH, ROOM_CODE_MAX_LENGTH,

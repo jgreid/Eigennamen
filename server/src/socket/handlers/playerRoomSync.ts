@@ -1,11 +1,3 @@
-/**
- * Player Room Sync - Per-player mutex for spectator room membership
- *
- * Prevents race conditions where concurrent setTeam + setRole operations
- * produce inconsistent socket room state (e.g., player in both room:X and
- * spectators:X). Uses a per-player lock to serialize room membership updates.
- */
-
 import type { Player } from '../../types';
 import type { GameSocket } from './types';
 

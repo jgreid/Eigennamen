@@ -1,6 +1,3 @@
-// ========== MULTIPLAYER UI ==========
-// UI rendering and interaction functions for multiplayer mode
-
 import { state } from './state.js';
 import { escapeHTML, copyToClipboard } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
@@ -345,7 +342,6 @@ export function sendSpectatorChat(message: string): void {
     EigennamenClient.sendSpectatorChat(message.trim());
 }
 
-// ========== FORFEIT GAME ==========
 
 /**
  * Show forfeit confirmation modal (host only, during active game)
@@ -417,7 +413,6 @@ export function updateForfeitButton(): void {
     forfeitBtn.style.display = shouldShow ? 'inline-block' : 'none';
 }
 
-// ========== NICKNAME EDIT ==========
 
 /**
  * Initialize nickname edit UI event handlers
@@ -497,7 +492,6 @@ function cancelNicknameEdit(): void {
     if (editBtn) editBtn.style.display = '';
 }
 
-// ========== RECONNECTION FEEDBACK ==========
 
 /**
  * Show the reconnection overlay banner with a timeout fallback.

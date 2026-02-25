@@ -1,10 +1,3 @@
-/**
- * Player Validation Schemas
- *
- * Zod schemas for player team assignment, role changes,
- * nickname updates, kick actions, and spectator join flows.
- */
-
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';

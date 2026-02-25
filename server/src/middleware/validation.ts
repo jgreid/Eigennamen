@@ -1,7 +1,3 @@
-/**
- * Input Validation Middleware
- */
-
 import type { Request, Response, NextFunction } from 'express';
 import type { ZodSchema, ZodError as ZodErrorType, ZodIssue } from 'zod';
 

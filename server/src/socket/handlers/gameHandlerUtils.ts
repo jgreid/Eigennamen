@@ -1,10 +1,3 @@
-/**
- * Game Handler Utilities
- *
- * Helper functions shared across game-related socket handlers.
- * Extracted from gameHandlers.ts for clarity and reusability.
- */
-
 import type { GameState, Room } from '../../types';
 import type { GameDataInput } from '../../services/gameHistoryService';
 

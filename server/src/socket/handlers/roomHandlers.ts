@@ -1,13 +1,3 @@
-/**
- * Room Socket Event Handlers
- *
- * All handlers use the context handler architecture:
- * - room:create and room:join use createPreRoomHandler (no room context needed)
- * - room:reconnect uses createPreRoomHandler (token-based auth flow)
- * - room:leave, room:settings, room:resync, room:getReconnectionToken use
- *   createRoomHandler/createHostHandler (require room context)
- */
-
 import type { Server } from 'socket.io';
 import type { Room, Player, GameState, PlayerGameState, Team } from '../../types';
 import type { GameSocket, RoomContext } from './types';

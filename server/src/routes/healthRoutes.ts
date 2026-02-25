@@ -1,10 +1,3 @@
-/**
- * Health Check Routes
- *
- * Provides endpoints for health monitoring, readiness checks, and metrics.
- * Designed for Kubernetes liveness/readiness probes and monitoring systems.
- */
-
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
 import express from 'express';

@@ -1,24 +1,6 @@
-/**
- * Centralized Lua Scripts Barrel
- *
- * All Redis Lua scripts used across the application are exported from here.
- * Scripts are organized by domain:
- * - File-based scripts (.lua files loaded from disk)
- * - Inline scripts (defined in this module, previously scattered across services)
- *
- * Usage:
- *   import { ATOMIC_CREATE_ROOM_SCRIPT } from '../scripts';
- *   await redis.eval(ATOMIC_CREATE_ROOM_SCRIPT, { keys: [...], arguments: [...] });
- *
- *   // Or use the grouped export:
- *   import { LUA_SCRIPTS } from '../scripts';
- *   await redis.eval(LUA_SCRIPTS.ATOMIC_CREATE_ROOM, { keys: [...], arguments: [...] });
- */
-
 import fs from 'fs';
 import path from 'path';
 
-// ─── File-based Lua scripts (loaded from .lua files) ───────────────
 
 /** Atomic card reveal with game state updates */
 export const REVEAL_CARD_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'revealCard.lua'), 'utf8');
@@ -38,7 +20,6 @@ export const SET_ROLE_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'set
 /** Atomic host transfer with fallback */
 export const HOST_TRANSFER_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'hostTransfer.lua'), 'utf8');
 
-// ─── Inline Lua scripts (previously in service files) ──────────────
 
 /**
  * Atomic room creation using SETNX
@@ -274,7 +255,6 @@ end
 return 1
 `;
 
-// ─── Room settings script (previously in roomService.ts) ────────────
 
 /**
  * Atomic room settings update
@@ -320,7 +300,6 @@ redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
 return cjson.encode({success = true, settings = room.settings})
 `;
 
-// ─── Timer scripts (previously in timerService.ts) ──────────────────
 
 /**
  * Atomic addTime operation for turn timers
@@ -421,7 +400,6 @@ return cjson.encode({
 })
 `;
 
-// ─── Reconnection scripts (previously in player/reconnection.ts) ────
 
 /**
  * Atomic reconnection token invalidation
@@ -464,7 +442,6 @@ redis.call('DEL', sessionKey)
 return 1
 `;
 
-// ─── Lock scripts (previously in utils/distributedLock.ts) ──────────
 
 /**
  * Safe lock release (only release if we own the lock)

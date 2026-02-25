@@ -1,6 +1,3 @@
-// ========== ROOM EVENT HANDLERS ==========
-// Socket event handlers for room lifecycle, reconnection, and settings events
-
 import { state } from '../state.js';
 import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';

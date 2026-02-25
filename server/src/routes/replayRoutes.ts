@@ -1,10 +1,3 @@
-/**
- * Replay API Routes
- *
- * Provides public REST endpoint for fetching replay data,
- * enabling shareable replay links without requiring room membership.
- */
-
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 
 import express from 'express';

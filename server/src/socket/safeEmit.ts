@@ -1,12 +1,3 @@
-/**
- * Safe Socket.io Emission Utilities
- *
- * Provides error-handling wrappers for socket emissions
- * to prevent silent failures when emitting to rooms or players.
- *
- * These utilities log errors and optionally track failed emissions for metrics.
- */
-
 import type { Server as SocketIOServer } from 'socket.io';
 import type { Player } from '../types';
 

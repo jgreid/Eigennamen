@@ -1,9 +1,3 @@
-/**
- * Environment Configuration and Validation
- *
- * Provides typed environment variable access and validation at startup.
- */
-
 import logger from '../utils/logger';
 
 /**

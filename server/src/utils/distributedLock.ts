@@ -1,10 +1,3 @@
-/**
- * Distributed Lock Utility
- *
- * Provides robust distributed locking with proper ownership tracking,
- * automatic extension, and deadlock prevention.
- */
-
 import { getRedis } from '../config/redis';
 import logger from './logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,17 +8,11 @@ import {
     EXTEND_LOCK_SCRIPT as _EXTEND_LOCK_SCRIPT,
 } from '../scripts';
 
-// Re-export lock scripts for backward compatibility (writable exports
-// so CommonJS tests can destructure them from require())
 export const RELEASE_LOCK_SCRIPT = _RELEASE_LOCK_SCRIPT;
 export const EXTEND_LOCK_SCRIPT = _EXTEND_LOCK_SCRIPT;
 
-// Timeout for individual lock Redis operations (release, extend)
 const LOCK_OPERATION_TIMEOUT = 5000;
 
-/**
- * Lock configuration interface
- */
 interface LockConfig {
     lockTimeout: number;
     retryDelay: number;
@@ -34,7 +21,6 @@ interface LockConfig {
     extendThreshold: number;
 }
 
-// Default configuration
 const DEFAULT_CONFIG: LockConfig = {
     lockTimeout: 5000,      // Lock expires after 5 seconds
     retryDelay: 50,         // Initial retry delay in ms (grows exponentially)
@@ -43,9 +29,6 @@ const DEFAULT_CONFIG: LockConfig = {
     extendThreshold: 0.5    // Extend when 50% of time remains
 };
 
-/**
- * Lock acquisition result interface
- */
 interface LockResult {
     acquired: boolean;
     ownerId?: string;
@@ -53,15 +36,8 @@ interface LockResult {
     extend?: (additionalMs?: number) => Promise<boolean>;
 }
 
-/**
- * Lock options interface
- */
 interface LockOptions extends Partial<LockConfig> {}
 
-/**
- * Distributed Lock class
- * Provides acquire, release, and extend operations with ownership tracking
- */
 class DistributedLock {
     private config: LockConfig;
     private instanceId: string;
@@ -71,12 +47,6 @@ class DistributedLock {
         this.instanceId = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
     }
 
-    /**
-     * Acquire a lock
-     * @param lockKey - Unique key for the lock
-     * @param options - Override options for this acquisition
-     * @returns Lock result with acquired status and control functions
-     */
     async acquire(lockKey: string, options: LockOptions = {}): Promise<LockResult> {
         const config = { ...this.config, ...options };
         const redis = getRedis();
@@ -129,12 +99,6 @@ class DistributedLock {
         return { acquired: false };
     }
 
-    /**
-     * Release a lock (only if we own it)
-     * @param key - Full lock key
-     * @param ownerId - Owner ID to verify
-     * @returns True if released, false if not owned
-     */
     async release(key: string, ownerId: string): Promise<boolean> {
         const redis = getRedis();
 
@@ -168,13 +132,6 @@ class DistributedLock {
         }
     }
 
-    /**
-     * Extend a lock (only if we own it)
-     * @param key - Full lock key
-     * @param ownerId - Owner ID to verify
-     * @param additionalMs - Additional time in milliseconds
-     * @returns True if extended, false if not owned
-     */
     async extend(key: string, ownerId: string, additionalMs: number): Promise<boolean> {
         const redis = getRedis();
 
@@ -208,14 +165,6 @@ class DistributedLock {
         }
     }
 
-    /**
-     * Execute a function while holding a lock
-     * Automatically releases the lock when done
-     * @param lockKey - Lock key
-     * @param fn - Async function to execute
-     * @param options - Lock options
-     * @returns Result of the function
-     */
     async withLock<T>(lockKey: string, fn: () => Promise<T>, options: LockOptions = {}): Promise<T> {
         const lockResult = await this.acquire(lockKey, options);
 
@@ -233,14 +182,6 @@ class DistributedLock {
         }
     }
 
-    /**
-     * Execute a function with automatic lock extension
-     * For long-running operations that may exceed lock timeout
-     * @param lockKey - Lock key
-     * @param fn - Async function to execute
-     * @param options - Lock options
-     * @returns Result of the function
-     */
     async withAutoExtend<T>(lockKey: string, fn: () => Promise<T>, options: LockOptions = {}): Promise<T> {
         const config = { ...this.config, ...options };
         const lockResult = await this.acquire(lockKey, options);
@@ -281,60 +222,13 @@ class DistributedLock {
         }
     }
 
-    /**
-     * Check if a lock is currently held
-     * @param lockKey - Lock key
-     * @returns True if locked
-     */
-    async isLocked(lockKey: string): Promise<boolean> {
-        const redis = getRedis();
-        const key = `lock:${lockKey}`;
-        const result = await redis.exists(key);
-        return result === 1;
-    }
-
-    /**
-     * Get the owner of a lock
-     * @param lockKey - Lock key
-     * @returns Owner ID or null if not locked
-     */
-    getLockOwner(lockKey: string): Promise<string | null> {
-        const redis = getRedis();
-        const key = `lock:${lockKey}`;
-        return redis.get(key);
-    }
-
-    /**
-     * Force release a lock (use with caution - for admin/recovery only)
-     * @param lockKey - Lock key
-     * @returns True if released
-     */
-    async forceRelease(lockKey: string): Promise<boolean> {
-        const redis = getRedis();
-        const key = `lock:${lockKey}`;
-
-        try {
-            const result = await redis.del(key);
-            logger.warn('Lock force released', { lockKey });
-            return result === 1;
-        } catch (error) {
-            logger.error('Force release error', {
-                lockKey,
-                error: (error as Error).message
-            });
-            return false;
-        }
-    }
-
     private _sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 
-// Singleton instance with default configuration
 const defaultLock = new DistributedLock();
 
-// Convenience functions using default instance
 const acquire = (lockKey: string, options?: LockOptions): Promise<LockResult> =>
     defaultLock.acquire(lockKey, options);
 
@@ -344,23 +238,11 @@ const withLock = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOption
 const withAutoExtend = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOptions): Promise<T> =>
     defaultLock.withAutoExtend(lockKey, fn, options);
 
-const isLocked = (lockKey: string): Promise<boolean> =>
-    defaultLock.isLocked(lockKey);
-
-const getLockOwner = (lockKey: string): Promise<string | null> =>
-    defaultLock.getLockOwner(lockKey);
-
-const forceRelease = (lockKey: string): Promise<boolean> =>
-    defaultLock.forceRelease(lockKey);
-
 export {
     DistributedLock,
     acquire,
     withLock,
     withAutoExtend,
-    isLocked,
-    getLockOwner,
-    forceRelease,
 };
 
 export type { LockConfig, LockResult, LockOptions };

@@ -1,7 +1,3 @@
-/**
- * Rate-limited Socket Handler Utility
- */
-
 import { createSocketRateLimiter } from '../middleware/rateLimit';
 import { RATE_LIMITS, ERROR_CODES } from '../config/constants';
 import logger from '../utils/logger';

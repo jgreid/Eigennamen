@@ -1,11 +1,3 @@
-/**
- * Audit Logging Service
- *
- * Records security-relevant actions for compliance and forensics.
- * Stores audit logs in Redis with configurable retention.
- * Falls back to in-memory ring buffers when Redis is unavailable.
- */
-
 import type { RedisClient } from '../types';
 
 import logger from '../utils/logger';

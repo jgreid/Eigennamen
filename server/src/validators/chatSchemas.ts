@@ -1,10 +1,3 @@
-/**
- * Chat Validation Schemas
- *
- * Zod schemas for team/global chat messages and
- * spectator-only chat.
- */
-
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';

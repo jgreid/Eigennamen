@@ -1,13 +1,3 @@
-/**
- * Socket.io Authentication Middleware - Orchestrator
- *
- * Thin coordination layer that delegates to focused sub-modules:
- *   - auth/clientIP: IP extraction with proxy handling
- *   - auth/originValidator: CSRF origin validation
- *   - auth/sessionValidator: Session validation, rate limiting, reconnection
- *   - auth/jwtHandler: JWT token verification
- */
-
 import type { Socket } from 'socket.io';
 
 import { v4 as uuidv4 } from 'uuid';

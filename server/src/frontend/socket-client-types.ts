@@ -15,9 +15,7 @@ import type {
     ReplayData, JoinCreateResult
 } from './multiplayerTypes.js';
 
-// ============================================================================
 // Event payload types for server-to-client events (adapter's internal bus)
-// ============================================================================
 
 /** Payload for room:created → 'roomCreated' */
 export interface RoomCreatedPayload {
@@ -104,9 +102,7 @@ export interface ClientEventMap {
 /** Helper: all valid client event names */
 export type ClientEventName = keyof ClientEventMap;
 
-// ============================================================================
 // Core adapter interfaces
-// ============================================================================
 
 /** Minimal Socket.io socket shape used by this adapter. */
 export interface SocketClientInstance {

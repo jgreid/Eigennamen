@@ -1,7 +1,3 @@
-// ========== MULTIPLAYER MODULE ==========
-// Connection management, modal handling, and barrel re-exports
-// Sub-modules: multiplayerUI.ts (UI), multiplayerSync.ts (state sync), multiplayerListeners.ts (events)
-
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
@@ -24,7 +20,6 @@ import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
 import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 
-// ========== BARREL RE-EXPORTS ==========
 // Re-export sub-module functions so app.ts imports continue to work
 
 export {
@@ -40,7 +35,6 @@ export {
 
 export { setupMultiplayerListeners } from './multiplayerListeners.js';
 
-// ========== ABORT CONTROLLERS ==========
 // Allows cancelling in-flight operations when user navigates away
 
 let joinAbortController: AbortController | null = null;
@@ -65,7 +59,6 @@ export function cancelAllOperations(): void {
     cancelCreateOperation();
 }
 
-// ========== MODAL HANDLING ==========
 
 export function openMultiplayer(): void {
     // Pre-fill nickname from storage
@@ -145,7 +138,6 @@ export function clearFormErrors(): void {
     });
 }
 
-// ========== CONNECTION ACTIONS ==========
 
 export async function handleMpAction(): Promise<void> {
     const actionBtn = document.getElementById('btn-mp-action') as HTMLButtonElement;
@@ -329,7 +321,6 @@ async function handleCreateGame(): Promise<void> {
     }
 }
 
-// ========== POST-JOIN SETUP ==========
 
 export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boolean = false): void {
     // Detect room change and reset stale state
@@ -403,7 +394,6 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }
 
-// ========== MODAL INITIALIZATION ==========
 
 // Guard: prevent duplicate registration of multiplayer modal listeners
 let mpModalInitialized = false;

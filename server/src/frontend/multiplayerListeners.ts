@@ -1,7 +1,3 @@
-// ========== MULTIPLAYER LISTENERS ==========
-// Thin orchestrator that registers all domain-specific socket event handlers.
-// Each handler module is focused on a single domain (game, player, room, timer, chat).
-
 import { state } from './state.js';
 import { getClient } from './clientAccessor.js';
 import { registerGameHandlers } from './handlers/gameEventHandlers.js';

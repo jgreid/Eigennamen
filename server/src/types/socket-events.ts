@@ -16,9 +16,7 @@ import type {
 import type { Room, RoomSettings, TeamNames } from './room';
 import type { Player, PlayerInfo } from './player';
 
-// ============================================================================
 // Client to Server Events (what clients send to the server)
-// ============================================================================
 
 /**
  * Room creation payload
@@ -178,9 +176,7 @@ export interface ClientToServerEvents {
   'timer:status': () => void;
 }
 
-// ============================================================================
 // Server to Client Events (what server sends to clients)
-// ============================================================================
 
 /**
  * Room created response

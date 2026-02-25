@@ -1,7 +1,3 @@
-/**
- * Room API Routes
- */
-
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 import type { Room, Player } from '../types';
 

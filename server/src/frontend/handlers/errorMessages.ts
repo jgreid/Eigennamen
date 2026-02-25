@@ -1,6 +1,3 @@
-// ========== ERROR MESSAGE MAPPING ==========
-// Maps server error codes to user-friendly messages
-
 import type { ServerErrorData } from '../multiplayerTypes.js';
 
 /**

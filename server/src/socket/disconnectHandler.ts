@@ -1,18 +1,3 @@
-/**
- * Socket Disconnect Handler
- *
- * Handles player disconnection logic including:
- * - Reconnection token generation
- * - Player status updates
- * - Room notifications
- * - Host transfer with distributed locking
- *
- * Also contains the timer expiration callback factory, which is
- * closely related to cleanup/state transitions on disconnect.
- *
- * Extracted from socket/index.ts for separation of concerns.
- */
-
 import type { Server as SocketIOServer } from 'socket.io';
 import type { Player, GameState, TimerCallback } from '../types';
 import type { GameSocket } from './rateLimitHandler';

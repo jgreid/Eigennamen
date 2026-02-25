@@ -1,14 +1,3 @@
-/**
- * Redis Configuration
- *
- * Supports three modes:
- *   1. External Redis via REDIS_URL (redis:// or rediss://)
- *   2. Local Redis on default port (when REDIS_URL is not set)
- *   3. Embedded Redis (REDIS_URL=memory) — spawns a local redis-server
- *      process on a random port, giving real Redis behavior (including
- *      Lua scripting) without an external dependency.
- */
-
 import { createClient } from 'redis';
 import { spawn } from 'child_process';
 import { createServer } from 'net';
@@ -17,13 +6,6 @@ import * as pubSubHealth from '../utils/pubSubHealth';
 import type { RedisClientType } from 'redis';
 import type { RedisClient } from '../types/redis';
 import type { ChildProcess } from 'child_process';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-// Redis client options are passed directly to createClient() from the redis package.
-// No custom interface needed — the redis v5 package provides its own types.
 
 /**
  * Redis memory information from INFO command
@@ -60,10 +42,6 @@ export interface RedisClients {
     subClient: RedisClientType;
 }
 
-// ============================================================================
-// Module State
-// ============================================================================
-
 let redisClient: RedisClientType | null = null;
 let pubClient: RedisClientType | null = null;
 let subClient: RedisClientType | null = null;
@@ -73,28 +51,15 @@ let embeddedRedisProcess: ChildProcess | null = null;
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Sleep for specified milliseconds
- */
 function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Check if REDIS_URL indicates memory mode
- */
 export function isMemoryMode(): boolean {
     const redisUrl = process.env['REDIS_URL'] || '';
     return redisUrl === 'memory' || redisUrl === 'memory://';
 }
 
-/**
- * Find a free TCP port by briefly binding to port 0
- */
 async function findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
         const server = createServer();
@@ -173,9 +138,6 @@ async function startEmbeddedRedis(): Promise<string> {
     });
 }
 
-/**
- * Stop the embedded redis-server process
- */
 async function stopEmbeddedRedis(): Promise<void> {
     if (!embeddedRedisProcess) return;
 
@@ -198,9 +160,6 @@ async function stopEmbeddedRedis(): Promise<void> {
     });
 }
 
-/**
- * Shared reconnect strategy with exponential backoff
- */
 function reconnectStrategy(retries: number): number | Error {
     if (retries > 10) {
         logger.error('Redis max reconnection attempts reached');
@@ -255,15 +214,6 @@ function createClientOptions(redisUrl: string) {
     };
 }
 
-// ============================================================================
-// Public Functions
-// ============================================================================
-
-/**
- * Connect to Redis.
- * In memory mode, spawns an embedded redis-server on a random port.
- * @returns Promise resolving to Redis clients
- */
 export async function connectRedis(): Promise<RedisClients> {
     let redisUrl = process.env['REDIS_URL'] || 'redis://localhost:6379';
 
@@ -356,9 +306,6 @@ export async function connectRedis(): Promise<RedisClients> {
     throw lastError;
 }
 
-/**
- * Clean up partially connected clients
- */
 async function cleanupPartialConnections(): Promise<void> {
     const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
     for (const client of clients) {
@@ -373,10 +320,6 @@ async function cleanupPartialConnections(): Promise<void> {
     redisClient = pubClient = subClient = null;
 }
 
-/**
- * Required methods on the Redis client that the application depends on.
- * Used for startup assertion to catch API incompatibilities early.
- */
 const REQUIRED_REDIS_METHODS = [
     'get', 'set', 'del', 'exists', 'expire', 'ttl', 'mGet',
     'sAdd', 'sRem', 'sMembers', 'sCard', 'sIsMember',
@@ -405,10 +348,6 @@ function assertRedisClientShape(client: RedisClientType): void {
     }
 }
 
-/**
- * Get the main Redis client
- * @throws Error if Redis not initialized
- */
 export function getRedis(): RedisClient {
     if (!redisClient) {
         throw new Error('Redis not initialized. Call connectRedis() first.');
@@ -416,10 +355,6 @@ export function getRedis(): RedisClient {
     return redisClient as unknown as RedisClient;
 }
 
-/**
- * Get Pub/Sub clients for Socket.io adapter
- * @throws Error if Pub/Sub not initialized
- */
 export function getPubSubClients(): PubSubClients {
     if (!pubClient || !subClient) {
         throw new Error('Redis Pub/Sub not initialized.');
@@ -427,10 +362,6 @@ export function getPubSubClients(): PubSubClients {
     return { pubClient, subClient };
 }
 
-/**
- * Check if Redis is connected and healthy
- * @returns true if Redis is healthy
- */
 export async function isRedisHealthy(): Promise<boolean> {
     try {
         if (!redisClient || !redisClient.isOpen) {
@@ -443,10 +374,6 @@ export async function isRedisHealthy(): Promise<boolean> {
     }
 }
 
-/**
- * Get Redis memory information for monitoring
- * Returns memory usage stats and alerts if memory is high
- */
 export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
     try {
         if (!redisClient || !redisClient.isOpen) {
@@ -525,9 +452,6 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
     }
 }
 
-/**
- * Disconnect from Redis and stop embedded server if running
- */
 export async function disconnectRedis(): Promise<void> {
     // Stop pub/sub health monitoring before disconnecting
     pubSubHealth.stopPingInterval();
@@ -558,9 +482,6 @@ export async function disconnectRedis(): Promise<void> {
     logger.info('Redis disconnected');
 }
 
-/**
- * Check if currently using memory storage mode
- */
 export function isUsingMemoryMode(): boolean {
     return usingMemoryMode;
 }

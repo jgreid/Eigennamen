@@ -13,9 +13,6 @@ const {
     DistributedLock,
     acquire,
     withLock,
-    isLocked,
-    getLockOwner,
-    forceRelease
 } = require('../../utils/distributedLock');
 
 // Mock Redis
@@ -163,45 +160,6 @@ describe('Distributed Lock Edge Cases', () => {
             // Try to extend (lock was stolen by another process)
             const extended = await result.extend(5000);
             expect(extended).toBe(false);
-        });
-    });
-
-    describe('Lock Holder Crash Recovery', () => {
-        test('force release allows recovery from crashed lock holder', async () => {
-            mockRedis.del.mockResolvedValueOnce(1);
-            mockRedis.set.mockResolvedValueOnce('OK');
-
-            const lock = new DistributedLock();
-
-            // Simulate crashed lock holder by force releasing
-            const forceReleased = await lock.forceRelease('crashed-lock');
-            expect(forceReleased).toBe(true);
-
-            // New process can now acquire
-            const result = await lock.acquire('crashed-lock');
-            expect(result.acquired).toBe(true);
-        });
-
-        test('force release on non-existent lock returns false', async () => {
-            mockRedis.del.mockResolvedValueOnce(0);
-
-            const lock = new DistributedLock();
-            const result = await lock.forceRelease('non-existent-lock');
-            expect(result).toBe(false);
-        });
-
-        test('isLocked returns false for expired locks', async () => {
-            mockRedis.exists.mockResolvedValueOnce(0);
-
-            const result = await isLocked('expired-lock');
-            expect(result).toBe(false);
-        });
-
-        test('getLockOwner returns null for expired locks', async () => {
-            mockRedis.get.mockResolvedValueOnce(null);
-
-            const owner = await getLockOwner('expired-lock');
-            expect(owner).toBeNull();
         });
     });
 
@@ -400,27 +358,6 @@ describe('Distributed Lock Edge Cases', () => {
 
             const result = await withLock('convenience-lock', () => 'success');
             expect(result).toBe('success');
-        });
-
-        test('isLocked function uses singleton instance', async () => {
-            mockRedis.exists.mockResolvedValueOnce(1);
-
-            const result = await isLocked('convenience-lock');
-            expect(result).toBe(true);
-        });
-
-        test('getLockOwner function uses singleton instance', async () => {
-            mockRedis.get.mockResolvedValueOnce('owner-123');
-
-            const result = await getLockOwner('convenience-lock');
-            expect(result).toBe('owner-123');
-        });
-
-        test('forceRelease function uses singleton instance', async () => {
-            mockRedis.del.mockResolvedValueOnce(1);
-
-            const result = await forceRelease('convenience-lock');
-            expect(result).toBe(true);
         });
     });
 

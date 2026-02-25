@@ -1,13 +1,3 @@
-/**
- * Player Cleanup Service - Disconnection handling and scheduled cleanup
- *
- * Manages the lifecycle of disconnected players:
- * - Marks players as disconnected with grace period
- * - Schedules cleanup after timeout
- * - Processes scheduled cleanups in batches
- * - Cleans up orphaned rooms when last player is removed
- */
-
 import type { Player, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';

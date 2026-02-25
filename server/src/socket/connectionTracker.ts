@@ -1,13 +1,3 @@
-/**
- * Connection Tracking for DoS Protection
- *
- * Tracks the number of active socket connections per IP address
- * and enforces per-IP connection limits. Includes periodic cleanup
- * that reconciles tracked counts against actual connected sockets.
- *
- * Extracted from socket/index.ts for separation of concerns.
- */
-
 import type { Server as SocketIOServer } from 'socket.io';
 import type { GameSocket } from './rateLimitHandler';
 

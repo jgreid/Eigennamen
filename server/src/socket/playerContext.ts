@@ -1,17 +1,3 @@
-/**
- * Player Context - Unified session state management
- *
- * Instead of each handler independently validating socket.roomCode and fetching
- * player data from Redis, this module provides a single source of truth that
- * handlers can rely on.
- *
- * Key benefits:
- * 1. Socket and Redis state are validated together at the start
- * 2. Handlers receive a guaranteed-valid context object
- * 3. State inconsistencies are detected and corrected early
- * 4. Reduces boilerplate in every handler
- */
-
 import type { Player, GameState, Team, Role } from '../types';
 import type { GameSocket } from './rateLimitHandler';
 

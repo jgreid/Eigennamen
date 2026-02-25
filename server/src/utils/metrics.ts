@@ -1,13 +1,3 @@
-/**
- * Application Metrics Collection
- *
- * Provides counters, gauges, and histograms for monitoring application performance.
- * Thread-safe and supports periodic reporting.
- */
-
-/**
- * Labels for metrics
- */
 interface MetricLabels {
     [key: string]: string;
 }
@@ -382,37 +372,6 @@ function updateSystemMetrics(): void {
     setGauge(METRIC_NAMES.MEMORY_RSS, mem.rss);
 }
 
-// Measure event loop lag
-let lastLoopTime = process.hrtime.bigint();
-function measureEventLoopLag(): void {
-    const now = process.hrtime.bigint();
-    const expected = 100n * 1000000n; // 100ms in nanoseconds
-    const actual = now - lastLoopTime;
-    const lag = Number(actual - expected) / 1e6; // Convert to ms
-    if (lag > 0) {
-        setGauge(METRIC_NAMES.EVENT_LOOP_LAG, lag);
-    }
-    lastLoopTime = now;
-}
-
-// Start event loop monitoring and periodic metric pruning (only in non-test environments)
-let eventLoopInterval: ReturnType<typeof setInterval> | null = null;
-let metricsPruneInterval: ReturnType<typeof setInterval> | null = null;
-function startEventLoopMonitoring(): void {
-    if (process.env.NODE_ENV !== 'test' && !eventLoopInterval) {
-        eventLoopInterval = setInterval(measureEventLoopLag, 100);
-        eventLoopInterval.unref(); // Don't keep process alive
-
-        // Prune stale metrics every 30 minutes to prevent unbounded growth
-        metricsPruneInterval = setInterval(() => pruneStaleMetrics(), 30 * 60 * 1000);
-        metricsPruneInterval.unref();
-    }
-}
-
-/**
- * Export metrics in Prometheus text format
- * @returns Prometheus-compatible metrics text
- */
 function getPrometheusMetrics(): string {
     const lines: string[] = [];
     const timestamp = Date.now();
@@ -468,7 +427,6 @@ function formatPrometheusLabels(labels: MetricLabels): string {
     return `{${pairs}}`;
 }
 
-// ES6 exports
 export {
     incrementCounter,
     setGauge,
@@ -480,7 +438,6 @@ export {
     pruneStaleMetrics,
     getPrometheusMetrics,
     updateSystemMetrics,
-    startEventLoopMonitoring,
     METRIC_NAMES
 };
 

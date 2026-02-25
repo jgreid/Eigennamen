@@ -1,14 +1,3 @@
-/**
- * CSRF Protection Middleware
- *
- * Provides lightweight CSRF protection for state-changing REST endpoints
- * using same-origin validation and custom header requirements.
- *
- * Since the app primarily uses WebSocket for real-time operations and
- * doesn't have session-based auth yet, this provides a reasonable
- * level of protection without requiring full CSRF token management.
- */
-
 import type { Request, Response, NextFunction } from 'express';
 
 import logger from '../utils/logger';

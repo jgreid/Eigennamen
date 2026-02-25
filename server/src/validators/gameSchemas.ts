@@ -1,10 +1,3 @@
-/**
- * Game Validation Schemas
- *
- * Zod schemas for game start, card reveal,
- * game history, and replay retrieval.
- */
-
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';

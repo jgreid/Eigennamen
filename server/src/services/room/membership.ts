@@ -1,10 +1,3 @@
-/**
- * Room Membership - Join and leave room operations
- *
- * Extracted from roomService.ts. Handles player room entry/exit
- * with atomic capacity checks and host transfer on leave.
- */
-
 import type {
     JoinRoomResult,
     LeaveRoomResult,

@@ -1,6 +1,3 @@
-// ========== BOARD MODULE ==========
-// Board rendering
-
 import { state, BOARD_SIZE } from './state.js';
 import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';

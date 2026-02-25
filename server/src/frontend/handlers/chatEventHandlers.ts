@@ -1,6 +1,3 @@
-// ========== CHAT EVENT HANDLERS ==========
-// Socket event handlers for chat and history events
-
 import { showToast } from '../ui.js';
 import { logger } from '../logger.js';
 import { handleChatMessage } from '../chat.js';

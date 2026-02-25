@@ -8,9 +8,7 @@ import type { Team, Role, CardType } from './game';
 import type { RoomStatus } from './room';
 import type { ErrorCode } from './errors';
 
-// ============================================================================
 // Rate Limit Configuration
-// ============================================================================
 
 /**
  * Rate limit configuration for a single event/endpoint
@@ -68,9 +66,7 @@ export interface ApiRateLimits {
   ADMIN: RateLimitConfig;
 }
 
-// ============================================================================
 // Redis TTL Configuration
-// ============================================================================
 
 /**
  * Redis TTL values (in seconds)
@@ -84,9 +80,7 @@ export interface RedisTTLConfig {
   SESSION_VALIDATION_WINDOW: number;
 }
 
-// ============================================================================
 // Session Security Configuration
-// ============================================================================
 
 /**
  * Session security settings
@@ -101,9 +95,7 @@ export interface SessionSecurityConfig {
   ROTATE_SESSION_ON_RECONNECT: boolean;
 }
 
-// ============================================================================
 // Timer Configuration
-// ============================================================================
 
 /**
  * Timer settings
@@ -116,9 +108,7 @@ export interface TimerConfig {
   TIMER_TTL_BUFFER_SECONDS: number;
 }
 
-// ============================================================================
 // Socket Configuration
-// ============================================================================
 
 /**
  * Socket.IO settings
@@ -134,9 +124,7 @@ export interface SocketConfig {
   MAX_HTTP_BUFFER_SIZE: number;
 }
 
-// ============================================================================
 // Validation Configuration
-// ============================================================================
 
 /**
  * Input validation constraints
@@ -152,9 +140,7 @@ export interface ValidationConfig {
   WORD_LIST_MAX_SIZE: number;
 }
 
-// ============================================================================
 // Lock Configuration
-// ============================================================================
 
 /**
  * Distributed lock timeouts (in seconds)
@@ -167,9 +153,7 @@ export interface LockConfig {
   GAME_CREATE: number;
 }
 
-// ============================================================================
 // Retry Configuration
-// ============================================================================
 
 /**
  * Retry settings for a specific operation type
@@ -190,9 +174,7 @@ export interface RetryConfig {
   RACE_CONDITION: { delayMs: number };
 }
 
-// ============================================================================
 // Game History Configuration
-// ============================================================================
 
 /**
  * Game history limits
@@ -201,9 +183,7 @@ export interface GameHistoryConfig {
   MAX_ENTRIES: number;
 }
 
-// ============================================================================
 // Game Internals Configuration
-// ============================================================================
 
 /**
  * Internal game service constants
@@ -214,9 +194,7 @@ export interface GameInternalsConfig {
   LAZY_HISTORY_MULTIPLIER: number;
 }
 
-// ============================================================================
 // Player Cleanup Configuration
-// ============================================================================
 
 /**
  * Player cleanup settings
@@ -226,9 +204,7 @@ export interface PlayerCleanupConfig {
   BATCH_SIZE: number;
 }
 
-// ============================================================================
 // Socket Event Names
-// ============================================================================
 
 /**
  * All socket event name constants
@@ -308,9 +284,7 @@ export interface SocketEventNames {
   CHAT_SPECTATOR_MESSAGE: string;
 }
 
-// ============================================================================
 // Complete Constants Type
-// ============================================================================
 
 /**
  * Complete game constants object type

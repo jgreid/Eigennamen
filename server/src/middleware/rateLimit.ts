@@ -1,6 +1,3 @@
-/**
- * Rate Limiting Middleware with Metrics
- */
 
 import type { Request, Response, NextFunction } from 'express';
 
