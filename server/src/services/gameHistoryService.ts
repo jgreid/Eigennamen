@@ -3,6 +3,7 @@ import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { tryParseJSON } from '../utils/parseJSON';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
+import { ATOMIC_SAVE_GAME_HISTORY_SCRIPT } from '../scripts';
 import { z } from 'zod';
 
 import type { Team, CardType, RedisClient } from '../types';
@@ -347,39 +348,23 @@ export async function saveGameResult(
         const gameKey = `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${historyId}`;
         const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
 
-        // Use pipeline for atomic operations
-        const pipeline = redis.multi();
-
-        // Store the game history entry
-        pipeline.set(gameKey, JSON.stringify(historyEntry), { EX: GAME_HISTORY_TTL });
-
-        // Add to sorted set index (score = timestamp for ordering).
-        // NX prevents duplicate entries if the same game is saved twice.
-        pipeline.zAdd(indexKey, { score: timestamp, value: historyId }, { NX: true });
-
-        // Trim index to keep only the most recent games
-        pipeline.zRemRangeByRank(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1));
-
-        // Set TTL on index
-        pipeline.expire(indexKey, GAME_HISTORY_TTL);
-
-        const results = await pipeline.exec();
-
-        // Check for partial pipeline failures (null results indicate errors).
-        // Throw so callers know history + index may be inconsistent.
-        if (results) {
-            const failedOps = results.filter(r => r === null);
-            if (failedOps.length > 0) {
-                const msg = `Partial pipeline failure in saveGameResult: ${failedOps.length}/${results.length} ops failed`;
-                logger.error(msg, {
-                    roomCode,
-                    gameId: historyId,
-                    failedOps: failedOps.length,
-                    totalOps: results.length
-                });
-                throw new Error(msg);
-            }
-        }
+        // Atomic Lua script: SET + ZADD(NX) + ZREMRANGEBYRANK + EXPIRE
+        // Replaces the previous redis.multi() pipeline which was not truly atomic
+        // (partial writes were possible if the server crashed mid-execution).
+        await withTimeout(
+            redis.eval(ATOMIC_SAVE_GAME_HISTORY_SCRIPT, {
+                keys: [gameKey, indexKey],
+                arguments: [
+                    JSON.stringify(historyEntry),
+                    historyId,
+                    timestamp.toString(),
+                    GAME_HISTORY_TTL.toString(),
+                    MAX_HISTORY_PER_ROOM.toString()
+                ]
+            }),
+            TIMEOUTS.REDIS_OPERATION,
+            `saveGameResult-lua-${roomCode}`
+        );
 
         logger.info('Game result saved to history', {
             roomCode,

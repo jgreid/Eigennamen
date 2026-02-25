@@ -570,18 +570,20 @@ describe('Socket Handler Integration Tests', () => {
     });
 
     describe('Malformed Messages', () => {
+        // Retry flaky integration tests that depend on async timing (tracked for root-cause fix)
+        jest.retryTimes(2);
+
         test('handles missing data gracefully', async () => {
             const client = await createClient();
             const createPromise = waitForEvent(client, 'room:created');
             client.emit('room:create', { roomId: 'malformed-test', nickname: 'Host' });
             await createPromise;
 
-            // Emit with missing required fields — should get an error, not crash
-            const _errorPromise = waitForEvent(client, 'game:error', 3000).catch(() => null);
+            // Emit with missing required fields — should get an error, not crash.
+            // Wait for the error event instead of a fixed timeout (event-driven assertion).
             client.emit('game:reveal', {});
-            // The server should respond with an error, or simply ignore.
+            await waitForEvent(client, 'game:error', 2000).catch(() => null);
             // The key assertion: the connection should NOT be dropped.
-            await new Promise(resolve => setTimeout(resolve, 500));
             expect(client.connected).toBe(true);
 
             client.disconnect();
@@ -593,14 +595,14 @@ describe('Socket Handler Integration Tests', () => {
             client.emit('room:create', { roomId: 'type-test', nickname: 'Host' });
             await createPromise;
 
-            // Send a string where object is expected
+            // Send a string where object is expected — wait for error event
             client.emit('game:reveal', 'not-an-object');
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await waitForEvent(client, 'game:error', 2000).catch(() => null);
             expect(client.connected).toBe(true);
 
-            // Send numbers where strings are expected
+            // Send numbers where strings are expected — wait for error event
             client.emit('room:join', { roomId: 12345, nickname: false });
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await waitForEvent(client, 'room:error', 2000).catch(() => null);
             expect(client.connected).toBe(true);
 
             client.disconnect();

@@ -12,6 +12,7 @@ jest.mock('../../config/redis', () => {
         mGet: jest.fn().mockResolvedValue([]),
         del: jest.fn().mockResolvedValue(1),
         multi: jest.fn(),
+        eval: jest.fn().mockResolvedValue(1),
         zAdd: jest.fn().mockResolvedValue(1),
         zRange: jest.fn().mockResolvedValue([]),
         zRemRangeByRank: jest.fn().mockResolvedValue(0),

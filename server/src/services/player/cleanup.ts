@@ -9,6 +9,12 @@ import { ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT } from '../../scripts';
 import { z } from 'zod';
 import { getPlayer, updatePlayer } from '../playerService';
 import { invalidateRoomReconnectToken, cleanupOrphanedReconnectionTokens } from './reconnection';
+import { setGauge, METRIC_NAMES } from '../../utils/metrics';
+
+// Backpressure: when the cleanup queue exceeds this threshold,
+// additional sweep passes are run to prevent unbounded growth.
+const CLEANUP_BACKPRESSURE_THRESHOLD = 500;
+const CLEANUP_MAX_ADDITIONAL_SWEEPS = 3;
 
 // Late-bound room cleanup callback to break circular dependency with roomService.
 // Set via registerRoomCleanup() during server initialization.
@@ -233,7 +239,31 @@ export function startCleanupTask(): void {
 
     cleanupInterval = setInterval(async () => {
         try {
-            await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
+            const cleaned = await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
+
+            // Backpressure: if we processed a full batch, the queue may be growing
+            // faster than we can drain it. Check depth and run additional sweeps.
+            if (cleaned >= PLAYER_CLEANUP.BATCH_SIZE) {
+                const redis: RedisClient = getRedis();
+                const queueDepth = await withTimeout(
+                    redis.zCard('scheduled:player:cleanup'),
+                    TIMEOUTS.REDIS_OPERATION,
+                    'cleanupBackpressure-zCard'
+                );
+
+                setGauge(METRIC_NAMES.CLEANUP_QUEUE_DEPTH, queueDepth);
+
+                if (queueDepth > CLEANUP_BACKPRESSURE_THRESHOLD) {
+                    logger.warn(`Cleanup queue depth (${queueDepth}) exceeds threshold (${CLEANUP_BACKPRESSURE_THRESHOLD}), running additional sweeps`);
+
+                    /* eslint-disable no-await-in-loop */
+                    for (let i = 0; i < CLEANUP_MAX_ADDITIONAL_SWEEPS; i++) {
+                        const additional = await processScheduledCleanups(PLAYER_CLEANUP.BATCH_SIZE);
+                        if (additional < PLAYER_CLEANUP.BATCH_SIZE) break;
+                    }
+                    /* eslint-enable no-await-in-loop */
+                }
+            }
         } catch (error) {
             logger.error('Error in cleanup task:', (error as Error).message);
         }

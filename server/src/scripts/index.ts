@@ -444,6 +444,39 @@ return 1
 
 
 /**
+ * Atomic game history save
+ * Replaces the non-atomic redis.multi() pipeline in gameHistoryService.ts.
+ * Performs SET + ZADD + ZREMRANGEBYRANK + EXPIRE in a single atomic operation,
+ * preventing partial writes if the server crashes mid-execution.
+ * KEYS[1] = game history key, KEYS[2] = index sorted set key
+ * ARGV[1] = game JSON, ARGV[2] = history ID, ARGV[3] = timestamp,
+ * ARGV[4] = TTL seconds, ARGV[5] = max history per room
+ */
+export const ATOMIC_SAVE_GAME_HISTORY_SCRIPT = `
+local gameKey = KEYS[1]
+local indexKey = KEYS[2]
+local gameJson = ARGV[1]
+local historyId = ARGV[2]
+local timestamp = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+local maxHistory = tonumber(ARGV[5])
+
+-- Store the game history entry with TTL
+redis.call('SET', gameKey, gameJson, 'EX', ttl)
+
+-- Add to sorted set index (NX prevents duplicate entries)
+redis.call('ZADD', indexKey, 'NX', timestamp, historyId)
+
+-- Trim index to keep only the most recent games
+redis.call('ZREMRANGEBYRANK', indexKey, 0, -(maxHistory + 1))
+
+-- Set TTL on index
+redis.call('EXPIRE', indexKey, ttl)
+
+return 1
+`;
+
+/**
  * Safe lock release (only release if we own the lock)
  * Previously in: utils/distributedLock.ts
  */
