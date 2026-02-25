@@ -249,8 +249,9 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
 
     const game = tryParseJSON(gameData, gameStateSchema, `game state for ${roomCode}`) as GameState | null;
     if (!game) {
-        logger.error(`Corrupted game data for room ${roomCode}`);
+        logger.error(`Corrupted game data for room ${roomCode}, cleaning up`);
         await redis.del(`room:${roomCode}:game`);
+        throw GameStateError.corrupted(roomCode);
     }
     return game;
 }
@@ -364,7 +365,13 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
  * Get game history
  */
 export async function getGameHistory(roomCode: string): Promise<GameHistoryEntry[]> {
-    const game = await getGame(roomCode);
+    let game: GameState | null;
+    try {
+        game = await getGame(roomCode);
+    } catch {
+        // Corrupted game data — already cleaned up by getGame
+        return [];
+    }
     if (!game) return [];
     return game.history || [];
 }

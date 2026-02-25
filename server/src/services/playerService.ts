@@ -136,7 +136,13 @@ export async function getPlayer(sessionId: string): Promise<Player | null> {
         `getPlayer-${sessionId}`
     );
     if (!playerData) return null;
-    return tryParseJSON(playerData, playerSchema, `player ${sessionId}`) as Player | null;
+    const player = tryParseJSON(playerData, playerSchema, `player ${sessionId}`) as Player | null;
+    if (!player) {
+        logger.error(`Corrupted player data for session ${sessionId}, cleaning up`);
+        await redis.del(`player:${sessionId}`);
+        throw new ServerError('Corrupted player data');
+    }
+    return player;
 }
 
 /**

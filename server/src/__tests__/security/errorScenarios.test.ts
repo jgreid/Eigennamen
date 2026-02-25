@@ -89,37 +89,32 @@ describe('Error Scenarios', () => {
     });
 
     describe('Corrupted Data Scenarios', () => {
-        test('handles corrupted JSON in game state', async () => {
+        test('throws on corrupted JSON in game state', async () => {
             mockRedis.get.mockResolvedValue('{ invalid json }');
 
-            const game = await gameService.getGame('TESTROOM');
-            expect(game).toBeNull();
+            await expect(gameService.getGame('TESTROOM')).rejects.toThrow('Game data corrupted');
         });
 
-        test('handles corrupted JSON in room state', async () => {
+        test('throws on corrupted JSON in room state', async () => {
             mockRedis.get.mockResolvedValue('not a json at all');
 
-            const room = await roomService.getRoom('TESTROOM');
-            expect(room).toBeNull();
+            await expect(roomService.getRoom('TESTROOM')).rejects.toThrow('Game data corrupted');
         });
 
-        test('handles corrupted JSON in player state', async () => {
+        test('throws on corrupted JSON in player state', async () => {
             mockRedis.get.mockResolvedValue('{corrupt: data]]]');
 
-            const player = await playerService.getPlayer('session-123');
-            expect(player).toBeNull();
+            await expect(playerService.getPlayer('session-123')).rejects.toThrow('Corrupted player data');
         });
 
-        test('handles partially corrupted game data', async () => {
-            // Valid JSON but missing required fields
+        test('throws on partially corrupted game data (missing required fields)', async () => {
+            // Valid JSON but missing required id field
             mockRedis.get.mockResolvedValue(JSON.stringify({
                 words: ['only', 'three', 'words'],
-                // Missing types, revealed, etc.
+                // Missing id, types, revealed, etc.
             }));
 
-            const game = await gameService.getGame('TESTROOM');
-            // Should still return something but may have undefined fields
-            expect(game).toBeDefined();
+            await expect(gameService.getGame('TESTROOM')).rejects.toThrow('Game data corrupted');
         });
 
         test('handles empty string from Redis', async () => {
