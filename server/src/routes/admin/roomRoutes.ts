@@ -1,7 +1,3 @@
-/**
- * Admin Room Routes - Room management, player kick, and broadcast endpoints
- */
-
 import type { Request, Response, Router as ExpressRouter } from 'express';
 import type { RedisClient } from '../../types';
 import type { AdminRequest } from '../../types/admin';

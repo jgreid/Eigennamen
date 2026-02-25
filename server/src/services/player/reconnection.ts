@@ -1,7 +1,3 @@
-/**
- * Player Reconnection Service - Token management for secure reconnection
- */
-
 import type { RedisClient, Team, Role } from '../../types';
 
 import crypto from 'crypto';

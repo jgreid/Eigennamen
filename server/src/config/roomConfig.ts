@@ -1,18 +1,3 @@
-/**
- * Room Configuration
- *
- * Room settings, Redis TTLs, turn timer,
- * and player cleanup configuration.
- *
- * Timer bounds are sourced from the shared module (single source of
- * truth for frontend + backend).
- *
- * Memory mode adjustments:
- * When running with REDIS_URL=memory (single-instance, no persistence),
- * TTLs are shortened to prevent unbounded memory growth on constrained VMs.
- * An Eigennamen game typically lasts 30-60 minutes, so 4 hours is generous.
- */
-
 import {
     TIMER_MIN_TURN_SECONDS, TIMER_MAX_TURN_SECONDS, TIMER_DEFAULT_TURN_SECONDS
 } from '../shared';

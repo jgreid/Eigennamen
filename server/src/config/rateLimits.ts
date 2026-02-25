@@ -1,10 +1,4 @@
 /**
- * Rate Limit Configuration
- *
- * Rate limits for socket events and HTTP API endpoints.
- */
-
-/**
  * Rate limit configuration
  */
 export interface RateLimitConfig {

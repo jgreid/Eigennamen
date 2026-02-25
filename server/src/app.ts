@@ -1,7 +1,3 @@
-/**
- * Express Application Configuration
- */
-
 import type { Request, Response, NextFunction, Application, Express } from 'express';
 import type { Server as SocketServer } from 'socket.io';
 

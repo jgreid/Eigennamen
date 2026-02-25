@@ -1,13 +1,3 @@
-/**
- * Socket Connection Handler
- *
- * Handles individual socket connections:
- *   - Handler registration (room, game, player, chat, timer)
- *   - Socket function provider initialization
- *   - Disconnect handling with timeout protection
- *   - Error handling
- */
-
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
 

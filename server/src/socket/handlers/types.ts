@@ -1,11 +1,3 @@
-/**
- * Shared types for all socket event handlers.
- *
- * Previously, GameSocket and RoomContext were duplicated across every handler
- * file (roomHandlers, gameHandlers, playerHandlers, timerHandlers, chatHandlers).
- * Centralizing them here eliminates redundancy and ensures consistency.
- */
-
 import type { Socket } from 'socket.io';
 import type { Player, GameState } from '../../types';
 

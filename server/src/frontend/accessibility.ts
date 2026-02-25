@@ -1,13 +1,9 @@
-// ========== ACCESSIBILITY MODULE ==========
-// Color blind mode, keyboard shortcuts, and screen reader helpers
-
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { t } from './i18n.js';
 
 const CB_STORAGE_KEY = 'eigennamen-colorblind';
 
-// ========== COLOR BLIND MODE ==========
 
 export function initColorBlindMode(): void {
     const enabled = safeGetItem(CB_STORAGE_KEY) === 'true';
@@ -28,7 +24,6 @@ function applyColorBlindMode(enabled: boolean): void {
     state.colorBlindMode = enabled;
 }
 
-// ========== KEYBOARD SHORTCUTS ==========
 
 const SHORTCUTS: Record<string, { action: string; descKey: string }> = {
     'n': { action: 'confirm-new-game', descKey: 'accessibility.newGame' },
@@ -95,7 +90,6 @@ function handleKeyboardShortcut(e: KeyboardEvent): void {
     }
 }
 
-// ========== SHORTCUT HELP OVERLAY ==========
 
 let overlayElement: HTMLElement | null = null;
 let overlayEscListener: ((e: KeyboardEvent) => void) | null = null;

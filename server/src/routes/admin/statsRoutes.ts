@@ -1,7 +1,3 @@
-/**
- * Admin Stats Routes - Server statistics and SSE metrics stream
- */
-
 import type { Response, Router as ExpressRouter } from 'express';
 import type { RedisClient } from '../../types';
 import type { AdminRequest } from '../../types/admin';

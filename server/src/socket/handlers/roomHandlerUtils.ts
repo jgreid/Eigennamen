@@ -1,10 +1,3 @@
-/**
- * Room Handler Utilities
- *
- * Helper functions shared across room-related socket handlers.
- * Extracted from roomHandlers.ts for clarity and reusability.
- */
-
 import type { Player, GameState } from '../../types';
 import type { GameSocket } from './types';
 import type { RoomStats, TeamStats } from '../../services/playerService';
@@ -16,9 +9,6 @@ import { getSocketFunctions } from '../socketFunctionProvider';
 import { getSocketRateLimiter } from '../rateLimitHandler';
 import { isPlayerSpectator } from '../playerContext';
 
-/**
- * Send timer status to a socket
- */
 export async function sendTimerStatus(
     socket: GameSocket,
     roomCode: string,
@@ -40,11 +30,6 @@ export async function sendTimerStatus(
     }
 }
 
-/**
- * Send spymaster view if player is a spymaster with active game
- * Performance fix: Use game.types directly instead of re-fetching from Redis.
- * getGameStateForPlayer already includes full types for spymasters.
- */
 export async function sendSpymasterViewIfNeeded(
     socket: GameSocket,
     player: Player,
@@ -60,10 +45,6 @@ export async function sendSpymasterViewIfNeeded(
     }
 }
 
-/**
- * Track failed join attempt for rate limiting
- * Prevents room code enumeration attacks by limiting failed attempts
- */
 export async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> {
     try {
         const rateLimiter = getSocketRateLimiter();
@@ -86,10 +67,6 @@ export async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> 
     }
 }
 
-/**
- * Compute room stats from a players array as a fallback when getRoomStats fails.
- * Avoids hardcoding zeros which would show incorrect team/spectator counts.
- */
 export function computeFallbackStats(players: Player[]): RoomStats {
     const teamStats = (team: string): TeamStats => {
         const teamPlayers = players.filter(p => p.team === team);

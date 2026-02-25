@@ -1,11 +1,3 @@
-/**
- * Timer Service - Turn timer management with Redis backing
- *
- * Single-instance architecture:
- * - Timer state is stored in Redis for persistence
- * - Local timeouts handle expiration
- */
-
 import type { RedisClient } from '../types';
 
 import { getRedis } from '../config/redis';

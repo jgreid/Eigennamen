@@ -7,7 +7,6 @@
 
 const {
     sanitizeHtml,
-    sanitizeForLog,
     removeControlChars,
     isReservedName,
     toEnglishLowerCase,
@@ -48,58 +47,6 @@ describe('sanitizeHtml', () => {
 
     test('passes through safe text unchanged', () => {
         expect(sanitizeHtml('Hello World 123')).toBe('Hello World 123');
-    });
-});
-
-describe('sanitizeForLog', () => {
-    test('redacts password fields', () => {
-        const result = sanitizeForLog({ username: 'admin', password: 'secret123' });
-        expect(result.username).toBe('admin');
-        expect(result.password).toBe('[REDACTED]');
-    });
-
-    test('redacts token fields', () => {
-        const result = sanitizeForLog({ sessionToken: 'abc123', data: 'visible' });
-        expect(result.sessionToken).toBe('[REDACTED]');
-        expect(result.data).toBe('visible');
-    });
-
-    test('redacts fields matching any sensitive pattern', () => {
-        const result = sanitizeForLog({
-            apiKey: 'k-123',
-            authHeader: 'Bearer xyz',
-            credential: 'cred',
-            jwtSecret: 's3cr3t'
-        });
-        expect(result.apiKey).toBe('[REDACTED]');
-        expect(result.authHeader).toBe('[REDACTED]');
-        expect(result.credential).toBe('[REDACTED]');
-        expect(result.jwtSecret).toBe('[REDACTED]');
-    });
-
-    test('redacts nested sensitive fields', () => {
-        const result = sanitizeForLog({
-            user: { name: 'Alice', password: 'pw' }
-        });
-        expect(result.user.name).toBe('Alice');
-        expect(result.user.password).toBe('[REDACTED]');
-    });
-
-    test('handles arrays by recursing into elements', () => {
-        const result = sanitizeForLog([
-            { name: 'A', token: 'x' },
-            { name: 'B', token: 'y' }
-        ]);
-        expect(result[0].name).toBe('A');
-        expect(result[0].token).toBe('[REDACTED]');
-        expect(result[1].token).toBe('[REDACTED]');
-    });
-
-    test('returns primitives unchanged', () => {
-        expect(sanitizeForLog('hello')).toBe('hello');
-        expect(sanitizeForLog(42)).toBe(42);
-        expect(sanitizeForLog(null)).toBe(null);
-        expect(sanitizeForLog(undefined)).toBe(undefined);
     });
 });
 

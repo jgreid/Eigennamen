@@ -1,6 +1,3 @@
-// ========== FRONTEND LOGGER ==========
-// Structured logging for frontend modules (replaces scattered console.* calls)
-
 const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 } as const;
 type LogLevel = keyof typeof LOG_LEVELS;
 

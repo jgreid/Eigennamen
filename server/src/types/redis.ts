@@ -6,9 +6,7 @@
  * independently defined in 9 different files.
  */
 
-// ============================================================================
 // Redis Transaction / Pipeline
-// ============================================================================
 
 /**
  * Redis transaction (MULTI/EXEC) with chained commands.
@@ -22,9 +20,7 @@ export interface RedisMulti {
     exec(): Promise<unknown[] | null>;
 }
 
-// ============================================================================
 // Redis Client
-// ============================================================================
 
 /**
  * Unified Redis client interface covering all methods used across the codebase.

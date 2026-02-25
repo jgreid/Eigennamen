@@ -1,7 +1,3 @@
-// ========== STATE MODULE ==========
-// Mutable shared state singleton.  Types live in stateTypes.ts, constants in
-// constants.ts, and debug tools in debug.ts — this file is just the data.
-
 import { DEFAULT_WORDS } from './constants.js';
 import { createStateProxy, attachDebugToWindow, debugEnabled } from './debug.js';
 import type { AppState } from './stateTypes.js';
@@ -36,7 +32,6 @@ export function dumpState(): void {
     _dumpStateImpl(_rawState);
 }
 
-// ========== RAW STATE ==========
 
 const _rawState: AppState = {
     cachedElements: {
@@ -119,7 +114,6 @@ const _rawState: AppState = {
     resyncInProgress: false
 };
 
-// ========== EXPORTED STATE ==========
 // Debug proxy wraps the state when localStorage.debug === 'eigennamen'.
 // Otherwise the raw object is exported (zero overhead).
 
@@ -134,7 +128,6 @@ export const state: AppState = (() => {
 
 attachDebugToWindow(_rawState);
 
-// ========== CACHED DOM ELEMENTS ==========
 
 export function initCachedElements(): void {
     state.cachedElements.board = document.getElementById('board');

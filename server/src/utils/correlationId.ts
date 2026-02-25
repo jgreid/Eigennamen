@@ -1,17 +1,5 @@
-/**
- * Correlation ID Utility
- *
- * Provides request/operation tracing across distributed operations.
- * Uses AsyncLocalStorage for automatic context propagation.
- */
-
-import type { Request, Response, NextFunction } from 'express';
 import { AsyncLocalStorage } from 'async_hooks';
-import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Correlation context interface
- */
 interface CorrelationContext {
     correlationId: string;
     sessionId?: string;
@@ -23,9 +11,6 @@ interface CorrelationContext {
     parentCorrelationId?: string;
 }
 
-/**
- * Context fields for logging
- */
 interface ContextFields {
     correlationId?: string;
     sessionId?: string;
@@ -33,55 +18,17 @@ interface ContextFields {
     instanceId?: string;
 }
 
-/**
- * Socket interface (simplified for correlation)
- */
-interface CorrelationSocket {
-    id: string;
-    sessionId?: string;
-    roomCode?: string;
-    handshake?: {
-        headers?: Record<string, string>;
-    };
-    correlationContext?: CorrelationContext;
-    correlationId?: string;
-}
-
-/**
- * Extended Express request with correlation context
- */
-interface CorrelationRequest extends Request {
-    sessionId?: string;
-    correlationContext?: CorrelationContext;
-}
-
-// Async local storage for correlation context
 const asyncLocalStorage = new AsyncLocalStorage<CorrelationContext>();
 
-// Header name for correlation ID propagation
-const CORRELATION_HEADER = 'x-correlation-id';
-
-/**
- * Get current correlation context
- * @returns Current context or undefined
- */
 function getContext(): CorrelationContext | undefined {
     return asyncLocalStorage.getStore();
 }
 
-/**
- * Get current correlation ID
- * @returns Current correlation ID or null
- */
 function getCorrelationId(): string | null {
     const context = getContext();
     return context?.correlationId || null;
 }
 
-/**
- * Get all context fields for logging
- * @returns Context fields
- */
 function getContextFields(): ContextFields {
     const context = getContext();
     if (!context) return {};
@@ -94,78 +41,8 @@ function getContextFields(): ContextFields {
     };
 }
 
-/**
- * Run a function within a correlation context
- * @param context - Context object with correlationId, sessionId, etc.
- * @param fn - Function to run
- * @returns Result of the function
- */
 function withContext<T>(context: CorrelationContext, fn: () => T): T {
     return asyncLocalStorage.run(context, fn);
-}
-
-/**
- * Create correlation context from socket
- * @param socket - Socket.io socket
- * @returns Correlation context
- */
-function createContextFromSocket(socket: CorrelationSocket): CorrelationContext {
-    return {
-        correlationId: socket.handshake?.headers?.[CORRELATION_HEADER] || uuidv4(),
-        sessionId: socket.sessionId,
-        roomCode: socket.roomCode,
-        socketId: socket.id,
-        instanceId: process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local'
-    };
-}
-
-/**
- * Create correlation context from HTTP request
- * @param req - Express request
- * @returns Correlation context
- */
-function createContextFromRequest(req: CorrelationRequest): CorrelationContext {
-    return {
-        correlationId: (req.headers[CORRELATION_HEADER] as string) || uuidv4(),
-        sessionId: req.sessionId,
-        instanceId: process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local',
-        method: req.method,
-        path: req.path
-    };
-}
-
-/**
- * Express middleware for correlation ID
- * Automatically sets up correlation context for HTTP requests
- */
-function correlationMiddleware(req: CorrelationRequest, res: Response, next: NextFunction): void {
-    const context = createContextFromRequest(req);
-
-    // Add correlation ID to response header
-    res.setHeader(CORRELATION_HEADER, context.correlationId);
-
-    // Run rest of request in correlation context
-    withContext(context, () => {
-        // Attach context to request for later use
-        req.correlationContext = context;
-        next();
-    });
-}
-
-/**
- * Socket.io middleware for correlation ID
- * Sets up correlation context for socket connections
- * @param socket - Socket.io socket
- * @param next - Next middleware
- */
-function socketCorrelationMiddleware(socket: CorrelationSocket, next: (err?: Error) => void): void {
-    const context = createContextFromSocket(socket);
-
-    // Attach context to socket for later use
-    socket.correlationContext = context;
-    socket.correlationId = context.correlationId;
-
-    next();
 }
 
 export {
@@ -173,16 +50,9 @@ export {
     getCorrelationId,
     getContextFields,
     withContext,
-    createContextFromSocket,
-    createContextFromRequest,
-    correlationMiddleware,
-    socketCorrelationMiddleware,
-    CORRELATION_HEADER
 };
 
 export type {
     CorrelationContext,
     ContextFields,
-    CorrelationSocket,
-    CorrelationRequest
 };

@@ -1,7 +1,3 @@
-// ========== URL STATE MODULE ==========
-// URL encoding/decoding, QR code generation, and link sharing.
-// Extracted from game.ts to separate URL/sharing concerns from game logic.
-
 import { state, BOARD_SIZE, COPY_BUTTON_TEXT } from './state.js';
 import { encodeWordsForURL, copyToClipboard } from './utils.js';
 import { showToast } from './ui.js';

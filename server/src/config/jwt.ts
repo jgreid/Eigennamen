@@ -1,9 +1,3 @@
-/**
- * JWT Security Configuration
- *
- * Provides secure JWT configuration with production requirements.
- */
-
 import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
 

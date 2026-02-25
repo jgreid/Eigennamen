@@ -1,22 +1,3 @@
-/**
- * Socket Function Provider
- *
- * Solves the circular dependency problem between socket/index.ts and handlers:
- * - socket/index.ts defines utility functions (emitToRoom, startTurnTimer, etc.)
- * - handlers need these functions but are imported by socket/index.ts
- *
- * Solution: Dependency Injection via this provider
- * 1. socket/index.ts registers functions after defining them
- * 2. Handlers call getSocketFunctions() at runtime (after registration)
- *
- * This pattern allows:
- * - Clean separation of concerns
- * - Testability (can mock the provider)
- * - No require-time circular dependency issues
- *
- * @module socketFunctionProvider
- */
-
 import type { Server as SocketIOServer } from 'socket.io';
 import type { TimerCallback } from '../types';
 import type { TimerStatus } from '../services/timerService';

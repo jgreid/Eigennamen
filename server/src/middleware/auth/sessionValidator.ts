@@ -1,14 +1,3 @@
-/**
- * Session Validation
- *
- * Handles session lifecycle validation:
- *   - Rate limiting validation attempts by IP (Redis + in-memory fallback)
- *   - Session age checks
- *   - IP consistency verification
- *   - Reconnection token validation
- *   - Session ID resolution from handshake auth params
- */
-
 import type { Player } from '../../types';
 
 import { validate as isValidUuid } from 'uuid';
@@ -64,7 +53,6 @@ interface SessionResolutionResult {
     ipMismatch: boolean;
 }
 
-// ─── In-Memory Rate Limit Fallback ──────────────────────────────────
 
 /**
  * In-memory rate limit fallback when Redis is unavailable.
@@ -122,7 +110,6 @@ function checkMemoryRateLimit(clientIP: string): RateLimitResult {
     return { allowed: true, attempts: entry.count };
 }
 
-// ─── Redis Rate Limiting ────────────────────────────────────────────
 
 /**
  * Rate limit session validation attempts by IP
@@ -169,7 +156,6 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
     }
 }
 
-// ─── Session Validation ─────────────────────────────────────────────
 
 /**
  * Validate session age
@@ -273,7 +259,6 @@ async function validateSession(sessionId: string, clientIP: string): Promise<Ses
     };
 }
 
-// ─── Reconnection Token ─────────────────────────────────────────────
 
 /**
  * Validate reconnection token format and value.
@@ -318,7 +303,6 @@ async function validateRoomReconnectToken(
     return true;
 }
 
-// ─── Session Resolution ─────────────────────────────────────────────
 
 /**
  * Resolve session ID from handshake auth params.

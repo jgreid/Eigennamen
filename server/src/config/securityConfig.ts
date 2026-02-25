@@ -1,13 +1,3 @@
-/**
- * Security Configuration
- *
- * Session security, validation constraints, reserved names,
- * distributed locks, and retry configuration.
- *
- * Validation limits and reserved names are sourced from the shared
- * module (single source of truth for frontend + backend).
- */
-
 import {
     NICKNAME_MIN_LENGTH, NICKNAME_MAX_LENGTH,
     TEAM_NAME_MAX_LENGTH, CHAT_MESSAGE_MAX_LENGTH,

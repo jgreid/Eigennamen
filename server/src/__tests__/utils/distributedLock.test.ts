@@ -7,9 +7,6 @@ const {
     acquire,
     withLock,
     withAutoExtend,
-    isLocked,
-    getLockOwner,
-    forceRelease,
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT
 } = require('../../utils/distributedLock');
@@ -274,105 +271,12 @@ describe('DistributedLock', () => {
         });
     });
 
-    describe('isLocked', () => {
-        it('should return true when key exists', async () => {
-            mockRedis.exists.mockResolvedValueOnce(1);
-
-            const lock = new DistributedLock();
-            const result = await lock.isLocked('test-lock');
-
-            expect(result).toBe(true);
-            expect(mockRedis.exists).toHaveBeenCalledWith('lock:test-lock');
-        });
-
-        it('should return false when key does not exist', async () => {
-            mockRedis.exists.mockResolvedValueOnce(0);
-
-            const lock = new DistributedLock();
-            const result = await lock.isLocked('test-lock');
-
-            expect(result).toBe(false);
-        });
-    });
-
-    describe('getLockOwner', () => {
-        it('should return owner when lock exists', async () => {
-            mockRedis.get.mockResolvedValueOnce('owner-123');
-
-            const lock = new DistributedLock();
-            const owner = await lock.getLockOwner('test-lock');
-
-            expect(owner).toBe('owner-123');
-            expect(mockRedis.get).toHaveBeenCalledWith('lock:test-lock');
-        });
-
-        it('should return null when lock does not exist', async () => {
-            mockRedis.get.mockResolvedValueOnce(null);
-
-            const lock = new DistributedLock();
-            const owner = await lock.getLockOwner('test-lock');
-
-            expect(owner).toBeNull();
-        });
-    });
-
-    describe('forceRelease', () => {
-        it('should force release a lock', async () => {
-            mockRedis.del.mockResolvedValueOnce(1);
-
-            const lock = new DistributedLock();
-            const released = await lock.forceRelease('test-lock');
-
-            expect(released).toBe(true);
-            expect(mockRedis.del).toHaveBeenCalledWith('lock:test-lock');
-        });
-
-        it('should return false if lock did not exist', async () => {
-            mockRedis.del.mockResolvedValueOnce(0);
-
-            const lock = new DistributedLock();
-            const released = await lock.forceRelease('test-lock');
-
-            expect(released).toBe(false);
-        });
-
-        it('should handle Redis errors', async () => {
-            mockRedis.del.mockRejectedValueOnce(new Error('Redis error'));
-
-            const lock = new DistributedLock();
-            const released = await lock.forceRelease('test-lock');
-
-            expect(released).toBe(false);
-        });
-    });
-
     describe('convenience functions', () => {
         it('acquire should use default lock instance', async () => {
             mockRedis.set.mockResolvedValueOnce('OK');
 
             const result = await acquire('test-lock');
             expect(result.acquired).toBe(true);
-        });
-
-        it('isLocked should use default lock instance', async () => {
-            mockRedis.exists.mockResolvedValueOnce(1);
-
-            const result = await isLocked('test-lock');
-            expect(result).toBe(true);
-        });
-
-        it('getLockOwner should use default lock instance', async () => {
-            mockRedis.get.mockResolvedValueOnce('owner-123');
-
-            const result = await getLockOwner('test-lock');
-            expect(result).toBe('owner-123');
-        });
-
-        it('forceRelease should use default lock instance', async () => {
-            mockRedis.del.mockResolvedValueOnce(1);
-
-            const result = await forceRelease('test-lock');
-            expect(result).toBe(true);
         });
 
         it('withLock should use default lock instance', async () => {

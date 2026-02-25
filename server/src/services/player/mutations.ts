@@ -1,10 +1,3 @@
-/**
- * Player Mutations - Write operations for player team, role, and nickname
- *
- * Uses Lua scripts for atomic updates with conflict prevention.
- * Imported by playerService.ts and re-exported for backward compatibility.
- */
-
 import type { Team, Role, Player, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';

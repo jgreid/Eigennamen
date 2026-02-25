@@ -1,10 +1,3 @@
-/**
- * Admin Dashboard Routes
- *
- * Provides endpoints for server administration and monitoring.
- * Protected by HTTP Basic Authentication using ADMIN_PASSWORD environment variable.
- */
-
 import type { Request, Response, NextFunction, Router as ExpressRouter } from 'express';
 import type { AdminRequest } from '../types/admin';
 

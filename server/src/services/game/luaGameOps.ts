@@ -1,11 +1,3 @@
-/**
- * Lua Game Operations - Lua script execution and Redis transactions
- *
- * Provides executeLuaScript for atomic game operations (revealCard,
- * endTurn) and executeGameTransaction for operations without Lua scripts
- * (forfeitGame).
- */
-
 import type { GameState, RedisClient as SharedRedisClient } from '../../types';
 
 import { z } from 'zod';

@@ -1,9 +1,3 @@
-/**
- * Custom Error Classes for Eigennamen Game
- *
- * Provides consistent error handling across the application with typed errors
- * that include error codes for client-side handling.
- */
 
 import type { ErrorCode, SafeErrorCode } from '../types/errors';
 

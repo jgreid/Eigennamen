@@ -1,10 +1,3 @@
-/**
- * Schema Helpers - Shared validation utilities
- *
- * Provides reusable schema builders, regex patterns, and
- * validation functions used across domain-specific schemas.
- */
-
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';

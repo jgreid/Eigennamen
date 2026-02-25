@@ -1,6 +1,3 @@
-// ========== GAME SCORING MODULE ==========
-// Game-over detection, scoreboard, and turn indicator updates
-
 import { state } from '../state.js';
 import { t } from '../i18n.js';
 

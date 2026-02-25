@@ -1,5 +1,3 @@
-// ========== EIGENNAMEN CLIENT ACCESSOR ==========
-// Safe accessor for the global EigennamenClient loaded via <script> tag.
 // Centralizes the existence + connection check used across the frontend.
 
 /**

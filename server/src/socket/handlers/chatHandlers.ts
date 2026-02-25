@@ -1,10 +1,3 @@
-/**
- * Chat Socket Event Handlers
- *
- * Migrated to use context handler architecture for consistent
- * validation, error handling, and socket room management.
- */
-
 import type { Server } from 'socket.io';
 import type { Player, Team, Role } from '../../types';
 import type { GameSocket, RoomContext } from './types';

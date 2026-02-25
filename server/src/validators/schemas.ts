@@ -1,17 +1,3 @@
-/**
- * Input Validation Schemas (Zod) - Barrel Re-export
- *
- * All schemas are organized by domain in separate files:
- *   - schemaHelpers: Shared utilities (createSanitizedString, createNicknameSchema, etc.)
- *   - roomSchemas: Room creation, joining, settings, reconnection
- *   - playerSchemas: Team, role, nickname, kick, spectator
- *   - gameSchemas: Start, reveal, history, replay
- *   - chatSchemas: Chat messages, spectator chat
- *   - timerSchemas: Timer add-time
- *
- * This barrel file re-exports everything for backwards compatibility.
- */
-
 // Re-export shared helpers
 export { z, createSanitizedString, createTeamNameSchema, createRoomIdSchema, createNicknameSchema } from './schemaHelpers';
 

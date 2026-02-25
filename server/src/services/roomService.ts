@@ -1,12 +1,3 @@
-/**
- * Room Service - Room management logic
- *
- * Simplified room system:
- * - Host provides a room ID when creating (serves as both name and access key)
- * - Players join by entering the room ID
- * - No separate password needed
- */
-
 import type {
     Room,
     CreateRoomSettings,
@@ -401,7 +392,6 @@ export async function deleteRoom(code: string): Promise<void> {
     await cleanupRoom(code);
 }
 
-// ─── Re-exports from sub-modules (backward compatibility) ───────────
 
 // Membership functions (extracted to room/membership.ts)
 import {

@@ -1,7 +1,3 @@
-/**
- * API Routes
- */
-
 import type { Router as ExpressRouter } from 'express';
 
 import express from 'express';

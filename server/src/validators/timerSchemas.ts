@@ -1,9 +1,3 @@
-/**
- * Timer Validation Schemas
- *
- * Zod schemas for timer add-time operations.
- */
-
 import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';

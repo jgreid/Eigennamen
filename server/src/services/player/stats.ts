@@ -1,7 +1,3 @@
-/**
- * Player Stats Service - Room statistics and spectator queries
- */
-
 import type { Team, Player } from '../../types';
 import { getPlayersInRoom } from '../playerService';
 

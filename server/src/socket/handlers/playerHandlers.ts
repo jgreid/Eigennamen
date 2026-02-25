@@ -1,10 +1,3 @@
-/**
- * Player Socket Event Handlers
- *
- * Migrated to use context handler architecture for consistent
- * validation, error handling, and socket room management.
- */
-
 import type { Server } from 'socket.io';
 import type { Player, GameState, Team, Role } from '../../types';
 import type { ErrorCode } from '../../types/errors';

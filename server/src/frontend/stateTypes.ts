@@ -1,6 +1,3 @@
-// ========== STATE TYPES ==========
-// Type definitions for application state, extracted from the monolithic state module.
-
 import type { ClueData, ServerPlayerData, RoomStats, ReplayData } from './multiplayerTypes.js';
 
 /**

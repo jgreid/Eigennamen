@@ -1,13 +1,3 @@
-/**
- * OpenAPI/Swagger Configuration
- *
- * Provides API documentation for the Eigennamen Online REST API.
- * Access documentation at /api-docs when server is running.
- *
- * The spec is defined inline — no file scanning needed, so swagger-jsdoc
- * is not required. swagger-ui-express serves the spec directly.
- */
-
 import swaggerUi from 'swagger-ui-express';
 
 import type { Express, Request, Response } from 'express';

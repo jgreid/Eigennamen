@@ -1,10 +1,3 @@
-/**
- * Player Queries - Read-only operations for player data
- *
- * Handles batch lookups, team membership queries, and role resets.
- * Imported by playerService.ts and re-exported for backward compatibility.
- */
-
 import type { Team, Role, Player, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';

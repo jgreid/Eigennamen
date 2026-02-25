@@ -1,18 +1,5 @@
-/**
- * Pub/Sub Health Monitoring
- *
- * Tracks pub/sub client health via error event callbacks and
- * periodic PING probes. Reports aggregated status for health
- * check endpoints.
- *
- * Wire-up: call `attachToClients()` after pub/sub clients connect
- * in redis.ts. The module registers 'error' and 'ready' listeners
- * on each client and starts a periodic PING interval.
- */
-
 import logger from './logger';
 
-// ── Health Status Interface ──────────────────────────────────────────
 
 /**
  * Health status interface
@@ -30,7 +17,6 @@ interface HealthStatus {
     lastError: Error | null;
 }
 
-// ── Module State ─────────────────────────────────────────────────────
 
 /** Timestamp of the last successful pub client PING/event */
 let lastPubSuccess: number | null = null;
@@ -65,7 +51,6 @@ const MAX_SILENCE_MS = 90_000;
  */
 const FAILURE_THRESHOLD = 3;
 
-// ── Internal Helpers ─────────────────────────────────────────────────
 
 function recordSuccess(client: 'pub' | 'sub'): void {
     const now = Date.now();
@@ -84,7 +69,6 @@ function recordFailure(err: Error): void {
     lastError = err;
 }
 
-// ── Public API ───────────────────────────────────────────────────────
 
 /**
  * Attach health monitoring to pub/sub Redis clients.

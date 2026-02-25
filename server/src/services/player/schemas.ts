@@ -1,9 +1,3 @@
-/**
- * Player Schemas - Zod validation schemas for player Redis data
- *
- * Shared across playerService sub-modules to avoid circular imports.
- */
-
 import { z } from 'zod';
 
 /**
