@@ -121,7 +121,7 @@ function simulateConnect(client: EigennamenClientType, socket: MockSocket): void
 }
 
 /** Advance timers and flush microtasks in a loop to drain async work. */
-async function flushAllTimersAndMicrotasks(): Promise<void> {
+async function _flushAllTimersAndMicrotasks(): Promise<void> {
     // Run all pending timers then let microtask queue drain.
     jest.runAllTimers();
     // A few rounds to handle chained promises.
