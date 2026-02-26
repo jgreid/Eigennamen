@@ -158,9 +158,6 @@
     "wordsDesc": "Choose which words appear on the board. Custom words are encoded in the shareable link."
   },
   "roomSettings": {
-    "waiting": "Waiting",
-    "inProgress": "In Progress",
-    "gameOver": "Game Over",
     "gameMode": "Game Mode",
     "gameModeHint": "Choose how you want to play.",
     "classic": "Classic",
@@ -201,11 +198,7 @@
     "note": "Starting team finds 9 words, other team finds 8. First to find all wins!"
   },
   "about": {
-    "title": "About Eigennamen Online",
-    "description": "A free, open-source implementation of the popular board game.",
-    "version": "Version",
-    "license": "GPL v3.0",
-    "source": "Source Code"
+    "description": "A free, open-source implementation of the popular board game."
   },
   "chat": {
     "title": "Chat",

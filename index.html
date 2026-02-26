@@ -15,8 +15,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Eigennamen">
     <title>Eigennamen Online</title>
-    <!-- QR Code library - served locally for reliability -->
-    <script defer src="/js/qrcode.min.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
     <!-- Socket.io client - deferred to avoid blocking HTML parsing -->
     <script defer src="/js/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
     <script defer src="/js/socket-client.js?v=10" integrity="sha384-C7QZTJta7q2dV3KW5ZSXx4jFDWFxYaZuqJFoU0xf5hhAWo3E/E35hOeM9jIndHhY" crossorigin="anonymous"></script>
@@ -155,13 +153,6 @@
                 </div>
             </div>
 
-            <!-- Share section -->
-            <div class="share-section">
-                <div class="share-input-group">
-                    <input type="text" id="share-link" data-testid="share-link" readonly placeholder="Game link..." aria-label="Share game link">
-                    <button type="button" class="btn-copy" data-action="copy-link">Copy</button>
-                </div>
-            </div>
         </aside>
 
         <!-- RIGHT MAIN AREA - Game Board -->

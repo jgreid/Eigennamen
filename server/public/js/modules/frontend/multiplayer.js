@@ -5,7 +5,7 @@ import { updateRoleBanner, updateControls } from './roles.js';
 import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
-import { updateMpIndicator, updateRoomSettingsNavVisibility, updateRoomInfoDisplay, updateForfeitButton, copyRoomId } from './multiplayerUI.js';
+import { updateMpIndicator, updateRoomSettingsNavVisibility, updateForfeitButton, copyRoomId } from './multiplayerUI.js';
 import { syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState, getRoomCodeFromURL, updateURLWithRoomCode } from './multiplayerSync.js';
 import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
@@ -13,7 +13,7 @@ import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
 // Re-export sub-module functions so app.ts imports continue to work
-export { copyRoomCode, updateRoomInfoDisplay, initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, updateForfeitButton } from './multiplayerUI.js';
+export { initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, updateForfeitButton } from './multiplayerUI.js';
 export { leaveMultiplayerMode, syncGameStateFromServer, syncLocalPlayerState, cleanupMultiplayerListeners, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL } from './multiplayerSync.js';
 export { setupMultiplayerListeners } from './multiplayerListeners.js';
 // Allows cancelling in-flight operations when user navigates away
@@ -333,7 +333,6 @@ export function onMultiplayerJoined(result, isHostParam = false) {
     setMpStatus(t('multiplayer.connected'), 'success');
     updateMpIndicator(result.room || null, state.multiplayerPlayers);
     updateRoomSettingsNavVisibility();
-    updateRoomInfoDisplay();
     updateControls();
     updateRoleBanner();
     updateForfeitButton();

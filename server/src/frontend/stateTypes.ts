@@ -36,7 +36,6 @@ export interface CachedElements {
     blueRemaining: HTMLElement | null;
     redTeamName: HTMLElement | null;
     blueTeamName: HTMLElement | null;
-    shareLink: HTMLElement | null;
     srAnnouncements: HTMLElement | null;
     timerDisplay: HTMLElement | null;
     timerValue: HTMLElement | null;
@@ -150,9 +149,6 @@ export interface AppState {
     isRevealingCard: boolean;
     revealingCards: Set<number>;
     revealTimeouts: Map<number, ReturnType<typeof setTimeout>>;
-
-    // Copy button
-    copyButtonTimeoutId: ReturnType<typeof setTimeout> | null;
 
     // i18n
     language: string;

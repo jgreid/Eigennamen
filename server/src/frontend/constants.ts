@@ -51,8 +51,6 @@ export const GAME = {
     ASSASSIN_CARDS
 };
 
-export const COPY_BUTTON_TEXT = 'Copy';
-
 // Role banner configuration - maps role/team to CSS class and label
 export const ROLE_BANNER_CONFIG: Record<string, { red: string; blue: string; label: string }> = {
     spymaster: { red: 'spymaster-red', blue: 'spymaster-blue', label: 'Spymaster' },

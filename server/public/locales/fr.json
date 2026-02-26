@@ -158,9 +158,6 @@
     "wordsDesc": "Choisissez les mots qui apparaissent sur le plateau. Les mots personnalisés sont inclus dans le lien partagé."
   },
   "roomSettings": {
-    "waiting": "En attente",
-    "inProgress": "En cours",
-    "gameOver": "Fin de partie",
     "gameMode": "Mode de jeu",
     "gameModeHint": "Choisissez comment vous voulez jouer.",
     "classic": "Classique",
@@ -201,11 +198,7 @@
     "note": "L'équipe qui commence cherche 9 mots, l'autre 8. La première à tous les trouver gagne !"
   },
   "about": {
-    "title": "À propos de Eigennamen Online",
-    "description": "Une implémentation gratuite et open-source du célèbre jeu de société.",
-    "version": "Version",
-    "license": "GPL v3.0",
-    "source": "Code source"
+    "description": "Une implémentation gratuite et open-source du célèbre jeu de société."
   },
   "chat": {
     "title": "Discussion",

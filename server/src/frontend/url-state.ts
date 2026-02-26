@@ -1,7 +1,5 @@
-import { state, BOARD_SIZE, COPY_BUTTON_TEXT } from './state.js';
-import { encodeWordsForURL, copyToClipboard } from './utils.js';
-import { showToast } from './ui.js';
-import { t } from './i18n.js';
+import { state, BOARD_SIZE } from './state.js';
+import { encodeWordsForURL } from './utils.js';
 
 /**
  * Update the browser URL with current game state.
@@ -27,40 +25,4 @@ export function updateURL(): void {
     }
 
     window.history.replaceState({}, '', url);
-    const shareLink = state.cachedElements.shareLink || document.getElementById('share-link');
-    if (shareLink) (shareLink as HTMLInputElement).value = url;
-}
-
-/**
- * Copy the current game link to clipboard.
- */
-export async function copyLink(): Promise<void> {
-    const input = state.cachedElements.shareLink || document.getElementById('share-link');
-    const btn = document.querySelector('.btn-copy');
-
-    if (!input) return;
-
-    // Clear any existing timeout to prevent flickering
-    if (state.copyButtonTimeoutId) {
-        clearTimeout(state.copyButtonTimeoutId);
-        state.copyButtonTimeoutId = null;
-    }
-
-    const urlToCopy = (input as HTMLInputElement).value || window.location.href;
-
-    const copied = await copyToClipboard(urlToCopy);
-    if (copied) {
-        showToast(t('toast.linkCopied'), 'success', 3000);
-    } else {
-        showToast(t('toast.failedToCopy'), 'warning', 3000);
-    }
-
-    if (btn) {
-        btn.textContent = t('game.copiedShort');
-    }
-
-    state.copyButtonTimeoutId = setTimeout(() => {
-        if (btn) btn.textContent = COPY_BUTTON_TEXT;
-        state.copyButtonTimeoutId = null;
-    }, 3000);
 }

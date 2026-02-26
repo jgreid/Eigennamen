@@ -1,7 +1,7 @@
 import { DEFAULT_WORDS } from './constants.js';
 import { attachDebugToWindow, initDebugSubscriptions } from './debug.js';
 import { createReactiveProxy } from './store/index.js';
-export { BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, COPY_BUTTON_TEXT, ROLE_BANNER_CONFIG } from './constants.js';
+export { BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, ROLE_BANNER_CONFIG } from './constants.js';
 export { logStateChange, getStateHistory, clearStateHistory, watchState } from './debug.js';
 // These re-exports need the state reference curried in (debug.ts can't import
 // state.ts without a circular dependency, so it takes the state as a parameter).
@@ -20,7 +20,7 @@ const _rawState = {
         board: null, roleBanner: null, turnIndicator: null, endTurnBtn: null,
         spymasterBtn: null, clickerBtn: null, redTeamBtn: null, blueTeamBtn: null,
         spectateBtn: null, redRemaining: null, blueRemaining: null,
-        redTeamName: null, blueTeamName: null, shareLink: null,
+        redTeamName: null, blueTeamName: null,
         srAnnouncements: null, timerDisplay: null, timerValue: null
     },
     srAnnouncementTimeout: null,
@@ -71,7 +71,6 @@ const _rawState = {
     isRevealingCard: false,
     revealingCards: new Set(),
     revealTimeouts: new Map(),
-    copyButtonTimeoutId: null,
     language: 'en',
     localizedDefaultWords: null,
     colorBlindMode: false,
@@ -101,7 +100,6 @@ export function initCachedElements() {
     state.cachedElements.blueRemaining = document.getElementById('blue-remaining');
     state.cachedElements.redTeamName = document.getElementById('red-team-name');
     state.cachedElements.blueTeamName = document.getElementById('blue-team-name');
-    state.cachedElements.shareLink = document.getElementById('share-link');
     state.cachedElements.srAnnouncements = document.getElementById('sr-announcements');
     state.cachedElements.timerDisplay = document.getElementById('timer-display');
     state.cachedElements.timerValue = document.getElementById('timer-value');

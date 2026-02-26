@@ -69,17 +69,6 @@ interface EigennamenClientAPI {
 
 declare const EigennamenClient: EigennamenClientAPI;
 
-/* ---------- qrcode (qrcode.min.js) ---------- */
-
-interface QRCode {
-    addData(data: string): void;
-    make(): void;
-    getModuleCount(): number;
-    isDark(row: number, col: number): boolean;
-}
-
-declare function qrcode(typeNumber: number, errorCorrection: string): QRCode;
-
 /* ---------- Socket.io (socket.io.min.js) ---------- */
 
 interface IoFunction {

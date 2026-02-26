@@ -158,9 +158,6 @@
     "wordsDesc": "Wähle, welche Wörter auf dem Spielfeld erscheinen. Eigene Wörter werden im teilbaren Link gespeichert."
   },
   "roomSettings": {
-    "waiting": "Wartend",
-    "inProgress": "Läuft",
-    "gameOver": "Spiel beendet",
     "gameMode": "Spielmodus",
     "gameModeHint": "Wähle, wie du spielen möchtest.",
     "classic": "Klassisch",
@@ -201,11 +198,7 @@
     "note": "Das anfangende Team findet 9 Wörter, das andere 8. Wer zuerst alle findet, gewinnt!"
   },
   "about": {
-    "title": "Über Eigennamen Online",
-    "description": "Eine kostenlose Open-Source-Umsetzung des beliebten Brettspiels.",
-    "version": "Version",
-    "license": "GPL v3.0",
-    "source": "Quellcode"
+    "description": "Eine kostenlose Open-Source-Umsetzung des beliebten Brettspiels."
   },
   "chat": {
     "title": "Chat",

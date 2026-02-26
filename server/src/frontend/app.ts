@@ -5,7 +5,7 @@ import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, copyLink, loadGameFromURL,
+    endTurn, loadGameFromURL,
     closeGameOver, revealCard
 } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
@@ -97,10 +97,6 @@ function setupEventListeners(): void {
             case 'confirm-end-turn':
                 confirmEndTurn();
                 break;
-            case 'copy-link':
-                copyLink();
-                break;
-
             // Settings modal
             case 'save-settings':
                 saveSettings();

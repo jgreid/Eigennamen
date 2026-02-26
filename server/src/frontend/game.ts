@@ -15,7 +15,7 @@ export { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/sco
 export { revealCard, revealCardFromServer, showGameOverModal, showGameOver, closeGameOver } from './game/reveal.js';
 
 // Re-export URL functions so existing consumers don't break
-export { updateURL, copyLink } from './url-state.js';
+export { updateURL } from './url-state.js';
 
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed: number): void {
