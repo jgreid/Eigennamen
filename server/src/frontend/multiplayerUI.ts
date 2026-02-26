@@ -40,8 +40,6 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
             updatePlayerList(playersUl, players);
         }
 
-        // Update share panel for multiplayer mode
-        updateSharePanelMode(true, room.code);
     } else {
         if (indicator) indicator.classList.remove('active');
         if (playerListEl) playerListEl.style.display = 'none';
@@ -52,56 +50,19 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
 
         // Hide chat panel
         hideChatPanel();
-
-        // Update share panel for standalone mode
-        updateSharePanelMode(false);
-    }
-}
-
-// Toggle share panel between multiplayer (room code) and standalone (URL/QR) modes
-export function updateSharePanelMode(isMultiplayer: boolean, roomCode: string | null = null): void {
-    const mpShare = document.getElementById('mp-room-code-share');
-    const standaloneShare = document.getElementById('standalone-share');
-    const shareRoomCode = document.getElementById('share-room-code');
-    const shareServerUrl = document.getElementById('share-server-url');
-
-    if (isMultiplayer && roomCode) {
-        // Multiplayer mode: show room code, hide URL/QR
-        if (mpShare) mpShare.style.display = 'block';
-        if (standaloneShare) standaloneShare.style.display = 'none';
-        if (shareRoomCode) shareRoomCode.textContent = roomCode.toUpperCase();
-        if (shareServerUrl) shareServerUrl.textContent = window.location.host;
-    } else {
-        // Standalone mode: show URL/QR, hide room code
-        if (mpShare) mpShare.style.display = 'none';
-        if (standaloneShare) standaloneShare.style.display = 'block';
-    }
-}
-
-// Copy room code to clipboard
-export async function copyRoomCode(): Promise<void> {
-    const roomCode = document.getElementById('share-room-code')?.textContent;
-    const feedback = document.getElementById('room-code-copy-feedback');
-
-    if (!roomCode || roomCode === '----') return;
-
-    const copied = await copyToClipboard(roomCode);
-    if (copied) {
-        if (feedback) {
-            feedback.textContent = t('toast.roomCodeCopied');
-            setTimeout(() => { feedback.textContent = ''; }, UI.COPY_FEEDBACK_MS);
-        }
-        showToast(t('toast.roomCodeCopiedClipboard'));
-    } else {
-        showToast(t('toast.failedToCopy'), 'warning');
     }
 }
 
 export async function copyRoomId(): Promise<void> {
     if (state.currentRoomId) {
         const copied = await copyToClipboard(state.currentRoomId);
+        const btn = document.getElementById('btn-copy-room-id');
         if (copied) {
             showToast(t('toast.roomIdCopied'), 'success', 2000);
+            if (btn) {
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1000);
+            }
         } else {
             showToast(t('toast.failedToCopyShort'), 'error', 2000);
         }

@@ -2,7 +2,7 @@
  * Frontend MultiplayerUI Module Tests
  *
  * Tests exports from src/frontend/multiplayerUI.ts:
- * updateMpIndicator, updateSharePanelMode, copyRoomCode, copyRoomId,
+ * updateMpIndicator, copyRoomId,
  * updatePlayerList, initPlayerListUI, updateRoomSettingsNavVisibility,
  * syncGameModeUI, updateDuetUI, updateDuetInfoBar,
  * updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage,
@@ -84,11 +84,8 @@ jest.mock('../../frontend/clientAccessor', () => ({
     sendSpectatorChat: jest.fn()
 };
 
-// Mock qrcode global
-(global as any).qrcode = jest.fn();
-
 import {
-    updateMpIndicator, updateSharePanelMode,
+    updateMpIndicator,
     updatePlayerList, updateRoomSettingsNavVisibility,
     syncGameModeUI, updateDuetUI, updateDuetInfoBar,
     updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage,
@@ -171,25 +168,6 @@ describe('multiplayerUI module', () => {
             updateMpIndicator(null, []);
 
             expect(document.getElementById('mp-extra-buttons-row')!.style.display).toBe('none');
-        });
-    });
-
-    describe('updateSharePanelMode', () => {
-        test('shows room code share in multiplayer mode', () => {
-            setupShareDOM();
-            updateSharePanelMode(true, 'MYROOM');
-
-            expect(document.getElementById('mp-room-code-share')!.style.display).toBe('block');
-            expect(document.getElementById('standalone-share')!.style.display).toBe('none');
-            expect(document.getElementById('share-room-code')!.textContent).toBe('MYROOM');
-        });
-
-        test('shows standalone share in standalone mode', () => {
-            setupShareDOM();
-            updateSharePanelMode(false);
-
-            expect(document.getElementById('mp-room-code-share')!.style.display).toBe('none');
-            expect(document.getElementById('standalone-share')!.style.display).toBe('block');
         });
     });
 
@@ -536,15 +514,6 @@ function setupIndicatorDOM(): void {
         <div id="mp-player-list"></div>
         <ul id="mp-players-ul"></ul>
         <div id="mp-extra-buttons-row" style="display: none"></div>
-    `;
-}
-
-function setupShareDOM(): void {
-    document.body.innerHTML = `
-        <div id="mp-room-code-share" style="display: none"></div>
-        <div id="standalone-share" style="display: block"></div>
-        <span id="share-room-code"></span>
-        <span id="share-server-url"></span>
     `;
 }
 

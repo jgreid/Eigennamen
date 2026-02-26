@@ -5,13 +5,13 @@ import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, copyLink, loadGameFromURL, updateQRCode,
+    endTurn, copyLink, loadGameFromURL,
     closeGameOver, revealCard
 } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
     openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
-    copyRoomCode, initNicknameEditUI,
+    initNicknameEditUI,
     confirmForfeit, closeForfeitConfirm, forfeitGame,
     closeKickConfirm, confirmKickPlayer
 } from './multiplayer.js';
@@ -99,9 +99,6 @@ function setupEventListeners(): void {
                 break;
             case 'copy-link':
                 copyLink();
-                break;
-            case 'copy-room-code':
-                copyRoomCode();
                 break;
 
             // Settings modal
@@ -231,8 +228,6 @@ async function init(): Promise<void> {
         loadLocalSettings();
         await tryLoadWordlistFile();
         loadGameFromURL();
-        // Initialize QR code with current URL
-        updateQRCode(window.location.href);
         // Initialize i18n (loads translations, translates page)
         await initI18n();
         // Wire up language selector

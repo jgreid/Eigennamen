@@ -23,7 +23,7 @@ import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 // Re-export sub-module functions so app.ts imports continue to work
 
 export {
-    copyRoomCode, initPlayerListUI, initNicknameEditUI,
+    initPlayerListUI, initNicknameEditUI,
     confirmForfeit, closeForfeitConfirm, forfeitGame,
     closeKickConfirm, confirmKickPlayer, updateForfeitButton
 } from './multiplayerUI.js';

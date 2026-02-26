@@ -84,7 +84,6 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     updateRoomSettingsNavVisibility: jest.fn(),
     updateForfeitButton: jest.fn(),
     copyRoomId: jest.fn(),
-    copyRoomCode: jest.fn(),
     initPlayerListUI: jest.fn(),
     initNicknameEditUI: jest.fn(),
     confirmForfeit: jest.fn(),

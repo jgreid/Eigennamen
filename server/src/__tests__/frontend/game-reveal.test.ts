@@ -25,7 +25,6 @@ jest.mock('../../frontend/i18n', () => ({
 
 jest.mock('../../frontend/url-state', () => ({
     updateURL: jest.fn(),
-    updateQRCode: jest.fn(),
     copyLink: jest.fn(),
 }));
 

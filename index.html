@@ -56,7 +56,7 @@
             <!-- Multiplayer Status Indicator -->
             <div class="multiplayer-indicator" id="mp-indicator" data-testid="mp-indicator">
                 <span class="status-dot"></span>
-                <span>Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></span>
+                <button type="button" class="room-code-copy-btn" id="btn-copy-room-id" title="Click to copy room code">Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></button>
                 <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players" aria-label="Show player list" aria-expanded="false">
                     <span id="mp-player-count" data-testid="player-count">0 players</span>
                     <span class="expand-icon">▾</span>
@@ -195,10 +195,6 @@
                             <span class="nav-icon">📝</span>
                             <span class="nav-text" data-i18n="settings.words">Words</span>
                         </button>
-                        <button type="button" class="settings-nav-item" data-panel="link">
-                            <span class="nav-icon">🔗</span>
-                            <span class="nav-text" data-i18n="settings.link">Share</span>
-                        </button>
                         <button type="button" class="settings-nav-item" data-panel="prefs">
                             <span class="nav-icon">⚙️</span>
                             <span class="nav-text" data-i18n="settings.preferences">Prefs</span>
@@ -258,47 +254,6 @@
                             <label for="custom-words">Custom words <span class="word-count-inline" id="word-count">0 words</span></label>
                             <textarea id="custom-words" placeholder="Enter words, one per line..."></textarea>
                             <div id="word-error" class="input-error">Need at least 25 custom words for "Custom only" mode.</div>
-                        </div>
-                    </div>
-
-                    <!-- Link/Share Panel -->
-                    <div class="settings-panel" id="panel-link">
-                        <h2>Share Game</h2>
-
-                        <!-- Multiplayer Mode: Simple Room Code -->
-                        <div class="room-code-share" id="mp-room-code-share" style="display: none;">
-                            <p class="panel-description">Share this room code with friends to let them join your game.</p>
-
-                            <div class="room-code-display">
-                                <span class="room-code-label">Room Code</span>
-                                <span class="room-code-value" id="share-room-code">----</span>
-                                <button type="button" class="btn-copy-room-code" data-action="copy-room-code" title="Copy room code">
-                                    <span class="copy-icon">📋</span>
-                                    <span class="copy-text">Copy</span>
-                                </button>
-                            </div>
-                            <div id="room-code-copy-feedback" class="copy-feedback"></div>
-
-                            <p class="room-code-hint">Players can join at <strong id="share-server-url"></strong> using this code</p>
-                        </div>
-
-                        <!-- Standalone Mode: Link + QR Code -->
-                        <div class="link-share-content compact" id="standalone-share">
-                            <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
-
-                            <div class="link-input-group">
-                                <input type="text" id="share-link-input" readonly class="share-link-input" aria-label="Shareable game link">
-                                <button type="button" class="btn-copy-link" data-action="copy-link" title="Copy link to clipboard">
-                                    <span class="copy-icon">📋</span>
-                                    <span class="copy-text">Copy</span>
-                                </button>
-                            </div>
-                            <div id="copy-feedback" class="copy-feedback"></div>
-
-                            <div class="qr-container compact">
-                                <canvas id="share-qr-canvas" width="200" height="200"></canvas>
-                                <span class="qr-hint">Scan to join on mobile</span>
-                            </div>
                         </div>
                     </div>
 

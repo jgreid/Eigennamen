@@ -1,7 +1,6 @@
 import { state, BOARD_SIZE, COPY_BUTTON_TEXT } from './state.js';
 import { encodeWordsForURL, copyToClipboard } from './utils.js';
 import { showToast } from './ui.js';
-import { logger } from './logger.js';
 import { t } from './i18n.js';
 
 /**
@@ -30,81 +29,14 @@ export function updateURL(): void {
     window.history.replaceState({}, '', url);
     const shareLink = state.cachedElements.shareLink || document.getElementById('share-link');
     if (shareLink) (shareLink as HTMLInputElement).value = url;
-
-    // Update QR code for easy sharing
-    updateQRCode(url);
-}
-
-/**
- * Update QR code with current game URL.
- * Uses qrcode-generator library (CDN) for reliable QR code generation.
- */
-export function updateQRCode(url?: string): void {
-    const shareCanvas = document.getElementById('share-qr-canvas') as HTMLCanvasElement | null;
-    const shareLinkInput = document.getElementById('share-link-input') as HTMLInputElement | null;
-    const targetUrl = url || window.location.href;
-
-    // Update share link input
-    if (shareLinkInput) {
-        shareLinkInput.value = targetUrl;
-    }
-
-    // Check if qrcode-generator library is loaded
-    if (typeof qrcode !== 'function') {
-        return;
-    }
-
-    try {
-        // Create QR code with auto type number (0) and Medium error correction
-        const qr = qrcode(0, 'M');
-        qr.addData(targetUrl);
-        qr.make();
-
-        const moduleCount = qr.getModuleCount();
-        const scale = 8;
-        const margin = 2;
-        const canvasSize = (moduleCount + margin * 2) * scale;
-        const darkColor = '#1a1a2e';
-        const lightColor = '#ffffff';
-
-        if (shareCanvas) {
-            shareCanvas.width = canvasSize;
-            shareCanvas.height = canvasSize;
-            const ctx = shareCanvas.getContext('2d');
-
-            // Fill background
-            ctx!.fillStyle = lightColor;
-            ctx!.fillRect(0, 0, canvasSize, canvasSize);
-
-            // Draw modules
-            ctx!.fillStyle = darkColor;
-            for (let row = 0; row < moduleCount; row++) {
-                for (let col = 0; col < moduleCount; col++) {
-                    if (qr.isDark(row, col)) {
-                        ctx!.fillRect(
-                            (col + margin) * scale,
-                            (row + margin) * scale,
-                            scale,
-                            scale
-                        );
-                    }
-                }
-            }
-        }
-    } catch (e) {
-        logger.error('QR code generation failed:', e);
-    }
 }
 
 /**
  * Copy the current game link to clipboard.
  */
 export async function copyLink(): Promise<void> {
-    // Get URL from either share link input
-    const input = state.cachedElements.shareLink || document.getElementById('share-link-input');
+    const input = state.cachedElements.shareLink || document.getElementById('share-link');
     const btn = document.querySelector('.btn-copy');
-    const linkPanelBtn = document.querySelector('.btn-copy-link');
-    const feedback = document.getElementById('copy-feedback');
 
     if (!input) return;
 
@@ -123,25 +55,12 @@ export async function copyLink(): Promise<void> {
         showToast(t('toast.failedToCopy'), 'warning', 3000);
     }
 
-    // Update feedback for both buttons
     if (btn) {
         btn.textContent = t('game.copiedShort');
-    }
-    if (linkPanelBtn) {
-        const copyText = linkPanelBtn.querySelector('.copy-text');
-        if (copyText) copyText.textContent = t('game.copiedShort');
-    }
-    if (feedback) {
-        feedback.textContent = t('toast.linkCopied');
     }
 
     state.copyButtonTimeoutId = setTimeout(() => {
         if (btn) btn.textContent = COPY_BUTTON_TEXT;
-        if (linkPanelBtn) {
-            const copyText = linkPanelBtn.querySelector('.copy-text');
-            if (copyText) copyText.textContent = t('game.copy');
-        }
-        if (feedback) feedback.textContent = '';
         state.copyButtonTimeoutId = null;
     }, 3000);
 }
