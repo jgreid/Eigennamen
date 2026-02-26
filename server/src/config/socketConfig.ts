@@ -51,8 +51,6 @@ export const SOCKET_EVENTS = {
     GAME_TURN_ENDED: 'game:turnEnded',
     GAME_FORFEIT: 'game:forfeit',
     GAME_OVER: 'game:over',
-    GAME_HISTORY: 'game:history',
-    GAME_HISTORY_DATA: 'game:historyData',
     GAME_GET_HISTORY: 'game:getHistory',
     GAME_GET_REPLAY: 'game:getReplay',
     GAME_HISTORY_RESULT: 'game:historyResult',
@@ -96,7 +94,6 @@ export const SOCKET_EVENTS = {
     SPECTATOR_REQUEST_JOIN: 'spectator:requestJoin',
     SPECTATOR_JOIN_REQUEST: 'spectator:joinRequest',
     SPECTATOR_APPROVE_JOIN: 'spectator:approveJoin',
-    SPECTATOR_DENY_JOIN: 'spectator:denyJoin',
     SPECTATOR_JOIN_APPROVED: 'spectator:joinApproved',
     SPECTATOR_JOIN_DENIED: 'spectator:joinDenied'
 } as const;

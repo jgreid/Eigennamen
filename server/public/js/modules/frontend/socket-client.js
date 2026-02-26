@@ -663,12 +663,6 @@ import { registerAllEventListeners } from './socket-client-events.js';
             this._getSocket()?.emit('game:forfeit');
         },
         /**
-         * Request game history (current game moves)
-         */
-        getHistory() {
-            this._getSocket()?.emit('game:history');
-        },
-        /**
          * Request past games history for replay
          * @param limit - Maximum number of games to return
          */

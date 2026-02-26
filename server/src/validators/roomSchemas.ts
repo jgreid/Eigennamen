@@ -50,11 +50,6 @@ const roomCodeSchema = z.object({
     code: createRoomIdSchema()
 });
 
-// HTTP route validation schema for word list ID parameter
-const wordListIdSchema = z.object({
-    id: z.string().uuid('Invalid word list ID format')
-});
-
 // Type exports for schema inference
 export type RoomCreateInput = ZodType.infer<typeof roomCreateSchema>;
 export type RoomJoinInput = ZodType.infer<typeof roomJoinSchema>;
@@ -66,6 +61,5 @@ export {
     roomJoinSchema,
     roomSettingsSchema,
     roomReconnectSchema,
-    roomCodeSchema,
-    wordListIdSchema
+    roomCodeSchema
 };

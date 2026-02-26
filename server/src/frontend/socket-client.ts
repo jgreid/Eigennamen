@@ -734,13 +734,6 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
         },
 
         /**
-         * Request game history (current game moves)
-         */
-        getHistory(): void {
-            this._getSocket()?.emit('game:history');
-        },
-
-        /**
          * Request past games history for replay
          * @param limit - Maximum number of games to return
          */

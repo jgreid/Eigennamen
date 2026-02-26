@@ -86,10 +86,12 @@ async function startEmbeddedRedis(): Promise<string> {
     const args = [
         '--port', port.toString(),
         '--bind', '127.0.0.1',
-        '--save', '',           // Disable RDB snapshots
-        '--appendonly', 'no',   // Disable AOF persistence
+        '--save', '',              // Disable RDB snapshots
+        '--appendonly', 'no',      // Disable AOF persistence
         '--daemonize', 'no',
-        '--loglevel', 'notice'
+        '--loglevel', 'notice',
+        '--maxmemory', '256mb',            // Cap memory to prevent OOM on constrained VMs
+        '--maxmemory-policy', 'allkeys-lru' // Evict least-recently-used keys when limit is hit
     ];
 
     // Configurable timeout for slow hardware or high-load environments

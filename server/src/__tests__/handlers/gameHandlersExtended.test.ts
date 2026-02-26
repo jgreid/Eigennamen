@@ -608,30 +608,4 @@ describe('Extended Game Handlers Tests', () => {
         });
     });
 
-    describe('game:history edge cases', () => {
-        test('handles error getting history', async () => {
-            gameService.getGameHistory.mockRejectedValue(new Error('History error'));
-
-            const handlers = mockSocket.on.mock.calls;
-            const historyHandler = handlers.find(h => h[0] === 'game:history');
-            await historyHandler[1]();
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: 'An unexpected error occurred'
-            }));
-        });
-
-        test('handles no roomCode', async () => {
-            mockSocket.roomCode = null;
-            playerService.getPlayer.mockResolvedValue(null);
-
-            const handlers = mockSocket.on.mock.calls;
-            const historyHandler = handlers.find(h => h[0] === 'game:history');
-            await historyHandler[1]();
-
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: expect.any(String)
-            }));
-        });
-    });
 });

@@ -329,16 +329,6 @@ function gameHandlers(io: Server, socket: GameSocket): void {
     ));
 
     /**
-     * Get game history (current game's move history)
-     */
-    socket.on(SOCKET_EVENTS.GAME_HISTORY, createRoomHandler(socket, SOCKET_EVENTS.GAME_HISTORY, null,
-        async (ctx: RoomContext) => {
-            const history = await gameService.getGameHistory(ctx.roomCode);
-            socket.emit(SOCKET_EVENTS.GAME_HISTORY_DATA, { history });
-        }
-    ));
-
-    /**
      * Get past games history for this room (for replay)
      */
     socket.on(SOCKET_EVENTS.GAME_GET_HISTORY, createRoomHandler(socket, SOCKET_EVENTS.GAME_GET_HISTORY, gameHistoryLimitSchema,

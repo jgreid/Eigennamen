@@ -128,9 +128,6 @@ export function registerAllEventListeners(register, emit, client) {
     register('game:spymasterView', (raw) => {
         emit('spymasterView', raw);
     });
-    register('game:historyData', (raw) => {
-        emit('historyData', raw);
-    });
     register('game:historyResult', (raw) => {
         emit('historyResult', raw);
     });

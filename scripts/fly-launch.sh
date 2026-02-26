@@ -92,7 +92,8 @@ create_app() {
     # Update fly.toml if app name changed
     if [ "$app_name" != "$(get_app_name)" ]; then
         sed -i "s/^app = .*/app = \"$app_name\"/" "$PROJECT_ROOT/fly.toml"
-        info "Updated fly.toml with app name: $app_name"
+        sed -i "s|CORS_ORIGIN = \"https://.*\.fly\.dev\"|CORS_ORIGIN = \"https://${app_name}.fly.dev\"|" "$PROJECT_ROOT/fly.toml"
+        info "Updated fly.toml with app name and CORS_ORIGIN: $app_name"
     fi
 }
 

@@ -10,7 +10,7 @@
  * - revealCard and revealCardOptimized with all outcomes
  * - endTurn complete flow
  * - forfeitGame complete flow
- * - getGameHistory and cleanupGame
+ * - cleanupGame
  * - Lock acquisition and retry logic
  * - Lua script error handling
  */
@@ -66,7 +66,6 @@ const {
     revealCard,
     endTurn,
     forfeitGame,
-    getGameHistory,
     cleanupGame
 } = require('../../services/gameService');
 
@@ -999,41 +998,6 @@ describe('forfeitGame', () => {
                 code: ERROR_CODES.SERVER_ERROR,
                 message: expect.stringContaining('concurrent modifications')
             });
-    });
-});
-
-describe('getGameHistory', () => {
-    test('returns history when game exists', async () => {
-        const history = [
-            { action: 'clue', word: 'TEST', number: 2 },
-            { action: 'reveal', index: 5, type: 'red' }
-        ];
-        const gameData = {
-            id: 'game-1',
-            history
-        };
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
-        const result = await getGameHistory('TEST01');
-
-        expect(result).toEqual(history);
-    });
-
-    test('returns empty array when game has no history', async () => {
-        const gameData = { id: 'game-1' };
-        mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-
-        const result = await getGameHistory('TEST01');
-
-        expect(result).toEqual([]);
-    });
-
-    test('returns empty array when no game exists', async () => {
-        mockRedis.get.mockResolvedValue(null);
-
-        const result = await getGameHistory('NONEXISTENT');
-
-        expect(result).toEqual([]);
     });
 });
 

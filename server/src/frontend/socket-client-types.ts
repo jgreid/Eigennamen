@@ -77,7 +77,6 @@ export interface ClientEventMap {
     turnEnded: TurnEndedData;
     gameOver: GameOverData;
     spymasterView: SpymasterViewData;
-    historyData: unknown;
     historyResult: HistoryResultData;
     replayData: ReplayData;
 

@@ -340,21 +340,6 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
 }
 
 /**
- * Get game history
- */
-export async function getGameHistory(roomCode: string): Promise<GameHistoryEntry[]> {
-    let game: GameState | null;
-    try {
-        game = await getGame(roomCode);
-    } catch {
-        // Corrupted game data — already cleaned up by getGame
-        return [];
-    }
-    if (!game) return [];
-    return game.history || [];
-}
-
-/**
  * Clean up game data for a room
  */
 export async function cleanupGame(roomCode: string): Promise<void> {

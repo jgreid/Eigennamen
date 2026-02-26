@@ -2,7 +2,7 @@
 export { z, createSanitizedString, createTeamNameSchema, createRoomIdSchema, createNicknameSchema } from './schemaHelpers';
 
 // Re-export room schemas
-export { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema, roomCodeSchema, wordListIdSchema } from './roomSchemas';
+export { roomCreateSchema, roomJoinSchema, roomSettingsSchema, roomReconnectSchema, roomCodeSchema } from './roomSchemas';
 
 // Re-export player schemas
 export { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSchema, spectatorJoinRequestSchema, spectatorJoinResponseSchema } from './playerSchemas';
