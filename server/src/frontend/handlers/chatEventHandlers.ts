@@ -25,7 +25,7 @@ export function registerChatAndErrorHandlers(): void {
     EigennamenClient.on('historyResult', (data: HistoryResultData) => {
         // Import dynamically to avoid circular dependency
         import('../history.js').then(({ renderGameHistory }) => {
-            renderGameHistory(data.games || []);
+            renderGameHistory(data.history || []);
         }).catch((err: unknown) => {
             logger.error('Failed to load history module:', err);
             showToast('Could not load game history', 'error');

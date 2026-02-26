@@ -1,5 +1,3 @@
-// ========== UTILS MODULE ==========
-// Pure utility functions
 /**
  * Copy text to clipboard using the modern Clipboard API with a
  * fallback for older browsers or restricted contexts (e.g. HTTP).
@@ -156,7 +154,6 @@ export function formatDuration(ms) {
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
-// ========== CHARACTER COUNTER ==========
 export function updateCharCounter(inputId, counterId, maxLength) {
     const input = document.getElementById(inputId);
     const counter = document.getElementById(counterId);
@@ -217,7 +214,6 @@ export function fitCardText(board) {
         }
     });
 }
-// ========== SAFE LOCALSTORAGE WRAPPER ==========
 // localStorage can throw in private browsing mode or when quota is exceeded
 export function safeGetItem(key, defaultValue = null) {
     try {

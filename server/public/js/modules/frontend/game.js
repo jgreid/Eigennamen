@@ -1,7 +1,3 @@
-// ========== GAME MODULE ==========
-// Orchestrator: board setup, game init, new game flow, URL loading, turn management.
-// Reveal logic extracted to game/reveal.ts, scoring/UI to game/scoring.ts.
-// URL/QR/sharing concerns in url-state.ts.
 import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS } from './state.js';
 import { hashString, shuffleWithSeed, generateGameSeed, seededRandom, decodeWordsFromURL } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';

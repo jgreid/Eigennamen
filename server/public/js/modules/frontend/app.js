@@ -1,5 +1,3 @@
-// ========== APP MODULE ==========
-// Entry point - wires everything together
 import { state, initCachedElements } from './state.js';
 import { updateCharCounter } from './utils.js';
 import { showErrorModal, closeError, closeModal, registerModalCloseHandler } from './ui.js';
@@ -28,7 +26,6 @@ registerModalCloseHandler('confirm-forfeit-modal', closeForfeitConfirm);
 registerModalCloseHandler('confirm-kick-modal', closeKickConfirm);
 registerModalCloseHandler('history-modal', () => closeModal('history-modal'));
 registerModalCloseHandler('replay-modal', () => closeModal('replay-modal'));
-// ========== EVENT LISTENER SETUP ==========
 // Centralized event handling using event delegation for better testability
 // and to avoid inline onclick handlers (security best practice)
 function setupEventListeners() {

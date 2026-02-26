@@ -1,6 +1,5 @@
-// ========== ROLES MODULE ==========
-// Team and role management
 import { state, ROLE_BANNER_CONFIG } from './state.js';
+import { isSpymaster, isClicker as isClickerSelector, canActAsClicker, isClickerFallback } from './store/selectors.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
@@ -8,11 +7,34 @@ import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { isClientConnected } from './clientAccessor.js';
 // ---- Role-change state machine helpers ----
+/** Absolute failsafe: if *any* role-change operation is stuck for this
+ *  long (regardless of operation ID), force-clear it so the UI unblocks.
+ *  The per-operation 5 s timeouts handle normal lost-ack cases; this is
+ *  purely a safety-net for unexpected state-machine stalls. */
+const ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS = 10_000;
+let absoluteTimeoutHandle = null;
+function startAbsoluteTimeout() {
+    clearAbsoluteTimeout();
+    absoluteTimeoutHandle = setTimeout(() => {
+        if (state.roleChange.phase !== 'idle') {
+            logger.warn('Role change absolute failsafe fired — forcing idle');
+            clearRoleChange();
+            updateControls();
+        }
+    }, ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS);
+}
+function clearAbsoluteTimeout() {
+    if (absoluteTimeoutHandle !== null) {
+        clearTimeout(absoluteTimeoutHandle);
+        absoluteTimeoutHandle = null;
+    }
+}
 function generateOperationId() {
     return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 }
 /** Transition to idle, discarding any in-flight state. */
 export function clearRoleChange() {
+    clearAbsoluteTimeout();
     state.roleChange = { phase: 'idle' };
 }
 /** Revert optimistic UI then transition to idle. */
@@ -84,16 +106,8 @@ export function updateControls() {
     const blueTeamBtn = document.getElementById('btn-team-blue');
     const spectateBtn = document.getElementById('btn-spectate');
     const roleHint = document.getElementById('role-hint');
-    // Clicker can end turn when it's their team's turn
-    const isActiveClicker = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
-    // Also allow non-clicker team members to end turn if clicker is disconnected
-    const clickerFallback = state.isMultiplayerMode && !isActiveClicker
-        && state.playerTeam === state.gameState.currentTurn
-        && (() => {
-            const teamClicker = state.multiplayerPlayers.find((p) => p.team === state.gameState.currentTurn && p.role === 'clicker');
-            return !teamClicker || !teamClicker.connected;
-        })();
-    const clickerCanAct = (isActiveClicker || clickerFallback) && !state.gameState.gameOver;
+    // Clicker (or fallback) can end turn when it's their team's turn
+    const clickerCanAct = canActAsClicker();
     if (endTurnBtn) {
         endTurnBtn.disabled = !clickerCanAct;
         endTurnBtn.classList.toggle('can-act', clickerCanAct);
@@ -101,7 +115,7 @@ export function updateControls() {
         if (state.gameState.gameOver) {
             endTurnBtn.title = t('roles.gameIsOver');
         }
-        else if (isActiveClicker || clickerFallback) {
+        else if (clickerCanAct) {
             endTurnBtn.title = t('roles.endTurnTitle');
         }
         else if (state.playerTeam === state.gameState.currentTurn) {
@@ -131,8 +145,8 @@ export function updateControls() {
         spectateBtn.setAttribute('aria-pressed', isUnaffiliated.toString());
     }
     // Role buttons - styled based on selected team
-    const isSpy = !!state.spymasterTeam;
-    const isClicker = !!state.clickerTeam;
+    const isSpy = isSpymaster();
+    const isClickerRole = isClickerSelector();
     if (spymasterBtn) {
         // Enable only if on a team and not currently changing role
         spymasterBtn.disabled = !state.playerTeam || isChangingRole();
@@ -147,13 +161,13 @@ export function updateControls() {
     if (clickerBtn) {
         // Enable only if on a team and not currently changing role
         clickerBtn.disabled = !state.playerTeam || isChangingRole();
-        clickerBtn.classList.toggle('active', isClicker);
+        clickerBtn.classList.toggle('active', isClickerRole);
         clickerBtn.classList.toggle('loading', isChangingRole() && (changingTarget() === 'clicker' || pendingRole() === 'clicker'));
         clickerBtn.classList.remove('red-team', 'blue-team');
         if (state.playerTeam) {
             clickerBtn.classList.add(state.playerTeam + '-team');
         }
-        clickerBtn.setAttribute('aria-pressed', isClicker.toString());
+        clickerBtn.setAttribute('aria-pressed', isClickerRole.toString());
     }
     // Update role hint - only show when helpful (hide when role is in banner)
     if (roleHint) {
@@ -161,20 +175,12 @@ export function updateControls() {
             roleHint.textContent = t('roles.selectTeamFirst');
             roleHint.classList.remove('hidden');
         }
-        else if (isSpy || isClicker) {
+        else if (isSpy || isClickerRole) {
             // Role already displayed in banner - hide redundant hint
             roleHint.classList.add('hidden');
         }
         else {
-            // Check if player can click due to clicker disconnected
-            const canClickDueToDisconnect = state.isMultiplayerMode &&
-                state.playerTeam === state.gameState.currentTurn &&
-                !state.gameState.gameOver &&
-                (() => {
-                    const teamClicker = state.multiplayerPlayers.find((p) => p.team === state.gameState.currentTurn && p.role === 'clicker');
-                    return !teamClicker || !teamClicker.connected;
-                })();
-            if (canClickDueToDisconnect) {
+            if (isClickerFallback()) {
                 roleHint.textContent = t('roles.clickerOfflineCanClick');
                 roleHint.classList.remove('hidden');
             }
@@ -202,6 +208,7 @@ export function setTeam(team) {
         logger.debug('setTeam: setting team to', team);
         const operationId = generateOperationId();
         const target = team || 'spectate';
+        startAbsoluteTimeout();
         // Optimistic UI update — apply team change immediately
         const prevTeam = state.playerTeam;
         const prevSpymaster = state.spymasterTeam;
@@ -287,6 +294,7 @@ function setRoleForTeam(team, roleName, getOwnState, setOwnState, clearOther) {
         }
         logger.debug(`set${roleName}: setting ${roleName} for team`, team, 'current playerTeam:', state.playerTeam);
         const operationId = generateOperationId();
+        startAbsoluteTimeout();
         const prevTeam = state.playerTeam;
         const prevSpymaster = state.spymasterTeam;
         const prevClicker = state.clickerTeam;
