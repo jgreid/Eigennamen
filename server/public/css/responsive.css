@@ -174,11 +174,6 @@
         max-height: 85vh;
     }
 
-    .mode-selector {
-        flex-direction: column;
-        gap: 8px;
-    }
-
     .mode-btn {
         min-height: 60px;
     }
