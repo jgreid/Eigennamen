@@ -367,7 +367,7 @@ describe('multiplayerUI module', () => {
     describe('handleSpectatorChatMessage', () => {
         test('adds spectator message to chat', () => {
             document.body.innerHTML = '<div id="chat-messages"></div>';
-            handleSpectatorChatMessage({ message: 'Hello from spectator!', sender: { nickname: 'Viewer' } });
+            handleSpectatorChatMessage({ text: 'Hello from spectator!', from: { nickname: 'Viewer' } });
 
             const messages = document.querySelectorAll('.chat-message');
             expect(messages).toHaveLength(1);
@@ -377,7 +377,7 @@ describe('multiplayerUI module', () => {
 
         test('uses default sender name when none provided', () => {
             document.body.innerHTML = '<div id="chat-messages"></div>';
-            handleSpectatorChatMessage({ message: 'Anonymous', sender: {} });
+            handleSpectatorChatMessage({ text: 'Anonymous', from: {} });
 
             expect(document.querySelector('.chat-sender')!.textContent).toBe('Spectator');
         });

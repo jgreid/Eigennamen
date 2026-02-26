@@ -1,5 +1,6 @@
 import { t } from './i18n.js';
 import { isClientConnected } from './clientAccessor.js';
+import { sendSpectatorChat } from './multiplayerUI.js';
 let unreadCount = 0;
 let chatOpen = false;
 let chatInitialized = false;
@@ -46,7 +47,8 @@ function toggleChat() {
     }
 }
 /**
- * Send a chat message from the input field
+ * Send a chat message from the input field.
+ * Spectators are routed through the spectator-only chat channel.
  */
 function sendChatMessage() {
     const input = document.getElementById('chat-input');
@@ -57,8 +59,14 @@ function sendChatMessage() {
         return;
     if (!isClientConnected())
         return;
-    const teamOnly = document.getElementById('chat-team-only')?.checked ?? false;
-    EigennamenClient.sendMessage(text, teamOnly);
+    const player = EigennamenClient.player;
+    if (player?.role === 'spectator') {
+        sendSpectatorChat(text);
+    }
+    else {
+        const teamOnly = document.getElementById('chat-team-only')?.checked ?? false;
+        EigennamenClient.sendMessage(text, teamOnly);
+    }
     input.value = '';
     input.focus();
 }
@@ -129,6 +137,22 @@ function updateUnreadBadge() {
     }
     else {
         badge.style.display = 'none';
+    }
+}
+/**
+ * Update chat UI based on whether the current player is a spectator.
+ * Hides the team-only checkbox and updates the placeholder for spectators.
+ */
+export function updateChatForRole() {
+    const player = EigennamenClient.player;
+    const isSpectator = player?.role === 'spectator';
+    const teamOnlyLabel = document.querySelector('.chat-team-only');
+    if (teamOnlyLabel) {
+        teamOnlyLabel.style.display = isSpectator ? 'none' : '';
+    }
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.placeholder = isSpectator ? t('chat.spectatorChat') : t('chat.placeholder');
     }
 }
 /**
