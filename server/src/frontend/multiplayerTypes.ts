@@ -236,4 +236,6 @@ export interface GameHistoryEntry {
     blueScore?: number;
     moveCount?: number;
     clueCount?: number;
+    endReason?: string;
+    duration?: number;
 }

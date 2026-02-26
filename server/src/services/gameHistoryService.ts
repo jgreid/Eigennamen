@@ -132,6 +132,11 @@ export interface GameHistoryEntry {
 }
 
 /**
+ * How the game ended
+ */
+export type EndReason = 'completed' | 'assassin' | 'forfeit';
+
+/**
  * Game history summary (for list views)
  */
 export interface GameHistorySummary {
@@ -147,6 +152,8 @@ export interface GameHistorySummary {
     teamNames?: TeamNames;
     clueCount: number;
     moveCount: number;
+    endReason: EndReason;
+    duration: number;
 }
 
 /**
@@ -388,6 +395,19 @@ export async function saveGameResult(
 }
 
 /**
+ * Derive how the game ended from the stored history entries.
+ * Checks for forfeit and assassin actions; defaults to 'completed'.
+ */
+function deriveEndReason(game: GameHistoryEntry): EndReason {
+    const history = game.history || [];
+    for (const entry of history) {
+        if (entry.action === 'forfeit') return 'forfeit';
+        if (entry.action === 'reveal' && entry.type === 'assassin') return 'assassin';
+    }
+    return 'completed';
+}
+
+/**
  * Determine which team went first based on board data.
  * In classic/blitz mode, the first team has more cards (9 vs 8).
  * Checks totals first (already computed), then falls back to counting
@@ -468,7 +488,9 @@ export async function getGameHistory(
                     blueTotal: game.finalState?.blueTotal,
                     teamNames: game.teamNames,
                     clueCount: game.clues?.length || 0,
-                    moveCount: game.history?.length || 0
+                    moveCount: game.history?.length || 0,
+                    endReason: deriveEndReason(game),
+                    duration: (game.endedAt || 0) - (game.startedAt || 0)
                 };
                 return summary;
             });

@@ -256,6 +256,12 @@
     "multiplayerOnly": "L'historique n'est disponible qu'en mode multijoueur",
     "teamWins": "L'équipe {{team}} gagne !",
     "moveStats": "{{moves}} coups, {{clues}} indices",
+    "clueCount": "{{count}} indices",
+    "endReason": {
+      "completed": "Terminé",
+      "assassin": "Assassin",
+      "forfeit": "Abandon"
+    },
     "loadingReplay": "Chargement du replay...",
     "loading": "Chargement...",
     "couldNotLoad": "Impossible de charger les données du replay.",

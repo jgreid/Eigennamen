@@ -160,6 +160,17 @@ export function formatDuration(ms: number): string {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
+// Format duration as human-readable short string (e.g. "4m 32s", "1h 5m")
+export function formatShortDuration(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+}
+
 export function updateCharCounter(inputId: string, counterId: string, maxLength: number): void {
     const input = document.getElementById(inputId) as HTMLInputElement | null;
     const counter = document.getElementById(counterId);
