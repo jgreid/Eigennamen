@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
+import { formatGameTimestamp, formatDuration, formatShortDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
@@ -86,10 +86,13 @@ export function renderGameHistory(games) {
         scoreDiv.append(' - ');
         scoreDiv.appendChild(blueSpan);
         stats.appendChild(scoreDiv);
-        const movesDiv = document.createElement('div');
-        movesDiv.className = 'history-item-moves';
-        movesDiv.textContent = t('history.moveStats', { moves: game.moveCount || 0, clues: game.clueCount || 0 });
-        stats.appendChild(movesDiv);
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'history-item-details';
+        const endReasonLabel = game.endReason ? t(`history.endReason.${game.endReason}`) : '';
+        const durationLabel = game.duration ? formatShortDuration(game.duration) : '';
+        const clueLabel = t('history.clueCount', { count: game.clueCount || 0 });
+        detailsDiv.textContent = [endReasonLabel, durationLabel, clueLabel].filter(Boolean).join(' · ');
+        stats.appendChild(detailsDiv);
         item.appendChild(info);
         item.appendChild(stats);
         listEl.appendChild(item);
