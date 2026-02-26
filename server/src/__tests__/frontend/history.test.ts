@@ -34,6 +34,10 @@ jest.mock('../../frontend/i18n', () => ({
     t: jest.fn((key, params) => {
         if (key === 'history.teamWins') return `${params?.team} wins!`;
         if (key === 'history.moveStats') return `${params?.moves} moves, ${params?.clues} clues`;
+        if (key === 'history.clueCount') return `${params?.count} clues`;
+        if (key === 'history.endReason.completed') return 'Completed';
+        if (key === 'history.endReason.assassin') return 'Assassin';
+        if (key === 'history.endReason.forfeit') return 'Forfeit';
         if (key === 'history.moveProgress') return `${params?.current}/${params?.total}`;
         if (key === 'history.loadingReplay') return 'Loading replay...';
         if (key === 'history.loading') return 'Loading...';
@@ -53,6 +57,7 @@ jest.mock('../../frontend/i18n', () => ({
 jest.mock('../../frontend/utils', () => ({
     formatGameTimestamp: jest.fn((ts) => new Date(ts).toLocaleDateString()),
     formatDuration: jest.fn((ms) => `${Math.floor(ms / 60000)}m`),
+    formatShortDuration: jest.fn((ms) => `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`),
     copyToClipboard: jest.fn().mockResolvedValue(true)
 }));
 
@@ -142,12 +147,12 @@ describe('history module', () => {
             expect(blueScore!.textContent).toBe('3');
         });
 
-        test('displays move and clue counts', () => {
+        test('displays end reason, duration, and clue count', () => {
             setupHistoryDOM();
             renderGameHistory([createHistoryEntry('g1', 'red', 9, 3, 12, 5)]);
 
-            const moves = document.querySelector('.history-item-moves');
-            expect(moves!.textContent).toContain('12 moves');
+            const details = document.querySelector('.history-item-details');
+            expect(details!.textContent).toContain('5 clues');
         });
 
         test('sets game ID on history items', () => {
@@ -495,6 +500,8 @@ function createHistoryEntry(
         blueScore,
         moveCount,
         clueCount,
+        endReason: 'completed',
+        duration: 272000,
         timestamp: Date.now(),
         teamNames: { red: 'Red', blue: 'Blue' }
     };

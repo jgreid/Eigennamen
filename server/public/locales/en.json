@@ -256,6 +256,12 @@
     "multiplayerOnly": "Game history is only available in multiplayer mode",
     "teamWins": "{{team}} Team Wins!",
     "moveStats": "{{moves}} moves, {{clues}} clues",
+    "clueCount": "{{count}} clues",
+    "endReason": {
+      "completed": "Completed",
+      "assassin": "Assassin",
+      "forfeit": "Forfeit"
+    },
     "loadingReplay": "Loading replay...",
     "loading": "Loading...",
     "couldNotLoad": "Could not load replay data.",

@@ -256,6 +256,12 @@
     "multiplayerOnly": "Spielverlauf ist nur im Multiplayer-Modus verfügbar",
     "teamWins": "{{team}}-Team gewinnt!",
     "moveStats": "{{moves}} Züge, {{clues}} Hinweise",
+    "clueCount": "{{count}} Hinweise",
+    "endReason": {
+      "completed": "Abgeschlossen",
+      "assassin": "Attentäter",
+      "forfeit": "Aufgegeben"
+    },
     "loadingReplay": "Replay wird geladen...",
     "loading": "Laden...",
     "couldNotLoad": "Replay-Daten konnten nicht geladen werden.",

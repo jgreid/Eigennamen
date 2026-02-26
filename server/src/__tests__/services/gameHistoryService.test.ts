@@ -304,6 +304,8 @@ describe('Game History Service', () => {
             expect(history[0]).toHaveProperty('blueScore');
             expect(history[0]).toHaveProperty('clueCount');
             expect(history[0]).toHaveProperty('moveCount');
+            expect(history[0]).toHaveProperty('endReason');
+            expect(history[0]).toHaveProperty('duration');
         });
 
         test('handles corrupted data gracefully', async () => {

@@ -103,7 +103,7 @@
 .history-item-score .red-score { color: #ff6b6b; }
 .history-item-score .blue-score { color: #74b9ff; }
 
-.history-item-moves {
+.history-item-details {
     font-size: 0.75rem;
     color: rgba(255, 255, 255, 0.6);
 }
