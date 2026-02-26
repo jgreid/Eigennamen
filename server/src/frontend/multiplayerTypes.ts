@@ -188,7 +188,7 @@ export interface PlayerKickedData {
 }
 
 export interface HistoryResultData {
-    games?: GameHistoryEntry[];
+    history?: GameHistoryEntry[];
 }
 
 export interface RoomWarningData {

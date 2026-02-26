@@ -1,5 +1,3 @@
-// ========== NOTIFICATIONS MODULE ==========
-// Sound and tab notifications
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { t } from './i18n.js';

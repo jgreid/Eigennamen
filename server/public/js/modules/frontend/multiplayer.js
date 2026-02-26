@@ -1,6 +1,3 @@
-// ========== MULTIPLAYER MODULE ==========
-// Connection management, modal handling, and barrel re-exports
-// Sub-modules: multiplayerUI.ts (UI), multiplayerSync.ts (state sync), multiplayerListeners.ts (events)
 import { state } from './state.js';
 import { safeGetItem, safeSetItem } from './utils.js';
 import { showToast, openModal, closeModal } from './ui.js';
@@ -15,12 +12,10 @@ import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
-// ========== BARREL RE-EXPORTS ==========
 // Re-export sub-module functions so app.ts imports continue to work
 export { copyRoomCode, updateRoomInfoDisplay, initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, updateForfeitButton } from './multiplayerUI.js';
 export { leaveMultiplayerMode, syncGameStateFromServer, syncLocalPlayerState, cleanupMultiplayerListeners, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL } from './multiplayerSync.js';
 export { setupMultiplayerListeners } from './multiplayerListeners.js';
-// ========== ABORT CONTROLLERS ==========
 // Allows cancelling in-flight operations when user navigates away
 let joinAbortController = null;
 let createAbortController = null;
@@ -40,7 +35,6 @@ export function cancelAllOperations() {
     cancelJoinOperation();
     cancelCreateOperation();
 }
-// ========== MODAL HANDLING ==========
 export function openMultiplayer() {
     // Pre-fill nickname from storage
     const storedNickname = safeGetItem('eigennamen-nickname', '') ?? '';
@@ -117,7 +111,6 @@ export function clearFormErrors() {
         setFieldError('', id);
     });
 }
-// ========== CONNECTION ACTIONS ==========
 export async function handleMpAction() {
     const actionBtn = document.getElementById('btn-mp-action');
     if (!actionBtn)
@@ -292,7 +285,6 @@ async function handleCreateGame() {
         createAbortController = null;
     }
 }
-// ========== POST-JOIN SETUP ==========
 export function onMultiplayerJoined(result, isHostParam = false) {
     // Detect room change and reset stale state
     const newRoomCode = result.room?.code;
@@ -356,7 +348,6 @@ export function onMultiplayerJoined(result, isHostParam = false) {
         }
     }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }
-// ========== MODAL INITIALIZATION ==========
 // Guard: prevent duplicate registration of multiplayer modal listeners
 let mpModalInitialized = false;
 export function initMultiplayerModal() {

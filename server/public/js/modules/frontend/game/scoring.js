@@ -1,6 +1,5 @@
-// ========== GAME SCORING MODULE ==========
-// Game-over detection, scoreboard, and turn indicator updates
 import { state } from '../state.js';
+import { redRemaining as getRedRemaining, blueRemaining as getBlueRemaining, currentTeamName as getCurrentTeamName, teamName as getTeamName, isPlayerTurn, isDuetMode } from '../store/selectors.js';
 import { t } from '../i18n.js';
 export function checkGameOver() {
     // Check for assassin reveal
@@ -23,17 +22,15 @@ export function checkGameOver() {
     }
 }
 export function updateScoreboard() {
-    const redRemaining = state.gameState.redTotal - state.gameState.redScore;
-    const blueRemaining = state.gameState.blueTotal - state.gameState.blueScore;
     // Use cached elements with fallback
     const redRemainingEl = state.cachedElements.redRemaining || document.getElementById('red-remaining');
     const blueRemainingEl = state.cachedElements.blueRemaining || document.getElementById('blue-remaining');
     const redTeamNameEl = state.cachedElements.redTeamName || document.getElementById('red-team-name');
     const blueTeamNameEl = state.cachedElements.blueTeamName || document.getElementById('blue-team-name');
     if (redRemainingEl)
-        redRemainingEl.textContent = String(redRemaining);
+        redRemainingEl.textContent = String(getRedRemaining());
     if (blueRemainingEl)
-        blueRemainingEl.textContent = String(blueRemaining);
+        blueRemainingEl.textContent = String(getBlueRemaining());
     if (redTeamNameEl)
         redTeamNameEl.textContent = state.teamNames.red;
     if (blueTeamNameEl)
@@ -46,11 +43,12 @@ export function updateTurnIndicator() {
     const turnText = indicator.querySelector('.turn-text');
     if (!turnText)
         return;
-    const currentTeamName = state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
-    const winnerTeamName = state.gameState.winner === 'red' ? state.teamNames.red : state.teamNames.blue;
+    const turnTeamName = getCurrentTeamName();
+    // When winner is null (non-standard end), fall back to blue — preserves legacy behavior
+    const winnerTeamName = getTeamName(state.gameState.winner ?? 'blue');
     if (state.gameState.gameOver) {
         indicator.className = 'turn-indicator game-over';
-        if (state.gameMode === 'duet') {
+        if (isDuetMode()) {
             if (state.gameState.winner) {
                 turnText.textContent = t('game.duetVictory');
             }
@@ -75,13 +73,13 @@ export function updateTurnIndicator() {
         }
     }
     else {
-        const isYourTurn = state.clickerTeam && state.clickerTeam === state.gameState.currentTurn;
-        indicator.className = `turn-indicator ${state.gameState.currentTurn}-turn${isYourTurn ? ' your-turn' : ''}`;
-        if (isYourTurn) {
-            turnText.textContent = t('game.yourTurnGo', { team: currentTeamName });
+        const yourTurn = isPlayerTurn();
+        indicator.className = `turn-indicator ${state.gameState.currentTurn}-turn${yourTurn ? ' your-turn' : ''}`;
+        if (yourTurn) {
+            turnText.textContent = t('game.yourTurnGo', { team: turnTeamName });
         }
         else {
-            turnText.textContent = t('game.teamsTurn', { team: currentTeamName });
+            turnText.textContent = t('game.teamsTurn', { team: turnTeamName });
         }
     }
 }

@@ -1,7 +1,3 @@
-// ========== STATE MUTATIONS ==========
-// Validated mutation functions for corruption-prone state properties.
-// Centralizes team/role/game-mode validation to prevent invalid values
-// from sneaking into the shared state singleton.
 import { state } from './state.js';
 import { logger } from './logger.js';
 const VALID_TEAMS = new Set(['red', 'blue']);

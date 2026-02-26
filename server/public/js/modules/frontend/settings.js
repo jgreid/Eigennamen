@@ -1,5 +1,3 @@
-// ========== SETTINGS MODULE ==========
-// Settings panel and word management
 import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
 import { openModal, closeModal } from './ui.js';

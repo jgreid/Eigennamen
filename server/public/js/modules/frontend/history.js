@@ -1,5 +1,3 @@
-// ========== HISTORY MODULE ==========
-// Game history and replay
 import { state } from './state.js';
 import { formatGameTimestamp, formatDuration, copyToClipboard } from './utils.js';
 import { openModal, closeModal, showToast } from './ui.js';

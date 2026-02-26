@@ -299,6 +299,39 @@ describe('canClickCards()', () => {
         // Even though there is a connected clicker, the current player IS the clicker
         expect(canClickCards()).toBe(true);
     });
+
+    it('tracks turn transitions correctly (red → blue → red)', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = 'red';
+        state.gameState.currentTurn = 'red';
+        expect(canClickCards()).toBe(true);
+
+        // Turn changes to blue — red clicker can no longer click
+        state.gameState.currentTurn = 'blue';
+        expect(canClickCards()).toBe(false);
+
+        // Turn changes back to red — red clicker can click again
+        state.gameState.currentTurn = 'red';
+        expect(canClickCards()).toBe(true);
+    });
+
+    it('blue clicker tracks turn transitions correctly', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = 'blue';
+        state.gameState.currentTurn = 'red';
+        expect(canClickCards()).toBe(false);
+
+        state.gameState.currentTurn = 'blue';
+        expect(canClickCards()).toBe(true);
+    });
+
+    it('returns false for spectator with no team in multiplayer', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = null;
+        state.playerTeam = null;
+        state.gameState.currentTurn = 'red';
+        expect(canClickCards()).toBe(false);
+    });
 });
 
 describe('renderBoard()', () => {
@@ -455,6 +488,41 @@ describe('renderBoard()', () => {
     it('does not set no-click when player can click', () => {
         state.clickerTeam = 'red';
         state.gameState.currentTurn = 'red';
+        renderBoard();
+        expect(boardEl.className).not.toContain('no-click');
+    });
+
+    it('updates no-click class when turn changes (simulating turnEnded fix)', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = 'red';
+
+        // Red's turn — red clicker can click
+        state.gameState.currentTurn = 'red';
+        renderBoard();
+        expect(boardEl.className).not.toContain('no-click');
+
+        // Turn changes to blue — re-render should add no-click
+        state.gameState.currentTurn = 'blue';
+        renderBoard();
+        expect(boardEl.className).toContain('no-click');
+
+        // Turn changes back to red — re-render should remove no-click
+        state.gameState.currentTurn = 'red';
+        renderBoard();
+        expect(boardEl.className).not.toContain('no-click');
+    });
+
+    it('blue clicker no-click class flips correctly on turn change', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = 'blue';
+
+        // Red's turn — blue clicker can't click
+        state.gameState.currentTurn = 'red';
+        renderBoard();
+        expect(boardEl.className).toContain('no-click');
+
+        // Blue's turn — blue clicker can click
+        state.gameState.currentTurn = 'blue';
         renderBoard();
         expect(boardEl.className).not.toContain('no-click');
     });
@@ -632,6 +700,36 @@ describe('updateBoardIncremental()', () => {
         state.spymasterTeam = 'red';
         updateBoardIncremental();
         expect(boardEl.className).toContain('spymaster-mode');
+    });
+
+    it('updates no-click class on turn change', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = 'red';
+
+        // Red's turn — no no-click
+        state.gameState.currentTurn = 'red';
+        updateBoardIncremental();
+        expect(boardEl.className).not.toContain('no-click');
+
+        // Turn changes to blue — no-click should appear
+        state.gameState.currentTurn = 'blue';
+        updateBoardIncremental();
+        expect(boardEl.className).toContain('no-click');
+    });
+
+    it('removes no-click class when turn returns to player team', () => {
+        state.isMultiplayerMode = true;
+        state.clickerTeam = 'blue';
+
+        // Start on red's turn (blue can't click)
+        state.gameState.currentTurn = 'red';
+        updateBoardIncremental();
+        expect(boardEl.className).toContain('no-click');
+
+        // Turn changes to blue (blue can click)
+        state.gameState.currentTurn = 'blue';
+        updateBoardIncremental();
+        expect(boardEl.className).not.toContain('no-click');
     });
 
     it('updates card text if word changed', () => {

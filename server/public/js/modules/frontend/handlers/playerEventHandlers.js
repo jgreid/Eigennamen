@@ -1,5 +1,3 @@
-// ========== PLAYER EVENT HANDLERS ==========
-// Socket event handlers for player lifecycle events
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard } from '../board.js';
@@ -33,6 +31,11 @@ export function registerPlayerHandlers() {
             state.multiplayerPlayers = state.multiplayerPlayers.filter((p) => p.sessionId !== data.sessionId);
         }
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        // Refresh controls and board — the departed player may have been the
+        // active clicker, so remaining team members need their UI updated to
+        // reflect fallback clicker permissions.
+        updateControls();
+        renderBoard();
         if (data.nickname) {
             showToast(`${data.nickname} left`, 'info');
         }

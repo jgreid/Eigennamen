@@ -157,6 +157,47 @@ describe('history module', () => {
             const item = document.querySelector('.history-item') as HTMLElement;
             expect(item.dataset.gameId).toBe('unique-game-id');
         });
+
+        test('handles entries with missing optional fields gracefully', () => {
+            setupHistoryDOM();
+            const minimalEntry: GameHistoryEntry = { id: 'minimal-game' };
+            renderGameHistory([minimalEntry]);
+
+            const items = document.querySelectorAll('.history-item');
+            expect(items).toHaveLength(1);
+            expect((items[0] as HTMLElement).dataset.gameId).toBe('minimal-game');
+        });
+
+        test('renders multiple games in order', () => {
+            setupHistoryDOM();
+            const games: GameHistoryEntry[] = [
+                createHistoryEntry('first', 'red', 9, 2, 8, 3),
+                createHistoryEntry('second', 'blue', 3, 8, 12, 5),
+                createHistoryEntry('third', 'red', 9, 4, 15, 6),
+            ];
+            renderGameHistory(games);
+
+            const items = document.querySelectorAll('.history-item');
+            expect(items).toHaveLength(3);
+            expect((items[0] as HTMLElement).dataset.gameId).toBe('first');
+            expect((items[1] as HTMLElement).dataset.gameId).toBe('second');
+            expect((items[2] as HTMLElement).dataset.gameId).toBe('third');
+        });
+
+        test('re-rendering replaces previous history items', () => {
+            setupHistoryDOM();
+            renderGameHistory([createHistoryEntry('game1', 'red', 9, 3, 10, 4)]);
+            expect(document.querySelectorAll('.history-item')).toHaveLength(1);
+
+            // Re-render with different data
+            renderGameHistory([
+                createHistoryEntry('game2', 'blue', 4, 8, 20, 7),
+                createHistoryEntry('game3', 'red', 9, 1, 5, 2),
+            ]);
+            const items = document.querySelectorAll('.history-item');
+            expect(items).toHaveLength(2);
+            expect((items[0] as HTMLElement).dataset.gameId).toBe('game2');
+        });
     });
 
     describe('renderReplayData', () => {

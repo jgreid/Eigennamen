@@ -1,5 +1,3 @@
-// ========== CHAT MODULE ==========
-// Handles chat UI: toggle, send messages, render incoming messages
 import { t } from './i18n.js';
 import { isClientConnected } from './clientAccessor.js';
 let unreadCount = 0;

@@ -88,6 +88,8 @@ export function registerGameHandlers(): void {
             updateTurnIndicator();
             updateRoleBanner();
             updateControls();
+            // Re-render board so the no-click class updates for the new turn's team
+            renderBoard();
 
             // Check and send notifications if it's now our turn
             checkAndNotifyTurn(data.currentTurn, previousTurn);

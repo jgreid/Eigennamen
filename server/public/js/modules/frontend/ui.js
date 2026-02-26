@@ -1,11 +1,8 @@
-// ========== UI MODULE ==========
-// Toast, screen reader, error modal, modal system with registry pattern
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { UI } from './constants.js';
 // Store timer IDs for toast auto-dismiss without extending HTMLDivElement
 const toastTimers = new WeakMap();
-// ========== SCREEN READER ANNOUNCEMENTS ==========
 export function announceToScreenReader(message) {
     const announcer = state.cachedElements.srAnnouncements;
     if (announcer) {
@@ -18,7 +15,6 @@ export function announceToScreenReader(message) {
         }, UI.SR_ANNOUNCEMENT_MS);
     }
 }
-// ========== TOAST NOTIFICATION SYSTEM ==========
 const MAX_TOASTS = 5;
 export function showToast(message, type = 'error', duration = 4000) {
     const container = document.getElementById('toast-container');
@@ -83,7 +79,6 @@ export function dismissToast(toast) {
         toastTimers.set(toast, { hide: hideTimeout });
     }
 }
-// ========== ERROR MODAL ==========
 export function showErrorModal(message, details = null) {
     const msgEl = document.getElementById('error-message');
     const detailsEl = document.getElementById('error-details');
@@ -103,7 +98,6 @@ export function showErrorModal(message, details = null) {
 export function closeError() {
     closeModal('error-modal');
 }
-// ========== MODAL REGISTRY ==========
 // Maps modal IDs to their close handler functions
 const modalCloseHandlers = new Map();
 export function registerModalCloseHandler(modalId, closeFn) {
@@ -113,11 +107,23 @@ function getModalCloseHandler(modalId) {
     return modalCloseHandlers.get(modalId);
 }
 const modalStack = [];
-// ========== MODAL MANAGEMENT ==========
+const MAX_MODAL_STACK_SIZE = 10;
 export function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal)
         return;
+    // Prevent unbounded stack growth (defensive — normal usage stays under 3)
+    if (modalStack.length >= MAX_MODAL_STACK_SIZE) {
+        const oldest = modalStack.shift();
+        if (oldest) {
+            oldest.modal.classList.remove('active');
+        }
+    }
+    // Prevent duplicate entries for the same modal
+    const existingIndex = modalStack.findIndex(entry => entry.modal === modal);
+    if (existingIndex !== -1) {
+        modalStack.splice(existingIndex, 1);
+    }
     // Push current state onto modal stack before opening new modal
     // This preserves focus context when multiple modals are opened
     modalStack.push({

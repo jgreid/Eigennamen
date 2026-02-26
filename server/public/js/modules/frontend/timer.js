@@ -1,5 +1,3 @@
-// ========== TIMER MODULE ==========
-// Timer display and countdown
 import { state } from './state.js';
 // Import timer constants for warning thresholds
 import { TIMER } from './constants.js';

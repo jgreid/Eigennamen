@@ -1,8 +1,7 @@
-// ========== ROOM EVENT HANDLERS ==========
-// Socket event handlers for room lifecycle, reconnection, and settings events
 import { state } from '../state.js';
 import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
+import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
 import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI } from '../multiplayerUI.js';
 import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup } from '../multiplayerSync.js';
@@ -152,6 +151,10 @@ export function registerRoomHandlers() {
         // Update player list
         state.multiplayerPlayers = state.multiplayerPlayers.filter((p) => p.sessionId !== data.sessionId);
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
+        // Refresh controls and board — kicked player may have held the active
+        // clicker role, so remaining team members need UI updated for fallback.
+        updateControls();
+        renderBoard();
         showToast(`${data.nickname} was kicked by the host`, 'info');
     });
     // Handle room settings updates

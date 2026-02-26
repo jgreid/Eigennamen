@@ -1,5 +1,3 @@
-// ========== ERROR MESSAGE MAPPING ==========
-// Maps server error codes to user-friendly messages
 /**
  * Map server error codes to user-friendly messages
  */

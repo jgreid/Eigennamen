@@ -1,5 +1,3 @@
-// ========== CHAT EVENT HANDLERS ==========
-// Socket event handlers for chat and history events
 import { showToast } from '../ui.js';
 import { logger } from '../logger.js';
 import { handleChatMessage } from '../chat.js';
@@ -20,7 +18,7 @@ export function registerChatAndErrorHandlers() {
     EigennamenClient.on('historyResult', (data) => {
         // Import dynamically to avoid circular dependency
         import('../history.js').then(({ renderGameHistory }) => {
-            renderGameHistory(data.games || []);
+            renderGameHistory(data.history || []);
         }).catch((err) => {
             logger.error('Failed to load history module:', err);
             showToast('Could not load game history', 'error');

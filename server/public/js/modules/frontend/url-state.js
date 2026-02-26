@@ -1,6 +1,3 @@
-// ========== URL STATE MODULE ==========
-// URL encoding/decoding, QR code generation, and link sharing.
-// Extracted from game.ts to separate URL/sharing concerns from game logic.
 import { state, BOARD_SIZE, COPY_BUTTON_TEXT } from './state.js';
 import { encodeWordsForURL, copyToClipboard } from './utils.js';
 import { showToast } from './ui.js';
@@ -127,7 +124,9 @@ export async function copyLink() {
         btn.textContent = t('game.copiedShort');
     }
     if (linkPanelBtn) {
-        linkPanelBtn.querySelector('.copy-text').textContent = t('game.copiedShort');
+        const copyText = linkPanelBtn.querySelector('.copy-text');
+        if (copyText)
+            copyText.textContent = t('game.copiedShort');
     }
     if (feedback) {
         feedback.textContent = t('toast.linkCopied');
@@ -135,8 +134,11 @@ export async function copyLink() {
     state.copyButtonTimeoutId = setTimeout(() => {
         if (btn)
             btn.textContent = COPY_BUTTON_TEXT;
-        if (linkPanelBtn)
-            linkPanelBtn.querySelector('.copy-text').textContent = t('game.copy');
+        if (linkPanelBtn) {
+            const copyText = linkPanelBtn.querySelector('.copy-text');
+            if (copyText)
+                copyText.textContent = t('game.copy');
+        }
         if (feedback)
             feedback.textContent = '';
         state.copyButtonTimeoutId = null;

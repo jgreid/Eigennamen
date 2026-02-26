@@ -289,8 +289,39 @@ describe('Frontend Handler Registration', () => {
             expect(updateTurnIndicator).toHaveBeenCalled();
             expect(updateRoleBanner).toHaveBeenCalled();
             expect(updateControls).toHaveBeenCalled();
+            expect(renderBoard).toHaveBeenCalled();
             expect(checkAndNotifyTurn).toHaveBeenCalledWith('blue', 'red');
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Blue'));
+        });
+
+        test('turnEnded with no currentTurn does not modify state', () => {
+            state.gameState.currentTurn = 'red';
+            handlers['turnEnded']({});
+
+            expect(state.gameState.currentTurn).toBe('red');
+            expect(renderBoard).not.toHaveBeenCalled();
+            expect(updateControls).not.toHaveBeenCalled();
+        });
+
+        test('turnEnded is skipped during resync', () => {
+            state.resyncInProgress = true;
+            state.gameState.currentTurn = 'red';
+            handlers['turnEnded']({ currentTurn: 'blue' });
+
+            expect(state.gameState.currentTurn).toBe('red');
+            expect(renderBoard).not.toHaveBeenCalled();
+            state.resyncInProgress = false;
+        });
+
+        test('turnEnded resets clue and guess state for new turn', () => {
+            state.gameState.currentClue = { word: 'test', number: 3, team: 'red' };
+            state.gameState.guessesUsed = 2;
+            state.gameState.guessesAllowed = 4;
+            handlers['turnEnded']({ currentTurn: 'blue' });
+
+            expect(state.gameState.currentClue).toBeNull();
+            expect(state.gameState.guessesUsed).toBe(0);
+            expect(state.gameState.guessesAllowed).toBe(0);
         });
 
         test('gameOver syncs card types and shows game over screen', () => {
@@ -743,14 +774,28 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('historyResult dynamically imports and calls renderGameHistory', async () => {
-            handlers['historyResult']({ games: [{ id: 1 }] });
+            handlers['historyResult']({ history: [{ id: 1 }] });
             // Allow the dynamic import promise chain to settle
             await new Promise(resolve => setTimeout(resolve, 50));
             expect(mockRenderGameHistory).toHaveBeenCalledWith([{ id: 1 }]);
         });
 
-        test('historyResult defaults to empty array when games missing', async () => {
+        test('historyResult defaults to empty array when history missing', async () => {
             handlers['historyResult']({});
+            await new Promise(resolve => setTimeout(resolve, 50));
+            expect(mockRenderGameHistory).toHaveBeenCalledWith([]);
+        });
+
+        test('historyResult ignores old "games" property (regression)', async () => {
+            // The old bug: backend sends { history: [...] } but frontend read data.games
+            // Verify that sending data with "games" but no "history" defaults to empty
+            handlers['historyResult']({ games: [{ id: 'old-bug' }] } as any);
+            await new Promise(resolve => setTimeout(resolve, 50));
+            expect(mockRenderGameHistory).toHaveBeenCalledWith([]);
+        });
+
+        test('historyResult with null history defaults to empty array', async () => {
+            handlers['historyResult']({ history: null } as any);
             await new Promise(resolve => setTimeout(resolve, 50));
             expect(mockRenderGameHistory).toHaveBeenCalledWith([]);
         });

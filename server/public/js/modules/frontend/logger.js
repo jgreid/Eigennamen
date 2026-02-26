@@ -1,5 +1,3 @@
-// ========== FRONTEND LOGGER ==========
-// Structured logging for frontend modules (replaces scattered console.* calls)
 const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 let currentLevel = 'warn';
 // Enable debug logging via localStorage.debug = 'eigennamen'

@@ -1,5 +1,3 @@
-// ========== TIMER EVENT HANDLERS ==========
-// Socket event handlers for turn timer events
 import { showToast } from '../ui.js';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from '../timer.js';
 export function registerTimerHandlers() {

@@ -1,5 +1,3 @@
-// ========== GAME EVENT HANDLERS ==========
-// Socket event handlers for game lifecycle events
 import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard } from '../board.js';
@@ -77,6 +75,8 @@ export function registerGameHandlers() {
             updateTurnIndicator();
             updateRoleBanner();
             updateControls();
+            // Re-render board so the no-click class updates for the new turn's team
+            renderBoard();
             // Check and send notifications if it's now our turn
             checkAndNotifyTurn(data.currentTurn, previousTurn);
             // Announce turn change

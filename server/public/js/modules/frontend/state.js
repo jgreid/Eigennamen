@@ -1,8 +1,6 @@
-// ========== STATE MODULE ==========
-// Mutable shared state singleton.  Types live in stateTypes.ts, constants in
-// constants.ts, and debug tools in debug.ts — this file is just the data.
 import { DEFAULT_WORDS } from './constants.js';
-import { createStateProxy, attachDebugToWindow, debugEnabled } from './debug.js';
+import { attachDebugToWindow, initDebugSubscriptions } from './debug.js';
+import { createReactiveProxy } from './store/index.js';
 export { BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, COPY_BUTTON_TEXT, ROLE_BANNER_CONFIG } from './constants.js';
 export { logStateChange, getStateHistory, clearStateHistory, watchState } from './debug.js';
 // These re-exports need the state reference curried in (debug.ts can't import
@@ -17,7 +15,6 @@ export function getStateSnapshot() {
 export function dumpState() {
     _dumpStateImpl(_rawState);
 }
-// ========== RAW STATE ==========
 const _rawState = {
     cachedElements: {
         board: null, roleBanner: null, turnIndicator: null, endTurnBtn: null,
@@ -83,20 +80,13 @@ const _rawState = {
     roomStats: null,
     resyncInProgress: false
 };
-// ========== EXPORTED STATE ==========
-// Debug proxy wraps the state when localStorage.debug === 'eigennamen'.
-// Otherwise the raw object is exported (zero overhead).
-export const state = (() => {
-    try {
-        if (debugEnabled()) {
-            return createStateProxy(_rawState);
-        }
-    }
-    catch { /* SSR / test environments without localStorage */ }
-    return _rawState;
-})();
+// Always-on reactive proxy emits change events via the store event bus.
+// Debug logging (console output, history tracking) is still gated behind
+// localStorage.debug === 'eigennamen' — the proxy itself is lightweight.
+export const state = createReactiveProxy(_rawState);
+// Wire debug logging and legacy watchers to the event bus
+initDebugSubscriptions();
 attachDebugToWindow(_rawState);
-// ========== CACHED DOM ELEMENTS ==========
 export function initCachedElements() {
     state.cachedElements.board = document.getElementById('board');
     state.cachedElements.roleBanner = document.getElementById('role-banner');

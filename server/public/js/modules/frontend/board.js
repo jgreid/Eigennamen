@@ -1,6 +1,5 @@
-// ========== BOARD MODULE ==========
-// Board rendering
 import { state, BOARD_SIZE } from './state.js';
+import { showSpymasterView } from './store/selectors.js';
 import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
@@ -164,7 +163,7 @@ export function renderBoard() {
     try {
         // Update board class
         let className = 'board';
-        if (state.spymasterTeam || state.gameState.gameOver)
+        if (showSpymasterView())
             className += ' spymaster-mode';
         if (!canClickCards())
             className += ' no-click';
@@ -207,7 +206,7 @@ export function renderBoard() {
                 card.setAttribute('aria-disabled', 'true');
             }
             // Add spymaster hints (show all card types when game is over)
-            if (state.spymasterTeam || state.gameState.gameOver) {
+            if (showSpymasterView()) {
                 card.classList.add(`spy-${state.gameState.types[index]}`);
             }
             // Show revealed cards
@@ -242,7 +241,7 @@ export function updateBoardIncremental() {
     try {
         // Update board class
         let className = 'board';
-        if (state.spymasterTeam || state.gameState.gameOver)
+        if (showSpymasterView())
             className += ' spymaster-mode';
         if (!canClickCards())
             className += ' no-click';
@@ -288,7 +287,7 @@ export function updateBoardIncremental() {
                 card.removeAttribute('aria-disabled');
             }
             // Handle spymaster mode (show all card types when game is over)
-            if (state.spymasterTeam || state.gameState.gameOver) {
+            if (showSpymasterView()) {
                 card.classList.add(`spy-${type}`);
             }
             else {
@@ -333,9 +332,10 @@ export function updateSingleCard(index) {
     const row = Math.floor(index / 5) + 1;
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
-    // Announce reveal to screen readers
-    const typeLabel = type === 'red' ? 'Red' : type === 'blue' ? 'Blue' : type === 'assassin' ? 'Assassin' : 'Neutral';
-    announceToScreenReader(`${word} revealed as ${typeLabel}`);
+    // Announce reveal to screen readers (localized)
+    const typeNames = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
+    const typeName = typeNames[type] || type;
+    announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
     // Add animation class
     if (state.lastRevealedWasCorrect) {
         card.classList.add('success-reveal');
