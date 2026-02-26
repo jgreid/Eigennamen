@@ -2,7 +2,6 @@ import type {
     Team,
     GameState,
     ForfeitHistoryEntry,
-    GameHistoryEntry,
     CreateGameOptions,
     RevealResult,
     EndTurnResult,

@@ -54,14 +54,14 @@ echo "🔐 Security checks..."
 
 cd "$SERVER_DIR"
 
-# Check for hardcoded secrets (basic check)
-if grep -r "password.*=" --include="*.ts" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.\(js\|ts\)" | grep -v "process.env" | grep -v "schema" | head -1 > /dev/null; then
+# Check for hardcoded secrets (look for string literals assigned to password-like vars)
+if grep -rP "(password|secret|token)\s*[:=]\s*['\"][^'\"]+['\"]" --include="*.ts" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.\(js\|ts\)" | grep -v "process.env" | grep -v "schema" | grep -v "\.split\|\.update\|\.createH" | grep -q .; then
     warning "Possible hardcoded password found - please review"
 fi
 
-# Check for debug code
-if grep -rn "console\.log" --include="*.ts" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.\(js\|ts\)" | grep -v "logger" | head -1 > /dev/null; then
-    warning "console.log statements found - consider using logger instead"
+# Check for debug code in backend (frontend uses console.log intentionally)
+if grep -rn "console\.log" --include="*.ts" --include="*.js" src/ 2>/dev/null | grep -v "\.test\.\(js\|ts\)" | grep -v "logger" | grep -v "frontend/" | grep -q .; then
+    warning "console.log statements found in backend - consider using logger instead"
 fi
 
 success "No obvious security issues found"
@@ -99,13 +99,14 @@ else
     success "No critical or high vulnerabilities found"
 fi
 
-# 6. Check Docker build
+# 6. Check Docker build (standalone Dockerfile, same as Fly.io uses)
 echo ""
 echo "🐳 Checking Docker build..."
-if command -v docker &> /dev/null; then
+if command -v docker &> /dev/null && docker info &> /dev/null; then
     cd "$PROJECT_ROOT"
-    if docker compose build --quiet > /dev/null 2>&1; then
+    if docker build -f server/Dockerfile -t eigennamen-check --quiet . > /dev/null 2>&1; then
         success "Docker build successful"
+        docker rmi eigennamen-check > /dev/null 2>&1 || true
     else
         error "Docker build failed"
     fi
