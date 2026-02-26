@@ -140,11 +140,9 @@
     "title": "Settings",
     "teams": "Teams",
     "words": "Words",
-    "rules": "How to Play",
-    "about": "About",
-    "link": "Share Link",
     "preferences": "Preferences",
-    "roomSettings": "Room Settings",
+    "gameMode": "Mode",
+    "help": "Help",
     "redTeamName": "Red Team Name",
     "blueTeamName": "Blue Team Name",
     "saveAndApply": "Save & Apply",
@@ -160,16 +158,6 @@
     "wordsDesc": "Choose which words appear on the board. Custom words are encoded in the shareable link."
   },
   "roomSettings": {
-    "title": "Room Settings",
-    "description": "Manage your multiplayer room settings. Only the host can change these.",
-    "roomInfo": "Room Info",
-    "shareHint": "Share the Room ID with friends to let them join.",
-    "roomId": "Room ID",
-    "players": "Players",
-    "status": "Status",
-    "waiting": "Waiting",
-    "inProgress": "In Progress",
-    "gameOver": "Game Over",
     "gameMode": "Game Mode",
     "gameModeHint": "Choose how you want to play.",
     "classic": "Classic",
@@ -210,11 +198,7 @@
     "note": "Starting team finds 9 words, other team finds 8. First to find all wins!"
   },
   "about": {
-    "title": "About Eigennamen Online",
-    "description": "A free, open-source implementation of the popular board game.",
-    "version": "Version",
-    "license": "GPL v3.0",
-    "source": "Source Code"
+    "description": "A free, open-source implementation of the popular board game."
   },
   "chat": {
     "title": "Chat",

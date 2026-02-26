@@ -85,7 +85,6 @@ function resetState(): void {
     state.lastRevealedWasCorrect = false;
     state.pendingUIUpdate = false;
     state.isRevealingCard = false;
-    state.copyButtonTimeoutId = null;
     state.language = 'en';
     state.localizedDefaultWords = null;
     state.colorBlindMode = false;
@@ -104,7 +103,6 @@ function resetState(): void {
         blueRemaining: null,
         redTeamName: null,
         blueTeamName: null,
-        shareLink: null,
         srAnnouncements: null,
         timerDisplay: null,
         timerValue: null,
@@ -209,7 +207,6 @@ describe('State initialization - Default values', () => {
         expect(elements.blueRemaining).toBeNull();
         expect(elements.redTeamName).toBeNull();
         expect(elements.blueTeamName).toBeNull();
-        expect(elements.shareLink).toBeNull();
         expect(elements.srAnnouncements).toBeNull();
         expect(elements.timerDisplay).toBeNull();
         expect(elements.timerValue).toBeNull();

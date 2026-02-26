@@ -14,8 +14,8 @@ import { showGameOverModal } from './game/reveal.js';
 export { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
 export { revealCard, revealCardFromServer, showGameOverModal, showGameOver, closeGameOver } from './game/reveal.js';
 
-// Re-export URL/QR functions so existing consumers don't break
-export { updateURL, updateQRCode, copyLink } from './url-state.js';
+// Re-export URL functions so existing consumers don't break
+export { updateURL } from './url-state.js';
 
 // Helper function to set up the game board (card types, scores, etc.)
 export function setupGameBoard(numericSeed: number): void {

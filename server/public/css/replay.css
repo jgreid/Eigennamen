@@ -341,15 +341,6 @@
         padding: 12px 16px;
     }
 
-    /* Better spacing for team controls on mobile */
-    .control-group {
-        padding: 12px;
-    }
-
-    .control-group button {
-        padding: 10px 12px;
-    }
-
     /* History items need larger tap targets */
     .history-item {
         min-height: 60px;
@@ -387,11 +378,6 @@
         gap: 8px;
     }
 
-    /* Clue display improvements */
-    .clue-display {
-        font-size: 0.9rem;
-        padding: 10px 14px;
-    }
 }
 
 /* Landscape mobile improvements */

@@ -102,36 +102,6 @@
     text-align: center;
 }
 
-/* QR section in sidebar bottom */
-.settings-sidebar-qr {
-    padding: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-}
-
-.settings-sidebar-qr canvas {
-    border-radius: 6px;
-    background: white;
-    padding: 6px;
-    /* Constrain display size while keeping crisp internal resolution */
-    width: 100px !important;
-    height: 100px !important;
-}
-
-.settings-sidebar-qr .qr-label {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    text-align: center;
-}
-
-.settings-sidebar-qr .version {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
 /* Settings content area */
 .settings-content {
     flex: 1;
@@ -200,203 +170,26 @@
     font-size: 0.8rem;
 }
 
-/* About panel compact styling */
-.about-content.compact {
-    color: rgba(255, 255, 255, 0.8);
-    line-height: 1.5;
+/* Help panel about section */
+.help-about-section {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.about-intro {
-    font-size: 0.9rem;
-    margin-bottom: 16px;
-}
-
-.features-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.feature-item {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.7);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.feature-icon {
-    font-size: 0.9rem;
-}
-
-.about-content .credits {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.55);
-}
-
-.about-content .credits p {
-    margin: 4px 0;
-}
-
-/* Link panel styling */
-.link-share-content {
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.link-share-content.compact .panel-description {
-    margin-bottom: 12px;
-}
-
-.link-input-group {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.share-link-input {
-    flex: 1;
-    padding: 10px 12px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.8rem;
-    font-family: monospace;
-}
-
-.btn-copy-link {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-copy-link:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.copy-feedback {
-    font-size: 0.8rem;
-    color: #4caf50;
-    min-height: 18px;
-    margin-bottom: 16px;
-}
-
-.qr-container {
-    text-align: center;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.qr-container.compact {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-}
-
-.qr-container h3 {
-    color: #667eea;
-    font-size: 0.9rem;
-    margin-bottom: 6px;
-}
-
-.qr-hint {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.55);
-}
-
-/* Room Code Share (Multiplayer Mode) */
-.room-code-share {
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.room-code-share .panel-description {
-    margin-bottom: 16px;
-}
-
-.room-code-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 24px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
+.help-about-section .about-intro {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
     margin-bottom: 8px;
 }
 
-.room-code-label {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+.help-about-section .credits {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.45);
 }
 
-.room-code-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    font-family: monospace;
-    letter-spacing: 4px;
-    color: #667eea;
-    text-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-}
-
-.btn-copy-room-code {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-copy-room-code:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.room-code-hint {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
-    text-align: center;
-    margin-top: 8px;
-}
-
-.room-code-hint strong {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.qr-container canvas {
-    border-radius: 6px;
-    background: white;
-    padding: 8px;
-    /* Constrain display size */
-    width: 140px !important;
-    height: 140px !important;
+.help-about-section .credits p {
+    margin: 3px 0;
 }
 
 /* Preferences panel */
@@ -518,31 +311,6 @@
     color: rgba(255, 255, 255, 0.8);
 }
 
-.room-settings-content .setting-hint {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 12px;
-}
-
-.room-info-display {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 12px;
-    border-radius: 8px;
-}
-
-.room-info-display p {
-    margin: 8px 0;
-    font-size: 0.9rem;
-}
-
-.room-info-display p:first-child {
-    margin-top: 0;
-}
-
-.room-info-display p:last-child {
-    margin-bottom: 0;
-}
-
 /* Game mode selector */
 .game-mode-selector {
     display: flex;
@@ -648,20 +416,9 @@
         display: none;
     }
 
-    .settings-sidebar-qr {
-        display: none;
-    }
-
     .settings-content {
         padding: 20px;
     }
-}
-
-#settings-modal .qr-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
 }
 
 .rules-content {

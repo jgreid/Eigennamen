@@ -27,8 +27,6 @@ jest.mock('../../frontend/i18n', () => ({
 // Mock url-state to avoid DOM side effects
 jest.mock('../../frontend/url-state', () => ({
     updateURL: jest.fn(),
-    updateQRCode: jest.fn(),
-    copyLink: jest.fn(),
 }));
 
 // Mock board module for render calls

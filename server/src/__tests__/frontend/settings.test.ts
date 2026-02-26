@@ -44,8 +44,7 @@ jest.mock('../../frontend/i18n', () => ({
 jest.mock('../../frontend/game', () => ({
     updateURL: jest.fn(),
     updateScoreboard: jest.fn(),
-    updateTurnIndicator: jest.fn(),
-    updateQRCode: jest.fn()
+    updateTurnIndicator: jest.fn()
 }));
 
 jest.mock('../../frontend/utils', () => ({

@@ -15,11 +15,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Eigennamen">
     <title>Eigennamen Online</title>
-    <!-- QR Code library - served locally for reliability -->
-    <script defer src="/js/qrcode.min.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
     <!-- Socket.io client - deferred to avoid blocking HTML parsing -->
     <script defer src="/js/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
-    <script defer src="/js/socket-client.js?v=10" integrity="sha384-C7QZTJta7q2dV3KW5ZSXx4jFDWFxYaZuqJFoU0xf5hhAWo3E/E35hOeM9jIndHhY" crossorigin="anonymous"></script>
+    <script defer src="/js/socket-client.js?v=10" integrity="sha384-zHMDds03uOgxYs1IxUoOePyYfx5cyoRPTXlplzoClBUkrwn/LR1nHIHSAeAsrdbw" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="/css/variables.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -56,7 +54,7 @@
             <!-- Multiplayer Status Indicator -->
             <div class="multiplayer-indicator" id="mp-indicator" data-testid="mp-indicator">
                 <span class="status-dot"></span>
-                <span>Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></span>
+                <button type="button" class="room-code-copy-btn" id="btn-copy-room-id" title="Click to copy room code">Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></button>
                 <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players" aria-label="Show player list" aria-expanded="false">
                     <span id="mp-player-count" data-testid="player-count">0 players</span>
                     <span class="expand-icon">▾</span>
@@ -155,13 +153,6 @@
                 </div>
             </div>
 
-            <!-- Share section -->
-            <div class="share-section">
-                <div class="share-input-group">
-                    <input type="text" id="share-link" data-testid="share-link" readonly placeholder="Game link..." aria-label="Share game link">
-                    <button type="button" class="btn-copy" data-action="copy-link">Copy</button>
-                </div>
-            </div>
         </aside>
 
         <!-- RIGHT MAIN AREA - Game Board -->
@@ -195,33 +186,19 @@
                             <span class="nav-icon">📝</span>
                             <span class="nav-text" data-i18n="settings.words">Words</span>
                         </button>
-                        <button type="button" class="settings-nav-item" data-panel="rules">
-                            <span class="nav-icon">📖</span>
-                            <span class="nav-text" data-i18n="settings.rules">Rules</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="about">
-                            <span class="nav-icon">ℹ️</span>
-                            <span class="nav-text" data-i18n="settings.about">About</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="link">
-                            <span class="nav-icon">🔗</span>
-                            <span class="nav-text" data-i18n="settings.link">Link</span>
-                        </button>
                         <button type="button" class="settings-nav-item" data-panel="prefs">
                             <span class="nav-icon">⚙️</span>
                             <span class="nav-text" data-i18n="settings.preferences">Prefs</span>
                         </button>
                         <button type="button" class="settings-nav-item" data-panel="room" id="nav-room-settings" style="display: none;">
-                            <span class="nav-icon">🔐</span>
-                            <span class="nav-text" data-i18n="settings.roomSettings">Room</span>
+                            <span class="nav-icon">🎮</span>
+                            <span class="nav-text" data-i18n="settings.gameMode">Mode</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="help">
+                            <span class="nav-icon">❓</span>
+                            <span class="nav-text" data-i18n="settings.help">Help</span>
                         </button>
                     </nav>
-                    <!-- QR Code in sidebar bottom -->
-                    <div class="settings-sidebar-qr" id="qr-section">
-                        <canvas id="qr-canvas" width="256" height="256"></canvas>
-                        <span class="qr-label">Scan to join</span>
-                        <span class="version">v3.2.0</span>
-                    </div>
                 </aside>
 
                 <!-- Content Area -->
@@ -271,94 +248,6 @@
                         </div>
                     </div>
 
-                    <!-- Rules Panel -->
-                    <div class="settings-panel" id="panel-rules">
-                        <h2 data-i18n="settings.rules">How to Play</h2>
-                        <div class="rules-content compact">
-                            <p class="rules-intro" data-i18n="rules.intro">Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.</p>
-                            <div class="rules-grid">
-                                <div class="rules-card">
-                                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
-                                    <div class="card-types">
-                                        <span class="card-type red" data-i18n="rules.redCard">■ Red Team</span>
-                                        <span class="card-type blue" data-i18n="rules.blueCard">● Blue Team</span>
-                                        <span class="card-type neutral" data-i18n="rules.neutralCard">◆ Neutral</span>
-                                        <span class="card-type assassin" data-i18n="rules.assassinCard">☠ Assassin</span>
-                                    </div>
-                                </div>
-                                <div class="rules-card">
-                                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
-                                    <ol class="turn-flow">
-                                        <li data-i18n="rules.step1">Spymaster gives a one-word clue + number</li>
-                                        <li data-i18n="rules.step2">Clickers reveal cards matching the clue</li>
-                                        <li data-i18n="rules.step3">Your color = keep going, Neutral/Enemy = turn ends</li>
-                                        <li data-i18n="rules.step4">Assassin = instant loss!</li>
-                                    </ol>
-                                </div>
-                            </div>
-                            <p class="rules-note" data-i18n="rules.note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
-                        </div>
-                    </div>
-
-                    <!-- About Panel -->
-                    <div class="settings-panel" id="panel-about">
-                        <h2 data-i18n="about.title">About</h2>
-                        <div class="about-content compact">
-                            <p class="about-intro" data-i18n="about.description">A free, open-source Eigennamen for remote play or in-person games.</p>
-                            <div class="features-grid">
-                                <div class="feature-item"><span class="feature-icon">🌐</span> Works offline (URL-encoded state)</div>
-                                <div class="feature-item"><span class="feature-icon">👥</span> Real-time multiplayer sync</div>
-                                <div class="feature-item"><span class="feature-icon">📝</span> Custom words &amp; team names</div>
-                                <div class="feature-item"><span class="feature-icon">📱</span> Mobile-friendly design</div>
-                            </div>
-                            <div class="credits">
-                                <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
-                                <p>Open source under GPL v3.0</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Link Panel -->
-                    <div class="settings-panel" id="panel-link">
-                        <h2>Share Game</h2>
-
-                        <!-- Multiplayer Mode: Simple Room Code -->
-                        <div class="room-code-share" id="mp-room-code-share" style="display: none;">
-                            <p class="panel-description">Share this room code with friends to let them join your game.</p>
-
-                            <div class="room-code-display">
-                                <span class="room-code-label">Room Code</span>
-                                <span class="room-code-value" id="share-room-code">----</span>
-                                <button type="button" class="btn-copy-room-code" data-action="copy-room-code" title="Copy room code">
-                                    <span class="copy-icon">📋</span>
-                                    <span class="copy-text">Copy</span>
-                                </button>
-                            </div>
-                            <div id="room-code-copy-feedback" class="copy-feedback"></div>
-
-                            <p class="room-code-hint">Players can join at <strong id="share-server-url"></strong> using this code</p>
-                        </div>
-
-                        <!-- Standalone Mode: Link + QR Code -->
-                        <div class="link-share-content compact" id="standalone-share">
-                            <p class="panel-description">Share this link with players. Everyone with the same link sees the same board.</p>
-
-                            <div class="link-input-group">
-                                <input type="text" id="share-link-input" readonly class="share-link-input" aria-label="Shareable game link">
-                                <button type="button" class="btn-copy-link" data-action="copy-link" title="Copy link to clipboard">
-                                    <span class="copy-icon">📋</span>
-                                    <span class="copy-text">Copy</span>
-                                </button>
-                            </div>
-                            <div id="copy-feedback" class="copy-feedback"></div>
-
-                            <div class="qr-container compact">
-                                <canvas id="share-qr-canvas" width="200" height="200"></canvas>
-                                <span class="qr-hint">Scan to join on mobile</span>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Preferences Panel -->
                     <div class="settings-panel" id="panel-prefs">
                         <h2 data-i18n="settings.preferences">Preferences</h2>
@@ -404,49 +293,70 @@
                         </div>
                     </div>
 
-                    <!-- Room Settings Panel (Multiplayer Host Only) -->
+                    <!-- Game Mode Panel (Multiplayer Host Only) -->
                     <div class="settings-panel" id="panel-room">
-                        <h2 data-i18n="roomSettings.title">Room Settings</h2>
-                        <p class="panel-description" data-i18n="roomSettings.description">Manage your multiplayer room settings. Only the host can change these.</p>
+                        <h2 data-i18n="roomSettings.gameMode">Game Mode</h2>
+                        <p class="panel-description" data-i18n="roomSettings.gameModeHint">Choose how you want to play.</p>
 
                         <div class="room-settings-content">
-                            <div class="pref-group">
-                                <h3 data-i18n="roomSettings.roomInfo">Room Info</h3>
-                                <p class="setting-hint" data-i18n="roomSettings.shareHint">Share the Room ID with friends to let them join.</p>
+                            <div class="game-mode-selector">
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="classic" checked>
+                                    <span class="game-mode-card">
+                                        <strong data-i18n="roomSettings.classic">Classic</strong>
+                                        <small data-i18n="roomSettings.classicDesc">Standard Eigennamen rules</small>
+                                    </span>
+                                </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="blitz">
+                                    <span class="game-mode-card">
+                                        <strong data-i18n="roomSettings.blitz">Blitz</strong>
+                                        <small data-i18n="roomSettings.blitzDesc">Fast-paced 30-second turns</small>
+                                    </span>
+                                </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="duet">
+                                    <span class="game-mode-card duet-mode-card">
+                                        <strong data-i18n="roomSettings.duet">Duet</strong>
+                                        <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
 
-                                <div class="room-info-display">
-                                    <p><strong>Room ID:</strong> <span id="room-info-code">----</span></p>
-                                    <p><strong>Players:</strong> <span id="room-info-players">0</span></p>
-                                    <p><strong>Status:</strong> <span id="room-info-status">Waiting</span></p>
+                    <!-- Help Panel (Rules + About) -->
+                    <div class="settings-panel" id="panel-help">
+                        <h2 data-i18n="settings.help">Help</h2>
+                        <div class="rules-content compact">
+                            <p class="rules-intro" data-i18n="rules.intro">Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.</p>
+                            <div class="rules-grid">
+                                <div class="rules-card">
+                                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
+                                    <div class="card-types">
+                                        <span class="card-type red" data-i18n="rules.redCard">■ Red Team</span>
+                                        <span class="card-type blue" data-i18n="rules.blueCard">● Blue Team</span>
+                                        <span class="card-type neutral" data-i18n="rules.neutralCard">◆ Neutral</span>
+                                        <span class="card-type assassin" data-i18n="rules.assassinCard">☠ Assassin</span>
+                                    </div>
+                                </div>
+                                <div class="rules-card">
+                                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
+                                    <ol class="turn-flow">
+                                        <li data-i18n="rules.step1">Spymaster gives a one-word clue + number</li>
+                                        <li data-i18n="rules.step2">Clickers reveal cards matching the clue</li>
+                                        <li data-i18n="rules.step3">Your color = keep going, Neutral/Enemy = turn ends</li>
+                                        <li data-i18n="rules.step4">Assassin = instant loss!</li>
+                                    </ol>
                                 </div>
                             </div>
-
-                            <div class="pref-group">
-                                <h3 data-i18n="roomSettings.gameMode">Game Mode</h3>
-                                <p class="setting-hint" data-i18n="roomSettings.gameModeHint">Choose how you want to play.</p>
-                                <div class="game-mode-selector">
-                                    <label class="game-mode-option">
-                                        <input type="radio" name="gameMode" value="classic" checked>
-                                        <span class="game-mode-card">
-                                            <strong data-i18n="roomSettings.classic">Classic</strong>
-                                            <small data-i18n="roomSettings.classicDesc">Standard Eigennamen rules</small>
-                                        </span>
-                                    </label>
-                                    <label class="game-mode-option">
-                                        <input type="radio" name="gameMode" value="blitz">
-                                        <span class="game-mode-card">
-                                            <strong data-i18n="roomSettings.blitz">Blitz</strong>
-                                            <small data-i18n="roomSettings.blitzDesc">Fast-paced 30-second turns</small>
-                                        </span>
-                                    </label>
-                                    <label class="game-mode-option">
-                                        <input type="radio" name="gameMode" value="duet">
-                                        <span class="game-mode-card duet-mode-card">
-                                            <strong data-i18n="roomSettings.duet">Duet</strong>
-                                            <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
-                                        </span>
-                                    </label>
-                                </div>
+                            <p class="rules-note" data-i18n="rules.note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
+                        </div>
+                        <div class="help-about-section">
+                            <p class="about-intro" data-i18n="about.description">A free, open-source implementation of the popular board game.</p>
+                            <div class="credits">
+                                <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
+                                <p>Open source under GPL v3.0</p>
                             </div>
                         </div>
                     </div>

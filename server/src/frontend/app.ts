@@ -5,13 +5,13 @@ import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
     confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, copyLink, loadGameFromURL, updateQRCode,
+    endTurn, loadGameFromURL,
     closeGameOver, revealCard
 } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
     openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
-    copyRoomCode, updateRoomInfoDisplay, initNicknameEditUI,
+    initNicknameEditUI,
     confirmForfeit, closeForfeitConfirm, forfeitGame,
     closeKickConfirm, confirmKickPlayer
 } from './multiplayer.js';
@@ -97,13 +97,6 @@ function setupEventListeners(): void {
             case 'confirm-end-turn':
                 confirmEndTurn();
                 break;
-            case 'copy-link':
-                copyLink();
-                break;
-            case 'copy-room-code':
-                copyRoomCode();
-                break;
-
             // Settings modal
             case 'save-settings':
                 saveSettings();
@@ -203,12 +196,6 @@ function setupEventListeners(): void {
     }
 }
 
-// Initialize room settings UI handlers (for multiplayer host)
-function initRoomSettingsUI(): void {
-    // Room settings initialization - update room info display
-    updateRoomInfoDisplay();
-}
-
 async function init(): Promise<void> {
     try {
         // Remove loading placeholder
@@ -230,8 +217,6 @@ async function init(): Promise<void> {
         // Load notification preferences
         loadNotificationPrefs();
         initNotificationPrefsUI();
-        // Initialize room settings UI (for multiplayer hosts)
-        initRoomSettingsUI();
         // Set up event delegation for game history (prevents memory leaks)
         setupHistoryEventDelegation();
         // Initialize settings listeners (custom words textarea, radio buttons)
@@ -239,8 +224,6 @@ async function init(): Promise<void> {
         loadLocalSettings();
         await tryLoadWordlistFile();
         loadGameFromURL();
-        // Initialize QR code with current URL
-        updateQRCode(window.location.href);
         // Initialize i18n (loads translations, translates page)
         await initI18n();
         // Wire up language selector

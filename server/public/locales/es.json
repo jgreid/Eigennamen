@@ -140,11 +140,9 @@
     "title": "Ajustes",
     "teams": "Equipos",
     "words": "Palabras",
-    "rules": "Cómo jugar",
-    "about": "Acerca de",
-    "link": "Compartir enlace",
     "preferences": "Preferencias",
-    "roomSettings": "Ajustes de sala",
+    "gameMode": "Modo",
+    "help": "Ayuda",
     "redTeamName": "Nombre Equipo Rojo",
     "blueTeamName": "Nombre Equipo Azul",
     "saveAndApply": "Guardar",
@@ -160,16 +158,6 @@
     "wordsDesc": "Elige qué palabras aparecen en el tablero. Las palabras personalizadas se incluyen en el enlace compartido."
   },
   "roomSettings": {
-    "title": "Ajustes de sala",
-    "description": "Gestiona los ajustes de tu sala multijugador. Solo el anfitrión puede cambiarlos.",
-    "roomInfo": "Info de sala",
-    "shareHint": "Comparte el ID de sala con tus amigos para que se unan.",
-    "roomId": "ID de sala",
-    "players": "Jugadores",
-    "status": "Estado",
-    "waiting": "Esperando",
-    "inProgress": "En curso",
-    "gameOver": "Fin de la partida",
     "gameMode": "Modo de juego",
     "gameModeHint": "Elige cómo quieres jugar.",
     "classic": "Clásico",
@@ -210,11 +198,7 @@
     "note": "El equipo inicial busca 9 palabras, el otro 8. ¡El primero en encontrar todas gana!"
   },
   "about": {
-    "title": "Acerca de Eigennamen Online",
-    "description": "Una implementación gratuita y de código abierto del popular juego de mesa.",
-    "version": "Versión",
-    "license": "GPL v3.0",
-    "source": "Código fuente"
+    "description": "Una implementación gratuita y de código abierto del popular juego de mesa."
   },
   "chat": {
     "title": "Chat",

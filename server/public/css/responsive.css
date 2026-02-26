@@ -163,10 +163,6 @@
         font-size: 0.7rem;
     }
 
-    .settings-sidebar-qr {
-        display: none;
-    }
-
     .settings-content {
         padding: 16px;
         max-height: 50vh;
@@ -176,11 +172,6 @@
     /* Multiplayer modal improvements */
     .multiplayer-modal {
         max-height: 85vh;
-    }
-
-    .mode-selector {
-        flex-direction: column;
-        gap: 8px;
     }
 
     .mode-btn {

@@ -498,43 +498,6 @@ button:focus-visible,
     color: white;
 }
 
-/* ========== SHARE SECTION ========== */
-.share-section {
-    display: none; /* Hidden to save sidebar space - users can share URL from browser */
-    margin-top: auto;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.share-section label {
-    display: block;
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.share-input-group {
-    display: flex;
-    gap: 6px;
-}
-
-.share-section input[type="text"] {
-    flex: 1;
-    padding: 8px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    font-size: 0.72rem;
-    background: rgba(0, 0, 0, 0.25);
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.share-section .btn-copy {
-    padding: 8px 14px;
-    font-size: 0.75rem;
-}
-
 /* ========== GAME BOARD ========== */
 .board-container {
     width: 100%;

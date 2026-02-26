@@ -61,31 +61,5 @@ header {
     letter-spacing: 1px;
 }
 
-/* ========== QR CODE SECTION (in settings modal) ========== */
-.qr-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    text-align: center;
-}
-
-#qr-canvas {
-    border-radius: 8px;
-    background: white;
-    padding: 8px;
-}
-
-.qr-hint {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin: 0;
-}
-
-.qr-section .version {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.55);
-    letter-spacing: 0.5px;
-}
 
 

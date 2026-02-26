@@ -3,9 +3,9 @@ import { updateCharCounter } from './utils.js';
 import { showErrorModal, closeError, closeModal, registerModalCloseHandler } from './ui.js';
 import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.js';
 import { setCardClickHandler, renderBoard } from './board.js';
-import { confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm, endTurn, copyLink, loadGameFromURL, updateQRCode, closeGameOver, revealCard } from './game.js';
+import { confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm, endTurn, loadGameFromURL, closeGameOver, revealCard } from './game.js';
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
-import { openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI, copyRoomCode, updateRoomInfoDisplay, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer } from './multiplayer.js';
+import { openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad } from './history.js';
 import { isClientConnected } from './clientAccessor.js';
 import { openSettings, closeSettings, saveSettings, resetWords, initSettingsNav, loadLocalSettings, tryLoadWordlistFile, initSettingsListeners } from './settings.js';
@@ -80,12 +80,6 @@ function setupEventListeners() {
                 break;
             case 'confirm-end-turn':
                 confirmEndTurn();
-                break;
-            case 'copy-link':
-                copyLink();
-                break;
-            case 'copy-room-code':
-                copyRoomCode();
                 break;
             // Settings modal
             case 'save-settings':
@@ -176,11 +170,6 @@ function setupEventListeners() {
         });
     }
 }
-// Initialize room settings UI handlers (for multiplayer host)
-function initRoomSettingsUI() {
-    // Room settings initialization - update room info display
-    updateRoomInfoDisplay();
-}
 async function init() {
     try {
         // Remove loading placeholder
@@ -202,8 +191,6 @@ async function init() {
         // Load notification preferences
         loadNotificationPrefs();
         initNotificationPrefsUI();
-        // Initialize room settings UI (for multiplayer hosts)
-        initRoomSettingsUI();
         // Set up event delegation for game history (prevents memory leaks)
         setupHistoryEventDelegation();
         // Initialize settings listeners (custom words textarea, radio buttons)
@@ -211,8 +198,6 @@ async function init() {
         loadLocalSettings();
         await tryLoadWordlistFile();
         loadGameFromURL();
-        // Initialize QR code with current URL
-        updateQRCode(window.location.href);
         // Initialize i18n (loads translations, translates page)
         await initI18n();
         // Wire up language selector

@@ -140,11 +140,9 @@
     "title": "Paramètres",
     "teams": "Équipes",
     "words": "Mots",
-    "rules": "Règles du jeu",
-    "about": "À propos",
-    "link": "Partager le lien",
     "preferences": "Préférences",
-    "roomSettings": "Paramètres du salon",
+    "gameMode": "Mode",
+    "help": "Aide",
     "redTeamName": "Nom Équipe Rouge",
     "blueTeamName": "Nom Équipe Bleue",
     "saveAndApply": "Enregistrer",
@@ -160,16 +158,6 @@
     "wordsDesc": "Choisissez les mots qui apparaissent sur le plateau. Les mots personnalisés sont inclus dans le lien partagé."
   },
   "roomSettings": {
-    "title": "Paramètres du salon",
-    "description": "Gérez les paramètres de votre salon multijoueur. Seul l'hôte peut les modifier.",
-    "roomInfo": "Info du salon",
-    "shareHint": "Partagez l'ID du salon avec vos amis pour qu'ils puissent rejoindre.",
-    "roomId": "ID du salon",
-    "players": "Joueurs",
-    "status": "Statut",
-    "waiting": "En attente",
-    "inProgress": "En cours",
-    "gameOver": "Fin de partie",
     "gameMode": "Mode de jeu",
     "gameModeHint": "Choisissez comment vous voulez jouer.",
     "classic": "Classique",
@@ -210,11 +198,7 @@
     "note": "L'équipe qui commence cherche 9 mots, l'autre 8. La première à tous les trouver gagne !"
   },
   "about": {
-    "title": "À propos de Eigennamen Online",
-    "description": "Une implémentation gratuite et open-source du célèbre jeu de société.",
-    "version": "Version",
-    "license": "GPL v3.0",
-    "source": "Code source"
+    "description": "Une implémentation gratuite et open-source du célèbre jeu de société."
   },
   "chat": {
     "title": "Discussion",

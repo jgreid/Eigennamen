@@ -8,7 +8,7 @@
  * - WebSocket: Bypassed (not cacheable)
  */
 
-const CACHE_NAME = 'eigennamen-v2';
+const CACHE_NAME = 'eigennamen-v3';
 const STATIC_ASSETS = [
     '/',
     '/css/variables.css',
@@ -22,7 +22,6 @@ const STATIC_ASSETS = [
     '/js/modules/app.js',
     '/js/socket-client.js',
     '/js/socket.io.min.js',
-    '/js/qrcode.min.js',
     '/manifest.json',
     '/icons/icon.svg'
 ];
