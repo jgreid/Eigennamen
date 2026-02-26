@@ -46,8 +46,11 @@ function createSocketServer(server: HttpServer): SocketIOServer {
             // Skip middlewares on reconnection
             skipMiddlewares: false
         },
-        // Allow EIO4 for older clients
-        allowEIO3: true,
+        // SECURITY: Disable legacy Engine.IO v3 protocol to reduce attack surface.
+        // EIO3 has known limitations; all modern clients use EIO4.
+        allowEIO3: false,
+        // Prevent path confusion with trailing slash normalization
+        addTrailingSlash: false,
         // Enable per-message deflate compression for reduced bandwidth
         perMessageDeflate: {
             threshold: 1024, // Only compress messages larger than 1KB

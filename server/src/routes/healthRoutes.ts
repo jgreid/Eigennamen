@@ -1,6 +1,7 @@
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config/redis';
 import type { RedisMemoryInfo } from '../config/redis';
 import * as pubSubHealth from '../utils/pubSubHealth';
@@ -10,6 +11,18 @@ import { getPrometheusMetrics, updateSystemMetrics } from '../utils/metrics';
 import { withTimeout } from '../utils/timeout';
 
 const router: ExpressRouter = express.Router();
+
+// Rate limiter for metrics endpoints to prevent abuse
+const metricsLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === 'test',
+    handler: (_req: Request, res: Response) => {
+        res.status(429).json({ error: 'Too many metrics requests' });
+    }
+});
 
 // Track server start time for uptime calculation
 const serverStartTime: number = Date.now();
@@ -149,7 +162,9 @@ router.get('/live', (_req: Request, res: Response) => {
  * Detailed health metrics - for monitoring dashboards
  * Returns comprehensive system information
  */
-router.get('/metrics', async (_req: Request, res: Response) => {
+router.get('/metrics', metricsLimiter, async (_req: Request, res: Response) => {
+    // Prevent caching of operational data by proxies/CDNs
+    res.set('Cache-Control', 'no-store');
     try {
         const memUsage = process.memoryUsage();
         const pubSubStatus = pubSubHealth.getHealth();
@@ -233,7 +248,8 @@ router.get('/metrics', async (_req: Request, res: Response) => {
  * Prometheus-compatible metrics endpoint
  * Returns metrics in Prometheus text exposition format
  */
-router.get('/metrics/prometheus', (_req: Request, res: Response) => {
+router.get('/metrics/prometheus', metricsLimiter, (_req: Request, res: Response) => {
+    res.set('Cache-Control', 'no-store');
     try {
         // Update system metrics before export
         updateSystemMetrics();

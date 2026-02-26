@@ -149,6 +149,16 @@ app.use(helmet({
     } : false
 }));
 
+// Permissions-Policy: restrict browser APIs the game doesn't use
+// Prevents third-party scripts or embedded content from accessing sensitive APIs
+app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Permissions-Policy',
+        'camera=(), microphone=(), geolocation=(), payment=(), usb=(), ' +
+        'magnetometer=(), gyroscope=(), accelerometer=()'
+    );
+    next();
+});
+
 app.use(cors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
     credentials: true,
@@ -243,6 +253,8 @@ interface MetricsResponse {
 // Metrics endpoint with rate limit visibility and application metrics
 // Rate limited to prevent abuse (metrics can be expensive to compute)
 app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
+    // Prevent caching of operational data by proxies/CDNs
+    res.set('Cache-Control', 'no-store');
     const metricsData: MetricsResponse = {
         timestamp: new Date().toISOString(),
         process: isProduction

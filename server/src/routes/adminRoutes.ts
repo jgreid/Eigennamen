@@ -105,6 +105,12 @@ const adminLimiter = rateLimit({
 router.use(adminLimiter);
 router.use(basicAuth);
 
+// Prevent caching of admin responses — they contain sensitive operational data
+router.use((_req: Request, res: Response, next: NextFunction) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
+
 /**
  * GET /admin - Serve the admin dashboard HTML page
  */

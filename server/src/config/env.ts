@@ -103,7 +103,7 @@ export function validateEnv(): boolean {
             errors.push('ADMIN_PASSWORD is set but empty or whitespace-only');
         } else {
             if (adminPassword.length < 12) {
-                warnings.push('SECURITY WARNING: ADMIN_PASSWORD is too short (should be at least 12 characters)');
+                errors.push('ADMIN_PASSWORD must be at least 12 characters in production. Generate one with: openssl rand -base64 24');
             }
             const hasLower = /[a-z]/.test(adminPassword);
             const hasUpper = /[A-Z]/.test(adminPassword);

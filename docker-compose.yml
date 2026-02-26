@@ -41,6 +41,8 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
     deploy:
       resources:
         limits:
@@ -48,14 +50,26 @@ services:
           cpus: '0.5'
         reservations:
           memory: 64M
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    command: >-
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+      --maxmemory 100mb
+      --maxmemory-policy allkeys-lru
+      --rename-command FLUSHALL ""
+      --rename-command FLUSHDB ""
+      --rename-command DEBUG ""
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      # Use REDISCLI_AUTH env var instead of -a flag to avoid leaking password in process list
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$REDIS_PASSWORD redis-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    # Only expose Redis on the internal Docker network — never publish to host
+    expose:
+      - "6379"
     restart: unless-stopped
     networks:
       - eigennamen-network
