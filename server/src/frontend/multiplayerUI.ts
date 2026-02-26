@@ -294,10 +294,9 @@ export function updateRoomStats(stats: RoomStats): void {
     state.roomStats = stats;
 }
 
-// Handle spectator chat messages
+// Handle spectator chat messages (server sends { from, text, timestamp })
 export function handleSpectatorChatMessage(data: SpectatorChatData): void {
-    // Validate message data before rendering into DOM
-    if (!data || typeof data.message !== 'string') return;
+    if (!data || typeof data.text !== 'string') return;
 
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
@@ -305,18 +304,18 @@ export function handleSpectatorChatMessage(data: SpectatorChatData): void {
     const messageEl = document.createElement('div');
     messageEl.className = 'chat-message spectator-message';
 
-    const senderEl = document.createElement('span');
-    senderEl.className = 'chat-sender spectator';
-    senderEl.textContent = data.sender?.nickname || 'Spectator';
-
-    const contentEl = document.createElement('span');
-    contentEl.className = 'chat-content';
-    contentEl.textContent = data.message;
-
     const badgeEl = document.createElement('span');
     badgeEl.className = 'chat-badge spectator-badge';
     badgeEl.textContent = '\uD83D\uDC41';
     badgeEl.title = t('chat.spectatorMessage');
+
+    const senderEl = document.createElement('span');
+    senderEl.className = 'chat-sender spectator';
+    senderEl.textContent = data.from?.nickname || 'Spectator';
+
+    const contentEl = document.createElement('span');
+    contentEl.className = 'chat-content';
+    contentEl.textContent = data.text;
 
     messageEl.appendChild(badgeEl);
     messageEl.appendChild(senderEl);
@@ -324,7 +323,12 @@ export function handleSpectatorChatMessage(data: SpectatorChatData): void {
     messageEl.appendChild(contentEl);
 
     chatMessages.appendChild(messageEl);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Auto-scroll if near bottom
+    const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 60;
+    if (isNearBottom) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 }
 
 // Send a spectator chat message

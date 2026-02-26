@@ -180,10 +180,6 @@ export function registerAllEventListeners(
         emit('spymasterView', raw as SpymasterViewData);
     });
 
-    register('game:historyData', (raw: unknown) => {
-        emit('historyData', raw);
-    });
-
     register('game:historyResult', (raw: unknown) => {
         emit('historyResult', raw as HistoryResultData);
     });

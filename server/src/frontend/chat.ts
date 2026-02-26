@@ -1,6 +1,7 @@
 import type { ChatMessageData } from './multiplayerTypes.js';
 import { t } from './i18n.js';
 import { isClientConnected } from './clientAccessor.js';
+import { sendSpectatorChat } from './multiplayerUI.js';
 
 let unreadCount = 0;
 let chatOpen = false;
@@ -54,7 +55,8 @@ function toggleChat(): void {
 }
 
 /**
- * Send a chat message from the input field
+ * Send a chat message from the input field.
+ * Spectators are routed through the spectator-only chat channel.
  */
 function sendChatMessage(): void {
     const input = document.getElementById('chat-input') as HTMLInputElement | null;
@@ -64,9 +66,13 @@ function sendChatMessage(): void {
     if (!text) return;
     if (!isClientConnected()) return;
 
-    const teamOnly = (document.getElementById('chat-team-only') as HTMLInputElement | null)?.checked ?? false;
-
-    EigennamenClient.sendMessage(text, teamOnly);
+    const player = EigennamenClient.player;
+    if (player?.role === 'spectator') {
+        sendSpectatorChat(text);
+    } else {
+        const teamOnly = (document.getElementById('chat-team-only') as HTMLInputElement | null)?.checked ?? false;
+        EigennamenClient.sendMessage(text, teamOnly);
+    }
     input.value = '';
     input.focus();
 }
@@ -144,6 +150,25 @@ function updateUnreadBadge(): void {
         badge.style.display = 'inline-block';
     } else {
         badge.style.display = 'none';
+    }
+}
+
+/**
+ * Update chat UI based on whether the current player is a spectator.
+ * Hides the team-only checkbox and updates the placeholder for spectators.
+ */
+export function updateChatForRole(): void {
+    const player = EigennamenClient.player;
+    const isSpectator = player?.role === 'spectator';
+
+    const teamOnlyLabel = document.querySelector('.chat-team-only') as HTMLElement | null;
+    if (teamOnlyLabel) {
+        teamOnlyLabel.style.display = isSpectator ? 'none' : '';
+    }
+
+    const input = document.getElementById('chat-input') as HTMLInputElement | null;
+    if (input) {
+        input.placeholder = isSpectator ? t('chat.spectatorChat') : t('chat.placeholder');
     }
 }
 

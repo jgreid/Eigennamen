@@ -242,8 +242,6 @@ export interface SocketEventNames {
   GAME_TURN_ENDED: string;
   GAME_FORFEIT: string;
   GAME_OVER: string;
-  GAME_HISTORY: string;
-  GAME_HISTORY_DATA: string;
   GAME_GET_HISTORY: string;
   GAME_GET_REPLAY: string;
   GAME_HISTORY_RESULT: string;

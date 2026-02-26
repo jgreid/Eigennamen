@@ -154,6 +154,18 @@ export function formatDuration(ms) {
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
+// Format duration as human-readable short string (e.g. "4m 32s", "1h 5m")
+export function formatShortDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0)
+        return `${hours}h ${minutes}m`;
+    if (minutes > 0)
+        return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+}
 export function updateCharCounter(inputId, counterId, maxLength) {
     const input = document.getElementById(inputId);
     const counter = document.getElementById(counterId);

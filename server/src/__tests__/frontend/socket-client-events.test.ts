@@ -432,17 +432,6 @@ describe('registerAllEventListeners', () => {
         });
     });
 
-    describe('game:historyData', () => {
-        test('emits historyData with data', () => {
-            const { handlers, emit } = setup();
-            const data = { games: [{ id: 1, winner: 'blue' }] };
-
-            handlers['game:historyData'](data);
-
-            expect(emit).toHaveBeenCalledWith('historyData', data);
-        });
-    });
-
     describe('game:historyResult', () => {
         test('emits historyResult with data', () => {
             const { handlers, emit } = setup();

@@ -9,6 +9,7 @@ import {
     updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility,
     hideReconnectionOverlay, updateDuetUI
 } from './multiplayerUI.js';
+import { updateChatForRole } from './chat.js';
 import {
     setPlayerRole, clearPlayerRole, resetGameState,
     validateTurn, validateWinner, validateGameMode, validateArrayLength
@@ -71,6 +72,7 @@ export function cleanupMultiplayerListeners(): void {
 export function syncLocalPlayerState(player: ServerPlayerData): void {
     if (!player) return;
     setPlayerRole(player.role, player.team);
+    updateChatForRole();
 }
 
 /**

@@ -6,6 +6,7 @@ import { handleTimerStopped } from './timer.js';
 import { setTabNotification } from './notifications.js';
 import { logger } from './logger.js';
 import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, hideReconnectionOverlay, updateDuetUI } from './multiplayerUI.js';
+import { updateChatForRole } from './chat.js';
 import { setPlayerRole, clearPlayerRole, resetGameState, validateTurn, validateWinner, validateGameMode, validateArrayLength } from './stateMutations.js';
 import { batch } from './store/batch.js';
 import { isPlayerTurn } from './store/selectors.js';
@@ -59,6 +60,7 @@ export function syncLocalPlayerState(player) {
     if (!player)
         return;
     setPlayerRole(player.role, player.team);
+    updateChatForRole();
 }
 /**
  * Reset all multiplayer-related state (team, role, clicker flags, game state).

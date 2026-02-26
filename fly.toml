@@ -57,7 +57,7 @@ primary_region = "iad"
 # causing duplicate checks that raced against startup, producing spurious
 # "failed" messages before the grace period could take effect.
 [[http_service.checks]]
-  grace_period = "30s"
+  grace_period = "60s"
   interval = "30s"
   method = "GET"
   timeout = "10s"

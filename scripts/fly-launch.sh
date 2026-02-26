@@ -6,6 +6,7 @@
 #   ./scripts/fly-launch.sh --deploy     # Deploy (skip app creation)
 #   ./scripts/fly-launch.sh --secrets    # Set/rotate secrets only
 #   ./scripts/fly-launch.sh --status     # Check app status
+#   ./scripts/fly-launch.sh --cleanup    # Remove orphaned fly-builder apps
 #
 # Prerequisites: fly CLI installed and authenticated (fly auth login)
 
@@ -91,7 +92,8 @@ create_app() {
     # Update fly.toml if app name changed
     if [ "$app_name" != "$(get_app_name)" ]; then
         sed -i "s/^app = .*/app = \"$app_name\"/" "$PROJECT_ROOT/fly.toml"
-        info "Updated fly.toml with app name: $app_name"
+        sed -i "s|CORS_ORIGIN = \"https://.*\.fly\.dev\"|CORS_ORIGIN = \"https://${app_name}.fly.dev\"|" "$PROJECT_ROOT/fly.toml"
+        info "Updated fly.toml with app name and CORS_ORIGIN: $app_name"
     fi
 }
 
@@ -199,7 +201,16 @@ deploy() {
         fi
     fi
 
-    fly deploy -a "$app_name"
+    # Build locally to avoid creating orphaned fly-builder-* apps.
+    # Falls back to remote build if Docker is not available locally.
+    if docker info &>/dev/null; then
+        info "Building with local Docker (no remote builder)"
+        fly deploy -a "$app_name" --local-only
+    else
+        warn "Docker not running locally — using Fly remote builder"
+        warn "This creates a temporary fly-builder-* app. Clean up with: $0 --cleanup"
+        fly deploy -a "$app_name"
+    fi
     success "Deployment complete!"
 
     # Scale to 1 machine if using memory mode
@@ -256,6 +267,42 @@ show_status() {
     info "Logs:    fly logs -a $app_name"
 }
 
+# ── Builder cleanup ───────────────────────────────────────────
+
+cleanup_builders() {
+    info "Looking for orphaned fly-builder-* apps..."
+
+    local builders
+    builders=$(fly apps list 2>/dev/null | grep 'fly-builder-' | awk '{print $1}' || echo "")
+
+    if [ -z "$builders" ]; then
+        success "No orphaned builder apps found"
+        return 0
+    fi
+
+    echo "$builders" | while read -r builder_app; do
+        warn "Found: $builder_app"
+    done
+
+    local count
+    count=$(echo "$builders" | wc -l | tr -d ' ')
+    echo ""
+    read -rp "Destroy $count builder app(s)? [Y/n]: " confirm
+    if [[ "$confirm" =~ ^[Nn]$ ]]; then
+        info "Skipping cleanup"
+        return 0
+    fi
+
+    echo "$builders" | while read -r builder_app; do
+        info "Destroying $builder_app..."
+        fly apps destroy "$builder_app" --yes 2>/dev/null && \
+            success "Destroyed $builder_app" || \
+            warn "Failed to destroy $builder_app"
+    done
+
+    success "Builder cleanup complete"
+}
+
 # ── Main ──────────────────────────────────────────────────────────
 
 main() {
@@ -276,6 +323,9 @@ main() {
             ;;
         --status)
             show_status
+            ;;
+        --cleanup)
+            cleanup_builders
             ;;
         *)
             # Full interactive setup

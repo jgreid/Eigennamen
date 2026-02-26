@@ -104,10 +104,14 @@ export interface StatsUpdatedData {
 }
 
 export interface SpectatorChatData {
-    message: string;
-    sender?: {
+    text: string;
+    from?: {
+        sessionId?: string;
         nickname?: string;
+        team?: string;
+        role?: string;
     };
+    timestamp?: number;
 }
 
 // Chat message data from server

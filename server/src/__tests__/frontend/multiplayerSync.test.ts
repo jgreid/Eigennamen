@@ -76,6 +76,9 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     hideReconnectionOverlay: jest.fn(),
     updateDuetUI: jest.fn()
 }));
+jest.mock('../../frontend/chat', () => ({
+    updateChatForRole: jest.fn()
+}));
 jest.mock('../../frontend/stateMutations', () => ({
     setPlayerRole: jest.fn(),
     clearPlayerRole: jest.fn(),
@@ -421,6 +424,8 @@ describe('multiplayerSync', () => {
             syncLocalPlayerState(player);
 
             expect(setPlayerRole).toHaveBeenCalledWith('spymaster', 'red');
+            const { updateChatForRole } = require('../../frontend/chat');
+            expect(updateChatForRole).toHaveBeenCalled();
         });
 
         it('calls setPlayerRole with null team', () => {

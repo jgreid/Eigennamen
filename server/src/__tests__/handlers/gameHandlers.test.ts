@@ -356,31 +356,6 @@ describe('Game Handlers', () => {
         });
     });
 
-    describe('game:history handler', () => {
-        test('registers handler', () => {
-            const handlers = mockSocket.on.mock.calls;
-            const historyHandler = handlers.find(h => h[0] === 'game:history');
-            expect(historyHandler).toBeDefined();
-        });
-
-        test('returns game history', async () => {
-            const mockHistory = [
-                { action: 'clue', word: 'TEST', number: 2 },
-                { action: 'reveal', index: 5, type: 'red' }
-            ];
-            gameService.getGameHistory.mockResolvedValue(mockHistory);
-
-            const handlers = mockSocket.on.mock.calls;
-            const historyHandler = handlers.find(h => h[0] === 'game:history');
-            await historyHandler[1]();
-
-            expect(gameService.getGameHistory).toHaveBeenCalledWith('TEST12');
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:historyData', {
-                history: mockHistory
-            });
-        });
-    });
-
     describe('Error handling', () => {
         test('handles room not found', async () => {
             mockSocket.roomCode = null;
