@@ -40,9 +40,7 @@ export function updateURL(): void {
  * Uses qrcode-generator library (CDN) for reliable QR code generation.
  */
 export function updateQRCode(url?: string): void {
-    const canvas = document.getElementById('qr-canvas') as HTMLCanvasElement | null;
     const shareCanvas = document.getElementById('share-qr-canvas') as HTMLCanvasElement | null;
-    const qrSection = document.getElementById('qr-section');
     const shareLinkInput = document.getElementById('share-link-input') as HTMLInputElement | null;
     const targetUrl = url || window.location.href;
 
@@ -53,8 +51,6 @@ export function updateQRCode(url?: string): void {
 
     // Check if qrcode-generator library is loaded
     if (typeof qrcode !== 'function') {
-        logger.debug('QR code library not loaded, hiding QR section');
-        if (qrSection) qrSection.style.display = 'none';
         return;
     }
 
@@ -71,12 +67,10 @@ export function updateQRCode(url?: string): void {
         const darkColor = '#1a1a2e';
         const lightColor = '#ffffff';
 
-        // Helper function to draw QR to canvas
-        function drawQRToCanvas(targetCanvas: HTMLCanvasElement | null): void {
-            if (!targetCanvas) return;
-            targetCanvas.width = canvasSize;
-            targetCanvas.height = canvasSize;
-            const ctx = targetCanvas.getContext('2d');
+        if (shareCanvas) {
+            shareCanvas.width = canvasSize;
+            shareCanvas.height = canvasSize;
+            const ctx = shareCanvas.getContext('2d');
 
             // Fill background
             ctx!.fillStyle = lightColor;
@@ -97,17 +91,8 @@ export function updateQRCode(url?: string): void {
                 }
             }
         }
-
-        // Update both canvases
-        drawQRToCanvas(canvas);
-        drawQRToCanvas(shareCanvas);
-
-        // Show QR section on success
-        if (qrSection) qrSection.style.display = '';
     } catch (e) {
         logger.error('QR code generation failed:', e);
-        // Hide QR section if URL is too long or other error
-        if (qrSection) qrSection.style.display = 'none';
     }
 }
 

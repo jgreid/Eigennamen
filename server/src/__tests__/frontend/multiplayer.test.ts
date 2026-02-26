@@ -82,7 +82,6 @@ jest.mock('../../frontend/constants', () => ({
 jest.mock('../../frontend/multiplayerUI', () => ({
     updateMpIndicator: jest.fn(),
     updateRoomSettingsNavVisibility: jest.fn(),
-    updateRoomInfoDisplay: jest.fn(),
     updateForfeitButton: jest.fn(),
     copyRoomId: jest.fn(),
     copyRoomCode: jest.fn(),
@@ -92,8 +91,7 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     closeForfeitConfirm: jest.fn(),
     forfeitGame: jest.fn(),
     closeKickConfirm: jest.fn(),
-    confirmKickPlayer: jest.fn(),
-    updateForfeitButton: jest.fn()
+    confirmKickPlayer: jest.fn()
 }));
 
 jest.mock('../../frontend/multiplayerSync', () => ({

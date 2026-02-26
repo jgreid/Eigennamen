@@ -195,33 +195,23 @@
                             <span class="nav-icon">📝</span>
                             <span class="nav-text" data-i18n="settings.words">Words</span>
                         </button>
-                        <button type="button" class="settings-nav-item" data-panel="rules">
-                            <span class="nav-icon">📖</span>
-                            <span class="nav-text" data-i18n="settings.rules">Rules</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="about">
-                            <span class="nav-icon">ℹ️</span>
-                            <span class="nav-text" data-i18n="settings.about">About</span>
-                        </button>
                         <button type="button" class="settings-nav-item" data-panel="link">
                             <span class="nav-icon">🔗</span>
-                            <span class="nav-text" data-i18n="settings.link">Link</span>
+                            <span class="nav-text" data-i18n="settings.link">Share</span>
                         </button>
                         <button type="button" class="settings-nav-item" data-panel="prefs">
                             <span class="nav-icon">⚙️</span>
                             <span class="nav-text" data-i18n="settings.preferences">Prefs</span>
                         </button>
                         <button type="button" class="settings-nav-item" data-panel="room" id="nav-room-settings" style="display: none;">
-                            <span class="nav-icon">🔐</span>
-                            <span class="nav-text" data-i18n="settings.roomSettings">Room</span>
+                            <span class="nav-icon">🎮</span>
+                            <span class="nav-text" data-i18n="settings.gameMode">Mode</span>
+                        </button>
+                        <button type="button" class="settings-nav-item" data-panel="help">
+                            <span class="nav-icon">❓</span>
+                            <span class="nav-text" data-i18n="settings.help">Help</span>
                         </button>
                     </nav>
-                    <!-- QR Code in sidebar bottom -->
-                    <div class="settings-sidebar-qr" id="qr-section">
-                        <canvas id="qr-canvas" width="256" height="256"></canvas>
-                        <span class="qr-label">Scan to join</span>
-                        <span class="version">v3.2.0</span>
-                    </div>
                 </aside>
 
                 <!-- Content Area -->
@@ -271,54 +261,7 @@
                         </div>
                     </div>
 
-                    <!-- Rules Panel -->
-                    <div class="settings-panel" id="panel-rules">
-                        <h2 data-i18n="settings.rules">How to Play</h2>
-                        <div class="rules-content compact">
-                            <p class="rules-intro" data-i18n="rules.intro">Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.</p>
-                            <div class="rules-grid">
-                                <div class="rules-card">
-                                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
-                                    <div class="card-types">
-                                        <span class="card-type red" data-i18n="rules.redCard">■ Red Team</span>
-                                        <span class="card-type blue" data-i18n="rules.blueCard">● Blue Team</span>
-                                        <span class="card-type neutral" data-i18n="rules.neutralCard">◆ Neutral</span>
-                                        <span class="card-type assassin" data-i18n="rules.assassinCard">☠ Assassin</span>
-                                    </div>
-                                </div>
-                                <div class="rules-card">
-                                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
-                                    <ol class="turn-flow">
-                                        <li data-i18n="rules.step1">Spymaster gives a one-word clue + number</li>
-                                        <li data-i18n="rules.step2">Clickers reveal cards matching the clue</li>
-                                        <li data-i18n="rules.step3">Your color = keep going, Neutral/Enemy = turn ends</li>
-                                        <li data-i18n="rules.step4">Assassin = instant loss!</li>
-                                    </ol>
-                                </div>
-                            </div>
-                            <p class="rules-note" data-i18n="rules.note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
-                        </div>
-                    </div>
-
-                    <!-- About Panel -->
-                    <div class="settings-panel" id="panel-about">
-                        <h2 data-i18n="about.title">About</h2>
-                        <div class="about-content compact">
-                            <p class="about-intro" data-i18n="about.description">A free, open-source Eigennamen for remote play or in-person games.</p>
-                            <div class="features-grid">
-                                <div class="feature-item"><span class="feature-icon">🌐</span> Works offline (URL-encoded state)</div>
-                                <div class="feature-item"><span class="feature-icon">👥</span> Real-time multiplayer sync</div>
-                                <div class="feature-item"><span class="feature-icon">📝</span> Custom words &amp; team names</div>
-                                <div class="feature-item"><span class="feature-icon">📱</span> Mobile-friendly design</div>
-                            </div>
-                            <div class="credits">
-                                <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
-                                <p>Open source under GPL v3.0</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Link Panel -->
+                    <!-- Link/Share Panel -->
                     <div class="settings-panel" id="panel-link">
                         <h2>Share Game</h2>
 
@@ -404,49 +347,70 @@
                         </div>
                     </div>
 
-                    <!-- Room Settings Panel (Multiplayer Host Only) -->
+                    <!-- Game Mode Panel (Multiplayer Host Only) -->
                     <div class="settings-panel" id="panel-room">
-                        <h2 data-i18n="roomSettings.title">Room Settings</h2>
-                        <p class="panel-description" data-i18n="roomSettings.description">Manage your multiplayer room settings. Only the host can change these.</p>
+                        <h2 data-i18n="roomSettings.gameMode">Game Mode</h2>
+                        <p class="panel-description" data-i18n="roomSettings.gameModeHint">Choose how you want to play.</p>
 
                         <div class="room-settings-content">
-                            <div class="pref-group">
-                                <h3 data-i18n="roomSettings.roomInfo">Room Info</h3>
-                                <p class="setting-hint" data-i18n="roomSettings.shareHint">Share the Room ID with friends to let them join.</p>
+                            <div class="game-mode-selector">
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="classic" checked>
+                                    <span class="game-mode-card">
+                                        <strong data-i18n="roomSettings.classic">Classic</strong>
+                                        <small data-i18n="roomSettings.classicDesc">Standard Eigennamen rules</small>
+                                    </span>
+                                </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="blitz">
+                                    <span class="game-mode-card">
+                                        <strong data-i18n="roomSettings.blitz">Blitz</strong>
+                                        <small data-i18n="roomSettings.blitzDesc">Fast-paced 30-second turns</small>
+                                    </span>
+                                </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="duet">
+                                    <span class="game-mode-card duet-mode-card">
+                                        <strong data-i18n="roomSettings.duet">Duet</strong>
+                                        <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
 
-                                <div class="room-info-display">
-                                    <p><strong>Room ID:</strong> <span id="room-info-code">----</span></p>
-                                    <p><strong>Players:</strong> <span id="room-info-players">0</span></p>
-                                    <p><strong>Status:</strong> <span id="room-info-status">Waiting</span></p>
+                    <!-- Help Panel (Rules + About) -->
+                    <div class="settings-panel" id="panel-help">
+                        <h2 data-i18n="settings.help">Help</h2>
+                        <div class="rules-content compact">
+                            <p class="rules-intro" data-i18n="rules.intro">Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.</p>
+                            <div class="rules-grid">
+                                <div class="rules-card">
+                                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
+                                    <div class="card-types">
+                                        <span class="card-type red" data-i18n="rules.redCard">■ Red Team</span>
+                                        <span class="card-type blue" data-i18n="rules.blueCard">● Blue Team</span>
+                                        <span class="card-type neutral" data-i18n="rules.neutralCard">◆ Neutral</span>
+                                        <span class="card-type assassin" data-i18n="rules.assassinCard">☠ Assassin</span>
+                                    </div>
+                                </div>
+                                <div class="rules-card">
+                                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
+                                    <ol class="turn-flow">
+                                        <li data-i18n="rules.step1">Spymaster gives a one-word clue + number</li>
+                                        <li data-i18n="rules.step2">Clickers reveal cards matching the clue</li>
+                                        <li data-i18n="rules.step3">Your color = keep going, Neutral/Enemy = turn ends</li>
+                                        <li data-i18n="rules.step4">Assassin = instant loss!</li>
+                                    </ol>
                                 </div>
                             </div>
-
-                            <div class="pref-group">
-                                <h3 data-i18n="roomSettings.gameMode">Game Mode</h3>
-                                <p class="setting-hint" data-i18n="roomSettings.gameModeHint">Choose how you want to play.</p>
-                                <div class="game-mode-selector">
-                                    <label class="game-mode-option">
-                                        <input type="radio" name="gameMode" value="classic" checked>
-                                        <span class="game-mode-card">
-                                            <strong data-i18n="roomSettings.classic">Classic</strong>
-                                            <small data-i18n="roomSettings.classicDesc">Standard Eigennamen rules</small>
-                                        </span>
-                                    </label>
-                                    <label class="game-mode-option">
-                                        <input type="radio" name="gameMode" value="blitz">
-                                        <span class="game-mode-card">
-                                            <strong data-i18n="roomSettings.blitz">Blitz</strong>
-                                            <small data-i18n="roomSettings.blitzDesc">Fast-paced 30-second turns</small>
-                                        </span>
-                                    </label>
-                                    <label class="game-mode-option">
-                                        <input type="radio" name="gameMode" value="duet">
-                                        <span class="game-mode-card duet-mode-card">
-                                            <strong data-i18n="roomSettings.duet">Duet</strong>
-                                            <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
-                                        </span>
-                                    </label>
-                                </div>
+                            <p class="rules-note" data-i18n="rules.note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
+                        </div>
+                        <div class="help-about-section">
+                            <p class="about-intro" data-i18n="about.description">A free, open-source implementation of the popular board game.</p>
+                            <div class="credits">
+                                <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
+                                <p>Open source under GPL v3.0</p>
                             </div>
                         </div>
                     </div>

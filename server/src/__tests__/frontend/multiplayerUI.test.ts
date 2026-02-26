@@ -4,7 +4,7 @@
  * Tests exports from src/frontend/multiplayerUI.ts:
  * updateMpIndicator, updateSharePanelMode, copyRoomCode, copyRoomId,
  * updatePlayerList, initPlayerListUI, updateRoomSettingsNavVisibility,
- * updateRoomInfoDisplay, syncGameModeUI, updateDuetUI, updateDuetInfoBar,
+ * syncGameModeUI, updateDuetUI, updateDuetInfoBar,
  * updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage,
  * confirmForfeit, closeForfeitConfirm, closeKickConfirm, confirmKickPlayer,
  * forfeitGame, updateForfeitButton, showReconnectionOverlay, hideReconnectionOverlay.
@@ -46,9 +46,6 @@ jest.mock('../../frontend/i18n', () => ({
         if (key === 'forfeit.hostOnly') return 'Host only';
         if (key === 'forfeit.gameAlreadyOver') return 'Game over';
         if (key === 'chat.spectatorMessage') return 'Spectator';
-        if (key === 'roomSettings.gameOver') return 'Game Over';
-        if (key === 'roomSettings.inProgress') return 'In Progress';
-        if (key === 'roomSettings.waiting') return 'Waiting';
         return key;
     })
 }));
@@ -93,7 +90,7 @@ jest.mock('../../frontend/clientAccessor', () => ({
 import {
     updateMpIndicator, updateSharePanelMode,
     updatePlayerList, updateRoomSettingsNavVisibility,
-    updateRoomInfoDisplay, syncGameModeUI, updateDuetUI, updateDuetInfoBar,
+    syncGameModeUI, updateDuetUI, updateDuetInfoBar,
     updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage,
     confirmForfeit, closeForfeitConfirm, closeKickConfirm,
     forfeitGame, updateForfeitButton, showReconnectionOverlay, hideReconnectionOverlay
@@ -482,25 +479,6 @@ describe('multiplayerUI module', () => {
         });
     });
 
-    describe('updateRoomInfoDisplay', () => {
-        test('updates room code, players, and status', () => {
-            document.body.innerHTML = `
-                <span id="room-info-code">----</span>
-                <span id="room-info-players">0</span>
-                <span id="room-info-status">Unknown</span>
-            `;
-            state.currentRoomId = 'MYROOM';
-            state.multiplayerPlayers = [createPlayer('s1', 'A', true), createPlayer('s2', 'B', false)];
-            state.gameState.status = 'playing';
-
-            updateRoomInfoDisplay();
-
-            expect(document.getElementById('room-info-code')!.textContent).toBe('MYROOM');
-            expect(document.getElementById('room-info-players')!.textContent).toBe('2');
-            expect(document.getElementById('room-info-status')!.textContent).toBe('In Progress');
-        });
-    });
-
     describe('showReconnectionOverlay', () => {
         test('shows overlay', () => {
             document.body.innerHTML = '<div id="reconnection-overlay" style="display: none"></div>';
@@ -567,7 +545,6 @@ function setupShareDOM(): void {
         <div id="standalone-share" style="display: block"></div>
         <span id="share-room-code"></span>
         <span id="share-server-url"></span>
-        <div id="qr-section"></div>
     `;
 }
 

@@ -6,7 +6,7 @@ import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
 import {
-    updateMpIndicator, updateRoomSettingsNavVisibility, updateRoomInfoDisplay,
+    updateMpIndicator, updateRoomSettingsNavVisibility,
     updateForfeitButton, copyRoomId
 } from './multiplayerUI.js';
 import {
@@ -23,7 +23,7 @@ import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 // Re-export sub-module functions so app.ts imports continue to work
 
 export {
-    copyRoomCode, updateRoomInfoDisplay, initPlayerListUI, initNicknameEditUI,
+    copyRoomCode, initPlayerListUI, initNicknameEditUI,
     confirmForfeit, closeForfeitConfirm, forfeitGame,
     closeKickConfirm, confirmKickPlayer, updateForfeitButton
 } from './multiplayerUI.js';
@@ -378,7 +378,6 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     setMpStatus(t('multiplayer.connected'), 'success');
     updateMpIndicator(result.room || null, state.multiplayerPlayers);
     updateRoomSettingsNavVisibility();
-    updateRoomInfoDisplay();
     updateControls();
     updateRoleBanner();
     updateForfeitButton();

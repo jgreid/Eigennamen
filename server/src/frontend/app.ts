@@ -11,7 +11,7 @@ import {
 import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
     openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
-    copyRoomCode, updateRoomInfoDisplay, initNicknameEditUI,
+    copyRoomCode, initNicknameEditUI,
     confirmForfeit, closeForfeitConfirm, forfeitGame,
     closeKickConfirm, confirmKickPlayer
 } from './multiplayer.js';
@@ -203,12 +203,6 @@ function setupEventListeners(): void {
     }
 }
 
-// Initialize room settings UI handlers (for multiplayer host)
-function initRoomSettingsUI(): void {
-    // Room settings initialization - update room info display
-    updateRoomInfoDisplay();
-}
-
 async function init(): Promise<void> {
     try {
         // Remove loading placeholder
@@ -230,8 +224,6 @@ async function init(): Promise<void> {
         // Load notification preferences
         loadNotificationPrefs();
         initNotificationPrefsUI();
-        // Initialize room settings UI (for multiplayer hosts)
-        initRoomSettingsUI();
         // Set up event delegation for game history (prevents memory leaks)
         setupHistoryEventDelegation();
         // Initialize settings listeners (custom words textarea, radio buttons)

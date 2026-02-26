@@ -64,7 +64,6 @@ export function updateSharePanelMode(isMultiplayer: boolean, roomCode: string | 
     const standaloneShare = document.getElementById('standalone-share');
     const shareRoomCode = document.getElementById('share-room-code');
     const shareServerUrl = document.getElementById('share-server-url');
-    const qrSection = document.getElementById('qr-section');
 
     if (isMultiplayer && roomCode) {
         // Multiplayer mode: show room code, hide URL/QR
@@ -72,14 +71,10 @@ export function updateSharePanelMode(isMultiplayer: boolean, roomCode: string | 
         if (standaloneShare) standaloneShare.style.display = 'none';
         if (shareRoomCode) shareRoomCode.textContent = roomCode.toUpperCase();
         if (shareServerUrl) shareServerUrl.textContent = window.location.host;
-        // Hide sidebar QR section in multiplayer mode
-        if (qrSection) qrSection.style.display = 'none';
     } else {
         // Standalone mode: show URL/QR, hide room code
         if (mpShare) mpShare.style.display = 'none';
         if (standaloneShare) standaloneShare.style.display = 'block';
-        // Show sidebar QR section in standalone mode (if library loaded)
-        if (qrSection && typeof qrcode === 'function') qrSection.style.display = '';
     }
 }
 
@@ -193,17 +188,6 @@ export function updateRoomSettingsNavVisibility(): void {
         const isHost = getClient()?.player?.isHost;
         navItem.style.display = (state.isMultiplayerMode && isHost) ? 'flex' : 'none';
     }
-}
-
-// Update room info display in settings panel
-export function updateRoomInfoDisplay(): void {
-    const codeEl = document.getElementById('room-info-code');
-    const playersEl = document.getElementById('room-info-players');
-    const statusEl = document.getElementById('room-info-status');
-
-    if (codeEl) codeEl.textContent = state.currentRoomId || getClient()?.getRoomCode() || '----';
-    if (playersEl) playersEl.textContent = String(state.multiplayerPlayers?.length || 0);
-    if (statusEl) statusEl.textContent = state.gameState.status === 'ended' ? t('roomSettings.gameOver') : (state.gameState.status === 'playing' ? t('roomSettings.inProgress') : t('roomSettings.waiting'));
 }
 
 // Sync game mode UI with server state

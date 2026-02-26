@@ -163,10 +163,6 @@
         font-size: 0.7rem;
     }
 
-    .settings-sidebar-qr {
-        display: none;
-    }
-
     .settings-content {
         padding: 16px;
         max-height: 50vh;
