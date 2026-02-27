@@ -59,7 +59,10 @@ export async function setLanguage(lang: string, persist: boolean = true): Promis
     // Load translations if not cached
     if (!translations[lang]) {
         try {
-            const response = await fetch(`/locales/${lang}.json`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`/locales/${lang}.json`, { signal: controller.signal });
+            clearTimeout(timeoutId);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             translations[lang] = await response.json();
         } catch (err) {
@@ -175,7 +178,10 @@ export async function getLocalizedWordList(lang: string = currentLanguage): Prom
     if (lang === DEFAULT_LANGUAGE) return null; // English uses built-in DEFAULT_WORDS
 
     try {
-        const response = await fetch(`/locales/wordlist-${lang}.txt`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(`/locales/wordlist-${lang}.txt`, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) return null;
 
         const text = await response.text();

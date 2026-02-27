@@ -246,11 +246,12 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             const emitFn = jest.fn();
             client.connected = true;
             client.socket = { connected: true, emit: emitFn };
+            client.roomCode = 'test-room';
 
-            // Manually push fresh items
+            // Manually push fresh items (roomCode must match client.roomCode)
             client._offlineQueue = [
-                { event: 'chat:message', data: { text: 'hello' }, timestamp: Date.now() },
-                { event: 'player:setTeam', data: { team: 'red' }, timestamp: Date.now() },
+                { event: 'chat:message', data: { text: 'hello' }, timestamp: Date.now(), roomCode: 'test-room' },
+                { event: 'player:setTeam', data: { team: 'red' }, timestamp: Date.now(), roomCode: 'test-room' },
             ];
 
             client._flushOfflineQueue();
@@ -265,17 +266,36 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             const emitFn = jest.fn();
             client.connected = true;
             client.socket = { connected: true, emit: emitFn };
+            client.roomCode = 'test-room';
 
             const twoMinutesPlusOne = Date.now() - (2 * 60 * 1000 + 1);
             client._offlineQueue = [
-                { event: 'chat:message', data: { text: 'old' }, timestamp: twoMinutesPlusOne },
-                { event: 'chat:message', data: { text: 'new' }, timestamp: Date.now() },
+                { event: 'chat:message', data: { text: 'old' }, timestamp: twoMinutesPlusOne, roomCode: 'test-room' },
+                { event: 'chat:message', data: { text: 'new' }, timestamp: Date.now(), roomCode: 'test-room' },
             ];
 
             client._flushOfflineQueue();
 
             expect(emitFn).toHaveBeenCalledTimes(1);
             expect(emitFn).toHaveBeenCalledWith('chat:message', { text: 'new' });
+            expect(client._offlineQueue).toHaveLength(0);
+        });
+
+        it('discards events from a different room', () => {
+            const emitFn = jest.fn();
+            client.connected = true;
+            client.socket = { connected: true, emit: emitFn };
+            client.roomCode = 'new-room';
+
+            client._offlineQueue = [
+                { event: 'chat:message', data: { text: 'stale' }, timestamp: Date.now(), roomCode: 'old-room' },
+                { event: 'chat:message', data: { text: 'current' }, timestamp: Date.now(), roomCode: 'new-room' },
+            ];
+
+            client._flushOfflineQueue();
+
+            expect(emitFn).toHaveBeenCalledTimes(1);
+            expect(emitFn).toHaveBeenCalledWith('chat:message', { text: 'current' });
             expect(client._offlineQueue).toHaveLength(0);
         });
 

@@ -1,6 +1,6 @@
 import { state, initCachedElements } from './state.js';
 import { updateCharCounter } from './utils.js';
-import { showErrorModal, closeError, closeModal, registerModalCloseHandler } from './ui.js';
+import { showErrorModal, showToast, closeError, closeModal, registerModalCloseHandler } from './ui.js';
 import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.js';
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
@@ -28,6 +28,21 @@ import { logger } from './logger.js';
 // Signal that the ES module loaded successfully
 (window as Window & { __appModuleLoaded?: boolean }).__appModuleLoaded = true;
 
+// Global error handlers — surface uncaught errors to the user instead of
+// silently losing them in the console (C1 from audit)
+window.addEventListener('error', (event: ErrorEvent) => {
+    const message = event.message || 'An unexpected error occurred';
+    logger.error('Uncaught error:', message, event.filename, event.lineno);
+    showToast(message, 'error');
+});
+
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    const message = reason instanceof Error ? reason.message : String(reason || 'Unhandled promise rejection');
+    logger.error('Unhandled promise rejection:', message);
+    showToast(message, 'error');
+});
+
 // Wire up the card click handler (board -> game callback injection)
 setCardClickHandler(revealCard);
 
@@ -40,7 +55,7 @@ registerModalCloseHandler('multiplayer-modal', closeMultiplayer);
 registerModalCloseHandler('confirm-forfeit-modal', closeForfeitConfirm);
 registerModalCloseHandler('confirm-kick-modal', closeKickConfirm);
 registerModalCloseHandler('history-modal', () => closeModal('history-modal'));
-registerModalCloseHandler('replay-modal', () => closeModal('replay-modal'));
+registerModalCloseHandler('replay-modal', closeReplay);
 
 // Centralized event handling using event delegation for better testability
 // and to avoid inline onclick handlers (security best practice)
@@ -190,7 +205,7 @@ function setupEventListeners(): void {
         settingsModal.addEventListener('input', function(e: Event) {
             const target = e.target as HTMLElement;
             if (target.dataset.counter && target.dataset.max) {
-                updateCharCounter(target.id, target.dataset.counter, parseInt(target.dataset.max));
+                updateCharCounter(target.id, target.dataset.counter, parseInt(target.dataset.max, 10));
             }
         });
     }

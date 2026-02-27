@@ -11,6 +11,7 @@ import {
     syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode,
     detectOfflineChanges, domListenerCleanup
 } from '../multiplayerSync.js';
+import { batch } from '../store/batch.js';
 import type {
     ServerPlayerData, HostChangedData, RoomWarningData, ReconnectionData,
     SettingsUpdatedData, StatsUpdatedData, KickedData, PlayerKickedData
@@ -57,23 +58,27 @@ export function registerRoomHandlers(): void {
         }
     });
 
-    // Room resync (state recovery)
+    // Room resync (state recovery) — batch state mutations (M7 from audit)
     EigennamenClient.on('roomResynced', (data: ReconnectionData) => {
         // Guard: prevent individual update events from interleaving with
         // a full resync, which replaces all state atomically.
         state.resyncInProgress = true;
         try {
-            // Sync current player's state from server response
-            const currentPlayer = data.you || EigennamenClient.player;
-            if (currentPlayer) {
-                syncLocalPlayerState(currentPlayer as ServerPlayerData);
-            }
+            batch(() => {
+                // Sync current player's state from server response
+                const currentPlayer = data.you || EigennamenClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer as ServerPlayerData);
+                }
+                if (data.players) {
+                    state.multiplayerPlayers = data.players;
+                }
+            });
 
             if (data.game) {
                 syncGameStateFromServer(data.game);
             }
             if (data.players) {
-                state.multiplayerPlayers = data.players;
                 updateMpIndicator(data.room || null, state.multiplayerPlayers);
             }
 
@@ -103,6 +108,7 @@ export function registerRoomHandlers(): void {
     });
 
     // Shared reconnection handler (used by both auto-rejoin and token-based reconnection)
+    // Wraps state updates in batch() to prevent intermediate renders (M7 from audit)
     function handleReconnection(data: ReconnectionData): void {
         hideReconnectionOverlay();
 
@@ -111,15 +117,20 @@ export function registerRoomHandlers(): void {
         try {
             const changes = detectOfflineChanges(data);
 
-            const currentPlayer = data?.you || EigennamenClient.player;
-            if (currentPlayer) {
-                syncLocalPlayerState(currentPlayer as ServerPlayerData);
-            }
+            batch(() => {
+                const currentPlayer = data?.you || EigennamenClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer as ServerPlayerData);
+                }
+                if (data?.players) {
+                    state.multiplayerPlayers = data.players;
+                }
+            });
+
             if (data?.game) {
                 syncGameStateFromServer(data.game);
             }
             if (data?.players) {
-                state.multiplayerPlayers = data.players;
                 updateMpIndicator(data?.room || null, state.multiplayerPlayers);
             }
 
