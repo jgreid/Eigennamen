@@ -93,7 +93,7 @@ describe('i18n module', () => {
 
             await setLanguage('de');
 
-            expect(mockFetch).toHaveBeenCalledWith('/locales/de.json');
+            expect(mockFetch).toHaveBeenCalledWith('/locales/de.json', expect.objectContaining({ signal: expect.any(AbortSignal) }));
             expect(getLanguage()).toBe('de');
         });
 
@@ -270,7 +270,7 @@ describe('i18n module', () => {
             });
 
             const result = await getLocalizedWordList('de');
-            expect(mockFetch).toHaveBeenCalledWith('/locales/wordlist-de.txt');
+            expect(mockFetch).toHaveBeenCalledWith('/locales/wordlist-de.txt', expect.objectContaining({ signal: expect.any(AbortSignal) }));
             expect(result).not.toBeNull();
             expect(result!.length).toBeGreaterThanOrEqual(25);
             expect(result![0]).toBe('APFEL');

@@ -11,9 +11,11 @@
 // Mock dependencies
 const mockOpenModal = jest.fn();
 const mockCloseModal = jest.fn();
+const mockShowToast = jest.fn();
 jest.mock('../../frontend/ui', () => ({
     openModal: mockOpenModal,
-    closeModal: mockCloseModal
+    closeModal: mockCloseModal,
+    showToast: mockShowToast
 }));
 
 jest.mock('../../frontend/state', () => ({

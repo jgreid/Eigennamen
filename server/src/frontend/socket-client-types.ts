@@ -155,6 +155,8 @@ export interface OfflineQueueItem {
     event: string;
     data: Record<string, unknown>;
     timestamp: number;
+    /** Room code at time of queueing, to discard stale items after room change */
+    roomCode: string | null;
 }
 
 /** Error data emitted by the adapter. */

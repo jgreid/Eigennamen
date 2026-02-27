@@ -256,11 +256,11 @@ export function setTeam(team: string | null): void {
             }
         });
 
-        // Safety timeout in case ack is lost
+        // Safety timeout in case ack is lost — revert optimistic UI (H4 from audit)
         setTimeout(() => {
             if (state.roleChange.phase === 'changing_team' && state.roleChange.operationId === operationId) {
-                logger.warn('setTeam: Safety timeout - clearing role change state');
-                clearRoleChange();
+                logger.warn('setTeam: Safety timeout - reverting role change state');
+                revertAndClearRoleChange();
                 updateControls();
             }
         }, 5000);
@@ -368,7 +368,7 @@ function setRoleForTeam(
         }
         refreshRoleUI();
 
-        // Safety timeout in case ack is lost.
+        // Safety timeout in case ack is lost — revert optimistic UI (H4 from audit).
         // For compound operations (team_then_role), only timeout the initial
         // phase — the changing_role phase gets its own timeout when it starts.
         // Typed as string to prevent TS from narrowing state.roleChange
@@ -379,8 +379,8 @@ function setRoleForTeam(
                 if (initialPhase === 'team_then_role' && state.roleChange.phase === 'changing_role') {
                     return; // Role phase has its own timeout (set in playerUpdated handler)
                 }
-                logger.warn(`set${roleName}: Safety timeout - clearing role change state`);
-                clearRoleChange();
+                logger.warn(`set${roleName}: Safety timeout - reverting role change state`);
+                revertAndClearRoleChange();
                 updateControls();
             }
         }, 5000);
