@@ -18,13 +18,14 @@ const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { getPlayerContext, canChangeTeamOrRole, syncSocketRooms } = require('../../socket/playerContext');
+const { getPlayerContext, canChangeTeamOrRole, syncSocketRooms, clearGameStateCache } = require('../../socket/playerContext');
 
 describe('playerContext', () => {
     let mockSocket;
 
     beforeEach(() => {
         jest.clearAllMocks();
+        clearGameStateCache();
         mockSocket = {
             id: 'socket-1',
             sessionId: 'session-1',

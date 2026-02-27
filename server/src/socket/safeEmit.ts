@@ -2,6 +2,7 @@ import type { Server as SocketIOServer } from 'socket.io';
 import type { Player } from '../types';
 
 import logger from '../utils/logger';
+import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 
 /**
  * Emission metrics for monitoring
@@ -102,6 +103,7 @@ function safeEmitToRoom(
         io.to(target).emit(event, data);
 
         emissionMetrics.successful++;
+        incrementCounter(METRIC_NAMES.BROADCASTS_SENT);
         if (logSuccess) {
             logger.debug(`Emitted ${event} to ${target}`, { dataKeys: Object.keys((data || {}) as object) });
         }
@@ -110,6 +112,7 @@ function safeEmitToRoom(
     } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         emissionMetrics.failed++;
+        incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'emission' });
         emissionMetrics.lastFailure = {
             event,
             roomCode,

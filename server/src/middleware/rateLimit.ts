@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
 import { getEnvInt } from '../config/env';
+import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 
 interface RateLimitConfig {
     max: number;
@@ -172,6 +173,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 blockedRequests++;
                 blockedByIP++;
                 eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'global_ip' });
                 logger.warn(`Global IP rate limit exceeded: ${clientIP} (${globalCount} total events in window)`);
                 return next(new Error('Global rate limit exceeded'));
             }
@@ -192,6 +194,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             if (socketCount >= limit.max) {
                 blockedRequests++;
                 eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'socket' });
                 logger.warn(`Socket rate limit exceeded: ${socket.id} for event ${eventName}`);
                 return next(new Error('Rate limit exceeded'));
             }
@@ -209,6 +212,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 blockedRequests++;
                 blockedByIP++;
                 eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'ip' });
                 logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipCount} requests)`);
                 return next(new Error('IP rate limit exceeded'));
             }
@@ -217,6 +221,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             ipTimestamps.push(now);
             globalTimestamps.push(now);
 
+            incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event: eventName });
             next();
         };
     };

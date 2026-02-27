@@ -1,5 +1,6 @@
 import type { ZodSchema } from 'zod';
 import type { Player, GameState } from '../types';
+import type { SocketEventName } from '../config/socketConfig';
 import type { GameSocket } from './rateLimitHandler';
 import type { PlayerContextOptions, PlayerContextResult } from './playerContext';
 import type { RoomContext, GameContext } from './handlers/types';
@@ -38,7 +39,7 @@ type RateLimitedHandler = (data: unknown, ackCallback?: AckCallback) => Promise<
 
 function createContextHandler<T = unknown>(
     socket: GameSocket,
-    eventName: string,
+    eventName: SocketEventName,
     schema: ZodSchema<T> | null,
     contextOptions: PlayerContextOptions,
     handler: ContextHandlerFn<T>,
@@ -94,7 +95,7 @@ function toGameContext(ctx: PlayerContextResult): GameContext {
 /** Room-required operations (most common case) */
 function createRoomHandler<T = unknown>(
     socket: GameSocket,
-    eventName: string,
+    eventName: SocketEventName,
     schema: ZodSchema<T> | null,
     handler: RoomHandlerFn<T>,
     timeoutMs?: number
@@ -106,7 +107,7 @@ function createRoomHandler<T = unknown>(
 /** Host-only operations */
 function createHostHandler<T = unknown>(
     socket: GameSocket,
-    eventName: string,
+    eventName: SocketEventName,
     schema: ZodSchema<T> | null,
     handler: RoomHandlerFn<T>,
     timeoutMs?: number
@@ -120,7 +121,7 @@ function createHostHandler<T = unknown>(
 /** Game operations (requires active game) */
 function createGameHandler<T = unknown>(
     socket: GameSocket,
-    eventName: string,
+    eventName: SocketEventName,
     schema: ZodSchema<T> | null,
     handler: GameHandlerFn<T>,
     timeoutMs?: number
@@ -134,7 +135,7 @@ function createGameHandler<T = unknown>(
 /** Pre-room operations (room:create, room:join) - no player context needed */
 function createPreRoomHandler<T = unknown>(
     socket: GameSocket,
-    eventName: string,
+    eventName: SocketEventName,
     schema: ZodSchema<T> | null,
     handler: PreRoomHandlerFn<T>,
     timeoutMs?: number

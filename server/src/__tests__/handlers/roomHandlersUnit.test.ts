@@ -44,6 +44,7 @@ const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const _logger = require('../../utils/logger');
 const { getSocketFunctions } = require('../../socket/socketFunctionProvider');
+const { clearGameStateCache } = require('../../socket/playerContext');
 
 describe('Room Handlers', () => {
     let mockIo;
@@ -52,6 +53,7 @@ describe('Room Handlers', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        clearGameStateCache();
 
         mockSocket = {
             id: 'socket-1',

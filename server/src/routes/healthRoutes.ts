@@ -5,8 +5,8 @@ import { isRedisHealthy, isUsingMemoryMode, getRedisMemoryInfo } from '../config
 import type { RedisMemoryInfo } from '../config/redis';
 import * as pubSubHealth from '../utils/pubSubHealth';
 import logger from '../utils/logger';
-// Import Prometheus metrics export
-import { getPrometheusMetrics, updateSystemMetrics } from '../utils/metrics';
+// Import metrics
+import { getPrometheusMetrics, updateSystemMetrics, getAllMetrics } from '../utils/metrics';
 import { withTimeout } from '../utils/timeout';
 
 const router: ExpressRouter = express.Router();
@@ -59,6 +59,7 @@ interface MetricsResponse {
         nodeVersion: string;
         platform: string;
     };
+    application?: Record<string, unknown>;
     alerts?: Array<{
         type: string;
         level: string;
@@ -200,6 +201,15 @@ router.get('/metrics', async (_req: Request, res: Response) => {
                 pid: process.pid,
                 nodeVersion: process.version,
                 platform: process.platform
+            };
+        }
+
+        // Include application-level metrics from the central metrics registry
+        if (!isProduction) {
+            const appMetrics = getAllMetrics();
+            metrics.application = {
+                counters: appMetrics.counters,
+                gauges: appMetrics.gauges
             };
         }
 

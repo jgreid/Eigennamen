@@ -53,6 +53,7 @@ const playerService = require('../../services/playerService');
 // Use the mock directly since socketFunctionProvider will use it
 const getTimerStatus = mockGetTimerStatus;
 const { ERROR_CODES } = require('../../config/constants');
+const { clearGameStateCache } = require('../../socket/playerContext');
 
 describe('Room Resync and Recovery Handlers', () => {
     let mockSocket;
@@ -61,6 +62,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        clearGameStateCache();
 
         // Create mock socket
         mockSocket = {

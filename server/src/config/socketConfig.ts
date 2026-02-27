@@ -97,3 +97,6 @@ export const SOCKET_EVENTS = {
     SPECTATOR_JOIN_APPROVED: 'spectator:joinApproved',
     SPECTATOR_JOIN_DENIED: 'spectator:joinDenied'
 } as const;
+
+/** Union type of all valid socket event name strings */
+export type SocketEventName = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
