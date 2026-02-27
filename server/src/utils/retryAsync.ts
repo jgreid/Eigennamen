@@ -33,10 +33,11 @@ export async function retryAsync<T>(
         exponentialBackoff = true,
     } = options;
 
-    let lastError: Error | undefined;
+    let lastError: Error = new Error(`${operationName} failed`);
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
+            // eslint-disable-next-line no-await-in-loop -- retries must be sequential
             return await fn();
         } catch (error) {
             lastError = error as Error;
@@ -50,10 +51,11 @@ export async function retryAsync<T>(
                 : baseDelayMs;
 
             logger.warn(`${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${lastError.message}`);
+            // eslint-disable-next-line no-await-in-loop -- deliberate delay between retries
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
 
-    logger.error(`${operationName} failed after ${maxRetries + 1} attempts: ${lastError!.message}`);
-    throw lastError!;
+    logger.error(`${operationName} failed after ${maxRetries + 1} attempts: ${lastError.message}`);
+    throw lastError;
 }
