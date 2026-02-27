@@ -30,7 +30,7 @@ type RateLimiterMiddleware = (
 
 interface LRUEntry {
     key: string;
-    map: 'socket' | 'ip';
+    map: 'socket' | 'ip' | 'global_ip';
     lastActivity: number;
 }
 
@@ -238,7 +238,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
     };
 
     const performLRUEviction = (): number => {
-        const totalEntries = socketRequests.size + ipRequests.size;
+        const totalEntries = socketRequests.size + ipRequests.size + globalIPRequests.size;
         if (totalEntries <= MAX_TRACKED_ENTRIES) {
             return 0;
         }
@@ -260,13 +260,21 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             allEntries.push({ key, map: 'ip', lastActivity });
         }
 
+        for (const [key, timestamps] of globalIPRequests.entries()) {
+            const lastTs = timestamps[timestamps.length - 1];
+            const lastActivity = timestamps.length > 0 && lastTs !== undefined ? lastTs : 0;
+            allEntries.push({ key, map: 'global_ip', lastActivity });
+        }
+
         allEntries.sort((a, b) => a.lastActivity - b.lastActivity);
         for (let i = 0; i < entriesToRemove && i < allEntries.length; i++) {
             const entry = allEntries[i] as LRUEntry;
             if (entry.map === 'socket') {
                 socketRequests.delete(entry.key);
-            } else {
+            } else if (entry.map === 'ip') {
                 ipRequests.delete(entry.key);
+            } else {
+                globalIPRequests.delete(entry.key);
             }
             removed++;
         }

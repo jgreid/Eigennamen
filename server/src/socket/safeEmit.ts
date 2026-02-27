@@ -159,6 +159,7 @@ function safeEmitToPlayer(
         io.to(target).emit(event, data);
 
         emissionMetrics.successful++;
+        incrementCounter(METRIC_NAMES.BROADCASTS_SENT);
         if (logSuccess) {
             logger.debug(`Emitted ${event} to ${target}`, { dataKeys: Object.keys((data || {}) as object) });
         }
@@ -167,6 +168,7 @@ function safeEmitToPlayer(
     } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         emissionMetrics.failed++;
+        incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'emission' });
         emissionMetrics.lastFailure = {
             event,
             sessionId,
@@ -280,6 +282,7 @@ function safeEmitToGroup(
         io.to(target).emit(event, data);
 
         emissionMetrics.successful++;
+        incrementCounter(METRIC_NAMES.BROADCASTS_SENT);
         if (logSuccess) {
             logger.debug(`Emitted ${event} to ${target}`, { dataKeys: Object.keys((data || {}) as object) });
         }
@@ -288,6 +291,7 @@ function safeEmitToGroup(
     } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         emissionMetrics.failed++;
+        incrementCounter(METRIC_NAMES.ERRORS, 1, { type: 'emission' });
         emissionMetrics.lastFailure = {
             event,
             error: errMsg,

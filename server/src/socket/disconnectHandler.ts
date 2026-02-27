@@ -11,6 +11,7 @@ import { withLock } from '../utils/distributedLock';
 import * as gameService from '../services/gameService';
 import * as roomService from '../services/roomService';
 import * as playerService from '../services/playerService';
+import { invalidateGameStateCache } from './playerContext';
 import { isRedisHealthy } from '../config/redis';
 
 /**
@@ -46,7 +47,9 @@ function createTimerExpireCallback(
                         return null;
                     }
 
-                    return await gameService.endTurn(roomCode, 'Timer');
+                    const turnResult = await gameService.endTurn(roomCode, 'Timer');
+                    invalidateGameStateCache(roomCode);
+                    return turnResult;
                 }, { lockTimeout: 5000, maxRetries: 3 });
             } catch (lockError) {
                 // If lock acquisition fails, another instance is handling this expiration
