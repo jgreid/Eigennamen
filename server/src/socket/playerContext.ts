@@ -8,6 +8,44 @@ import { RoomError, PlayerError } from '../errors/GameError';
 import { ERROR_CODES } from '../config/constants';
 
 /**
+ * Short-lived LRU cache for game state lookups.
+ * Prevents redundant Redis round-trips when multiple socket events
+ * fire in quick succession for the same room.
+ */
+const GAME_STATE_CACHE_TTL_MS = 500;
+const GAME_STATE_CACHE_MAX_SIZE = 100;
+const gameStateCache = new Map<string, { state: GameState | null; timestamp: number }>();
+
+function getCachedGameState(roomCode: string): GameState | null | undefined {
+    const entry = gameStateCache.get(roomCode);
+    if (!entry) return undefined;
+    if (Date.now() - entry.timestamp > GAME_STATE_CACHE_TTL_MS) {
+        gameStateCache.delete(roomCode);
+        return undefined;
+    }
+    return entry.state;
+}
+
+function setCachedGameState(roomCode: string, state: GameState | null): void {
+    // Evict oldest entry if at capacity
+    if (gameStateCache.size >= GAME_STATE_CACHE_MAX_SIZE && !gameStateCache.has(roomCode)) {
+        const oldestKey = gameStateCache.keys().next().value;
+        if (oldestKey) gameStateCache.delete(oldestKey);
+    }
+    gameStateCache.set(roomCode, { state, timestamp: Date.now() });
+}
+
+/** Invalidate cache entry for a room (call after mutations) */
+export function invalidateGameStateCache(roomCode: string): void {
+    gameStateCache.delete(roomCode);
+}
+
+/** Clear entire game state cache (for testing) */
+export function clearGameStateCache(): void {
+    gameStateCache.clear();
+}
+
+/**
  * Options for building player context
  */
 export interface PlayerContextOptions {
@@ -163,7 +201,13 @@ async function getPlayerContext(
     }
 
     if (roomCode) {
-        context.game = await gameService.getGame(roomCode);
+        const cached = getCachedGameState(roomCode);
+        if (cached !== undefined) {
+            context.game = cached;
+        } else {
+            context.game = await gameService.getGame(roomCode);
+            setCachedGameState(roomCode, context.game);
+        }
     }
 
     if (requireGame && !context.game) {

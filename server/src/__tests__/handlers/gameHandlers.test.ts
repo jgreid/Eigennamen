@@ -28,6 +28,9 @@ jest.mock('../../socket/index', () => ({
     stopTurnTimer: jest.fn().mockResolvedValue()
 }));
 
+// Import clearGameStateCache to reset between tests
+const { clearGameStateCache } = require('../../socket/playerContext');
+
 // Mock socketFunctionProvider to provide timer functions
 jest.mock('../../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -48,6 +51,7 @@ describe('Game Handlers', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        clearGameStateCache();
 
         // Create mock socket
         mockSocket = {

@@ -33,6 +33,7 @@ jest.mock('../../utils/logger', () => ({
 const gameService = require('../../services/gameService');
 const playerService = require('../../services/playerService');
 const roomService = require('../../services/roomService');
+const { clearGameStateCache } = require('../../socket/playerContext');
 // Mock socketFunctionProvider to provide timer functions
 jest.mock('../../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
@@ -53,6 +54,7 @@ describe('Extended Game Handlers Tests', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        clearGameStateCache();
 
         mockSocket = {
             id: 'socket-123',

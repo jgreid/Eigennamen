@@ -1,3 +1,5 @@
+import type { SocketEventName } from '../config/socketConfig';
+
 import { createSocketRateLimiter } from '../middleware/rateLimit';
 import { RATE_LIMITS, ERROR_CODES } from '../config/constants';
 import logger from '../utils/logger';
@@ -65,7 +67,7 @@ function stopRateLimitCleanup(): void {
 
 function createRateLimitedHandler(
     socket: GameSocket,
-    eventName: string,
+    eventName: SocketEventName,
     handler: HandlerFunction
 ): RateLimitedHandler {
     return (data: unknown, ackCallback?: AckCallback): Promise<void> => {

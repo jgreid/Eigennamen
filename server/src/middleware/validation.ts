@@ -43,8 +43,11 @@ function validateSource<T>(source: 'body' | 'query' | 'params', schema: ZodSchem
         try {
             const validated = validateInput(schema, req[source]);
             // In Express 5, req.query is a getter and cannot be assigned directly.
+            // Store validated query in res.locals so handlers can access it.
             // For body and params, we replace the value on the request object.
-            if (source !== 'query') {
+            if (source === 'query') {
+                _res.locals.validatedQuery = validated;
+            } else {
                 (req as unknown as Record<string, unknown>)[source] = validated;
             }
             next();

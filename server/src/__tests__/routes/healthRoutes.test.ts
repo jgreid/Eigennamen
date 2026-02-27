@@ -64,9 +64,18 @@ const mockGetPrometheusMetrics = jest.fn().mockReturnValue(
 );
 const mockUpdateSystemMetrics = jest.fn();
 
+const mockGetAllMetrics = jest.fn().mockReturnValue({
+    timestamp: Date.now(),
+    instanceId: 'test',
+    counters: { broadcasts_sent_total: { value: 10, labels: {} } },
+    gauges: { active_rooms: { value: 3, labels: {} } },
+    histograms: {}
+});
+
 jest.mock('../../utils/metrics', () => ({
     getPrometheusMetrics: (...args) => mockGetPrometheusMetrics(...args),
     updateSystemMetrics: (...args) => mockUpdateSystemMetrics(...args),
+    getAllMetrics: (...args) => mockGetAllMetrics(...args),
 }));
 
 // Import after mocks are set up

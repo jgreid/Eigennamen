@@ -52,6 +52,7 @@ const roomService = require('../../services/roomService');
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const { withTimeout: _withTimeout } = require('../../utils/timeout');
+const { clearGameStateCache } = require('../../socket/playerContext');
 
 describe('Extended Room Handlers Tests', () => {
     let mockSocket;
@@ -60,6 +61,7 @@ describe('Extended Room Handlers Tests', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        clearGameStateCache();
 
         mockSocket = {
             id: 'socket-123',

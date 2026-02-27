@@ -61,7 +61,7 @@ class DistributedLock {
                 });
 
                 if (result === 'OK') {
-                    logger.debug('Lock acquired', {
+                    logger.info('Lock acquired', {
                         lockKey,
                         ownerId,
                         attempt
@@ -116,7 +116,7 @@ class DistributedLock {
             );
 
             if (result === 1) {
-                logger.debug('Lock released', { key, ownerId });
+                logger.info('Lock released', { key, ownerId });
                 return true;
             } else {
                 logger.warn('Lock release failed (not owned)', { key, ownerId });

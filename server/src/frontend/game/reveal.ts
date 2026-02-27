@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from '../board.js';
 import { updateRoleBanner, updateControls } from '../roles.js';
-import { UI } from '../constants.js';
+import { UI, BOARD_SIZE } from '../constants.js';
 import { logger } from '../logger.js';
 import { t } from '../i18n.js';
 import { updateURL } from '../url-state.js';
@@ -48,6 +48,14 @@ export function revealCard(index: number): void {
         // Prevent double-click on same card while waiting for server response
         if (state.revealingCards.has(index)) {
             return;
+        }
+        // Safety cap: if the Set is somehow at BOARD_SIZE, clear it — all cards
+        // would be pending which indicates lost server responses, not real reveals.
+        if (state.revealingCards.size >= BOARD_SIZE) {
+            logger.warn(`revealingCards Set at capacity (${state.revealingCards.size}), clearing stale entries`);
+            state.revealTimeouts.forEach(tid => clearTimeout(tid));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
         }
         state.revealingCards.add(index);
         state.isRevealingCard = state.revealingCards.size > 0;

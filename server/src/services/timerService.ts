@@ -98,8 +98,10 @@ export type TimerExpireCallback = (roomCode: string) => void | Promise<void>;
 
 // RedisClient imported from '../types' (shared across all services)
 
-// Local timers for this instance
+// Local timers for this instance.
+// Max-size cap prevents unbounded growth if sweeps fall behind under load.
 const localTimers = new Map<string, LocalTimerData>();
+const LOCAL_TIMERS_MAX_SIZE = 5000;
 
 // Use centralized constants
 const TIMER_TTL_BUFFER: number = TIMER.TIMER_TTL_BUFFER_SECONDS;
@@ -189,6 +191,17 @@ export async function startTimer(
         createTimerExpirationCallback(roomCode, onExpire),
         durationSeconds * 1000
     );
+
+    // Evict oldest entry if map exceeds max size to prevent unbounded growth
+    if (localTimers.size >= LOCAL_TIMERS_MAX_SIZE) {
+        const oldestKey = localTimers.keys().next().value;
+        if (oldestKey) {
+            const oldest = localTimers.get(oldestKey);
+            if (oldest) clearTimeout(oldest.timeoutId);
+            localTimers.delete(oldestKey);
+            logger.warn(`Local timer map at capacity (${LOCAL_TIMERS_MAX_SIZE}), evicted oldest entry: ${oldestKey}`);
+        }
+    }
 
     localTimers.set(roomCode, {
         ...timerData,

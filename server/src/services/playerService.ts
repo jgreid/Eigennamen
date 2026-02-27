@@ -286,7 +286,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
         logger.info(`Player ${sessionId} removed from room ${player?.roomCode ?? 'unknown'}`);
         return;
     } catch (luaError) {
-        logger.debug(`Lua removePlayer failed for ${sessionId}, using fallback: ${(luaError as Error).message}`);
+        logger.warn(`Lua removePlayer failed for ${sessionId}, using fallback: ${(luaError as Error).message}`);
     }
 
     // Fallback: sequential operations (original implementation)
@@ -368,7 +368,7 @@ export async function setSocketMapping(
 
         return true;
     } catch (luaError) {
-        logger.debug(`Lua setSocketMapping failed for ${sessionId}, using fallback: ${(luaError as Error).message}`);
+        logger.warn(`Lua setSocketMapping failed for ${sessionId}, using fallback: ${(luaError as Error).message}`);
     }
 
     // Fallback: sequential operations (original implementation)

@@ -574,8 +574,12 @@ describe('createGame', () => {
             if (key.startsWith('room:')) return Promise.resolve(roomData); // Room exists
             return Promise.resolve(null);
         });
-        // Simulate Lua script failure (e.g., corrupted room data in Redis)
-        mockRedis.eval.mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'));
+        // Simulate persistent Lua script failure (e.g., corrupted room data in Redis)
+        // Must reject for all retry attempts (initial + 2 retries = 3 total)
+        mockRedis.eval
+            .mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'))
+            .mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'))
+            .mockRejectedValueOnce(new Error('ERR Error running script: cjson.decode failed'));
 
         const game = await createGame('TEST10');
 

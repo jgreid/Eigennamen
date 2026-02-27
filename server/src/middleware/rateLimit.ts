@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import logger from '../utils/logger';
 import { getEnvInt } from '../config/env';
+import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 
 interface RateLimitConfig {
     max: number;
@@ -29,7 +30,7 @@ type RateLimiterMiddleware = (
 
 interface LRUEntry {
     key: string;
-    map: 'socket' | 'ip';
+    map: 'socket' | 'ip' | 'global_ip';
     lastActivity: number;
 }
 
@@ -100,6 +101,11 @@ const strictLimiter = rateLimit({
 // IP multiplier: allows multiple users on same IP (3x per-socket limit)
 const IP_RATE_LIMIT_MULTIPLIER = 3;
 
+// Global IP rate limit: caps total events per IP across ALL event types.
+// Prevents bypass of per-event limits by distributing requests across many events.
+const GLOBAL_IP_RATE_LIMIT_MAX = parseInt(process.env.GLOBAL_IP_RATE_LIMIT_MAX || '') || 300;
+const GLOBAL_IP_RATE_LIMIT_WINDOW_MS = parseInt(process.env.GLOBAL_IP_RATE_LIMIT_WINDOW_MS || '') || 60_000;
+
 const MAX_TRACKED_ENTRIES = parseInt(process.env.RATE_LIMIT_MAX_ENTRIES || '') || 10000;
 const LRU_EVICTION_PERCENTAGE = 0.1;
 
@@ -119,6 +125,7 @@ function filterTimestampsInPlace(timestamps: number[], windowStart: number): num
 function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
     const socketRequests = new Map<string, number[]>();
     const ipRequests = new Map<string, number[]>();
+    const globalIPRequests = new Map<string, number[]>();
     const socketKeyIndex = new Map<string, Set<string>>();
 
     let totalRequests = 0;
@@ -154,6 +161,23 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             if (uniqueIPs.size < MAX_UNIQUE_TRACKING) uniqueIPs.add(clientIP);
             eventRequests.set(eventName, (eventRequests.get(eventName) || 0) + 1);
 
+            // === Global per-IP rate limiting (across all events) ===
+            const globalWindowStart = now - GLOBAL_IP_RATE_LIMIT_WINDOW_MS;
+            let globalTimestamps = globalIPRequests.get(clientIP);
+            if (!globalTimestamps) {
+                globalTimestamps = [];
+                globalIPRequests.set(clientIP, globalTimestamps);
+            }
+            const globalCount = filterTimestampsInPlace(globalTimestamps, globalWindowStart);
+            if (globalCount >= GLOBAL_IP_RATE_LIMIT_MAX) {
+                blockedRequests++;
+                blockedByIP++;
+                eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'global_ip' });
+                logger.warn(`Global IP rate limit exceeded: ${clientIP} (${globalCount} total events in window)`);
+                return next(new Error('Global rate limit exceeded'));
+            }
+
             // === Per-socket rate limiting ===
             let socketTimestamps = socketRequests.get(socketKey);
             if (!socketTimestamps) {
@@ -170,6 +194,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             if (socketCount >= limit.max) {
                 blockedRequests++;
                 eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'socket' });
                 logger.warn(`Socket rate limit exceeded: ${socket.id} for event ${eventName}`);
                 return next(new Error('Rate limit exceeded'));
             }
@@ -187,13 +212,16 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 blockedRequests++;
                 blockedByIP++;
                 eventBlocked.set(eventName, (eventBlocked.get(eventName) || 0) + 1);
+                incrementCounter(METRIC_NAMES.RATE_LIMIT_HITS, 1, { layer: 'ip' });
                 logger.warn(`IP rate limit exceeded: ${clientIP} for event ${eventName} (${ipCount} requests)`);
                 return next(new Error('IP rate limit exceeded'));
             }
 
             socketTimestamps.push(now);
             ipTimestamps.push(now);
+            globalTimestamps.push(now);
 
+            incrementCounter(METRIC_NAMES.WEBSOCKET_EVENTS, 1, { event: eventName });
             next();
         };
     };
@@ -210,7 +238,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
     };
 
     const performLRUEviction = (): number => {
-        const totalEntries = socketRequests.size + ipRequests.size;
+        const totalEntries = socketRequests.size + ipRequests.size + globalIPRequests.size;
         if (totalEntries <= MAX_TRACKED_ENTRIES) {
             return 0;
         }
@@ -232,13 +260,21 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             allEntries.push({ key, map: 'ip', lastActivity });
         }
 
+        for (const [key, timestamps] of globalIPRequests.entries()) {
+            const lastTs = timestamps[timestamps.length - 1];
+            const lastActivity = timestamps.length > 0 && lastTs !== undefined ? lastTs : 0;
+            allEntries.push({ key, map: 'global_ip', lastActivity });
+        }
+
         allEntries.sort((a, b) => a.lastActivity - b.lastActivity);
         for (let i = 0; i < entriesToRemove && i < allEntries.length; i++) {
             const entry = allEntries[i] as LRUEntry;
             if (entry.map === 'socket') {
                 socketRequests.delete(entry.key);
-            } else {
+            } else if (entry.map === 'ip') {
                 ipRequests.delete(entry.key);
+            } else {
+                globalIPRequests.delete(entry.key);
             }
             removed++;
         }
@@ -285,6 +321,15 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
                 if (newLength === 0) {
                     ipRequests.delete(key);
                     cleanedIP++;
+                }
+            }
+
+            // Clean up global IP tracking
+            const globalWindowStart = now - GLOBAL_IP_RATE_LIMIT_WINDOW_MS;
+            for (const [key, timestamps] of globalIPRequests.entries()) {
+                const newLength = filterTimestampsInPlace(timestamps, globalWindowStart);
+                if (newLength === 0) {
+                    globalIPRequests.delete(key);
                 }
             }
 
@@ -346,7 +391,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         }
     };
 
-    const getSize = (): number => socketRequests.size + ipRequests.size;
+    const getSize = (): number => socketRequests.size + ipRequests.size + globalIPRequests.size;
 
     const getMetrics = (): RateLimiterMetrics => {
         const uptimeMs = Date.now() - startTime;

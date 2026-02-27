@@ -23,6 +23,7 @@ import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { getSocketFunctions } from '../socketFunctionProvider';
 import { safeEmitToRoom, safeEmitToPlayers } from '../safeEmit';
 import { saveCompletedGameHistory } from './gameHandlerUtils';
+import { invalidateGameStateCache } from '../playerContext';
 
 /**
  * Game start input
@@ -91,6 +92,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                     wordList: validated.wordList,
                     gameMode
                 });
+                invalidateGameStateCache(ctx.roomCode);
 
                 // Reset all player roles to spectator for the new game
                 // Team membership is preserved, but roles must be re-chosen
@@ -179,6 +181,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 TIMEOUTS.GAME_ACTION,
                 'game:reveal'
             );
+            invalidateGameStateCache(ctx.roomCode);
 
             // Broadcast the reveal to all players
             const revealPayload: Record<string, unknown> = {
@@ -278,6 +281,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 TIMEOUTS.GAME_ACTION,
                 'game:endTurn'
             );
+            invalidateGameStateCache(ctx.roomCode);
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
@@ -310,6 +314,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             await getSocketFunctions().stopTurnTimer(ctx.roomCode);
 
             const result: ForfeitResult = await gameService.forfeitGame(ctx.roomCode);
+            invalidateGameStateCache(ctx.roomCode);
 
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, {
                 winner: result.winner,
