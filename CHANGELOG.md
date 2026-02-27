@@ -4,6 +4,32 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [4.0.0] - 2026-02-27
+
+### Added
+- Reactive state store with actions, selectors, and event bus (`frontend/store/`)
+- Frontend game sub-modules for reveal and scoring logic (`frontend/game/`)
+- Frontend handler modules split into 6 dedicated event handler files
+- Multiplayer sub-modules: listeners, sync, types, UI (from monolithic multiplayer.ts)
+- Socket client split into dedicated modules: events, storage, types
+- Player service sub-modules: cleanup, mutations, queries, reconnection, schemas, stats
+- Room service sub-module: membership
+- 126 test suites (up from 93) across backend and frontend
+- 9 Playwright E2E spec files
+- Comprehensive hardening: backpressure scaling, atomic game history, paused timer TTL, batch token cleanup
+
+### Changed
+- Frontend expanded from 37 to 52 TypeScript modules with improved separation of concerns
+- State management refactored to reactive store pattern with batched updates
+- Coverage thresholds split per-project: backend (80/75/85/80) and frontend (70/70/70/70)
+- Node.js minimum version bumped to 22+ (from 18+)
+- Updated all dependencies to latest stable versions
+
+### Removed
+- `HARDENING_REVIEW.md` — completed one-time review, all items resolved
+- `FRONTEND_AUDIT.md` — completed one-time audit, findings tracked as issues
+- Broken reference to non-existent `server/public/js/ARCHITECTURE.md`
+
 ## [2.3.0] - 2026-02-11
 
 ### Added

@@ -31,8 +31,8 @@ Eigennamen/
 ├── wordlist.txt                # Default word list
 └── server/
     ├── public/
-    │   ├── js/modules/         # Compiled frontend JS
-    │   ├── css/                # Stylesheets
+    │   ├── js/                 # Compiled frontend JS (esbuild output)
+    │   ├── css/                # Stylesheets (8 modules)
     │   ├── locales/            # i18n (en, de, es, fr)
     │   └── admin.html          # Admin dashboard
     ├── src/
@@ -43,15 +43,21 @@ Eigennamen/
     │   ├── middleware/          # Express + socket auth middleware
     │   ├── routes/             # REST API routes
     │   ├── services/           # Business logic layer
-    │   │   └── game/           # Game sub-modules (board, reveal, lua)
+    │   │   ├── game/           # Game sub-modules (board, reveal, lua)
+    │   │   ├── player/         # Player sub-modules (cleanup, reconnection, stats)
+    │   │   └── room/           # Room sub-module (membership)
     │   ├── socket/             # WebSocket setup + handlers/
-    │   ├── frontend/           # Frontend TypeScript source (37 modules)
+    │   ├── frontend/           # Frontend TypeScript source (52 modules)
+    │   │   ├── handlers/       # Client-side event handlers (6 files)
+    │   │   ├── store/          # Reactive state store + actions (13 files)
+    │   │   └── game/           # Game sub-modules (reveal, scoring)
+    │   ├── shared/             # Shared code between frontend and backend
     │   ├── types/              # TypeScript definitions
     │   ├── utils/              # Utilities
     │   ├── validators/         # Zod schemas
     │   ├── scripts/            # Redis Lua scripts (atomic ops)
-    │   └── __tests__/          # Jest tests (106 suites, ~2,900 tests)
-    └── e2e/                    # Playwright E2E tests
+    │   └── __tests__/          # Jest tests (126 suites)
+    └── e2e/                    # Playwright E2E tests (9 specs)
 ```
 
 ## Key Services
@@ -121,6 +127,7 @@ Client event → Zod validation → rate limiter → context handler → service
 | `services/gameService.ts` | Core game logic, Mulberry32 PRNG |
 | `services/playerService.ts` | Player CRUD, reconnection tokens |
 | `socket/handlers/` | Event handlers (game, room, player, timer, chat) |
+| `socket/contextHandler.ts` | Handler factory with validation, rate-limiting, player context |
 | `socket/playerContext.ts` | Session state validation |
 | `middleware/socketAuth.ts` | Auth orchestrator |
 | `errors/GameError.ts` | Error class hierarchy |
@@ -128,6 +135,7 @@ Client event → Zod validation → rate limiter → context handler → service
 | `scripts/index.ts` | All Lua scripts (barrel export) |
 | `frontend/app.ts` | Frontend entry point |
 | `frontend/state.ts` | Frontend state management |
+| `frontend/store/` | Reactive state store with actions and selectors |
 | `frontend/multiplayer.ts` | Multiplayer orchestration |
 
 All paths relative to `server/src/`.
@@ -149,4 +157,3 @@ Key env vars (see `server/.env.example` for full list):
 - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) — Testing patterns and coverage
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Production deployment
 - [docs/adr/](docs/adr/) — Architecture Decision Records
-- [server/public/js/ARCHITECTURE.md](server/public/js/ARCHITECTURE.md) — Frontend module architecture

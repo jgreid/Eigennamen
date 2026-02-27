@@ -12,7 +12,7 @@ Real-time multiplayer server for Eigennamen Online, built with Node.js, Socket.i
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - Redis 7+ (optional — uses embedded redis-server with `REDIS_URL=memory`)
 - Docker & Docker Compose (optional)
 
@@ -98,7 +98,7 @@ Use this if you prefer to run services directly on your machine without Docker.
 
 | Requirement | What It Does | How to Install |
 |-------------|--------------|----------------|
-| **Node.js 18+** | Runs the JavaScript server code | [nodejs.org](https://nodejs.org/) or use `nvm` |
+| **Node.js 22+** | Runs the JavaScript server code | [nodejs.org](https://nodejs.org/) or use `nvm` |
 | **Redis 7+** | Stores game state in memory for fast access | `brew install redis` (Mac) or `apt install redis-server` (Linux) |
 
 > **Note:** Redis is optional. Set `REDIS_URL=memory` to run without an external Redis server.
@@ -202,10 +202,10 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (2,671 across 93 suites, 0 failures)
-npm run test:coverage # Run tests with coverage report (94%+ lines)
+npm test              # Run all tests (126 suites, 0 failures)
+npm run test:coverage # Run tests with coverage report
 npm run test:frontend # Run frontend unit tests (Jest + jsdom)
-npm run test:e2e      # Run E2E tests (64+ across 9 Playwright specs)
+npm run test:e2e      # Run E2E tests (9 Playwright specs)
 ```
 
 ## Configuration
@@ -263,18 +263,20 @@ server/
 ├── src/
 │   ├── index.ts          # Entry point
 │   ├── app.ts            # Express configuration
-│   ├── config/           # Configuration files (12 modules)
-│   ├── errors/           # Custom error classes
+│   ├── config/           # Configuration (12 modules, constants.ts re-exports all)
+│   ├── errors/           # GameError hierarchy
 │   ├── middleware/        # Express & Socket middleware
 │   ├── routes/           # REST API routes
-│   ├── services/         # Business logic (7 services)
+│   ├── services/         # Business logic (6 services + sub-modules)
 │   ├── socket/           # Socket.io setup
-│   │   └── handlers/     # Event-specific handlers (6 files)
+│   │   └── handlers/     # Event-specific handlers (8 files)
+│   ├── frontend/         # Frontend TypeScript source (52 modules)
+│   ├── shared/           # Shared code between frontend and backend
 │   ├── types/            # TypeScript type definitions
 │   ├── utils/            # Utilities (metrics, logging, locks, etc.)
 │   ├── validators/       # Zod validation schemas
 │   ├── scripts/          # Redis Lua scripts for atomic operations
-│   └── __tests__/        # Jest tests (93 suites)
+│   └── __tests__/        # Jest tests (126 suites)
 ├── e2e/                  # Playwright E2E tests
 ├── Dockerfile
 └── package.json
