@@ -24,8 +24,8 @@ Thank you for your interest in contributing to Eigennamen Online! This document 
 
 ### Prerequisites
 
-- Node.js 18+
-- npm 9+
+- Node.js 22+
+- npm 10+
 - Docker (optional, for full local setup)
 - Git
 
@@ -280,14 +280,14 @@ How were changes tested?
 
 ### Coverage Thresholds
 
-Configured in `jest.config.ts.js` (primary) and `package.json` (fallback). Thresholds are set lower globally because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%. Current actual coverage: 94%+ lines/statements.
+Configured in `jest.config.ts.js` as separate backend and frontend projects. Thresholds are set lower globally because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
 
-| Metric | Minimum (jest.config.ts.js) | Minimum (package.json) | Current |
-|--------|-----|-----|---------|
-| Statements | 75% | 80% | 94%+ |
-| Branches | 65% | 80% | 84%+ |
-| Functions | 80% | 80% | 90%+ |
-| Lines | 75% | 80% | 94%+ |
+| Metric | Backend Minimum | Frontend Minimum |
+|--------|-----------------|------------------|
+| Statements | 80% | 70% |
+| Branches | 75% | 70% |
+| Functions | 85% | 70% |
+| Lines | 80% | 70% |
 
 ### Test Categories
 

@@ -223,7 +223,7 @@ jobs:
       # Node.js tests (requires running server)
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
       - run: cd server && npm ci
       - run: cd server && REDIS_URL=memory npm run dev &
       - run: sleep 5 && cd server && npm run loadtest -- --clients=50 --duration=30
