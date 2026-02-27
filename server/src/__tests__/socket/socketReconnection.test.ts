@@ -546,9 +546,11 @@ describe('Socket Rate Limiter Unit Tests', () => {
 
         // Wait for window to expire, then cleanup
         setTimeout(() => {
+            const sizeBefore = rateLimiter.getSize();
             rateLimiter.cleanupStale();
-            // Entry should be cleaned up
-            expect(rateLimiter.getSize()).toBe(0);
+            // Per-socket and per-IP entries should be cleaned up;
+            // global IP entry (60s window) may still remain
+            expect(rateLimiter.getSize()).toBeLessThan(sizeBefore);
             done();
         }, 1100);
     });

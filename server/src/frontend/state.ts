@@ -1,6 +1,7 @@
 import { DEFAULT_WORDS } from './constants.js';
 import { attachDebugToWindow, initDebugSubscriptions } from './debug.js';
 import { createReactiveProxy } from './store/index.js';
+import { logger } from './logger.js';
 import type { AppState } from './stateTypes.js';
 
 // Re-export types so existing `import { X } from './state.js'` still works.
@@ -140,4 +141,12 @@ export function initCachedElements(): void {
     state.cachedElements.srAnnouncements = document.getElementById('sr-announcements');
     state.cachedElements.timerDisplay = document.getElementById('timer-display');
     state.cachedElements.timerValue = document.getElementById('timer-value');
+
+    // Warn about missing critical elements that would break core functionality
+    if (!state.cachedElements.board) {
+        logger.error('initCachedElements: #board element not found — game board will not render');
+    }
+    if (!state.cachedElements.turnIndicator) {
+        logger.warn('initCachedElements: #turn-indicator element not found');
+    }
 }

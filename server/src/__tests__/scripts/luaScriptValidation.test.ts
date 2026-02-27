@@ -25,7 +25,8 @@ import {
     INVALIDATE_TOKEN_SCRIPT,
     CLEANUP_ORPHANED_TOKEN_SCRIPT,
     RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT
+    EXTEND_LOCK_SCRIPT,
+    ATOMIC_SAVE_GAME_HISTORY_SCRIPT
 } from '../../scripts';
 
 import fs from 'fs';
@@ -52,7 +53,8 @@ const ALL_SCRIPTS: Record<string, string> = {
     INVALIDATE_TOKEN_SCRIPT,
     CLEANUP_ORPHANED_TOKEN_SCRIPT,
     RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT
+    EXTEND_LOCK_SCRIPT,
+    ATOMIC_SAVE_GAME_HISTORY_SCRIPT
 };
 
 describe('Lua Script Validation', () => {
@@ -68,7 +70,13 @@ describe('Lua Script Validation', () => {
     describe('file-based scripts exist on disk', () => {
         const fileScripts = [
             'revealCard.lua', 'endTurn.lua', 'updatePlayer.lua',
-            'safeTeamSwitch.lua', 'setRole.lua', 'hostTransfer.lua'
+            'safeTeamSwitch.lua', 'setRole.lua', 'hostTransfer.lua',
+            'atomicCreateRoom.lua', 'atomicJoin.lua', 'atomicRefreshTtl.lua',
+            'atomicSetRoomStatus.lua', 'atomicRemovePlayer.lua',
+            'atomicCleanupDisconnectedPlayer.lua', 'atomicSetSocketMapping.lua',
+            'atomicUpdateSettings.lua', 'atomicAddTime.lua', 'atomicTimerStatus.lua',
+            'invalidateToken.lua', 'cleanupOrphanedToken.lua',
+            'atomicSaveGameHistory.lua', 'releaseLock.lua', 'extendLock.lua'
         ];
 
         for (const filename of fileScripts) {

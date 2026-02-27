@@ -277,6 +277,92 @@ describe('Rate Limit Middleware', () => {
                 );
             });
         });
+
+        describe('Global IP Rate Limiting', () => {
+            it('should block when global IP rate limit is exceeded across different events', () => {
+                // Create limiter with generous per-event limits but default 300/min global
+                const highLimits = {
+                    'event:a': { max: 200, window: 60000 },
+                    'event:b': { max: 200, window: 60000 }
+                };
+                const rl = createSocketRateLimiter(highLimits);
+                const next = jest.fn();
+
+                const middlewareA = rl.getLimiter('event:a');
+                const middlewareB = rl.getLimiter('event:b');
+
+                // Send 160 requests via event:a + 160 via event:b = 320 total from same IP
+                // Per-event limits (200 each) are not hit, but global (300) is
+                for (let i = 0; i < 160; i++) {
+                    middlewareA({ id: `global-s-${i}`, clientIP: '10.0.0.1' }, {}, next);
+                }
+                for (let i = 0; i < 160; i++) {
+                    middlewareB({ id: `global-s2-${i}`, clientIP: '10.0.0.1' }, {}, next);
+                }
+
+                expect(mockLogger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining('Global IP rate limit exceeded')
+                );
+            });
+
+            it('should not block different IPs independently', () => {
+                const limits = {
+                    'test:event': { max: 200, window: 60000 }
+                };
+                const rl = createSocketRateLimiter(limits);
+                const middleware = rl.getLimiter('test:event');
+                const next = jest.fn();
+
+                // Two IPs each sending 150 requests (under 300 global limit per IP)
+                for (let i = 0; i < 150; i++) {
+                    middleware({ id: `s1-${i}`, clientIP: '10.1.1.1' }, {}, next);
+                }
+                for (let i = 0; i < 150; i++) {
+                    middleware({ id: `s2-${i}`, clientIP: '10.2.2.2' }, {}, next);
+                }
+
+                const globalBlockCalls = mockLogger.warn.mock.calls.filter(
+                    (c: any[]) => typeof c[0] === 'string' && c[0].includes('Global IP rate limit')
+                );
+                expect(globalBlockCalls.length).toBe(0);
+            });
+
+            it('should include global IP entries in getSize', () => {
+                const limits = { 'test:event': { max: 100, window: 60000 } };
+                const rl = createSocketRateLimiter(limits);
+                const middleware = rl.getLimiter('test:event');
+                const next = jest.fn();
+
+                middleware({ id: 'size-socket', clientIP: '10.3.3.3' }, {}, next);
+
+                // Size should include socket + IP + global IP entries
+                expect(rl.getSize()).toBeGreaterThanOrEqual(3);
+            });
+
+            it('should track global blocks in blockedByIP metric', () => {
+                const highLimits = {
+                    'event:a': { max: 200, window: 60000 },
+                    'event:b': { max: 200, window: 60000 }
+                };
+                const rl = createSocketRateLimiter(highLimits);
+                const next = jest.fn();
+
+                const middlewareA = rl.getLimiter('event:a');
+                const middlewareB = rl.getLimiter('event:b');
+
+                // Exceed global limit
+                for (let i = 0; i < 200; i++) {
+                    middlewareA({ id: `m-${i}`, clientIP: '10.5.5.5' }, {}, next);
+                }
+                for (let i = 0; i < 200; i++) {
+                    middlewareB({ id: `m2-${i}`, clientIP: '10.5.5.5' }, {}, next);
+                }
+
+                const metrics = rl.getMetrics();
+                expect(metrics.blockedByIP).toBeGreaterThan(0);
+                expect(metrics.blockedRequests).toBeGreaterThan(0);
+            });
+        });
     });
 
     describe('filterTimestampsInPlace', () => {

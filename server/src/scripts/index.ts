@@ -1,502 +1,69 @@
 import fs from 'fs';
 import path from 'path';
 
+function loadLua(filename: string): string {
+    return fs.readFileSync(path.join(__dirname, filename), 'utf8');
+}
 
 /** Atomic card reveal with game state updates */
-export const REVEAL_CARD_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'revealCard.lua'), 'utf8');
+export const REVEAL_CARD_SCRIPT: string = loadLua('revealCard.lua');
 
 /** Atomic turn end with score updates */
-export const END_TURN_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'endTurn.lua'), 'utf8');
+export const END_TURN_SCRIPT: string = loadLua('endTurn.lua');
 
 /** Atomic player field updates with TTL refresh */
-export const UPDATE_PLAYER_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'updatePlayer.lua'), 'utf8');
+export const UPDATE_PLAYER_SCRIPT: string = loadLua('updatePlayer.lua');
 
 /** Atomic team change with empty-team validation */
-export const SAFE_TEAM_SWITCH_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'safeTeamSwitch.lua'), 'utf8');
+export const SAFE_TEAM_SWITCH_SCRIPT: string = loadLua('safeTeamSwitch.lua');
 
 /** Atomic role assignment with conflict checking */
-export const SET_ROLE_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'setRole.lua'), 'utf8');
+export const SET_ROLE_SCRIPT: string = loadLua('setRole.lua');
 
 /** Atomic host transfer with fallback */
-export const HOST_TRANSFER_SCRIPT: string = fs.readFileSync(path.join(__dirname, 'hostTransfer.lua'), 'utf8');
+export const HOST_TRANSFER_SCRIPT: string = loadLua('hostTransfer.lua');
 
+/** Atomic room creation using SETNX. Returns: 1 if created, 0 if exists */
+export const ATOMIC_CREATE_ROOM_SCRIPT: string = loadLua('atomicCreateRoom.lua');
 
-/**
- * Atomic room creation using SETNX
- * Previously in: roomService.ts
- * Returns: 1 if created, 0 if exists
- */
-export const ATOMIC_CREATE_ROOM_SCRIPT = `
-local roomKey = KEYS[1]
-local playersKey = KEYS[2]
-local roomData = ARGV[1]
-local ttl = tonumber(ARGV[2])
+/** Atomic room join with capacity check. Returns: 1=success, 0=full, -1=already member, -2=room deleted */
+export const ATOMIC_JOIN_SCRIPT: string = loadLua('atomicJoin.lua');
 
--- Atomically try to create the room (only if it doesn't exist)
-local created = redis.call('SETNX', roomKey, roomData)
-if created == 0 then
-    return 0
-end
+/** Atomic TTL refresh of all room-related keys */
+export const ATOMIC_REFRESH_TTL_SCRIPT: string = loadLua('atomicRefreshTtl.lua');
 
--- Set TTL on the room
-redis.call('EXPIRE', roomKey, ttl)
+/** Atomic room status update (prevents TOCTOU race) */
+export const ATOMIC_SET_ROOM_STATUS_SCRIPT: string = loadLua('atomicSetRoomStatus.lua');
 
--- Clean up any stale players set from a previous room with the same code
-redis.call('DEL', playersKey)
+/** Atomic player removal from room and team sets. Returns: player data JSON on success, nil if not found */
+export const ATOMIC_REMOVE_PLAYER_SCRIPT: string = loadLua('atomicRemovePlayer.lua');
 
-return 1
-`;
+/** Atomic cleanup of a disconnected player. Returns: player data JSON, 'RECONNECTED' if connected, nil if not found */
+export const ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT: string = loadLua('atomicCleanupDisconnectedPlayer.lua');
 
-/**
- * Atomic room join with capacity check and player creation
- * Previously in: roomService.ts
- * Returns: 1=success, 0=full, -1=already member, -2=room deleted
- */
-export const ATOMIC_JOIN_SCRIPT = `
-local playersKey = KEYS[1]
-local roomKey = KEYS[2]
-local maxPlayers = tonumber(ARGV[1])
-local sessionId = ARGV[2]
-local playerData = ARGV[3]
-local playerKey = ARGV[4]
-local playerTTL = tonumber(ARGV[5])
+/** Atomic socket mapping + IP update. Returns: 1 on success, nil if player not found */
+export const ATOMIC_SET_SOCKET_MAPPING_SCRIPT: string = loadLua('atomicSetSocketMapping.lua');
 
--- Verify room still exists (prevents orphaned player sets if room was deleted between getRoom and this script)
-if redis.call('EXISTS', roomKey) == 0 then
-    return -2
-end
+/** Atomic room settings update. Validates host, merges allowed keys, enforces blitz constraints */
+export const ATOMIC_UPDATE_SETTINGS_SCRIPT: string = loadLua('atomicUpdateSettings.lua');
 
--- Check if already a member
-if redis.call('SISMEMBER', playersKey, sessionId) == 1 then
-    return -1
-end
+/** Atomic addTime operation for turn timers. Returns: new end time if successful, nil if timer doesn't exist or is expired */
+export const ATOMIC_ADD_TIME_SCRIPT: string = loadLua('atomicAddTime.lua');
 
--- Check capacity and add atomically
-local currentCount = redis.call('SCARD', playersKey)
-if currentCount >= maxPlayers then
-    return 0
-end
+/** Atomic timer status check with expiration detection. Returns: JSON timer status, 'EXPIRED' if expired while paused, nil if no timer */
+export const ATOMIC_TIMER_STATUS_SCRIPT: string = loadLua('atomicTimerStatus.lua');
 
-redis.call('SADD', playersKey, sessionId)
+/** Atomic reconnection token invalidation. Returns 1 if invalidated, 0 if no token existed */
+export const INVALIDATE_TOKEN_SCRIPT: string = loadLua('invalidateToken.lua');
 
--- Atomically create player data (eliminates crash window)
-if playerData and playerData ~= '' then
-    redis.call('SET', playerKey, playerData, 'EX', playerTTL)
-end
+/** Atomic cleanup of orphaned reconnection tokens. Returns 1 if cleaned, 0 if player still exists */
+export const CLEANUP_ORPHANED_TOKEN_SCRIPT: string = loadLua('cleanupOrphanedToken.lua');
 
-return 1
-`;
+/** Atomic game history save. Performs SET + ZADD + ZREMRANGEBYRANK + EXPIRE in a single atomic operation */
+export const ATOMIC_SAVE_GAME_HISTORY_SCRIPT: string = loadLua('atomicSaveGameHistory.lua');
 
-/**
- * Atomic TTL refresh of all room-related keys
- * Previously in: roomService.ts
- * Prevents TTL race condition by refreshing all keys atomically
- */
-export const ATOMIC_REFRESH_TTL_SCRIPT = `
-local roomKey = KEYS[1]
-local playersKey = KEYS[2]
-local gameKey = KEYS[3]
-local redTeamKey = KEYS[4]
-local blueTeamKey = KEYS[5]
-local ttl = tonumber(ARGV[1])
+/** Safe lock release (only release if we own the lock) */
+export const RELEASE_LOCK_SCRIPT: string = loadLua('releaseLock.lua');
 
--- Refresh room TTL (only if key exists)
-if redis.call('EXISTS', roomKey) == 1 then
-    redis.call('EXPIRE', roomKey, ttl)
-end
-
--- Refresh players list TTL (only if key exists)
-if redis.call('EXISTS', playersKey) == 1 then
-    redis.call('EXPIRE', playersKey, ttl)
-end
-
--- Refresh game TTL (only if key exists)
-if redis.call('EXISTS', gameKey) == 1 then
-    redis.call('EXPIRE', gameKey, ttl)
-end
-
--- Refresh team sets TTL (only if key exists)
-if redis.call('EXISTS', redTeamKey) == 1 then
-    redis.call('EXPIRE', redTeamKey, ttl)
-end
-if redis.call('EXISTS', blueTeamKey) == 1 then
-    redis.call('EXPIRE', blueTeamKey, ttl)
-end
-
-return 1
-`;
-
-/**
- * Atomic room status update (prevents TOCTOU race)
- * Previously in: gameService.ts
- */
-export const ATOMIC_SET_ROOM_STATUS_SCRIPT = `
-local roomKey = KEYS[1]
-local newStatus = ARGV[1]
-local ttl = tonumber(ARGV[2])
-
-local roomData = redis.call('GET', roomKey)
-if not roomData then
-    return nil
-end
-
-local room = cjson.decode(roomData)
-room.status = newStatus
-redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
-return 'OK'
-`;
-
-/**
- * Atomic player removal from room and team sets
- * Previously in: playerService.ts
- * Returns: player data JSON on success, nil if not found
- */
-export const ATOMIC_REMOVE_PLAYER_SCRIPT = `
-local playerKey = KEYS[1]
-local sessionId = ARGV[1]
-
--- Get player data
-local playerData = redis.call('GET', playerKey)
-if not playerData then
-    return nil
-end
-
-local player = cjson.decode(playerData)
-local roomCode = player.roomCode
-local team = player.team
-
--- Remove from room's player set
-if roomCode then
-    redis.call('SREM', 'room:' .. roomCode .. ':players', sessionId)
-    -- Remove from team set if player was on a team
-    if team and team ~= cjson.null then
-        redis.call('SREM', 'room:' .. roomCode .. ':team:' .. team, sessionId)
-    end
-end
-
--- Delete player data
-redis.call('DEL', playerKey)
-
-return playerData
-`;
-
-/**
- * Atomic cleanup of a disconnected player.
- * Checks that the player is still disconnected before removing,
- * preventing a TOCTOU race where a player reconnects between the
- * cleanup scheduler's read and the removal.
- * Returns: player data JSON on success, 'RECONNECTED' if connected, nil if not found
- */
-export const ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT = `
-local playerKey = KEYS[1]
-local sessionId = ARGV[1]
-
--- Get player data
-local playerData = redis.call('GET', playerKey)
-if not playerData then
-    return nil
-end
-
-local player = cjson.decode(playerData)
-
--- Guard: only remove if still disconnected
-if player.connected then
-    return 'RECONNECTED'
-end
-
-local roomCode = player.roomCode
-local team = player.team
-
--- Remove from room's player set
-if roomCode then
-    redis.call('SREM', 'room:' .. roomCode .. ':players', sessionId)
-    if team and team ~= cjson.null then
-        redis.call('SREM', 'room:' .. roomCode .. ':team:' .. team, sessionId)
-    end
-end
-
--- Delete player data
-redis.call('DEL', playerKey)
-
-return playerData
-`;
-
-/**
- * Atomic socket mapping + IP update
- * Previously in: playerService.ts
- * Returns: 1 on success, nil if player not found
- */
-export const ATOMIC_SET_SOCKET_MAPPING_SCRIPT = `
-local playerKey = KEYS[1]
-local socketKey = KEYS[2]
-local socketId = ARGV[1]
-local socketTTL = tonumber(ARGV[2])
-local playerTTL = tonumber(ARGV[3])
-local lastIP = ARGV[4]
-local now = ARGV[5]
-
--- Verify player exists
-local playerData = redis.call('GET', playerKey)
-if not playerData then
-    return nil
-end
-
--- Set socket mapping
-redis.call('SET', socketKey, socketId, 'EX', socketTTL)
-
--- Update player lastIP and lastSeen if IP provided
-if lastIP ~= '' then
-    local player = cjson.decode(playerData)
-    player.lastIP = lastIP
-    player.lastSeen = tonumber(now)
-    redis.call('SET', playerKey, cjson.encode(player), 'EX', playerTTL)
-end
-
-return 1
-`;
-
-
-/**
- * Atomic room settings update
- * Previously in: roomService.ts
- * Validates host, merges allowed keys, enforces blitz constraints
- */
-export const ATOMIC_UPDATE_SETTINGS_SCRIPT = `
-local roomKey = KEYS[1]
-local sessionId = ARGV[1]
-local settingsJson = ARGV[2]
-local blitzForcedTimer = tonumber(ARGV[3])
-local ttl = tonumber(ARGV[4])
-
-local roomData = redis.call('GET', roomKey)
-if not roomData then
-    return cjson.encode({error = 'ROOM_NOT_FOUND'})
-end
-
-local room = cjson.decode(roomData)
-
-if room.hostSessionId ~= sessionId then
-    return cjson.encode({error = 'NOT_HOST'})
-end
-
-local newSettings = cjson.decode(settingsJson)
-
--- Merge only allowed keys into existing settings
-if not room.settings then
-    room.settings = {}
-end
-if newSettings.teamNames ~= nil then room.settings.teamNames = newSettings.teamNames end
-if newSettings.turnTimer ~= nil then room.settings.turnTimer = newSettings.turnTimer end
-if newSettings.allowSpectators ~= nil then room.settings.allowSpectators = newSettings.allowSpectators end
-if newSettings.gameMode ~= nil then room.settings.gameMode = newSettings.gameMode end
-
--- Enforce blitz constraints
-if room.settings.gameMode == 'blitz' then
-    room.settings.turnTimer = blitzForcedTimer
-end
-
-redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
-
-return cjson.encode({success = true, settings = room.settings})
-`;
-
-
-/**
- * Atomic addTime operation for turn timers
- * Previously in: timerService.ts
- * Reads current timer, calculates new duration, and updates atomically
- * Returns: new end time if successful, nil if timer doesn't exist or is expired
- */
-export const ATOMIC_ADD_TIME_SCRIPT = `
-local timerKey = KEYS[1]
-local secondsToAdd = tonumber(ARGV[1])
-local instanceId = ARGV[2]
-
-local timerData = redis.call('GET', timerKey)
-if not timerData then
-    return nil
-end
-
-local timer = cjson.decode(timerData)
-if timer.paused then
-    return nil
-end
-
-local now = tonumber(ARGV[3])
-local remainingMs = timer.endTime - now
-if remainingMs <= 0 then
-    return nil
-end
-
--- Get TTL buffer from arguments instead of hardcoding
-local ttlBuffer = tonumber(ARGV[4]) or 60
-
--- Calculate new end time
-local newEndTime = timer.endTime + (secondsToAdd * 1000)
-local newDuration = math.ceil((newEndTime - now) / 1000)
-
--- Update timer
-timer.endTime = newEndTime
-timer.duration = newDuration
-timer.instanceId = instanceId
-
--- Calculate new TTL (duration + buffer from constant)
-local newTtl = newDuration + ttlBuffer
-
-redis.call('SET', timerKey, cjson.encode(timer), 'EX', newTtl)
-return cjson.encode({endTime = newEndTime, duration = newDuration, remainingSeconds = newDuration})
-`;
-
-/**
- * Atomic timer status check with expiration detection
- * Prevents TOCTOU race in multi-instance deployments:
- * reads timer state and checks for expiration in a single atomic operation.
- * If the timer has expired while paused, it is deleted and 'EXPIRED' is returned.
- * Returns: JSON timer status, 'EXPIRED' if expired while paused, nil if no timer
- */
-export const ATOMIC_TIMER_STATUS_SCRIPT = `
-local timerKey = KEYS[1]
-local now = tonumber(ARGV[1])
-
-local timerData = redis.call('GET', timerKey)
-if not timerData then
-    return nil
-end
-
-local timer = cjson.decode(timerData)
-
--- Handle paused timer: check if it would have expired during pause
-if timer.paused and timer.pausedAt and timer.remainingWhenPaused then
-    local pausedDuration = now - timer.pausedAt
-    local remainingMs = timer.remainingWhenPaused * 1000
-    if pausedDuration >= remainingMs then
-        -- Timer expired while paused — clean it up atomically
-        redis.call('DEL', timerKey)
-        return 'EXPIRED'
-    end
-    -- Still paused, return remaining time
-    return cjson.encode({
-        startTime = timer.startTime,
-        endTime = timer.endTime,
-        duration = timer.duration,
-        remainingSeconds = timer.remainingWhenPaused,
-        expired = false,
-        isPaused = true
-    })
-end
-
--- Active timer: calculate remaining
-local remainingMs = timer.endTime - now
-local expired = remainingMs <= 0
-local remainingSeconds = expired and 0 or math.ceil(remainingMs / 1000)
-
-return cjson.encode({
-    startTime = timer.startTime,
-    endTime = timer.endTime,
-    duration = timer.duration,
-    remainingSeconds = remainingSeconds,
-    expired = expired,
-    isPaused = false
-})
-`;
-
-
-/**
- * Atomic reconnection token invalidation
- * Previously in: player/reconnection.ts
- * Reads the token from the session mapping, then deletes both the
- * token->session and session->token keys in a single atomic operation.
- * Returns 1 if a token was invalidated, 0 if no token existed.
- */
-export const INVALIDATE_TOKEN_SCRIPT = `
-local sessionKey = KEYS[1]
-local existingToken = redis.call('GET', sessionKey)
-if not existingToken then
-    return 0
-end
-redis.call('DEL', 'reconnect:token:' .. existingToken)
-redis.call('DEL', sessionKey)
-return 1
-`;
-
-/**
- * Atomic cleanup of orphaned reconnection tokens
- * Previously in: player/reconnection.ts
- * Checks if a player exists and, if not, cleans up the orphaned token pair.
- * KEYS[1] = reconnect:session:<sessionId>
- * KEYS[2] = player:<sessionId>
- * Returns 1 if cleaned, 0 if player still exists.
- */
-export const CLEANUP_ORPHANED_TOKEN_SCRIPT = `
-local sessionKey = KEYS[1]
-local playerKey = KEYS[2]
-local playerData = redis.call('GET', playerKey)
-if playerData then
-    return 0
-end
-local tokenId = redis.call('GET', sessionKey)
-if tokenId then
-    redis.call('DEL', 'reconnect:token:' .. tokenId)
-end
-redis.call('DEL', sessionKey)
-return 1
-`;
-
-
-/**
- * Atomic game history save
- * Replaces the non-atomic redis.multi() pipeline in gameHistoryService.ts.
- * Performs SET + ZADD + ZREMRANGEBYRANK + EXPIRE in a single atomic operation,
- * preventing partial writes if the server crashes mid-execution.
- * KEYS[1] = game history key, KEYS[2] = index sorted set key
- * ARGV[1] = game JSON, ARGV[2] = history ID, ARGV[3] = timestamp,
- * ARGV[4] = TTL seconds, ARGV[5] = max history per room
- */
-export const ATOMIC_SAVE_GAME_HISTORY_SCRIPT = `
-local gameKey = KEYS[1]
-local indexKey = KEYS[2]
-local gameJson = ARGV[1]
-local historyId = ARGV[2]
-local timestamp = tonumber(ARGV[3])
-local ttl = tonumber(ARGV[4])
-local maxHistory = tonumber(ARGV[5])
-
--- Store the game history entry with TTL
-redis.call('SET', gameKey, gameJson, 'EX', ttl)
-
--- Add to sorted set index (NX prevents duplicate entries)
-redis.call('ZADD', indexKey, 'NX', timestamp, historyId)
-
--- Trim index to keep only the most recent games
-redis.call('ZREMRANGEBYRANK', indexKey, 0, -(maxHistory + 1))
-
--- Set TTL on index
-redis.call('EXPIRE', indexKey, ttl)
-
-return 1
-`;
-
-/**
- * Safe lock release (only release if we own the lock)
- * Previously in: utils/distributedLock.ts
- */
-export const RELEASE_LOCK_SCRIPT = `
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-else
-    return 0
-end
-`;
-
-/**
- * Lock extension (only extend if we own the lock)
- * Previously in: utils/distributedLock.ts
- */
-export const EXTEND_LOCK_SCRIPT = `
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("pexpire", KEYS[1], ARGV[2])
-else
-    return 0
-end
-`;
-
+/** Lock extension (only extend if we own the lock) */
+export const EXTEND_LOCK_SCRIPT: string = loadLua('extendLock.lua');

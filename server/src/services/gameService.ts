@@ -30,6 +30,7 @@ import { toEnglishUpperCase } from '../utils/sanitize';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../scripts';
 import { withLock } from '../utils/distributedLock';
+import { retryAsync } from '../utils/retryAsync';
 
 // Focused modules
 import {
@@ -154,18 +155,22 @@ async function persistGameState(
         `createGame-saveGame-${roomCode}`
     );
 
-    // Atomically update room status to 'playing' via Lua to prevent TOCTOU race
+    // Atomically update room status to 'playing' via Lua to prevent TOCTOU race.
+    // Retries on transient failure since an incorrect room status causes data inconsistency.
     try {
-        await withTimeout(
-            redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
-                keys: [`room:${roomCode}`],
-                arguments: ['playing', REDIS_TTL.ROOM.toString()]
-            }),
-            TIMEOUTS.REDIS_OPERATION,
-            `setRoomStatus-lua-${roomCode}`
+        await retryAsync(
+            () => withTimeout(
+                redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                    keys: [`room:${roomCode}`],
+                    arguments: ['playing', REDIS_TTL.ROOM.toString()]
+                }),
+                TIMEOUTS.REDIS_OPERATION,
+                `setRoomStatus-lua-${roomCode}`
+            ),
+            { maxRetries: 2, baseDelayMs: 100, operationName: `setRoomStatus-${roomCode}` }
         );
     } catch (e) {
-        logger.error(`Failed to update room status for ${roomCode}:`, (e as Error).message);
+        logger.error(`Failed to update room status for ${roomCode} after retries:`, (e as Error).message);
     }
 
     await withTimeout(
