@@ -104,7 +104,7 @@ describe('Phase 5.1: Room Existence Rate Limit', () => {
         const { API_RATE_LIMITS } = require('../../config/constants');
         expect(API_RATE_LIMITS.ROOM_EXISTS).toBeDefined();
         expect(API_RATE_LIMITS.ROOM_EXISTS.window).toBe(60000);
-        expect(API_RATE_LIMITS.ROOM_EXISTS.max).toBe(30);
+        expect(API_RATE_LIMITS.ROOM_EXISTS.max).toBe(10);
     });
 });
 

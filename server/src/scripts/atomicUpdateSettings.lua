@@ -9,13 +9,15 @@ if not roomData then
     return cjson.encode({error = 'ROOM_NOT_FOUND'})
 end
 
-local room = cjson.decode(roomData)
+local ok1, room = pcall(cjson.decode, roomData)
+if not ok1 then return cjson.encode({error = 'CORRUPTED_DATA'}) end
 
 if room.hostSessionId ~= sessionId then
     return cjson.encode({error = 'NOT_HOST'})
 end
 
-local newSettings = cjson.decode(settingsJson)
+local ok2, newSettings = pcall(cjson.decode, settingsJson)
+if not ok2 then return cjson.encode({error = 'CORRUPTED_DATA'}) end
 
 -- Merge only allowed keys into existing settings
 if not room.settings then

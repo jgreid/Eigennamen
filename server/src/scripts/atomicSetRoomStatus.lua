@@ -7,7 +7,8 @@ if not roomData then
     return nil
 end
 
-local room = cjson.decode(roomData)
+local ok, room = pcall(cjson.decode, roomData)
+if not ok then return nil end
 room.status = newStatus
 redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
 return 'OK'

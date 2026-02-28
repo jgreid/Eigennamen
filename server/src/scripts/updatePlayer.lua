@@ -22,8 +22,10 @@ if not playerData then
     return nil
 end
 
-local player = cjson.decode(playerData)
-local updates = cjson.decode(updatesJson)
+local ok1, player = pcall(cjson.decode, playerData)
+if not ok1 then return nil end
+local ok2, updates = pcall(cjson.decode, updatesJson)
+if not ok2 then return nil end
 
 -- Merge updates into the player object
 for k, v in pairs(updates) do

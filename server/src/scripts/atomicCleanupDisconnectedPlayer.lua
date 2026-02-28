@@ -7,7 +7,12 @@ if not playerData then
     return nil
 end
 
-local player = cjson.decode(playerData)
+local ok, player = pcall(cjson.decode, playerData)
+if not ok then
+    -- Data corrupted — delete key and return nil
+    redis.call('DEL', playerKey)
+    return nil
+end
 
 -- Guard: only remove if still disconnected
 if player.connected then

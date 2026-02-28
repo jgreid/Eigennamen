@@ -21,7 +21,10 @@ if not playerData then
     return nil
 end
 
-local player = cjson.decode(playerData)
+local ok, player = pcall(cjson.decode, playerData)
+if not ok then
+    return cjson.encode({success = false, reason = 'CORRUPTED_DATA'})
+end
 local oldTeam = player.team
 local oldRole = player.role
 
@@ -44,7 +47,8 @@ if checkEmpty and oldTeam and oldTeam ~= cjson.null and oldTeam ~= actualNewTeam
         if memberId ~= sessionId then
             local memberData = redis.call('GET', 'player:' .. memberId)
             if memberData then
-                local member = cjson.decode(memberData)
+                local mOk, member = pcall(cjson.decode, memberData)
+                if not mOk then member = {} end
                 if member.connected then
                     otherConnectedCount = otherConnectedCount + 1
                 end

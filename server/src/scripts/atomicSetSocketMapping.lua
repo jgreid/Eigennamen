@@ -17,7 +17,8 @@ redis.call('SET', socketKey, socketId, 'EX', socketTTL)
 
 -- Update player lastIP and lastSeen if IP provided
 if lastIP ~= '' then
-    local player = cjson.decode(playerData)
+    local pOk, player = pcall(cjson.decode, playerData)
+    if not pOk then return nil end
     player.lastIP = lastIP
     player.lastSeen = tonumber(now)
     redis.call('SET', playerKey, cjson.encode(player), 'EX', playerTTL)

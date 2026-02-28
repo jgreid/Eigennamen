@@ -12,7 +12,10 @@ if not gameData then
     return cjson.encode({error = 'NO_GAME'})
 end
 
-local game = cjson.decode(gameData)
+local ok, game = pcall(cjson.decode, gameData)
+if not ok then
+    return cjson.encode({error = 'CORRUPTED_DATA'})
+end
 
 -- Validate preconditions
 if game.gameOver then
