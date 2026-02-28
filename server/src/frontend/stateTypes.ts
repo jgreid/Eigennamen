@@ -64,6 +64,26 @@ export interface GameState {
     greenFound: number;
     greenTotal: number;
     seed: string | number | null;
+    // Match mode properties
+    cardScores: (number | null)[];
+    revealedBy: (string | null)[];
+    matchRound: number;
+    redMatchScore: number;
+    blueMatchScore: number;
+    roundHistory: RoundResult[];
+    matchOver: boolean;
+    matchWinner: string | null;
+}
+
+export interface RoundResult {
+    roundNumber: number;
+    roundWinner: string | null;
+    redRoundScore: number;
+    blueRoundScore: number;
+    redBonusAwarded: boolean;
+    blueBonusAwarded: boolean;
+    endReason: string;
+    completedAt: number;
 }
 
 export interface TimerState {

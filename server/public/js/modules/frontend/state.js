@@ -1,6 +1,7 @@
 import { DEFAULT_WORDS } from './constants.js';
 import { attachDebugToWindow, initDebugSubscriptions } from './debug.js';
 import { createReactiveProxy } from './store/index.js';
+import { logger } from './logger.js';
 export { BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, ROLE_BANNER_CONFIG } from './constants.js';
 export { logStateChange, getStateHistory, clearStateHistory, watchState } from './debug.js';
 // These re-exports need the state reference curried in (debug.ts can't import
@@ -54,7 +55,11 @@ const _rawState = {
         gameOver: false, winner: null, seed: null,
         customWords: false, currentClue: null,
         guessesUsed: 0, guessesAllowed: 0, status: 'waiting',
-        duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0
+        duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0,
+        // Match mode
+        cardScores: [], revealedBy: [],
+        matchRound: 0, redMatchScore: 0, blueMatchScore: 0,
+        roundHistory: [], matchOver: false, matchWinner: null
     },
     timerState: {
         active: false, endTime: null, duration: null,
@@ -71,6 +76,7 @@ const _rawState = {
     isRevealingCard: false,
     revealingCards: new Set(),
     revealTimeouts: new Map(),
+    pendingRevealRAF: null,
     language: 'en',
     localizedDefaultWords: null,
     colorBlindMode: false,
@@ -103,5 +109,12 @@ export function initCachedElements() {
     state.cachedElements.srAnnouncements = document.getElementById('sr-announcements');
     state.cachedElements.timerDisplay = document.getElementById('timer-display');
     state.cachedElements.timerValue = document.getElementById('timer-value');
+    // Warn about missing critical elements that would break core functionality
+    if (!state.cachedElements.board) {
+        logger.error('initCachedElements: #board element not found — game board will not render');
+    }
+    if (!state.cachedElements.turnIndicator) {
+        logger.warn('initCachedElements: #turn-indicator element not found');
+    }
 }
 //# sourceMappingURL=state.js.map

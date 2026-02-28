@@ -64,6 +64,11 @@ export function executeCardReveal(game: GameState, index: number): CardType {
 
     game.revealed[index] = true;
 
+    // Track which team revealed this card (for match mode scoring)
+    if (game.revealedBy) {
+        game.revealedBy[index] = game.currentTurn;
+    }
+
     let type: CardType;
     if (game.gameMode === 'duet') {
         if (game.currentTurn === 'blue' && game.duetTypes) {
@@ -247,6 +252,13 @@ export function buildRevealResult(
         result.allDuetTypes = game.gameOver ? (game.duetTypes || null) : null;
     }
 
+    // Match mode: include card score and cumulative match scores
+    if (game.gameMode === 'match' && game.cardScores) {
+        result.cardScore = game.cardScores[index];
+        result.redMatchScore = game.redMatchScore ?? 0;
+        result.blueMatchScore = game.blueMatchScore ?? 0;
+    }
+
     return result;
 }
 
@@ -262,6 +274,7 @@ export function getGameStateForPlayer(
     }
 
     const isDuet = game.gameMode === 'duet';
+    const isMatch = game.gameMode === 'match';
     const state: PlayerGameState = {
         id: game.id,
         words: game.words,
@@ -284,6 +297,16 @@ export function getGameStateForPlayer(
             timerTokens: game.timerTokens,
             greenFound: game.greenFound,
             greenTotal: game.greenTotal
+        } : {}),
+        ...(isMatch ? {
+            gameMode: game.gameMode,
+            matchRound: game.matchRound,
+            redMatchScore: game.redMatchScore ?? 0,
+            blueMatchScore: game.blueMatchScore ?? 0,
+            roundHistory: game.roundHistory ?? [],
+            matchOver: game.matchOver ?? false,
+            matchWinner: game.matchWinner ?? null,
+            revealedBy: game.revealedBy
         } : {})
     };
 
@@ -318,6 +341,19 @@ export function getGameStateForPlayer(
         } else {
             state.types = game.types.map((type, i) =>
                 game.revealed[i] ? type : null
+            );
+        }
+    }
+
+    // Match mode: card scores visibility
+    if (isMatch && game.cardScores) {
+        if (isSpymaster || game.gameOver) {
+            // Spymasters see all card scores; everyone sees all after game over
+            state.cardScores = game.cardScores;
+        } else {
+            // Non-spymasters only see scores of revealed cards
+            state.cardScores = game.cardScores.map((score, i) =>
+                game.revealed[i] ? score : null
             );
         }
     }

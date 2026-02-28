@@ -1,7 +1,10 @@
 // Re-export shared constants so existing `import { BOARD_SIZE } from '@config'` still works
 export {
     BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS,
-    GAME_MODES, TEAMS, ROLES
+    GAME_MODES, TEAMS, ROLES,
+    MATCH_TARGET, MATCH_WIN_MARGIN, ROUND_WIN_BONUS,
+    STANDARD_SCORE_CARDS, CARD_SCORE_DISTRIBUTION,
+    BOARD_VALUE_MIN, BOARD_VALUE_MAX, ASSASSIN_SCORE_POOL
 } from '../shared';
 export type { GameMode } from '../shared';
 
@@ -30,6 +33,14 @@ export const GAME_MODE_CONFIG = {
         minTurnTimer: 30,
         maxTurnTimer: 300,
         cooperative: true
+    },
+    match: {
+        label: 'Eigennamen',
+        description: 'Multi-round match with card scoring',
+        forcedTurnTimer: null,
+        minTurnTimer: 30,
+        maxTurnTimer: 300,
+        cooperative: false
     }
 } as const;
 
@@ -63,6 +74,7 @@ export const ROOM_STATUS = {
 export const GAME_INTERNALS = {
     FIRST_TEAM_SEED_OFFSET: 1000,      // Seed offset for first team shuffle
     TYPES_SHUFFLE_SEED_OFFSET: 500,    // Seed offset for card types shuffle
+    CARD_SCORES_SEED_OFFSET: 2000,     // Seed offset for card score generation
     LAZY_HISTORY_MULTIPLIER: 1.5       // Multiplier for lazy history threshold
 } as const;
 

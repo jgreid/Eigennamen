@@ -117,9 +117,13 @@ import { registerAllEventListeners } from './socket-client-events.js';
                     logger.debug('Connected to server:', socket.id);
                     this._emit('connected', { wasReconnecting });
                     // Properly handle async _attemptRejoin with error catching
+                    // Surface failure to user instead of silently swallowing (C3 from audit)
                     if (wasReconnecting && this.autoRejoin) {
                         this._attemptRejoin().catch((err) => {
                             logger.error('Auto-rejoin failed:', err);
+                            // Ensure progress flags are cleared so manual rejoin isn't blocked
+                            this.joinInProgress = false;
+                            this.createInProgress = false;
                         });
                     }
                     resolve(socket);
@@ -137,6 +141,9 @@ import { registerAllEventListeners } from './socket-client-events.js';
                     const error = args[0];
                     logger.error('Connection error:', error);
                     this.reconnectAttempts++;
+                    // Clear operation flags so they don't block new operations
+                    this.createInProgress = false;
+                    this.joinInProgress = false;
                     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
                         reject(error);
                     }
@@ -259,6 +266,7 @@ import { registerAllEventListeners } from './socket-client-events.js';
         /**
          * Queue a socket event to send when reconnected, or emit immediately if connected.
          * Only queues safe-to-replay events (chat messages, non-state-changing actions).
+         * Tags items with current room code to discard stale events after room change.
          * @param event - Socket event name
          * @param data - Event data
          */
@@ -276,25 +284,31 @@ import { registerAllEventListeners } from './socket-client-events.js';
                     'game:endTurn'
                 ];
                 if (queueableEvents.includes(event) && this._offlineQueue.length < this._offlineQueueMaxSize) {
-                    this._offlineQueue.push({ event, data, timestamp: Date.now() });
+                    this._offlineQueue.push({ event, data, timestamp: Date.now(), roomCode: this.roomCode });
                 }
             }
         },
         /**
          * Flush queued offline events after reconnection.
-         * Only replays events less than 2 minutes old.
+         * Discards events that are too old (>2min) or from a different room (C2 from audit).
          */
         _flushOfflineQueue() {
             if (this._offlineQueue.length === 0)
                 return;
             const maxAge = 2 * 60 * 1000; // 2 minutes
             const now = Date.now();
+            const currentRoom = this.roomCode;
             let replayed = 0;
             for (const item of this._offlineQueue) {
-                if (now - item.timestamp < maxAge && this.isConnected()) {
-                    this.socket?.emit(item.event, item.data);
-                    replayed++;
-                }
+                // Discard stale events from a different room
+                if (item.roomCode !== currentRoom)
+                    continue;
+                if (now - item.timestamp >= maxAge)
+                    continue;
+                if (!this.isConnected())
+                    break;
+                this.socket?.emit(item.event, item.data);
+                replayed++;
             }
             if (replayed > 0) {
                 logger.debug(`Replayed ${replayed} queued event(s) after reconnection`);

@@ -51,7 +51,10 @@ export async function setLanguage(lang, persist = true) {
     // Load translations if not cached
     if (!translations[lang]) {
         try {
-            const response = await fetch(`/locales/${lang}.json`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`/locales/${lang}.json`, { signal: controller.signal });
+            clearTimeout(timeoutId);
             if (!response.ok)
                 throw new Error(`HTTP ${response.status}`);
             translations[lang] = await response.json();
@@ -108,8 +111,22 @@ export function t(key, params = {}) {
         || key;
     if (typeof value !== 'string')
         return key;
-    // Interpolate {{param}} placeholders
-    return value.replace(/\{\{(\w+)\}\}/g, (_, name) => params[name] !== undefined ? String(params[name]) : `{{${name}}}`);
+    // Interpolate {{param}} placeholders with HTML escaping to prevent XSS
+    return value.replace(/\{\{(\w+)\}\}/g, (_, name) => {
+        if (params[name] === undefined)
+            return `{{${name}}}`;
+        const raw = String(params[name]);
+        return raw.replace(/[&<>"']/g, (ch) => {
+            switch (ch) {
+                case '&': return '&amp;';
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '"': return '&quot;';
+                case "'": return '&#39;';
+                default: return ch;
+            }
+        });
+    });
 }
 /**
  * Translate all elements with data-i18n attributes
@@ -157,7 +174,10 @@ export async function getLocalizedWordList(lang = currentLanguage) {
     if (lang === DEFAULT_LANGUAGE)
         return null; // English uses built-in DEFAULT_WORDS
     try {
-        const response = await fetch(`/locales/wordlist-${lang}.txt`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(`/locales/wordlist-${lang}.txt`, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok)
             return null;
         const text = await response.text();

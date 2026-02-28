@@ -5,11 +5,11 @@ import { logger } from './logger.js';
 
 export type ValidTeam = 'red' | 'blue';
 export type ValidRole = 'spymaster' | 'clicker' | 'spectator';
-export type ValidGameMode = 'classic' | 'blitz' | 'duet';
+export type ValidGameMode = 'classic' | 'blitz' | 'duet' | 'match';
 
 const VALID_TEAMS = new Set<string>(['red', 'blue']);
 const VALID_ROLES = new Set<string>(['spymaster', 'clicker', 'spectator']);
-const VALID_GAME_MODES = new Set<string>(['classic', 'blitz', 'duet']);
+const VALID_GAME_MODES = new Set<string>(['classic', 'blitz', 'duet', 'match']);
 
 export function isValidTeam(value: unknown): value is ValidTeam {
     return typeof value === 'string' && VALID_TEAMS.has(value);
@@ -80,6 +80,15 @@ export function resetGameState(): void {
     state.gameState.timerTokens = 0;
     state.gameState.greenFound = 0;
     state.gameState.greenTotal = 0;
+    // Match mode
+    state.gameState.cardScores = [];
+    state.gameState.revealedBy = [];
+    state.gameState.matchRound = 0;
+    state.gameState.redMatchScore = 0;
+    state.gameState.blueMatchScore = 0;
+    state.gameState.roundHistory = [];
+    state.gameState.matchOver = false;
+    state.gameState.matchWinner = null;
     state.gameMode = 'classic';
 }
 

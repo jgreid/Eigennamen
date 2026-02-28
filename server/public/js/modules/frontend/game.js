@@ -10,7 +10,7 @@ import { isClientConnected } from './clientAccessor.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
 import { showGameOverModal } from './game/reveal.js';
 // Re-export sub-module APIs so existing consumers don't break
-export { checkGameOver, updateScoreboard, updateTurnIndicator } from './game/scoring.js';
+export { checkGameOver, updateScoreboard, updateTurnIndicator, updateMatchScoreboard } from './game/scoring.js';
 export { revealCard, revealCardFromServer, showGameOverModal, showGameOver, closeGameOver } from './game/reveal.js';
 // Re-export URL functions so existing consumers don't break
 export { updateURL } from './url-state.js';

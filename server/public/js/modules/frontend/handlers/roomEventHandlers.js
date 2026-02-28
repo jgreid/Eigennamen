@@ -5,6 +5,7 @@ import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
 import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI } from '../multiplayerUI.js';
 import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup } from '../multiplayerSync.js';
+import { batch } from '../store/batch.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
 import { getClient } from '../clientAccessor.js';
 export function registerRoomHandlers() {
@@ -42,22 +43,26 @@ export function registerRoomHandlers() {
             });
         }
     });
-    // Room resync (state recovery)
+    // Room resync (state recovery) — batch state mutations (M7 from audit)
     EigennamenClient.on('roomResynced', (data) => {
         // Guard: prevent individual update events from interleaving with
         // a full resync, which replaces all state atomically.
         state.resyncInProgress = true;
         try {
-            // Sync current player's state from server response
-            const currentPlayer = data.you || EigennamenClient.player;
-            if (currentPlayer) {
-                syncLocalPlayerState(currentPlayer);
-            }
+            batch(() => {
+                // Sync current player's state from server response
+                const currentPlayer = data.you || EigennamenClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer);
+                }
+                if (data.players) {
+                    state.multiplayerPlayers = data.players;
+                }
+            });
             if (data.game) {
                 syncGameStateFromServer(data.game);
             }
             if (data.players) {
-                state.multiplayerPlayers = data.players;
                 updateMpIndicator(data.room || null, state.multiplayerPlayers);
             }
             // Update all UI elements
@@ -84,21 +89,26 @@ export function registerRoomHandlers() {
         showReconnectionOverlay();
     });
     // Shared reconnection handler (used by both auto-rejoin and token-based reconnection)
+    // Wraps state updates in batch() to prevent intermediate renders (M7 from audit)
     function handleReconnection(data) {
         hideReconnectionOverlay();
         // Guard: full state replacement — defer individual update events
         state.resyncInProgress = true;
         try {
             const changes = detectOfflineChanges(data);
-            const currentPlayer = data?.you || EigennamenClient.player;
-            if (currentPlayer) {
-                syncLocalPlayerState(currentPlayer);
-            }
+            batch(() => {
+                const currentPlayer = data?.you || EigennamenClient.player;
+                if (currentPlayer) {
+                    syncLocalPlayerState(currentPlayer);
+                }
+                if (data?.players) {
+                    state.multiplayerPlayers = data.players;
+                }
+            });
             if (data?.game) {
                 syncGameStateFromServer(data.game);
             }
             if (data?.players) {
-                state.multiplayerPlayers = data.players;
                 updateMpIndicator(data?.room || null, state.multiplayerPlayers);
             }
             updateControls();

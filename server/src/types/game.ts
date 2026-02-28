@@ -129,6 +129,28 @@ export type GameHistoryEntry =
   | ForfeitHistoryEntry;
 
 /**
+ * Result of a completed round in match mode
+ */
+export interface RoundResult {
+  /** Which round number this was (1-indexed) */
+  roundNumber: number;
+  /** Team that won the round (null for cooperative/no winner) */
+  roundWinner: Team | null;
+  /** Card points earned by red this round */
+  redRoundScore: number;
+  /** Card points earned by blue this round */
+  blueRoundScore: number;
+  /** Whether red received the round win bonus */
+  redBonusAwarded: boolean;
+  /** Whether blue received the round win bonus */
+  blueBonusAwarded: boolean;
+  /** How the round ended */
+  endReason: string;
+  /** When the round was completed */
+  completedAt: number;
+}
+
+/**
  * Complete game state stored in Redis
  */
 export interface GameState {
@@ -172,7 +194,7 @@ export interface GameState {
   stateVersion: number;
   /** When the game was created */
   createdAt: number;
-  /** Game mode (classic, blitz, duet) */
+  /** Game mode (classic, blitz, duet, match) */
   gameMode?: GameMode;
   // Duet mode fields (optional, only present in duet games)
   /** Side B's key card types (blue team's perspective) */
@@ -183,16 +205,37 @@ export interface GameState {
   greenFound?: number;
   /** Total unique green cards needed to win */
   greenTotal?: number;
+  // Match mode fields (optional, only present in match games)
+  /** Point value for each card position (parallel to types[]) */
+  cardScores?: number[];
+  /** Which team revealed each card (parallel to revealed[]) */
+  revealedBy?: (Team | null)[];
+  /** Current round number (1-indexed) */
+  matchRound?: number;
+  /** Cumulative red team match score across rounds */
+  redMatchScore?: number;
+  /** Cumulative blue team match score across rounds */
+  blueMatchScore?: number;
+  /** Results of completed rounds */
+  roundHistory?: RoundResult[];
+  /** Whether the match has ended */
+  matchOver?: boolean;
+  /** Match winner */
+  matchWinner?: Team | null;
+  /** Which team went first in each round */
+  firstTeamHistory?: Team[];
 }
 
 /**
  * Game state as seen by a player (types may be hidden)
  */
-export interface PlayerGameState extends Omit<GameState, 'types' | 'duetTypes' | 'seed' | 'wordListId' | 'stateVersion' | 'createdAt'> {
+export interface PlayerGameState extends Omit<GameState, 'types' | 'duetTypes' | 'cardScores' | 'seed' | 'wordListId' | 'stateVersion' | 'createdAt'> {
   /** Card types - null for unrevealed cards if not spymaster */
   types: (CardType | null)[];
   /** Duet: Side B types (only visible to blue team spymaster) */
   duetTypes?: (CardType | null)[];
+  /** Match: card scores - null for unrevealed cards if not spymaster */
+  cardScores?: (number | null)[];
 }
 
 /**
@@ -203,8 +246,16 @@ export interface CreateGameOptions {
   wordListId?: string;
   /** Custom words to use (takes precedence over wordListId) */
   wordList?: string[];
-  /** Game mode (classic, blitz, duet) */
+  /** Game mode (classic, blitz, duet, match) */
   gameMode?: GameMode;
+  /** Match state to carry forward when starting next round */
+  matchCarryOver?: {
+    matchRound: number;
+    redMatchScore: number;
+    blueMatchScore: number;
+    roundHistory: RoundResult[];
+    firstTeamHistory: Team[];
+  };
 }
 
 /**
@@ -244,6 +295,13 @@ export interface RevealResult {
   greenFound?: number;
   /** Duet: all Side B types (only included if game over) */
   allDuetTypes?: CardType[] | null;
+  // Match mode fields
+  /** Match: point value of the revealed card */
+  cardScore?: number;
+  /** Match: updated cumulative red match score */
+  redMatchScore?: number;
+  /** Match: updated cumulative blue match score */
+  blueMatchScore?: number;
 }
 
 /**

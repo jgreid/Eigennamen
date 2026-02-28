@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import {
     redRemaining as getRedRemaining, blueRemaining as getBlueRemaining,
     currentTeamName as getCurrentTeamName, teamName as getTeamName,
-    isPlayerTurn, isDuetMode
+    isPlayerTurn, isDuetMode, isMatchMode
 } from '../store/selectors.js';
 import { t } from '../i18n.js';
 
@@ -37,6 +37,30 @@ export function updateScoreboard(): void {
     if (blueRemainingEl) blueRemainingEl.textContent = String(getBlueRemaining());
     if (redTeamNameEl) redTeamNameEl.textContent = state.teamNames.red;
     if (blueTeamNameEl) blueTeamNameEl.textContent = state.teamNames.blue;
+}
+
+/**
+ * Update the match mode scoreboard (cumulative match scores and round number).
+ * Only visible when game mode is 'match'.
+ */
+export function updateMatchScoreboard(): void {
+    const matchScoreboard = document.getElementById('match-scoreboard');
+    if (!matchScoreboard) return;
+
+    if (!isMatchMode()) {
+        matchScoreboard.style.display = 'none';
+        return;
+    }
+
+    matchScoreboard.style.display = '';
+
+    const redMatchEl = document.getElementById('red-match-score');
+    const blueMatchEl = document.getElementById('blue-match-score');
+    const roundEl = document.getElementById('match-round');
+
+    if (redMatchEl) redMatchEl.textContent = String(state.gameState.redMatchScore ?? 0);
+    if (blueMatchEl) blueMatchEl.textContent = String(state.gameState.blueMatchScore ?? 0);
+    if (roundEl) roundEl.textContent = String(state.gameState.matchRound ?? 1);
 }
 
 export function updateTurnIndicator(): void {
