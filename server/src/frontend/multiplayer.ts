@@ -18,6 +18,7 @@ import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
+import { startRevealSweep } from './game/reveal.js';
 import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 
 // Re-export sub-module functions so app.ts imports continue to work
@@ -331,6 +332,9 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
 
     state.isMultiplayerMode = true;
     safeSetItem('eigennamen-nickname', EigennamenClient.player?.nickname || '');
+
+    // Start periodic sweep of stale reveal-pending entries
+    startRevealSweep();
 
     // Listeners are now set up before join/create (in handleJoinGame/handleCreateGame)
     // to prevent race conditions. This guard handles the auto-rejoin path where

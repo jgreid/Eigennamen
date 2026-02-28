@@ -151,6 +151,15 @@ function startConnectionsCleanup(io: SocketIOServer): void {
                 connectionsPerIP.set(ip, count);
                 ipLastSeen.set(ip, now);
             }
+
+            // Prune expired auth failure entries to prevent unbounded memory growth.
+            // Entries are checked individually by isAuthBlocked(), but IPs that never
+            // reconnect would accumulate indefinitely without this periodic sweep.
+            for (const [ip, entry] of authFailuresPerIP) {
+                if (now - entry.windowStart > SOCKET.AUTH_FAILURE_WINDOW_MS && entry.blockedUntil < now) {
+                    authFailuresPerIP.delete(ip);
+                }
+            }
         } catch (error) {
             logger.error('Error during connectionsPerIP cleanup:', error);
         }

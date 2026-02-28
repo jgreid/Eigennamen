@@ -101,6 +101,7 @@ const _rawState: AppState = {
     isRevealingCard: false,
     revealingCards: new Set(),
     revealTimeouts: new Map(),
+    pendingRevealRAF: null,
 
     language: 'en',
     localizedDefaultWords: null,

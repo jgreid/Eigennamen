@@ -31,7 +31,11 @@ jest.mock('../../frontend/state', () => ({
         spymasterTeam: null,
         clickerTeam: null,
         playerTeam: null,
-        roleChange: { phase: 'idle' }
+        roleChange: { phase: 'idle' },
+        revealingCards: new Set(),
+        revealTimeouts: new Map(),
+        pendingRevealRAF: null,
+        isRevealingCard: false
     }
 }));
 

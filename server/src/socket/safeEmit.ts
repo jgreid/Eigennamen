@@ -2,7 +2,7 @@ import type { Server as SocketIOServer } from 'socket.io';
 import type { Player } from '../types';
 
 import logger from '../utils/logger';
-import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
+import { incrementCounter, setGauge, METRIC_NAMES } from '../utils/metrics';
 
 /**
  * Emission metrics for monitoring
@@ -64,6 +64,9 @@ function maybeResetMetricsWindow(): void {
                 failed: emissionMetrics.failed
             });
         }
+        // Flush window totals into central gauges so /metrics and Prometheus see them
+        setGauge('emission_window_total', emissionMetrics.total);
+        setGauge('emission_window_failed', emissionMetrics.failed);
         emissionMetrics = {
             total: 0,
             successful: 0,

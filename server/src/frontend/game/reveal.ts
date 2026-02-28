@@ -231,8 +231,11 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
         state.gameState.currentClue = null;
     }
 
-    // Batch DOM updates using requestAnimationFrame for better performance
-    requestAnimationFrame(() => {
+    // Batch DOM updates using requestAnimationFrame for better performance.
+    // Store the rAF ID so it can be cancelled on room switch to prevent
+    // orphaned callbacks updating a cleared/rebuilt DOM.
+    state.pendingRevealRAF = requestAnimationFrame(() => {
+        state.pendingRevealRAF = null;
         updateSingleCard(index);
         updateBoardIncremental();
         updateScoreboard();
@@ -253,6 +256,47 @@ export function showGameOverModal(_winner?: string | null, _reason?: string): vo
     // so they can see the board and discuss before the next game.
     // The turn indicator already shows the winner at the top of the board.
     renderBoard();
+}
+
+/**
+ * Sweep stale entries from revealingCards.
+ * Per-card timeouts handle the normal case, but if timeouts are throttled
+ * (e.g., tab backgrounded), entries can linger. This periodic sweep is
+ * the safety net.
+ */
+export function sweepStaleRevealingCards(): void {
+    if (state.revealingCards.size === 0) return;
+
+    // Any card in revealingCards that no longer has a pending timeout is stale
+    for (const index of state.revealingCards) {
+        if (!state.revealTimeouts.has(index)) {
+            state.revealingCards.delete(index);
+            const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
+            if (pendingCard) (pendingCard as HTMLElement).classList.remove('revealing');
+        }
+    }
+    state.isRevealingCard = state.revealingCards.size > 0;
+}
+
+let revealSweepInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Start periodic sweep of stale revealingCards entries.
+ * Call when entering multiplayer mode.
+ */
+export function startRevealSweep(): void {
+    stopRevealSweep();
+    revealSweepInterval = setInterval(sweepStaleRevealingCards, UI.CARD_REVEAL_TIMEOUT_MS);
+}
+
+/**
+ * Stop the periodic sweep. Call when leaving multiplayer mode.
+ */
+export function stopRevealSweep(): void {
+    if (revealSweepInterval !== null) {
+        clearInterval(revealSweepInterval);
+        revealSweepInterval = null;
+    }
 }
 
 // Alias for multiplayer listener compatibility
