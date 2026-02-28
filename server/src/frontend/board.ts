@@ -259,6 +259,7 @@ export function renderBoard(): void {
                 card.classList.add('multi-word');
             }
             card.textContent = word;
+            card.dataset.word = word;
             card.setAttribute('data-index', String(index));
             card.setAttribute('data-testid', 'board-card');
 
@@ -332,8 +333,10 @@ export function updateBoardIncremental(): void {
             const word = state.gameState.words[index];
 
             // Update card text if it changed (safety measure for sync issues)
-            if (card.textContent !== word) {
+            // Compare via data-word to avoid false mismatches from badge child text
+            if (card.dataset.word !== word) {
                 card.textContent = word;
+                card.dataset.word = word;
                 // Update font class based on word length
                 card.classList.remove('font-lg', 'font-md', 'font-sm', 'font-xs', 'font-min');
                 card.style.fontSize = ''; // clear any fitCardText override

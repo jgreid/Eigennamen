@@ -319,7 +319,7 @@
 .card-score-badge {
     position: absolute;
     top: 2px;
-    right: 3px;
+    left: 3px;
     font-size: 0.65rem;
     font-weight: 700;
     line-height: 1;
