@@ -58,14 +58,14 @@ describe('JWT Configuration', () => {
             // Logger warning is called internally but mock state may vary
         });
 
-        it('should return null in production without secret', () => {
+        it('should throw in production without secret', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jwtModule = require('../../config/jwt');
 
-            const secret = jwtModule.getJwtSecret();
-            expect(secret).toBeNull();
-            // Logger warning is called internally
+            expect(() => jwtModule.getJwtSecret()).toThrow(
+                'JWT_SECRET must be configured in production'
+            );
         });
 
         it('should throw error in production with short secret', () => {
@@ -130,14 +130,15 @@ describe('JWT Configuration', () => {
             expect(typeof token).toBe('string');
         });
 
-        it('should return null when JWT not configured', () => {
+        it('should throw when JWT not configured in production', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jest.resetModules();
             jwtModule = require('../../config/jwt');
 
-            const token = jwtModule.signToken({ userId: 'test-user' });
-            expect(token).toBeNull();
+            expect(() => jwtModule.signToken({ userId: 'test-user' })).toThrow(
+                'JWT_SECRET must be configured in production'
+            );
         });
     });
 
@@ -175,14 +176,15 @@ describe('JWT Configuration', () => {
             // Token is expired, verifyToken returns null
         });
 
-        it('should return null when JWT not configured', () => {
+        it('should throw when JWT not configured in production', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jest.resetModules();
             jwtModule = require('../../config/jwt');
 
-            const decoded = jwtModule.verifyToken('any-token');
-            expect(decoded).toBeNull();
+            expect(() => jwtModule.verifyToken('any-token')).toThrow(
+                'JWT_SECRET must be configured in production'
+            );
         });
 
         it('should log warning for unexpected verification errors', () => {
@@ -251,14 +253,15 @@ describe('JWT Configuration', () => {
             expect(decoded.permissions).toEqual(['read', 'write']);
         });
 
-        it('should return null when JWT not configured', () => {
+        it('should throw when JWT not configured in production', () => {
             delete process.env.JWT_SECRET;
             process.env.NODE_ENV = 'production';
             jest.resetModules();
             jwtModule = require('../../config/jwt');
 
-            const token = jwtModule.generateSessionToken('user-123', 'session-456');
-            expect(token).toBeNull();
+            expect(() => jwtModule.generateSessionToken('user-123', 'session-456')).toThrow(
+                'JWT_SECRET must be configured in production'
+            );
         });
     });
 

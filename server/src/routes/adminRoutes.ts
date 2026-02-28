@@ -53,10 +53,11 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             const [username, password] = credentials.split(':');
 
             // Accept any username with the correct password (common for simple admin panels)
-            // Use constant-time comparison to prevent timing attacks
-            // Hash both to fixed-length buffers to avoid leaking password length
-            const passwordHash = crypto.createHash('sha256').update(password || '').digest();
-            const adminHash = crypto.createHash('sha256').update(adminPassword).digest();
+            // Use scrypt KDF for password comparison (resistant to rainbow tables)
+            // Both passwords are derived with the same salt to enable constant-time comparison
+            const salt = 'eigennamen-admin-auth';
+            const passwordHash = crypto.scryptSync(password || '', salt, 32);
+            const adminHash = crypto.scryptSync(adminPassword, salt, 32);
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login

@@ -110,7 +110,7 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
 
     const returnedToken = result as string;
     if (returnedToken !== token) {
-        logger.debug(`Returning existing reconnection token for session ${sessionId} (race resolved)`);
+        logger.info(`Returning existing reconnection token for session ${sessionId} (race resolved)`);
     } else {
         logger.debug(`Generated reconnection token for session ${sessionId}, TTL: ${ttl}s`);
     }
@@ -264,7 +264,7 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
         }
     } catch (error) {
         // Non-critical - scan may not be available
-        logger.debug('Reconnection token cleanup skipped:', (error as Error).message);
+        logger.warn('Reconnection token cleanup skipped:', (error as Error).message);
     }
 
     if (cleaned > 0) {
@@ -292,7 +292,7 @@ async function processBatchCleanup(
                 TIMEOUTS.REDIS_OPERATION,
                 `cleanupOrphanedToken-lua-${sessionId}`
             ).catch(err => {
-                logger.debug(`Failed to cleanup orphaned token for ${sessionId}:`, (err as Error).message);
+                logger.warn(`Failed to cleanup orphaned token for ${sessionId}:`, (err as Error).message);
                 return 0;
             })
         )

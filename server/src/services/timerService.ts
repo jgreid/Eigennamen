@@ -6,7 +6,7 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
-import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT } from '../scripts';
+import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT, ATOMIC_RESUME_TIMER_SCRIPT } from '../scripts';
 import { setGauge, incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
 
@@ -28,6 +28,15 @@ const addTimeResultSchema = z.object({
     endTime: z.number(),
     duration: z.number(),
     remainingSeconds: z.number()
+});
+
+// Zod schema for atomic resume timer Lua script result
+const resumeTimerResultSchema = z.object({
+    expired: z.boolean(),
+    remainingSeconds: z.number().optional(),
+    pausedFor: z.number().optional(),
+    hadRemaining: z.number().optional(),
+    error: z.string().optional()
 });
 
 // Zod schema for atomic timer status Lua script result
@@ -343,58 +352,48 @@ export async function resumeTimer(
 ): Promise<TimerInfo | null> {
     const redis: RedisClient = getRedis();
 
-    const timerData = await withTimeout(
-        redis.get(`${TIMER_KEY_PREFIX}${roomCode}`),
-        TIMEOUTS.TIMER_OPERATION,
-        `resumeTimer-get-${roomCode}`
-    );
-
-    if (!timerData) {
-        return null;
-    }
-
     try {
-        const timer = tryParseJSON(timerData, timerStateSchema, `timer resume for ${roomCode}`);
-        if (!timer) return null;
-        if (!timer.paused) {
+        // Atomic Lua script: checks if paused timer expired, deletes if so.
+        // Eliminates race window between checking pause duration and deleting the timer.
+        const resultStr = await withTimeout(
+            redis.eval(ATOMIC_RESUME_TIMER_SCRIPT, {
+                keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
+                arguments: [Date.now().toString()]
+            }),
+            TIMEOUTS.TIMER_OPERATION,
+            `resumeTimer-lua-${roomCode}`
+        );
+
+        if (!resultStr) {
+            return null; // No timer exists
+        }
+
+        const result = tryParseJSON(String(resultStr), resumeTimerResultSchema, `timer resume for ${roomCode}`);
+        if (!result) return null;
+
+        if (result.error) {
+            if (result.error === 'NOT_PAUSED') return null;
+            logger.warn(`resumeTimer Lua error for ${roomCode}: ${result.error}`);
             return null;
         }
 
-        const remainingSeconds = timer.remainingWhenPaused;
+        if (result.expired) {
+            logger.info(`Timer for room ${roomCode} expired while paused (paused for ${Math.round((result.pausedFor || 0)/1000)}s, had ${Math.round((result.hadRemaining || 0)/1000)}s remaining), treating as expired`);
+            localTimers.delete(roomCode);
 
-        // Validate that timer wouldn't have expired while paused
-        // If the timer was paused for longer than the remaining time, it should
-        // be considered expired rather than starting fresh.
-        // NOTE: We do NOT subtract pause duration from remaining time because
-        // pausing is meant to preserve the remaining time (e.g., for breaks).
-        // Only check if the timer WOULD have expired during the pause period.
-        if (timer.pausedAt && remainingSeconds !== undefined) {
-            const pausedDuration = Date.now() - timer.pausedAt;
-            const remainingWhenPausedMs = remainingSeconds * 1000;
-
-            if (pausedDuration >= remainingWhenPausedMs) {
-                logger.info(`Timer for room ${roomCode} would have expired while paused (paused for ${Math.round(pausedDuration/1000)}s, had ${remainingSeconds}s remaining), treating as expired`);
-                // Clean up the expired timer
-                await withTimeout(
-                    redis.del(`${TIMER_KEY_PREFIX}${roomCode}`),
-                    TIMEOUTS.TIMER_OPERATION,
-                    `resumeTimer-del-expired-${roomCode}`
-                );
-                localTimers.delete(roomCode);
-
-                // Call expire callback if provided
-                if (onExpire) {
-                    try {
-                        await onExpire(roomCode);
-                    } catch (callbackError) {
-                        logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
-                    }
+            // Call expire callback if provided
+            if (onExpire) {
+                try {
+                    await onExpire(roomCode);
+                } catch (callbackError) {
+                    logger.error(`Error in timer expire callback for room ${roomCode}:`, callbackError);
                 }
-                return null;
             }
+            return null;
         }
 
         // Resume with the original remaining time (pausing preserves time)
+        const remainingSeconds = result.remainingSeconds;
         if (remainingSeconds === undefined || !Number.isFinite(remainingSeconds) || remainingSeconds <= 0) {
             logger.warn(`Invalid remainingSeconds ${remainingSeconds} in resumeTimer for ${roomCode}, treating as expired`);
             return null;
@@ -537,6 +536,16 @@ export function sweepStaleTimers(): number {
     setGauge(METRIC_NAMES.ACTIVE_TIMERS, localTimers.size);
 
     return swept;
+}
+
+/**
+ * Clean up all timers (for shutdown)
+ */
+/**
+ * Get the current count of active local timers (for health/metrics reporting)
+ */
+export function getActiveTimerCount(): number {
+    return localTimers.size;
 }
 
 /**

@@ -59,7 +59,7 @@ function getJwtSecret(): string | null {
 
     if (!secret) {
         if (isProduction) {
-            logger.warn('JWT_SECRET not configured in production - JWT authentication disabled');
+            throw new Error('JWT_SECRET must be configured in production. Set the JWT_SECRET environment variable.');
         } else {
             logger.debug('JWT_SECRET not set - JWT authentication disabled in development');
         }

@@ -7,7 +7,10 @@ if not timerData then
     return nil
 end
 
-local timer = cjson.decode(timerData)
+local ok, timer = pcall(cjson.decode, timerData)
+if not ok then
+    return nil
+end
 if timer.paused then
     return nil
 end

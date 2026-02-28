@@ -6,7 +6,10 @@ if not timerData then
     return nil
 end
 
-local timer = cjson.decode(timerData)
+local ok, timer = pcall(cjson.decode, timerData)
+if not ok then
+    return nil
+end
 
 -- Handle paused timer: check if it would have expired during pause
 if timer.paused and timer.pausedAt and timer.remainingWhenPaused then

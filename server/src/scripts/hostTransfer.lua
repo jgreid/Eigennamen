@@ -23,10 +23,13 @@ if not roomData then
     return cjson.encode({success = false, reason = 'ROOM_NOT_FOUND'})
 end
 
--- Parse all data
-local oldHost = cjson.decode(oldHostData)
-local newHost = cjson.decode(newHostData)
-local room = cjson.decode(roomData)
+-- Parse all data (pcall for corrupted data resilience)
+local ok1, oldHost = pcall(cjson.decode, oldHostData)
+if not ok1 then return cjson.encode({success = false, reason = 'CORRUPTED_DATA'}) end
+local ok2, newHost = pcall(cjson.decode, newHostData)
+if not ok2 then return cjson.encode({success = false, reason = 'CORRUPTED_DATA'}) end
+local ok3, room = pcall(cjson.decode, roomData)
+if not ok3 then return cjson.encode({success = false, reason = 'CORRUPTED_DATA'}) end
 
 -- Atomically update all three records
 oldHost.isHost = false

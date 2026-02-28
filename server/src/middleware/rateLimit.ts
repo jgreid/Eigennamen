@@ -232,7 +232,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             for (const key of keys) {
                 socketRequests.delete(key);
             }
-            logger.debug(`Cleaned up ${keys.size} rate limit entries for socket ${socketId}`);
+            logger.info(`Cleaned up ${keys.size} rate limit entries for socket ${socketId}`);
             socketKeyIndex.delete(socketId);
         }
     };
@@ -334,7 +334,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             }
 
             if (cleanedSocket > 0 || cleanedIP > 0) {
-                logger.debug(`Cleaned up ${cleanedSocket} socket and ${cleanedIP} IP rate limit entries`);
+                logger.info(`Cleaned up ${cleanedSocket} socket and ${cleanedIP} IP rate limit entries`);
             }
 
             performLRUEviction();

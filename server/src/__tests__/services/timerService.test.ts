@@ -82,10 +82,35 @@ describe('Timer Service', () => {
             try {
                 const timer = JSON.parse(timerData);
 
-                // Detect which script is being called by checking argument count/content.
-                // Timer status script passes 1 argument (now timestamp).
+                // Detect which script is being called by checking the script content.
+                // Resume timer script contains 'NOT_PAUSED', timer status script contains 'isPaused'.
                 // AddTime script passes 4 arguments (secondsToAdd, instanceId, now, ttlBuffer).
-                const isTimerStatusScript = options.arguments.length === 1 && !isNaN(parseInt(options.arguments[0], 10));
+                const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
+                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript;
+
+                if (isResumeTimerScript) {
+                    // Simulate ATOMIC_RESUME_TIMER_SCRIPT
+                    if (!timer.paused) {
+                        return JSON.stringify({ error: 'NOT_PAUSED' });
+                    }
+
+                    const remainingSeconds = timer.remainingWhenPaused;
+                    if (remainingSeconds === undefined || remainingSeconds <= 0) {
+                        return JSON.stringify({ error: 'INVALID_REMAINING' });
+                    }
+
+                    if (timer.pausedAt) {
+                        const now = parseInt(options.arguments[0], 10);
+                        const pausedDurationMs = now - timer.pausedAt;
+                        const remainingMs = remainingSeconds * 1000;
+                        if (pausedDurationMs >= remainingMs) {
+                            delete mockRedis._storage[key];
+                            return JSON.stringify({ expired: true, pausedFor: pausedDurationMs, hadRemaining: remainingMs });
+                        }
+                    }
+
+                    return JSON.stringify({ expired: false, remainingSeconds });
+                }
 
                 if (isTimerStatusScript) {
                     // Simulate ATOMIC_TIMER_STATUS_SCRIPT

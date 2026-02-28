@@ -123,10 +123,21 @@ export function t(key: string, params: Record<string, string | number> = {}): st
 
     if (typeof value !== 'string') return key;
 
-    // Interpolate {{param}} placeholders
-    return value.replace(/\{\{(\w+)\}\}/g, (_: string, name: string) =>
-        params[name] !== undefined ? String(params[name]) : `{{${name}}}`
-    );
+    // Interpolate {{param}} placeholders with HTML escaping to prevent XSS
+    return value.replace(/\{\{(\w+)\}\}/g, (_: string, name: string) => {
+        if (params[name] === undefined) return `{{${name}}}`;
+        const raw = String(params[name]);
+        return raw.replace(/[&<>"']/g, (ch: string) => {
+            switch (ch) {
+                case '&': return '&amp;';
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '"': return '&quot;';
+                case "'": return '&#39;';
+                default: return ch;
+            }
+        });
+    });
 }
 
 /**

@@ -53,7 +53,7 @@ function createTimerExpireCallback(
                 }, { lockTimeout: 5000, maxRetries: 3 });
             } catch (lockError) {
                 // If lock acquisition fails, another instance is handling this expiration
-                logger.debug(`Timer expiration lock not acquired for room ${roomCode}, skipping: ${(lockError as Error).message}`);
+                logger.info(`Timer expiration lock not acquired for room ${roomCode}, skipping: ${(lockError as Error).message}`);
                 return;
             }
 
@@ -87,7 +87,7 @@ function createTimerExpireCallback(
                             const currentGame: GameState | null = await gameService.getGame(roomCode);
 
                             if (!room) {
-                                logger.debug(`Timer restart skipped for room ${roomCode}: room not found`);
+                                logger.warn(`Timer restart skipped for room ${roomCode}: room not found`);
                                 return;
                             }
                             if (!room.settings || !room.settings.turnTimer) {
@@ -95,7 +95,7 @@ function createTimerExpireCallback(
                                 return;
                             }
                             if (!currentGame) {
-                                logger.debug(`Timer restart skipped for room ${roomCode}: game not found`);
+                                logger.warn(`Timer restart skipped for room ${roomCode}: game not found`);
                                 return;
                             }
                             if (currentGame.gameOver) {
@@ -111,7 +111,7 @@ function createTimerExpireCallback(
                     `timer-restart-${roomCode}`
                 ).catch(err => {
                     // Lock contention, timeout, or Redis failure — non-critical
-                    logger.debug(`Timer restart skipped for room ${roomCode}: ${(err as Error).message}`);
+                    logger.warn(`Timer restart skipped for room ${roomCode}: ${(err as Error).message}`);
                 });
             });
         } catch (error) {
@@ -171,7 +171,7 @@ async function handleDisconnect(
 
         // Check if we've been aborted (timed out) — skip remaining non-critical work
         if (abortSignal?.aborted) {
-            logger.debug(`Disconnect handler aborted after critical work for socket ${socket.id}`);
+            logger.warn(`Disconnect handler aborted after critical work for socket ${socket.id}`);
             return;
         }
 
@@ -216,7 +216,7 @@ async function handleDisconnect(
 
             // Check abort before expensive host transfer
             if (abortSignal?.aborted) {
-                logger.debug(`Disconnect handler aborted before host transfer for socket ${socket.id}`);
+                logger.warn(`Disconnect handler aborted before host transfer for socket ${socket.id}`);
                 return;
             }
 
@@ -267,7 +267,7 @@ async function handleDisconnect(
                     }, { lockTimeout: LOCKS.HOST_TRANSFER * 1000, maxRetries: 5 });
                 } catch (hostTransferError) {
                     // If lock acquisition fails, another instance is handling this transfer
-                    logger.debug(`Host transfer lock not acquired for room ${roomCode}: ${(hostTransferError as Error).message}`);
+                    logger.info(`Host transfer lock not acquired for room ${roomCode}: ${(hostTransferError as Error).message}`);
                 }
             }
         }

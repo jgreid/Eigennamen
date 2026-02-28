@@ -66,7 +66,7 @@ describe('Timer Service Branch Coverage', () => {
             delete mockRedisStorage[key];
             return 1;
         });
-        mockRedis.eval.mockImplementation(async (_script: string, options: { keys: string[]; arguments: string[] }) => {
+        mockRedis.eval.mockImplementation(async (script: string, options: { keys: string[]; arguments: string[] }) => {
             const key = options.keys[0];
             const timerData = mockRedisStorage[key];
             if (!timerData) return null;
@@ -74,8 +74,37 @@ describe('Timer Service Branch Coverage', () => {
             try {
                 const timer = JSON.parse(timerData);
 
-                // Timer status script: 1 arg (now timestamp)
-                if (options.arguments.length === 1) {
+                // Detect which script by checking content.
+                // Resume timer script contains 'NOT_PAUSED'.
+                const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
+                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript;
+
+                if (isResumeTimerScript) {
+                    // Simulate ATOMIC_RESUME_TIMER_SCRIPT
+                    if (!timer.paused) {
+                        return JSON.stringify({ error: 'NOT_PAUSED' });
+                    }
+
+                    const remainingSeconds = timer.remainingWhenPaused;
+                    if (remainingSeconds === undefined || remainingSeconds <= 0) {
+                        return JSON.stringify({ error: 'INVALID_REMAINING' });
+                    }
+
+                    if (timer.pausedAt) {
+                        const now = parseInt(options.arguments[0], 10);
+                        const pausedDurationMs = now - timer.pausedAt;
+                        const remainingMs = remainingSeconds * 1000;
+                        if (pausedDurationMs >= remainingMs) {
+                            delete mockRedisStorage[key];
+                            return JSON.stringify({ expired: true, pausedFor: pausedDurationMs, hadRemaining: remainingMs });
+                        }
+                    }
+
+                    return JSON.stringify({ expired: false, remainingSeconds });
+                }
+
+                if (isTimerStatusScript) {
+                    // Simulate ATOMIC_TIMER_STATUS_SCRIPT
                     const now = parseInt(options.arguments[0], 10);
 
                     if (timer.paused && timer.pausedAt !== undefined && timer.remainingWhenPaused !== undefined) {
@@ -199,9 +228,9 @@ describe('Timer Service Branch Coverage', () => {
             expect(result).toBeNull();
             expect(onExpire).toHaveBeenCalledWith('EXPIRED_PAUSED');
             expect(mockLogger.info).toHaveBeenCalledWith(
-                expect.stringContaining('would have expired while paused')
+                expect.stringContaining('expired while paused')
             );
-            // Timer should be deleted from Redis
+            // Timer should be deleted from Redis by Lua script
             expect(mockRedisStorage['timer:EXPIRED_PAUSED']).toBeUndefined();
         });
 

@@ -18,7 +18,10 @@ if not playerData then
     return nil
 end
 
-local player = cjson.decode(playerData)
+local ok, player = pcall(cjson.decode, playerData)
+if not ok then
+    return cjson.encode({success = false, reason = 'CORRUPTED_DATA'})
+end
 
 -- For spymaster/clicker roles, require team and check for existing role holder
 if newRole == 'spymaster' or newRole == 'clicker' then
@@ -32,7 +35,8 @@ if newRole == 'spymaster' or newRole == 'clicker' then
         if memberId ~= sessionId then
             local memberData = redis.call('GET', 'player:' .. memberId)
             if memberData then
-                local member = cjson.decode(memberData)
+                local mOk, member = pcall(cjson.decode, memberData)
+                if not mOk then member = {} end
                 -- Bug #5 fix: Only block if same team, same role, AND player is connected
                 -- Disconnected players should not block role assignment
                 if member.team == player.team and member.role == newRole and member.connected then
