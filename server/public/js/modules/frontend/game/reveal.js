@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { showToast, announceToScreenReader } from '../ui.js';
 import { renderBoard, updateBoardIncremental, updateSingleCard, canClickCards } from '../board.js';
 import { updateRoleBanner, updateControls } from '../roles.js';
-import { UI } from '../constants.js';
+import { UI, BOARD_SIZE } from '../constants.js';
 import { logger } from '../logger.js';
 import { t } from '../i18n.js';
 import { updateURL } from '../url-state.js';
@@ -50,6 +50,14 @@ export function revealCard(index) {
         // Prevent double-click on same card while waiting for server response
         if (state.revealingCards.has(index)) {
             return;
+        }
+        // Safety cap: if the Set is somehow at BOARD_SIZE, clear it — all cards
+        // would be pending which indicates lost server responses, not real reveals.
+        if (state.revealingCards.size >= BOARD_SIZE) {
+            logger.warn(`revealingCards Set at capacity (${state.revealingCards.size}), clearing stale entries`);
+            state.revealTimeouts.forEach(tid => clearTimeout(tid));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
         }
         state.revealingCards.add(index);
         state.isRevealingCard = state.revealingCards.size > 0;
@@ -206,8 +214,22 @@ export function revealCardFromServer(index, serverData = {}) {
     if (serverData.turnEnded && !state.gameState.gameOver) {
         state.gameState.currentClue = null;
     }
-    // Batch DOM updates using requestAnimationFrame for better performance
-    requestAnimationFrame(() => {
+    // Match mode: update card score for this card and revealedBy tracking
+    if (typeof serverData.cardScore === 'number' && state.gameState.cardScores) {
+        state.gameState.cardScores[index] = serverData.cardScore;
+    }
+    if (state.gameState.revealedBy && serverData.currentTurn) {
+        // The revealing team is the team that was on turn before any turn switch
+        // Use previous turn (before server updated it) for attribution
+        state.gameState.revealedBy[index] = type === state.gameState.currentTurn
+            ? state.gameState.currentTurn
+            : (state.gameState.currentTurn === 'red' ? 'blue' : 'red');
+    }
+    // Batch DOM updates using requestAnimationFrame for better performance.
+    // Store the rAF ID so it can be cancelled on room switch to prevent
+    // orphaned callbacks updating a cleared/rebuilt DOM.
+    state.pendingRevealRAF = requestAnimationFrame(() => {
+        state.pendingRevealRAF = null;
         updateSingleCard(index);
         updateBoardIncremental();
         updateScoreboard();
@@ -226,6 +248,44 @@ export function showGameOverModal(_winner, _reason) {
     // so they can see the board and discuss before the next game.
     // The turn indicator already shows the winner at the top of the board.
     renderBoard();
+}
+/**
+ * Sweep stale entries from revealingCards.
+ * Per-card timeouts handle the normal case, but if timeouts are throttled
+ * (e.g., tab backgrounded), entries can linger. This periodic sweep is
+ * the safety net.
+ */
+export function sweepStaleRevealingCards() {
+    if (state.revealingCards.size === 0)
+        return;
+    // Any card in revealingCards that no longer has a pending timeout is stale
+    for (const index of state.revealingCards) {
+        if (!state.revealTimeouts.has(index)) {
+            state.revealingCards.delete(index);
+            const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
+            if (pendingCard)
+                pendingCard.classList.remove('revealing');
+        }
+    }
+    state.isRevealingCard = state.revealingCards.size > 0;
+}
+let revealSweepInterval = null;
+/**
+ * Start periodic sweep of stale revealingCards entries.
+ * Call when entering multiplayer mode.
+ */
+export function startRevealSweep() {
+    stopRevealSweep();
+    revealSweepInterval = setInterval(sweepStaleRevealingCards, UI.CARD_REVEAL_TIMEOUT_MS);
+}
+/**
+ * Stop the periodic sweep. Call when leaving multiplayer mode.
+ */
+export function stopRevealSweep() {
+    if (revealSweepInterval !== null) {
+        clearInterval(revealSweepInterval);
+        revealSweepInterval = null;
+    }
 }
 // Alias for multiplayer listener compatibility
 export const showGameOver = showGameOverModal;

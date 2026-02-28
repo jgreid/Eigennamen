@@ -1,5 +1,5 @@
 import { state, BOARD_SIZE } from './state.js';
-import { showSpymasterView } from './store/selectors.js';
+import { showSpymasterView, isMatchMode } from './store/selectors.js';
 import { getCardFontClass, fitCardText } from './utils.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
@@ -164,6 +164,59 @@ export function initBoardEventDelegation(): void {
     board.setAttribute('data-delegated', 'true');
 }
 
+/**
+ * Get the CSS class for a card score badge value.
+ */
+function getScoreBadgeClass(score: number): string {
+    if (score === 3) return 'card-score-gold';
+    if (score === 2) return 'card-score-silver';
+    if (score === 1) return 'card-score-standard';
+    if (score === 0) return 'card-score-blank';
+    return 'card-score-trap'; // negative
+}
+
+/**
+ * Create or update a score badge element on a card.
+ * Shows card point values in match mode.
+ * Visible to spymasters (all cards) and everyone (revealed cards).
+ */
+function updateCardScoreBadge(card: HTMLElement, index: number): void {
+    const existingBadge = card.querySelector('.card-score-badge');
+    if (!isMatchMode()) {
+        if (existingBadge) existingBadge.remove();
+        return;
+    }
+
+    const cardScores = state.gameState.cardScores;
+    if (!cardScores || cardScores.length === 0) {
+        if (existingBadge) existingBadge.remove();
+        return;
+    }
+
+    const score = cardScores[index];
+    const isRevealed = state.gameState.revealed[index];
+    const isSpyView = showSpymasterView();
+
+    // Score is visible if card is revealed or player is spymaster/game over
+    if (score === null || score === undefined || (!isRevealed && !isSpyView)) {
+        if (existingBadge) existingBadge.remove();
+        return;
+    }
+
+    const badgeClass = getScoreBadgeClass(score);
+    const displayText = score > 0 ? `+${score}` : String(score);
+
+    if (existingBadge) {
+        existingBadge.className = `card-score-badge ${badgeClass}`;
+        existingBadge.textContent = displayText;
+    } else {
+        const badge = document.createElement('span');
+        badge.className = `card-score-badge ${badgeClass}`;
+        badge.textContent = displayText;
+        card.appendChild(badge);
+    }
+}
+
 // Guard against concurrent full re-renders from overlapping socket events
 let renderingInProgress = false;
 
@@ -206,6 +259,7 @@ export function renderBoard(): void {
                 card.classList.add('multi-word');
             }
             card.textContent = word;
+            card.dataset.word = word;
             card.setAttribute('data-index', String(index));
             card.setAttribute('data-testid', 'board-card');
 
@@ -229,6 +283,9 @@ export function renderBoard(): void {
             if (isRevealed) {
                 card.classList.add('revealed', state.gameState.types[index]);
             }
+
+            // Match mode: add score badge
+            updateCardScoreBadge(card, index);
 
             board.appendChild(card);
         });
@@ -276,8 +333,10 @@ export function updateBoardIncremental(): void {
             const word = state.gameState.words[index];
 
             // Update card text if it changed (safety measure for sync issues)
-            if (card.textContent !== word) {
+            // Compare via data-word to avoid false mismatches from badge child text
+            if (card.dataset.word !== word) {
                 card.textContent = word;
+                card.dataset.word = word;
                 // Update font class based on word length
                 card.classList.remove('font-lg', 'font-md', 'font-sm', 'font-xs', 'font-min');
                 card.style.fontSize = ''; // clear any fitCardText override
@@ -324,6 +383,9 @@ export function updateBoardIncremental(): void {
                     }
                 }
             }
+
+            // Match mode: update score badge
+            updateCardScoreBadge(card, index);
         }
 
         if (needsFit) {
@@ -362,6 +424,9 @@ export function updateSingleCard(index: number): void {
     } else {
         card.classList.add('just-revealed');
     }
+
+    // Match mode: show score badge on revealed card
+    updateCardScoreBadge(card, index);
 }
 
 // Arrow key navigation for cards (5x5 grid)

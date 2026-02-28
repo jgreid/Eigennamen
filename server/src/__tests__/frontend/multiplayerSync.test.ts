@@ -56,7 +56,8 @@ jest.mock('../../frontend/board', () => ({
 }));
 jest.mock('../../frontend/game', () => ({
     updateScoreboard: jest.fn(),
-    updateTurnIndicator: jest.fn()
+    updateTurnIndicator: jest.fn(),
+    updateMatchScoreboard: jest.fn()
 }));
 jest.mock('../../frontend/roles', () => ({
     updateRoleBanner: jest.fn(),

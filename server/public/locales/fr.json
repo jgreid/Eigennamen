@@ -165,7 +165,9 @@
     "blitz": "Blitz",
     "blitzDesc": "Tours rapides de 30 secondes",
     "duet": "Duo",
-    "duetDesc": "Mode coopératif à 2 joueurs"
+    "duetDesc": "Mode coopératif à 2 joueurs",
+    "match": "Match",
+    "matchDesc": "Match multi-manches avec scoring de cartes"
   },
   "wordList": {
     "default": "Mots par défaut",
@@ -195,7 +197,21 @@
     "step2": "Les Agents révèlent les cartes correspondantes",
     "step3": "Votre couleur = continuez, Neutre/Ennemi = fin du tour",
     "step4": "Assassin = défaite immédiate !",
-    "note": "L'équipe qui commence cherche 9 mots, l'autre 8. La première à tous les trouver gagne !"
+    "note": "L'équipe qui commence cherche 9 mots, l'autre 8. La première à tous les trouver gagne !",
+    "matchTitle": "Mode Match",
+    "matchIntro": "Un match en plusieurs manches où chaque carte a une valeur de points cachée. Les équipes jouent des manches jusqu'à ce qu'une atteigne 42 points.",
+    "matchScoring": "Scores des cartes",
+    "matchGold": "★ Or (+3)",
+    "matchSilver": "◆ Argent (+2)",
+    "matchStandard": "● Standard (+1)",
+    "matchBlank": "○ Vide (0)",
+    "matchTrap": "✕ Piège (-1)",
+    "matchFlow": "Déroulement du match",
+    "matchStep1": "Chaque manche se joue comme une partie classique",
+    "matchStep2": "Quand vous révélez une carte, votre équipe gagne sa valeur en points",
+    "matchStep3": "Le vainqueur de la manche reçoit un bonus de +7",
+    "matchStep4": "Premier à 42 points (avec 3 d'avance) remporte le match",
+    "matchNote": "Seuls les Maîtres-espions voient les valeurs avant la révélation. L'assassin met fin à la manche instantanément !"
   },
   "about": {
     "description": "Une implémentation gratuite et open-source du célèbre jeu de société."

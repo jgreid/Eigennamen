@@ -1,6 +1,6 @@
 import { state, BOARD_SIZE, DEFAULT_WORDS } from './state.js';
 import { updateCharCounter, safeGetItem, safeSetItem, safeRemoveItem } from './utils.js';
-import { openModal, closeModal } from './ui.js';
+import { openModal, closeModal, showToast } from './ui.js';
 import { updateURL, updateScoreboard, updateTurnIndicator } from './game.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
@@ -176,9 +176,12 @@ export function saveSettings() {
         }
         return;
     }
-    // Save custom words if any
+    // Save custom words if any — warn user if storage write fails (M5 from audit)
+    let storageFailed = false;
     if (customWordsText) {
-        safeSetItem('eigennamen-custom-words', customWordsText);
+        if (!safeSetItem('eigennamen-custom-words', customWordsText)) {
+            storageFailed = true;
+        }
     }
     else {
         safeRemoveItem('eigennamen-custom-words');
@@ -207,6 +210,9 @@ export function saveSettings() {
     updateScoreboard();
     updateTurnIndicator();
     closeSettings();
+    if (storageFailed) {
+        showToast(t('settings.storageFailed') || 'Settings applied but could not be saved. They will be lost on reload.', 'warning', 6000);
+    }
 }
 export function resetWords() {
     const textarea = document.getElementById('custom-words');
@@ -262,7 +268,10 @@ export async function tryLoadWordlistFile() {
         return;
     }
     try {
-        const response = await fetch('wordlist.txt');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch('wordlist.txt', { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (response.ok) {
             const text = await response.text();
             const fileWords = parseWords(text);

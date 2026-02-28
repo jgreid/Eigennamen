@@ -1,9 +1,10 @@
 import { state } from './state.js';
 import { renderBoard, detachResizeListener } from './board.js';
-import { updateScoreboard, updateTurnIndicator } from './game.js';
+import { updateScoreboard, updateTurnIndicator, updateMatchScoreboard } from './game.js';
 import { updateRoleBanner, updateControls, clearRoleChange } from './roles.js';
 import { handleTimerStopped } from './timer.js';
 import { setTabNotification } from './notifications.js';
+import { stopRevealSweep } from './game/reveal.js';
 import { logger } from './logger.js';
 import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, hideReconnectionOverlay, updateDuetUI } from './multiplayerUI.js';
 import { updateChatForRole } from './chat.js';
@@ -15,6 +16,7 @@ import { removeKeyboardShortcuts } from './accessibility.js';
 // List of multiplayer event names for cleanup
 export const multiplayerEventNames = [
     'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
+    'game:roundEnded', 'game:matchOver',
     'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
     'playerUpdated', 'spymasterView',
     'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
@@ -74,6 +76,11 @@ export function resetMultiplayerState() {
     clearRoleChange();
     // Stop any running timer to prevent ghost ticks across room changes
     handleTimerStopped();
+    // Cancel any pending reveal rAF to prevent orphaned DOM updates
+    if (state.pendingRevealRAF !== null) {
+        cancelAnimationFrame(state.pendingRevealRAF);
+        state.pendingRevealRAF = null;
+    }
     // Clear pending reveal timeouts to prevent memory leaks
     state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
@@ -85,6 +92,8 @@ export function resetMultiplayerState() {
 export function leaveMultiplayerMode() {
     // Clean up listeners
     cleanupMultiplayerListeners();
+    // Stop periodic sweep of stale revealing cards
+    stopRevealSweep();
     // Remove keyboard shortcuts to prevent stale listeners accumulating
     removeKeyboardShortcuts();
     // Stop timer display
@@ -229,6 +238,31 @@ export function syncGameStateFromServer(serverGame) {
         if (serverGame.gameMode) {
             state.gameMode = validateGameMode(serverGame.gameMode);
         }
+        // Sync Match mode fields
+        if (Array.isArray(serverGame.cardScores)) {
+            state.gameState.cardScores = serverGame.cardScores;
+        }
+        if (Array.isArray(serverGame.revealedBy)) {
+            state.gameState.revealedBy = serverGame.revealedBy;
+        }
+        if (typeof serverGame.matchRound === 'number') {
+            state.gameState.matchRound = serverGame.matchRound;
+        }
+        if (typeof serverGame.redMatchScore === 'number') {
+            state.gameState.redMatchScore = serverGame.redMatchScore;
+        }
+        if (typeof serverGame.blueMatchScore === 'number') {
+            state.gameState.blueMatchScore = serverGame.blueMatchScore;
+        }
+        if (Array.isArray(serverGame.roundHistory)) {
+            state.gameState.roundHistory = serverGame.roundHistory;
+        }
+        if (typeof serverGame.matchOver === 'boolean') {
+            state.gameState.matchOver = serverGame.matchOver;
+        }
+        if (serverGame.matchWinner !== undefined) {
+            state.gameState.matchWinner = serverGame.matchWinner ?? null;
+        }
     });
     // Update all UI components (after batch completes, state is consistent)
     renderBoard();
@@ -238,6 +272,7 @@ export function syncGameStateFromServer(serverGame) {
     updateRoleBanner();
     updateForfeitButton();
     updateDuetUI(serverGame);
+    updateMatchScoreboard();
     // Update tab notification based on current turn
     setTabNotification(isPlayerTurn());
 }

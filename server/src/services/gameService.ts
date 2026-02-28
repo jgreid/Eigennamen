@@ -5,7 +5,8 @@ import type {
     CreateGameOptions,
     RevealResult,
     EndTurnResult,
-    ForfeitResult
+    ForfeitResult,
+    RoundResult
 } from '../types';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -17,7 +18,10 @@ import {
     REDIS_TTL,
     LOCKS,
     GAME_INTERNALS,
-    DUET_BOARD_CONFIG
+    DUET_BOARD_CONFIG,
+    MATCH_TARGET,
+    MATCH_WIN_MARGIN,
+    ROUND_WIN_BONUS
 } from '../config/constants';
 import {
     GameStateError,
@@ -37,7 +41,8 @@ import {
     hashString,
     generateSeed,
     generateBoardLayout,
-    selectBoardWords
+    selectBoardWords,
+    generateCardScores
 } from './game/boardGenerator';
 
 import {
@@ -108,9 +113,13 @@ function buildGameState(
     usedWordListId: string | null,
     boardWords: string[],
     layout: ReturnType<typeof generateBoardLayout>,
-    isDuet: boolean
+    options: CreateGameOptions
 ): GameState {
-    return {
+    const isDuet = options.gameMode === 'duet';
+    const isMatch = options.gameMode === 'match';
+    const numericSeed = hashString(seed);
+
+    const base: GameState = {
         id: uuidv4(),
         seed,
         wordListId: usedWordListId,
@@ -130,15 +139,45 @@ function buildGameState(
         clues: [],
         history: [],
         stateVersion: 1,
-        createdAt: Date.now(),
-        ...(isDuet ? {
-            gameMode: 'duet',
-            duetTypes: layout.duetTypes,
-            timerTokens: DUET_BOARD_CONFIG.timerTokens,
-            greenFound: 0,
-            greenTotal: DUET_BOARD_CONFIG.greenTotal
-        } : {})
+        createdAt: Date.now()
     };
+
+    if (isDuet) {
+        base.gameMode = 'duet';
+        base.duetTypes = layout.duetTypes;
+        base.timerTokens = DUET_BOARD_CONFIG.timerTokens;
+        base.greenFound = 0;
+        base.greenTotal = DUET_BOARD_CONFIG.greenTotal;
+    }
+
+    if (isMatch) {
+        const scores = generateCardScores(numericSeed, layout.types);
+        base.gameMode = 'match';
+        base.cardScores = scores.cardScores;
+        base.revealedBy = Array(BOARD_SIZE).fill(null);
+
+        // Carry forward match state or initialize fresh
+        if (options.matchCarryOver) {
+            const carry = options.matchCarryOver;
+            base.matchRound = carry.matchRound;
+            base.redMatchScore = carry.redMatchScore;
+            base.blueMatchScore = carry.blueMatchScore;
+            base.roundHistory = carry.roundHistory;
+            base.firstTeamHistory = [...carry.firstTeamHistory, layout.firstTeam];
+            base.matchOver = false;
+            base.matchWinner = null;
+        } else {
+            base.matchRound = 1;
+            base.redMatchScore = 0;
+            base.blueMatchScore = 0;
+            base.roundHistory = [];
+            base.firstTeamHistory = [layout.firstTeam];
+            base.matchOver = false;
+            base.matchWinner = null;
+        }
+    }
+
+    return base;
 }
 
 /**
@@ -211,7 +250,7 @@ export async function createGame(
         const { words, usedWordListId } = await resolveGameWords(roomCode, options);
         const boardWords = selectBoardWords(words, numericSeed);
         const layout = generateBoardLayout(numericSeed, isDuet);
-        const game = buildGameState(seed, usedWordListId, boardWords, layout, isDuet);
+        const game = buildGameState(seed, usedWordListId, boardWords, layout, options);
 
         await persistGameState(redis, roomCode, game);
 
@@ -355,5 +394,126 @@ export async function cleanupGame(roomCode: string): Promise<void> {
     );
     logger.info(`Game data cleaned up for room ${roomCode}`);
 }
+
+/**
+ * Finalize a completed round in match mode.
+ * Calculates card scores earned by each team, awards round bonus,
+ * updates cumulative match scores, and checks for match end.
+ */
+export function finalizeRound(game: GameState): RoundResult {
+    if (game.gameMode !== 'match') {
+        throw new Error('finalizeRound called on non-match game');
+    }
+
+    const cardScores = game.cardScores || [];
+    const revealedBy = game.revealedBy || [];
+
+    // Sum card points by revealing team
+    let redCardPoints = 0;
+    let blueCardPoints = 0;
+    for (let i = 0; i < BOARD_SIZE; i++) {
+        if (game.revealed[i] && revealedBy[i]) {
+            const score = cardScores[i] ?? 0;
+            if (revealedBy[i] === 'red') {
+                redCardPoints += score;
+            } else if (revealedBy[i] === 'blue') {
+                blueCardPoints += score;
+            }
+        }
+    }
+
+    // Award round bonus
+    const roundWinner = game.winner;
+    const redBonus = roundWinner === 'red';
+    const blueBonus = roundWinner === 'blue';
+
+    const redRoundTotal = redCardPoints + (redBonus ? ROUND_WIN_BONUS : 0);
+    const blueRoundTotal = blueCardPoints + (blueBonus ? ROUND_WIN_BONUS : 0);
+
+    // Update cumulative match scores
+    game.redMatchScore = (game.redMatchScore ?? 0) + redRoundTotal;
+    game.blueMatchScore = (game.blueMatchScore ?? 0) + blueRoundTotal;
+
+    const roundResult: RoundResult = {
+        roundNumber: game.matchRound ?? 1,
+        roundWinner,
+        redRoundScore: redRoundTotal,
+        blueRoundScore: blueRoundTotal,
+        redBonusAwarded: redBonus,
+        blueBonusAwarded: blueBonus,
+        endReason: game.history?.slice().reverse().find((h: { action: string }) => h.action === 'reveal' || h.action === 'forfeit')?.action === 'forfeit' ? 'forfeit' : (roundWinner ? 'completed' : 'assassin'),
+        completedAt: Date.now()
+    };
+
+    // Push to round history
+    if (!game.roundHistory) game.roundHistory = [];
+    game.roundHistory.push(roundResult);
+
+    // Check match end condition: either team ≥ target AND lead ≥ margin
+    const red = game.redMatchScore;
+    const blue = game.blueMatchScore;
+    if (red >= MATCH_TARGET || blue >= MATCH_TARGET) {
+        const lead = Math.abs(red - blue);
+        if (lead >= MATCH_WIN_MARGIN) {
+            game.matchOver = true;
+            game.matchWinner = red > blue ? 'red' : 'blue';
+        }
+    }
+
+    return roundResult;
+}
+
+/**
+ * Start the next round in a match.
+ * Generates a new board with fresh words and scores, carrying forward match state.
+ */
+export async function startNextRound(
+    roomCode: string,
+    currentGame: GameState,
+    options: CreateGameOptions = {}
+): Promise<GameState> {
+    return withLock(`game-create:${roomCode}`, async () => {
+        const redis: RedisClient = getRedis();
+
+        if (!currentGame.gameOver) {
+            throw new Error('Current round is still in progress');
+        }
+        if (currentGame.matchOver) {
+            throw new Error('Match is already over');
+        }
+
+        const nextRound = (currentGame.matchRound ?? 1) + 1;
+
+        // Alternate first team by using the opposite of the previous round
+        const seed = generateSeed();
+        const numericSeed = hashString(seed);
+
+        const { words, usedWordListId } = await resolveGameWords(roomCode, options);
+        const boardWords = selectBoardWords(words, numericSeed);
+        const layout = generateBoardLayout(numericSeed, false);
+
+        const matchOptions: CreateGameOptions = {
+            ...options,
+            gameMode: 'match',
+            matchCarryOver: {
+                matchRound: nextRound,
+                redMatchScore: currentGame.redMatchScore ?? 0,
+                blueMatchScore: currentGame.blueMatchScore ?? 0,
+                roundHistory: currentGame.roundHistory ?? [],
+                firstTeamHistory: currentGame.firstTeamHistory ?? []
+            }
+        };
+
+        const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions);
+
+        await persistGameState(redis, roomCode, game);
+
+        logger.info(`Match round ${nextRound} started for room ${roomCode} with seed ${seed}`);
+        return game;
+    }, { lockTimeout: LOCKS.GAME_CREATE * 1000, maxRetries: 10 });
+}
+
+// Re-export for consumers
+export type { RoundResult };
 
 // All exports use `export` keyword on function declarations above.

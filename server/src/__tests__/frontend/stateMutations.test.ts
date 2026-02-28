@@ -386,7 +386,11 @@ describe('resetGameState', () => {
             gameOver: false, winner: null, seed: null,
             currentClue: null, guessesUsed: 0, guessesAllowed: 0,
             status: 'waiting', duetTypes: [],
-            timerTokens: 0, greenFound: 0, greenTotal: 0
+            timerTokens: 0, greenFound: 0, greenTotal: 0,
+            // Match mode
+            cardScores: [], revealedBy: [],
+            matchRound: 0, redMatchScore: 0, blueMatchScore: 0,
+            roundHistory: [], matchOver: false, matchWinner: null
         });
         expect(state.gameMode).toBe('classic');
     });

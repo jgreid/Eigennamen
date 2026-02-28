@@ -165,7 +165,9 @@
     "blitz": "Blitz",
     "blitzDesc": "Fast-paced 30-second turns",
     "duet": "Duet",
-    "duetDesc": "Cooperative 2-player mode"
+    "duetDesc": "Cooperative 2-player mode",
+    "match": "Match",
+    "matchDesc": "Multi-round match with card scoring"
   },
   "wordList": {
     "default": "Default Words",
@@ -195,7 +197,21 @@
     "step2": "Clickers reveal cards matching the clue",
     "step3": "Your color = keep going, Neutral/Enemy = turn ends",
     "step4": "Assassin = instant loss!",
-    "note": "Starting team finds 9 words, other team finds 8. First to find all wins!"
+    "note": "Starting team finds 9 words, other team finds 8. First to find all wins!",
+    "matchTitle": "Match Mode",
+    "matchIntro": "A multi-round match where every card has a hidden point value. Teams play rounds until one reaches 42 points.",
+    "matchScoring": "Card Scores",
+    "matchGold": "★ Gold (+3)",
+    "matchSilver": "◆ Silver (+2)",
+    "matchStandard": "● Standard (+1)",
+    "matchBlank": "○ Blank (0)",
+    "matchTrap": "✕ Trap (-1)",
+    "matchFlow": "Match Flow",
+    "matchStep1": "Each round plays like a classic game",
+    "matchStep2": "When you reveal a card, your team earns its point value",
+    "matchStep3": "Round winner gets a +7 bonus",
+    "matchStep4": "First to 42 points (win by 3) takes the match",
+    "matchNote": "Only spymasters can see card scores before they are revealed. The assassin still ends the round instantly!"
   },
   "about": {
     "description": "A free, open-source implementation of the popular board game."

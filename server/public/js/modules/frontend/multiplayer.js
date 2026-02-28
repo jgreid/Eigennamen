@@ -12,6 +12,7 @@ import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
+import { startRevealSweep } from './game/reveal.js';
 // Re-export sub-module functions so app.ts imports continue to work
 export { initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, updateForfeitButton } from './multiplayerUI.js';
 export { leaveMultiplayerMode, syncGameStateFromServer, syncLocalPlayerState, cleanupMultiplayerListeners, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL } from './multiplayerSync.js';
@@ -293,6 +294,8 @@ export function onMultiplayerJoined(result, isHostParam = false) {
     }
     state.isMultiplayerMode = true;
     safeSetItem('eigennamen-nickname', EigennamenClient.player?.nickname || '');
+    // Start periodic sweep of stale reveal-pending entries
+    startRevealSweep();
     // Listeners are now set up before join/create (in handleJoinGame/handleCreateGame)
     // to prevent race conditions. This guard handles the auto-rejoin path where
     // onMultiplayerJoined is called without going through handleJoinGame/handleCreateGame.

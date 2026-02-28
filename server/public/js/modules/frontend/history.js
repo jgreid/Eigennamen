@@ -12,6 +12,8 @@ const REPLAY_SPEEDS = {
     '4x': 375 // Very fast
 };
 let currentReplaySpeed = '1x';
+// Track replay board keydown listener to prevent accumulation (H1 from audit)
+let replayBoardKeydownHandler = null;
 export function openGameHistory() {
     if (!state.isMultiplayerMode || !EigennamenClient.isConnected()) {
         showToast(t('history.multiplayerOnly'), 'info');
@@ -200,7 +202,11 @@ export function renderReplayBoard() {
         board.appendChild(card);
     });
     // Arrow-key navigation within replay board
-    board.addEventListener('keydown', (e) => {
+    // Remove previous listener to prevent accumulation (H1 from audit)
+    if (replayBoardKeydownHandler) {
+        board.removeEventListener('keydown', replayBoardKeydownHandler);
+    }
+    replayBoardKeydownHandler = (e) => {
         const focused = document.activeElement;
         if (!focused || !focused.classList.contains('replay-card'))
             return;
@@ -229,7 +235,8 @@ export function renderReplayBoard() {
             focused.setAttribute('tabindex', '-1');
             target.focus();
         }
-    });
+    };
+    board.addEventListener('keydown', replayBoardKeydownHandler);
     // Apply revealed state up to current index
     applyReplayState();
 }
@@ -403,7 +410,7 @@ function startReplayInterval() {
         }
         else {
             state.replayPlaying = false;
-            clearInterval(state.replayInterval ?? undefined);
+            clearInterval(state.replayInterval);
             state.replayInterval = null;
             updateReplayControls();
         }
@@ -482,7 +489,10 @@ export async function checkURLForReplayLoad() {
         return false;
     }
     try {
-        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) {
             if (response.status === 404) {
                 showToast(t('toast.replayNotFound'), 'error');

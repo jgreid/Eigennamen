@@ -56,6 +56,9 @@ export const SOCKET_EVENTS = {
     GAME_HISTORY_RESULT: 'game:historyResult',
     GAME_REPLAY_DATA: 'game:replayData',
     GAME_SPYMASTER_VIEW: 'game:spymasterView',
+    GAME_NEXT_ROUND: 'game:nextRound',
+    GAME_ROUND_ENDED: 'game:roundEnded',
+    GAME_MATCH_OVER: 'game:matchOver',
     GAME_ERROR: 'game:error',
 
     // Player events

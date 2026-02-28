@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { logger } from './logger.js';
 const VALID_TEAMS = new Set(['red', 'blue']);
 const VALID_ROLES = new Set(['spymaster', 'clicker', 'spectator']);
-const VALID_GAME_MODES = new Set(['classic', 'blitz', 'duet']);
+const VALID_GAME_MODES = new Set(['classic', 'blitz', 'duet', 'match']);
 export function isValidTeam(value) {
     return typeof value === 'string' && VALID_TEAMS.has(value);
 }
@@ -66,6 +66,15 @@ export function resetGameState() {
     state.gameState.timerTokens = 0;
     state.gameState.greenFound = 0;
     state.gameState.greenTotal = 0;
+    // Match mode
+    state.gameState.cardScores = [];
+    state.gameState.revealedBy = [];
+    state.gameState.matchRound = 0;
+    state.gameState.redMatchScore = 0;
+    state.gameState.blueMatchScore = 0;
+    state.gameState.roundHistory = [];
+    state.gameState.matchOver = false;
+    state.gameState.matchWinner = null;
     state.gameMode = 'classic';
 }
 /**

@@ -93,6 +93,15 @@
                 </button>
             </div>
 
+            <!-- Match mode scoreboard (hidden by default) -->
+            <div class="match-scoreboard" id="match-scoreboard" style="display: none;" role="group" aria-label="Match scores">
+                <span class="match-round">Round <span id="match-round">1</span></span>
+                <span class="match-score red-match"><span id="red-match-score">0</span></span>
+                <span class="match-separator">-</span>
+                <span class="match-score blue-match"><span id="blue-match-score">0</span></span>
+                <span class="match-target">First to 42</span>
+            </div>
+
             <!-- Duet mode cooperative info bar (hidden by default) -->
             <div class="duet-info-bar" id="duet-info-bar" style="display: none;">
                 <span class="duet-progress"><span id="duet-green-found">0</span>/<span id="duet-green-total">15</span> agents found</span>
@@ -321,6 +330,13 @@
                                         <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
                                     </span>
                                 </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="match">
+                                    <span class="game-mode-card match-mode-card">
+                                        <strong data-i18n="roomSettings.match">Match</strong>
+                                        <small data-i18n="roomSettings.matchDesc">Multi-round match with card scoring</small>
+                                    </span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -351,6 +367,33 @@
                                 </div>
                             </div>
                             <p class="rules-note" data-i18n="rules.note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
+
+                            <div class="rules-match-section">
+                                <h3 data-i18n="rules.matchTitle">Match Mode</h3>
+                                <p data-i18n="rules.matchIntro">A multi-round match where every card has a hidden point value. Teams play rounds until one reaches 42 points.</p>
+                                <div class="rules-grid">
+                                    <div class="rules-card">
+                                        <h4 data-i18n="rules.matchScoring">Card Scores</h4>
+                                        <div class="card-types">
+                                            <span class="card-type card-score-gold-text" data-i18n="rules.matchGold">★ Gold (+3)</span>
+                                            <span class="card-type card-score-silver-text" data-i18n="rules.matchSilver">◆ Silver (+2)</span>
+                                            <span class="card-type card-score-standard-text" data-i18n="rules.matchStandard">● Standard (+1)</span>
+                                            <span class="card-type card-score-blank-text" data-i18n="rules.matchBlank">○ Blank (0)</span>
+                                            <span class="card-type card-score-trap-text" data-i18n="rules.matchTrap">✕ Trap (-1)</span>
+                                        </div>
+                                    </div>
+                                    <div class="rules-card">
+                                        <h4 data-i18n="rules.matchFlow">Match Flow</h4>
+                                        <ol class="turn-flow">
+                                            <li data-i18n="rules.matchStep1">Each round plays like a classic game</li>
+                                            <li data-i18n="rules.matchStep2">When you reveal a card, your team earns its point value</li>
+                                            <li data-i18n="rules.matchStep3">Round winner gets a +7 bonus</li>
+                                            <li data-i18n="rules.matchStep4">First to 42 points (win by 3) takes the match</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                                <p class="rules-note" data-i18n="rules.matchNote">Only spymasters can see card scores before they are revealed. The assassin still ends the round instantly!</p>
+                            </div>
                         </div>
                         <div class="help-about-section">
                             <p class="about-intro" data-i18n="about.description">A free, open-source implementation of the popular board game.</p>

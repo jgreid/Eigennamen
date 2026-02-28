@@ -55,6 +55,16 @@ const gameStateSchema = z.object({
     timerTokens: z.number().optional(),
     greenFound: z.number().optional(),
     greenTotal: z.number().optional(),
+    // Match mode fields
+    cardScores: z.preprocess(emptyObjToArray, z.array(z.number())).optional(),
+    revealedBy: z.preprocess(emptyObjToArray, z.array(z.string().nullable())).optional(),
+    matchRound: z.number().optional(),
+    redMatchScore: z.number().optional(),
+    blueMatchScore: z.number().optional(),
+    roundHistory: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
+    matchOver: z.boolean().optional(),
+    matchWinner: z.string().nullable().optional(),
+    firstTeamHistory: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),
 }).refine(
     (data) => {
         // Only validate length consistency when all three arrays are present

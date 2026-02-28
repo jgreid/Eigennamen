@@ -236,14 +236,8 @@ export function setTeam(team) {
                 revertAndClearRoleChange();
             }
         });
-        // Safety timeout in case ack is lost
-        setTimeout(() => {
-            if (state.roleChange.phase === 'changing_team' && state.roleChange.operationId === operationId) {
-                logger.warn('setTeam: Safety timeout - clearing role change state');
-                clearRoleChange();
-                updateControls();
-            }
-        }, 5000);
+        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery.
+        // No per-operation timeout needed — a single mechanism prevents state-machine stalls.
         return;
     }
     // Standalone mode: update local state directly
@@ -336,22 +330,9 @@ function setRoleForTeam(team, roleName, getOwnState, setOwnState, clearOther) {
             EigennamenClient.setRole(roleName, ackHandler);
         }
         refreshRoleUI();
-        // Safety timeout in case ack is lost.
-        // For compound operations (team_then_role), only timeout the initial
-        // phase — the changing_role phase gets its own timeout when it starts.
-        // Typed as string to prevent TS from narrowing state.roleChange
-        // through this alias (state.roleChange changes asynchronously in the callback)
-        const initialPhase = state.roleChange.phase;
-        setTimeout(() => {
-            if (state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                if (initialPhase === 'team_then_role' && state.roleChange.phase === 'changing_role') {
-                    return; // Role phase has its own timeout (set in playerUpdated handler)
-                }
-                logger.warn(`set${roleName}: Safety timeout - clearing role change state`);
-                clearRoleChange();
-                updateControls();
-            }
-        }, 5000);
+        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery
+        // for all phases including compound team_then_role operations.
+        // No per-operation timeout needed — a single mechanism prevents state-machine stalls.
         return;
     }
     // --- Standalone path ---

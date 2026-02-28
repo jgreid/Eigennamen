@@ -142,6 +142,25 @@ export function canActAsClicker() {
 export function isDuetMode() {
     return state.gameMode === 'duet';
 }
+// ---- Match mode selectors ----
+/**
+ * Whether the game is in match mode.
+ */
+export function isMatchMode() {
+    return state.gameMode === 'match';
+}
+/**
+ * Current match round number (0 if not in match).
+ */
+export function matchRound() {
+    return state.gameState.matchRound ?? 0;
+}
+/**
+ * Whether the overall match is over.
+ */
+export function isMatchOver() {
+    return state.gameState.matchOver ?? false;
+}
 // ---- Multiplayer selectors ----
 /**
  * Player count (convenience).

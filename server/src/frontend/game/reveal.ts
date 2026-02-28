@@ -231,6 +231,18 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
         state.gameState.currentClue = null;
     }
 
+    // Match mode: update card score for this card and revealedBy tracking
+    if (typeof serverData.cardScore === 'number' && state.gameState.cardScores) {
+        state.gameState.cardScores[index] = serverData.cardScore;
+    }
+    if (state.gameState.revealedBy && serverData.currentTurn) {
+        // The revealing team is the team that was on turn before any turn switch
+        // Use previous turn (before server updated it) for attribution
+        state.gameState.revealedBy[index] = type === state.gameState.currentTurn
+            ? state.gameState.currentTurn
+            : (state.gameState.currentTurn === 'red' ? 'blue' : 'red');
+    }
+
     // Batch DOM updates using requestAnimationFrame for better performance.
     // Store the rAF ID so it can be cancelled on room switch to prevent
     // orphaned callbacks updating a cleared/rebuilt DOM.

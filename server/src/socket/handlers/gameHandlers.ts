@@ -205,6 +205,10 @@ function gameHandlers(io: Server, socket: GameSocket): void {
             // Include Duet-specific fields if present
             if (result.timerTokens !== undefined) revealPayload.timerTokens = result.timerTokens;
             if (result.greenFound !== undefined) revealPayload.greenFound = result.greenFound;
+            // Include match mode fields
+            if (result.cardScore !== undefined) revealPayload.cardScore = result.cardScore;
+            if (result.redMatchScore !== undefined) revealPayload.redMatchScore = result.redMatchScore;
+            if (result.blueMatchScore !== undefined) revealPayload.blueMatchScore = result.blueMatchScore;
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_CARD_REVEALED, revealPayload);
 
             // Handle turn ending
@@ -230,6 +234,33 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_OVER, gameOverPayload);
 
                 await saveCompletedGameHistory(ctx.roomCode);
+
+                // Match mode: finalize round and check match end
+                const updatedGame = await gameService.getGame(ctx.roomCode);
+                if (updatedGame && updatedGame.gameMode === 'match') {
+                    const roundResult = gameService.finalizeRound(updatedGame);
+                    // Persist the updated match state after finalization
+                    const redis = (await import('../../config/redis')).getRedis();
+                    await redis.set(`room:${ctx.roomCode}:game`, JSON.stringify(updatedGame), { EX: 3600 });
+                    invalidateGameStateCache(ctx.roomCode);
+
+                    if (updatedGame.matchOver) {
+                        safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_MATCH_OVER, {
+                            matchWinner: updatedGame.matchWinner,
+                            redMatchScore: updatedGame.redMatchScore,
+                            blueMatchScore: updatedGame.blueMatchScore,
+                            roundHistory: updatedGame.roundHistory,
+                            roundResult
+                        });
+                    } else {
+                        safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_ROUND_ENDED, {
+                            roundResult,
+                            redMatchScore: updatedGame.redMatchScore,
+                            blueMatchScore: updatedGame.blueMatchScore,
+                            matchRound: updatedGame.matchRound
+                        });
+                    }
+                }
 
                 // Audit log game end
                 const clientIpEnd = socket.clientIP || socket.handshake.address;
@@ -325,11 +356,93 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             await saveCompletedGameHistory(ctx.roomCode);
 
+            // Match mode: finalize round and check match end
+            const updatedGame = await gameService.getGame(ctx.roomCode);
+            if (updatedGame && updatedGame.gameMode === 'match') {
+                const roundResult = gameService.finalizeRound(updatedGame);
+                const redis = (await import('../../config/redis')).getRedis();
+                await redis.set(`room:${ctx.roomCode}:game`, JSON.stringify(updatedGame), { EX: 3600 });
+                invalidateGameStateCache(ctx.roomCode);
+
+                if (updatedGame.matchOver) {
+                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_MATCH_OVER, {
+                        matchWinner: updatedGame.matchWinner,
+                        redMatchScore: updatedGame.redMatchScore,
+                        blueMatchScore: updatedGame.blueMatchScore,
+                        roundHistory: updatedGame.roundHistory,
+                        roundResult
+                    });
+                } else {
+                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_ROUND_ENDED, {
+                        roundResult,
+                        redMatchScore: updatedGame.redMatchScore,
+                        blueMatchScore: updatedGame.blueMatchScore,
+                        matchRound: updatedGame.matchRound
+                    });
+                }
+            }
+
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
             audit(AUDIT_EVENTS.GAME_ENDED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: forfeitIp, metadata: { winner: result.winner, endReason: 'forfeit' } });
 
             logger.info(`Game forfeited in room ${ctx.roomCode}, ${result.forfeitingTeam} forfeited`);
+        }
+    ));
+
+    /**
+     * Start the next round in a match (host only)
+     */
+    socket.on(SOCKET_EVENTS.GAME_NEXT_ROUND, createHostHandler(socket, SOCKET_EVENTS.GAME_NEXT_ROUND, null,
+        async (ctx: RoomContext) => {
+            if (!ctx.game) {
+                throw GameStateError.noActiveGame();
+            }
+            if (!ctx.game.gameOver) {
+                throw RoomError.gameInProgress(ctx.roomCode);
+            }
+            if (ctx.game.gameMode !== 'match') {
+                throw new ValidationError('Next round is only available in match mode');
+            }
+            if (ctx.game.matchOver) {
+                throw new ValidationError('Match is already over');
+            }
+
+            // Stop any existing timer
+            await getSocketFunctions().stopTurnTimer(ctx.roomCode);
+
+            const room: Room | null = await roomService.getRoom(ctx.roomCode);
+
+            const game: GameState = await gameService.startNextRound(ctx.roomCode, ctx.game, {
+                gameMode: 'match'
+            });
+            invalidateGameStateCache(ctx.roomCode);
+
+            // Reset all player roles to spectator
+            const players: Player[] = await playerService.resetRolesForNewGame(ctx.roomCode);
+
+            // Send game state to each player
+            safeEmitToPlayers(io, players, SOCKET_EVENTS.GAME_STARTED, (p: Player) => ({
+                game: gameService.getGameStateForPlayer(game, p),
+                gameMode: 'match'
+            }));
+
+            // Broadcast role resets
+            for (const p of players) {
+                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
+                    sessionId: p.sessionId,
+                    changes: { role: 'spectator', team: p.team }
+                });
+            }
+
+            // Start turn timer if configured
+            if (room && room.settings && room.settings.turnTimer) {
+                await getSocketFunctions().startTurnTimer(ctx.roomCode, room.settings.turnTimer);
+            }
+
+            await debouncedRefreshRoomTTL(ctx.roomCode);
+
+            logger.info(`Match round ${game.matchRound} started in room ${ctx.roomCode}`);
         }
     ));
 

@@ -7,7 +7,7 @@ import type { AppState } from './stateTypes.js';
 // Re-export types so existing `import { X } from './state.js'` still works.
 export type {
     AppState, GameState, TimerState, CachedElements,
-    NotificationPrefs, TeamNames, RoleChangeState
+    NotificationPrefs, TeamNames, RoleChangeState, RoundResult
 } from './stateTypes.js';
 
 export {
@@ -80,7 +80,11 @@ const _rawState: AppState = {
         gameOver: false, winner: null, seed: null,
         customWords: false, currentClue: null,
         guessesUsed: 0, guessesAllowed: 0, status: 'waiting',
-        duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0
+        duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0,
+        // Match mode
+        cardScores: [], revealedBy: [],
+        matchRound: 0, redMatchScore: 0, blueMatchScore: 0,
+        roundHistory: [], matchOver: false, matchWinner: null
     },
 
     timerState: {

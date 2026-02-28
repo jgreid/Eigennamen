@@ -60,6 +60,11 @@ end
 -- Execute reveal
 game.revealed[luaIndex] = true
 
+-- Track which team revealed this card (for match mode scoring)
+if game.revealedBy then
+    game.revealedBy[luaIndex] = previousTurn
+end
+
 if isDuet then
     -- Duet mode: team-colored cards increment greenFound
     if cardType == 'red' or cardType == 'blue' then
@@ -233,6 +238,13 @@ if isDuet then
     if game.gameOver and game.duetTypes then
         result.allDuetTypes = game.duetTypes
     end
+end
+
+-- Include match mode fields
+if game.cardScores then
+    result.cardScore = game.cardScores[luaIndex]
+    result.redMatchScore = game.redMatchScore or 0
+    result.blueMatchScore = game.blueMatchScore or 0
 end
 
 return cjson.encode(result)

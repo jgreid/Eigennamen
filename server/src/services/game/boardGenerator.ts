@@ -7,7 +7,12 @@ import {
     SECOND_TEAM_CARDS,
     NEUTRAL_CARDS,
     GAME_INTERNALS,
-    DUET_BOARD_CONFIG
+    DUET_BOARD_CONFIG,
+    STANDARD_SCORE_CARDS,
+    CARD_SCORE_DISTRIBUTION,
+    BOARD_VALUE_MIN,
+    BOARD_VALUE_MAX,
+    ASSASSIN_SCORE_POOL
 } from '../../config/constants';
 
 /**
@@ -157,5 +162,111 @@ export function generateBoardLayout(numericSeed: number, isDuet: boolean): Board
 export function selectBoardWords(words: string[], numericSeed: number): string[] {
     const shuffledWords = shuffleWithSeed(words, numericSeed);
     return shuffledWords.slice(0, BOARD_SIZE);
+}
+
+export interface CardScoreResult {
+    /** Score for each card position (parallel to types[]) */
+    cardScores: number[];
+    /** The assassin's independently-rolled score */
+    assassinScore: number;
+}
+
+/**
+ * Generate card scores for match mode.
+ *
+ * Distribution:
+ *   - Gold (3 pts): 2-4 cards
+ *   - Silver (2 pts): 3-6 cards
+ *   - Standard (1 pt): 8 cards (fixed)
+ *   - Trap (-1 pt): 0-4 cards
+ *   - Blank (0 pts): fills remainder to 24 non-assassin cards
+ *   - Assassin: independently scored from {-2,-2,-1,-1,-1,0,0,1,2}
+ *
+ * Total board value (all 25 scores) is constrained to [BOARD_VALUE_MIN, BOARD_VALUE_MAX].
+ * Uses rejection sampling with seeded PRNG for determinism.
+ *
+ * @param numericSeed - Base seed for PRNG
+ * @param types - The board types array (needed to find assassin position)
+ */
+export function generateCardScores(numericSeed: number, types: CardType[]): CardScoreResult {
+    const scoreSeed = numericSeed + GAME_INTERNALS.CARD_SCORES_SEED_OFFSET;
+    let attempt = 0;
+    const maxAttempts = 100;
+
+    while (attempt < maxAttempts) {
+        let seed = scoreSeed + attempt * 1000;
+
+        // Roll distribution counts
+        const { gold, silver, trap } = CARD_SCORE_DISTRIBUTION;
+        const goldCount = gold.min + Math.floor(seededRandom(seed++) * (gold.max - gold.min + 1));
+        const silverCount = silver.min + Math.floor(seededRandom(seed++) * (silver.max - silver.min + 1));
+        const trapCount = trap.min + Math.floor(seededRandom(seed++) * (trap.max - trap.min + 1));
+        const standardCount = STANDARD_SCORE_CARDS;
+        const nonAssassinTotal = BOARD_SIZE - 1; // 24
+        const blankCount = nonAssassinTotal - goldCount - silverCount - standardCount - trapCount;
+
+        if (blankCount < 0) {
+            attempt++;
+            continue;
+        }
+
+        // Roll assassin score from weighted pool
+        const assassinPoolIndex = Math.floor(seededRandom(seed++) * ASSASSIN_SCORE_POOL.length);
+        const assassinScore: number = ASSASSIN_SCORE_POOL[assassinPoolIndex] as number;
+
+        // Build non-assassin scores array
+        const nonAssassinScores: number[] = [
+            ...Array(goldCount).fill(gold.score) as number[],
+            ...Array(silverCount).fill(silver.score) as number[],
+            ...Array(standardCount).fill(1) as number[],
+            ...Array(trapCount).fill(trap.score) as number[],
+            ...Array(blankCount).fill(0) as number[]
+        ];
+
+        // Check board value constraint (all 25 cards including assassin)
+        const totalValue = nonAssassinScores.reduce((sum, s) => sum + s, 0) + assassinScore;
+        if (totalValue < BOARD_VALUE_MIN || totalValue > BOARD_VALUE_MAX) {
+            attempt++;
+            continue;
+        }
+
+        // Shuffle non-assassin scores
+        const shuffledScores = shuffleWithSeed(nonAssassinScores, seed);
+
+        // Insert assassin score at the correct position
+        const assassinIndex = types.indexOf('assassin');
+        const cardScores: number[] = [];
+        let scoreIdx = 0;
+        for (let i = 0; i < BOARD_SIZE; i++) {
+            if (i === assassinIndex) {
+                cardScores.push(assassinScore);
+            } else {
+                cardScores.push(shuffledScores[scoreIdx++] ?? 0);
+            }
+        }
+
+        return { cardScores, assassinScore };
+    }
+
+    // Fallback: should be extremely rare. Use a balanced default distribution.
+    const assassinIndex = types.indexOf('assassin');
+    const fallbackScores: number[] = [];
+    const fallbackNonAssassin = [
+        ...Array(3).fill(3) as number[],
+        ...Array(5).fill(2) as number[],
+        ...Array(8).fill(1) as number[],
+        ...Array(2).fill(-1) as number[],
+        ...Array(6).fill(0) as number[]
+    ];
+    const shuffled = shuffleWithSeed(fallbackNonAssassin, scoreSeed + 99999);
+    let si = 0;
+    for (let i = 0; i < BOARD_SIZE; i++) {
+        if (i === assassinIndex) {
+            fallbackScores.push(-1);
+        } else {
+            fallbackScores.push(shuffled[si++] ?? 0);
+        }
+    }
+    return { cardScores: fallbackScores, assassinScore: -1 };
 }
 

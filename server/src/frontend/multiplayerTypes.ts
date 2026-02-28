@@ -33,6 +33,15 @@ export interface ServerGameData {
     timerTokens?: number;
     greenFound?: number;
     greenTotal?: number;
+    // Match mode
+    cardScores?: (number | null)[];
+    revealedBy?: (string | null)[];
+    matchRound?: number;
+    redMatchScore?: number;
+    blueMatchScore?: number;
+    roundHistory?: RoundResultData[];
+    matchOver?: boolean;
+    matchWinner?: string | null;
 }
 
 export interface ClueData {
@@ -65,6 +74,10 @@ export interface CardRevealedData {
     turnEnded?: boolean;
     timerTokens?: number;
     greenFound?: number;
+    // Match mode
+    cardScore?: number;
+    redMatchScore?: number;
+    blueMatchScore?: number;
 }
 
 export interface RoomStats {
@@ -160,6 +173,31 @@ export interface GameOverData {
     types?: string[];
     duetTypes?: string[];
     reason?: string;
+}
+
+export interface RoundResultData {
+    roundNumber: number;
+    roundWinner: string | null;
+    redRoundScore: number;
+    blueRoundScore: number;
+    redBonusAwarded: boolean;
+    blueBonusAwarded: boolean;
+    endReason: string;
+    completedAt: number;
+}
+
+export interface RoundEndedData {
+    roundResult: RoundResultData;
+    redMatchScore: number;
+    blueMatchScore: number;
+    matchRound: number;
+}
+
+export interface MatchOverData {
+    roundResult: RoundResultData;
+    redMatchScore: number;
+    blueMatchScore: number;
+    matchWinner: string;
 }
 
 export interface SpymasterViewData {
