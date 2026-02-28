@@ -362,6 +362,51 @@
     background: rgba(50, 205, 50, 0.1);
 }
 
+/* Turn timer control */
+.turn-timer-control {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.turn-timer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.turn-timer-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.turn-timer-slider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 8px 0;
+}
+
+.turn-timer-slider input[type="range"] {
+    flex: 1;
+    height: 6px;
+    cursor: pointer;
+    accent-color: #4a9eff;
+}
+
+.turn-timer-value {
+    min-width: 48px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
 /* Settings footer with buttons */
 .settings-footer {
     padding: 12px 20px;

@@ -5,7 +5,7 @@ import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
 import {
     updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility,
-    showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI
+    showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, syncTurnTimerUI
 } from '../multiplayerUI.js';
 import {
     syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode,
@@ -222,6 +222,9 @@ export function registerRoomHandlers(): void {
                 syncGameModeUI(data.settings.gameMode);
             }
 
+            // Sync turn timer UI
+            syncTurnTimerUI(data.settings.turnTimer ?? null);
+
             // Update multiplayer indicator
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
@@ -240,6 +243,39 @@ export function registerRoomHandlers(): void {
         radio.addEventListener('change', handler);
         domListenerCleanup.push({ element: radio, event: 'change', handler });
     });
+
+    // Turn timer toggle and slider handlers
+    const timerToggle = document.getElementById('turn-timer-toggle') as HTMLInputElement;
+    const timerSliderContainer = document.getElementById('turn-timer-slider');
+    const timerRange = document.getElementById('turn-timer-range') as HTMLInputElement;
+    const timerValue = document.getElementById('turn-timer-value');
+
+    if (timerToggle) {
+        const toggleHandler = () => {
+            if (!getClient()?.player?.isHost) return;
+            if (timerToggle.checked) {
+                if (timerSliderContainer) timerSliderContainer.style.display = 'flex';
+                const seconds = parseInt(timerRange?.value || '120', 10);
+                EigennamenClient.updateSettings({ turnTimer: seconds });
+            } else {
+                if (timerSliderContainer) timerSliderContainer.style.display = 'none';
+                EigennamenClient.updateSettings({ turnTimer: null });
+            }
+        };
+        timerToggle.addEventListener('change', toggleHandler);
+        domListenerCleanup.push({ element: timerToggle, event: 'change', handler: toggleHandler });
+    }
+
+    if (timerRange) {
+        const rangeHandler = () => {
+            if (!getClient()?.player?.isHost) return;
+            const seconds = parseInt(timerRange.value, 10);
+            if (timerValue) timerValue.textContent = `${seconds}s`;
+            EigennamenClient.updateSettings({ turnTimer: seconds });
+        };
+        timerRange.addEventListener('input', rangeHandler);
+        domListenerCleanup.push({ element: timerRange, event: 'input', handler: rangeHandler });
+    }
 
     // Handle room stats updates (spectator count, team counts)
     EigennamenClient.on('statsUpdated', (data: StatsUpdatedData) => {

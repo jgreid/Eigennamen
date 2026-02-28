@@ -434,7 +434,7 @@ function deriveEndReason(game: GameHistoryEntry): EndReason {
 
 /**
  * Determine which team went first based on board data.
- * In classic/blitz mode, the first team has more cards (9 vs 8).
+ * In classic mode, the first team has more cards (9 vs 8).
  * Checks totals first (already computed), then falls back to counting
  * the types array directly for robustness against partial game data.
  */

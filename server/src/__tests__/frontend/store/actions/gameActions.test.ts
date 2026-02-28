@@ -52,7 +52,7 @@ function resetTestState(): void {
     state.gameState.timerTokens = 5;
     state.gameState.greenFound = 2;
     state.gameState.greenTotal = 15;
-    state.gameMode = 'blitz' as any;
+    state.gameMode = 'duet' as any;
     state.boardInitialized = true;
 }
 

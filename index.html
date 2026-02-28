@@ -317,13 +317,6 @@
                                     </span>
                                 </label>
                                 <label class="game-mode-option">
-                                    <input type="radio" name="gameMode" value="blitz">
-                                    <span class="game-mode-card">
-                                        <strong data-i18n="roomSettings.blitz">Blitz</strong>
-                                        <small data-i18n="roomSettings.blitzDesc">Fast-paced 30-second turns</small>
-                                    </span>
-                                </label>
-                                <label class="game-mode-option">
                                     <input type="radio" name="gameMode" value="duet">
                                     <span class="game-mode-card duet-mode-card">
                                         <strong data-i18n="roomSettings.duet">Duet</strong>
@@ -337,6 +330,17 @@
                                         <small data-i18n="roomSettings.matchDesc">Multi-round match with card scoring</small>
                                     </span>
                                 </label>
+                            </div>
+
+                            <div class="turn-timer-control">
+                                <label class="turn-timer-toggle">
+                                    <input type="checkbox" id="turn-timer-toggle">
+                                    <span data-i18n="roomSettings.turnTimer">Turn Timer</span>
+                                </label>
+                                <div class="turn-timer-slider" id="turn-timer-slider" style="display: none;">
+                                    <input type="range" id="turn-timer-range" min="20" max="600" step="10" value="120">
+                                    <span class="turn-timer-value" id="turn-timer-value">120s</span>
+                                </div>
                             </div>
                         </div>
                     </div>

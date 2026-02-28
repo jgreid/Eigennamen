@@ -162,12 +162,11 @@
     "gameModeHint": "Choose how you want to play.",
     "classic": "Classic",
     "classicDesc": "Standard Eigennamen rules",
-    "blitz": "Blitz",
-    "blitzDesc": "Fast-paced 30-second turns",
     "duet": "Duet",
     "duetDesc": "Cooperative 2-player mode",
     "match": "Match",
-    "matchDesc": "Multi-round match with card scoring"
+    "matchDesc": "Multi-round match with card scoring",
+    "turnTimer": "Turn Timer"
   },
   "wordList": {
     "default": "Default Words",
@@ -235,7 +234,6 @@
   "toast": {
     "settingsUpdated": "Room settings updated",
     "gameStarted": "New game started!",
-    "blitzGameStarted": "Blitz game started!",
     "copied": "Copied to clipboard!",
     "linkCopied": "Link copied!",
     "failedToCopy": "Failed to copy - please copy manually",

@@ -126,7 +126,7 @@ export function determineRevealOutcome(
         return determineDuetRevealOutcome(game, cardType, outcome);
     }
 
-    // Classic/Blitz mode logic
+    // Classic mode logic
     if (cardType === 'assassin') {
         game.gameOver = true;
         game.winner = revealingTeam === 'red' ? 'blue' : 'red';

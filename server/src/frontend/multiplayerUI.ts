@@ -158,6 +158,26 @@ export function syncGameModeUI(gameMode: string): void {
     if (radio) radio.checked = true;
 }
 
+// Sync turn timer UI with server state
+export function syncTurnTimerUI(turnTimer: number | null): void {
+    const toggle = document.getElementById('turn-timer-toggle') as HTMLInputElement;
+    const sliderContainer = document.getElementById('turn-timer-slider');
+    const range = document.getElementById('turn-timer-range') as HTMLInputElement;
+    const valueDisplay = document.getElementById('turn-timer-value');
+
+    if (!toggle) return;
+
+    if (turnTimer != null && turnTimer > 0) {
+        toggle.checked = true;
+        if (sliderContainer) sliderContainer.style.display = 'flex';
+        if (range) range.value = String(turnTimer);
+        if (valueDisplay) valueDisplay.textContent = `${turnTimer}s`;
+    } else {
+        toggle.checked = false;
+        if (sliderContainer) sliderContainer.style.display = 'none';
+    }
+}
+
 // Update Duet mode UI elements
 export function updateDuetUI(gameData: ServerGameData | null): void {
     const isDuet = state.gameMode === 'duet';

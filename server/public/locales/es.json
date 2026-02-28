@@ -162,12 +162,11 @@
     "gameModeHint": "Elige cómo quieres jugar.",
     "classic": "Clásico",
     "classicDesc": "Reglas estándar de Eigennamen",
-    "blitz": "Blitz",
-    "blitzDesc": "Turnos rápidos de 30 segundos",
     "duet": "Dueto",
     "duetDesc": "Modo cooperativo para 2 jugadores",
     "match": "Match",
-    "matchDesc": "Match multironda con puntuación de cartas"
+    "matchDesc": "Match multironda con puntuación de cartas",
+    "turnTimer": "Temporizador de turno"
   },
   "wordList": {
     "default": "Palabras predeterminadas",
@@ -235,7 +234,6 @@
   "toast": {
     "settingsUpdated": "Ajustes de sala actualizados",
     "gameStarted": "¡Nueva partida iniciada!",
-    "blitzGameStarted": "¡Partida Blitz iniciada!",
     "copied": "¡Copiado al portapapeles!",
     "linkCopied": "¡Enlace copiado!",
     "failedToCopy": "Error al copiar – copia manualmente",

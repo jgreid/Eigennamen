@@ -44,7 +44,7 @@ export const ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT: string = loadLua('atomic
 /** Atomic socket mapping + IP update. Returns: 1 on success, nil if player not found */
 export const ATOMIC_SET_SOCKET_MAPPING_SCRIPT: string = loadLua('atomicSetSocketMapping.lua');
 
-/** Atomic room settings update. Validates host, merges allowed keys, enforces blitz constraints */
+/** Atomic room settings update. Validates host, merges allowed keys */
 export const ATOMIC_UPDATE_SETTINGS_SCRIPT: string = loadLua('atomicUpdateSettings.lua');
 
 /** Atomic addTime operation for turn timers. Returns: new end time if successful, nil if timer doesn't exist or is expired */

@@ -58,30 +58,14 @@ const createNicknameSchema = () => z.string()
     .refine((val: string) => !isReservedName(val, [...RESERVED_NAMES]), 'This nickname is reserved');
 
 /**
- * Validate turnTimer against game mode limits from GAME_MODE_CONFIG.
- * Blitz mode forces a 30s timer; classic/duet allow host-configured timers within mode bounds.
+ * Validate turnTimer bounds (if provided).
+ * Timer is optional for all modes; when set, must be within global bounds
+ * (enforced by the Zod min/max on the turnTimer field itself).
  */
-const validateModeTimer = (data: { gameMode?: string; turnTimer?: number | null }, ctx: ZodType.RefinementCtx) => {
+const validateModeTimer = (data: { gameMode?: string; turnTimer?: number | null }, _ctx: ZodType.RefinementCtx) => {
     if (data.turnTimer == null || data.gameMode == null) return;
     const modeConfig = GAME_MODE_CONFIG[data.gameMode as keyof typeof GAME_MODE_CONFIG];
     if (!modeConfig) return;
-
-    if (modeConfig.forcedTurnTimer != null && data.turnTimer !== modeConfig.forcedTurnTimer) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `${modeConfig.label} mode requires a ${modeConfig.forcedTurnTimer}s timer`,
-            path: ['turnTimer']
-        });
-        return;
-    }
-
-    if (data.turnTimer < modeConfig.minTurnTimer || data.turnTimer > modeConfig.maxTurnTimer) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Timer must be between ${modeConfig.minTurnTimer}s and ${modeConfig.maxTurnTimer}s for ${modeConfig.label} mode`,
-            path: ['turnTimer']
-        });
-    }
 };
 
 export {

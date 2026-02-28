@@ -77,6 +77,7 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     showReconnectionOverlay: jest.fn(),
     hideReconnectionOverlay: jest.fn(),
     syncGameModeUI: jest.fn(),
+    syncTurnTimerUI: jest.fn(),
     handleSpectatorChatMessage: jest.fn(),
     updateSpectatorCount: jest.fn(),
     updateRoomStats: jest.fn()
@@ -217,11 +218,6 @@ describe('Frontend Handler Registration', () => {
             expect(updateDuetUI).toHaveBeenCalledWith(gameData);
             expect(updateForfeitButton).toHaveBeenCalled();
             expect(showToast).toHaveBeenCalledWith(expect.stringContaining('New game started'), 'success', 5000);
-        });
-
-        test('gameStarted handles blitz mode label', () => {
-            handlers['gameStarted']({ game: { words: [] }, gameMode: 'blitz' });
-            expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Blitz'), 'success', 5000);
         });
 
         test('gameStarted handles duet mode label', () => {
@@ -741,9 +737,9 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('settingsUpdated syncs game mode and shows toast', () => {
-            handlers['settingsUpdated']({ settings: { gameMode: 'blitz' } });
+            handlers['settingsUpdated']({ settings: { gameMode: 'duet' } });
 
-            expect(syncGameModeUI).toHaveBeenCalledWith('blitz');
+            expect(syncGameModeUI).toHaveBeenCalledWith('duet');
             expect(showToast).toHaveBeenCalledWith('Room settings updated', 'info');
         });
 

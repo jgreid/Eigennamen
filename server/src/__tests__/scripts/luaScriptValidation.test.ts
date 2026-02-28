@@ -201,11 +201,6 @@ describe('Lua Script Validation', () => {
             expect(ATOMIC_UPDATE_SETTINGS_SCRIPT).toContain('NOT_HOST');
         });
 
-        it('enforces blitz timer constraint', () => {
-            expect(ATOMIC_UPDATE_SETTINGS_SCRIPT).toContain("gameMode == 'blitz'");
-            expect(ATOMIC_UPDATE_SETTINGS_SCRIPT).toContain('blitzForcedTimer');
-        });
-
         it('only merges allowed setting keys', () => {
             expect(ATOMIC_UPDATE_SETTINGS_SCRIPT).toContain('teamNames');
             expect(ATOMIC_UPDATE_SETTINGS_SCRIPT).toContain('turnTimer');

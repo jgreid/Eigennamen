@@ -1,8 +1,8 @@
 /**
  * Game Modes Tests
  *
- * Tests for the game mode system including Classic and Blitz modes.
- * Validates that mode-specific settings, timers, and constraints work correctly.
+ * Tests for the game mode system including Classic and Duet modes.
+ * Validates that mode-specific settings and constraints work correctly.
  */
 
 const { createMockRedis, createMockPlayer } = require('../helpers/mocks');
@@ -41,27 +41,23 @@ describe('Game Modes', () => {
     });
 
     describe('Constants', () => {
-        test('defines classic and blitz game modes', () => {
+        test('defines classic, duet, and match game modes', () => {
             expect(GAME_MODES).toContain('classic');
-            expect(GAME_MODES).toContain('blitz');
+            expect(GAME_MODES).toContain('duet');
+            expect(GAME_MODES).toContain('match');
+            expect(GAME_MODES).not.toContain('blitz');
         });
 
-        test('classic mode has no forced timer', () => {
-            expect(GAME_MODE_CONFIG.classic.forcedTurnTimer).toBeNull();
+        test('classic mode is not cooperative', () => {
+            expect(GAME_MODE_CONFIG.classic.cooperative).toBe(false);
         });
 
-        test('blitz mode has a 30-second forced timer', () => {
-            expect(GAME_MODE_CONFIG.blitz.forcedTurnTimer).toBe(30);
+        test('duet mode is cooperative', () => {
+            expect(GAME_MODE_CONFIG.duet.cooperative).toBe(true);
         });
 
-        test('blitz mode timer bounds are both 30', () => {
-            expect(GAME_MODE_CONFIG.blitz.minTurnTimer).toBe(30);
-            expect(GAME_MODE_CONFIG.blitz.maxTurnTimer).toBe(30);
-        });
-
-        test('classic mode allows flexible timer range', () => {
-            expect(GAME_MODE_CONFIG.classic.minTurnTimer).toBe(30);
-            expect(GAME_MODE_CONFIG.classic.maxTurnTimer).toBe(300);
+        test('match mode is not cooperative', () => {
+            expect(GAME_MODE_CONFIG.match.cooperative).toBe(false);
         });
     });
 
@@ -75,13 +71,22 @@ describe('Game Modes', () => {
             expect(result.data.settings.gameMode).toBe('classic');
         });
 
-        test('roomCreateSchema accepts blitz mode', () => {
+        test('roomCreateSchema accepts duet mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
-                settings: { gameMode: 'blitz' }
+                settings: { gameMode: 'duet' }
             });
             expect(result.success).toBe(true);
-            expect(result.data.settings.gameMode).toBe('blitz');
+            expect(result.data.settings.gameMode).toBe('duet');
+        });
+
+        test('roomCreateSchema accepts match mode', () => {
+            const result = roomCreateSchema.safeParse({
+                roomId: 'test-room',
+                settings: { gameMode: 'match' }
+            });
+            expect(result.success).toBe(true);
+            expect(result.data.settings.gameMode).toBe('match');
         });
 
         test('roomCreateSchema defaults to classic mode', () => {
@@ -100,12 +105,20 @@ describe('Game Modes', () => {
             expect(result.success).toBe(false);
         });
 
+        test('roomCreateSchema rejects blitz mode', () => {
+            const result = roomCreateSchema.safeParse({
+                roomId: 'test-room',
+                settings: { gameMode: 'blitz' }
+            });
+            expect(result.success).toBe(false);
+        });
+
         test('roomSettingsSchema accepts gameMode', () => {
             const result = roomSettingsSchema.safeParse({
-                gameMode: 'blitz'
+                gameMode: 'duet'
             });
             expect(result.success).toBe(true);
-            expect(result.data.gameMode).toBe('blitz');
+            expect(result.data.gameMode).toBe('duet');
         });
 
         test('roomSettingsSchema makes gameMode optional', () => {
@@ -115,54 +128,60 @@ describe('Game Modes', () => {
             expect(result.success).toBe(true);
             expect(result.data.gameMode).toBeUndefined();
         });
+
+        test('roomSettingsSchema accepts turnTimer within bounds', () => {
+            const result = roomSettingsSchema.safeParse({
+                turnTimer: 120
+            });
+            expect(result.success).toBe(true);
+            expect(result.data.turnTimer).toBe(120);
+        });
+
+        test('roomSettingsSchema accepts turnTimer at min bound (20s)', () => {
+            const result = roomSettingsSchema.safeParse({
+                turnTimer: 20
+            });
+            expect(result.success).toBe(true);
+        });
+
+        test('roomSettingsSchema accepts turnTimer at max bound (600s)', () => {
+            const result = roomSettingsSchema.safeParse({
+                turnTimer: 600
+            });
+            expect(result.success).toBe(true);
+        });
+
+        test('roomSettingsSchema rejects turnTimer below min', () => {
+            const result = roomSettingsSchema.safeParse({
+                turnTimer: 10
+            });
+            expect(result.success).toBe(false);
+        });
     });
 
     describe('Room Service - Game Mode Settings', () => {
         test('room creation defaults to classic mode', async () => {
             const hostSessionId = 'host-session-123';
-            // Mock Redis eval for atomic create
             mockRedis.eval = jest.fn(async () => 1);
-            // Mock player service
             jest.spyOn(require('../../services/playerService'), 'createPlayer')
                 .mockResolvedValue(createMockPlayer({ sessionId: hostSessionId, isHost: true }));
 
             const result = await roomService.createRoom('testroom', hostSessionId, {});
 
-            // The room object passed to redis.eval should have gameMode: 'classic'
             expect(result.room.settings.gameMode).toBe('classic');
         });
 
-        test('room creation accepts blitz mode', async () => {
+        test('room creation accepts duet mode', async () => {
             const hostSessionId = 'host-session-456';
             mockRedis.eval = jest.fn(async () => 1);
             jest.spyOn(require('../../services/playerService'), 'createPlayer')
                 .mockResolvedValue(createMockPlayer({ sessionId: hostSessionId, isHost: true }));
 
-            const result = await roomService.createRoom('blitzroom', hostSessionId, {
-                gameMode: 'blitz'
+            const result = await roomService.createRoom('duetroom', hostSessionId, {
+                gameMode: 'duet'
             });
 
-            expect(result.room.settings.gameMode).toBe('blitz');
-        });
-
-        test('updateSettings enforces blitz timer when switching to blitz mode', async () => {
-            // updateSettings now uses atomic Lua script via redis.eval
-            mockRedis.eval = jest.fn(async () => JSON.stringify({
-                success: true,
-                settings: {
-                    teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 30,
-                    allowSpectators: true,
-                    gameMode: 'blitz'
-                }
-            }));
-
-            const result = await roomService.updateSettings('testroom', 'host-123', {
-                gameMode: 'blitz'
-            });
-
-            expect(result.gameMode).toBe('blitz');
-            expect(result.turnTimer).toBe(30);
+            expect(result.room.settings.gameMode).toBe('duet');
         });
 
         test('updateSettings preserves custom timer in classic mode', async () => {
@@ -184,7 +203,7 @@ describe('Game Modes', () => {
             expect(result.turnTimer).toBe(180);
         });
 
-        test('updateSettings allows switching from blitz back to classic', async () => {
+        test('updateSettings allows disabling timer', async () => {
             mockRedis.eval = jest.fn(async () => JSON.stringify({
                 success: true,
                 settings: {
@@ -196,7 +215,6 @@ describe('Game Modes', () => {
             }));
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
-                gameMode: 'classic',
                 turnTimer: null
             });
 
@@ -209,20 +227,18 @@ describe('Game Modes', () => {
                 success: true,
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 30,
+                    turnTimer: null,
                     allowSpectators: true,
-                    gameMode: 'blitz'
+                    gameMode: 'duet'
                 }
             }));
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
-                gameMode: 'blitz',
+                gameMode: 'duet',
                 someMaliciousKey: 'evil'
             } as AnyRecord);
 
-            // gameMode should be allowed
-            expect(result.gameMode).toBe('blitz');
-            // malicious key should be rejected
+            expect(result.gameMode).toBe('duet');
             expect((result as AnyRecord).someMaliciousKey).toBeUndefined();
         });
 
@@ -230,7 +246,7 @@ describe('Game Modes', () => {
             mockRedis.eval = jest.fn(async () => JSON.stringify({ error: 'NOT_HOST' }));
 
             await expect(
-                roomService.updateSettings('testroom', 'not-host-456', { gameMode: 'blitz' })
+                roomService.updateSettings('testroom', 'not-host-456', { gameMode: 'duet' })
             ).rejects.toThrow();
         });
     });
