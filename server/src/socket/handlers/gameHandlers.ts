@@ -356,6 +356,32 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
             await saveCompletedGameHistory(ctx.roomCode);
 
+            // Match mode: finalize round and check match end
+            const updatedGame = await gameService.getGame(ctx.roomCode);
+            if (updatedGame && updatedGame.gameMode === 'match') {
+                const roundResult = gameService.finalizeRound(updatedGame);
+                const redis = (await import('../../config/redis')).getRedis();
+                await redis.set(`room:${ctx.roomCode}:game`, JSON.stringify(updatedGame), { EX: 3600 });
+                invalidateGameStateCache(ctx.roomCode);
+
+                if (updatedGame.matchOver) {
+                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_MATCH_OVER, {
+                        matchWinner: updatedGame.matchWinner,
+                        redMatchScore: updatedGame.redMatchScore,
+                        blueMatchScore: updatedGame.blueMatchScore,
+                        roundHistory: updatedGame.roundHistory,
+                        roundResult
+                    });
+                } else {
+                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.GAME_ROUND_ENDED, {
+                        roundResult,
+                        redMatchScore: updatedGame.redMatchScore,
+                        blueMatchScore: updatedGame.blueMatchScore,
+                        matchRound: updatedGame.matchRound
+                    });
+                }
+            }
+
             // Audit log game end (forfeit)
             const forfeitIp = socket.clientIP || socket.handshake.address;
             audit(AUDIT_EVENTS.GAME_ENDED, { roomCode: ctx.roomCode, sessionId: ctx.sessionId, ip: forfeitIp, metadata: { winner: result.winner, endReason: 'forfeit' } });
