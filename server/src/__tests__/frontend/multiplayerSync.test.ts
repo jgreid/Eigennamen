@@ -107,6 +107,9 @@ import {
     detectOfflineChanges,
     resetMultiplayerState,
     syncLocalPlayerState,
+    syncGameStateFromServer,
+    leaveMultiplayerMode,
+    cleanupMultiplayerListeners,
     getRoomCodeFromURL,
     clearRoomCodeFromURL,
     updateURLWithRoomCode,
@@ -569,6 +572,235 @@ describe('multiplayerSync', () => {
             const params = new URLSearchParams(window.location.search);
             expect(params.has('room')).toBe(false);
             expect(params.get('existing')).toBe('keep');
+        });
+    });
+
+    // ─── cleanupMultiplayerListeners ─────────────────────────────────
+
+    describe('cleanupMultiplayerListeners', () => {
+        it('removes all multiplayer event listeners from client', () => {
+            const offFn = jest.fn();
+            const { getClient } = require('../../frontend/clientAccessor');
+            (getClient as jest.Mock).mockReturnValue({ off: offFn });
+
+            cleanupMultiplayerListeners();
+
+            // Should call off() for each event name
+            multiplayerEventNames.forEach(eventName => {
+                expect(offFn).toHaveBeenCalledWith(eventName);
+            });
+            expect(state.multiplayerListenersSetup).toBe(false);
+        });
+
+        it('handles null client gracefully', () => {
+            const { getClient } = require('../../frontend/clientAccessor');
+            (getClient as jest.Mock).mockReturnValue(null);
+
+            expect(() => cleanupMultiplayerListeners()).not.toThrow();
+            expect(state.multiplayerListenersSetup).toBe(false);
+        });
+    });
+
+    // ─── leaveMultiplayerMode ─────────────────────────────────────
+
+    describe('leaveMultiplayerMode', () => {
+        it('resets multiplayer mode and room state', () => {
+            state.isMultiplayerMode = true;
+            state.currentRoomId = 'ROOM1';
+
+            const { getClient, isClientConnected } = require('../../frontend/clientAccessor');
+            (isClientConnected as jest.Mock).mockReturnValue(false);
+            (getClient as jest.Mock).mockReturnValue(null);
+
+            leaveMultiplayerMode();
+
+            expect(state.isMultiplayerMode).toBe(false);
+            expect(state.currentRoomId).toBeNull();
+        });
+
+        it('calls leaveRoom when connected', () => {
+            const leaveRoom = jest.fn();
+            const { getClient, isClientConnected } = require('../../frontend/clientAccessor');
+            (isClientConnected as jest.Mock).mockReturnValue(true);
+            (getClient as jest.Mock).mockReturnValue({ leaveRoom, off: jest.fn() });
+
+            leaveMultiplayerMode();
+
+            expect(leaveRoom).toHaveBeenCalled();
+        });
+
+        it('resets replay state', () => {
+            state.currentReplayData = { id: 'r1' } as any;
+            state.currentReplayIndex = 5;
+            state.replayPlaying = true;
+            state.replayInterval = setInterval(() => {}, 1000) as any;
+
+            const { isClientConnected, getClient } = require('../../frontend/clientAccessor');
+            (isClientConnected as jest.Mock).mockReturnValue(false);
+            (getClient as jest.Mock).mockReturnValue(null);
+
+            leaveMultiplayerMode();
+
+            expect(state.currentReplayData).toBeNull();
+            expect(state.currentReplayIndex).toBe(-1);
+            expect(state.replayPlaying).toBe(false);
+            expect(state.replayInterval).toBeNull();
+        });
+
+        it('resets boardInitialized', () => {
+            state.boardInitialized = true;
+
+            const { isClientConnected, getClient } = require('../../frontend/clientAccessor');
+            (isClientConnected as jest.Mock).mockReturnValue(false);
+            (getClient as jest.Mock).mockReturnValue(null);
+
+            leaveMultiplayerMode();
+
+            expect(state.boardInitialized).toBe(false);
+        });
+    });
+
+    // ─── syncGameStateFromServer ──────────────────────────────────
+
+    describe('syncGameStateFromServer', () => {
+        it('syncs words, types, and revealed arrays', () => {
+            const serverGame = {
+                words: ['A', 'B', 'C'],
+                types: ['red', 'blue', 'neutral'],
+                revealed: [false, true, false],
+                currentTurn: 'blue'
+            };
+
+            syncGameStateFromServer(serverGame as any);
+
+            expect(state.gameState.words).toEqual(['A', 'B', 'C']);
+            expect(state.gameState.types).toEqual(['red', 'blue', 'neutral']);
+            expect(state.gameState.revealed).toEqual([false, true, false]);
+        });
+
+        it('syncs scores when provided', () => {
+            const serverGame = {
+                words: ['A', 'B'],
+                types: ['red', 'blue'],
+                revealed: [false, false],
+                redScore: 3,
+                blueScore: 5,
+                redTotal: 9,
+                blueTotal: 8
+            };
+
+            syncGameStateFromServer(serverGame as any);
+
+            expect(state.gameState.redScore).toBe(3);
+            expect(state.gameState.blueScore).toBe(5);
+            expect(state.gameState.redTotal).toBe(9);
+            expect(state.gameState.blueTotal).toBe(8);
+        });
+
+        it('syncs game over state', () => {
+            const serverGame = {
+                words: ['A'],
+                types: ['red'],
+                revealed: [true],
+                gameOver: true,
+                winner: 'red'
+            };
+
+            syncGameStateFromServer(serverGame as any);
+
+            expect(state.gameState.gameOver).toBe(true);
+            expect(state.gameState.winner).toBe('red');
+        });
+
+        it('clears game over when not over', () => {
+            state.gameState.gameOver = true;
+            state.gameState.winner = 'red' as any;
+
+            const serverGame = {
+                words: ['A'],
+                types: ['red'],
+                revealed: [false]
+            };
+
+            syncGameStateFromServer(serverGame as any);
+
+            expect(state.gameState.gameOver).toBe(false);
+            expect(state.gameState.winner).toBeNull();
+        });
+
+        it('syncs seed', () => {
+            syncGameStateFromServer({ words: ['A'], types: ['r'], revealed: [false], seed: 12345 } as any);
+            expect(state.gameState.seed).toBe(12345);
+        });
+
+        it('syncs clue state', () => {
+            syncGameStateFromServer({
+                words: ['A'], types: ['r'], revealed: [false],
+                currentClue: { word: 'fruit', number: 3 }
+            } as any);
+            expect(state.gameState.currentClue).toEqual({ word: 'fruit', number: 3 });
+        });
+
+        it('syncs guess tracking state', () => {
+            syncGameStateFromServer({
+                words: ['A'], types: ['r'], revealed: [false],
+                guessesUsed: 2, guessesAllowed: 4
+            } as any);
+            expect(state.gameState.guessesUsed).toBe(2);
+            expect(state.gameState.guessesAllowed).toBe(4);
+        });
+
+        it('syncs duet mode fields', () => {
+            syncGameStateFromServer({
+                words: ['A'], types: ['r'], revealed: [false],
+                duetTypes: ['green', 'black', 'neutral'],
+                timerTokens: 7,
+                greenFound: 5,
+                greenTotal: 15,
+                gameMode: 'duet'
+            } as any);
+
+            expect(state.gameState.duetTypes).toEqual(['green', 'black', 'neutral']);
+            expect(state.gameState.timerTokens).toBe(7);
+            expect(state.gameState.greenFound).toBe(5);
+            expect(state.gameState.greenTotal).toBe(15);
+            expect(state.gameMode).toBe('duet');
+        });
+
+        it('rejects oversized words array', () => {
+            const oversizedWords = Array(200).fill('WORD');
+            const { logger } = require('../../frontend/logger');
+
+            syncGameStateFromServer({
+                words: oversizedWords,
+                types: Array(200).fill('red'),
+                revealed: Array(200).fill(false)
+            } as any);
+
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.stringContaining('rejected oversized words array')
+            );
+        });
+
+        it('handles null serverGame gracefully', () => {
+            expect(() => syncGameStateFromServer(null as any)).not.toThrow();
+        });
+
+        it('handles undefined serverGame gracefully', () => {
+            expect(() => syncGameStateFromServer(undefined as any)).not.toThrow();
+        });
+
+        it('force re-renders board when words change', () => {
+            state.gameState.words = ['OLD'];
+            state.boardInitialized = true;
+
+            syncGameStateFromServer({
+                words: ['NEW'],
+                types: ['red'],
+                revealed: [false]
+            } as any);
+
+            expect(state.boardInitialized).toBe(false);
         });
     });
 

@@ -142,7 +142,8 @@ jest.mock('../../frontend/clientAccessor', () => ({
 import {
     openMultiplayer, closeMultiplayer, setMpMode, setMpStatus,
     setFieldError, clearFormErrors, onMultiplayerJoined,
-    cancelJoinOperation, cancelCreateOperation, cancelAllOperations
+    cancelJoinOperation, cancelCreateOperation, cancelAllOperations,
+    handleMpAction, initMultiplayerModal, checkURLForRoomJoin
 } from '../../frontend/multiplayer';
 import { state } from '../../frontend/state';
 
@@ -352,6 +353,336 @@ describe('multiplayer module', () => {
     describe('cancelAllOperations', () => {
         test('does not throw when no operations are pending', () => {
             expect(() => cancelAllOperations()).not.toThrow();
+        });
+    });
+
+    describe('handleMpAction', () => {
+        test('returns early when no action button exists', async () => {
+            document.body.innerHTML = '';
+            await handleMpAction();
+            // Should not throw
+        });
+
+        test('disables button and shows loading state during join', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            // Set valid nickname and room code
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.joinRoom.mockResolvedValue({
+                room: { code: 'TESTROOM' }, players: []
+            });
+
+            await handleMpAction();
+
+            const btn = document.getElementById('btn-mp-action') as HTMLButtonElement;
+            expect(btn.disabled).toBe(false); // Re-enabled after completion
+            expect(btn.classList.contains('loading')).toBe(false);
+        });
+
+        test('handles join validation errors (short nickname)', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'A'; // Too short
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
+
+            await handleMpAction();
+
+            expect(document.getElementById('join-nickname-error')!.textContent).toBe('Too short');
+        });
+
+        test('handles join validation errors (short room code)', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'AB'; // Too short
+
+            await handleMpAction();
+
+            expect(document.getElementById('join-error')!.textContent).toBe('Too short');
+        });
+
+        test('handles create mode action', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'create';
+            (document.getElementById('create-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('create-room-id') as HTMLInputElement).value = 'NEWROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.createRoom.mockResolvedValue({
+                room: { code: 'NEWROOM' }, players: []
+            });
+
+            await handleMpAction();
+
+            expect(state.isMultiplayerMode).toBe(true);
+        });
+
+        test('handles create validation errors', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'create';
+            (document.getElementById('create-nickname') as HTMLInputElement).value = 'A'; // Too short
+
+            await handleMpAction();
+
+            expect(document.getElementById('create-nickname-error')!.textContent).toBe('Too short');
+        });
+
+        test('handles join error ROOM_NOT_FOUND by switching to create mode', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'MISSING';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.joinRoom.mockRejectedValue({
+                code: 'ROOM_NOT_FOUND', message: 'Room not found'
+            });
+
+            await handleMpAction();
+
+            expect(state.currentMpMode).toBe('create');
+        });
+
+        test('handles join error ROOM_FULL', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'FULLROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.joinRoom.mockRejectedValue({
+                code: 'ROOM_FULL', message: 'Room is full'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.classList.contains('error')).toBe(true);
+        });
+
+        test('handles join error INVALID_INPUT', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'BADROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.joinRoom.mockRejectedValue({
+                code: 'INVALID_INPUT', message: 'Invalid room'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.textContent).toBe('Invalid room');
+        });
+
+        test('handles join error with connection message', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.joinRoom.mockRejectedValue({
+                message: 'Failed to connect to server'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.classList.contains('error')).toBe(true);
+        });
+
+        test('handles join error generic fallback', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.joinRoom.mockRejectedValue({
+                message: 'Something weird'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.textContent).toBe('Something weird');
+        });
+
+        test('handles create error ROOM_ALREADY_EXISTS', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'create';
+            (document.getElementById('create-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('create-room-id') as HTMLInputElement).value = 'EXISTINGROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.createRoom.mockRejectedValue({
+                code: 'ROOM_ALREADY_EXISTS', message: 'Room exists'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.classList.contains('error')).toBe(true);
+        });
+
+        test('handles create error with connection message', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'create';
+            (document.getElementById('create-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('create-room-id') as HTMLInputElement).value = 'NEWROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.createRoom.mockRejectedValue({
+                message: 'Failed to connect'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.classList.contains('error')).toBe(true);
+        });
+
+        test('handles create error generic fallback', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'create';
+            (document.getElementById('create-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('create-room-id') as HTMLInputElement).value = 'NEWROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(true);
+            (global as any).EigennamenClient.createRoom.mockRejectedValue({
+                message: 'Unexpected error'
+            });
+
+            await handleMpAction();
+
+            const statusEl = document.getElementById('mp-status')!;
+            expect(statusEl.textContent).toBe('Unexpected error');
+        });
+
+        test('connects when not already connected', async () => {
+            setupMultiplayerDOM();
+            state.currentMpMode = 'join';
+            (document.getElementById('join-nickname') as HTMLInputElement).value = 'Alice';
+            (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
+            (global as any).EigennamenClient.isConnected.mockReturnValue(false);
+            (global as any).EigennamenClient.connect.mockResolvedValue(undefined);
+            (global as any).EigennamenClient.joinRoom.mockResolvedValue({
+                room: { code: 'TESTROOM' }, players: []
+            });
+
+            await handleMpAction();
+
+            expect((global as any).EigennamenClient.connect).toHaveBeenCalled();
+        });
+    });
+
+    describe('onMultiplayerJoined (additional paths)', () => {
+        test('resets stale state on room change', () => {
+            setupMultiplayerDOM();
+            const { resetMultiplayerState } = require('../../frontend/multiplayerSync');
+            state.currentRoomId = 'OLD_ROOM';
+            onMultiplayerJoined({ room: { code: 'NEW_ROOM' }, players: [] });
+            expect(resetMultiplayerState).toHaveBeenCalled();
+        });
+
+        test('syncs game state when game is present in result', () => {
+            setupMultiplayerDOM();
+            const { syncGameStateFromServer } = require('../../frontend/multiplayerSync');
+            const game = { words: ['A'], types: ['red'], revealed: [false] };
+            onMultiplayerJoined({ room: { code: 'R' }, players: [], game });
+            expect(syncGameStateFromServer).toHaveBeenCalledWith(game);
+        });
+
+        test('shows host toast when isHost', () => {
+            setupMultiplayerDOM();
+            state.currentRoomId = 'MYROOM';
+            onMultiplayerJoined({ room: { code: 'MYROOM' }, players: [] }, true);
+
+            jest.advanceTimersByTime(600);
+
+            expect(mockShowToast).toHaveBeenCalledWith(
+                expect.stringContaining('Game created!'),
+                'success',
+                8000
+            );
+        });
+
+        test('shows non-host connected toast', () => {
+            setupMultiplayerDOM();
+            onMultiplayerJoined({ room: { code: 'R' }, players: [] }, false);
+
+            jest.advanceTimersByTime(600);
+
+            expect(mockShowToast).toHaveBeenCalledWith(
+                'Connected to game',
+                'success'
+            );
+        });
+
+        test('uses result.you for syncing player state', () => {
+            setupMultiplayerDOM();
+            const { syncLocalPlayerState } = require('../../frontend/multiplayerSync');
+            const you = { sessionId: 's1', nickname: 'Me', team: 'red', role: 'spymaster', isHost: false, connected: true };
+            onMultiplayerJoined({ room: { code: 'R' }, players: [], you });
+            expect(syncLocalPlayerState).toHaveBeenCalledWith(you);
+        });
+    });
+
+    describe('initMultiplayerModal', () => {
+        test('sets up mode toggle and action button listeners', () => {
+            setupMultiplayerDOM();
+            // Add a copy button too
+            const copyBtn = document.createElement('button');
+            copyBtn.id = 'btn-copy-room-id';
+            document.body.appendChild(copyBtn);
+
+            initMultiplayerModal();
+
+            // Mode toggle works
+            const createBtn = document.querySelector('.mode-btn[data-mode="create"]') as HTMLElement;
+            createBtn.click();
+            expect(state.currentMpMode).toBe('create');
+        });
+
+        test('only initializes once (idempotent)', () => {
+            setupMultiplayerDOM();
+            const addSpy = jest.spyOn(HTMLElement.prototype, 'addEventListener');
+            const callsBefore = addSpy.mock.calls.length;
+
+            initMultiplayerModal(); // second call (first was above)
+
+            // No additional listeners should be added
+            expect(addSpy.mock.calls.length).toBe(callsBefore);
+            addSpy.mockRestore();
+        });
+    });
+
+    describe('checkURLForRoomJoin', () => {
+        test('opens modal with pre-filled room code from URL', () => {
+            setupMultiplayerDOM();
+            const { getRoomCodeFromURL } = require('../../frontend/multiplayerSync');
+            (getRoomCodeFromURL as jest.Mock).mockReturnValue('URLROOM');
+
+            checkURLForRoomJoin();
+
+            expect(mockOpenModal).toHaveBeenCalledWith('multiplayer-modal');
+            expect((document.getElementById('join-room-id') as HTMLInputElement).value).toBe('URLROOM');
+        });
+
+        test('does nothing when URL has no room code', () => {
+            setupMultiplayerDOM();
+            const { getRoomCodeFromURL } = require('../../frontend/multiplayerSync');
+            (getRoomCodeFromURL as jest.Mock).mockReturnValue(null);
+
+            checkURLForRoomJoin();
+
+            expect(mockOpenModal).not.toHaveBeenCalled();
+        });
+
+        test('does nothing when room code is invalid (too short)', () => {
+            setupMultiplayerDOM();
+            const { getRoomCodeFromURL } = require('../../frontend/multiplayerSync');
+            (getRoomCodeFromURL as jest.Mock).mockReturnValue('AB'); // Too short for validateRoomCode
+
+            checkURLForRoomJoin();
+
+            expect(mockOpenModal).not.toHaveBeenCalled();
         });
     });
 });

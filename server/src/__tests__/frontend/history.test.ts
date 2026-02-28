@@ -79,7 +79,10 @@ jest.mock('../../frontend/clientAccessor', () => ({
 import {
     renderGameHistory, renderReplayData, applyReplayState,
     renderReplayEventLog, updateReplayControls, toggleReplayPlayback,
-    cycleReplaySpeed, closeReplay, setupHistoryEventDelegation
+    cycleReplaySpeed, closeReplay, setupHistoryEventDelegation,
+    openGameHistory, closeGameHistory, openReplay,
+    renderReplayBoard, scrollToCurrentEvent,
+    setupReplayControls, copyReplayLink, checkURLForReplayLoad
 } from '../../frontend/history';
 import { state } from '../../frontend/state';
 import type { GameHistoryEntry, ReplayData } from '../../frontend/multiplayerTypes';
@@ -437,6 +440,267 @@ describe('history module', () => {
             expect(state.replayPlaying).toBe(false);
             expect(state.replayInterval).toBeNull();
             expect(mockCloseModal).toHaveBeenCalledWith('replay-modal');
+        });
+    });
+
+    describe('openGameHistory', () => {
+        test('shows loading state and requests history', () => {
+            setupHistoryDOM();
+            openGameHistory();
+
+            expect(document.getElementById('history-loading')!.style.display).toBe('flex');
+            expect(mockOpenModal).toHaveBeenCalledWith('history-modal');
+            expect((global as any).EigennamenClient.getGameHistory).toHaveBeenCalledWith(10);
+        });
+
+        test('shows toast when not in multiplayer mode', () => {
+            setupHistoryDOM();
+            state.isMultiplayerMode = false;
+
+            openGameHistory();
+
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'info');
+            expect(mockOpenModal).not.toHaveBeenCalled();
+        });
+
+        test('shows toast when not connected', () => {
+            setupHistoryDOM();
+            state.isMultiplayerMode = true;
+            (global as any).EigennamenClient.isConnected.mockReturnValue(false);
+
+            openGameHistory();
+
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'info');
+        });
+    });
+
+    describe('closeGameHistory', () => {
+        test('closes history modal', () => {
+            closeGameHistory();
+            expect(mockCloseModal).toHaveBeenCalledWith('history-modal');
+        });
+    });
+
+    describe('openReplay', () => {
+        test('closes history, shows loading, and requests replay', () => {
+            setupReplayDOM();
+            openReplay('game-123');
+
+            expect(mockCloseModal).toHaveBeenCalledWith('history-modal');
+            expect(mockOpenModal).toHaveBeenCalledWith('replay-modal');
+            expect((global as any).EigennamenClient.getReplay).toHaveBeenCalledWith('game-123');
+        });
+
+        test('shows loading text in replay info', () => {
+            setupReplayDOM();
+            openReplay('game-123');
+
+            expect(document.getElementById('replay-info')!.textContent).toBe('Loading replay...');
+        });
+    });
+
+    describe('renderReplayEventLog (additional event types)', () => {
+        test('renders endTurn events', () => {
+            setupReplayDOM();
+            state.currentReplayData = {
+                ...createReplayData(),
+                events: [{ type: 'endTurn', data: { team: 'red' } }]
+            };
+            renderReplayEventLog();
+
+            const action = document.querySelector('.event-action');
+            expect(action!.textContent).toBe('ended turn');
+        });
+
+        test('renders forfeit events', () => {
+            setupReplayDOM();
+            state.currentReplayData = {
+                ...createReplayData(),
+                events: [{ type: 'forfeit', data: { team: 'blue', winner: 'red' } }]
+            };
+            renderReplayEventLog();
+
+            const action = document.querySelector('.event-action');
+            expect(action!.textContent).toBe('forfeited');
+            const detail = document.querySelector('.event-detail');
+            expect(detail).not.toBeNull();
+        });
+
+        test('renders unknown event types', () => {
+            setupReplayDOM();
+            state.currentReplayData = {
+                ...createReplayData(),
+                events: [{ type: 'custom', data: { team: 'red' } }]
+            };
+            renderReplayEventLog();
+
+            const action = document.querySelector('.event-action');
+            expect(action!.textContent).toBe('custom');
+        });
+    });
+
+    describe('scrollToCurrentEvent', () => {
+        test('scrolls to current event', () => {
+            setupReplayDOM();
+            const logEl = document.getElementById('replay-event-log')!;
+            const event = document.createElement('div');
+            event.className = 'replay-event current';
+            event.scrollIntoView = jest.fn();
+            logEl.appendChild(event);
+
+            scrollToCurrentEvent();
+
+            expect(event.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+
+        test('does nothing when no log element', () => {
+            document.body.innerHTML = '';
+            expect(() => scrollToCurrentEvent()).not.toThrow();
+        });
+
+        test('does nothing when no current event', () => {
+            setupReplayDOM();
+            expect(() => scrollToCurrentEvent()).not.toThrow();
+        });
+    });
+
+    describe('copyReplayLink', () => {
+        test('copies replay link to clipboard', async () => {
+            state.currentReplayData = { ...createReplayData(), id: 'replay-abc' };
+            const { copyToClipboard } = require('../../frontend/utils');
+            (copyToClipboard as jest.Mock).mockResolvedValue(true);
+
+            await copyReplayLink();
+
+            expect(copyToClipboard).toHaveBeenCalledWith(expect.stringContaining('replay=replay-abc'));
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'success');
+        });
+
+        test('shows error toast when no replay data', async () => {
+            state.currentReplayData = null;
+
+            await copyReplayLink();
+
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+        });
+
+        test('shows error toast when copy fails', async () => {
+            state.currentReplayData = { ...createReplayData(), id: 'replay-abc' };
+            const { copyToClipboard } = require('../../frontend/utils');
+            (copyToClipboard as jest.Mock).mockResolvedValue(false);
+
+            await copyReplayLink();
+
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+        });
+    });
+
+    describe('checkURLForReplayLoad', () => {
+        test('returns false when no replay param in URL', async () => {
+            window.history.replaceState({}, '', 'http://localhost/');
+            const result = await checkURLForReplayLoad();
+            expect(result).toBe(false);
+        });
+
+        test('returns false when missing room param', async () => {
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123');
+            const result = await checkURLForReplayLoad();
+            expect(result).toBe(false);
+        });
+
+        test('returns true and renders replay on success', async () => {
+            setupReplayDOM();
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123&room=ROOM1');
+
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: jest.fn().mockResolvedValue({ replay: true, ...createReplayData() })
+            }) as any;
+
+            const result = await checkURLForReplayLoad();
+
+            expect(result).toBe(true);
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'success');
+        });
+
+        test('returns false and shows error on 404', async () => {
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123&room=ROOM1');
+
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 404
+            }) as any;
+
+            const result = await checkURLForReplayLoad();
+
+            expect(result).toBe(false);
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+        });
+
+        test('returns false and shows error on other HTTP errors', async () => {
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123&room=ROOM1');
+
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 500
+            }) as any;
+
+            const result = await checkURLForReplayLoad();
+
+            expect(result).toBe(false);
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+        });
+
+        test('returns false and shows error on fetch failure', async () => {
+            window.history.replaceState({}, '', 'http://localhost/?replay=game123&room=ROOM1');
+
+            global.fetch = jest.fn().mockRejectedValue(new Error('Network error')) as any;
+
+            const result = await checkURLForReplayLoad();
+
+            expect(result).toBe(false);
+            expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+        });
+    });
+
+    describe('renderReplayBoard', () => {
+        test('renders board with words', () => {
+            setupReplayDOM();
+            state.currentReplayData = createReplayData();
+            state.currentReplayIndex = -1;
+            renderReplayBoard();
+
+            const cards = document.querySelectorAll('.replay-card');
+            expect(cards.length).toBe(25);
+            expect(cards[0].textContent).toBe('WORD0');
+        });
+
+        test('renders empty board when no data', () => {
+            setupReplayDOM();
+            state.currentReplayData = null;
+            renderReplayBoard();
+
+            const cards = document.querySelectorAll('.replay-card');
+            expect(cards.length).toBe(0);
+        });
+    });
+
+    describe('cycleReplaySpeed (restart while playing)', () => {
+        test('restarts interval when currently playing', () => {
+            setupReplayDOM();
+            state.currentReplayData = createReplayData();
+            state.replayPlaying = true;
+            state.replayInterval = setInterval(() => {}, 10000) as any;
+
+            cycleReplaySpeed();
+
+            // Interval should be replaced (not null since we're playing)
+            expect(state.replayInterval).not.toBeNull();
+            expect(mockShowToast).toHaveBeenCalled();
+
+            // Clean up
+            if (state.replayInterval) clearInterval(state.replayInterval);
+            state.replayInterval = null;
         });
     });
 
