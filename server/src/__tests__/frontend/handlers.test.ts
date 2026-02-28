@@ -248,6 +248,21 @@ describe('Frontend Handler Registration', () => {
             expect(syncGameStateFromServer).not.toHaveBeenCalled();
         });
 
+        test('gameStarted clears stale reveal tracking from previous game', () => {
+            // Simulate pending card reveals from previous game
+            state.revealingCards.add(2);
+            state.revealingCards.add(14);
+            state.isRevealingCard = true;
+            const timeoutId = setTimeout(() => {}, 10000);
+            state.revealTimeouts.set(2, timeoutId);
+
+            handlers['gameStarted']({ game: { words: ['DOG'] }, gameMode: 'classic' });
+
+            expect(state.revealingCards.size).toBe(0);
+            expect(state.isRevealingCard).toBe(false);
+            expect(state.revealTimeouts.size).toBe(0);
+        });
+
         test('cardRevealed clears revealing state for card', () => {
             state.revealingCards.add(5);
             state.isRevealingCard = true;
@@ -604,6 +619,26 @@ describe('Frontend Handler Registration', () => {
             expect(state.multiplayerPlayers).toBe(players);
         });
 
+        test('roomResynced clears stale reveal tracking', () => {
+            // Simulate pending card reveals before resync
+            state.revealingCards.add(3);
+            state.revealingCards.add(7);
+            state.isRevealingCard = true;
+            const timeoutId = setTimeout(() => {}, 10000);
+            state.revealTimeouts.set(3, timeoutId);
+
+            handlers['roomResynced']({
+                game: { words: ['A'] },
+                players: [],
+                you: { sessionId: 'me', nickname: 'Me' },
+                room: { code: 'ROOM' }
+            });
+
+            expect(state.revealingCards.size).toBe(0);
+            expect(state.isRevealingCard).toBe(false);
+            expect(state.revealTimeouts.size).toBe(0);
+        });
+
         test('disconnected shows toast and reconnection overlay', () => {
             state.isMultiplayerMode = true;
             handlers['disconnected']();
@@ -624,6 +659,20 @@ describe('Frontend Handler Registration', () => {
 
             expect(hideReconnectionOverlay).toHaveBeenCalled();
             expect(showToast).toHaveBeenCalledWith('Reconnected!', 'success');
+        });
+
+        test('rejoined clears stale reveal tracking', () => {
+            (detectOfflineChanges as jest.Mock).mockReturnValue([]);
+            state.revealingCards.add(4);
+            state.isRevealingCard = true;
+            const timeoutId = setTimeout(() => {}, 10000);
+            state.revealTimeouts.set(4, timeoutId);
+
+            handlers['rejoined']({ game: {}, players: [], room: { code: 'R' } });
+
+            expect(state.revealingCards.size).toBe(0);
+            expect(state.isRevealingCard).toBe(false);
+            expect(state.revealTimeouts.size).toBe(0);
         });
 
         test('rejoined shows changes when offline changes detected', () => {

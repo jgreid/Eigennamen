@@ -82,6 +82,16 @@ export function registerRoomHandlers(): void {
                 updateMpIndicator(data.room || null, state.multiplayerPlayers);
             }
 
+            // Clear stale reveal tracking — any cardRevealed events were skipped
+            // during resync, so pending entries in revealingCards are now stale.
+            // Without this, cards clicked just before a resync become permanently
+            // unclickable until the per-card timeout fires.
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
+            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+
             // Update all UI elements
             updateControls();
             updateRoleBanner();
@@ -133,6 +143,14 @@ export function registerRoomHandlers(): void {
             if (data?.players) {
                 updateMpIndicator(data?.room || null, state.multiplayerPlayers);
             }
+
+            // Clear stale reveal tracking — pending reveals from before
+            // disconnect are no longer valid after reconnection.
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
+            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
 
             updateControls();
             updateRoleBanner();

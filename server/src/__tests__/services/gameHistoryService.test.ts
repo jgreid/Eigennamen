@@ -847,4 +847,89 @@ describe('Game History Service', () => {
             expect(result.initialBoard.firstTeam).toBe('red');
         });
     });
+
+    describe('countCluesFromHistory', () => {
+        const { countCluesFromHistory } = gameHistoryService;
+
+        test('returns 0 for null/undefined/empty history', () => {
+            expect(countCluesFromHistory(null)).toBe(0);
+            expect(countCluesFromHistory(undefined)).toBe(0);
+            expect(countCluesFromHistory([])).toBe(0);
+        });
+
+        test('counts single team segment as 1 clue', () => {
+            const history = [
+                { action: 'reveal', team: 'red', index: 0 },
+                { action: 'reveal', team: 'red', index: 1 },
+            ];
+            expect(countCluesFromHistory(history)).toBe(1);
+        });
+
+        test('counts two team segments as 2 clues', () => {
+            const history = [
+                { action: 'reveal', team: 'red', index: 0 },
+                { action: 'reveal', team: 'red', index: 1 },
+                { action: 'reveal', team: 'blue', index: 2 },
+            ];
+            expect(countCluesFromHistory(history)).toBe(2);
+        });
+
+        test('counts alternating teams correctly', () => {
+            const history = [
+                { action: 'reveal', team: 'red', index: 0 },
+                { action: 'reveal', team: 'blue', index: 1 },
+                { action: 'reveal', team: 'red', index: 2 },
+                { action: 'reveal', team: 'blue', index: 3 },
+            ];
+            expect(countCluesFromHistory(history)).toBe(4);
+        });
+
+        test('ignores non-reveal entries (clue, endTurn)', () => {
+            const history = [
+                { action: 'clue', team: 'red', word: 'FRUIT', number: 2 },
+                { action: 'reveal', team: 'red', index: 0 },
+                { action: 'endTurn', fromTeam: 'red', toTeam: 'blue' },
+                { action: 'clue', team: 'blue', word: 'COLOR', number: 1 },
+                { action: 'reveal', team: 'blue', index: 1 },
+            ];
+            expect(countCluesFromHistory(history)).toBe(2);
+        });
+
+        test('handles history with only non-reveal entries', () => {
+            const history = [
+                { action: 'clue', team: 'red', word: 'FRUIT', number: 2 },
+                { action: 'endTurn', fromTeam: 'red', toTeam: 'blue' },
+            ];
+            expect(countCluesFromHistory(history)).toBe(0);
+        });
+
+        test('handles reveal entries without team field', () => {
+            const history = [
+                { action: 'reveal', index: 0 },
+                { action: 'reveal', team: 'red', index: 1 },
+            ];
+            // First entry has no team (skipped), second is first valid = 1
+            expect(countCluesFromHistory(history)).toBe(1);
+        });
+
+        test('handles non-array input', () => {
+            expect(countCluesFromHistory('not an array' as unknown as unknown[])).toBe(0);
+            expect(countCluesFromHistory(42 as unknown as unknown[])).toBe(0);
+        });
+
+        test('handles typical full game history', () => {
+            // Simulates: red clue → red reveals 2 cards → wrong card → blue clue → blue reveals 1 → end turn → red reveals 1
+            const history = [
+                { action: 'clue', team: 'red', word: 'ANIMAL', number: 2 },
+                { action: 'reveal', team: 'red', index: 0, type: 'red' },
+                { action: 'reveal', team: 'red', index: 5, type: 'blue' },  // wrong → turn switch
+                { action: 'clue', team: 'blue', word: 'OCEAN', number: 1 },
+                { action: 'reveal', team: 'blue', index: 10, type: 'blue' },
+                { action: 'endTurn', fromTeam: 'blue', toTeam: 'red' },
+                { action: 'clue', team: 'red', word: 'PLANT', number: 1 },
+                { action: 'reveal', team: 'red', index: 3, type: 'red' },
+            ];
+            expect(countCluesFromHistory(history)).toBe(3);
+        });
+    });
 });

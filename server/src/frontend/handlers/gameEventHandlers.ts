@@ -24,6 +24,14 @@ export function registerGameHandlers(): void {
 
         // Full sync game state from server for new games
         if (data.game) {
+            // Clear stale reveal tracking from previous game before syncing new state.
+            // Without this, cards that were pending reveal in the old game would block
+            // clicks on the same indices in the new game.
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
+
             syncGameStateFromServer(data.game);
             state.gameMode = data.gameMode || 'classic';
             updateDuetUI(data.game);
