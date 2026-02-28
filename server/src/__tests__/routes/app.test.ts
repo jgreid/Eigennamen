@@ -206,11 +206,17 @@ describe('Express Application', () => {
             expect(response.body.checks.pubsub.healthy).toBe(true);
         });
 
-        it('should not include memory, uptime, or database fields', async () => {
+        it('should include memory and inMemory stats but not uptime or database fields', async () => {
             const response = await request(app).get('/health/ready');
 
-            expect(response.body).not.toHaveProperty('memory');
-            expect(response.body).not.toHaveProperty('uptime');
+            // Sprint 5.3: memory and inMemory stats are now included
+            expect(response.body).toHaveProperty('memory');
+            expect(response.body.memory).toHaveProperty('heapUsedMB');
+            expect(response.body.memory).toHaveProperty('rssMB');
+            expect(response.body).toHaveProperty('inMemory');
+            expect(response.body.inMemory).toHaveProperty('activeTimers');
+
+            expect(response.body).toHaveProperty('uptime');
             expect(response.body.checks).not.toHaveProperty('database');
             expect(response.body.checks).not.toHaveProperty('storage');
             expect(response.body.checks).not.toHaveProperty('socketio');

@@ -8,6 +8,7 @@ import logger from '../utils/logger';
 // Import metrics
 import { getPrometheusMetrics, updateSystemMetrics, getAllMetrics } from '../utils/metrics';
 import { withTimeout } from '../utils/timeout';
+import { getActiveTimerCount } from '../services/timerService';
 
 const router: ExpressRouter = express.Router();
 
@@ -118,10 +119,20 @@ router.get('/ready', async (_req: Request, res: Response) => {
         const status = allHealthy ? 'ready' : 'degraded';
         const statusCode = allHealthy ? 200 : 503;
 
+        const memUsage = process.memoryUsage();
+
         res.status(statusCode).json({
             status,
             timestamp: new Date().toISOString(),
-            checks
+            uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+            checks,
+            memory: {
+                heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+                rssMB: Math.round(memUsage.rss / 1024 / 1024)
+            },
+            inMemory: {
+                activeTimers: getActiveTimerCount()
+            }
         });
     } catch (error) {
         logger.error('Health check failed:', error);

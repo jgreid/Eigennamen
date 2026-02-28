@@ -133,7 +133,7 @@ describe('Reconnection Service', () => {
             const cleaned = await cleanupOrphanedReconnectionTokens();
 
             expect(cleaned).toBe(0);
-            expect(logger.debug).toHaveBeenCalledWith(
+            expect(logger.warn).toHaveBeenCalledWith(
                 'Reconnection token cleanup skipped:',
                 'SCAN failed'
             );

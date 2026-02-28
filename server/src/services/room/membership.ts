@@ -204,7 +204,7 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
                     await playerService.updatePlayer(newHostId, { isHost: true });
                 }
             } else {
-                logger.debug(`Host transfer lock not acquired in leaveRoom for room ${code}, another handler is transferring`);
+                logger.info(`Host transfer lock not acquired in leaveRoom for room ${code}, another handler is transferring`);
             }
         } catch (lockError) {
             logger.error(`Host transfer lock error in leaveRoom for room ${code}: ${(lockError as Error).message}`);

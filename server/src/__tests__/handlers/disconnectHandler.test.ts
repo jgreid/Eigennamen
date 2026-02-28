@@ -309,7 +309,7 @@ describe('disconnectHandler', () => {
                 handleDisconnect(mockIo, mockSocket, 'transport close')
             ).resolves.not.toThrow();
 
-            expect(logger.debug).toHaveBeenCalledWith(
+            expect(logger.info).toHaveBeenCalledWith(
                 expect.stringContaining('Host transfer lock not acquired'),
             );
         });
@@ -376,8 +376,8 @@ describe('disconnectHandler', () => {
             await callback('ROOM01');
 
             // Error from withLock callback is caught by the inner try-catch and
-            // logged as debug (lock contention path), then returns early.
-            expect(logger.debug).toHaveBeenCalledWith(
+            // logged as info (lock contention path), then returns early.
+            expect(logger.info).toHaveBeenCalledWith(
                 expect.stringContaining('Timer expiration lock not acquired')
             );
         });

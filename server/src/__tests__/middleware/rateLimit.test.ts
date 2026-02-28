@@ -168,7 +168,7 @@ describe('Rate Limit Middleware', () => {
                 rateLimiter.cleanupSocket('cleanup-socket');
 
                 // Should log cleanup
-                expect(mockLogger.debug).toHaveBeenCalledWith(
+                expect(mockLogger.info).toHaveBeenCalledWith(
                     expect.stringContaining('Cleaned up')
                 );
             });

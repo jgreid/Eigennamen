@@ -541,6 +541,16 @@ export function sweepStaleTimers(): number {
 /**
  * Clean up all timers (for shutdown)
  */
+/**
+ * Get the current count of active local timers (for health/metrics reporting)
+ */
+export function getActiveTimerCount(): number {
+    return localTimers.size;
+}
+
+/**
+ * Clean up all timers (for shutdown)
+ */
 export function cleanupAllTimers(): void {
     // Clear local timers
     for (const [_roomCode, timer] of localTimers) {
