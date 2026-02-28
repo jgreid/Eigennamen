@@ -82,7 +82,7 @@ import {
     cycleReplaySpeed, closeReplay, setupHistoryEventDelegation,
     openGameHistory, closeGameHistory, openReplay,
     renderReplayBoard, scrollToCurrentEvent,
-    setupReplayControls, copyReplayLink, checkURLForReplayLoad
+    copyReplayLink, checkURLForReplayLoad
 } from '../../frontend/history';
 import { state } from '../../frontend/state';
 import type { GameHistoryEntry, ReplayData } from '../../frontend/multiplayerTypes';
