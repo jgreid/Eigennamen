@@ -125,17 +125,9 @@ export function registerPlayerHandlers(): void {
 
                         EigennamenClient.setRole(roleToSet);
 
-                        // Dedicated timeout for the role portion of the compound
-                        // operation. The original team-phase timeout in setRoleForTeam()
-                        // skips this phase, so we need our own 5s window.
-                        const rolePhaseOpId = currentOpId;
-                        setTimeout(() => {
-                            if (state.roleChange.phase === 'changing_role' && state.roleChange.operationId === rolePhaseOpId) {
-                                logger.warn('Compound role change: role portion timed out');
-                                clearRoleChange();
-                                updateControls();
-                            }
-                        }, 5000);
+                        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) in roles.ts
+                        // handles recovery for all phases including this role portion.
+                        // No per-phase timeout needed.
                     } else if (isConfirmingUpdate || rc.phase === 'idle') {
                         clearRoleChange();
                     }

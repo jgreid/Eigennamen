@@ -12,7 +12,7 @@ import { playerTeamSchema, playerRoleSchema, playerNicknameSchema, playerKickSch
 import logger from '../../utils/logger';
 import { ERROR_CODES, SOCKET_EVENTS } from '../../config/constants';
 import { createRoomHandler, createHostHandler } from '../contextHandler';
-import { canChangeTeamOrRole } from '../playerContext';
+import { canChangeTeamOrRole, invalidateGameStateCache } from '../playerContext';
 import { PlayerError, ValidationError, GameStateError } from '../../errors/GameError';
 import { sanitizeHtml } from '../../utils/sanitize';
 import { safeEmitToRoom } from '../safeEmit';
@@ -88,6 +88,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 // setTeam always returns a Player or throws — no null return path
                 const player: Player = await playerService.setTeam(ctx.sessionId, validated.team, shouldCheckEmpty);
 
+                // Invalidate cached game state so subsequent handlers see fresh state
+                invalidateGameStateCache(ctx.roomCode);
+
                 // Bug #14 Fix: Sync spectator room membership based on current state
                 // (prevents race with concurrent setRole operations)
                 await syncSpectatorRoomMembership(socket, ctx.roomCode, ctx.sessionId);
@@ -144,6 +147,9 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 if (!player) {
                     throw PlayerError.notFound(ctx.sessionId);
                 }
+
+                // Invalidate cached game state so subsequent handlers see fresh state
+                invalidateGameStateCache(ctx.roomCode);
 
                 // Bug #14 Fix: Sync spectator room membership based on current state
                 // (prevents race with concurrent setTeam operations)

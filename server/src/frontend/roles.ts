@@ -256,14 +256,8 @@ export function setTeam(team: string | null): void {
             }
         });
 
-        // Safety timeout in case ack is lost — revert optimistic UI (H4 from audit)
-        setTimeout(() => {
-            if (state.roleChange.phase === 'changing_team' && state.roleChange.operationId === operationId) {
-                logger.warn('setTeam: Safety timeout - reverting role change state');
-                revertAndClearRoleChange();
-                updateControls();
-            }
-        }, 5000);
+        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery.
+        // No per-operation timeout needed — a single mechanism prevents state-machine stalls.
         return;
     }
 
@@ -368,22 +362,9 @@ function setRoleForTeam(
         }
         refreshRoleUI();
 
-        // Safety timeout in case ack is lost — revert optimistic UI (H4 from audit).
-        // For compound operations (team_then_role), only timeout the initial
-        // phase — the changing_role phase gets its own timeout when it starts.
-        // Typed as string to prevent TS from narrowing state.roleChange
-        // through this alias (state.roleChange changes asynchronously in the callback)
-        const initialPhase: string = state.roleChange.phase;
-        setTimeout(() => {
-            if (state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
-                if (initialPhase === 'team_then_role' && state.roleChange.phase === 'changing_role') {
-                    return; // Role phase has its own timeout (set in playerUpdated handler)
-                }
-                logger.warn(`set${roleName}: Safety timeout - reverting role change state`);
-                revertAndClearRoleChange();
-                updateControls();
-            }
-        }, 5000);
+        // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery
+        // for all phases including compound team_then_role operations.
+        // No per-operation timeout needed — a single mechanism prevents state-machine stalls.
         return;
     }
 

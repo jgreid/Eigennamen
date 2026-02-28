@@ -40,6 +40,7 @@ import type { ExpressAppWithSockets } from './connectionHandler';
 let io: SocketIOServer | null = null;
 let app: ExpressAppWithSockets | null = null;
 let shuttingDown = false;
+let timerSweepIntervalRef: ReturnType<typeof setInterval> | null = null;
 
 
 /**
@@ -176,10 +177,10 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     startConnectionsCleanup(socketServer);
 
     // Periodic sweep of stale local timer entries (piggybacks on the same cadence)
-    const timerSweepInterval = setInterval(() => {
+    timerSweepIntervalRef = setInterval(() => {
         timerService.sweepStaleTimers();
     }, SOCKET.CONNECTIONS_CLEANUP_INTERVAL_MS);
-    timerSweepInterval.unref();
+    timerSweepIntervalRef.unref();
 
     // Register socket functions for edge case of no connections yet
     ensureSocketFunctionsRegistered(socketFns);
@@ -203,6 +204,12 @@ async function cleanupSocketModule(): Promise<void> {
     shuttingDown = true;
     stopRateLimitCleanup();
     stopConnectionsCleanup();
+
+    // Clear timer sweep interval to prevent callbacks after shutdown
+    if (timerSweepIntervalRef) {
+        clearInterval(timerSweepIntervalRef);
+        timerSweepIntervalRef = null;
+    }
 
     if (io) {
         const connectedCount = io.sockets.sockets.size;

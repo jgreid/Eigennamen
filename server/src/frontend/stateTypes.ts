@@ -149,6 +149,7 @@ export interface AppState {
     isRevealingCard: boolean;
     revealingCards: Set<number>;
     revealTimeouts: Map<number, ReturnType<typeof setTimeout>>;
+    pendingRevealRAF: number | null;
 
     // i18n
     language: string;

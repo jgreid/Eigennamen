@@ -4,6 +4,7 @@ import { updateScoreboard, updateTurnIndicator } from './game.js';
 import { updateRoleBanner, updateControls, clearRoleChange } from './roles.js';
 import { handleTimerStopped } from './timer.js';
 import { setTabNotification } from './notifications.js';
+import { stopRevealSweep } from './game/reveal.js';
 import { logger } from './logger.js';
 import {
     updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility,
@@ -87,6 +88,11 @@ export function resetMultiplayerState(): void {
     clearRoleChange();
     // Stop any running timer to prevent ghost ticks across room changes
     handleTimerStopped();
+    // Cancel any pending reveal rAF to prevent orphaned DOM updates
+    if (state.pendingRevealRAF !== null) {
+        cancelAnimationFrame(state.pendingRevealRAF);
+        state.pendingRevealRAF = null;
+    }
     // Clear pending reveal timeouts to prevent memory leaks
     state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
@@ -99,6 +105,9 @@ export function resetMultiplayerState(): void {
 export function leaveMultiplayerMode(): void {
     // Clean up listeners
     cleanupMultiplayerListeners();
+
+    // Stop periodic sweep of stale revealing cards
+    stopRevealSweep();
 
     // Remove keyboard shortcuts to prevent stale listeners accumulating
     removeKeyboardShortcuts();
