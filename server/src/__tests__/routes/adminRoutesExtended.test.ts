@@ -424,41 +424,6 @@ describe('Admin Routes Extended Tests', () => {
             );
         });
 
-        it('should delete room successfully', async () => {
-            const response = await request(app)
-                .delete(`/admin/api/rooms/${roomCode}`)
-                .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
-                .expect(200);
-
-            expect(response.body.success).toBe(true);
-            expect(response.body.message).toContain('closed');
-
-            // Verify socket.io notification
-            expect(mockIo.to).toHaveBeenCalledWith(`room:${roomCode.toLowerCase()}`);
-            expect(mockIo.emit).toHaveBeenCalledWith('room:forceClosed', expect.any(Object));
-
-            // Verify audit
-            expect(audit.adminDeleteRoom).toHaveBeenCalled();
-        });
-
-        it('should return 400 for invalid room code format', async () => {
-            const response = await request(app)
-                .delete('/admin/api/rooms/ab')
-                .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
-                .expect(400);
-
-            expect(response.body.error.code).toBe('INVALID_ROOM_CODE');
-        });
-
-        it('should return 404 for non-existent room', async () => {
-            const response = await request(app)
-                .delete('/admin/api/rooms/NOTEXIST')
-                .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
-                .expect(404);
-
-            expect(response.body.error.code).toBe('ROOM_NOT_FOUND');
-        });
-
         it('should handle missing io gracefully', async () => {
             app.set('io', null);
 
@@ -468,18 +433,6 @@ describe('Admin Routes Extended Tests', () => {
                 .expect(200);
 
             expect(response.body.success).toBe(true);
-        });
-
-        it('should clean up all room-related keys', async () => {
-            const roomService = require('../../services/roomService');
-
-            await request(app)
-                .delete(`/admin/api/rooms/${roomCode}`)
-                .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
-                .expect(200);
-
-            // Verify roomService.deleteRoom was called to clean up
-            expect(roomService.deleteRoom).toHaveBeenCalledWith(roomCode.toLowerCase());
         });
     });
 

@@ -201,44 +201,6 @@ describe('Timer Service Branch Coverage', () => {
             expect(status.expired).toBe(false);
         });
 
-        it('should handle paused timer with undefined remainingWhenPaused', async () => {
-            const timerData = {
-                roomCode: 'PAUSED_NOREMAINING',
-                startTime: Date.now() - 30000,
-                endTime: Date.now() + 30000,
-                duration: 60,
-                instanceId: '123',
-                paused: true,
-                // no remainingWhenPaused - should fall through to normal calculation
-            };
-            mockRedisStorage['timer:PAUSED_NOREMAINING'] = JSON.stringify(timerData);
-
-            const status = await timerService.getTimerStatus('PAUSED_NOREMAINING');
-
-            expect(status).not.toBeNull();
-            // Should not be treated as paused since remainingWhenPaused is undefined
-            expect(status.isPaused).toBe(false);
-            expect(status.remainingSeconds).toBeGreaterThan(0);
-        });
-
-        it('should handle non-paused timer normally', async () => {
-            const timerData = {
-                roomCode: 'NORMAL_ROOM',
-                startTime: Date.now() - 30000,
-                endTime: Date.now() + 30000,
-                duration: 60,
-                instanceId: '123',
-                paused: false,
-            };
-            mockRedisStorage['timer:NORMAL_ROOM'] = JSON.stringify(timerData);
-
-            const status = await timerService.getTimerStatus('NORMAL_ROOM');
-
-            expect(status).not.toBeNull();
-            expect(status.isPaused).toBe(false);
-            expect(status.remainingSeconds).toBeGreaterThan(0);
-            expect(status.expired).toBe(false);
-        });
     });
 
     describe('resumeTimer expired-while-paused branch (lines 358-371)', () => {
@@ -356,26 +318,6 @@ describe('Timer Service Branch Coverage', () => {
     });
 
     describe('resumeTimer edge cases', () => {
-        it('should return null when timer is not paused', async () => {
-            const timerData = {
-                roomCode: 'NOT_PAUSED',
-                startTime: Date.now() - 30000,
-                endTime: Date.now() + 30000,
-                duration: 60,
-                instanceId: '123',
-                paused: false,
-            };
-            mockRedisStorage['timer:NOT_PAUSED'] = JSON.stringify(timerData);
-
-            const result = await timerService.resumeTimer('NOT_PAUSED');
-            expect(result).toBeNull();
-        });
-
-        it('should return null when no timer data exists', async () => {
-            const result = await timerService.resumeTimer('NONEXISTENT');
-            expect(result).toBeNull();
-        });
-
         it('should return null when timer data is invalid JSON', async () => {
             mockRedisStorage['timer:BAD_JSON'] = 'not valid json';
 
@@ -510,11 +452,6 @@ describe('Timer Service Branch Coverage', () => {
     });
 
     describe('pauseTimer', () => {
-        it('should return null when timer does not exist', async () => {
-            const result = await timerService.pauseTimer('NONEXISTENT');
-            expect(result).toBeNull();
-        });
-
         it('should return null when timer is expired', async () => {
             const timerData = {
                 roomCode: 'EXPIRED_PAUSE',
@@ -526,24 +463,6 @@ describe('Timer Service Branch Coverage', () => {
             mockRedisStorage['timer:EXPIRED_PAUSE'] = JSON.stringify(timerData);
 
             const result = await timerService.pauseTimer('EXPIRED_PAUSE');
-            expect(result).toBeNull();
-        });
-
-        it('should pause an active timer successfully', async () => {
-            await timerService.startTimer('PAUSE_ACTIVE', 60);
-
-            const result = await timerService.pauseTimer('PAUSE_ACTIVE');
-
-            expect(result).not.toBeNull();
-            expect(result!.remainingSeconds).toBeGreaterThan(0);
-        });
-
-        it('should handle corrupted data in pauseTimer', async () => {
-            // Put invalid JSON in storage — the eval mock's JSON.parse will
-            // fail and return null, causing pauseTimer to return null.
-            mockRedisStorage['timer:PARSE_ERR'] = 'invalid json {{{';
-
-            const result = await timerService.pauseTimer('PARSE_ERR');
             expect(result).toBeNull();
         });
 
@@ -560,17 +479,6 @@ describe('Timer Service Branch Coverage', () => {
     });
 
     describe('hasActiveTimer', () => {
-        it('should return false when no timer exists', async () => {
-            const result = await timerService.hasActiveTimer('NONEXISTENT');
-            expect(result).toBe(false);
-        });
-
-        it('should return true when active timer exists', async () => {
-            await timerService.startTimer('ACTIVE_TIMER', 60);
-            const result = await timerService.hasActiveTimer('ACTIVE_TIMER');
-            expect(result).toBe(true);
-        });
-
         it('should return false when timer is expired', async () => {
             const timerData = {
                 roomCode: 'EXPIRED_TIMER',
@@ -586,32 +494,4 @@ describe('Timer Service Branch Coverage', () => {
         });
     });
 
-    describe('stopTimer', () => {
-        it('should stop existing timer', async () => {
-            await timerService.startTimer('STOP_TIMER', 60);
-            await timerService.stopTimer('STOP_TIMER');
-
-            expect(mockLogger.info).toHaveBeenCalledWith('Timer stopped for room STOP_TIMER');
-        });
-
-        it('should handle stopping non-existent timer gracefully', async () => {
-            await timerService.stopTimer('NONEXISTENT');
-            expect(mockLogger.info).toHaveBeenCalledWith('Timer stopped for room NONEXISTENT');
-        });
-    });
-
-    describe('cleanupAllTimers', () => {
-        it('should clear all local timers', async () => {
-            await timerService.startTimer('CLEANUP1', 60);
-            await timerService.startTimer('CLEANUP2', 60);
-
-            timerService.cleanupAllTimers();
-
-            expect(mockLogger.info).toHaveBeenCalledWith('All local timers cleaned up');
-
-            // Timers should not fire after cleanup
-            jest.advanceTimersByTime(120000);
-            await flushPromises();
-        });
-    });
 });

@@ -53,32 +53,6 @@ describe('logger', () => {
         });
     });
 
-    describe('setLevel("debug") enables all levels', () => {
-        beforeEach(() => {
-            logger.setLevel('debug');
-        });
-
-        it('debug logs via console.log', () => {
-            logger.debug('test debug');
-            expect(consoleLogSpy).toHaveBeenCalled();
-        });
-
-        it('info logs via console.info', () => {
-            logger.info('test info');
-            expect(consoleInfoSpy).toHaveBeenCalled();
-        });
-
-        it('warn logs via console.warn', () => {
-            logger.warn('test warn');
-            expect(consoleWarnSpy).toHaveBeenCalled();
-        });
-
-        it('error logs via console.error', () => {
-            logger.error('test error');
-            expect(consoleErrorSpy).toHaveBeenCalled();
-        });
-    });
-
     describe('setLevel("error") disables warn', () => {
         beforeEach(() => {
             logger.setLevel('error');

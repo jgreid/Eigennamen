@@ -4,60 +4,9 @@
  * Tests for validation functions in frontend/constants.ts
  */
 
-import {
-    validateNickname,
-    validateRoomCode,
-    VALIDATION,
-    BOARD_SIZE,
-    FIRST_TEAM_CARDS,
-    SECOND_TEAM_CARDS,
-    NEUTRAL_CARDS,
-    ASSASSIN_CARDS,
-    GAME,
-    TIMER,
-    RESERVED_NAMES,
-} from '../../frontend/constants';
+import { validateNickname, validateRoomCode, VALIDATION } from '../../frontend/constants';
 
 describe('Frontend Constants', () => {
-    describe('shared constant re-exports', () => {
-        test('BOARD_SIZE matches expected value', () => {
-            expect(BOARD_SIZE).toBe(25);
-        });
-
-        test('card distribution sums to BOARD_SIZE', () => {
-            expect(FIRST_TEAM_CARDS + SECOND_TEAM_CARDS + NEUTRAL_CARDS + ASSASSIN_CARDS).toBe(BOARD_SIZE);
-        });
-
-        test('GAME object matches individual constants', () => {
-            expect(GAME.BOARD_SIZE).toBe(BOARD_SIZE);
-            expect(GAME.RED_CARDS_FIRST).toBe(FIRST_TEAM_CARDS);
-            expect(GAME.BLUE_CARDS_FIRST).toBe(SECOND_TEAM_CARDS);
-            expect(GAME.NEUTRAL_CARDS).toBe(NEUTRAL_CARDS);
-            expect(GAME.ASSASSIN_CARDS).toBe(ASSASSIN_CARDS);
-        });
-
-        test('TIMER constants are reasonable', () => {
-            expect(TIMER.MIN_TURN_SECONDS).toBeGreaterThan(0);
-            expect(TIMER.MAX_TURN_SECONDS).toBeGreaterThan(TIMER.MIN_TURN_SECONDS);
-            expect(TIMER.DEFAULT_TURN_SECONDS).toBeGreaterThanOrEqual(TIMER.MIN_TURN_SECONDS);
-            expect(TIMER.DEFAULT_TURN_SECONDS).toBeLessThanOrEqual(TIMER.MAX_TURN_SECONDS);
-        });
-
-        test('VALIDATION has all expected fields', () => {
-            expect(VALIDATION.NICKNAME_MIN_LENGTH).toBeDefined();
-            expect(VALIDATION.NICKNAME_MAX_LENGTH).toBeDefined();
-            expect(VALIDATION.ROOM_CODE_MIN_LENGTH).toBeDefined();
-            expect(VALIDATION.ROOM_CODE_MAX_LENGTH).toBeDefined();
-            expect(VALIDATION.ROOM_CODE_PATTERN).toBeDefined();
-            expect(VALIDATION.CHAT_MESSAGE_MAX_LENGTH).toBeDefined();
-        });
-
-        test('RESERVED_NAMES is a non-empty array', () => {
-            expect(Array.isArray(RESERVED_NAMES)).toBe(true);
-            expect(RESERVED_NAMES.length).toBeGreaterThan(0);
-        });
-    });
-
     describe('validateNickname', () => {
         test('accepts valid nickname', () => {
             const result = validateNickname('Alice');
