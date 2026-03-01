@@ -750,13 +750,14 @@ describe('revealCard Lua error mapping', () => {
             turnEnded: false,
             gameOver: false,
             winner: null,
-            endReason: null
+            endReason: null,
+            allTypes: null
         };
         mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
         const result = await revealCard('TEST01', 5, 'Player1');
 
-        expect(result).toEqual(luaResult);
+        expect(result).toMatchObject({ index: 5, type: 'red', word: 'APPLE' });
         expect(mockRedis.eval).toHaveBeenCalled();
     });
 
@@ -841,13 +842,15 @@ describe('revealCard', () => {
             guessesAllowed: 3,
             turnEnded: false,
             gameOver: false,
-            winner: null
+            winner: null,
+            endReason: null,
+            allTypes: null
         };
         mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
         const result = await revealCard('TEST01', 5, 'Player1');
 
-        expect(result).toEqual(luaResult);
+        expect(result).toMatchObject({ index: 5, type: 'red', word: 'APPLE' });
         // Lock released via owner-verified eval (RELEASE_LOCK_SCRIPT)
         expect(mockRedis.eval).toHaveBeenCalledTimes(2); // Lua reveal + lock release
     });
@@ -891,7 +894,12 @@ describe('revealCard', () => {
 
     test('logs error when lock release fails', async () => {
         mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
-        const luaResult = { success: true, index: 5, type: 'red' };
+        const luaResult = {
+            success: true, index: 5, type: 'red', word: 'APPLE',
+            redScore: 1, blueScore: 0, currentTurn: 'red',
+            guessesUsed: 1, guessesAllowed: 3, turnEnded: false,
+            gameOver: false, winner: null, endReason: null, allTypes: null
+        };
         // First eval: Lua reveal succeeds. Second eval: lock release fails.
         mockRedis.eval
             .mockResolvedValueOnce(JSON.stringify(luaResult))

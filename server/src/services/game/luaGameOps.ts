@@ -94,8 +94,55 @@ export type ExecuteLuaScript = <T>(
     gameKey: string,
     args: string[],
     errorMap: Record<string, Error | { code: string; message: string }>,
-    operationName: string
+    operationName: string,
+    resultSchema?: z.ZodSchema<T>
 ) => Promise<T>;
+
+// Per-operation Zod schemas for Lua script results.
+// These validate the actual shape returned by each Lua script,
+// catching field mismatches at runtime instead of trusting `as T`.
+
+const teamSchema = z.enum(['red', 'blue']);
+const cardTypeSchema = z.enum(['red', 'blue', 'neutral', 'assassin']);
+// Duet mode uses 'green' cards which aren't in the base CardType union.
+// Use cardTypeSchema (matching the TS type) to preserve type compatibility.
+// If the TS type is broadened to include 'green', update this too.
+
+export const revealResultSchema = z.object({
+    index: z.number(),
+    type: cardTypeSchema,
+    word: z.string(),
+    redScore: z.number(),
+    blueScore: z.number(),
+    currentTurn: teamSchema,
+    guessesUsed: z.number(),
+    guessesAllowed: z.number(),
+    turnEnded: z.boolean(),
+    gameOver: z.boolean(),
+    winner: teamSchema.nullable(),
+    endReason: z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens']).nullable(),
+    // allTypes is absent from Lua result when gameOver=false, present when true
+    allTypes: z.array(cardTypeSchema).nullable().optional().default(null),
+    // Duet mode fields
+    timerTokens: z.number().optional(),
+    greenFound: z.number().optional(),
+    greenTotal: z.number().optional(),
+    allDuetTypes: z.array(cardTypeSchema).nullable().optional(),
+    // Match mode fields
+    cardScore: z.number().optional(),
+    matchRound: z.number().optional(),
+    redMatchScore: z.number().optional(),
+    blueMatchScore: z.number().optional(),
+    roundHistory: z.array(z.unknown()).optional(),
+    matchOver: z.boolean().optional(),
+    matchWinner: teamSchema.nullable().optional(),
+    cardScores: z.array(z.number().nullable()).optional(),
+}).passthrough();
+
+export const endTurnResultSchema = z.object({
+    currentTurn: teamSchema,
+    previousTurn: teamSchema,
+}).passthrough();
 
 /**
  * Safely parse game data from Redis
@@ -127,7 +174,8 @@ export async function executeLuaScript<T>(
     gameKey: string,
     args: string[],
     errorMap: Record<string, Error | { code: string; message: string }>,
-    operationName: string
+    operationName: string,
+    resultSchema?: z.ZodSchema<T>
 ): Promise<T> {
     const redis: RedisClient = getRedis();
 
@@ -153,6 +201,18 @@ export async function executeLuaScript<T>(
         const err = errorMap[result.error];
         if (err) throw err;
         throw new ServerError(result.error);
+    }
+
+    // Validate against operation-specific schema when provided
+    if (resultSchema) {
+        const validated = resultSchema.safeParse(result);
+        if (!validated.success) {
+            logger.error(`Lua ${operationName} result failed schema validation`, {
+                errors: validated.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
+            });
+            throw new ServerError(`Lua ${operationName} returned unexpected shape`);
+        }
+        return validated.data;
     }
 
     return result;

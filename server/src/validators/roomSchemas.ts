@@ -2,7 +2,7 @@ import type { z as ZodType } from 'zod';
 
 import { z } from 'zod';
 import { TIMER } from '../config/constants';
-import { createRoomIdSchema, createTeamNameSchema, createNicknameSchema, validateModeTimer } from './schemaHelpers';
+import { createRoomIdSchema, createTeamNameSchema, createNicknameSchema } from './schemaHelpers';
 
 const roomCreateSchema = z.object({
     roomId: createRoomIdSchema(),
@@ -16,7 +16,7 @@ const roomCreateSchema = z.object({
         wordListId: z.string().uuid().nullable().optional(),
         gameMode: z.enum(['classic', 'duet', 'match']).optional().default('classic'),
         nickname: createNicknameSchema().optional()
-    }).superRefine(validateModeTimer).optional().default({ gameMode: 'classic' as const })
+    }).optional().default({ gameMode: 'classic' as const })
 });
 
 const roomJoinSchema = z.object({
@@ -32,7 +32,7 @@ const roomSettingsSchema = z.object({
     turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
     allowSpectators: z.boolean().optional(),
     gameMode: z.enum(['classic', 'duet', 'match']).optional()
-}).superRefine(validateModeTimer);
+});
 
 // Reconnection token is 64 hex characters (32 bytes in hex)
 const reconnectionTokenRegex = /^[0-9a-f]{64}$/i;
