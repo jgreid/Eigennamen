@@ -41,6 +41,14 @@ export interface CachedElements {
     timerValue: HTMLElement | null;
 }
 
+/**
+ * Per-game state synced from the server.
+ *
+ * NOTE: `gameMode` lives on `AppState.gameMode` (root level), NOT here,
+ * because it is a room-level setting that persists across games — it is
+ * set when the room is configured and does not change per-game.
+ * Use the selectors `isDuetMode()` / `isMatchMode()` for mode checks.
+ */
 export interface GameState {
     words: string[];
     types: string[];
@@ -178,7 +186,7 @@ export interface AppState {
     // Accessibility
     colorBlindMode: boolean;
 
-    // Game mode
+    // Game mode — room-level setting, not per-game (see GameState JSDoc for rationale)
     gameMode: string;
 
     // Spectator/room stats (set dynamically by multiplayer sync)

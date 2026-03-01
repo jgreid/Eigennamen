@@ -48,6 +48,7 @@ end
 -- Store previous state
 local previousTurn = game.currentTurn
 local isDuet = game.gameMode == 'duet'
+local isMatch = game.gameMode == 'match'
 
 -- Determine card type (Duet mode uses perspective-based types)
 local cardType
@@ -241,7 +242,7 @@ if isDuet then
 end
 
 -- Include match mode fields
-if game.cardScores then
+if isMatch and game.cardScores then
     result.cardScore = game.cardScores[luaIndex]
     result.redMatchScore = game.redMatchScore or 0
     result.blueMatchScore = game.blueMatchScore or 0
