@@ -21,7 +21,8 @@ export function safeSetStorage(storage, key, value) {
     }
     catch (e) {
         // QuotaExceededError in private browsing or when storage is full
-        if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+        const isDOMException = e instanceof DOMException;
+        if (isDOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
             logger.warn(`Storage quota exceeded for ${key}, continuing without persistence`);
         }
         else {

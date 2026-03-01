@@ -31,6 +31,6 @@ export const logger = {
     },
     setLevel(level) {
         currentLevel = level;
-    }
+    },
 };
 //# sourceMappingURL=logger.js.map

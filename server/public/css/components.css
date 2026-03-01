@@ -483,6 +483,45 @@
     gap: 4px;
 }
 
+/* ========== SECONDARY CONTROLS (compact icon+label strip) ========== */
+.secondary-controls {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-secondary-action {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+
+.btn-secondary-action:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.btn-secondary-action .btn-icon {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    line-height: 1;
+}
+
+.btn-secondary-action .btn-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* ========== BUTTONS ========== */
 button {
     padding: 6px 10px;
@@ -556,7 +595,14 @@ button:focus-visible,
     background: rgba(108, 117, 125, 0.15);
     color: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(108, 117, 125, 0.3);
-    flex: 1;
+    flex: 0 0 auto;
+    width: 34px;
+    padding: 6px;
+    font-size: 0.85rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-spectate:hover {
@@ -617,8 +663,7 @@ button:focus-visible,
 
 /* Checkmark for active role buttons */
 .btn-spymaster.active::before,
-.btn-clicker.active::before,
-.btn-spectate.active::before {
+.btn-clicker.active::before {
     content: '✓ ';
     font-weight: bold;
 }

@@ -35,7 +35,7 @@ export function showToast(message, type = 'error', duration = 4000) {
         error: '&#10060;',
         success: '&#10004;',
         warning: '&#9888;',
-        info: '&#8505;'
+        info: '&#8505;',
     };
     toast.innerHTML = `
         <span class="toast-icon">${icons[safeType]}</span>
@@ -49,7 +49,11 @@ export function showToast(message, type = 'error', duration = 4000) {
         closeBtn.addEventListener('click', () => dismissToast(toast));
     }
     // Auto-dismiss after duration (store ID for cleanup in dismissToast)
-    const timers = { autoDismiss: setTimeout(() => { dismissToast(toast); }, duration) };
+    const timers = {
+        autoDismiss: setTimeout(() => {
+            dismissToast(toast);
+        }, duration),
+    };
     toastTimers.set(toast, timers);
     // Announce to screen readers with message type for context
     const typeLabel = safeType === 'error' ? 'Error: ' : safeType === 'warning' ? 'Warning: ' : '';
@@ -120,7 +124,7 @@ export function openModal(modalId) {
         }
     }
     // Prevent duplicate entries for the same modal
-    const existingIndex = modalStack.findIndex(entry => entry.modal === modal);
+    const existingIndex = modalStack.findIndex((entry) => entry.modal === modal);
     if (existingIndex !== -1) {
         modalStack.splice(existingIndex, 1);
     }
@@ -128,7 +132,7 @@ export function openModal(modalId) {
     // This preserves focus context when multiple modals are opened
     modalStack.push({
         modal: modal,
-        previousFocus: document.activeElement
+        previousFocus: document.activeElement,
     });
     state.activeModal = modal;
     modal.classList.add('active');
@@ -151,7 +155,7 @@ export function closeModal(modalId) {
     modal.classList.remove('active');
     // Pop modal from stack and restore previous focus
     // Find and remove this modal from the stack (it might not be at the top if closed out of order)
-    const stackIndex = modalStack.findIndex(entry => entry.modal === modal);
+    const stackIndex = modalStack.findIndex((entry) => entry.modal === modal);
     let previousFocus = null;
     if (stackIndex !== -1) {
         const entry = modalStack.splice(stackIndex, 1)[0];

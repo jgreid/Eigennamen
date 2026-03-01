@@ -59,7 +59,9 @@ export function registerPlayerHandlers() {
                 }
                 if (data.changes.team !== undefined) {
                     const teamName = data.changes.team
-                        ? (data.changes.team === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue'))
+                        ? data.changes.team === 'red'
+                            ? state.teamNames?.red || 'Red'
+                            : state.teamNames?.blue || 'Blue'
                         : 'spectators';
                     announceToScreenReader(`${name} joined ${teamName}.`);
                 }
@@ -81,9 +83,10 @@ export function registerPlayerHandlers() {
                     // During a role change, skip syncLocalPlayerState for unrelated updates
                     // to avoid overwriting optimistic UI state (race condition fix).
                     const rc = state.roleChange;
-                    const isConfirmingUpdate = rc.phase !== 'idle' && ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
-                        (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
-                        (rc.phase === 'team_then_role' && data.changes.team !== undefined));
+                    const isConfirmingUpdate = rc.phase !== 'idle' &&
+                        ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
+                            (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
+                            (rc.phase === 'team_then_role' && data.changes.team !== undefined));
                     if (rc.phase === 'idle' || isConfirmingUpdate) {
                         syncLocalPlayerState(updatedPlayer);
                     }
@@ -105,7 +108,7 @@ export function registerPlayerHandlers() {
                                 updateRoleBanner();
                                 updateControls();
                                 renderBoard();
-                            }
+                            },
                         };
                         EigennamenClient.setRole(roleToSet);
                         // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) in roles.ts

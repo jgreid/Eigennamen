@@ -163,18 +163,24 @@ describe('multiplayerUI module', () => {
             expect(document.getElementById('mp-indicator')!.classList.contains('active')).toBe(false);
         });
 
-        test('shows multiplayer extra buttons row when in room', () => {
+        test('shows multiplayer-only buttons when in room', () => {
             setupIndicatorDOM();
             updateMpIndicator({ code: 'ROOM' }, [createPlayer('s1', 'A', true)]);
 
-            expect(document.getElementById('mp-extra-buttons-row')!.style.display).toBe('flex');
+            const mpBtns = document.querySelectorAll<HTMLElement>('.mp-only-btn');
+            mpBtns.forEach((btn) => {
+                expect(btn.style.display).toBe('');
+            });
         });
 
-        test('hides multiplayer extra buttons row when not in room', () => {
+        test('hides multiplayer-only buttons when not in room', () => {
             setupIndicatorDOM();
             updateMpIndicator(null, []);
 
-            expect(document.getElementById('mp-extra-buttons-row')!.style.display).toBe('none');
+            const mpBtns = document.querySelectorAll<HTMLElement>('.mp-only-btn');
+            mpBtns.forEach((btn) => {
+                expect(btn.style.display).toBe('none');
+            });
         });
     });
 
@@ -391,7 +397,7 @@ describe('multiplayerUI module', () => {
 
             updateForfeitButton();
 
-            expect(document.getElementById('btn-forfeit')!.style.display).toBe('inline-block');
+            expect(document.getElementById('btn-forfeit')!.style.display).toBe('');
         });
 
         test('hides button when game is over', () => {
@@ -517,7 +523,8 @@ function setupIndicatorDOM(): void {
         <span id="mp-player-count"></span>
         <div id="mp-player-list"></div>
         <ul id="mp-players-ul"></ul>
-        <div id="mp-extra-buttons-row" style="display: none"></div>
+        <button class="mp-only-btn" id="btn-history" style="display: none"></button>
+        <button class="mp-only-btn" id="btn-forfeit" style="display: none"></button>
     `;
 }
 

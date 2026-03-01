@@ -6,6 +6,7 @@ import { renderBoard } from './board.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { isClientConnected } from './clientAccessor.js';
+import { getErrorMessage } from './handlers/errorMessages.js';
 // ---- Role-change state machine helpers ----
 /** Absolute failsafe: if *any* role-change operation is stuck for this
  *  long (regardless of operation ID), force-clear it so the UI unblocks.
@@ -20,6 +21,7 @@ function startAbsoluteTimeout() {
             logger.warn('Role change absolute failsafe fired — forcing idle');
             clearRoleChange();
             updateControls();
+            showToast(t('roles.changeTimeout'), 'warning');
         }
     }, ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS);
 }
@@ -227,13 +229,14 @@ export function setTeam(team) {
                 state.spymasterTeam = prevSpymaster;
                 state.clickerTeam = prevClicker;
                 refreshRoleUI();
-            }
+            },
         };
         refreshRoleUI();
         EigennamenClient.setTeam(team, (ack) => {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 logger.warn('setTeam: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
+                showToast(getErrorMessage(ack.error), 'error');
             }
         });
         // The absolute timeout (ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS) handles lost-ack recovery.
@@ -243,7 +246,7 @@ export function setTeam(team) {
     // Standalone mode: update local state directly
     // When changing teams, clear any team-specific roles
     const hadRole = state.spymasterTeam || state.clickerTeam;
-    const oldRole = state.spymasterTeam ? t('roles.spymaster') : (state.clickerTeam ? t('roles.clicker') : null);
+    const oldRole = state.spymasterTeam ? t('roles.spymaster') : state.clickerTeam ? t('roles.clicker') : null;
     if (state.playerTeam !== team) {
         if (state.spymasterTeam)
             state.spymasterTeam = null;
@@ -255,7 +258,8 @@ export function setTeam(team) {
     // Announce role change to screen reader if role was cleared
     if (hadRole && oldRole) {
         // Use nullish coalescing for safe team name access
-        const teamName = (team && state.teamNames[team]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : t('roles.spectator'));
+        const teamName = (team && state.teamNames[team]) ||
+            (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : t('roles.spectator'));
         announceToScreenReader(t('game.roleCleared', { role: oldRole, team: teamName }));
     }
 }
@@ -311,6 +315,7 @@ function setRoleForTeam(team, roleName, getOwnState, setOwnState, clearOther) {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 logger.warn(`set${roleName}: server ack error, reverting optimistic update`);
                 revertAndClearRoleChange();
+                showToast(getErrorMessage(ack.error), 'error');
             }
         };
         const prevOwn = roleName === 'spymaster' ? prevSpymaster : prevClicker;
@@ -321,7 +326,13 @@ function setRoleForTeam(team, roleName, getOwnState, setOwnState, clearOther) {
         }
         else if (prevTeam !== team) {
             // Need team change first, then role
-            state.roleChange = { phase: 'team_then_role', target: roleName, operationId, revertFn: revertOptimistic, pendingRole: roleName };
+            state.roleChange = {
+                phase: 'team_then_role',
+                target: roleName,
+                operationId,
+                revertFn: revertOptimistic,
+                pendingRole: roleName,
+            };
             EigennamenClient.setTeam(team, ackHandler);
         }
         else {
@@ -347,10 +358,18 @@ function setRoleForTeam(team, roleName, getOwnState, setOwnState, clearOther) {
     refreshRoleUI();
 }
 export function setSpymaster(team) {
-    setRoleForTeam(team, 'spymaster', () => state.spymasterTeam, (v) => { state.spymasterTeam = v; }, () => { state.clickerTeam = null; });
+    setRoleForTeam(team, 'spymaster', () => state.spymasterTeam, (v) => {
+        state.spymasterTeam = v;
+    }, () => {
+        state.clickerTeam = null;
+    });
 }
 export function setClicker(team) {
-    setRoleForTeam(team, 'clicker', () => state.clickerTeam, (v) => { state.clickerTeam = v; }, () => { state.spymasterTeam = null; });
+    setRoleForTeam(team, 'clicker', () => state.clickerTeam, (v) => {
+        state.clickerTeam = v;
+    }, () => {
+        state.spymasterTeam = null;
+    });
 }
 // Set spymaster for current team (used by unified role button)
 export function setSpymasterCurrent() {

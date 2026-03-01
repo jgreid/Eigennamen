@@ -5,8 +5,8 @@ import { updateRoleBanner, updateControls } from './roles.js';
 import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
-import { updateMpIndicator, updateRoomSettingsNavVisibility, updateForfeitButton, copyRoomId } from './multiplayerUI.js';
-import { syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState, getRoomCodeFromURL, updateURLWithRoomCode } from './multiplayerSync.js';
+import { updateMpIndicator, updateRoomSettingsNavVisibility, updateForfeitButton, copyRoomId, } from './multiplayerUI.js';
+import { syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState, getRoomCodeFromURL, updateURLWithRoomCode, } from './multiplayerSync.js';
 import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
 import { updateScoreboard, updateTurnIndicator } from './game.js';
@@ -14,8 +14,8 @@ import { setupMultiplayerListeners } from './multiplayerListeners.js';
 import { isClientConnected } from './clientAccessor.js';
 import { startRevealSweep } from './game/reveal.js';
 // Re-export sub-module functions so app.ts imports continue to work
-export { initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, updateForfeitButton } from './multiplayerUI.js';
-export { leaveMultiplayerMode, syncGameStateFromServer, syncLocalPlayerState, cleanupMultiplayerListeners, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL } from './multiplayerSync.js';
+export { initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, updateForfeitButton, } from './multiplayerUI.js';
+export { leaveMultiplayerMode, syncGameStateFromServer, syncLocalPlayerState, cleanupMultiplayerListeners, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL, } from './multiplayerSync.js';
 export { setupMultiplayerListeners } from './multiplayerListeners.js';
 // Allows cancelling in-flight operations when user navigates away
 let joinAbortController = null;
@@ -108,7 +108,7 @@ export function setFieldError(message, fieldId) {
     }
 }
 export function clearFormErrors() {
-    ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach(id => {
+    ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach((id) => {
         setFieldError('', id);
     });
 }
@@ -258,7 +258,7 @@ async function handleCreateGame() {
         const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
         const result = await EigennamenClient.createRoom({
             roomId: normalizedRoomId,
-            nickname: nickname
+            nickname: nickname,
         });
         if (signal.aborted)
             return;
@@ -366,7 +366,7 @@ export function initMultiplayerModal() {
     if (actionBtn)
         actionBtn.addEventListener('click', handleMpAction);
     // Enter key submits
-    ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach(id => {
+    ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach((id) => {
         const input = document.getElementById(id);
         if (input) {
             input.addEventListener('keypress', (e) => {

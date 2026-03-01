@@ -6,25 +6,47 @@ import { handleTimerStopped } from './timer.js';
 import { setTabNotification } from './notifications.js';
 import { stopRevealSweep } from './game/reveal.js';
 import { logger } from './logger.js';
-import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, hideReconnectionOverlay, updateDuetUI } from './multiplayerUI.js';
+import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, hideReconnectionOverlay, updateDuetUI, } from './multiplayerUI.js';
 import { updateChatForRole } from './chat.js';
-import { setPlayerRole, clearPlayerRole, resetGameState, validateTurn, validateWinner, validateGameMode, validateArrayLength } from './stateMutations.js';
+import { setPlayerRole, clearPlayerRole, resetGameState, validateTurn, validateWinner, validateGameMode, validateArrayLength, } from './stateMutations.js';
 import { batch } from './store/batch.js';
 import { isPlayerTurn } from './store/selectors.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
 import { removeKeyboardShortcuts } from './accessibility.js';
 // List of multiplayer event names for cleanup
 export const multiplayerEventNames = [
-    'gameStarted', 'cardRevealed', 'turnEnded', 'gameOver',
-    'game:roundEnded', 'game:matchOver',
-    'playerJoined', 'playerLeft', 'playerDisconnected', 'playerReconnected',
-    'playerUpdated', 'spymasterView',
-    'timerStatus', 'timerStarted', 'timerStopped', 'timerExpired', 'roomResynced',
-    'roomReconnected', 'disconnected', 'rejoining', 'rejoined', 'rejoinFailed', 'error',
-    'kicked', 'playerKicked', 'settingsUpdated',
-    'hostChanged', 'roomWarning',
-    'historyResult', 'replayData',
-    'statsUpdated', 'spectatorChatMessage'
+    'gameStarted',
+    'cardRevealed',
+    'turnEnded',
+    'gameOver',
+    'game:roundEnded',
+    'game:matchOver',
+    'playerJoined',
+    'playerLeft',
+    'playerDisconnected',
+    'playerReconnected',
+    'playerUpdated',
+    'spymasterView',
+    'timerStatus',
+    'timerStarted',
+    'timerStopped',
+    'timerExpired',
+    'roomResynced',
+    'roomReconnected',
+    'disconnected',
+    'rejoining',
+    'rejoined',
+    'rejoinFailed',
+    'error',
+    'kicked',
+    'playerKicked',
+    'settingsUpdated',
+    'hostChanged',
+    'roomWarning',
+    'historyResult',
+    'replayData',
+    'statsUpdated',
+    'spectatorChatMessage',
 ];
 // Track DOM listeners for cleanup to prevent memory leaks
 export const domListenerCleanup = [];
@@ -46,7 +68,7 @@ export function cleanupMultiplayerListeners() {
     // Remove all multiplayer event listeners from EigennamenClient
     const client = getClient();
     if (client) {
-        multiplayerEventNames.forEach(eventName => {
+        multiplayerEventNames.forEach((eventName) => {
             client.off(eventName);
         });
     }
@@ -82,12 +104,12 @@ export function resetMultiplayerState() {
         state.pendingRevealRAF = null;
     }
     // Clear pending reveal timeouts to prevent memory leaks
-    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
     state.isRevealingCard = false;
     state.multiplayerPlayers = [];
-    document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+    document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 }
 export function leaveMultiplayerMode() {
     // Clean up listeners
@@ -158,7 +180,7 @@ export function syncGameStateFromServer(serverGame) {
                 state.boardInitialized = false;
                 // Clear stale reveal tracking from previous game to prevent
                 // blocking card clicks on indices that were pending in the old game
-                state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+                state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
                 state.revealTimeouts.clear();
                 state.revealingCards.clear();
                 state.isRevealingCard = false;
@@ -181,16 +203,24 @@ export function syncGameStateFromServer(serverGame) {
                 state.gameState.revealed = revealed;
             }
             // Use server-provided scores if available, with range validation
-            if (typeof serverGame.redScore === 'number' && serverGame.redScore >= 0 && serverGame.redScore <= MAX_BOARD_SIZE) {
+            if (typeof serverGame.redScore === 'number' &&
+                serverGame.redScore >= 0 &&
+                serverGame.redScore <= MAX_BOARD_SIZE) {
                 state.gameState.redScore = serverGame.redScore;
             }
-            if (typeof serverGame.blueScore === 'number' && serverGame.blueScore >= 0 && serverGame.blueScore <= MAX_BOARD_SIZE) {
+            if (typeof serverGame.blueScore === 'number' &&
+                serverGame.blueScore >= 0 &&
+                serverGame.blueScore <= MAX_BOARD_SIZE) {
                 state.gameState.blueScore = serverGame.blueScore;
             }
-            if (typeof serverGame.redTotal === 'number' && serverGame.redTotal >= 0 && serverGame.redTotal <= MAX_BOARD_SIZE) {
+            if (typeof serverGame.redTotal === 'number' &&
+                serverGame.redTotal >= 0 &&
+                serverGame.redTotal <= MAX_BOARD_SIZE) {
                 state.gameState.redTotal = serverGame.redTotal;
             }
-            if (typeof serverGame.blueTotal === 'number' && serverGame.blueTotal >= 0 && serverGame.blueTotal <= MAX_BOARD_SIZE) {
+            if (typeof serverGame.blueTotal === 'number' &&
+                serverGame.blueTotal >= 0 &&
+                serverGame.blueTotal <= MAX_BOARD_SIZE) {
                 state.gameState.blueTotal = serverGame.blueTotal;
             }
         }
@@ -320,14 +350,17 @@ export function detectOfflineChanges(data) {
     const serverGame = data.game;
     const localGame = state.gameState;
     // Game started while offline
-    if (serverGame && serverGame.words && serverGame.words.length > 0 && (!localGame.words || localGame.words.length === 0)) {
+    if (serverGame &&
+        serverGame.words &&
+        serverGame.words.length > 0 &&
+        (!localGame.words || localGame.words.length === 0)) {
         changes.push('A game was started');
     }
     // Game ended while offline
     if (serverGame && serverGame.gameOver && !localGame.gameOver) {
         const winner = serverGame.winner;
         if (winner) {
-            const teamName = winner === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue');
+            const teamName = winner === 'red' ? state.teamNames?.red || 'Red' : state.teamNames?.blue || 'Blue';
             changes.push(`Game over \u2014 ${teamName} won`);
         }
         else {
@@ -335,9 +368,12 @@ export function detectOfflineChanges(data) {
         }
     }
     // Turn changed while offline
-    if (serverGame && serverGame.currentTurn && localGame.currentTurn &&
-        serverGame.currentTurn !== localGame.currentTurn && !serverGame.gameOver) {
-        const teamName = serverGame.currentTurn === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue');
+    if (serverGame &&
+        serverGame.currentTurn &&
+        localGame.currentTurn &&
+        serverGame.currentTurn !== localGame.currentTurn &&
+        !serverGame.gameOver) {
+        const teamName = serverGame.currentTurn === 'red' ? state.teamNames?.red || 'Red' : state.teamNames?.blue || 'Blue';
         changes.push(`Now ${teamName}'s turn`);
     }
     // Player count changed

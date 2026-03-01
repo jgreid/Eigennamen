@@ -42,7 +42,7 @@ export function escapeHTML(str) {
 // Must stay in sync with server-side implementation in gameService.js
 export function seededRandom(seed) {
     // Mulberry32 PRNG - better distribution than sin-based approach
-    let t = (seed + 0x6D2B79F5) | 0;
+    let t = (seed + 0x6d2b79f5) | 0;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -54,7 +54,7 @@ export function hashString(str) {
     for (const char of str) {
         const codePoint = char.codePointAt(0);
         if (codePoint !== undefined) {
-            hash = ((hash << 5) - hash) + codePoint;
+            hash = (hash << 5) - hash + codePoint;
             hash = hash & hash;
         }
     }
@@ -114,7 +114,7 @@ export function decodeWordsFromURL(encoded) {
             }
         }
         parts.push(current);
-        return parts.map(unescapeWordDelimiter).filter(w => w.length > 0);
+        return parts.map(unescapeWordDelimiter).filter((w) => w.length > 0);
     }
     catch {
         return null;
@@ -211,7 +211,7 @@ export function fitCardText(board) {
                 card: card,
                 fontSize: parseFloat(getComputedStyle(card).fontSize),
                 scrollWidth: card.scrollWidth,
-                clientWidth: card.clientWidth
+                clientWidth: card.clientWidth,
             });
         }
         // Phase 2: batch-write only the cards that need shrinking

@@ -19,12 +19,12 @@ function applyColorBlindMode(enabled) {
     state.colorBlindMode = enabled;
 }
 const SHORTCUTS = {
-    'n': { action: 'confirm-new-game', descKey: 'accessibility.newGame' },
-    'e': { action: 'confirm-end-turn', descKey: 'accessibility.endTurn' },
-    's': { action: 'open-settings', descKey: 'accessibility.settings' },
-    'm': { action: 'open-multiplayer', descKey: 'accessibility.playOnline' },
-    'h': { action: 'open-history', descKey: 'accessibility.gameHistory' },
-    '?': { action: 'show-shortcuts', descKey: 'accessibility.showShortcuts' }
+    n: { action: 'confirm-new-game', descKey: 'accessibility.newGame' },
+    e: { action: 'confirm-end-turn', descKey: 'accessibility.endTurn' },
+    s: { action: 'open-settings', descKey: 'accessibility.settings' },
+    m: { action: 'open-multiplayer', descKey: 'accessibility.playOnline' },
+    h: { action: 'open-history', descKey: 'accessibility.gameHistory' },
+    '?': { action: 'show-shortcuts', descKey: 'accessibility.showShortcuts' },
 };
 const shortcutsEnabled = true;
 let keyboardShortcutsAttached = false;
@@ -68,7 +68,8 @@ function handleKeyboardShortcut(e) {
         return;
     }
     // Find the button with the matching data-action and click it
-    const button = document.querySelector(`[data-action="${shortcut.action}"]`);
+    const safeAction = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(shortcut.action) : shortcut.action;
+    const button = document.querySelector(`[data-action="${safeAction}"]`);
     if (button && !button.disabled && button.offsetParent !== null) {
         e.preventDefault();
         button.click();
@@ -116,7 +117,7 @@ function toggleShortcutOverlay() {
     const staticShortcuts = [
         ['ESC', t('accessibility.closeOverlay')],
         ['↑↓←→', t('accessibility.navigateBoard')],
-        ['ENTER', t('accessibility.revealCard')]
+        ['ENTER', t('accessibility.revealCard')],
     ];
     for (const [keyText, desc] of staticShortcuts) {
         const row = document.createElement('div');

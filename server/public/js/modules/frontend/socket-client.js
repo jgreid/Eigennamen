@@ -8,50 +8,18 @@
  * NOT an ES module. Exposes EigennamenClient on the global window object.
  *
  * Sub-modules (bundled by esbuild into a single IIFE):
- *   socket-client-types.ts    — Type definitions
- *   socket-client-storage.ts  — Safe browser storage utilities
- *   socket-client-events.ts   — Server-to-client event listener registration
+ *   socket-client-types.ts       — Type definitions
+ *   socket-client-storage.ts     — Safe browser storage utilities
+ *   socket-client-events.ts      — Server-to-client event listener registration
+ *   socket-client-connection.ts  — Connection lifecycle, reconnection, offline queue
+ *   socket-client-rooms.ts       — Promise-based room actions (create, join, resync)
  */
 import { logger } from './logger.js';
-import { safeSetStorage, safeGetStorage, safeRemoveStorage } from './socket-client-storage.js';
-import { registerAllEventListeners } from './socket-client-events.js';
+import { safeSetStorage, safeRemoveStorage } from './socket-client-storage.js';
+import { loadSocketIO, isSocketIOAvailable, doConnect, cleanupSocketListeners, queueOrEmit, } from './socket-client-connection.js';
+import { createRoom, joinRoom, requestResync } from './socket-client-rooms.js';
 (function (global) {
     'use strict';
-    /**
-     * Check whether the Socket.io global `io` is available and valid.
-     * io.Manager is a stable export across all Socket.io v4.x releases.
-     */
-    function isSocketIOReady() {
-        return typeof io !== 'undefined' && typeof io === 'function' && typeof io.Manager === 'function';
-    }
-    /**
-     * Dynamically load the Socket.io client library if the static <script>
-     * tag failed (network hiccup, stale SRI hash after upgrade, ad-blocker,
-     * cached HTML referencing an old bundle, etc.).
-     * Returns a Promise that resolves once `io` is available.
-     */
-    function loadSocketIO() {
-        return new Promise((resolve, reject) => {
-            if (isSocketIOReady()) {
-                resolve();
-                return;
-            }
-            const script = document.createElement('script');
-            script.src = '/js/socket.io.min.js';
-            script.onload = function () {
-                if (isSocketIOReady()) {
-                    resolve();
-                }
-                else {
-                    reject(new Error('Socket.io script loaded but io global is missing'));
-                }
-            };
-            script.onerror = function () {
-                reject(new Error('Failed to load Socket.io client library. Check your network connection and refresh the page.'));
-            };
-            document.head.appendChild(script);
-        });
-    }
     const EigennamenClient = {
         socket: null,
         sessionId: null,
@@ -60,272 +28,27 @@ import { registerAllEventListeners } from './socket-client-events.js';
         connected: false,
         reconnectAttempts: 0,
         maxReconnectAttempts: 5,
-        autoRejoin: true, // Automatically rejoin room on reconnection
-        storedNickname: null, // Remember nickname for reconnection
+        autoRejoin: true,
+        storedNickname: null,
         listeners: {},
-        joinInProgress: false, // Prevent double-join race condition
-        createInProgress: false, // Prevent double-create race condition
-        _socketListeners: [], // Track socket.io listeners for cleanup
-        _offlineQueue: [], // Queue for events sent while disconnected
-        _offlineQueueMaxSize: 20, // Max queued events to prevent memory growth
-        _nextRequestId: 0, // Incrementing counter for request correlation
-        /**
-         * Connect to the server
-         * @param serverUrl - Server URL (optional, defaults to current host)
-         * @param options - Connection options
-         */
+        joinInProgress: false,
+        createInProgress: false,
+        _socketListeners: [],
+        _offlineQueue: [],
+        _offlineQueueMaxSize: 20,
+        _nextRequestId: 0,
+        // =====================
+        // Connection Lifecycle
+        // =====================
         connect(serverUrl = null, options = {}) {
-            // Ensure Socket.io is loaded before attempting connection.
-            // If the static <script> tag failed, dynamically load it.
             const self = this;
             return loadSocketIO().then(function () {
-                return self._doConnect(serverUrl, options);
+                return doConnect(self, serverUrl, options);
             });
         },
-        /**
-         * Internal connect implementation (called after io is confirmed available)
-         */
-        _doConnect(serverUrl = null, options = {}) {
-            return new Promise((resolve, reject) => {
-                // Use safe storage methods with error handling
-                this.sessionId = this._safeGetStorage(sessionStorage, 'eigennamen-session-id');
-                this.storedNickname = this._safeGetStorage(localStorage, 'eigennamen-nickname');
-                this.autoRejoin = options.autoRejoin !== false;
-                const url = serverUrl || window.location.origin;
-                // Improved transport configuration
-                // - Production (HTTPS) uses websocket only for better Fly.io compatibility
-                // - Development (HTTP) uses polling + websocket for easier debugging
-                // - Use the target URL's protocol, not the page's protocol
-                const isSecure = url.startsWith('https://');
-                const transports = isSecure ? ['websocket'] : ['polling', 'websocket'];
-                const socket = io(url, {
-                    auth: {
-                        sessionId: this.sessionId
-                    },
-                    transports: transports,
-                    reconnection: true,
-                    reconnectionAttempts: this.maxReconnectAttempts,
-                    reconnectionDelay: 1000,
-                    reconnectionDelayMax: 5000,
-                    ...options.socketOptions
-                });
-                this.socket = socket;
-                socket.on('connect', () => {
-                    this.connected = true;
-                    const wasReconnecting = this.reconnectAttempts > 0;
-                    this.reconnectAttempts = 0;
-                    logger.debug('Connected to server:', socket.id);
-                    this._emit('connected', { wasReconnecting });
-                    // Properly handle async _attemptRejoin with error catching
-                    // Surface failure to user instead of silently swallowing (C3 from audit)
-                    if (wasReconnecting && this.autoRejoin) {
-                        this._attemptRejoin().catch((err) => {
-                            logger.error('Auto-rejoin failed:', err);
-                            // Ensure progress flags are cleared so manual rejoin isn't blocked
-                            this.joinInProgress = false;
-                            this.createInProgress = false;
-                        });
-                    }
-                    resolve(socket);
-                });
-                socket.on('disconnect', (...args) => {
-                    const reason = args[0] || 'unknown';
-                    this.connected = false;
-                    // Clear operation flags so they don't block new operations after reconnect
-                    this.createInProgress = false;
-                    this.joinInProgress = false;
-                    logger.debug('Disconnected:', reason);
-                    this._emit('disconnected', { reason, wasConnected: true });
-                });
-                socket.on('connect_error', (...args) => {
-                    const error = args[0];
-                    logger.error('Connection error:', error);
-                    this.reconnectAttempts++;
-                    // Clear operation flags so they don't block new operations
-                    this.createInProgress = false;
-                    this.joinInProgress = false;
-                    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                        reject(error);
-                    }
-                    this._emit('error', { type: 'connection', error, attempt: this.reconnectAttempts });
-                });
-                // Set up all event listeners
-                this._setupEventListeners();
-            });
-        },
-        /**
-         * Attempt to rejoin the previous room
-         * Use safe storage methods
-         */
-        async _attemptRejoin() {
-            const storedRoomCode = this.getStoredRoomCode();
-            const nickname = this.storedNickname || this.player?.nickname;
-            if (!storedRoomCode || !nickname) {
-                logger.debug('Cannot auto-rejoin: missing room code or nickname');
-                return;
-            }
-            logger.debug(`Attempting to rejoin room ${storedRoomCode} as ${nickname}`);
-            this._emit('rejoining', { roomCode: storedRoomCode, nickname });
-            try {
-                const result = await this.joinRoom(storedRoomCode, nickname);
-                logger.debug('Successfully rejoined room:', storedRoomCode);
-                this._emit('rejoined', result);
-                // Replay any queued offline events
-                this._flushOfflineQueue();
-                // Request a full state resync to ensure local state is up-to-date
-                // after potentially missing events while disconnected
-                try {
-                    await this.requestResync();
-                }
-                catch {
-                    // Non-critical: rejoin already provides initial state
-                    logger.debug('Post-rejoin resync failed (non-critical)');
-                }
-            }
-            catch (error) {
-                logger.error('Failed to rejoin room:', error);
-                // Clear stored room code since it's no longer valid
-                this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
-                this._emit('rejoinFailed', { error: error });
-            }
-        },
-        /**
-         * Register a socket listener with tracking for cleanup
-         */
-        _registerSocketListener(event, handler) {
-            this.socket?.on(event, handler);
-            this._socketListeners.push({ event, handler });
-        },
-        /**
-         * Set up Socket.io event listeners.
-         * Delegates to registerAllEventListeners() in socket-client-events.ts.
-         */
-        _setupEventListeners() {
-            // Clear any previous listeners first
-            this._cleanupSocketListeners();
-            // The kicked handler also needs to clear storage, so wrap emit for that case
-            const self = this;
-            const wrappedEmit = (event, data) => {
-                if (event === 'kicked') {
-                    safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
-                }
-                self._emit(event, data);
-            };
-            registerAllEventListeners(this._registerSocketListener.bind(this), wrappedEmit, {
-                get roomCode() { return self.roomCode; },
-                set roomCode(v) { self.roomCode = v; },
-                get player() { return self.player; },
-                set player(v) { self.player = v; },
-                get sessionId() { return self.sessionId; },
-                set sessionId(v) { self.sessionId = v; },
-                saveSession: () => self._saveSession()
-            });
-        },
-        /** Delegate to extracted storage utility */
-        _safeSetStorage(storage, key, value) {
-            return safeSetStorage(storage, key, value);
-        },
-        /** Delegate to extracted storage utility */
-        _safeGetStorage(storage, key) {
-            return safeGetStorage(storage, key);
-        },
-        /** Delegate to extracted storage utility */
-        _safeRemoveStorage(storage, key) {
-            safeRemoveStorage(storage, key);
-        },
-        /**
-         * Save session to storage
-         * Session ID uses sessionStorage (per-tab) with error handling
-         * Room code and nickname use localStorage for user convenience across tabs
-         */
-        _saveSession() {
-            if (this.sessionId) {
-                safeSetStorage(sessionStorage, 'eigennamen-session-id', this.sessionId);
-            }
-            if (this.roomCode) {
-                // Use sessionStorage for room code to prevent multi-tab conflicts
-                safeSetStorage(sessionStorage, 'eigennamen-room-code', this.roomCode);
-            }
-            if (this.player?.nickname) {
-                safeSetStorage(localStorage, 'eigennamen-nickname', this.player.nickname);
-                this.storedNickname = this.player.nickname;
-            }
-        },
-        /**
-         * Cleanup socket listeners to prevent memory leaks
-         * Call this before reinitializing or disconnecting
-         */
-        _cleanupSocketListeners() {
-            if (this.socket && this._socketListeners.length > 0) {
-                this._socketListeners.forEach(({ event, handler }) => {
-                    this.socket?.off(event, handler);
-                });
-            }
-            this._socketListeners = [];
-        },
-        /**
-         * Queue a socket event to send when reconnected, or emit immediately if connected.
-         * Only queues safe-to-replay events (chat messages, non-state-changing actions).
-         * Tags items with current room code to discard stale events after room change.
-         * @param event - Socket event name
-         * @param data - Event data
-         */
-        _queueOrEmit(event, data) {
-            if (this.isConnected()) {
-                this.socket?.emit(event, data);
-            }
-            else {
-                // Queue safe-to-replay events while disconnected.
-                // State-mutating events (team/role changes) are included because
-                // the server validates them against current state on replay.
-                const queueableEvents = [
-                    'chat:message', 'chat:spectator',
-                    'player:setTeam', 'player:setRole', 'player:setNickname',
-                    'game:endTurn'
-                ];
-                if (queueableEvents.includes(event) && this._offlineQueue.length < this._offlineQueueMaxSize) {
-                    this._offlineQueue.push({ event, data, timestamp: Date.now(), roomCode: this.roomCode });
-                }
-            }
-        },
-        /**
-         * Flush queued offline events after reconnection.
-         * Discards events that are too old (>2min) or from a different room (C2 from audit).
-         */
-        _flushOfflineQueue() {
-            if (this._offlineQueue.length === 0)
-                return;
-            const maxAge = 2 * 60 * 1000; // 2 minutes
-            const now = Date.now();
-            const currentRoom = this.roomCode;
-            let replayed = 0;
-            for (const item of this._offlineQueue) {
-                // Discard stale events from a different room
-                if (item.roomCode !== currentRoom)
-                    continue;
-                if (now - item.timestamp >= maxAge)
-                    continue;
-                if (!this.isConnected())
-                    break;
-                this.socket?.emit(item.event, item.data);
-                replayed++;
-            }
-            if (replayed > 0) {
-                logger.debug(`Replayed ${replayed} queued event(s) after reconnection`);
-            }
-            this._offlineQueue = [];
-        },
-        /**
-         * Generate a unique request ID for correlating server responses.
-         * Uses an incrementing counter (sufficient for per-connection correlation).
-         */
-        _generateRequestId() {
-            this._nextRequestId = (this._nextRequestId + 1) % Number.MAX_SAFE_INTEGER;
-            return 'req_' + this._nextRequestId;
-        },
-        /**
-         * Emit event to listeners
-         */
+        // =====================
+        // Event Bus
+        // =====================
         _emit(event, data) {
             const callbacks = (this.listeners[event] || []);
             callbacks.forEach((cb) => {
@@ -337,23 +60,13 @@ import { registerAllEventListeners } from './socket-client-events.js';
                 }
             });
         },
-        /**
-         * Register event listener
-         * @param event - Event name
-         * @param callback - Callback function
-         */
         on(event, callback) {
             if (!this.listeners[event]) {
                 this.listeners[event] = [];
             }
-            (this.listeners[event]).push(callback);
+            this.listeners[event].push(callback);
             return this;
         },
-        /**
-         * Remove event listener
-         * @param event - Event name
-         * @param callback - Callback function (optional, removes all if not provided)
-         */
         off(event, callback) {
             if (!callback) {
                 delete this.listeners[event];
@@ -366,11 +79,6 @@ import { registerAllEventListeners } from './socket-client-events.js';
             }
             return this;
         },
-        /**
-         * Register one-time event listener
-         * @param event - Event name
-         * @param callback - Callback function
-         */
         once(event, callback) {
             const wrapper = (data) => {
                 this.off(event, wrapper);
@@ -381,168 +89,22 @@ import { registerAllEventListeners } from './socket-client-events.js';
         // =====================
         // Room Actions
         // =====================
-        /**
-         * Create a new room
-         * Proper listener cleanup and timeout cancellation
-         * @param options - Room options including roomId and settings
-         */
         createRoom(options = { roomId: '' }) {
-            // Prevent double-create race condition
-            if (this.createInProgress) {
-                return Promise.reject(new Error('Room creation already in progress'));
-            }
-            this.createInProgress = true;
-            return new Promise((resolve, reject) => {
-                const { roomId, nickname, ...settings } = options;
-                if (!roomId) {
-                    this.createInProgress = false;
-                    reject(new Error('Room ID is required'));
-                    return;
-                }
-                const requestId = this._generateRequestId();
-                let timeoutId = null;
-                let settled = false;
-                const cleanup = () => {
-                    this.createInProgress = false;
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                        timeoutId = null;
-                    }
-                    this.off('roomCreated', onCreated);
-                    this.off('error', onError);
-                };
-                const onCreated = (data) => {
-                    if (settled)
-                        return;
-                    settled = true;
-                    cleanup();
-                    resolve(data);
-                };
-                const onError = (error) => {
-                    if (settled)
-                        return;
-                    // Connection errors always match (not from server handler)
-                    if (error.type === 'connection') {
-                        settled = true;
-                        cleanup();
-                        reject(error);
-                        return;
-                    }
-                    if (error.type === 'room') {
-                        // Only match errors correlated to our request (ignore other operations' errors)
-                        if (error.requestId !== undefined && error.requestId !== requestId)
-                            return;
-                        settled = true;
-                        cleanup();
-                        reject(error);
-                    }
-                };
-                this.on('roomCreated', onCreated);
-                this.on('error', onError);
-                // Send roomId, settings, and requestId to server
-                this.socket?.emit('room:create', {
-                    roomId,
-                    settings: { nickname, ...settings },
-                    requestId
-                });
-                // Timeout matches server SOCKET_HANDLER timeout (30s)
-                timeoutId = setTimeout(() => {
-                    if (settled)
-                        return;
-                    settled = true;
-                    cleanup();
-                    reject(new Error('Create room timeout'));
-                }, 30000);
-            });
+            return createRoom(this, options);
         },
-        /**
-         * Join an existing room
-         * Proper listener cleanup and timeout cancellation
-         * @param roomId - Room ID to join
-         * @param nickname - Player nickname
-         */
         joinRoom(roomId, nickname) {
-            // Prevent double-join race condition
-            if (this.joinInProgress) {
-                return Promise.reject(new Error('Join already in progress'));
-            }
-            this.joinInProgress = true;
-            return new Promise((resolve, reject) => {
-                const requestId = this._generateRequestId();
-                let timeoutId = null;
-                let settled = false;
-                const cleanup = () => {
-                    this.joinInProgress = false;
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                        timeoutId = null;
-                    }
-                    this.off('roomJoined', onJoined);
-                    this.off('error', onError);
-                };
-                const onJoined = (data) => {
-                    if (settled)
-                        return;
-                    settled = true;
-                    cleanup();
-                    resolve(data);
-                };
-                const onError = (error) => {
-                    if (settled)
-                        return;
-                    // Connection errors always match (not from server handler)
-                    if (error.type === 'connection') {
-                        settled = true;
-                        cleanup();
-                        reject(error);
-                        return;
-                    }
-                    if (error.type === 'room') {
-                        // Only match errors correlated to our request (ignore other operations' errors)
-                        if (error.requestId !== undefined && error.requestId !== requestId)
-                            return;
-                        settled = true;
-                        cleanup();
-                        reject(error);
-                    }
-                };
-                this.on('roomJoined', onJoined);
-                this.on('error', onError);
-                // Send roomId, nickname, and requestId to server
-                this.socket?.emit('room:join', { roomId, nickname, requestId });
-                // Client timeout (20s) exceeds server JOIN_ROOM timeout (15s) to
-                // account for post-join processing (stats, token invalidation) and network latency.
-                timeoutId = setTimeout(() => {
-                    if (settled)
-                        return;
-                    settled = true;
-                    cleanup();
-                    reject(new Error('Join room timeout'));
-                }, 20000);
-            });
+            return joinRoom(this, roomId, nickname);
         },
-        /**
-         * Leave current room
-         * Use safe storage methods
-         */
         leaveRoom() {
             this._getSocket()?.emit('room:leave');
             this.roomCode = null;
             this.player = null;
             this._offlineQueue = [];
-            this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
+            safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
         },
-        /**
-         * Update room settings (host only)
-         * @param settings - New settings
-         */
         updateSettings(settings) {
             this._getSocket()?.emit('room:settings', settings);
         },
-        /**
-         * Kick a player from the room (host only)
-         * @param targetSessionId - Session ID of player to kick
-         */
         kickPlayer(targetSessionId) {
             if (!this.player?.isHost) {
                 logger.warn('Only the host can kick players');
@@ -550,175 +112,83 @@ import { registerAllEventListeners } from './socket-client-events.js';
             }
             this._getSocket()?.emit('player:kick', { targetSessionId });
         },
-        /**
-         * Request full state resync from server
-         * Proper listener cleanup and timeout cancellation
-         * Use this if you detect you're out of sync
-         */
         requestResync() {
-            return new Promise((resolve, reject) => {
-                if (!this.roomCode) {
-                    reject(new Error('Not in a room'));
-                    return;
-                }
-                const requestId = this._generateRequestId();
-                let timeoutId = null;
-                let settled = false;
-                const cleanup = () => {
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                        timeoutId = null;
-                    }
-                    this.off('roomResynced', onResynced);
-                    this.off('error', onError);
-                };
-                const onResynced = (data) => {
-                    if (settled)
-                        return;
-                    settled = true;
-                    cleanup();
-                    resolve(data);
-                };
-                const onError = (error) => {
-                    if (settled)
-                        return;
-                    // Connection errors always match (not from server handler)
-                    if (error.type === 'connection') {
-                        settled = true;
-                        cleanup();
-                        reject(error);
-                        return;
-                    }
-                    if (error.type === 'room') {
-                        // Only match errors correlated to our request (ignore other operations' errors)
-                        if (error.requestId !== undefined && error.requestId !== requestId)
-                            return;
-                        settled = true;
-                        cleanup();
-                        reject(error);
-                    }
-                };
-                this.on('roomResynced', onResynced);
-                this.on('error', onError);
-                this._getSocket()?.emit('room:resync', { requestId });
-                timeoutId = setTimeout(() => {
-                    if (settled)
-                        return;
-                    settled = true;
-                    cleanup();
-                    reject(new Error('Resync timeout'));
-                }, 10000);
-            });
+            return requestResync(this);
         },
         // =====================
         // Player Actions
         // =====================
-        /**
-         * Join a team
-         * @param team - 'red', 'blue', or null to leave team
-         * @param callback - Optional acknowledgement callback
-         */
         setTeam(team, callback) {
             if (callback) {
-                // Callbacks can't be queued — emit directly or skip
                 this._getSocket()?.emit('player:setTeam', { team }, callback);
             }
             else {
-                this._queueOrEmit('player:setTeam', { team });
+                queueOrEmit(this, 'player:setTeam', { team });
             }
         },
-        /**
-         * Set player role
-         * @param role - 'spymaster', 'guesser', or 'spectator'
-         * @param callback - Optional acknowledgement callback
-         */
         setRole(role, callback) {
             if (callback) {
                 this._getSocket()?.emit('player:setRole', { role }, callback);
             }
             else {
-                this._queueOrEmit('player:setRole', { role });
+                queueOrEmit(this, 'player:setRole', { role });
             }
         },
-        /**
-         * Change nickname
-         * @param nickname - New nickname
-         */
         setNickname(nickname) {
-            this._queueOrEmit('player:setNickname', { nickname });
+            queueOrEmit(this, 'player:setNickname', { nickname });
         },
         // =====================
         // Game Actions
         // =====================
-        /**
-         * Start a new game (host only)
-         * @param options - Game options
-         */
         startGame(options = {}) {
             this._getSocket()?.emit('game:start', options);
         },
-        /**
-         * Reveal a card (host only)
-         * @param index - Card index (0-24)
-         */
         revealCard(index) {
             this._getSocket()?.emit('game:reveal', { index });
         },
-        /**
-         * End current turn (host only)
-         */
         endTurn() {
-            this._queueOrEmit('game:endTurn', {});
+            queueOrEmit(this, 'game:endTurn', {});
         },
-        /**
-         * Forfeit the game (host only)
-         */
         forfeit() {
             this._getSocket()?.emit('game:forfeit');
         },
-        /**
-         * Request past games history for replay
-         * @param limit - Maximum number of games to return
-         */
         getGameHistory(limit = 10) {
             this._getSocket()?.emit('game:getHistory', { limit });
         },
-        /**
-         * Request replay data for a specific game
-         * @param gameId - Game ID to replay
-         */
         getReplay(gameId) {
             this._getSocket()?.emit('game:getReplay', { gameId });
         },
         // =====================
         // Chat Actions
         // =====================
-        /**
-         * Send a chat message
-         * @param text - Message text
-         * @param teamOnly - Send to team only
-         */
         sendMessage(text, teamOnly = false) {
-            this._queueOrEmit('chat:message', { text, teamOnly });
+            queueOrEmit(this, 'chat:message', { text, teamOnly });
         },
-        /**
-         * Send a spectator-only chat message
-         * @param message - Message text
-         */
         sendSpectatorChat(message) {
             if (!message?.trim())
                 return;
-            this._queueOrEmit('chat:spectator', { message: message.trim() });
+            queueOrEmit(this, 'chat:spectator', { message: message.trim() });
+        },
+        // =====================
+        // Session & Storage
+        // =====================
+        _saveSession() {
+            if (this.sessionId) {
+                safeSetStorage(sessionStorage, 'eigennamen-session-id', this.sessionId);
+            }
+            if (this.roomCode) {
+                safeSetStorage(sessionStorage, 'eigennamen-room-code', this.roomCode);
+            }
+            if (this.player?.nickname) {
+                safeSetStorage(localStorage, 'eigennamen-nickname', this.player.nickname);
+                this.storedNickname = this.player.nickname;
+            }
         },
         // =====================
         // Utility
         // =====================
-        /**
-         * Disconnect from server
-         */
         disconnect() {
-            // Cleanup socket listeners before disconnecting
-            this._cleanupSocketListeners();
+            cleanupSocketListeners(this);
             if (this.socket) {
                 this.socket.disconnect();
                 this.socket = null;
@@ -730,16 +200,9 @@ import { registerAllEventListeners } from './socket-client-events.js';
             this.createInProgress = false;
             this._offlineQueue = [];
         },
-        /**
-         * Check if Socket.io library is available
-         */
         isSocketIOAvailable() {
-            return isSocketIOReady();
+            return isSocketIOAvailable();
         },
-        /**
-         * Get socket or null if not connected, with a warning log.
-         * Use this instead of this.socket! in action methods.
-         */
         _getSocket() {
             if (!this.socket) {
                 logger.warn('Socket action attempted but not connected');
@@ -747,79 +210,52 @@ import { registerAllEventListeners } from './socket-client-events.js';
             }
             return this.socket;
         },
-        /**
-         * Check if connected
-         */
         isConnected() {
             return this.connected && !!this.socket?.connected;
         },
-        /**
-         * Check if in a room
-         */
         isInRoom() {
             return !!this.roomCode;
         },
-        /**
-         * Check if current player is host
-         */
         isHost() {
             return this.player?.isHost === true;
         },
-        /**
-         * Check if current player is spymaster
-         */
         isSpymaster() {
             return this.player?.role === 'spymaster';
         },
-        /**
-         * Get current room code
-         */
         getRoomCode() {
             return this.roomCode;
         },
-        /**
-         * Get current player
-         */
         getPlayer() {
             return this.player;
         },
-        /**
-         * Get stored room code (for reconnection)
-         * Uses safe storage methods
-         * Uses sessionStorage to prevent multi-tab conflicts
-         */
         getStoredRoomCode() {
-            return this._safeGetStorage(sessionStorage, 'eigennamen-room-code');
+            try {
+                return sessionStorage.getItem('eigennamen-room-code');
+            }
+            catch {
+                return null;
+            }
         },
-        /**
-         * Get stored nickname
-         * Uses safe storage methods
-         */
         getStoredNickname() {
-            return this._safeGetStorage(localStorage, 'eigennamen-nickname');
+            try {
+                return localStorage.getItem('eigennamen-nickname');
+            }
+            catch {
+                return null;
+            }
         },
-        /**
-         * Clear all stored session data
-         * Uses safe storage methods
-         * Session ID and room code use sessionStorage (per-tab)
-         * Nickname uses localStorage for user convenience
-         */
         clearSession() {
-            this._safeRemoveStorage(sessionStorage, 'eigennamen-session-id');
-            this._safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
-            this._safeRemoveStorage(localStorage, 'eigennamen-nickname');
+            safeRemoveStorage(sessionStorage, 'eigennamen-session-id');
+            safeRemoveStorage(sessionStorage, 'eigennamen-room-code');
+            safeRemoveStorage(localStorage, 'eigennamen-nickname');
             this.sessionId = null;
             this.storedNickname = null;
             this.joinInProgress = false;
             this.createInProgress = false;
         },
-        /**
-         * Enable or disable auto-rejoin
-         * @param enabled - Whether auto-rejoin is enabled
-         */
         setAutoRejoin(enabled) {
             this.autoRejoin = enabled;
-        }
+        },
     };
     // Export to global scope
     global.EigennamenClient = EigennamenClient;

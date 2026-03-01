@@ -8,8 +8,20 @@ export const NICKNAME_REGEX = /^[\p{L}\p{N}\s\-_]+$/u;
 export const ROOM_CODE_REGEX = /^[\p{L}\p{N}\-_]+$/u;
 export const TEAM_NAME_REGEX = /^[\p{L}\p{N}\s\-]+$/u;
 export const RESERVED_NAMES = [
-    'admin', 'administrator', 'system', 'host', 'server',
-    'mod', 'moderator', 'bot', 'eigennamen', 'game',
-    'official', 'support', 'help', 'null', 'undefined'
+    'admin',
+    'administrator',
+    'system',
+    'host',
+    'server',
+    'mod',
+    'moderator',
+    'bot',
+    'eigennamen',
+    'game',
+    'official',
+    'support',
+    'help',
+    'null',
+    'undefined',
 ];
 //# sourceMappingURL=validation.js.map

@@ -46,9 +46,7 @@ export function hasRole() {
  *   `Boolean(state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver)`
  */
 export function isPlayerTurn() {
-    return Boolean(state.clickerTeam &&
-        state.clickerTeam === state.gameState.currentTurn &&
-        !state.gameState.gameOver);
+    return Boolean(state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver);
 }
 /**
  * Whether the current player's team is on turn (regardless of role).
@@ -94,9 +92,7 @@ export function blueRemaining() {
  *   `state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue`
  */
 export function currentTeamName() {
-    return state.gameState.currentTurn === 'red'
-        ? state.teamNames.red
-        : state.teamNames.blue;
+    return state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
 }
 /**
  * Get the display name for a specific team.

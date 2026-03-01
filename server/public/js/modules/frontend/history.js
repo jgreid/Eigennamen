@@ -9,7 +9,7 @@ const REPLAY_SPEEDS = {
     '0.5x': 3000, // Slow
     '1x': 1500, // Normal (default)
     '2x': 750, // Fast
-    '4x': 375 // Very fast
+    '4x': 375, // Very fast
 };
 let currentReplaySpeed = '1x';
 // Track replay board keydown listener to prevent accumulation (H1 from audit)
@@ -164,14 +164,17 @@ export function renderReplayData(data) {
     if (replayInfo) {
         replayInfo.innerHTML = '';
         const winnerBadge = document.createElement('span');
-        const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
+        const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : data.finalState?.winner === 'blue' ? 'blue' : '';
         winnerBadge.className = `winner-badge ${replayWinnerClass}`;
         const finalWinner = data.finalState?.winner || '';
         const winnerTeamName = (data.teamNames && finalWinner ? data.teamNames[finalWinner] : undefined) || finalWinner || 'Unknown';
         winnerBadge.textContent = t('history.teamWins', { team: winnerTeamName });
         replayInfo.appendChild(winnerBadge);
         const durationSpan = document.createElement('span');
-        durationSpan.textContent = t('history.duration', { duration: formatDuration(data.duration || 0), moves: data.totalMoves || 0 });
+        durationSpan.textContent = t('history.duration', {
+            duration: formatDuration(data.duration || 0),
+            moves: data.totalMoves || 0,
+        });
         replayInfo.appendChild(durationSpan);
     }
     // Initialize board with words (all hidden)
@@ -226,7 +229,8 @@ export function renderReplayBoard() {
             case 'ArrowUp':
                 next = idx - cols;
                 break;
-            default: return;
+            default:
+                return;
         }
         const target = board.querySelector(`[data-index="${next}"]`);
         if (target) {
@@ -306,7 +310,7 @@ export function renderReplayEventLog() {
         row.className = `replay-event${index === state.currentReplayIndex ? ' current' : ''}`;
         row.dataset.eventIndex = String(index);
         const teamSpan = document.createElement('span');
-        const eventTeamClass = team === 'red' ? 'red' : (team === 'blue' ? 'blue' : '');
+        const eventTeamClass = team === 'red' ? 'red' : team === 'blue' ? 'blue' : '';
         teamSpan.className = `event-team ${eventTeamClass}`;
         teamSpan.textContent = team.toUpperCase();
         row.appendChild(teamSpan);
@@ -336,7 +340,10 @@ export function updateReplayControls() {
     if (playBtn)
         playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
     if (progressEl)
-        progressEl.textContent = t('history.moveProgress', { current: state.currentReplayIndex + 1, total: events.length });
+        progressEl.textContent = t('history.moveProgress', {
+            current: state.currentReplayIndex + 1,
+            total: events.length,
+        });
 }
 // Use event delegation on the replay controls to avoid listener accumulation.
 // Set up once; each render just updates button state via updateReplayControls().
@@ -491,7 +498,15 @@ export async function checkURLForReplayLoad() {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, { signal: controller.signal });
+        const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+        const client = getClient();
+        if (client?.player?.sessionId) {
+            headers['X-Session-Id'] = client.player.sessionId;
+        }
+        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, {
+            signal: controller.signal,
+            headers,
+        });
         clearTimeout(timeoutId);
         if (!response.ok) {
             if (response.status === 404) {

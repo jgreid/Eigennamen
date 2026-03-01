@@ -5,7 +5,7 @@ import { encodeWordsForURL } from './utils.js';
  * Called after any state change (reveal, new game, end turn).
  */
 export function updateURL() {
-    const revealed = state.gameState.revealed.map(r => r ? '1' : '0').join('');
+    const revealed = state.gameState.revealed.map((r) => (r ? '1' : '0')).join('');
     const turn = state.gameState.currentTurn === 'blue' ? 'b' : 'r';
     let url = `${window.location.origin}${window.location.pathname}?game=${state.gameState.seed}&r=${revealed}&t=${turn}`;
     // Include custom words in URL if using them

@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { redRemaining as getRedRemaining, blueRemaining as getBlueRemaining, currentTeamName as getCurrentTeamName, teamName as getTeamName, isPlayerTurn, isDuetMode, isMatchMode } from '../store/selectors.js';
+import { redRemaining as getRedRemaining, blueRemaining as getBlueRemaining, currentTeamName as getCurrentTeamName, teamName as getTeamName, isPlayerTurn, isDuetMode, isMatchMode, } from '../store/selectors.js';
 import { t } from '../i18n.js';
 export function checkGameOver() {
     // Check for assassin reveal
@@ -21,16 +21,34 @@ export function checkGameOver() {
         state.gameState.winner = 'blue';
     }
 }
+/** Trigger a CSS bounce animation on a score element when its value changes */
+function animateScoreChange(el) {
+    const countEl = el.closest('.count') ?? el;
+    countEl.classList.remove('changed');
+    // Force reflow so re-adding the class restarts the animation
+    void countEl.offsetWidth;
+    countEl.classList.add('changed');
+}
 export function updateScoreboard() {
     // Use cached elements with fallback
     const redRemainingEl = state.cachedElements.redRemaining || document.getElementById('red-remaining');
     const blueRemainingEl = state.cachedElements.blueRemaining || document.getElementById('blue-remaining');
     const redTeamNameEl = state.cachedElements.redTeamName || document.getElementById('red-team-name');
     const blueTeamNameEl = state.cachedElements.blueTeamName || document.getElementById('blue-team-name');
-    if (redRemainingEl)
-        redRemainingEl.textContent = String(getRedRemaining());
-    if (blueRemainingEl)
-        blueRemainingEl.textContent = String(getBlueRemaining());
+    const newRedRemaining = String(getRedRemaining());
+    const newBlueRemaining = String(getBlueRemaining());
+    if (redRemainingEl) {
+        if (redRemainingEl.textContent !== newRedRemaining) {
+            redRemainingEl.textContent = newRedRemaining;
+            animateScoreChange(redRemainingEl);
+        }
+    }
+    if (blueRemainingEl) {
+        if (blueRemainingEl.textContent !== newBlueRemaining) {
+            blueRemainingEl.textContent = newBlueRemaining;
+            animateScoreChange(blueRemainingEl);
+        }
+    }
     if (redTeamNameEl)
         redTeamNameEl.textContent = state.teamNames.red;
     if (blueTeamNameEl)
@@ -97,7 +115,16 @@ export function updateTurnIndicator() {
     }
     else {
         const yourTurn = isPlayerTurn();
+        // Detect team switch: animate only when the active team color changes
+        const wasRedTurn = indicator.classList.contains('red-turn');
+        const wasBlueTurn = indicator.classList.contains('blue-turn');
+        const teamSwitched = (wasRedTurn && state.gameState.currentTurn === 'blue') ||
+            (wasBlueTurn && state.gameState.currentTurn === 'red');
         indicator.className = `turn-indicator ${state.gameState.currentTurn}-turn${yourTurn ? ' your-turn' : ''}`;
+        if (teamSwitched) {
+            indicator.classList.add('turn-changed');
+            setTimeout(() => indicator.classList.remove('turn-changed'), 300);
+        }
         if (yourTurn) {
             turnText.textContent = t('game.yourTurnGo', { team: turnTeamName });
         }

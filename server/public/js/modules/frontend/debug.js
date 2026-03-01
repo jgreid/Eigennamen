@@ -29,7 +29,7 @@ export function logStateChange(property, oldValue, newValue, source = 'unknown')
         oldValue: safeClone(oldValue),
         newValue: safeClone(newValue),
         source,
-        stack: new Error().stack?.split('\n').slice(2, 5).join('\n')
+        stack: new Error().stack?.split('\n').slice(2, 5).join('\n'),
     };
     stateHistory.push(entry);
     if (stateHistory.length > MAX_HISTORY) {
@@ -82,12 +82,14 @@ export function createStateProxy(target, path = 'state') {
                         try {
                             cb(oldValue, value);
                         }
-                        catch { /* watcher errors are non-fatal */ }
+                        catch {
+                            /* watcher errors are non-fatal */
+                        }
                     }
                 }
             }
             return result;
-        }
+        },
     });
 }
 export function setState(state, property, value, source = 'unknown') {
@@ -107,7 +109,7 @@ export function setState(state, property, value, source = 'unknown') {
 }
 export function getStateHistory(property = null) {
     if (property) {
-        return stateHistory.filter(entry => entry.property === property);
+        return stateHistory.filter((entry) => entry.property === property);
     }
     return [...stateHistory];
 }
@@ -153,7 +155,9 @@ export function initDebugSubscriptions() {
                 try {
                     cb(event.oldValue, event.newValue);
                 }
-                catch { /* non-fatal */ }
+                catch {
+                    /* non-fatal */
+                }
             }
         }
     });
@@ -170,7 +174,7 @@ export function attachDebugToWindow(rawState) {
                 localStorage.removeItem('debug');
                 delete window.__eigennamenDebug;
                 console.log('%c[Debug] Disabled — reload to take full effect', 'color: #ff0000');
-            }
+            },
         };
         console.log('%c[Eigennamen Debug Mode Active]', 'color: #4a9eff; font-weight: bold', '\nUse window.__eigennamenDebug for debugging utilities');
     }

@@ -3,8 +3,8 @@ import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
 import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
-import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, syncTurnTimerUI } from '../multiplayerUI.js';
-import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup } from '../multiplayerSync.js';
+import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, syncTurnTimerUI, } from '../multiplayerUI.js';
+import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup, } from '../multiplayerSync.js';
 import { batch } from '../store/batch.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
 import { getClient } from '../clientAccessor.js';
@@ -18,7 +18,7 @@ export function registerRoomHandlers() {
         if (data.newHostSessionId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p) => ({
                 ...p,
-                isHost: p.sessionId === data.newHostSessionId
+                isHost: p.sessionId === data.newHostSessionId,
             }));
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         }
@@ -69,11 +69,11 @@ export function registerRoomHandlers() {
             // during resync, so pending entries in revealingCards are now stale.
             // Without this, cards clicked just before a resync become permanently
             // unclickable until the per-card timeout fires.
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
-            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+            document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
             // Update all UI elements
             updateControls();
             updateRoleBanner();
@@ -122,11 +122,11 @@ export function registerRoomHandlers() {
             }
             // Clear stale reveal tracking — pending reveals from before
             // disconnect are no longer valid after reconnection.
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
-            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+            document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
             updateControls();
             updateRoleBanner();
             updateForfeitButton();
@@ -201,7 +201,7 @@ export function registerRoomHandlers() {
     });
     // Game mode radio button change handler — track for cleanup
     const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
-    gameModeRadios.forEach(radio => {
+    gameModeRadios.forEach((radio) => {
         const handler = (e) => {
             if (!getClient()?.player?.isHost)
                 return;

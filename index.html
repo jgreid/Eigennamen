@@ -309,6 +309,17 @@
               >
                 Clicker
               </button>
+              <button
+                type="button"
+                class="btn-spectate"
+                id="btn-spectate"
+                data-testid="spectator-btn"
+                data-action="spectate"
+                aria-label="Spectator"
+                title="Spectator"
+              >
+                <span aria-hidden="true">👁</span>
+              </button>
             </div>
           </div>
 
@@ -334,62 +345,57 @@
             </button>
           </div>
 
-          <div class="utility-buttons-row">
+          <div class="secondary-controls">
             <button
               type="button"
-              class="btn-spectate"
-              id="btn-spectate"
-              data-testid="spectator-btn"
-              data-action="spectate"
-              data-i18n="roles.spectator"
-            >
-              Spectator
-            </button>
-            <button
-              type="button"
-              class="btn-settings"
+              class="btn-secondary-action"
               data-testid="settings-btn"
               data-action="open-settings"
-              data-i18n="nav.settings"
+              title="Settings"
+              aria-label="Settings"
             >
-              Settings
+              <span class="btn-icon" aria-hidden="true">⚙</span>
+              <span class="btn-label" data-i18n="nav.settings">Settings</span>
             </button>
             <button
               type="button"
-              class="btn-settings"
+              class="btn-secondary-action"
               id="btn-multiplayer"
               data-testid="multiplayer-btn"
               data-action="open-multiplayer"
-              data-i18n="nav.playOnline"
+              title="Play Online"
+              aria-label="Play Online"
             >
-              Play Online
+              <span class="btn-icon" aria-hidden="true">🌐</span>
+              <span class="btn-label" data-i18n="nav.playOnline"
+                >Play Online</span
+              >
             </button>
-          </div>
-
-          <div
-            class="utility-buttons-row mp-only"
-            id="mp-extra-buttons-row"
-            style="display: none"
-          >
             <button
               type="button"
-              class="btn-settings"
+              class="btn-secondary-action mp-only-btn"
               id="btn-history"
               data-testid="history-btn"
               data-action="open-history"
-              data-i18n="nav.history"
+              title="Game History"
+              aria-label="Game History"
+              style="display: none"
             >
-              Game History
+              <span class="btn-icon" aria-hidden="true">📜</span>
+              <span class="btn-label" data-i18n="nav.history">History</span>
             </button>
             <button
               type="button"
-              class="btn-forfeit"
+              class="btn-secondary-action btn-forfeit mp-only-btn"
               id="btn-forfeit"
               data-testid="forfeit-btn"
               data-action="confirm-forfeit"
               title="Forfeit the current game (host only)"
+              aria-label="Forfeit"
+              style="display: none"
             >
-              Forfeit
+              <span class="btn-icon" aria-hidden="true">🏳</span>
+              <span class="btn-label">Forfeit</span>
             </button>
           </div>
         </div>
