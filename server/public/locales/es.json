@@ -160,12 +160,12 @@
   "roomSettings": {
     "gameMode": "Modo de juego",
     "gameModeHint": "Elige cómo quieres jugar.",
-    "classic": "Clásico",
+    "classic": "Vintage",
     "classicDesc": "Reglas estándar de Eigennamen",
     "duet": "Dueto",
     "duetDesc": "Modo cooperativo para 2 jugadores",
-    "match": "Match",
-    "matchDesc": "Match multironda con puntuación de cartas",
+    "match": "Eigennamen",
+    "matchDesc": "Partida multironda con puntuación de cartas",
     "turnTimer": "Temporizador de turno"
   },
   "wordList": {
@@ -197,7 +197,7 @@
     "step3": "Tu color = sigue jugando, Neutral/Enemigo = fin del turno",
     "step4": "¡Asesino = derrota instantánea!",
     "note": "El equipo inicial busca 9 palabras, el otro 8. ¡El primero en encontrar todas gana!",
-    "matchTitle": "Modo Match",
+    "matchTitle": "Modo Eigennamen",
     "matchIntro": "Un match de varias rondas donde cada carta tiene un valor de puntos oculto. Los equipos juegan rondas hasta que uno alcance 42 puntos.",
     "matchScoring": "Puntuación de cartas",
     "matchGold": "★ Oro (+3)",
@@ -205,11 +205,11 @@
     "matchStandard": "● Estándar (+1)",
     "matchBlank": "○ Vacía (0)",
     "matchTrap": "✕ Trampa (-1)",
-    "matchFlow": "Flujo del match",
-    "matchStep1": "Cada ronda se juega como un juego clásico",
+    "matchFlow": "Flujo del juego",
+    "matchStep1": "Cada ronda se juega como un juego Vintage",
     "matchStep2": "Al revelar una carta, tu equipo gana su valor en puntos",
     "matchStep3": "El ganador de la ronda recibe un bono de +7",
-    "matchStep4": "El primero en llegar a 42 puntos (ganar por 3) gana el match",
+    "matchStep4": "El primero en llegar a 42 puntos (ganar por 3) gana!",
     "matchNote": "¡Solo los jefes de espías pueden ver los valores antes de revelar. El asesino termina la ronda al instante!"
   },
   "about": {

@@ -11,7 +11,7 @@ export type { GameMode } from '../shared';
 // Game mode configurations
 export const GAME_MODE_CONFIG = {
     classic: {
-        label: 'Classic',
+        label: 'Vintage',
         description: 'Standard Eigennamen rules',
         cooperative: false
     },
