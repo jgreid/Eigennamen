@@ -15,6 +15,13 @@ import auditRouter from './admin/auditRoutes';
 
 const router: ExpressRouter = express.Router();
 
+// Pre-compute admin password hash at startup to avoid blocking the event loop
+// on every auth request. Only the submitted password needs hashing per request.
+const ADMIN_SCRYPT_SALT = 'eigennamen-admin-auth';
+const cachedAdminHash: Buffer | null = process.env.ADMIN_PASSWORD
+    ? crypto.scryptSync(process.env.ADMIN_PASSWORD, ADMIN_SCRYPT_SALT, 32)
+    : null;
+
 /**
  * Basic Authentication Middleware
  * Requires ADMIN_PASSWORD environment variable to be set
@@ -50,14 +57,14 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
         const base64Credentials = authHeader.split(' ')[1];
         if (base64Credentials) {
             const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-            const [username, password] = credentials.split(':');
+            // Split on first colon only — RFC 7617 allows colons in passwords
+            const colonIndex = credentials.indexOf(':');
+            const username = colonIndex >= 0 ? credentials.substring(0, colonIndex) : credentials;
+            const password = colonIndex >= 0 ? credentials.substring(colonIndex + 1) : '';
 
-            // Accept any username with the correct password (common for simple admin panels)
-            // Use scrypt KDF for password comparison (resistant to rainbow tables)
-            // Both passwords are derived with the same salt to enable constant-time comparison
-            const salt = 'eigennamen-admin-auth';
-            const passwordHash = crypto.scryptSync(password || '', salt, 32);
-            const adminHash = crypto.scryptSync(adminPassword, salt, 32);
+            // Use scrypt KDF for constant-time password comparison
+            const passwordHash = crypto.scryptSync(password, ADMIN_SCRYPT_SALT, 32);
+            const adminHash = cachedAdminHash ?? crypto.scryptSync(adminPassword, ADMIN_SCRYPT_SALT, 32);
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login
@@ -129,8 +136,10 @@ router.use(statsRouter);
 router.use(roomRouter);
 router.use(auditRouter);
 
+export { basicAuth };
 export default router;
 
 // CommonJS compat
 module.exports = router;
 module.exports.default = router;
+module.exports.basicAuth = basicAuth;

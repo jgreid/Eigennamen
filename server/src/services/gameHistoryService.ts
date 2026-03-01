@@ -5,6 +5,7 @@ import { tryParseJSON } from '../utils/parseJSON';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { ATOMIC_SAVE_GAME_HISTORY_SCRIPT } from '../scripts';
 import { z } from 'zod';
+import { BOARD_SIZE } from '../shared';
 
 import type { Team, CardType, RedisClient } from '../types';
 
@@ -231,7 +232,6 @@ export const GAME_HISTORY_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
 const GAME_HISTORY_KEY_PREFIX = 'gameHistory:';
 const GAME_HISTORY_INDEX_PREFIX = 'gameHistoryIndex:';
 export const MAX_HISTORY_PER_ROOM = 100; // Maximum games to keep per room
-const BOARD_SIZE = 25; // Expected board size
 
 /**
  * Validate game data structure before saving to history

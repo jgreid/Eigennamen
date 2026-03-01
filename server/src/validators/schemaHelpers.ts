@@ -1,7 +1,5 @@
-import type { z as ZodType } from 'zod';
-
 import { z } from 'zod';
-import { VALIDATION, RESERVED_NAMES, GAME_MODE_CONFIG } from '../config/constants';
+import { VALIDATION, RESERVED_NAMES } from '../config/constants';
 import { NICKNAME_REGEX, ROOM_CODE_REGEX, TEAM_NAME_REGEX } from '../shared';
 import { removeControlChars, isReservedName, normalizeRoomCode } from '../utils/sanitize';
 
@@ -57,21 +55,9 @@ const createNicknameSchema = () => z.string()
     .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
     .refine((val: string) => !isReservedName(val, [...RESERVED_NAMES]), 'This nickname is reserved');
 
-/**
- * Validate turnTimer bounds (if provided).
- * Timer is optional for all modes; when set, must be within global bounds
- * (enforced by the Zod min/max on the turnTimer field itself).
- */
-const validateModeTimer = (data: { gameMode?: string; turnTimer?: number | null }, _ctx: ZodType.RefinementCtx) => {
-    if (data.turnTimer == null || data.gameMode == null) return;
-    const modeConfig = GAME_MODE_CONFIG[data.gameMode as keyof typeof GAME_MODE_CONFIG];
-    if (!modeConfig) return;
-};
-
 export {
     createSanitizedString,
     createTeamNameSchema,
     createRoomIdSchema,
-    createNicknameSchema,
-    validateModeTimer
+    createNicknameSchema
 };

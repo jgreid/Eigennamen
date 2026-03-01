@@ -12,7 +12,7 @@ import { apiLimiter, strictLimiter } from './middleware/rateLimit';
 import { csrfProtection } from './middleware/csrf';
 import { requestTiming } from './middleware/timing';
 import routes from './routes';
-import adminRoutes from './routes/adminRoutes';
+import adminRoutes, { basicAuth } from './routes/adminRoutes';
 import healthRoutes from './routes/healthRoutes';
 import logger from './utils/logger';
 import { setupSwagger } from './config/swagger';
@@ -242,7 +242,9 @@ interface MetricsResponse {
 
 // Metrics endpoint with rate limit visibility and application metrics
 // Rate limited to prevent abuse (metrics can be expensive to compute)
-app.get('/metrics', strictLimiter, async (_req: Request, res: Response) => {
+// Require admin auth in production to prevent reconnaissance
+const metricsMiddleware = isProduction ? [strictLimiter, basicAuth] : [strictLimiter];
+app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) => {
     const metricsData: MetricsResponse = {
         timestamp: new Date().toISOString(),
         process: isProduction

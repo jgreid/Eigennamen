@@ -58,7 +58,9 @@ import {
     gameStateSchema,
     MAX_HISTORY_ENTRIES,
     executeLuaScript,
-    executeGameTransaction
+    executeGameTransaction,
+    revealResultSchema,
+    endTurnResultSchema
 } from './game/luaGameOps';
 
 // Re-export types for consumers
@@ -315,7 +317,8 @@ export async function revealCard(
                 playerTeam || ''
             ],
             errorMap,
-            `revealCard-${roomCode}`
+            `revealCard-${roomCode}`,
+            revealResultSchema
         );
     }, { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 });
 }
@@ -342,7 +345,8 @@ export async function endTurn(
         gameKey,
         [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
         luaErrorMap,
-        `endTurn-${roomCode}`
+        `endTurn-${roomCode}`,
+        endTurnResultSchema
     );
 }
 
