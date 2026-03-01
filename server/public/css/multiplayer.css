@@ -322,7 +322,7 @@
     padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .multiplayer-indicator .mp-spectator-inline .spectator-icon {
@@ -634,7 +634,7 @@
 
 .chat-messages:empty::before {
     content: 'No messages yet';
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.5);
     font-style: italic;
     display: block;
     text-align: center;
@@ -654,7 +654,7 @@
 }
 
 .chat-message.system-message {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.6);
     font-style: italic;
     font-size: 0.75rem;
     text-align: center;
@@ -685,7 +685,7 @@
 
 .chat-timestamp {
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.5);
     margin-left: 4px;
 }
 

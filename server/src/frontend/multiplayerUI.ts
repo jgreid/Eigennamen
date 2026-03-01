@@ -154,7 +154,8 @@ export function updateRoomSettingsNavVisibility(): void {
 // Sync game mode UI with server state
 export function syncGameModeUI(gameMode: string): void {
     if (!gameMode) return;
-    const radio = document.querySelector(`input[name="gameMode"][value="${gameMode}"]`) as HTMLInputElement;
+    const escapedMode = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(gameMode) : gameMode;
+    const radio = document.querySelector(`input[name="gameMode"][value="${escapedMode}"]`) as HTMLInputElement;
     if (radio) radio.checked = true;
 }
 
@@ -218,17 +219,6 @@ export function updateSpectatorCount(count: number): void {
     }
     if (mpSpectatorInline) {
         mpSpectatorInline.style.display = count > 0 ? 'flex' : 'none';
-    }
-
-    // Legacy standalone element (kept for backwards compat)
-    const spectatorCountEl = document.getElementById('spectator-count');
-    const spectatorSection = document.getElementById('spectator-section');
-
-    if (spectatorCountEl) {
-        spectatorCountEl.textContent = String(count);
-    }
-    if (spectatorSection) {
-        spectatorSection.style.display = count > 0 ? 'flex' : 'none';
     }
 
     // Store in state for other components

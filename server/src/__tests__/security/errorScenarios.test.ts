@@ -134,7 +134,8 @@ describe('Error Scenarios', () => {
 
     describe('Service Failure Propagation', () => {
         test('room creation fails gracefully on Redis error', async () => {
-            mockRedis.set.mockRejectedValue(new Error('Redis write error'));
+            // createRoom uses redis.eval (atomic Lua script), not redis.set
+            mockRedis.eval.mockRejectedValue(new Error('Redis write error'));
 
             await expect(
                 roomService.createRoom('test-room', 'session-123', {})
@@ -186,7 +187,8 @@ describe('Error Scenarios', () => {
         });
 
         test('throws on network error for writes', async () => {
-            mockRedis.set.mockRejectedValue(new Error('ENETUNREACH'));
+            // createRoom uses redis.eval (atomic Lua script), not redis.set
+            mockRedis.eval.mockRejectedValue(new Error('ENETUNREACH'));
 
             await expect(
                 roomService.createRoom('test-room', 'session-123', {})
@@ -392,7 +394,8 @@ describe('Room Service Error Scenarios', () => {
     });
 
     test('propagates error during room creation', async () => {
-        mockRedis.set.mockRejectedValue(new Error('Redis write failed'));
+        // createRoom uses redis.eval (atomic Lua script), not redis.set
+        mockRedis.eval.mockRejectedValue(new Error('Redis write failed'));
 
         await expect(
             roomService.createRoom('test-room', 'session-123', {})

@@ -26,7 +26,8 @@
     "selectTeamFirst": "Sélectionnez une équipe ci-dessus pour choisir un rôle",
     "clickerOfflineCanClick": "Agent de terrain hors ligne – vous pouvez révéler des cartes",
     "chooseRole": "Choisissez Maître-espion ou Agent de terrain",
-    "joinTeamFirst": "Veuillez d'abord rejoindre une équipe en cliquant sur le score d'une équipe"
+    "joinTeamFirst": "Veuillez d'abord rejoindre une équipe en cliquant sur le score d'une équipe",
+    "changeTimeout": "Changement de rôle expiré – veuillez réessayer"
   },
   "game": {
     "redTurn": "Tour de l'Équipe Rouge",
@@ -64,7 +65,9 @@
     "wordRevealedAs": "{{word}} révélé comme {{type}}",
     "roleCleared": "Rôle {{role}} retiré. Maintenant dans l'équipe {{team}}.",
     "copy": "Copier",
-    "copiedShort": "Copié !"
+    "copiedShort": "Copié !",
+    "revealTimeout": "Révélation de carte expirée – cliquez à nouveau",
+    "newGameTimeout": "Demande de nouvelle partie expirée – veuillez réessayer"
   },
   "board": {
     "clickToReveal": "Cliquer pour révéler",

@@ -53,6 +53,9 @@ export const ATOMIC_ADD_TIME_SCRIPT: string = loadLua('atomicAddTime.lua');
 /** Atomic timer status check with expiration detection. Returns: JSON timer status, 'EXPIRED' if expired while paused, nil if no timer */
 export const ATOMIC_TIMER_STATUS_SCRIPT: string = loadLua('atomicTimerStatus.lua');
 
+/** Atomic pause timer: reads current state, calculates remaining time, and writes paused state in one operation */
+export const ATOMIC_PAUSE_TIMER_SCRIPT: string = loadLua('atomicPauseTimer.lua');
+
 /** Atomic timer resume: checks if paused timer expired, deletes if so. Returns: JSON with expired flag and remainingSeconds */
 export const ATOMIC_RESUME_TIMER_SCRIPT: string = loadLua('atomicResumeTimer.lua');
 

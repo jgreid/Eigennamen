@@ -204,8 +204,8 @@ describe('Chat Handlers', () => {
         });
     });
 
-    describe('HTML Sanitization (XSS Prevention)', () => {
-        test('sanitizes HTML in message text', async () => {
+    describe('Message Content Passthrough (XSS handled by frontend textContent)', () => {
+        test('passes through HTML in message text unchanged', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -218,12 +218,11 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: '<script>alert("xss")</script>', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            // Note: utils/sanitize.js uses OWASP-recommended encoding (&#x2F; for /)
-            expect(emittedMessage.text).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;');
-            expect(emittedMessage.text).not.toContain('<script>');
+            // Server does NOT sanitize — frontend renders via textContent (inherently XSS-safe)
+            expect(emittedMessage.text).toBe('<script>alert("xss")</script>');
         });
 
-        test('sanitizes HTML in nickname', async () => {
+        test('passes through HTML in nickname unchanged', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -236,11 +235,10 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Normal message', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            expect(emittedMessage.from.nickname).toBe('&lt;img src=x onerror=alert(1)&gt;');
-            expect(emittedMessage.from.nickname).not.toContain('<img');
+            expect(emittedMessage.from.nickname).toBe('<img src=x onerror=alert(1)>');
         });
 
-        test('sanitizes ampersands correctly', async () => {
+        test('passes through ampersands unchanged', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -253,11 +251,11 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: 'Tom & Jerry', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            expect(emittedMessage.text).toBe('Tom &amp; Jerry');
-            expect(emittedMessage.from.nickname).toBe('Test&amp;User');
+            expect(emittedMessage.text).toBe('Tom & Jerry');
+            expect(emittedMessage.from.nickname).toBe('Test&User');
         });
 
-        test('sanitizes single and double quotes', async () => {
+        test('passes through quotes unchanged', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
@@ -270,8 +268,7 @@ describe('Chat Handlers', () => {
             await messageHandler[1]({ text: "He said \"Hello\" and 'Goodbye'", teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            // Note: utils/sanitize.js uses OWASP-recommended encoding (&#x27; for ')
-            expect(emittedMessage.text).toBe('He said &quot;Hello&quot; and &#x27;Goodbye&#x27;');
+            expect(emittedMessage.text).toBe("He said \"Hello\" and 'Goodbye'");
         });
     });
 

@@ -9,6 +9,7 @@ import { renderBoard } from './board.js';
 import { t } from './i18n.js';
 import { logger } from './logger.js';
 import { isClientConnected } from './clientAccessor.js';
+import { getErrorMessage } from './handlers/errorMessages.js';
 
 // ---- Role-change state machine helpers ----
 
@@ -26,6 +27,7 @@ function startAbsoluteTimeout(): void {
             logger.warn('Role change absolute failsafe fired — forcing idle');
             clearRoleChange();
             updateControls();
+            showToast(t('roles.changeTimeout'), 'warning');
         }
     }, ROLE_CHANGE_ABSOLUTE_TIMEOUT_MS);
 }
@@ -253,6 +255,7 @@ export function setTeam(team: string | null): void {
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 logger.warn('setTeam: server ack error, reverting optimistic update');
                 revertAndClearRoleChange();
+                showToast(getErrorMessage(ack.error), 'error');
             }
         });
 
@@ -343,6 +346,7 @@ function setRoleForTeam(
             if (ack && ack.error && state.roleChange.phase !== 'idle' && state.roleChange.operationId === operationId) {
                 logger.warn(`set${roleName}: server ack error, reverting optimistic update`);
                 revertAndClearRoleChange();
+                showToast(getErrorMessage(ack.error), 'error');
             }
         };
 

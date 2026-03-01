@@ -511,6 +511,32 @@ describe('Game History Service', () => {
 
             expect(stats.count).toBe(0);
         });
+
+        test('handles flat string array format from zRange WITHSCORES', async () => {
+            // Some Redis client versions return flat arrays [member, score, ...]
+            // instead of {value, score} objects. extractEntry must handle both.
+            mockRedis.zCard.mockResolvedValueOnce(2);
+            mockRedis.zRange
+                .mockResolvedValueOnce(['game-oldest', '1000'])  // flat array for oldest
+                .mockResolvedValueOnce(['game-newest', '3000']); // flat array for newest
+
+            const stats = await gameHistoryService.getHistoryStats('FLAT_ROOM');
+
+            expect(stats.count).toBe(2);
+            expect(stats.oldest).toEqual({ id: 'game-oldest', timestamp: 1000 });
+            expect(stats.newest).toEqual({ id: 'game-newest', timestamp: 3000 });
+        });
+
+        test('handles zero count in stats (early return path)', async () => {
+            // When zCard returns 0, getHistoryStats returns early without calling zRange
+            mockRedis.zCard.mockResolvedValueOnce(0);
+
+            const stats = await gameHistoryService.getHistoryStats('EMPTY_ROOM');
+
+            expect(stats.count).toBe(0);
+            expect(stats.oldest).toBeNull();
+            expect(stats.newest).toBeNull();
+        });
     });
 
     describe('Constants', () => {

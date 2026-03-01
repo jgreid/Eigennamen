@@ -83,7 +83,8 @@ function handleKeyboardShortcut(e: KeyboardEvent): void {
     }
 
     // Find the button with the matching data-action and click it
-    const button = document.querySelector(`[data-action="${shortcut.action}"]`) as HTMLButtonElement | null;
+    const safeAction = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(shortcut.action) : shortcut.action;
+    const button = document.querySelector(`[data-action="${safeAction}"]`) as HTMLButtonElement | null;
     if (button && !button.disabled && button.offsetParent !== null) {
         e.preventDefault();
         button.click();

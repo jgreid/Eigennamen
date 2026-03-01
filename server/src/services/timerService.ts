@@ -6,22 +6,9 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
-import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT, ATOMIC_RESUME_TIMER_SCRIPT } from '../scripts';
+import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT, ATOMIC_RESUME_TIMER_SCRIPT, ATOMIC_PAUSE_TIMER_SCRIPT } from '../scripts';
 import { setGauge, incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
-
-// Zod schema for runtime validation of timer state from Redis.
-// Makes instanceId optional to handle data from older server versions or tests.
-const timerStateSchema = z.object({
-    roomCode: z.string(),
-    startTime: z.number(),
-    endTime: z.number(),
-    duration: z.number(),
-    instanceId: z.string().optional(),
-    paused: z.boolean().optional(),
-    remainingWhenPaused: z.number().optional(),
-    pausedAt: z.number().optional()
-});
 
 // Zod schema for Lua script addTime result
 const addTimeResultSchema = z.object({
@@ -36,6 +23,12 @@ const resumeTimerResultSchema = z.object({
     remainingSeconds: z.number().optional(),
     pausedFor: z.number().optional(),
     hadRemaining: z.number().optional(),
+    error: z.string().optional()
+});
+
+// Zod schema for atomic pause timer Lua script result
+const pauseTimerResultSchema = z.object({
+    remainingSeconds: z.number().optional(),
     error: z.string().optional()
 });
 
@@ -290,57 +283,57 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
 
 /**
  * Pause timer for a room (stores remaining time)
+ * Uses atomic Lua script to prevent TOCTOU race between reading timer state
+ * and writing the paused state — matches the atomic pattern used by resumeTimer and addTime.
  */
 export async function pauseTimer(roomCode: string): Promise<PauseResult | null> {
-    const status = await getTimerStatus(roomCode);
-    if (!status || status.expired) {
-        return null;
-    }
-
-    let remainingSeconds = status.remainingSeconds;
-
-    // Clamp to valid range: must be finite and non-negative
-    if (!Number.isFinite(remainingSeconds) || remainingSeconds < 0) {
-        logger.warn(`Invalid remainingSeconds ${remainingSeconds} in pauseTimer for ${roomCode}, clamping to 0`);
-        remainingSeconds = 0;
-    }
-
-    // Stop the timer but remember the remaining time
     const redis: RedisClient = getRedis();
-    const timerData = await withTimeout(
-        redis.get(`${TIMER_KEY_PREFIX}${roomCode}`),
-        TIMEOUTS.TIMER_OPERATION,
-        `pauseTimer-get-${roomCode}`
-    );
-    if (timerData) {
-        try {
-            const timer = tryParseJSON(timerData, timerStateSchema, `timer pause for ${roomCode}`);
-            if (!timer) return null;
-            timer.paused = true;
-            timer.remainingWhenPaused = remainingSeconds;
-            // Store when the timer was paused to detect expiration while paused
-            timer.pausedAt = Date.now();
-            await withTimeout(
-                redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timer), { EX: REDIS_TTL.PAUSED_TIMER }),
-                TIMEOUTS.TIMER_OPERATION,
-                `pauseTimer-set-${roomCode}`
-            );
-        } catch (e) {
-            logger.error(`Failed to parse timer data for ${roomCode}:`, (e as Error).message);
+
+    try {
+        const resultStr = await withTimeout(
+            redis.eval(ATOMIC_PAUSE_TIMER_SCRIPT, {
+                keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
+                arguments: [Date.now().toString(), REDIS_TTL.PAUSED_TIMER.toString()]
+            }),
+            TIMEOUTS.TIMER_OPERATION,
+            `pauseTimer-lua-${roomCode}`
+        ) as string | null;
+
+        if (!resultStr) {
+            return null; // No timer exists
+        }
+
+        const result = tryParseJSON(resultStr, pauseTimerResultSchema, `timer pause for ${roomCode}`);
+        if (!result) return null;
+
+        if (result.error) {
+            if (result.error === 'EXPIRED' || result.error === 'ALREADY_PAUSED') {
+                return null;
+            }
+            logger.warn(`pauseTimer Lua error for ${roomCode}: ${result.error}`);
             return null;
         }
-    }
 
-    // Clear local timeout
-    const localTimer = localTimers.get(roomCode);
-    if (localTimer) {
-        clearTimeout(localTimer.timeoutId);
-        localTimer.paused = true;
-        localTimer.remainingWhenPaused = remainingSeconds;
-    }
+        const remainingSeconds = result.remainingSeconds;
+        if (remainingSeconds === undefined || !Number.isFinite(remainingSeconds) || remainingSeconds < 0) {
+            logger.warn(`Invalid remainingSeconds ${remainingSeconds} in pauseTimer for ${roomCode}`);
+            return null;
+        }
 
-    logger.info(`Timer paused for room ${roomCode}: ${remainingSeconds}s remaining`);
-    return { remainingSeconds };
+        // Clear local timeout
+        const localTimer = localTimers.get(roomCode);
+        if (localTimer) {
+            clearTimeout(localTimer.timeoutId);
+            localTimer.paused = true;
+            localTimer.remainingWhenPaused = remainingSeconds;
+        }
+
+        logger.info(`Timer paused for room ${roomCode}: ${remainingSeconds}s remaining`);
+        return { remainingSeconds };
+    } catch (err) {
+        logger.error(`pauseTimer failed for room ${roomCode}:`, err instanceof Error ? err.message : String(err));
+        return null;
+    }
 }
 
 /**
@@ -538,9 +531,6 @@ export function sweepStaleTimers(): number {
     return swept;
 }
 
-/**
- * Clean up all timers (for shutdown)
- */
 /**
  * Get the current count of active local timers (for health/metrics reporting)
  */

@@ -157,7 +157,7 @@
 /* Word count inline with label */
 .word-count-inline {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.6);
     margin-left: 8px;
 }
 
@@ -166,7 +166,7 @@
 }
 
 .wordlist-mode-options .radio-option em {
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.6);
     font-size: 0.8rem;
 }
 
@@ -185,7 +185,7 @@
 
 .help-about-section .credits {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .help-about-section .credits p {

@@ -15,7 +15,7 @@ import {
     REDIS_TTL,
     LOCKS,
 } from '../../config/constants';
-import { RoomError, ServerError } from '../../errors/GameError';
+import { RoomError, ServerError, GameStateError } from '../../errors/GameError';
 import { ATOMIC_JOIN_SCRIPT, RELEASE_LOCK_SCRIPT } from '../../scripts';
 import { getRoom, refreshRoomTTL, cleanupRoom } from '../roomService';
 
@@ -150,12 +150,19 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
     const redis: RedisClient = getRedis();
     code = normalizeRoomCode(code);
 
-    // Corrupted room data treated as "room gone" for leave purposes
+    // Corrupted room data treated as "room gone" for leave purposes.
+    // Redis/network errors are re-thrown so callers can handle them.
     let room;
     try {
         room = await getRoom(code);
-    } catch {
-        room = null;
+    } catch (err) {
+        if (err instanceof GameStateError) {
+            // Room data exists but is corrupted — treat as "room gone"
+            logger.warn(`Corrupted room data for ${code} during leave, treating as deleted`);
+            room = null;
+        } else {
+            throw err;
+        }
     }
     if (!room) {
         // Still remove the player even if room data is missing/corrupted

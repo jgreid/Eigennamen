@@ -26,7 +26,8 @@
     "selectTeamFirst": "Selecciona un equipo arriba para elegir un rol",
     "clickerOfflineCanClick": "Agente de campo desconectado – puedes revelar cartas",
     "chooseRole": "Elige Jefe de espías o Agente de campo",
-    "joinTeamFirst": "Únete primero a un equipo haciendo clic en la puntuación de un equipo"
+    "joinTeamFirst": "Únete primero a un equipo haciendo clic en la puntuación de un equipo",
+    "changeTimeout": "Cambio de rol agotado – inténtalo de nuevo"
   },
   "game": {
     "redTurn": "Turno del Equipo Rojo",
@@ -64,7 +65,9 @@
     "wordRevealedAs": "{{word}} revelada como {{type}}",
     "roleCleared": "Rol de {{role}} eliminado. Ahora en el equipo {{team}}.",
     "copy": "Copiar",
-    "copiedShort": "¡Copiado!"
+    "copiedShort": "¡Copiado!",
+    "revealTimeout": "Revelación de carta agotada – intenta hacer clic de nuevo",
+    "newGameTimeout": "Solicitud de nueva partida agotada – inténtalo de nuevo"
   },
   "board": {
     "clickToReveal": "Clic para revelar",

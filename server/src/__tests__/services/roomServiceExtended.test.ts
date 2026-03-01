@@ -340,6 +340,27 @@ describe('Room Service', () => {
             expect(result.newHostId).toBeNull();
             expect(result.roomDeleted).toBe(false);
         });
+
+        test('treats corrupted room data as deleted during leave', async () => {
+            // Put invalid JSON in Redis — getRoom throws GameStateError
+            mockRedisStorage['room:corrupt-room'] = 'not valid json {{{';
+            mockRedis.del.mockResolvedValue(1);
+
+            const result = await roomService.leaveRoom('corrupt-room', 'player-1');
+
+            // Corrupted data is treated as "room gone" — not an error
+            expect(result.newHostId).toBeNull();
+            expect(result.roomDeleted).toBe(false);
+        });
+
+        test('re-throws Redis errors during leave (not corrupted data)', async () => {
+            // Simulate Redis connection failure on get
+            mockRedis.get.mockRejectedValueOnce(new Error('ECONNRESET'));
+
+            await expect(
+                roomService.leaveRoom('any-room', 'player-1')
+            ).rejects.toThrow('ECONNRESET');
+        });
     });
 
     describe('updateSettings', () => {

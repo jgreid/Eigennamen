@@ -68,6 +68,7 @@ export function revealCard(index: number): void {
                 state.isRevealingCard = state.revealingCards.size > 0;
                 const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
                 if (pendingCard) (pendingCard as HTMLElement).classList.remove('revealing');
+                showToast(t('game.revealTimeout'), 'warning');
             }
         }, UI.CARD_REVEAL_TIMEOUT_MS);
         state.revealTimeouts.set(index, timeoutId);

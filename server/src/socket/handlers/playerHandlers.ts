@@ -189,15 +189,14 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 throw PlayerError.notFound(ctx.sessionId);
             }
 
-            const sanitizedNickname: string = sanitizeHtml(player.nickname);
-
-            // Broadcast to room
+            // Broadcast to room — frontend renders via textContent (XSS-safe),
+            // so no server-side HTML encoding needed
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_UPDATED, {
                 sessionId: ctx.sessionId,
-                changes: { nickname: sanitizedNickname }
+                changes: { nickname: player.nickname }
             });
 
-            logger.info(`Player ${ctx.sessionId} changed nickname to ${sanitizedNickname}`);
+            logger.info(`Player ${ctx.sessionId} changed nickname to ${sanitizeHtml(player.nickname)}`);
 
             return { player };
         }
@@ -225,8 +224,8 @@ function playerHandlers(io: Server, socket: GameSocket): void {
             // Broadcast kick event before removing player
             safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.PLAYER_KICKED, {
                 sessionId: validated.targetSessionId,
-                nickname: sanitizeHtml(targetPlayer.nickname),
-                kickedBy: sanitizeHtml(ctx.player.nickname)
+                nickname: targetPlayer.nickname,
+                kickedBy: ctx.player.nickname
             });
 
             // Disconnect the target player's socket BEFORE removing data from Redis.
@@ -289,7 +288,7 @@ function playerHandlers(io: Server, socket: GameSocket): void {
                 const hostSocket = hostSockets[0] as (typeof hostSockets)[number];
                 hostSocket.emit(SOCKET_EVENTS.SPECTATOR_JOIN_REQUEST, {
                     requesterId: ctx.sessionId,
-                    requesterNickname: sanitizeHtml(ctx.player.nickname),
+                    requesterNickname: ctx.player.nickname,
                     team: validated.team,
                     timestamp: Date.now()
                 });
