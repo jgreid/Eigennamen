@@ -364,6 +364,7 @@ export interface GameHistoryResultPayload {
  */
 export interface SpymasterViewPayload {
   types: CardType[];
+  cardScores?: number[];
 }
 
 /**

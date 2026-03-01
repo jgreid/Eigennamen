@@ -674,6 +674,60 @@ describe('getGameStateForPlayer', () => {
 
         expect(state.types).toEqual(mockGame.types);
     });
+
+    describe('match mode cardScores visibility', () => {
+        const matchGame = {
+            ...mockGame,
+            gameMode: 'match',
+            cardScores: [1, 2, 3, 1, -1, 1, 1, 0, 1, 2, 1, 1, 1, -1, 1, 1, 3, 1, 1, 0, 1, 1, 1, 1, -3],
+            revealedBy: Array(25).fill(null),
+            matchRound: 1,
+            redMatchScore: 0,
+            blueMatchScore: 0,
+            roundHistory: [],
+            matchOver: false,
+            matchWinner: null
+        };
+
+        test('spymaster sees all card scores', () => {
+            const player = { role: 'spymaster', team: 'red' };
+            const state = getGameStateForPlayer(matchGame, player);
+
+            expect(state.cardScores).toEqual(matchGame.cardScores);
+        });
+
+        test('clicker only sees revealed card scores', () => {
+            const game = { ...matchGame, revealed: [true, false, false, ...Array(22).fill(false)] };
+            const player = { role: 'clicker', team: 'red' };
+            const state = getGameStateForPlayer(game, player);
+
+            expect(state.cardScores[0]).toBe(1);   // Revealed card shows score
+            expect(state.cardScores[1]).toBeNull(); // Unrevealed card hidden
+        });
+
+        test('all card scores visible when game is over', () => {
+            const game = { ...matchGame, gameOver: true, winner: 'red' };
+            const player = { role: 'clicker', team: 'blue' };
+            const state = getGameStateForPlayer(game, player);
+
+            expect(state.cardScores).toEqual(matchGame.cardScores);
+        });
+
+        test('spectator only sees revealed card scores', () => {
+            const player = { role: 'spectator', team: null };
+            const state = getGameStateForPlayer(matchGame, player);
+
+            // All unrevealed → all null
+            expect(state.cardScores.every((s: number | null) => s === null)).toBe(true);
+        });
+
+        test('non-match mode game does not include cardScores', () => {
+            const player = { role: 'spymaster', team: 'red' };
+            const state = getGameStateForPlayer(mockGame, player);
+
+            expect(state.cardScores).toBeUndefined();
+        });
+    });
 });
 
 describe('revealCard Lua error mapping', () => {
