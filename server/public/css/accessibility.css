@@ -6,7 +6,7 @@
     background: #667eea;
     color: white;
     padding: 8px 16px;
-    z-index: 100;
+    z-index: var(--z-dropdown);
     text-decoration: none;
     border-radius: 0 0 8px 0;
 }
@@ -63,7 +63,7 @@
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 2000;
+    z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -374,7 +374,7 @@ body.colorblind-mode .spymaster-mode .card.spy-red:not(.revealed)::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2500;
+    z-index: var(--z-toast);
     backdrop-filter: blur(4px);
 }
 
