@@ -76,14 +76,30 @@ export async function createRoom(
         expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
     };
 
-    // Atomically try to create the room
-    // Wrap redis.eval with timeout to prevent hanging operations
+    // Build host player data to create atomically with the room
+    const hostPlayer: Player = playerService.buildPlayerData(
+        hostSessionId, normalizedRoomId, hostNickname || 'Player', true
+    );
+
+    // Atomically create room + host player in a single Lua script call.
+    // This eliminates the crash window between room creation and player creation
+    // that could leave an orphaned room without a host player.
     const created = await withTimeout(
         redis.eval(
             ATOMIC_CREATE_ROOM_SCRIPT,
             {
-                keys: [`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`],
-                arguments: [JSON.stringify(room), REDIS_TTL.ROOM.toString()]
+                keys: [
+                    `room:${normalizedRoomId}`,
+                    `room:${normalizedRoomId}:players`,
+                    `player:${hostSessionId}`
+                ],
+                arguments: [
+                    JSON.stringify(room),
+                    REDIS_TTL.ROOM.toString(),
+                    JSON.stringify(hostPlayer),
+                    REDIS_TTL.PLAYER.toString(),
+                    hostSessionId
+                ]
             }
         ),
         TIMEOUTS.REDIS_OPERATION,
@@ -99,51 +115,9 @@ export async function createRoom(
         );
     }
 
-    // Verify room was actually persisted — diagnostic check for silent Redis failures.
-    // The Lua SETNX returning 1 guarantees the write, so this is a safety net.
-    // Non-fatal: log error for operators but don't block room creation.
-    try {
-        const verifyExists = await withTimeout(
-            redis.exists(`room:${normalizedRoomId}`),
-            TIMEOUTS.REDIS_OPERATION,
-            `createRoom-verify-${normalizedRoomId}`
-        );
-        if (verifyExists !== 1) {
-            logger.error('createRoom: room key missing immediately after Lua SETNX returned 1', {
-                roomId: normalizedRoomId,
-                luaResult: created,
-                hostSessionId
-            });
-        }
-    } catch (verifyError) {
-        logger.warn('createRoom: post-creation verification failed', {
-            roomId: normalizedRoomId,
-            error: (verifyError as Error).message
-        });
-    }
-
-    logger.info('Room created successfully', { roomId: normalizedRoomId });
-
-    // Create host player with provided nickname or default to 'Player'
-    // Note: 'Host' was a reserved name causing validation failures when no nickname provided
-    // Wrap player creation in try-catch to rollback room creation on failure
-    let player: Player;
-    try {
-        player = await playerService.createPlayer(hostSessionId, normalizedRoomId, hostNickname || 'Player', true);
-    } catch (playerError) {
-        // Rollback: delete the room we just created
-        logger.warn(`Player creation failed for room "${roomId}", rolling back room creation`);
-        await withTimeout(
-            redis.del([`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`]),
-            TIMEOUTS.REDIS_OPERATION,
-            `createRoom-rollback-${normalizedRoomId}`
-        );
-        throw playerError;
-    }
-
     logger.info(`Room "${roomId}" created by ${hostSessionId}`);
 
-    return { room, player };
+    return { room, player: hostPlayer };
 }
 
 /**

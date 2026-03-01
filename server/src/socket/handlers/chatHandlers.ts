@@ -7,7 +7,9 @@ import { chatMessageSchema, spectatorChatSchema } from '../../validators/schemas
 import logger from '../../utils/logger';
 import { SOCKET_EVENTS } from '../../config/constants';
 import { createRoomHandler } from '../contextHandler';
-import { sanitizeHtml } from '../../utils/sanitize';
+// Note: sanitizeHtml is NOT applied to broadcast data because the frontend
+// renders all user-supplied content via textContent (inherently XSS-safe).
+// Applying sanitizeHtml server-side would cause double-encoding (e.g., & → &amp;).
 import { PlayerError } from '../../errors/GameError';
 import { safeEmitToRoom, safeEmitToPlayer, safeEmitToGroup } from '../safeEmit';
 
@@ -53,11 +55,11 @@ function chatHandlers(io: Server, socket: GameSocket): void {
             const message: ChatMessage = {
                 from: {
                     sessionId: ctx.player.sessionId,
-                    nickname: sanitizeHtml(ctx.player.nickname),
+                    nickname: ctx.player.nickname,
                     team: ctx.player.team,
                     role: ctx.player.role
                 },
-                text: sanitizeHtml(validated.text),
+                text: validated.text,
                 teamOnly: validated.teamOnly,
                 spectatorOnly: validated.spectatorOnly || false,
                 timestamp: Date.now()
@@ -102,11 +104,11 @@ function chatHandlers(io: Server, socket: GameSocket): void {
             const message = {
                 from: {
                     sessionId: ctx.player.sessionId,
-                    nickname: sanitizeHtml(ctx.player.nickname),
+                    nickname: ctx.player.nickname,
                     team: ctx.player.team,
                     role: ctx.player.role
                 },
-                text: sanitizeHtml(validated.message),
+                text: validated.message,
                 timestamp: Date.now()
             };
 

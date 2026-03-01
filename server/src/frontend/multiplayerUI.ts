@@ -154,7 +154,8 @@ export function updateRoomSettingsNavVisibility(): void {
 // Sync game mode UI with server state
 export function syncGameModeUI(gameMode: string): void {
     if (!gameMode) return;
-    const radio = document.querySelector(`input[name="gameMode"][value="${gameMode}"]`) as HTMLInputElement;
+    const escapedMode = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(gameMode) : gameMode;
+    const radio = document.querySelector(`input[name="gameMode"][value="${escapedMode}"]`) as HTMLInputElement;
     if (radio) radio.checked = true;
 }
 

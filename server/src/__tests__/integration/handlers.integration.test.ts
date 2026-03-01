@@ -72,7 +72,7 @@ jest.mock('../../config/redis', () => {
             exec: jest.fn(async () => [[null, 'OK']])
         })),
         eval: jest.fn(async (script, options) => {
-            // Simulate atomic room creation script
+            // Simulate atomic room creation script (includes host player creation)
             if (script.includes('SETNX')) {
                 const roomKey = options.keys[0];
                 const playersKey = options.keys[1];
@@ -83,7 +83,21 @@ jest.mock('../../config/redis', () => {
                 }
 
                 mockRedisStorage.set(roomKey, roomData);
-                mockRedisSets.set(playersKey, new Set());
+                if (!mockRedisSets.has(playersKey)) {
+                    mockRedisSets.set(playersKey, new Set());
+                }
+
+                // Atomic host player creation (Fix 2)
+                const playerKey = options.keys[2];
+                const playerData = options.arguments[2];
+                const sessionId = options.arguments[4];
+                if (playerKey && playerData) {
+                    mockRedisStorage.set(playerKey, playerData);
+                }
+                if (sessionId) {
+                    mockRedisSets.get(playersKey).add(sessionId);
+                }
+
                 return 1;
             }
 
@@ -112,6 +126,31 @@ jest.mock('../../config/redis', () => {
                 }
 
                 return 1;
+            }
+
+            // Simulate atomic updateSettings script (must be checked BEFORE team change
+            // since both contain 'cjson.decode' and 'team' in the script text)
+            if (script.includes('hostSessionId') && script.includes('settingsJson')) {
+                const roomKey = options.keys[0];
+                const sessionId = options.arguments[0];
+                const newSettingsJson = options.arguments[1];
+
+                const roomData = mockRedisStorage.get(roomKey);
+                if (!roomData) return JSON.stringify({ error: 'ROOM_NOT_FOUND' });
+
+                const room = JSON.parse(roomData);
+                if (room.hostSessionId !== sessionId) return JSON.stringify({ error: 'NOT_HOST' });
+
+                const newSettings = JSON.parse(newSettingsJson);
+                if (!room.settings) room.settings = {};
+
+                if (newSettings.teamNames !== undefined) room.settings.teamNames = newSettings.teamNames;
+                if (newSettings.turnTimer !== undefined) room.settings.turnTimer = newSettings.turnTimer;
+                if (newSettings.allowSpectators !== undefined) room.settings.allowSpectators = newSettings.allowSpectators;
+                if (newSettings.gameMode !== undefined) room.settings.gameMode = newSettings.gameMode;
+
+                mockRedisStorage.set(roomKey, JSON.stringify(room));
+                return JSON.stringify({ success: true, settings: room.settings });
             }
 
             // Simulate atomic team change script

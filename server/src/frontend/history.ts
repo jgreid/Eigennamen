@@ -526,7 +526,12 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, { signal: controller.signal });
+        const headers: Record<string, string> = { 'X-Requested-With': 'XMLHttpRequest' };
+        const client = getClient();
+        if (client?.player?.sessionId) {
+            headers['X-Session-Id'] = client.player.sessionId;
+        }
+        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, { signal: controller.signal, headers });
         clearTimeout(timeoutId);
         if (!response.ok) {
             if (response.status === 404) {

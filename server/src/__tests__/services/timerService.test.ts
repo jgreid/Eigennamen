@@ -83,10 +83,36 @@ describe('Timer Service', () => {
                 const timer = JSON.parse(timerData);
 
                 // Detect which script is being called by checking the script content.
-                // Resume timer script contains 'NOT_PAUSED', timer status script contains 'isPaused'.
+                // Pause timer script contains 'ALREADY_PAUSED' (2 args: nowMs, pausedTimerTTL).
+                // Resume timer script contains 'NOT_PAUSED' (1 arg: nowMs).
+                // Timer status script has 1 arg and is neither pause nor resume.
                 // AddTime script passes 4 arguments (secondsToAdd, instanceId, now, ttlBuffer).
+                const isPauseTimerScript = typeof script === 'string' && script.includes('ALREADY_PAUSED');
                 const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
-                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript;
+                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
+
+                if (isPauseTimerScript) {
+                    // Simulate ATOMIC_PAUSE_TIMER_SCRIPT
+                    const now = parseInt(options.arguments[0], 10);
+
+                    if (timer.paused) {
+                        return JSON.stringify({ error: 'ALREADY_PAUSED' });
+                    }
+
+                    const remainingMs = timer.endTime - now;
+                    if (remainingMs <= 0) {
+                        delete mockRedis._storage[key];
+                        return JSON.stringify({ error: 'EXPIRED' });
+                    }
+
+                    const remainingSeconds = Math.ceil(remainingMs / 1000);
+                    timer.paused = true;
+                    timer.remainingWhenPaused = remainingSeconds;
+                    timer.pausedAt = now;
+                    mockRedis._storage[key] = JSON.stringify(timer);
+
+                    return JSON.stringify({ remainingSeconds });
+                }
 
                 if (isResumeTimerScript) {
                     // Simulate ATOMIC_RESUME_TIMER_SCRIPT

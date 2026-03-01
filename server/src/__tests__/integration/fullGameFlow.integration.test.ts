@@ -91,7 +91,7 @@ jest.mock('../../config/redis', () => {
             exec: jest.fn(async () => [[null, 'OK']])
         })),
         eval: jest.fn(async (script, options) => {
-            // Simulate atomic room creation script
+            // Simulate atomic room creation script (includes host player creation)
             if (script.includes('SETNX')) {
                 const roomKey = options.keys[0];
                 const playersKey = options.keys[1];
@@ -102,7 +102,21 @@ jest.mock('../../config/redis', () => {
                 }
 
                 mockRedisStorage.set(roomKey, roomData);
-                mockRedisSets.set(playersKey, new Set());
+                if (!mockRedisSets.has(playersKey)) {
+                    mockRedisSets.set(playersKey, new Set());
+                }
+
+                // Atomic host player creation (Fix 2)
+                const playerKey = options.keys[2];
+                const playerData = options.arguments[2];
+                const sessionId = options.arguments[4];
+                if (playerKey && playerData) {
+                    mockRedisStorage.set(playerKey, playerData);
+                }
+                if (sessionId) {
+                    mockRedisSets.get(playersKey).add(sessionId);
+                }
+
                 return 1;
             }
 

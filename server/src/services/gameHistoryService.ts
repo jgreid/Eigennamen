@@ -786,25 +786,36 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
         }
 
         // Get oldest and newest entries
-        const [oldestEntries, newestEntries] = await withTimeout(
+        const [oldestRaw, newestRaw] = await withTimeout(
             Promise.all([
-                redis.zRange(indexKey, 0, 0, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>,
-                redis.zRange(indexKey, -1, -1, { WITHSCORES: true }) as Promise<Array<{ value: string; score: number }>>
+                redis.zRange(indexKey, 0, 0, { WITHSCORES: true }),
+                redis.zRange(indexKey, -1, -1, { WITHSCORES: true })
             ]),
             TIMEOUTS.REDIS_OPERATION,
             `getHistoryStats-zRange-${roomCode}`
         );
 
+        // Safely extract value/score from the result — handles both
+        // { value, score } objects and flat string arrays depending on Redis client version
+        function extractEntry(entries: unknown[]): { id: string; timestamp: number } | null {
+            const first = entries[0];
+            if (!first) return null;
+            if (typeof first === 'object' && first !== null && 'value' in first && 'score' in first) {
+                const entry = first as { value: string; score: number };
+                return { id: entry.value, timestamp: entry.score };
+            }
+            // Flat array fallback: [member, score, ...]
+            if (typeof first === 'string' && entries.length >= 2) {
+                const score = Number(entries[1]);
+                return { id: first, timestamp: Number.isFinite(score) ? score : 0 };
+            }
+            return null;
+        }
+
         return {
             count,
-            oldest: oldestEntries.length > 0 && oldestEntries[0] ? {
-                id: oldestEntries[0].value,
-                timestamp: oldestEntries[0].score
-            } : null,
-            newest: newestEntries.length > 0 && newestEntries[0] ? {
-                id: newestEntries[0].value,
-                timestamp: newestEntries[0].score
-            } : null
+            oldest: extractEntry(oldestRaw as unknown[]),
+            newest: extractEntry(newestRaw as unknown[])
         };
 
     } catch (error) {

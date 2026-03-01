@@ -75,9 +75,34 @@ describe('Timer Service Branch Coverage', () => {
                 const timer = JSON.parse(timerData);
 
                 // Detect which script by checking content.
+                // Pause timer script contains 'ALREADY_PAUSED'.
                 // Resume timer script contains 'NOT_PAUSED'.
+                const isPauseTimerScript = typeof script === 'string' && script.includes('ALREADY_PAUSED');
                 const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
-                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript;
+                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
+
+                if (isPauseTimerScript) {
+                    // Simulate ATOMIC_PAUSE_TIMER_SCRIPT
+                    const now = parseInt(options.arguments[0], 10);
+
+                    if (timer.paused) {
+                        return JSON.stringify({ error: 'ALREADY_PAUSED' });
+                    }
+
+                    const remainingMs = timer.endTime - now;
+                    if (remainingMs <= 0) {
+                        delete mockRedisStorage[key];
+                        return JSON.stringify({ error: 'EXPIRED' });
+                    }
+
+                    const remainingSeconds = Math.ceil(remainingMs / 1000);
+                    timer.paused = true;
+                    timer.remainingWhenPaused = remainingSeconds;
+                    timer.pausedAt = now;
+                    mockRedisStorage[key] = JSON.stringify(timer);
+
+                    return JSON.stringify({ remainingSeconds });
+                }
 
                 if (isResumeTimerScript) {
                     // Simulate ATOMIC_RESUME_TIMER_SCRIPT
@@ -505,28 +530,24 @@ describe('Timer Service Branch Coverage', () => {
             expect(result!.remainingSeconds).toBeGreaterThan(0);
         });
 
-        it('should handle parse error in pauseTimer body', async () => {
-            // Create valid timer first for getTimerStatus
-            const validTimer = {
-                roomCode: 'PARSE_ERR',
-                startTime: Date.now(),
-                endTime: Date.now() + 60000,
-                duration: 60,
-                instanceId: '123'
-            };
-            mockRedisStorage['timer:PARSE_ERR'] = JSON.stringify(validTimer);
-
-            // getTimerStatus() now uses redis.eval (not get), so the first
-            // redis.get call comes from pauseTimer's body — return invalid JSON.
-            mockRedis.get.mockImplementation(async (key: string) => {
-                if (key === 'timer:PARSE_ERR') {
-                    return 'invalid json {{{';
-                }
-                return mockRedisStorage[key] || null;
-            });
+        it('should handle corrupted data in pauseTimer', async () => {
+            // Put invalid JSON in storage — the eval mock's JSON.parse will
+            // fail and return null, causing pauseTimer to return null.
+            mockRedisStorage['timer:PARSE_ERR'] = 'invalid json {{{';
 
             const result = await timerService.pauseTimer('PARSE_ERR');
             expect(result).toBeNull();
+        });
+
+        it('should return null when pausing an already-paused timer', async () => {
+            // Start and pause a timer
+            await timerService.startTimer('DOUBLE_PAUSE', 60);
+            const firstPause = await timerService.pauseTimer('DOUBLE_PAUSE');
+            expect(firstPause).not.toBeNull();
+
+            // Pause again — should return null (ALREADY_PAUSED)
+            const secondPause = await timerService.pauseTimer('DOUBLE_PAUSE');
+            expect(secondPause).toBeNull();
         });
     });
 

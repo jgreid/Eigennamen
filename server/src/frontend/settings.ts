@@ -25,7 +25,8 @@ export function openSettings(): void {
     const rawSavedMode = safeGetItem('eigennamen-wordlist-mode', 'combined');
     const allowedModes = ['default', 'combined', 'custom'];
     const savedMode = allowedModes.includes(rawSavedMode ?? '') ? rawSavedMode : 'combined';
-    const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${savedMode}"]`) as HTMLInputElement | null;
+    const escapedMode = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(savedMode ?? '') : (savedMode ?? '');
+    const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${escapedMode}"]`) as HTMLInputElement | null;
     if (modeRadio) {
         modeRadio.checked = true;
         // Update selected class for older browsers
