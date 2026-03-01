@@ -146,19 +146,19 @@ describe('Error Handler Middleware', () => {
             expect(response.body.error.message).toBe('Validation error');
         });
 
-        it('should include error details when present', async () => {
+        it('should include allowlisted error details when present', async () => {
             app.get('/test', (req, res, next) => {
                 next({
                     code: ERROR_CODES.INVALID_INPUT,
                     message: 'Validation failed',
-                    details: [{ field: 'name', issue: 'required' }],
+                    details: { roomCode: 'ABC123', recoverable: true },
                 });
             });
             app.use(errorHandler);
 
             const response = await request(app).get('/test').expect(400);
 
-            expect(response.body.error.details).toEqual([{ field: 'name', issue: 'required' }]);
+            expect(response.body.error.details).toEqual({ roomCode: 'ABC123', recoverable: true });
         });
 
         it('should handle unknown errors with 500', async () => {

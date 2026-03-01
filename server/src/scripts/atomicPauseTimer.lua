@@ -1,3 +1,12 @@
+-- atomicPauseTimer.lua
+-- Description: Atomically pauses a running timer by recording remaining time and setting a paused-state TTL.
+--
+-- KEYS[1]: Timer key
+-- ARGV[1]: Current timestamp (ms)
+-- ARGV[2]: Paused timer TTL (seconds)
+--
+-- Returns: JSON `{remainingSeconds}` on success, JSON `{error: 'CODE'}` on failure
+
 local timerKey = KEYS[1]
 local nowMs = tonumber(ARGV[1])
 local pausedTimerTTL = tonumber(ARGV[2])

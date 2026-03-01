@@ -121,9 +121,14 @@ function getAllowedOrigins(): string[] | null {
 
     if (!corsOrigin || corsOrigin === '*') {
         // CORS not configured or wildcard — rely on X-Requested-With header only.
-        if (process.env.NODE_ENV === 'production' && (!corsOrigin || corsOrigin === '*')) {
+        // Log at warn in production (critical) and info in development (visible but not alarming).
+        if (process.env.NODE_ENV === 'production') {
             logger.warn(
                 'CSRF: CORS_ORIGIN not configured or set to wildcard — origin validation disabled. Set CORS_ORIGIN to your domain.'
+            );
+        } else {
+            logger.info(
+                'CSRF: CORS_ORIGIN not configured — origin validation disabled. Only X-Requested-With header is enforced.'
             );
         }
         return null;

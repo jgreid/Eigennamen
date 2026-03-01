@@ -1,3 +1,11 @@
+-- atomicResumeTimer.lua
+-- Description: Resumes a paused timer, checking whether it expired during the pause period
+--
+-- KEYS[1]: Timer key
+-- ARGV[1]: Current timestamp (ms)
+--
+-- Returns: JSON `{expired, remainingSeconds, ...}` on success
+
 local timerKey = KEYS[1]
 local nowMs = tonumber(ARGV[1])
 

@@ -98,6 +98,8 @@ All paths relative to `server/src/`.
 - **Return null** only for "resource not found" (key doesn't exist in Redis)
 - **Catch gracefully** in non-critical paths (history, cleanup, TTL refresh)
 - Audit/history services use log-and-continue (never break game flow)
+- **Error detail allowlist**: `errorHandler.ts` only exposes `roomCode`, `team`, `index`, `max`, `recoverable`, `suggestion`, `retryable` to clients — all other detail fields are stripped
+- **Production Zod scrubbing**: Validation error field paths are stripped in production to prevent schema disclosure
 
 ### Data Flow
 Client event → Zod validation → rate limiter → context handler → service → Redis → broadcast via `safeEmit`
@@ -110,6 +112,8 @@ Client event → Zod validation → rate limiter → context handler → service
 3. Create handler in `socket/handlers/*.ts`
 4. Register in `socket/index.ts`
 5. Add client handling in `frontend/handlers/`
+
+See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked example.
 
 ### Adding a New REST Endpoint
 1. Add route in `routes/` (register in `routes/index.ts`)
@@ -139,7 +143,7 @@ Client event → Zod validation → rate limiter → context handler → service
 | `middleware/socketAuth.ts` | Auth orchestrator |
 | `errors/GameError.ts` | Error class hierarchy |
 | `validators/schemas.ts` | Barrel for all Zod schemas |
-| `scripts/index.ts` | All Lua scripts (barrel export) |
+| `scripts/index.ts` | All Lua scripts (barrel export, each script has documented KEYS/ARGV/Returns header) |
 | `frontend/app.ts` | Frontend entry point |
 | `frontend/state.ts` | Frontend state management |
 | `frontend/store/` | Reactive state store with actions and selectors |
@@ -159,6 +163,8 @@ Key env vars (see `server/.env.example` for full list):
 
 - [QUICKSTART.md](QUICKSTART.md) — Getting started
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Code standards, PR process
+- [CONTRIBUTING_QUICK.md](CONTRIBUTING_QUICK.md) — 1-page quick-start contributor guide
+- [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) — Worked example of adding a socket event
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — System architecture
 - [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) — API specification (REST + WebSocket)
 - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) — Testing patterns and coverage

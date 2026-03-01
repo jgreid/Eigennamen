@@ -4,6 +4,20 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [4.2.0] - 2026-03-01
+
+### Added
+- `CONTRIBUTING_QUICK.md` — 1-page quick-start contributor guide (clone → PR in 10 minutes)
+- `docs/ADDING_A_FEATURE.md` — worked example tracing `chat:spectator` through all codebase layers
+- Documentation headers on all 18 Lua scripts (`KEYS[]`, `ARGV[]`, `Returns` contracts)
+- CSRF dev-mode info log when `CORS_ORIGIN` is not configured (previously only warned in production)
+- Allowlist-based error detail filtering in `errorHandler.ts` — only `roomCode`, `team`, `index`, `max`, `recoverable`, `suggestion`, `retryable` are exposed to clients
+- Production Zod path scrubbing — validation errors strip field paths in production, keeping only messages
+
+### Changed
+- Error handler switched from blacklist (destructure-and-spread) to explicit allowlist pattern for detail fields — prevents accidental disclosure when new internal fields are added
+- Updated CLAUDE.md with new documentation links and error handling security patterns
+
 ## [4.1.0] - 2026-03-01
 
 ### Added

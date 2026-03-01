@@ -1,3 +1,17 @@
+-- atomicCreateRoom.lua
+-- Description: Atomically creates a new room (only if it doesn't exist) and optionally creates the host player in the same transaction.
+--
+-- KEYS[1]: Room key (e.g., `room:ABC123`)
+-- KEYS[2]: Room players set key
+-- KEYS[3]: Host player key (optional)
+-- ARGV[1]: Room data JSON
+-- ARGV[2]: Room TTL (seconds)
+-- ARGV[3]: Host player data JSON (optional)
+-- ARGV[4]: Host player TTL (seconds, optional)
+-- ARGV[5]: Host session ID (optional)
+--
+-- Returns: 1 on success, 0 if room already exists
+
 local roomKey = KEYS[1]
 local playersKey = KEYS[2]
 local roomData = ARGV[1]

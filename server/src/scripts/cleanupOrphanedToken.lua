@@ -1,3 +1,11 @@
+-- cleanupOrphanedToken.lua
+-- Description: Removes a reconnection token if its associated player no longer exists in Redis
+--
+-- KEYS[1]: Session key (e.g., `session:<sessionId>`)
+-- KEYS[2]: Player key (e.g., `player:<sessionId>`)
+--
+-- Returns: 0 if player still exists, 1 if orphaned token cleaned up
+
 local sessionKey = KEYS[1]
 local playerKey = KEYS[2]
 local playerData = redis.call('GET', playerKey)
