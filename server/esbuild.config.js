@@ -42,19 +42,21 @@ const socketClientConfig = {
 };
 
 /**
- * Update the SRI integrity hash in index.html for socket-client.js.
- * This prevents the recurring bug where a rebuild changes the file
- * but the hardcoded hash in index.html becomes stale, blocking the
- * browser from loading the script.
+ * Update the SRI integrity hash AND cache-bust version in index.html
+ * for socket-client.js. This prevents two recurring bugs:
+ * 1. A rebuild changes the file but the hardcoded hash becomes stale,
+ *    blocking the browser from loading the script.
+ * 2. The version query parameter stays the same across deploys, so
+ *    browsers serve a cached old JS file that fails the new SRI check.
+ *
+ * The version is derived from the content hash so it changes automatically
+ * whenever the bundle output changes.
  */
 function updateSriHash() {
     const scriptPath = socketClientConfig.outfile;
     // Check both local dev path (../index.html) and Docker path (public/index.html)
-    const candidates = [
-        path.join(__dirname, '../index.html'),
-        path.join(__dirname, 'public/index.html'),
-    ];
-    const indexPath = candidates.find(p => fs.existsSync(p));
+    const candidates = [path.join(__dirname, '../index.html'), path.join(__dirname, 'public/index.html')];
+    const indexPath = candidates.find((p) => fs.existsSync(p));
 
     if (!fs.existsSync(scriptPath) || !indexPath) {
         console.warn('SRI update skipped: missing socket-client.js or index.html');
@@ -64,17 +66,19 @@ function updateSriHash() {
     const fileContents = fs.readFileSync(scriptPath);
     const hash = crypto.createHash('sha384').update(fileContents).digest('base64');
     const newIntegrity = `sha384-${hash}`;
+    // Use first 8 hex chars of the hash as a content-based cache-bust version
+    const contentVersion = crypto.createHash('sha384').update(fileContents).digest('hex').slice(0, 8);
 
     let html = fs.readFileSync(indexPath, 'utf8');
-    const pattern = /(socket-client\.js\?v=\d+"\s+integrity=")sha384-[A-Za-z0-9+/=]+(")/;
+    const pattern = /(socket-client\.js\?v=)[A-Za-z0-9]+("\s+integrity=")sha384-[A-Za-z0-9+/=]+(")/;
     if (!pattern.test(html)) {
         console.warn('SRI update skipped: could not find socket-client.js integrity attribute in index.html');
         return;
     }
 
-    html = html.replace(pattern, `$1${newIntegrity}$2`);
+    html = html.replace(pattern, `$1${contentVersion}$2${newIntegrity}$3`);
     fs.writeFileSync(indexPath, html, 'utf8');
-    console.log(`Updated SRI hash for socket-client.js: ${newIntegrity}`);
+    console.log(`Updated socket-client.js: version=${contentVersion}, integrity=${newIntegrity}`);
 }
 
 async function build() {
