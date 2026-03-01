@@ -91,7 +91,7 @@ async function startEmbeddedRedis(): Promise<string> {
         '--daemonize', 'no',
         '--loglevel', 'notice',
         '--maxmemory', '256mb',            // Cap memory to prevent OOM on constrained VMs
-        '--maxmemory-policy', 'allkeys-lru' // Evict least-recently-used keys when limit is hit
+        '--maxmemory-policy', 'noeviction' // Reject writes instead of silently evicting game data
     ];
 
     // Configurable timeout for slow hardware or high-load environments

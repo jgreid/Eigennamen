@@ -99,6 +99,14 @@ const config: MetricsConfig = {
 const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID || 'local';
 
 /**
+ * Calculate a percentile value from a sorted array of numbers.
+ */
+function calculatePercentile(sorted: number[], p: number): number {
+    const idx = Math.ceil(sorted.length * p) - 1;
+    return sorted[Math.max(0, idx)] ?? 0;
+}
+
+/**
  * Increment a counter
  * @param name - Counter name
  * @param value - Value to add (default 1)
@@ -196,10 +204,6 @@ function getHistogramStats(name: string, labels: MetricLabels = {}): HistogramSt
     }
 
     const sorted = [...histogram.values].sort((a, b) => a - b);
-    const percentile = (p: number): number => {
-        const idx = Math.ceil(sorted.length * p) - 1;
-        return sorted[Math.max(0, idx)] ?? 0;
-    };
 
     return {
         count: histogram.count,
@@ -207,10 +211,10 @@ function getHistogramStats(name: string, labels: MetricLabels = {}): HistogramSt
         avg: histogram.sum / histogram.count,
         min: histogram.min,
         max: histogram.max,
-        p50: percentile(0.5),
-        p90: percentile(0.9),
-        p95: percentile(0.95),
-        p99: percentile(0.99),
+        p50: calculatePercentile(sorted, 0.5),
+        p90: calculatePercentile(sorted, 0.9),
+        p95: calculatePercentile(sorted, 0.95),
+        p99: calculatePercentile(sorted, 0.99),
         labels: histogram.labels
     };
 }
@@ -248,20 +252,16 @@ function getAllMetrics(): AllMetrics {
     for (const [key, histogram] of Object.entries(metrics.histograms)) {
         if (!histogram || histogram.count === 0) continue;
         const sorted = [...histogram.values].sort((a, b) => a - b);
-        const percentile = (p: number): number => {
-            const idx = Math.ceil(sorted.length * p) - 1;
-            return sorted[Math.max(0, idx)] ?? 0;
-        };
         result.histograms[key] = {
             count: histogram.count,
             sum: histogram.sum,
             avg: histogram.sum / histogram.count,
             min: histogram.min,
             max: histogram.max,
-            p50: percentile(0.5),
-            p90: percentile(0.9),
-            p95: percentile(0.95),
-            p99: percentile(0.99),
+            p50: calculatePercentile(sorted, 0.5),
+            p90: calculatePercentile(sorted, 0.9),
+            p95: calculatePercentile(sorted, 0.95),
+            p99: calculatePercentile(sorted, 0.99),
             labels: histogram.labels
         };
     }

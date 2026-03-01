@@ -1,10 +1,10 @@
 /* ========== ROLE BANNER ========== */
 .role-banner {
     text-align: center;
-    padding: 6px 12px;
-    border-radius: 8px;
+    padding: 4px 10px;
+    border-radius: 6px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     line-height: 1.3;
     letter-spacing: 0.2px;
 }
@@ -79,13 +79,13 @@
 /* ========== SCOREBOARD (Clickable Team Selection) ========== */
 .scoreboard {
     display: flex;
-    gap: 6px;
+    gap: 5px;
 }
 
 .score {
     flex: 1;
-    padding: 8px 8px;
-    border-radius: 8px;
+    padding: 6px 6px;
+    border-radius: 6px;
     font-weight: 700;
     text-align: center;
     cursor: pointer;
@@ -93,8 +93,8 @@
 }
 
 .score.red {
-    background: linear-gradient(145deg, rgba(220, 53, 69, 0.2) 0%, rgba(180, 40, 55, 0.1) 100%);
-    border: 2px solid rgba(220, 53, 69, 0.4);
+    background: linear-gradient(145deg, rgba(220, 53, 69, 0.15) 0%, rgba(180, 40, 55, 0.08) 100%);
+    border: 1px solid rgba(220, 53, 69, 0.35);
     color: #ff6b6b;
 }
 
@@ -104,14 +104,14 @@
 }
 
 .score.red.selected {
-    background: linear-gradient(145deg, rgba(220, 53, 69, 0.4) 0%, rgba(180, 40, 55, 0.25) 100%);
+    background: linear-gradient(145deg, rgba(220, 53, 69, 0.35) 0%, rgba(180, 40, 55, 0.2) 100%);
     border-color: #ff6b6b;
-    box-shadow: 0 0 12px rgba(220, 53, 69, 0.4);
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.3);
 }
 
 .score.blue {
-    background: linear-gradient(145deg, rgba(0, 123, 255, 0.2) 0%, rgba(0, 90, 200, 0.1) 100%);
-    border: 2px solid rgba(0, 123, 255, 0.4);
+    background: linear-gradient(145deg, rgba(0, 123, 255, 0.15) 0%, rgba(0, 90, 200, 0.08) 100%);
+    border: 1px solid rgba(0, 123, 255, 0.35);
     color: #74b9ff;
 }
 
@@ -121,53 +121,53 @@
 }
 
 .score.blue.selected {
-    background: linear-gradient(145deg, rgba(0, 123, 255, 0.4) 0%, rgba(0, 90, 200, 0.25) 100%);
+    background: linear-gradient(145deg, rgba(0, 123, 255, 0.35) 0%, rgba(0, 90, 200, 0.2) 100%);
     border-color: #74b9ff;
-    box-shadow: 0 0 12px rgba(0, 123, 255, 0.4);
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
 }
 
 .score .team-name {
     display: block;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    opacity: 0.85;
-    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+    opacity: 0.8;
+    margin-bottom: 1px;
 }
 
 .score .count {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 800;
 }
 
-/* ========== TURN INDICATOR ========== */
+/* ========== TURN INDICATOR (Primary game state — most prominent element) ========== */
 .turn-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-size: 0.85rem;
-    padding: 6px 12px;
+    font-size: 0.9rem;
+    padding: 8px 12px;
     border-radius: 8px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.3px;
 }
 
 .turn-indicator.red-turn {
-    background: linear-gradient(135deg, rgba(220, 53, 69, 0.2) 0%, rgba(220, 53, 69, 0.08) 100%);
-    border: 1px solid rgba(220, 53, 69, 0.4);
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.25) 0%, rgba(220, 53, 69, 0.12) 100%);
+    border: 2px solid rgba(220, 53, 69, 0.5);
     color: #ff6b6b;
 }
 
 .turn-indicator.blue-turn {
-    background: linear-gradient(135deg, rgba(0, 123, 255, 0.2) 0%, rgba(0, 123, 255, 0.08) 100%);
-    border: 1px solid rgba(0, 123, 255, 0.4);
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.25) 0%, rgba(0, 123, 255, 0.12) 100%);
+    border: 2px solid rgba(0, 123, 255, 0.5);
     color: #74b9ff;
 }
 
 .turn-indicator.game-over {
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.08) 100%);
-    border: 1px solid rgba(255, 193, 7, 0.4);
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.25) 0%, rgba(255, 193, 7, 0.12) 100%);
+    border: 2px solid rgba(255, 193, 7, 0.5);
     color: #ffc107;
 }
 
@@ -232,13 +232,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 20px;
-    padding: 8px 16px;
-    background: linear-gradient(135deg, rgba(50, 205, 50, 0.12) 0%, rgba(50, 205, 50, 0.05) 100%);
-    border: 1px solid rgba(50, 205, 50, 0.25);
-    border-radius: 8px;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.9);
+    gap: 14px;
+    padding: 5px 12px;
+    background: rgba(50, 205, 50, 0.08);
+    border: 1px solid rgba(50, 205, 50, 0.18);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .duet-info-bar .duet-progress {
@@ -275,24 +275,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.12) 0%, rgba(255, 215, 0, 0.05) 100%);
-    border: 1px solid rgba(255, 215, 0, 0.25);
-    border-radius: 8px;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.9);
+    gap: 10px;
+    padding: 5px 12px;
+    background: rgba(255, 215, 0, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .match-scoreboard .match-round {
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.55);
 }
 
 .match-scoreboard .match-score {
     font-weight: 700;
-    font-size: 1.1rem;
-    min-width: 24px;
+    font-size: 0.95rem;
+    min-width: 20px;
     text-align: center;
 }
 
@@ -315,46 +315,44 @@
     font-style: italic;
 }
 
-/* Card score badges */
+/* Card score badges — subtle, secondary to card content */
 .card-score-badge {
     position: absolute;
     top: 2px;
     left: 3px;
-    font-size: 0.65rem;
-    font-weight: 700;
+    font-size: 0.55rem;
+    font-weight: 600;
     line-height: 1;
-    padding: 2px 4px;
-    border-radius: 4px;
+    padding: 1px 3px;
+    border-radius: 3px;
     pointer-events: none;
     z-index: 2;
+    opacity: 0.7;
 }
 
 .card-score-badge.card-score-gold {
-    background: linear-gradient(135deg, #ffd700, #ffaa00);
-    color: #3e2723;
-    box-shadow: 0 1px 3px rgba(255, 215, 0, 0.4);
+    background: rgba(255, 215, 0, 0.5);
+    color: #5d4037;
 }
 
 .card-score-badge.card-score-silver {
-    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
-    color: #1a1a2e;
-    box-shadow: 0 1px 3px rgba(192, 192, 192, 0.4);
+    background: rgba(192, 192, 192, 0.45);
+    color: #37474f;
 }
 
 .card-score-badge.card-score-standard {
-    background: rgba(255, 255, 255, 0.85);
-    color: #333;
+    background: rgba(255, 255, 255, 0.5);
+    color: #555;
 }
 
 .card-score-badge.card-score-blank {
-    background: rgba(128, 128, 128, 0.3);
-    color: rgba(255, 255, 255, 0.5);
+    background: rgba(128, 128, 128, 0.2);
+    color: rgba(100, 100, 100, 0.6);
 }
 
 .card-score-badge.card-score-trap {
-    background: linear-gradient(135deg, #ff4444, #cc0000);
+    background: rgba(255, 68, 68, 0.55);
     color: #fff;
-    box-shadow: 0 1px 3px rgba(255, 0, 0, 0.3);
 }
 
 /* Rules page match score type colors */
@@ -384,7 +382,7 @@
 .controls {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
 }
 
 /* Role selection controls */
@@ -394,17 +392,17 @@
 
 .role-buttons-row {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 
 .btn-spymaster,
 .btn-clicker {
     flex: 1;
-    padding: 8px 12px;
-    font-size: 0.8rem;
+    padding: 6px 8px;
+    font-size: 0.72rem;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .btn-spymaster:disabled,
@@ -456,13 +454,13 @@
 
 .utility-buttons-row {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 
 /* ========== BUTTONS ========== */
 button {
-    padding: 8px 12px;
-    font-size: 0.78rem;
+    padding: 6px 10px;
+    font-size: 0.75rem;
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -524,14 +522,14 @@ button:focus-visible,
 }
 
 .btn-spectate {
-    background: rgba(108, 117, 125, 0.3);
-    color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(108, 117, 125, 0.5);
+    background: rgba(108, 117, 125, 0.15);
+    color: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(108, 117, 125, 0.3);
     flex: 1;
 }
 
 .btn-spectate:hover {
-    background: rgba(108, 117, 125, 0.4);
+    background: rgba(108, 117, 125, 0.3);
     color: white;
 }
 
@@ -544,14 +542,14 @@ button:focus-visible,
 /* Action buttons row - End Turn and New Game */
 .action-buttons-row {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 
 .action-buttons-row .btn-end-turn,
 .action-buttons-row .btn-new-game {
     flex: 1;
-    font-size: 0.78rem;
-    padding: 8px 10px;
+    font-size: 0.75rem;
+    padding: 7px 8px;
 }
 
 .btn-end-turn {
@@ -573,15 +571,15 @@ button:focus-visible,
 }
 
 .btn-settings {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     flex: 1;
 }
 
 .btn-settings:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* Checkmark for active role buttons */

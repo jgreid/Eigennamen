@@ -11,6 +11,7 @@ import { connectRedis, disconnectRedis, getRedis, isUsingMemoryMode } from './co
 import { validateEnv, getEnvInt } from './config/env';
 import * as timerService from './services/timerService';
 import { startMemoryMonitoring, stopMemoryMonitoring } from './middleware/timing';
+import { pruneStaleMetrics } from './utils/metrics';
 import logger from './utils/logger';
 
 const PORT: number = getEnvInt('PORT', 3000) ?? 3000;
@@ -61,6 +62,10 @@ async function startServer(): Promise<void> {
 
             // Start memory monitoring
             startMemoryMonitoring();
+
+            // Periodically prune stale metrics to prevent unbounded memory growth
+            const metricsPruneTimer = setInterval(() => pruneStaleMetrics(), 3600000);
+            metricsPruneTimer.unref();
         });
 
         // Graceful shutdown (guarded against duplicate signals)

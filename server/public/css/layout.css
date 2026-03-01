@@ -8,14 +8,14 @@
 
 /* Left Sidebar - Compact, fits viewport without scroll */
 .sidebar {
-    width: 280px;
-    min-width: 260px;
-    max-width: 300px;
+    width: 260px;
+    min-width: 240px;
+    max-width: 280px;
     flex-shrink: 0;
-    padding: 8px 10px;
+    padding: 10px 12px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
     max-height: 100vh;
@@ -36,12 +36,11 @@
 /* ========== HEADER ========== */
 header {
     text-align: center;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 4px;
 }
 
 .game-title {
-    font-size: 1.6rem;
+    font-size: 1.3rem;
     margin: 0;
     background: linear-gradient(135deg, #c9b037 0%, #f0e68c 25%, #daa520 50%, #f0e68c 75%, #c9b037 100%);
     -webkit-background-clip: text;
@@ -60,6 +59,3 @@ header {
     color: rgba(255, 255, 255, 0.55);
     letter-spacing: 1px;
 }
-
-
-
