@@ -132,7 +132,8 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
                 }
             }
         } while (cursor !== 0 && iterations < MAX_SCAN_ITERATIONS);
-        if (iterations >= MAX_SCAN_ITERATIONS) {
+        const truncated = iterations >= MAX_SCAN_ITERATIONS;
+        if (truncated) {
             logger.warn(`Room listing SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), results may be incomplete`);
         }
 
@@ -171,6 +172,7 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
         res.json({
             count: rooms.length,
             rooms,
+            ...(truncated && { truncated: true }),
         });
     } catch (error) {
         logger.error('Failed to list rooms', { error: (error as Error).message });
@@ -298,10 +300,9 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             return;
         }
 
-        // Get all player IDs
+        // Get all player IDs and fetch data in a single batch
         const playerIds = await redis.sMembers(`room:${normalizedCode}:players`);
 
-        // Fetch player data
         const players: Array<{
             id: string;
             nickname: string;
@@ -310,12 +311,18 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             isHost: boolean;
             joinedAt?: number;
         }> = [];
-        for (const playerId of playerIds) {
-            try {
-                const playerData = await redis.get(`player:${playerId}`);
-                if (playerData) {
+
+        if (playerIds.length > 0) {
+            const playerKeys = playerIds.map((id) => `player:${id}`);
+            const playerDataArray = await redis.mGet(playerKeys);
+
+            for (let i = 0; i < playerIds.length; i++) {
+                const playerId = playerIds[i] as string;
+                const rawData = playerDataArray[i];
+                if (!rawData) continue;
+                try {
                     const player = tryParseJSON(
-                        playerData,
+                        rawData,
                         playerDataSchema,
                         `admin player: ${playerId}`
                     ) as PlayerData | null;
@@ -328,9 +335,11 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
                         isHost: room.hostSessionId === playerId,
                         joinedAt: player.joinedAt,
                     });
+                } catch (parseError) {
+                    logger.warn(`Failed to parse player data for ${playerId}`, {
+                        error: (parseError as Error).message,
+                    });
                 }
-            } catch (parseError) {
-                logger.warn(`Failed to parse player data for ${playerId}`, { error: (parseError as Error).message });
             }
         }
 
