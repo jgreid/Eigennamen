@@ -102,6 +102,7 @@ const mockRedis = {
         const members = mockRedisSets.get(key);
         return members ? members.size : 0;
     }),
+    mGet: jest.fn(async (keys) => keys.map((key) => mockRedisStorage.get(key) || null)),
     keys: jest.fn(async () => []),
     scan: jest.fn(async () => ({ cursor: 0, keys: [] })),
     scanIterator: jest.fn(() => ({

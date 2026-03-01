@@ -30,49 +30,17 @@ The game mode system is well-architected overall:
 
 ## Issues Found
 
-### 1. Match Mode First-Team Alternation Is Not Guaranteed
+### ~~1. Match Mode First-Team Alternation Is Not Guaranteed~~ RESOLVED
 
-**Severity**: Medium
-**Location**: `gameService.ts:487-493` (`startNextRound`)
+**Status**: Fixed — `gameService.ts:558-562` now explicitly overrides `layout.firstTeam` using `firstTeamHistory` after generating the board layout. Test coverage added in `gameServiceMatchDuet.test.ts`.
 
-The comment on line 487 says "Alternate first team by using the opposite of the previous round", but the implementation generates a fresh seed and calls `generateBoardLayout(numericSeed, false)` which uses `seededRandom(seed + offset) > 0.5` to pick the first team. This is probabilistic (~50/50), not deterministic alternation.
+### ~~2. Match Mode Round Finalization Uses Fragile Redis Persistence~~ RESOLVED
 
-`firstTeamHistory` is tracked and carried forward, but never consulted to enforce alternation. Over many rounds this is statistically fine, but individual matches can have the same team go first 2-3 times in a row, which is competitively unfair.
+**Status**: Fixed — `finalizeMatchRound()` now uses `executeGameTransaction` (optimistic locking) at `gameService.ts:505-525`. The raw `redis.set()` pattern has been replaced.
 
-**Recommendation**: After generating the layout, override `firstTeam` to be the opposite of the previous round's first team:
+### ~~3. Duplicated Match Finalization Logic in Game Handler~~ RESOLVED
 
-```typescript
-// In startNextRound(), after generateBoardLayout:
-const previousFirstTeam = currentGame.firstTeamHistory?.slice(-1)[0];
-if (previousFirstTeam) {
-    layout.firstTeam = previousFirstTeam === 'red' ? 'blue' : 'red';
-}
-```
-
-### 2. Match Mode Round Finalization Uses Fragile Redis Persistence
-
-**Severity**: Medium
-**Location**: `gameHandlers.ts:239-244` and `gameHandlers.ts:360-364`
-
-After a round ends, the handler calls `finalizeRound()` which mutates the game state in-memory, then persists it with a raw `redis.set()` call with a hardcoded 3600s TTL:
-
-```typescript
-const redis = (await import('../../config/redis')).getRedis();
-await redis.set(`room:${ctx.roomCode}:game`, JSON.stringify(updatedGame), { EX: 3600 });
-```
-
-This bypasses the `executeGameTransaction` optimistic locking pattern used elsewhere. If two reveals complete nearly simultaneously (e.g., network race), the second `finalizeRound` could overwrite the first's results. The dynamic import of redis is also an anti-pattern. The hardcoded 3600s TTL may differ from the room's actual TTL.
-
-**Recommendation**: Move round finalization into `executeGameTransaction` or a dedicated Lua script. At minimum, use `REDIS_TTL.ROOM` instead of the hardcoded value, and import redis statically.
-
-### 3. Duplicated Match Finalization Logic in Game Handler
-
-**Severity**: Low-Medium
-**Location**: `gameHandlers.ts:238-262` and `gameHandlers.ts:359-383`
-
-The match mode round-finalization block (get game, finalize round, persist, emit match-over or round-ended) is copy-pasted in both the `GAME_REVEAL` handler and the `GAME_FORFEIT` handler. This violates DRY and increases the risk of the two paths diverging.
-
-**Recommendation**: Extract to a shared helper, e.g., `handleMatchRoundEnd(io, ctx, socket)` in `gameHandlerUtils.ts`.
+**Status**: Fixed — Extracted to `gameHandlerUtils.ts:handleMatchRoundEnd()` which calls `gameService.finalizeMatchRound()`.
 
 ### 4. Lua Reveal Script Has No Match-Mode-Aware Outcome Logic
 
@@ -145,13 +113,13 @@ const game = await gameService.startNextRound(ctx.roomCode, ctx.game, {
 
 ### Priority 1: Correctness
 
-1. **Fix first-team alternation in Match mode** — Explicitly alternate using `firstTeamHistory` instead of relying on random seed (Issue #1)
-2. **Fix round finalization race condition** — Use `executeGameTransaction` for `finalizeRound` persistence (Issue #2)
+1. ~~**Fix first-team alternation in Match mode**~~ — RESOLVED
+2. ~~**Fix round finalization race condition**~~ — RESOLVED
 3. **Preserve word list across Match rounds** — Forward custom word list in `GAME_NEXT_ROUND` handler (Issue #8)
 
 ### Priority 2: Code Quality
 
-4. **Extract match finalization helper** — DRY up the duplicated round-end logic in reveal and forfeit handlers (Issue #3)
+4. ~~**Extract match finalization helper**~~ — RESOLVED
 5. **Add explicit `isMatch` in Lua script** — Future-proof the reveal script for Match-specific rule changes (Issue #4)
 
 ### Priority 3: Test Coverage
@@ -169,10 +137,7 @@ const game = await gameService.startNextRound(ctx.roomCode, ctx.game, {
 
 ## Summary
 
-The game mode system is production-ready with clean separation of concerns. The three modes are well-differentiated with mode-appropriate logic isolated to focused functions. The primary risks are:
+The game mode system is production-ready with clean separation of concerns. The three modes are well-differentiated with mode-appropriate logic isolated to focused functions. The previously identified correctness issues (first-team alternation, round finalization race condition, duplicated handler logic) have all been resolved. Remaining items are:
 
-- **Match mode correctness**: First-team alternation and round finalization race condition
 - **Test coverage gap**: No E2E tests for Duet or Match modes
-- **Minor DRY violation**: Duplicated match finalization in handlers
-
-None of these are blocking issues, but addressing Priority 1 items would improve competitive fairness and data integrity in Match mode.
+- **Minor improvements**: Custom word list preservation across Match rounds, Duet forfeit messaging, `gameMode` state location documentation
