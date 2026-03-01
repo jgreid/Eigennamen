@@ -3,7 +3,7 @@ import { showToast } from '../ui.js';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../roles.js';
 import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
-import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI } from '../multiplayerUI.js';
+import { updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, syncTurnTimerUI } from '../multiplayerUI.js';
 import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges, domListenerCleanup } from '../multiplayerSync.js';
 import { batch } from '../store/batch.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
@@ -65,6 +65,15 @@ export function registerRoomHandlers() {
             if (data.players) {
                 updateMpIndicator(data.room || null, state.multiplayerPlayers);
             }
+            // Clear stale reveal tracking — any cardRevealed events were skipped
+            // during resync, so pending entries in revealingCards are now stale.
+            // Without this, cards clicked just before a resync become permanently
+            // unclickable until the per-card timeout fires.
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
+            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
             // Update all UI elements
             updateControls();
             updateRoleBanner();
@@ -111,6 +120,13 @@ export function registerRoomHandlers() {
             if (data?.players) {
                 updateMpIndicator(data?.room || null, state.multiplayerPlayers);
             }
+            // Clear stale reveal tracking — pending reveals from before
+            // disconnect are no longer valid after reconnection.
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
+            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
             updateControls();
             updateRoleBanner();
             updateForfeitButton();
@@ -176,6 +192,8 @@ export function registerRoomHandlers() {
             if (data.settings.gameMode) {
                 syncGameModeUI(data.settings.gameMode);
             }
+            // Sync turn timer UI
+            syncTurnTimerUI(data.settings.turnTimer ?? null);
             // Update multiplayer indicator
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
             showToast('Room settings updated', 'info');
@@ -193,6 +211,42 @@ export function registerRoomHandlers() {
         radio.addEventListener('change', handler);
         domListenerCleanup.push({ element: radio, event: 'change', handler });
     });
+    // Turn timer toggle and slider handlers
+    const timerToggle = document.getElementById('turn-timer-toggle');
+    const timerSliderContainer = document.getElementById('turn-timer-slider');
+    const timerRange = document.getElementById('turn-timer-range');
+    const timerValue = document.getElementById('turn-timer-value');
+    if (timerToggle) {
+        const toggleHandler = () => {
+            if (!getClient()?.player?.isHost)
+                return;
+            if (timerToggle.checked) {
+                if (timerSliderContainer)
+                    timerSliderContainer.style.display = 'flex';
+                const seconds = parseInt(timerRange?.value || '120', 10);
+                EigennamenClient.updateSettings({ turnTimer: seconds });
+            }
+            else {
+                if (timerSliderContainer)
+                    timerSliderContainer.style.display = 'none';
+                EigennamenClient.updateSettings({ turnTimer: null });
+            }
+        };
+        timerToggle.addEventListener('change', toggleHandler);
+        domListenerCleanup.push({ element: timerToggle, event: 'change', handler: toggleHandler });
+    }
+    if (timerRange) {
+        const rangeHandler = () => {
+            if (!getClient()?.player?.isHost)
+                return;
+            const seconds = parseInt(timerRange.value, 10);
+            if (timerValue)
+                timerValue.textContent = `${seconds}s`;
+            EigennamenClient.updateSettings({ turnTimer: seconds });
+        };
+        timerRange.addEventListener('input', rangeHandler);
+        domListenerCleanup.push({ element: timerRange, event: 'input', handler: rangeHandler });
+    }
     // Handle room stats updates (spectator count, team counts)
     EigennamenClient.on('statsUpdated', (data) => {
         if (data.stats) {
