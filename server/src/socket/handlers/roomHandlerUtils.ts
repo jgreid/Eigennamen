@@ -41,7 +41,11 @@ export async function sendSpymasterViewIfNeeded(
         // not types (Red's perspective). Red spymasters always see types.
         const isDuetBlue = game.gameMode === 'duet' && player.team === 'blue' && game.duetTypes;
         const typesToSend = isDuetBlue ? game.duetTypes : game.types;
-        socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, { types: typesToSend });
+        const payload: { types: string[]; cardScores?: number[] } = { types: typesToSend as string[] };
+        if (game.gameMode === 'match' && game.cardScores) {
+            payload.cardScores = game.cardScores;
+        }
+        socket.emit(SOCKET_EVENTS.GAME_SPYMASTER_VIEW, payload);
     }
 }
 

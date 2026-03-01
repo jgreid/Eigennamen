@@ -142,8 +142,16 @@ export function registerGameHandlers(): void {
 
     // Handle spymaster view (card types for spymasters)
     EigennamenClient.on('spymasterView', (data: SpymasterViewData) => {
+        let changed = false;
         if (data.types && Array.isArray(data.types)) {
             state.gameState.types = data.types;
+            changed = true;
+        }
+        if (data.cardScores && Array.isArray(data.cardScores)) {
+            state.gameState.cardScores = data.cardScores;
+            changed = true;
+        }
+        if (changed) {
             renderBoard();
         }
     });

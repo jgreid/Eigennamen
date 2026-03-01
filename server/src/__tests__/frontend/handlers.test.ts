@@ -373,6 +373,13 @@ describe('Frontend Handler Registration', () => {
             expect(state.gameState.types).toBe(origTypes);
             expect(renderBoard).not.toHaveBeenCalled();
         });
+
+        test('spymasterView applies cardScores for match mode', () => {
+            const scores = [1, 2, 3, 0, -1];
+            handlers['spymasterView']({ cardScores: scores });
+            expect(state.gameState.cardScores).toEqual(scores);
+            expect(renderBoard).toHaveBeenCalled();
+        });
     });
 
     describe('Player Event Handlers', () => {
