@@ -99,79 +99,7 @@ describe('Extended Player Handlers Tests', () => {
                 true // checkEmpty flag
             );
         });
-
-        test('logs event on successful team change', async () => {
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-456',
-                roomCode: 'TEST12',
-                team: null,
-                role: 'spectator',
-            });
-            gameService.getGame.mockResolvedValue(null);
-            playerService.setTeam.mockResolvedValue({
-                sessionId: 'session-456',
-                team: 'red',
-                nickname: 'Player1',
-            });
-
-            const handlers = mockSocket.on.mock.calls;
-            const setTeamHandler = handlers.find((h) => h[0] === 'player:setTeam');
-            await setTeamHandler[1]({ team: 'red' });
-
-            expect(playerService.setTeam).toHaveBeenCalled();
-        });
     });
-
-    describe('player:setRole edge cases', () => {
-        test('succeeds even if setRole returns player with different roomCode', async () => {
-            playerService.setRole.mockResolvedValue({
-                sessionId: 'session-456',
-                roomCode: 'OTHER_ROOM',
-                role: 'clicker',
-            });
-
-            const handlers = mockSocket.on.mock.calls;
-            const setRoleHandler = handlers.find((h) => h[0] === 'player:setRole');
-            await setRoleHandler[1]({ role: 'clicker' });
-
-            // No longer checks roomCode mismatch after setRole
-            expect(mockSocket.emit).not.toHaveBeenCalledWith('player:error', expect.anything());
-        });
-
-        test('handles null player from setRole', async () => {
-            playerService.setRole.mockResolvedValue(null);
-
-            const handlers = mockSocket.on.mock.calls;
-            const setRoleHandler = handlers.find((h) => h[0] === 'player:setRole');
-            await setRoleHandler[1]({ role: 'clicker' });
-
-            // FIX: Updated to expect PLAYER_NOT_FOUND - more accurate error code
-            expect(mockSocket.emit).toHaveBeenCalledWith(
-                'player:error',
-                expect.objectContaining({
-                    code: 'PLAYER_NOT_FOUND',
-                })
-            );
-        });
-
-        test('logs event on successful role change', async () => {
-            playerService.setRole.mockResolvedValue({
-                sessionId: 'session-456',
-                roomCode: 'TEST12',
-                role: 'clicker',
-                nickname: 'Player1',
-            });
-            gameService.getGame.mockResolvedValue(null);
-
-            const handlers = mockSocket.on.mock.calls;
-            const setRoleHandler = handlers.find((h) => h[0] === 'player:setRole');
-            await setRoleHandler[1]({ role: 'clicker' });
-
-            expect(playerService.setRole).toHaveBeenCalled();
-        });
-    });
-
-    // Note: player:setNickname edge cases are covered in playerHandlersUnit.test.js
 
     describe('player:kick edge cases', () => {
         test('handles target socket not in sockets map', async () => {

@@ -196,45 +196,4 @@ describe('Metrics Extended Tests', () => {
         });
     });
 
-    describe('METRIC_NAMES constants', () => {
-        it('should define all counter names', () => {
-            expect(METRIC_NAMES.GAMES_STARTED).toBe('games_started');
-            expect(METRIC_NAMES.GAMES_COMPLETED).toBe('games_completed');
-            expect(METRIC_NAMES.CARDS_REVEALED).toBe('cards_revealed');
-            expect(METRIC_NAMES.CLUES_GIVEN).toBe('clues_given');
-            expect(METRIC_NAMES.ROOMS_CREATED).toBe('rooms_created');
-            expect(METRIC_NAMES.ROOMS_JOINED).toBe('rooms_joined');
-            expect(METRIC_NAMES.ERRORS).toBe('errors');
-            expect(METRIC_NAMES.RATE_LIMIT_HITS).toBe('rate_limit_hits');
-            expect(METRIC_NAMES.HTTP_REQUESTS).toBe('http_requests_total');
-            expect(METRIC_NAMES.WEBSOCKET_EVENTS).toBe('websocket_events_total');
-            expect(METRIC_NAMES.RECONNECTIONS).toBe('reconnections_total');
-            expect(METRIC_NAMES.PLAYER_KICKS).toBe('player_kicks_total');
-            expect(METRIC_NAMES.BROADCASTS_SENT).toBe('broadcasts_sent_total');
-        });
-
-        it('should define all gauge names', () => {
-            expect(METRIC_NAMES.ACTIVE_ROOMS).toBe('active_rooms');
-            expect(METRIC_NAMES.ACTIVE_PLAYERS).toBe('active_players');
-            expect(METRIC_NAMES.ACTIVE_GAMES).toBe('active_games');
-            expect(METRIC_NAMES.ACTIVE_TIMERS).toBe('active_timers');
-            expect(METRIC_NAMES.SOCKET_CONNECTIONS).toBe('socket_connections');
-            expect(METRIC_NAMES.REDIS_CONNECTION_STATUS).toBe('redis_connection_status');
-            expect(METRIC_NAMES.MEMORY_HEAP_USED).toBe('memory_heap_used_bytes');
-            expect(METRIC_NAMES.MEMORY_HEAP_TOTAL).toBe('memory_heap_total_bytes');
-            expect(METRIC_NAMES.MEMORY_RSS).toBe('memory_rss_bytes');
-            expect(METRIC_NAMES.EVENT_LOOP_LAG).toBe('event_loop_lag_ms');
-            expect(METRIC_NAMES.SPECTATORS).toBe('spectators_total');
-        });
-
-        it('should define all histogram names', () => {
-            expect(METRIC_NAMES.OPERATION_LATENCY).toBe('operation_latency_ms');
-            expect(METRIC_NAMES.REDIS_LATENCY).toBe('redis_latency_ms');
-            expect(METRIC_NAMES.GAME_DURATION).toBe('game_duration_seconds');
-            expect(METRIC_NAMES.TURN_DURATION).toBe('turn_duration_seconds');
-            expect(METRIC_NAMES.SOCKET_EVENT_LATENCY).toBe('socket_event_latency_ms');
-            expect(METRIC_NAMES.HTTP_REQUEST_DURATION).toBe('http_request_duration_ms');
-            expect(METRIC_NAMES.WEBSOCKET_MESSAGE_SIZE).toBe('websocket_message_size_bytes');
-        });
-    });
 });

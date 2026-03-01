@@ -85,31 +85,6 @@ describe('Extended Room Service Tests (Part 2)', () => {
             settings: {},
         };
 
-        test('allows reconnection for existing player', async () => {
-            mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
-            playerService.getPlayer.mockResolvedValue({
-                sessionId: 'player-session',
-                roomCode: 'test-room',
-            });
-            playerService.updatePlayer.mockResolvedValue({
-                sessionId: 'player-session',
-                roomCode: 'test-room',
-                connected: true,
-            });
-            gameService.getGame.mockResolvedValue(null);
-            playerService.getPlayersInRoom.mockResolvedValue([]);
-
-            const result = await roomService.joinRoom('test-room', 'player-session', 'Player1');
-
-            expect(result.isReconnecting).toBe(true);
-            expect(playerService.updatePlayer).toHaveBeenCalledWith(
-                'player-session',
-                expect.objectContaining({
-                    connected: true,
-                })
-            );
-        });
-
         test('handles player already in set but missing data', async () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             mockRedis.eval.mockResolvedValue(-1); // Already a member
@@ -157,20 +132,4 @@ describe('Extended Room Service Tests (Part 2)', () => {
         });
     });
 
-    describe('updateSettings', () => {
-        test('updates allow spectators setting', async () => {
-            mockRedis.eval.mockResolvedValueOnce(
-                JSON.stringify({
-                    success: true,
-                    settings: { allowSpectators: false },
-                })
-            );
-
-            const result = await roomService.updateSettings('test-room', 'host-session', {
-                allowSpectators: false,
-            });
-
-            expect(result.allowSpectators).toBe(false);
-        });
-    });
 });

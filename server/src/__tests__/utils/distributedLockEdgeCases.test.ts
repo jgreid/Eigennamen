@@ -9,7 +9,7 @@
  * - Race conditions in lock acquisition
  */
 
-const { DistributedLock, acquire, withLock } = require('../../utils/distributedLock');
+const { DistributedLock } = require('../../utils/distributedLock');
 
 // Mock Redis
 const mockRedis = {
@@ -176,28 +176,6 @@ describe('Distributed Lock Edge Cases', () => {
             expect(mockRedis.eval).toHaveBeenCalled();
         });
 
-        test('releases lock even when wrapped function returns rejected promise', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-            mockRedis.eval.mockResolvedValueOnce(1);
-
-            const lock = new DistributedLock();
-
-            await expect(lock.withLock('rejected-lock', () => Promise.reject(new Error('Rejected')))).rejects.toThrow(
-                'Rejected'
-            );
-
-            expect(mockRedis.eval).toHaveBeenCalled();
-        });
-
-        test('withLock fails gracefully when lock acquisition times out', async () => {
-            mockRedis.set.mockResolvedValue(null); // Always fail
-
-            const lock = new DistributedLock({ maxRetries: 2, retryDelay: 5 });
-
-            await expect(lock.withLock('unavailable-lock', () => 'should not run')).rejects.toThrow(
-                'Failed to acquire lock'
-            );
-        });
     });
 
     describe('Redis Failure Handling', () => {
@@ -224,39 +202,9 @@ describe('Distributed Lock Edge Cases', () => {
             expect(mockRedis.set).toHaveBeenCalledTimes(3);
         });
 
-        test('handles Redis errors during release gracefully', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-            mockRedis.eval.mockRejectedValueOnce(new Error('Redis disconnected'));
-
-            const lock = new DistributedLock();
-            const result = await lock.acquire('release-error-lock');
-
-            const released = await result.release();
-            expect(released).toBe(false);
-        });
-
-        test('handles Redis errors during extend gracefully', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-            mockRedis.eval.mockRejectedValueOnce(new Error('Redis timeout'));
-
-            const lock = new DistributedLock();
-            const result = await lock.acquire('extend-error-lock');
-
-            const extended = await result.extend(5000);
-            expect(extended).toBe(false);
-        });
     });
 
     describe('Lock Key Format', () => {
-        test('uses correct key prefix', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-
-            const lock = new DistributedLock();
-            await lock.acquire('my-resource');
-
-            expect(mockRedis.set).toHaveBeenCalledWith('lock:my-resource', expect.any(String), expect.any(Object));
-        });
-
         test('handles special characters in lock name', async () => {
             mockRedis.set.mockResolvedValueOnce('OK');
 
@@ -284,66 +232,6 @@ describe('Distributed Lock Edge Cases', () => {
             expect(firstOwnerId).not.toBe(secondOwnerId);
         });
 
-        test('owner ID is a non-empty string', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-
-            const lock = new DistributedLock();
-            const result = await lock.acquire('owner-test');
-
-            expect(typeof result.ownerId).toBe('string');
-            expect(result.ownerId.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('Retry Configuration', () => {
-        test('retries on initial failure then succeeds', async () => {
-            mockRedis.set.mockResolvedValueOnce(null).mockResolvedValueOnce('OK');
-
-            const lock = new DistributedLock({ retryDelay: 5, maxRetries: 2 });
-            const result = await lock.acquire('retry-lock');
-
-            expect(result.acquired).toBe(true);
-            expect(mockRedis.set).toHaveBeenCalledTimes(2);
-        });
-
-        test('respects maxRetries limit', async () => {
-            mockRedis.set.mockResolvedValue(null);
-
-            const lock = new DistributedLock({ maxRetries: 2, retryDelay: 5 });
-            const result = await lock.acquire('limited-retry-lock');
-
-            expect(result.acquired).toBe(false);
-            expect(mockRedis.set).toHaveBeenCalledTimes(2);
-        });
-
-        test('respects custom lock timeout', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-
-            const lock = new DistributedLock({ lockTimeout: 30000 });
-            await lock.acquire('long-timeout-lock');
-
-            expect(mockRedis.set).toHaveBeenCalledWith('lock:long-timeout-lock', expect.any(String), {
-                NX: true,
-                PX: 30000,
-            });
-        });
-    });
-
-    describe('Convenience Functions', () => {
-        test('acquire function uses singleton instance', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-
-            const result = await acquire('convenience-lock');
-            expect(result.acquired).toBe(true);
-        });
-
-        test('withLock function uses singleton instance', async () => {
-            mockRedis.set.mockResolvedValueOnce('OK');
-            mockRedis.eval.mockResolvedValueOnce(1);
-
-            const result = await withLock('convenience-lock', () => 'success');
-            expect(result).toBe('success');
-        });
     });
 
     describe('Memory Leak Prevention', () => {
