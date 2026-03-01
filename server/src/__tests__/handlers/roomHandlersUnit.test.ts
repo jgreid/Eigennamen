@@ -207,6 +207,29 @@ describe('Room Handlers', () => {
             });
         });
 
+        test('sends spymaster view with cardScores when joining match mode game', async () => {
+            const matchTypes = ['red', 'blue', 'neutral', 'assassin', 'red'];
+            const matchScores = [1, 2, 1, -3, 3];
+            roomService.joinRoom.mockResolvedValue({
+                room: { code: 'test-room', roomId: 'test-room' },
+                players: [],
+                game: {
+                    gameOver: false,
+                    gameMode: 'match',
+                    types: matchTypes,
+                    cardScores: matchScores
+                },
+                player: { role: 'spymaster' }
+            });
+
+            await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
+                types: matchTypes,
+                cardScores: matchScores
+            });
+        });
+
         test('sends timer:status on join', async () => {
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
 
@@ -702,6 +725,71 @@ describe('Room Handlers', () => {
                 call => call[0] === 'game:spymasterView'
             );
             expect(spymasterViewCalls.length).toBe(0);
+        });
+
+        test('sendSpymasterViewIfNeeded includes cardScores for match mode', async () => {
+            const matchTypes = ['red', 'blue', 'neutral', 'assassin', 'red'];
+            const matchScores = [1, 2, 1, -3, 3];
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                role: 'spymaster'
+            });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                gameMode: 'match',
+                types: matchTypes,
+                cardScores: matchScores
+            });
+
+            await eventHandlers['room:resync']();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
+                types: matchTypes,
+                cardScores: matchScores
+            });
+        });
+
+        test('sendSpymasterViewIfNeeded excludes cardScores for classic mode', async () => {
+            const classicTypes = ['red', 'blue', 'neutral'];
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                role: 'spymaster'
+            });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                gameMode: 'classic',
+                types: classicTypes,
+                cardScores: [1, 1, 1] // shouldn't happen, but verify it's not sent
+            });
+
+            await eventHandlers['room:resync']();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
+                types: classicTypes
+            });
+        });
+
+        test('sendSpymasterViewIfNeeded excludes cardScores for duet mode', async () => {
+            const duetTypes = ['red', 'green', 'neutral'];
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-1',
+                roomCode: 'test-room',
+                role: 'spymaster',
+                team: 'red'
+            });
+            gameService.getGame.mockResolvedValue({
+                gameOver: false,
+                gameMode: 'duet',
+                types: duetTypes
+            });
+
+            await eventHandlers['room:resync']();
+
+            expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
+                types: duetTypes
+            });
         });
     });
 });

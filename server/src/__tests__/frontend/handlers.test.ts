@@ -380,6 +380,21 @@ describe('Frontend Handler Registration', () => {
             expect(state.gameState.cardScores).toEqual(scores);
             expect(renderBoard).toHaveBeenCalled();
         });
+
+        test('spymasterView applies both types and cardScores together', () => {
+            const types = ['red', 'blue', 'neutral', 'assassin', 'red'];
+            const scores = [1, 2, 1, -3, 3];
+            handlers['spymasterView']({ types, cardScores: scores });
+            expect(state.gameState.types).toEqual(types);
+            expect(state.gameState.cardScores).toEqual(scores);
+            expect(renderBoard).toHaveBeenCalledTimes(1);
+        });
+
+        test('spymasterView does not overwrite cardScores when not provided', () => {
+            state.gameState.cardScores = [1, 2, 3];
+            handlers['spymasterView']({ types: ['red', 'blue', 'neutral'] });
+            expect(state.gameState.cardScores).toEqual([1, 2, 3]);
+        });
     });
 
     describe('Player Event Handlers', () => {
