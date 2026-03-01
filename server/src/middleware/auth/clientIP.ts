@@ -53,7 +53,10 @@ function getClientIP(socket: Socket): string {
             // With a single trusted proxy layer, the rightmost IP is the real
             // client IP (added by the trusted proxy closest to us).
             const headerValue = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
-            const ips = (headerValue || '').split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
+            const ips = (headerValue || '')
+                .split(',')
+                .map((ip) => ip.trim())
+                .filter((ip) => ip.length > 0);
             if (ips.length > 0) {
                 return ips[ips.length - 1] || socket.handshake.address;
             }

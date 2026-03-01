@@ -12,15 +12,15 @@ jest.mock('../../frontend/state', () => ({
             revealed: [true, false, true, false, false],
             currentTurn: 'blue',
             customWords: false,
-            words: ['A', 'B', 'C', 'D', 'E']
+            words: ['A', 'B', 'C', 'D', 'E'],
         },
-        teamNames: { red: 'Red', blue: 'Blue' }
+        teamNames: { red: 'Red', blue: 'Blue' },
     },
-    BOARD_SIZE: 25
+    BOARD_SIZE: 25,
 }));
 
 jest.mock('../../frontend/utils', () => ({
-    encodeWordsForURL: jest.fn(() => 'encoded-words')
+    encodeWordsForURL: jest.fn(() => 'encoded-words'),
 }));
 
 import { updateURL } from '../../frontend/url-state';

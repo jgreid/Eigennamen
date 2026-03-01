@@ -11,14 +11,19 @@ jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const playerService = require('../../services/playerService');
 const gameService = require('../../services/gameService');
 const logger = require('../../utils/logger');
 const { ERROR_CODES } = require('../../config/constants');
-const { getPlayerContext, canChangeTeamOrRole, syncSocketRooms, clearGameStateCache } = require('../../socket/playerContext');
+const {
+    getPlayerContext,
+    canChangeTeamOrRole,
+    syncSocketRooms,
+    clearGameStateCache,
+} = require('../../socket/playerContext');
 
 describe('playerContext', () => {
     let mockSocket;
@@ -32,7 +37,7 @@ describe('playerContext', () => {
             roomCode: 'ROOM01',
             emit: jest.fn(),
             join: jest.fn(),
-            leave: jest.fn()
+            leave: jest.fn(),
         };
         gameService.getGame.mockResolvedValue(null);
     });
@@ -44,7 +49,7 @@ describe('playerContext', () => {
                 roomCode: 'ROOM01',
                 team: 'red',
                 role: 'clicker',
-                isHost: true
+                isHost: true,
             };
             playerService.getPlayer.mockResolvedValue(player);
             gameService.getGame.mockResolvedValue({ gameOver: false });
@@ -63,7 +68,11 @@ describe('playerContext', () => {
 
         it('fetches game state when player is in a room', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', team: null, role: null, isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                team: null,
+                role: null,
+                isHost: false,
             });
             const game = { gameOver: false, currentTurn: 'red' };
             gameService.getGame.mockResolvedValue(game);
@@ -80,7 +89,9 @@ describe('playerContext', () => {
 
             try {
                 await getPlayerContext(mockSocket, { requireRoom: false });
-            } catch { /* may throw */ }
+            } catch {
+                /* may throw */
+            }
 
             expect(gameService.getGame).not.toHaveBeenCalled();
         });
@@ -91,50 +102,69 @@ describe('playerContext', () => {
             mockSocket.roomCode = null;
             playerService.getPlayer.mockResolvedValue(null);
 
-            await expect(getPlayerContext(mockSocket, { requireRoom: true }))
-                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
+            await expect(getPlayerContext(mockSocket, { requireRoom: true })).rejects.toMatchObject({
+                code: ERROR_CODES.ROOM_NOT_FOUND,
+            });
         });
 
         it('throws GAME_NOT_STARTED when requireGame and no active game', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                isHost: false,
             });
             gameService.getGame.mockResolvedValue(null);
 
-            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireGame: true }))
-                .rejects.toMatchObject({ code: ERROR_CODES.GAME_NOT_STARTED });
+            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireGame: true })).rejects.toMatchObject({
+                code: ERROR_CODES.GAME_NOT_STARTED,
+            });
         });
 
         it('throws NOT_HOST when requireHost and player is not host', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                isHost: false,
             });
 
-            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireHost: true }))
-                .rejects.toMatchObject({ code: ERROR_CODES.NOT_HOST });
+            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireHost: true })).rejects.toMatchObject({
+                code: ERROR_CODES.NOT_HOST,
+            });
         });
 
         it('throws NOT_AUTHORIZED when requireTeam and player has no team', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', team: null, isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                team: null,
+                isHost: false,
             });
 
-            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireTeam: true }))
-                .rejects.toMatchObject({ code: ERROR_CODES.NOT_AUTHORIZED });
+            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireTeam: true })).rejects.toMatchObject({
+                code: ERROR_CODES.NOT_AUTHORIZED,
+            });
         });
 
         it('throws NOT_AUTHORIZED when requireRole does not match', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', role: 'clicker', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                role: 'clicker',
+                isHost: false,
             });
 
-            await expect(getPlayerContext(mockSocket, { requireRoom: true, requireRole: 'spymaster' }))
-                .rejects.toMatchObject({ code: ERROR_CODES.NOT_AUTHORIZED });
+            await expect(
+                getPlayerContext(mockSocket, { requireRoom: true, requireRole: 'spymaster' })
+            ).rejects.toMatchObject({ code: ERROR_CODES.NOT_AUTHORIZED });
         });
 
         it('passes when requireRole matches', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', role: 'spymaster', team: 'red', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                role: 'spymaster',
+                team: 'red',
+                isHost: false,
             });
 
             const ctx = await getPlayerContext(mockSocket, { requireRoom: true, requireRole: 'spymaster' });
@@ -146,7 +176,9 @@ describe('playerContext', () => {
         it('corrects socket roomCode when Redis has a different room', async () => {
             mockSocket.roomCode = 'OLD_ROOM';
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'NEW_ROOM', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'NEW_ROOM',
+                isHost: false,
             });
 
             const ctx = await getPlayerContext(mockSocket, { requireRoom: true });
@@ -156,22 +188,23 @@ describe('playerContext', () => {
             expect(mockSocket.roomCode).toBe('NEW_ROOM');
             expect(mockSocket.join).toHaveBeenCalledWith('room:NEW_ROOM');
             expect(ctx.roomCode).toBe('NEW_ROOM');
-            expect(logger.warn).toHaveBeenCalledWith(
-                'Socket/Redis room state mismatch detected',
-                expect.any(Object)
-            );
+            expect(logger.warn).toHaveBeenCalledWith('Socket/Redis room state mismatch detected', expect.any(Object));
         });
 
         it('clears socket roomCode when Redis says player has no room', async () => {
             mockSocket.roomCode = 'STALE';
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: null, isHost: false
+                sessionId: 'session-1',
+                roomCode: null,
+                isHost: false,
             });
 
             // requireRoom: false so it doesn't throw
             try {
                 await getPlayerContext(mockSocket, { requireRoom: false });
-            } catch { /* may throw */ }
+            } catch {
+                /* may throw */
+            }
 
             expect(mockSocket.leave).toHaveBeenCalledWith('room:STALE');
             expect(mockSocket.leave).toHaveBeenCalledWith('spectators:STALE');
@@ -181,7 +214,9 @@ describe('playerContext', () => {
         it('corrects socket when socket has no roomCode but Redis does', async () => {
             mockSocket.roomCode = null;
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'REDIS_ROOM', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'REDIS_ROOM',
+                isHost: false,
             });
 
             const ctx = await getPlayerContext(mockSocket, { requireRoom: true });
@@ -193,7 +228,9 @@ describe('playerContext', () => {
 
         it('does not warn when socket and Redis agree', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                isHost: false,
             });
 
             await getPlayerContext(mockSocket, { requireRoom: true });
@@ -205,7 +242,11 @@ describe('playerContext', () => {
 
         it('handles player with no team or role gracefully', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', team: null, role: null, isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                team: null,
+                role: null,
+                isHost: false,
             });
 
             const ctx = await getPlayerContext(mockSocket);
@@ -217,7 +258,9 @@ describe('playerContext', () => {
 
         it('returns context with no game when room has no active game', async () => {
             playerService.getPlayer.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01', isHost: false
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                isHost: false,
             });
             gameService.getGame.mockResolvedValue(null);
 
@@ -236,7 +279,7 @@ describe('playerContext', () => {
         it('allows changes when game is over', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spymaster', team: 'red' },
-                game: { gameOver: true, currentTurn: 'red' }
+                game: { gameOver: true, currentTurn: 'red' },
             });
             expect(result.allowed).toBe(true);
         });
@@ -244,7 +287,7 @@ describe('playerContext', () => {
         it('blocks spymaster from changing during their team turn', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spymaster', team: 'red' },
-                game: { gameOver: false, currentTurn: 'red' }
+                game: { gameOver: false, currentTurn: 'red' },
             });
             expect(result.allowed).toBe(false);
             expect(result.reason).toContain('spymaster');
@@ -253,7 +296,7 @@ describe('playerContext', () => {
         it('blocks clicker from changing during their team turn', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'clicker', team: 'blue' },
-                game: { gameOver: false, currentTurn: 'blue' }
+                game: { gameOver: false, currentTurn: 'blue' },
             });
             expect(result.allowed).toBe(false);
             expect(result.reason).toContain('clicker');
@@ -262,7 +305,7 @@ describe('playerContext', () => {
         it('allows spymaster to change when it is NOT their team turn', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spymaster', team: 'red' },
-                game: { gameOver: false, currentTurn: 'blue' }
+                game: { gameOver: false, currentTurn: 'blue' },
             });
             expect(result.allowed).toBe(true);
         });
@@ -270,7 +313,7 @@ describe('playerContext', () => {
         it('allows spectator to change freely during active game', () => {
             const result = canChangeTeamOrRole({
                 player: { role: 'spectator', team: null },
-                game: { gameOver: false, currentTurn: 'red' }
+                game: { gameOver: false, currentTurn: 'red' },
             });
             expect(result.allowed).toBe(true);
         });
@@ -279,7 +322,7 @@ describe('playerContext', () => {
             // A player on a team but with no special role
             const result = canChangeTeamOrRole({
                 player: { role: null, team: 'red' },
-                game: { gameOver: false, currentTurn: 'red' }
+                game: { gameOver: false, currentTurn: 'red' },
             });
             expect(result.allowed).toBe(true);
         });

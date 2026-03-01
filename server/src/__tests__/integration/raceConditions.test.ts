@@ -34,25 +34,34 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         sAdd: jest.fn(async (key, ...members) => {
             if (!mockRedisSets.has(key)) mockRedisSets.set(key, new Set());
             const set = mockRedisSets.get(key);
             let added = 0;
-            members.forEach(m => { if (!set.has(m)) { set.add(m); added++; } });
+            members.forEach((m) => {
+                if (!set.has(m)) {
+                    set.add(m);
+                    added++;
+                }
+            });
             return added;
         }),
         sRem: jest.fn(async (key, ...members) => {
             const set = mockRedisSets.get(key);
             if (!set) return 0;
             let removed = 0;
-            members.forEach(m => { if (set.delete(m)) removed++; });
+            members.forEach((m) => {
+                if (set.delete(m)) removed++;
+            });
             return removed;
         }),
         sMembers: jest.fn(async (key) => {
@@ -69,11 +78,11 @@ jest.mock('../../config/redis', () => {
         }),
         watch: jest.fn(async () => 'OK'),
         unwatch: jest.fn(async () => 'OK'),
-        mGet: jest.fn(async (keys) => keys.map(k => mockRedisStorage.get(k) || null)),
+        mGet: jest.fn(async (keys) => keys.map((k) => mockRedisStorage.get(k) || null)),
         multi: jest.fn(() => ({
             set: jest.fn().mockReturnThis(),
             del: jest.fn().mockReturnThis(),
-            exec: jest.fn(async () => [[null, 'OK']])
+            exec: jest.fn(async () => [[null, 'OK']]),
         })),
         eval: jest.fn(async (script, options) => {
             if (script.includes('SETNX')) {
@@ -137,7 +146,11 @@ jest.mock('../../config/redis', () => {
                         if (memberData) {
                             const member = JSON.parse(memberData);
                             if (member.team === player.team && member.role === newRole) {
-                                return JSON.stringify({ success: false, reason: 'ROLE_TAKEN', existingNickname: member.nickname });
+                                return JSON.stringify({
+                                    success: false,
+                                    reason: 'ROLE_TAKEN',
+                                    existingNickname: member.nickname,
+                                });
                             }
                         }
                     }
@@ -168,13 +181,15 @@ jest.mock('../../config/redis', () => {
             return null;
         }),
         publish: jest.fn(async () => 0),
-        duplicate: jest.fn(function() { return this; })
+        duplicate: jest.fn(function () {
+            return this;
+        }),
     };
 
     return {
         getRedis: () => mockRedis,
         getPubSubClients: () => ({ pubClient: mockRedis, subClient: mockRedis }),
-        isUsingMemoryMode: () => true
+        isUsingMemoryMode: () => true,
     };
 });
 
@@ -182,13 +197,13 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../services/timerService', () => ({
     startTimer: jest.fn(async () => ({ durationSeconds: 120, endTime: Date.now() + 120000 })),
     stopTimer: jest.fn(async () => {}),
-    getTimerStatus: jest.fn(async () => null)
+    getTimerStatus: jest.fn(async () => null),
 }));
 jest.mock('../../utils/distributedLock', () => ({
     withLock: jest.fn(async (_key, fn) => fn()),
@@ -211,7 +226,7 @@ describe('Race Condition Tests', () => {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: false,
-                auth: { sessionId }
+                auth: { sessionId },
             });
 
             const timeout = setTimeout(() => {
@@ -246,7 +261,7 @@ describe('Race Condition Tests', () => {
         httpServer = http.createServer();
         io = new Server(httpServer, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         socketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
@@ -296,13 +311,22 @@ describe('Race Condition Tests', () => {
                     const promise = new Promise((resolve) => {
                         let resolved = false;
                         client.once('room:created', (data) => {
-                            if (!resolved) { resolved = true; resolve({ success: true, data }); }
+                            if (!resolved) {
+                                resolved = true;
+                                resolve({ success: true, data });
+                            }
                         });
                         client.once('room:error', (data) => {
-                            if (!resolved) { resolved = true; resolve({ success: false, data }); }
+                            if (!resolved) {
+                                resolved = true;
+                                resolve({ success: false, data });
+                            }
                         });
                         setTimeout(() => {
-                            if (!resolved) { resolved = true; resolve({ success: false, error: 'timeout' }); }
+                            if (!resolved) {
+                                resolved = true;
+                                resolve({ success: false, error: 'timeout' });
+                            }
                         }, 5000);
                     });
 
@@ -312,24 +336,24 @@ describe('Race Condition Tests', () => {
                 }
 
                 const settledResults = await Promise.allSettled(createPromises);
-                const results = settledResults.map(r => {
+                const results = settledResults.map((r) => {
                     if (r.status === 'rejected') throw r.reason;
                     return r.value;
                 });
-                const successful = results.filter(r => r.success);
-                const failed = results.filter(r => !r.success && r.data?.code === 'ROOM_ALREADY_EXISTS');
+                const successful = results.filter((r) => r.success);
+                const failed = results.filter((r) => !r.success && r.data?.code === 'ROOM_ALREADY_EXISTS');
 
                 // Only one should succeed (the first one to reach Redis)
                 expect(successful.length).toBe(1);
                 expect(successful[0].data.room.code).toBe('race-test');
 
                 // All non-successful attempts should either fail with ROOM_ALREADY_EXISTS or timeout
-                const nonSuccessful = results.filter(r => !r.success);
+                const nonSuccessful = results.filter((r) => !r.success);
                 expect(nonSuccessful.length).toBe(4); // 5 total - 1 success = 4 failures
                 // At least some should have the explicit duplicate error (others may timeout)
-                expect(failed.length + nonSuccessful.filter(r => r.error === 'timeout').length).toBe(4);
+                expect(failed.length + nonSuccessful.filter((r) => r.error === 'timeout').length).toBe(4);
             } finally {
-                clients.forEach(c => c.disconnect());
+                clients.forEach((c) => c.disconnect());
             }
         });
     });
@@ -359,7 +383,7 @@ describe('Race Condition Tests', () => {
                 expect(clients.length).toBe(5);
             } finally {
                 host.disconnect();
-                clients.forEach(c => c.disconnect());
+                clients.forEach((c) => c.disconnect());
             }
         });
     });

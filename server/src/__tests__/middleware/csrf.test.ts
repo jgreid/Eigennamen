@@ -12,11 +12,11 @@ describe('CSRF Protection Middleware', () => {
     beforeEach(() => {
         mockReq = {
             method: 'POST',
-            headers: {}
+            headers: {},
         };
         mockRes = {
             status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis()
+            json: jest.fn().mockReturnThis(),
         };
         nextFn = jest.fn();
         // Clear environment
@@ -57,8 +57,8 @@ describe('CSRF Protection Middleware', () => {
             expect(mockRes.json).toHaveBeenCalledWith({
                 error: {
                     code: 'CSRF_VALIDATION_FAILED',
-                    message: 'Missing required X-Requested-With header'
-                }
+                    message: 'Missing required X-Requested-With header',
+                },
             });
         });
 
@@ -112,8 +112,8 @@ describe('CSRF Protection Middleware', () => {
             expect(mockRes.json).toHaveBeenCalledWith({
                 error: {
                     code: 'CSRF_VALIDATION_FAILED',
-                    message: 'Cross-origin request blocked'
-                }
+                    message: 'Cross-origin request blocked',
+                },
             });
         });
 
@@ -136,8 +136,8 @@ describe('CSRF Protection Middleware', () => {
             expect(mockRes.json).toHaveBeenCalledWith({
                 error: {
                     code: 'CSRF_VALIDATION_FAILED',
-                    message: 'Invalid referer header'
-                }
+                    message: 'Invalid referer header',
+                },
             });
         });
 

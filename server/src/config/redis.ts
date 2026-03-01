@@ -52,7 +52,7 @@ const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
 function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Re-export from centralized module (single source of truth for memory mode detection)
@@ -84,14 +84,22 @@ async function findFreePort(): Promise<number> {
 async function startEmbeddedRedis(): Promise<string> {
     const port = await findFreePort();
     const args = [
-        '--port', port.toString(),
-        '--bind', '127.0.0.1',
-        '--save', '',              // Disable RDB snapshots
-        '--appendonly', 'no',      // Disable AOF persistence
-        '--daemonize', 'no',
-        '--loglevel', 'notice',
-        '--maxmemory', '256mb',            // Cap memory to prevent OOM on constrained VMs
-        '--maxmemory-policy', 'noeviction' // Reject writes instead of silently evicting game data
+        '--port',
+        port.toString(),
+        '--bind',
+        '127.0.0.1',
+        '--save',
+        '', // Disable RDB snapshots
+        '--appendonly',
+        'no', // Disable AOF persistence
+        '--daemonize',
+        'no',
+        '--loglevel',
+        'notice',
+        '--maxmemory',
+        '256mb', // Cap memory to prevent OOM on constrained VMs
+        '--maxmemory-policy',
+        'noeviction', // Reject writes instead of silently evicting game data
     ];
 
     // Configurable timeout for slow hardware or high-load environments
@@ -102,7 +110,7 @@ async function startEmbeddedRedis(): Promise<string> {
 
     return new Promise<string>((resolve, reject) => {
         const proc = spawn('redis-server', args, {
-            stdio: ['ignore', 'pipe', 'pipe']
+            stdio: ['ignore', 'pipe', 'pipe'],
         });
 
         embeddedRedisProcess = proc;
@@ -153,7 +161,10 @@ async function stopEmbeddedRedis(): Promise<void> {
 
     return new Promise<void>((resolve) => {
         const proc = embeddedRedisProcess;
-        if (!proc) { resolve(); return; }
+        if (!proc) {
+            resolve();
+            return;
+        }
 
         const timeout = setTimeout(() => {
             proc.kill('SIGKILL');
@@ -267,10 +278,7 @@ export async function connectRedis(): Promise<RedisClients> {
             pubClient.on('error', (err: Error) => logger.error('Redis Pub Client Error:', err.message));
             subClient.on('error', (err: Error) => logger.error('Redis Sub Client Error:', err.message));
 
-            await Promise.all([
-                pubClient.connect(),
-                subClient.connect()
-            ]);
+            await Promise.all([pubClient.connect(), subClient.connect()]);
 
             // Attach pub/sub health monitoring (PING probes + error tracking)
             pubSubHealth.attachToClients(pubClient, subClient);
@@ -285,7 +293,8 @@ export async function connectRedis(): Promise<RedisClients> {
                     throw new Error(`Unexpected Lua result: ${luaResult}`);
                 }
             } catch (luaErr) {
-                const msg = `Redis Lua scripting unavailable: ${(luaErr as Error).message}. ` +
+                const msg =
+                    `Redis Lua scripting unavailable: ${(luaErr as Error).message}. ` +
                     'Game operations require EVAL. Check redis.conf for "rename-command EVAL".';
                 logger.error(msg);
                 throw new Error(msg);
@@ -297,7 +306,6 @@ export async function connectRedis(): Promise<RedisClients> {
                 logger.info(`Redis connected (TLS: ${redisUrl.startsWith('rediss://')})`);
             }
             return { redisClient, pubClient, subClient };
-
         } catch (error) {
             lastError = error as Error;
             const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
@@ -323,7 +331,7 @@ async function cleanupPartialConnections(): Promise<void> {
             if (client.isOpen) {
                 await Promise.race([
                     client.quit(),
-                    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000))
+                    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('quit timeout')), 3000)),
                 ]);
             }
         } catch (err) {
@@ -334,11 +342,32 @@ async function cleanupPartialConnections(): Promise<void> {
 }
 
 const REQUIRED_REDIS_METHODS = [
-    'get', 'set', 'del', 'exists', 'expire', 'ttl', 'mGet',
-    'sAdd', 'sRem', 'sMembers', 'sCard', 'sIsMember',
-    'zAdd', 'zRem', 'zRange', 'zRangeByScore', 'zRemRangeByRank', 'zCard',
-    'lPush', 'lTrim', 'lRange', 'lLen',
-    'watch', 'unwatch', 'multi', 'eval'
+    'get',
+    'set',
+    'del',
+    'exists',
+    'expire',
+    'ttl',
+    'mGet',
+    'sAdd',
+    'sRem',
+    'sMembers',
+    'sCard',
+    'sIsMember',
+    'zAdd',
+    'zRem',
+    'zRange',
+    'zRangeByScore',
+    'zRemRangeByRank',
+    'zCard',
+    'lPush',
+    'lTrim',
+    'lRange',
+    'lLen',
+    'watch',
+    'unwatch',
+    'multi',
+    'eval',
 ] as const;
 
 /**
@@ -356,7 +385,7 @@ function assertRedisClientShape(client: RedisClientType): void {
     if (missing.length > 0) {
         throw new Error(
             `Redis client is missing required methods: ${missing.join(', ')}. ` +
-            'The redis package API may have changed — update types/redis.ts to match.'
+                'The redis package API may have changed — update types/redis.ts to match.'
         );
     }
 }
@@ -400,7 +429,7 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
                 maxmemory_human: 'unknown',
                 memory_usage_percent: 0,
                 error: 'Redis not connected',
-                alert: 'critical'
+                alert: 'critical',
             };
         }
 
@@ -446,7 +475,7 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
             maxmemory_policy: memoryInfo['maxmemory_policy'] || 'noeviction',
             memory_usage_percent: usagePercent,
             fragmentation_ratio: parseFloat(memoryInfo['mem_fragmentation_ratio'] || '0'),
-            alert
+            alert,
         };
     } catch (error) {
         logger.error('Failed to get Redis memory info', { error: (error as Error).message });
@@ -460,7 +489,7 @@ export async function getRedisMemoryInfo(): Promise<RedisMemoryInfo> {
             maxmemory_human: 'unknown',
             memory_usage_percent: 0,
             error: (error as Error).message,
-            alert: 'error'
+            alert: 'error',
         };
     }
 }
@@ -470,20 +499,22 @@ export async function disconnectRedis(): Promise<void> {
     pubSubHealth.stopPingInterval();
 
     const clients = [redisClient, pubClient, subClient].filter(Boolean) as RedisClientType[];
-    await Promise.all(clients.map(async (client) => {
-        try {
-            if (client.isOpen) {
-                await client.quit();
-            }
-        } catch {
-            // Force disconnect if quit fails
+    await Promise.all(
+        clients.map(async (client) => {
             try {
-                client.disconnect();
+                if (client.isOpen) {
+                    await client.quit();
+                }
             } catch {
-                // Ignore
+                // Force disconnect if quit fails
+                try {
+                    client.disconnect();
+                } catch {
+                    // Ignore
+                }
             }
-        }
-    }));
+        })
+    );
     redisClient = pubClient = subClient = null;
 
     // Stop embedded Redis process if we started one

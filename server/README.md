@@ -202,7 +202,7 @@ Once the server is running:
 
 To verify everything is working correctly:
 ```bash
-npm test              # Run all tests (126 suites, 0 failures)
+npm test              # Run all tests (133 suites, 0 failures)
 npm run test:coverage # Run tests with coverage report
 npm run test:frontend # Run frontend unit tests (Jest + jsdom)
 npm run test:e2e      # Run E2E tests (9 Playwright specs)
@@ -276,8 +276,8 @@ server/
 │   ├── utils/            # Utilities (metrics, logging, locks, etc.)
 │   ├── validators/       # Zod validation schemas
 │   ├── scripts/          # Redis Lua scripts for atomic operations
-│   └── __tests__/        # Jest tests (126 suites)
-├── e2e/                  # Playwright E2E tests
+│   └── __tests__/        # Jest tests (133 suites)
+├── e2e/                  # Playwright E2E tests (9 specs)
 ├── Dockerfile
 └── package.json
 ```

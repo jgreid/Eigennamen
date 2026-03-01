@@ -4,22 +4,54 @@ import { showErrorModal, showToast, closeError, closeModal, registerModalCloseHa
 import { loadNotificationPrefs, initNotificationPrefsUI } from './notifications.js';
 import { setCardClickHandler, renderBoard } from './board.js';
 import {
-    confirmNewGame, newGame, closeConfirm, confirmEndTurn, closeEndTurnConfirm,
-    endTurn, loadGameFromURL,
-    closeGameOver, revealCard
+    confirmNewGame,
+    newGame,
+    closeConfirm,
+    confirmEndTurn,
+    closeEndTurnConfirm,
+    endTurn,
+    loadGameFromURL,
+    closeGameOver,
+    revealCard,
 } from './game.js';
-import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, setSpymasterCurrent, setClickerCurrent } from './roles.js';
 import {
-    openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI,
+    updateRoleBanner,
+    updateControls,
+    setTeam,
+    setSpymaster,
+    setClicker,
+    setSpymasterCurrent,
+    setClickerCurrent,
+} from './roles.js';
+import {
+    openMultiplayer,
+    closeMultiplayer,
+    initMultiplayerModal,
+    initPlayerListUI,
     initNicknameEditUI,
-    confirmForfeit, closeForfeitConfirm, forfeitGame,
-    closeKickConfirm, confirmKickPlayer
+    confirmForfeit,
+    closeForfeitConfirm,
+    forfeitGame,
+    closeKickConfirm,
+    confirmKickPlayer,
 } from './multiplayer.js';
-import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad } from './history.js';
+import {
+    openGameHistory,
+    closeGameHistory,
+    setupHistoryEventDelegation,
+    closeReplay,
+    checkURLForReplayLoad,
+} from './history.js';
 import { isClientConnected } from './clientAccessor.js';
 import {
-    openSettings, closeSettings, saveSettings, resetWords, initSettingsNav,
-    loadLocalSettings, tryLoadWordlistFile, initSettingsListeners
+    openSettings,
+    closeSettings,
+    saveSettings,
+    resetWords,
+    initSettingsNav,
+    loadLocalSettings,
+    tryLoadWordlistFile,
+    initSettingsListeners,
 } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
@@ -61,7 +93,7 @@ registerModalCloseHandler('replay-modal', closeReplay);
 // and to avoid inline onclick handlers (security best practice)
 function setupEventListeners(): void {
     // Use event delegation on document body for button actions
-    document.body.addEventListener('click', function(e: Event) {
+    document.body.addEventListener('click', function (e: Event) {
         const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
         if (!target) return;
 
@@ -202,7 +234,7 @@ function setupEventListeners(): void {
     // Character counter inputs - use event delegation on settings modal
     const settingsModal = document.getElementById('settings-modal');
     if (settingsModal) {
-        settingsModal.addEventListener('input', function(e: Event) {
+        settingsModal.addEventListener('input', function (e: Event) {
             const target = e.target as HTMLElement;
             if (target.dataset.counter && target.dataset.max) {
                 updateCharCounter(target.id, target.dataset.counter, parseInt(target.dataset.max, 10));
@@ -258,10 +290,7 @@ async function init(): Promise<void> {
         const message = e instanceof Error ? e.message : 'Unknown error';
         logger.error('Initialization failed:', message, e);
         // Show error modal to inform user
-        showErrorModal(
-            'Failed to load the game. This might be due to corrupted data or a browser issue.',
-            message
-        );
+        showErrorModal('Failed to load the game. This might be due to corrupted data or a browser issue.', message);
     }
 }
 

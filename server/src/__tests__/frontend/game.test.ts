@@ -79,11 +79,31 @@ import { showToast, openModal, closeModal, announceToScreenReader } from '../../
 import { updateURL } from '../../frontend/url-state';
 
 const SAMPLE_WORDS = [
-    'AFRICA', 'AGENT', 'AIR', 'ALIEN', 'ALPS',
-    'AMAZON', 'AMBULANCE', 'AMERICA', 'ANGEL', 'ANTARCTICA',
-    'APPLE', 'ARM', 'ATLANTIS', 'AUSTRALIA', 'AZTEC',
-    'BACK', 'BALL', 'BAND', 'BANK', 'BAR',
-    'BARK', 'BAT', 'BATTERY', 'BEACH', 'BEAR',
+    'AFRICA',
+    'AGENT',
+    'AIR',
+    'ALIEN',
+    'ALPS',
+    'AMAZON',
+    'AMBULANCE',
+    'AMERICA',
+    'ANGEL',
+    'ANTARCTICA',
+    'APPLE',
+    'ARM',
+    'ATLANTIS',
+    'AUSTRALIA',
+    'AZTEC',
+    'BACK',
+    'BALL',
+    'BAND',
+    'BANK',
+    'BAR',
+    'BARK',
+    'BAT',
+    'BATTERY',
+    'BEACH',
+    'BEAR',
 ];
 
 function resetGameState() {
@@ -172,7 +192,7 @@ describe('setupGameBoard', () => {
     test('initializes revealed array to all false', () => {
         setupGameBoard(12345);
         expect(state.gameState.revealed.length).toBe(BOARD_SIZE);
-        expect(state.gameState.revealed.every(r => r === false)).toBe(true);
+        expect(state.gameState.revealed.every((r) => r === false)).toBe(true);
     });
 
     test('resets scores to zero', () => {
@@ -265,11 +285,31 @@ describe('initGame', () => {
 describe('checkGameOver', () => {
     beforeEach(() => {
         state.gameState.types = [
-            'red', 'red', 'red', 'red', 'red',
-            'red', 'red', 'red', 'red', 'blue',
-            'blue', 'blue', 'blue', 'blue', 'blue',
-            'blue', 'blue', 'neutral', 'neutral', 'neutral',
-            'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'assassin',
         ];
         state.gameState.revealed = Array(BOARD_SIZE).fill(false);
         state.gameState.redTotal = 9;
@@ -317,11 +357,31 @@ describe('revealCardFromServer', () => {
     beforeEach(() => {
         state.gameState.words = SAMPLE_WORDS;
         state.gameState.types = [
-            'red', 'red', 'red', 'red', 'red',
-            'red', 'red', 'red', 'red', 'blue',
-            'blue', 'blue', 'blue', 'blue', 'blue',
-            'blue', 'blue', 'neutral', 'neutral', 'neutral',
-            'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'assassin',
         ];
         state.gameState.revealed = Array(BOARD_SIZE).fill(false);
         state.gameState.currentTurn = 'red';
@@ -732,10 +792,7 @@ describe('endTurn', () => {
 
         endTurn();
 
-        expect(showToast).toHaveBeenCalledWith(
-            expect.stringContaining('game.gameOverStartNew'),
-            'warning'
-        );
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.gameOverStartNew'), 'warning');
         // Turn should not change
         expect(state.gameState.currentTurn).toBe('red');
     });
@@ -745,10 +802,7 @@ describe('endTurn', () => {
 
         endTurn();
 
-        expect(showToast).toHaveBeenCalledWith(
-            expect.stringContaining('game.onlyClickerCanEndTurn'),
-            'warning'
-        );
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.onlyClickerCanEndTurn'), 'warning');
         expect(state.gameState.currentTurn).toBe('red');
     });
 
@@ -758,10 +812,7 @@ describe('endTurn', () => {
 
         endTurn();
 
-        expect(showToast).toHaveBeenCalledWith(
-            expect.stringContaining('game.notYourTurn'),
-            'warning'
-        );
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.notYourTurn'), 'warning');
         expect(state.gameState.currentTurn).toBe('red');
     });
 
@@ -793,9 +844,7 @@ describe('endTurn', () => {
 
         endTurn();
 
-        expect(announceToScreenReader).toHaveBeenCalledWith(
-            expect.stringContaining('game.turnEndedAnnounce')
-        );
+        expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('game.turnEndedAnnounce'));
     });
 
     test('uses team name in turn change announcement', () => {
@@ -891,11 +940,31 @@ describe('closeGameOver', () => {
 describe('updateTurnIndicator duet mode branches', () => {
     beforeEach(() => {
         state.gameState.types = [
-            'red', 'red', 'red', 'red', 'red',
-            'red', 'red', 'red', 'red', 'blue',
-            'blue', 'blue', 'blue', 'blue', 'blue',
-            'blue', 'blue', 'neutral', 'neutral', 'neutral',
-            'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'assassin',
         ];
         state.gameState.revealed = Array(BOARD_SIZE).fill(false);
         jest.clearAllMocks();

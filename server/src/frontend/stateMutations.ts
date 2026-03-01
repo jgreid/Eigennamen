@@ -121,11 +121,7 @@ export function validateGameMode(value: unknown): ValidGameMode {
  * Validate that an array has the expected length.
  * Logs a warning and returns false if mismatched.
  */
-export function validateArrayLength(
-    name: string,
-    arr: unknown[] | undefined,
-    expectedLength: number
-): boolean {
+export function validateArrayLength(name: string, arr: unknown[] | undefined, expectedLength: number): boolean {
     if (!arr || !Array.isArray(arr)) return false;
     if (arr.length !== expectedLength) {
         logger.warn(`${name} array length mismatch: got ${arr.length}, expected ${expectedLength}`);

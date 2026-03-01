@@ -17,9 +17,17 @@ import { logger } from './logger.js';
 import { safeSetStorage, safeGetStorage, safeRemoveStorage } from './socket-client-storage.js';
 import { registerAllEventListeners } from './socket-client-events.js';
 import type {
-    SocketClientInstance, Player, ConnectOptions, CreateRoomOptions,
-    SocketListenerEntry, OfflineQueueItem, ErrorData, ListenerMap, EigennamenGlobal,
-    ClientEventMap, ClientEventName
+    SocketClientInstance,
+    Player,
+    ConnectOptions,
+    CreateRoomOptions,
+    SocketListenerEntry,
+    OfflineQueueItem,
+    ErrorData,
+    ListenerMap,
+    EigennamenGlobal,
+    ClientEventMap,
+    ClientEventName,
 } from './socket-client-types.js';
 import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
 
@@ -42,7 +50,10 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
      */
     function loadSocketIO(): Promise<void> {
         return new Promise((resolve, reject) => {
-            if (isSocketIOReady()) { resolve(); return; }
+            if (isSocketIOReady()) {
+                resolve();
+                return;
+            }
 
             const script = document.createElement('script');
             script.src = '/js/socket.io.min.js';
@@ -54,7 +65,11 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 }
             };
             script.onerror = function () {
-                reject(new Error('Failed to load Socket.io client library. Check your network connection and refresh the page.'));
+                reject(
+                    new Error(
+                        'Failed to load Socket.io client library. Check your network connection and refresh the page.'
+                    )
+                );
             };
             document.head.appendChild(script);
         });
@@ -68,15 +83,15 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
         connected: false,
         reconnectAttempts: 0,
         maxReconnectAttempts: 5,
-        autoRejoin: true,           // Automatically rejoin room on reconnection
-        storedNickname: null as string | null,       // Remember nickname for reconnection
+        autoRejoin: true, // Automatically rejoin room on reconnection
+        storedNickname: null as string | null, // Remember nickname for reconnection
         listeners: {} as ListenerMap,
-        joinInProgress: false,      // Prevent double-join race condition
-        createInProgress: false,    // Prevent double-create race condition
-        _socketListeners: [] as SocketListenerEntry[],       // Track socket.io listeners for cleanup
-        _offlineQueue: [] as OfflineQueueItem[],          // Queue for events sent while disconnected
-        _offlineQueueMaxSize: 20,   // Max queued events to prevent memory growth
-        _nextRequestId: 0,         // Incrementing counter for request correlation
+        joinInProgress: false, // Prevent double-join race condition
+        createInProgress: false, // Prevent double-create race condition
+        _socketListeners: [] as SocketListenerEntry[], // Track socket.io listeners for cleanup
+        _offlineQueue: [] as OfflineQueueItem[], // Queue for events sent while disconnected
+        _offlineQueueMaxSize: 20, // Max queued events to prevent memory growth
+        _nextRequestId: 0, // Incrementing counter for request correlation
 
         /**
          * Connect to the server
@@ -97,7 +112,6 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          */
         _doConnect(serverUrl: string | null = null, options: ConnectOptions = {}): Promise<SocketClientInstance> {
             return new Promise((resolve, reject) => {
-
                 // Use safe storage methods with error handling
                 this.sessionId = this._safeGetStorage(sessionStorage, 'eigennamen-session-id');
                 this.storedNickname = this._safeGetStorage(localStorage, 'eigennamen-nickname');
@@ -114,14 +128,14 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
 
                 const socket = io(url, {
                     auth: {
-                        sessionId: this.sessionId
+                        sessionId: this.sessionId,
                     },
                     transports: transports,
                     reconnection: true,
                     reconnectionAttempts: this.maxReconnectAttempts,
                     reconnectionDelay: 1000,
                     reconnectionDelayMax: 5000,
-                    ...options.socketOptions
+                    ...options.socketOptions,
                 }) as unknown as SocketClientInstance;
                 this.socket = socket;
 
@@ -241,19 +255,27 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 self._emit(event, data);
             };
 
-            registerAllEventListeners(
-                this._registerSocketListener.bind(this),
-                wrappedEmit,
-                {
-                    get roomCode() { return self.roomCode; },
-                    set roomCode(v) { self.roomCode = v; },
-                    get player() { return self.player; },
-                    set player(v) { self.player = v; },
-                    get sessionId() { return self.sessionId; },
-                    set sessionId(v) { self.sessionId = v; },
-                    saveSession: () => self._saveSession()
-                }
-            );
+            registerAllEventListeners(this._registerSocketListener.bind(this), wrappedEmit, {
+                get roomCode() {
+                    return self.roomCode;
+                },
+                set roomCode(v) {
+                    self.roomCode = v;
+                },
+                get player() {
+                    return self.player;
+                },
+                set player(v) {
+                    self.player = v;
+                },
+                get sessionId() {
+                    return self.sessionId;
+                },
+                set sessionId(v) {
+                    self.sessionId = v;
+                },
+                saveSession: () => self._saveSession(),
+            });
         },
 
         /** Delegate to extracted storage utility */
@@ -318,9 +340,12 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 // State-mutating events (team/role changes) are included because
                 // the server validates them against current state on replay.
                 const queueableEvents = [
-                    'chat:message', 'chat:spectator',
-                    'player:setTeam', 'player:setRole', 'player:setNickname',
-                    'game:endTurn'
+                    'chat:message',
+                    'chat:spectator',
+                    'player:setTeam',
+                    'player:setRole',
+                    'player:setNickname',
+                    'game:endTurn',
                 ];
                 if (queueableEvents.includes(event) && this._offlineQueue.length < this._offlineQueueMaxSize) {
                     this._offlineQueue.push({ event, data, timestamp: Date.now(), roomCode: this.roomCode });
@@ -387,7 +412,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
             if (!this.listeners[event]) {
                 (this.listeners as Record<string, unknown[]>)[event] = [];
             }
-            ((this.listeners as Record<string, unknown[]>)[event]).push(callback);
+            (this.listeners as Record<string, unknown[]>)[event].push(callback);
             return this;
         },
 
@@ -492,7 +517,7 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
                 this.socket?.emit('room:create', {
                     roomId,
                     settings: { nickname, ...settings },
-                    requestId
+                    requestId,
                 });
 
                 // Timeout matches server SOCKET_HANDLER timeout (30s)
@@ -905,10 +930,9 @@ import type { JoinCreateResult, ServerErrorData } from './multiplayerTypes.js';
          */
         setAutoRejoin(enabled: boolean): void {
             this.autoRejoin = enabled;
-        }
+        },
     };
 
     // Export to global scope
     global.EigennamenClient = EigennamenClient;
-
-})(typeof window !== 'undefined' ? window : globalThis as any);
+})(typeof window !== 'undefined' ? window : (globalThis as typeof globalThis & EigennamenGlobal));

@@ -43,7 +43,7 @@ export function escapeHTML(str: string): string {
 // Must stay in sync with server-side implementation in gameService.js
 export function seededRandom(seed: number): number {
     // Mulberry32 PRNG - better distribution than sin-based approach
-    let t = (seed + 0x6D2B79F5) | 0;
+    let t = (seed + 0x6d2b79f5) | 0;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -56,7 +56,7 @@ export function hashString(str: string): number {
     for (const char of str) {
         const codePoint = char.codePointAt(0);
         if (codePoint !== undefined) {
-            hash = ((hash << 5) - hash) + codePoint;
+            hash = (hash << 5) - hash + codePoint;
             hash = hash & hash;
         }
     }
@@ -118,7 +118,7 @@ export function decodeWordsFromURL(encoded: string): string[] | null {
             }
         }
         parts.push(current);
-        return parts.map(unescapeWordDelimiter).filter(w => w.length > 0);
+        return parts.map(unescapeWordDelimiter).filter((w) => w.length > 0);
     } catch {
         return null;
     }
@@ -191,11 +191,11 @@ export function updateCharCounter(inputId: string, counterId: string, maxLength:
 // Get font size class for long words to ensure they fit on cards
 export function getCardFontClass(word: string): string {
     const len = word.length;
-    if (len <= 8) return 'font-lg';      // Normal size
-    if (len <= 11) return 'font-md';     // Slightly smaller
-    if (len <= 14) return 'font-sm';     // Smaller
-    if (len <= 17) return 'font-xs';     // Much smaller
-    return 'font-min';                   // Minimum 8pt
+    if (len <= 8) return 'font-lg'; // Normal size
+    if (len <= 11) return 'font-md'; // Slightly smaller
+    if (len <= 14) return 'font-sm'; // Smaller
+    if (len <= 17) return 'font-xs'; // Much smaller
+    return 'font-min'; // Minimum 8pt
 }
 
 /**
@@ -215,7 +215,7 @@ export function fitCardText(board: HTMLElement): void {
                 card: card as HTMLElement,
                 fontSize: parseFloat(getComputedStyle(card).fontSize),
                 scrollWidth: card.scrollWidth,
-                clientWidth: card.clientWidth
+                clientWidth: card.clientWidth,
             });
         }
 

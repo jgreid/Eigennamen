@@ -1,4 +1,3 @@
-
 import logger from './logger';
 
 /**
@@ -23,21 +22,14 @@ class TimeoutError extends Error {
  * @param operationName - Name of the operation (for logging)
  * @returns The promise result or rejects with TimeoutError
  */
-async function withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    operationName: string = 'operation'
-): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operationName: string = 'operation'): Promise<T> {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let timedOut = false;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
             timedOut = true;
-            const error = new TimeoutError(
-                `${operationName} timed out after ${timeoutMs}ms`,
-                operationName
-            );
+            const error = new TimeoutError(`${operationName} timed out after ${timeoutMs}ms`, operationName);
             logger.error(`Operation timeout: ${operationName} exceeded ${timeoutMs}ms`);
             // Attach a no-op catch to the original promise so that if it rejects
             // after the timeout wins the race, Node.js doesn't see an unhandled rejection.
@@ -83,20 +75,16 @@ function envInt(name: string, defaultValue: number, min: number = 1000, max: num
  * Configurable via environment variables; falls back to defaults.
  */
 const TIMEOUTS = {
-    SOCKET_HANDLER:  envInt('TIMEOUT_SOCKET_HANDLER',  30000, 5000, 120000),
-    REDIS_OPERATION: envInt('TIMEOUT_REDIS_OPERATION',  10000, 1000, 60000),
-    JOIN_ROOM:       envInt('TIMEOUT_JOIN_ROOM',        15000, 3000, 60000),
-    RECONNECT:       envInt('TIMEOUT_RECONNECT',        15000, 3000, 60000),
-    GAME_ACTION:     envInt('TIMEOUT_GAME_ACTION',      10000, 1000, 60000),
-    TIMER_OPERATION: envInt('TIMEOUT_TIMER_OPERATION',    5000, 1000, 30000)
+    SOCKET_HANDLER: envInt('TIMEOUT_SOCKET_HANDLER', 30000, 5000, 120000),
+    REDIS_OPERATION: envInt('TIMEOUT_REDIS_OPERATION', 10000, 1000, 60000),
+    JOIN_ROOM: envInt('TIMEOUT_JOIN_ROOM', 15000, 3000, 60000),
+    RECONNECT: envInt('TIMEOUT_RECONNECT', 15000, 3000, 60000),
+    GAME_ACTION: envInt('TIMEOUT_GAME_ACTION', 10000, 1000, 60000),
+    TIMER_OPERATION: envInt('TIMEOUT_TIMER_OPERATION', 5000, 1000, 30000),
 } as const;
 
 type TimeoutType = keyof typeof TIMEOUTS;
 
-export {
-    withTimeout,
-    TimeoutError,
-    TIMEOUTS
-};
+export { withTimeout, TimeoutError, TIMEOUTS };
 
 export type { TimeoutType };

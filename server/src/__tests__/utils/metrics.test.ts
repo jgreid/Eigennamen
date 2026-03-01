@@ -10,12 +10,12 @@ const {
     getHistogramStats,
     getAllMetrics,
     resetMetrics,
-    METRIC_NAMES
+    METRIC_NAMES,
 } = require('../../utils/metrics');
 
 // Mock correlationId
 jest.mock('../../utils/correlationId', () => ({
-    getCorrelationId: jest.fn().mockReturnValue('test-correlation-id')
+    getCorrelationId: jest.fn().mockReturnValue('test-correlation-id'),
 }));
 
 describe('Metrics Collection', () => {
@@ -110,7 +110,6 @@ describe('Metrics Collection', () => {
                 expect(metrics.gauges['test_gauge'].value).toBe(15);
             });
         });
-
     });
 
     describe('Histograms', () => {
@@ -163,7 +162,6 @@ describe('Metrics Collection', () => {
                 expect(stats).toBeNull();
             });
         });
-
     });
 
     describe('getAllMetrics', () => {
@@ -187,7 +185,7 @@ describe('Metrics Collection', () => {
             const metrics = getAllMetrics();
             expect(metrics.counters['test_counter']).toMatchObject({
                 value: 5,
-                labels: {}
+                labels: {},
             });
         });
 
@@ -197,7 +195,7 @@ describe('Metrics Collection', () => {
             const metrics = getAllMetrics();
             expect(metrics.gauges['test_gauge']).toMatchObject({
                 value: 42,
-                labels: {}
+                labels: {},
             });
         });
 

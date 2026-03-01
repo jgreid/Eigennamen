@@ -29,7 +29,7 @@ describe('Timer Data Structure Tests', () => {
                 duration,
                 paused: false,
                 remainingWhenPaused: null,
-                instanceId: process.pid.toString()
+                instanceId: process.pid.toString(),
             };
 
             await mockRedis.set(timerKey, JSON.stringify(timerData));
@@ -50,7 +50,7 @@ describe('Timer Data Structure Tests', () => {
             const timerData = {
                 roomCode,
                 paused: true,
-                remainingWhenPaused: remaining
+                remainingWhenPaused: remaining,
             };
 
             await mockRedis.set(timerKey, JSON.stringify(timerData));
@@ -171,7 +171,7 @@ describe('Timer Data Structure Tests', () => {
             const expiredTimer = {
                 roomCode,
                 endTime: now - 60000, // Expired 1 minute ago
-                claimed: false
+                claimed: false,
             };
 
             await mockRedis.set(timerKey, JSON.stringify(expiredTimer));
@@ -190,7 +190,7 @@ describe('Timer Data Structure Tests', () => {
             const claimedTimer = {
                 roomCode,
                 claimed: true,
-                claimedBy: 'instance-1'
+                claimedBy: 'instance-1',
             };
 
             await mockRedis.set(timerKey, JSON.stringify(claimedTimer));
@@ -213,7 +213,7 @@ describe('Timer Data Structure Tests', () => {
                 roomCode,
                 endTime,
                 duration,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             };
 
             expect(startEvent.type).toBe('started');
@@ -229,7 +229,7 @@ describe('Timer Data Structure Tests', () => {
                 type: 'paused',
                 roomCode,
                 remainingSeconds,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             };
 
             expect(pauseEvent.type).toBe('paused');
@@ -242,7 +242,7 @@ describe('Timer Data Structure Tests', () => {
             const expiredEvent = {
                 type: 'expired',
                 roomCode,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             };
 
             expect(expiredEvent.type).toBe('expired');
@@ -258,7 +258,7 @@ describe('Timer Data Structure Tests', () => {
                 roomCode,
                 secondsAdded: secondsToAdd,
                 newEndTime,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             };
 
             expect(addTimeEvent.type).toBe('addTime');

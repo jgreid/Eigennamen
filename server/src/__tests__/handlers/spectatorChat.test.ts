@@ -13,7 +13,7 @@
 // Mock rate limit handler FIRST to bypass rate limiting
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
 }));
 
 // Mock dependencies
@@ -23,7 +23,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const playerService = require('../../services/playerService');
@@ -90,13 +90,13 @@ describe('Spectator Chat Feature', () => {
                 emit: jest.fn(),
                 on: jest.fn(),
                 join: jest.fn(),
-                leave: jest.fn()
+                leave: jest.fn(),
             };
 
             // Create mock io with chaining
             mockIo = {
                 to: jest.fn().mockReturnThis(),
-                emit: jest.fn()
+                emit: jest.fn(),
             };
 
             // Default player mock with roomCode for context handler
@@ -105,7 +105,7 @@ describe('Spectator Chat Feature', () => {
                 roomCode: 'TEST12',
                 nickname: 'Spectator1',
                 team: null,
-                role: 'spectator'
+                role: 'spectator',
             });
             gameService.getGame.mockResolvedValue(null);
 
@@ -117,7 +117,7 @@ describe('Spectator Chat Feature', () => {
         describe('Handler Registration', () => {
             test('registers chat:spectator handler', () => {
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 expect(spectatorHandler).toBeDefined();
             });
         });
@@ -129,22 +129,25 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Go team!' });
 
                 expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
-                expect(mockIo.emit).toHaveBeenCalledWith(SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, expect.objectContaining({
-                    text: 'Go team!',
-                    from: expect.objectContaining({
-                        sessionId: 'session-456',
-                        nickname: 'Spectator1',
-                        role: 'spectator'
+                expect(mockIo.emit).toHaveBeenCalledWith(
+                    SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE,
+                    expect.objectContaining({
+                        text: 'Go team!',
+                        from: expect.objectContaining({
+                            sessionId: 'session-456',
+                            nickname: 'Spectator1',
+                            role: 'spectator',
+                        }),
                     })
-                }));
+                );
             });
 
             test('rejects message from player without team but non-spectator role', async () => {
@@ -153,17 +156,20 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'NoTeamPlayer',
                     team: null,
-                    role: 'clicker'
+                    role: 'clicker',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Watching the game!' });
 
                 // Non-spectator players should not be able to send spectator-only messages
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: expect.any(String)
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: expect.any(String),
+                    })
+                );
             });
 
             test('rejects message from player with team and non-spectator role', async () => {
@@ -172,17 +178,20 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'TeamPlayer',
                     team: 'red',
-                    role: 'clicker'
+                    role: 'clicker',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Should fail!' });
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.NOT_AUTHORIZED,
-                    message: 'Not authorized to perform this action'
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: ERROR_CODES.NOT_AUTHORIZED,
+                        message: 'Not authorized to perform this action',
+                    })
+                );
                 expect(mockIo.emit).not.toHaveBeenCalled();
             });
 
@@ -192,16 +201,19 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spymaster',
                     team: 'blue',
-                    role: 'spymaster'
+                    role: 'spymaster',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Should fail!' });
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.NOT_AUTHORIZED
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: ERROR_CODES.NOT_AUTHORIZED,
+                    })
+                );
             });
         });
 
@@ -212,11 +224,11 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Hello spectators!' });
 
                 expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
@@ -229,12 +241,12 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const beforeTime = Date.now();
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Test message' });
                 const afterTime = Date.now();
 
@@ -249,20 +261,22 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Hello!' });
 
                 const emittedMessage = mockIo.emit.mock.calls[0][1];
-                expect(emittedMessage.from).toEqual(expect.objectContaining({
-                    sessionId: 'session-456',
-                    nickname: 'Spectator1',
-                    team: null,
-                    role: 'spectator'
-                }));
+                expect(emittedMessage.from).toEqual(
+                    expect.objectContaining({
+                        sessionId: 'session-456',
+                        nickname: 'Spectator1',
+                        team: null,
+                        role: 'spectator',
+                    })
+                );
             });
         });
 
@@ -273,11 +287,11 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: '<script>alert("xss")</script>' });
 
                 const emittedMessage = mockIo.emit.mock.calls[0][1];
@@ -291,11 +305,11 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: '<img src=x onerror=alert(1)>',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Normal message' });
 
                 const emittedMessage = mockIo.emit.mock.calls[0][1];
@@ -308,11 +322,11 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Test&User',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Tom & Jerry' });
 
                 const emittedMessage = mockIo.emit.mock.calls[0][1];
@@ -327,58 +341,73 @@ describe('Spectator Chat Feature', () => {
                 playerService.getPlayer.mockResolvedValue(null);
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Hello' });
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.ROOM_NOT_FOUND,
-                    message: 'You must be in a room to perform this action'
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: ERROR_CODES.ROOM_NOT_FOUND,
+                        message: 'You must be in a room to perform this action',
+                    })
+                );
             });
 
             test('rejects message when player not found', async () => {
                 playerService.getPlayer.mockResolvedValue(null);
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Hello' });
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.ROOM_NOT_FOUND,
-                    message: 'You must be in a room to perform this action'
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: ERROR_CODES.ROOM_NOT_FOUND,
+                        message: 'You must be in a room to perform this action',
+                    })
+                );
             });
 
             test('rejects invalid data format', async () => {
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1](null);
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.INVALID_INPUT
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: ERROR_CODES.INVALID_INPUT,
+                    })
+                );
             });
 
             test('rejects non-object data', async () => {
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]('string data');
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    code: ERROR_CODES.INVALID_INPUT
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        code: ERROR_CODES.INVALID_INPUT,
+                    })
+                );
             });
 
             test('handles player service error gracefully', async () => {
                 playerService.getPlayer.mockRejectedValue(new Error('Database connection failed'));
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
                 await spectatorHandler[1]({ message: 'Hello' });
 
-                expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                    message: 'An unexpected error occurred'
-                }));
+                expect(mockSocket.emit).toHaveBeenCalledWith(
+                    'chat:error',
+                    expect.objectContaining({
+                        message: 'An unexpected error occurred',
+                    })
+                );
             });
 
             test('handles IO emit error gracefully', async () => {
@@ -387,7 +416,7 @@ describe('Spectator Chat Feature', () => {
                     roomCode: 'TEST12',
                     nickname: 'Spectator1',
                     team: null,
-                    role: 'spectator'
+                    role: 'spectator',
                 });
 
                 mockIo.emit.mockImplementation(() => {
@@ -395,7 +424,7 @@ describe('Spectator Chat Feature', () => {
                 });
 
                 const handlers = mockSocket.on.mock.calls;
-                const spectatorHandler = handlers.find(h => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
+                const spectatorHandler = handlers.find((h) => h[0] === SOCKET_EVENTS.CHAT_SPECTATOR);
 
                 // Should not throw - error should be caught and logged
                 await expect(spectatorHandler[1]({ message: 'Hello' })).resolves.not.toThrow();

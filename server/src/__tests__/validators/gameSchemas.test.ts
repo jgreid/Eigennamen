@@ -28,9 +28,7 @@ describe('gameStartSchema', () => {
     });
 
     test('sanitizes control characters from words', () => {
-        const wordsWithControl = validWords.map((w, i) =>
-            i === 0 ? 'hello\x00world' : w
-        );
+        const wordsWithControl = validWords.map((w, i) => (i === 0 ? 'hello\x00world' : w));
         const result = gameStartSchema.safeParse({ wordList: wordsWithControl });
         expect(result.success).toBe(true);
         if (result.success) {

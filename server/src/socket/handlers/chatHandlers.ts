@@ -46,75 +46,86 @@ interface ChatMessage {
 }
 
 function chatHandlers(io: Server, socket: GameSocket): void {
-
     /**
      * Send a chat message
      */
-    socket.on(SOCKET_EVENTS.CHAT_MESSAGE, createRoomHandler(socket, SOCKET_EVENTS.CHAT_MESSAGE, chatMessageSchema,
-        async (ctx: RoomContext, validated: ChatMessageInput) => {
-            const message: ChatMessage = {
-                from: {
-                    sessionId: ctx.player.sessionId,
-                    nickname: ctx.player.nickname,
-                    team: ctx.player.team,
-                    role: ctx.player.role
-                },
-                text: validated.text,
-                teamOnly: validated.teamOnly,
-                spectatorOnly: validated.spectatorOnly || false,
-                timestamp: Date.now()
-            };
+    socket.on(
+        SOCKET_EVENTS.CHAT_MESSAGE,
+        createRoomHandler(
+            socket,
+            SOCKET_EVENTS.CHAT_MESSAGE,
+            chatMessageSchema,
+            async (ctx: RoomContext, validated: ChatMessageInput) => {
+                const message: ChatMessage = {
+                    from: {
+                        sessionId: ctx.player.sessionId,
+                        nickname: ctx.player.nickname,
+                        team: ctx.player.team,
+                        role: ctx.player.role,
+                    },
+                    text: validated.text,
+                    teamOnly: validated.teamOnly,
+                    spectatorOnly: validated.spectatorOnly || false,
+                    timestamp: Date.now(),
+                };
 
-            // Validate spectatorOnly flag - only spectators can send spectator-only messages
-            if (validated.spectatorOnly && ctx.player.role !== 'spectator') {
-                throw PlayerError.notAuthorized();
-            }
-
-            // Spectator-only chat: use the spectators socket room instead of
-            // fetching all players from Redis and iterating (O(n) -> O(1))
-            if (validated.spectatorOnly) {
-                safeEmitToGroup(io, `spectators:${ctx.roomCode}`, SOCKET_EVENTS.CHAT_MESSAGE, message);
-            } else if (validated.teamOnly && ctx.player.team) {
-                const teammates: Player[] = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
-                if (!teammates || !Array.isArray(teammates)) {
-                    logger.warn(`No teammates found for ${ctx.player.team} team in room ${ctx.roomCode}`);
-                    socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
-                    return;
+                // Validate spectatorOnly flag - only spectators can send spectator-only messages
+                if (validated.spectatorOnly && ctx.player.role !== 'spectator') {
+                    throw PlayerError.notAuthorized();
                 }
 
-                for (const teammate of teammates) {
-                    safeEmitToPlayer(io, teammate.sessionId, SOCKET_EVENTS.CHAT_MESSAGE, message);
+                // Spectator-only chat: use the spectators socket room instead of
+                // fetching all players from Redis and iterating (O(n) -> O(1))
+                if (validated.spectatorOnly) {
+                    safeEmitToGroup(io, `spectators:${ctx.roomCode}`, SOCKET_EVENTS.CHAT_MESSAGE, message);
+                } else if (validated.teamOnly && ctx.player.team) {
+                    const teammates: Player[] = await playerService.getTeamMembers(ctx.roomCode, ctx.player.team);
+                    if (!teammates || !Array.isArray(teammates)) {
+                        logger.warn(`No teammates found for ${ctx.player.team} team in room ${ctx.roomCode}`);
+                        socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, message);
+                        return;
+                    }
+
+                    for (const teammate of teammates) {
+                        safeEmitToPlayer(io, teammate.sessionId, SOCKET_EVENTS.CHAT_MESSAGE, message);
+                    }
+                } else {
+                    safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.CHAT_MESSAGE, message);
                 }
-            } else {
-                safeEmitToRoom(io, ctx.roomCode, SOCKET_EVENTS.CHAT_MESSAGE, message);
             }
-        }
-    ));
+        )
+    );
 
     /**
      * Send a spectator-only chat message
      */
-    socket.on(SOCKET_EVENTS.CHAT_SPECTATOR, createRoomHandler(socket, SOCKET_EVENTS.CHAT_SPECTATOR, spectatorChatSchema,
-        async (ctx: RoomContext, validated: SpectatorChatInput) => {
-            // Only allow spectators to send spectator-only messages
-            if (ctx.player.role !== 'spectator') {
-                throw PlayerError.notAuthorized();
+    socket.on(
+        SOCKET_EVENTS.CHAT_SPECTATOR,
+        createRoomHandler(
+            socket,
+            SOCKET_EVENTS.CHAT_SPECTATOR,
+            spectatorChatSchema,
+            async (ctx: RoomContext, validated: SpectatorChatInput) => {
+                // Only allow spectators to send spectator-only messages
+                if (ctx.player.role !== 'spectator') {
+                    throw PlayerError.notAuthorized();
+                }
+
+                const message = {
+                    from: {
+                        sessionId: ctx.player.sessionId,
+                        nickname: ctx.player.nickname,
+                        team: ctx.player.team,
+                        role: ctx.player.role,
+                    },
+                    text: validated.message,
+                    timestamp: Date.now(),
+                };
+
+                safeEmitToGroup(io, `spectators:${ctx.roomCode}`, SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, message);
             }
-
-            const message = {
-                from: {
-                    sessionId: ctx.player.sessionId,
-                    nickname: ctx.player.nickname,
-                    team: ctx.player.team,
-                    role: ctx.player.role
-                },
-                text: validated.message,
-                timestamp: Date.now()
-            };
-
-            safeEmitToGroup(io, `spectators:${ctx.roomCode}`, SOCKET_EVENTS.CHAT_SPECTATOR_MESSAGE, message);
-        }
-    ));
+        )
+    );
 }
 
 export default chatHandlers;

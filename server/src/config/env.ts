@@ -13,9 +13,9 @@ const optionalVars: Record<string, string | null> = {
     NODE_ENV: 'development',
     PORT: '3000',
     REDIS_URL: 'redis://localhost:6379',
-    JWT_SECRET: null,    // Optional for anonymous play
-    CORS_ORIGIN: null,  // Must be explicitly configured; defaults to self-origin in CSRF middleware
-    LOG_LEVEL: 'info'
+    JWT_SECRET: null, // Optional for anonymous play
+    CORS_ORIGIN: null, // Must be explicitly configured; defaults to self-origin in CSRF middleware
+    LOG_LEVEL: 'info',
 };
 
 /**
@@ -57,13 +57,17 @@ export function validateEnv(): boolean {
         const redisUrl = process.env['REDIS_URL'] || '';
         const memoryMode = isMemoryMode();
         if (!memoryMode && (!redisUrl || redisUrl.includes('localhost'))) {
-            errors.push('REDIS_URL must be set to a real Redis URL in production (or use "memory" for single-instance mode)');
+            errors.push(
+                'REDIS_URL must be set to a real Redis URL in production (or use "memory" for single-instance mode)'
+            );
         }
         if (memoryMode) {
             warnings.push('PRODUCTION WARNING: Running in memory storage mode');
             warnings.push('  - Data will NOT persist across restarts');
             warnings.push('  - Multi-instance scaling is DISABLED');
-            warnings.push('  - Set REDIS_URL to a real Redis URL for production: fly secrets set REDIS_URL=rediss://...');
+            warnings.push(
+                '  - Set REDIS_URL to a real Redis URL for production: fly secrets set REDIS_URL=rediss://...'
+            );
 
             // Detect multi-instance Fly.io deployment with memory mode
             // FLY_ALLOC_ID is set by Fly.io on every machine. If present,
@@ -81,10 +85,10 @@ export function validateEnv(): boolean {
                 } else {
                     errors.push(
                         'FATAL: In-memory storage mode (REDIS_URL=memory) is not supported on Fly.io. ' +
-                        'Fly.io can route requests to different machines, each with separate in-memory state, ' +
-                        'causing ROOM_NOT_FOUND errors when players try to join rooms. ' +
-                        'Fix: provision Redis with `fly redis create` and set REDIS_URL to the Redis connection string. ' +
-                        'To force single-machine memory mode anyway, set MEMORY_MODE_ALLOW_FLY=true'
+                            'Fly.io can route requests to different machines, each with separate in-memory state, ' +
+                            'causing ROOM_NOT_FOUND errors when players try to join rooms. ' +
+                            'Fix: provision Redis with `fly redis create` and set REDIS_URL to the Redis connection string. ' +
+                            'To force single-machine memory mode anyway, set MEMORY_MODE_ALLOW_FLY=true'
                     );
                 }
             }
@@ -97,7 +101,7 @@ export function validateEnv(): boolean {
         if (adminPassword === undefined) {
             warnings.push(
                 'ADMIN_PASSWORD not set - admin dashboard will be inaccessible. ' +
-                'Set it with: fly secrets set ADMIN_PASSWORD=$(openssl rand -base64 24)'
+                    'Set it with: fly secrets set ADMIN_PASSWORD=$(openssl rand -base64 24)'
             );
         } else if (!adminPassword.trim()) {
             errors.push('ADMIN_PASSWORD is set but empty or whitespace-only');
@@ -109,7 +113,9 @@ export function validateEnv(): boolean {
             const hasUpper = /[A-Z]/.test(adminPassword);
             const hasDigit = /\d/.test(adminPassword);
             if (!(hasLower && hasUpper && hasDigit)) {
-                warnings.push('SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters');
+                warnings.push(
+                    'SECURITY WARNING: ADMIN_PASSWORD should contain lowercase, uppercase, and numeric characters'
+                );
             }
         }
 
@@ -117,16 +123,22 @@ export function validateEnv(): boolean {
         // While anonymous play is supported, operators should understand the security implications
         if (!process.env['JWT_SECRET']) {
             warnings.push('SECURITY WARNING: JWT_SECRET not set - user authentication is disabled');
-            warnings.push('  - Set JWT_SECRET to enable authenticated sessions: fly secrets set JWT_SECRET=$(openssl rand -hex 32)');
+            warnings.push(
+                '  - Set JWT_SECRET to enable authenticated sessions: fly secrets set JWT_SECRET=$(openssl rand -hex 32)'
+            );
         } else if (process.env['JWT_SECRET'].length < 32) {
-            errors.push('JWT_SECRET must be at least 32 characters in production. Generate one with: openssl rand -hex 32');
+            errors.push(
+                'JWT_SECRET must be at least 32 characters in production. Generate one with: openssl rand -hex 32'
+            );
         }
         if (process.env['CORS_ORIGIN'] === '*') {
             warnings.push('CORS_ORIGIN is set to "*" in production - consider restricting');
         }
         if (process.env['ALLOW_IP_MISMATCH'] === 'true') {
             warnings.push('SECURITY WARNING: ALLOW_IP_MISMATCH=true allows session reconnection from different IPs');
-            warnings.push('  - This widens the session hijacking window. Only enable if users frequently change IPs (mobile networks)');
+            warnings.push(
+                '  - This widens the session hijacking window. Only enable if users frequently change IPs (mobile networks)'
+            );
         }
     }
 
@@ -142,7 +154,7 @@ export function validateEnv(): boolean {
     // Validate CORS_ORIGIN format if provided (applies to all environments)
     const corsOrigin = process.env['CORS_ORIGIN'];
     if (corsOrigin && corsOrigin !== '*') {
-        const origins = corsOrigin.split(',').map(s => s.trim());
+        const origins = corsOrigin.split(',').map((s) => s.trim());
         for (const origin of origins) {
             if (origin && !origin.startsWith('http://') && !origin.startsWith('https://')) {
                 warnings.push(`CORS_ORIGIN value "${origin}" does not start with http:// or https://`);
@@ -157,7 +169,7 @@ export function validateEnv(): boolean {
 
     // Throw if there are errors
     if (errors.length > 0) {
-        const errorMessage = 'Environment validation failed:\n' + errors.map(e => `  - ${e}`).join('\n');
+        const errorMessage = 'Environment validation failed:\n' + errors.map((e) => `  - ${e}`).join('\n');
         logger.error(errorMessage);
         throw new Error(errorMessage);
     }
@@ -216,4 +228,3 @@ export function isProduction(): boolean {
 export function isDevelopment(): boolean {
     return process.env['NODE_ENV'] === 'development' || !process.env['NODE_ENV'];
 }
-

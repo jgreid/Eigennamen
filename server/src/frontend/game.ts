@@ -1,4 +1,12 @@
-import { state, BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS } from './state.js';
+import {
+    state,
+    BOARD_SIZE,
+    FIRST_TEAM_CARDS,
+    SECOND_TEAM_CARDS,
+    NEUTRAL_CARDS,
+    ASSASSIN_CARDS,
+    DEFAULT_WORDS,
+} from './state.js';
 import { hashString, shuffleWithSeed, generateGameSeed, seededRandom, decodeWordsFromURL } from './utils.js';
 import { showToast, openModal, closeModal, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
@@ -64,7 +72,11 @@ export function initGameWithWords(seed: string, boardWords: string[]): boolean {
 export function initGame(seed: string, wordList?: string[]): boolean {
     // Use localized words when available and word source includes defaults
     let words = wordList || state.activeWords;
-    if (!wordList && state.localizedDefaultWords && (state.wordSource === 'default' || state.wordSource === 'combined')) {
+    if (
+        !wordList &&
+        state.localizedDefaultWords &&
+        (state.wordSource === 'default' || state.wordSource === 'combined')
+    ) {
         words = [...new Set([...state.localizedDefaultWords, ...state.activeWords])];
     }
 
@@ -74,7 +86,7 @@ export function initGame(seed: string, wordList?: string[]): boolean {
     }
 
     state.gameState.seed = seed;
-    state.gameState.customWords = (words !== DEFAULT_WORDS && state.wordSource !== 'default');
+    state.gameState.customWords = words !== DEFAULT_WORDS && state.wordSource !== 'default';
     const numericSeed = hashString(seed);
 
     // Select random words using the provided word list
@@ -89,7 +101,9 @@ export function newGame(): void {
     // Prevent rapid clicks
     if (state.newGameDebounce) return;
     state.newGameDebounce = true;
-    setTimeout(() => { state.newGameDebounce = false; }, UI.NEW_GAME_DEBOUNCE_MS);
+    setTimeout(() => {
+        state.newGameDebounce = false;
+    }, UI.NEW_GAME_DEBOUNCE_MS);
 
     // In multiplayer mode, request new game from server
     if (state.isMultiplayerMode && isClientConnected()) {
@@ -135,7 +149,7 @@ export function newGame(): void {
 }
 
 export function confirmNewGame(): void {
-    const cardsRevealed = state.gameState.revealed.filter(r => r).length;
+    const cardsRevealed = state.gameState.revealed.filter((r) => r).length;
     if (cardsRevealed === 0) {
         newGame();
     } else {

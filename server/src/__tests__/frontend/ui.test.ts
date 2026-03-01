@@ -25,7 +25,7 @@ import {
     closeModal,
     handleModalKeydown,
     handleOverlayClick,
-    registerModalCloseHandler
+    registerModalCloseHandler,
 } from '../../frontend/ui';
 import { state } from '../../frontend/state';
 

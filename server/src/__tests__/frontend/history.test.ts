@@ -14,7 +14,7 @@ const mockShowToast = jest.fn();
 jest.mock('../../frontend/ui', () => ({
     openModal: mockOpenModal,
     closeModal: mockCloseModal,
-    showToast: mockShowToast
+    showToast: mockShowToast,
 }));
 
 jest.mock('../../frontend/state', () => ({
@@ -26,8 +26,8 @@ jest.mock('../../frontend/state', () => ({
         replayInterval: null,
         historyDelegationSetup: false,
         currentRoomId: 'TESTROOM',
-        gameState: { status: 'playing' }
-    }
+        gameState: { status: 'playing' },
+    },
 }));
 
 jest.mock('../../frontend/i18n', () => ({
@@ -51,38 +51,48 @@ jest.mock('../../frontend/i18n', () => ({
         if (key === 'history.duration') return `${params?.duration}, ${params?.moves} moves`;
         if (key === 'toast.replaySpeed') return `Speed: ${params?.speed}`;
         return key;
-    })
+    }),
 }));
 
 jest.mock('../../frontend/utils', () => ({
     formatGameTimestamp: jest.fn((ts) => new Date(ts).toLocaleDateString()),
     formatDuration: jest.fn((ms) => `${Math.floor(ms / 60000)}m`),
     formatShortDuration: jest.fn((ms) => `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`),
-    copyToClipboard: jest.fn().mockResolvedValue(true)
+    copyToClipboard: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock('../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
 jest.mock('../../frontend/clientAccessor', () => ({
-    getClient: jest.fn(() => ({ getRoomCode: () => 'TESTROOM' }))
+    getClient: jest.fn(() => ({ getRoomCode: () => 'TESTROOM' })),
 }));
 
 // Mock EigennamenClient global
 (global as any).EigennamenClient = {
     isConnected: jest.fn(() => true),
     getGameHistory: jest.fn(),
-    getReplay: jest.fn()
+    getReplay: jest.fn(),
 };
 
 import {
-    renderGameHistory, renderReplayData, applyReplayState,
-    renderReplayEventLog, updateReplayControls, toggleReplayPlayback,
-    cycleReplaySpeed, closeReplay, setupHistoryEventDelegation,
-    openGameHistory, closeGameHistory, openReplay,
-    renderReplayBoard, scrollToCurrentEvent,
-    copyReplayLink, checkURLForReplayLoad
+    renderGameHistory,
+    renderReplayData,
+    applyReplayState,
+    renderReplayEventLog,
+    updateReplayControls,
+    toggleReplayPlayback,
+    cycleReplaySpeed,
+    closeReplay,
+    setupHistoryEventDelegation,
+    openGameHistory,
+    closeGameHistory,
+    openReplay,
+    renderReplayBoard,
+    scrollToCurrentEvent,
+    copyReplayLink,
+    checkURLForReplayLoad,
 } from '../../frontend/history';
 import { state } from '../../frontend/state';
 import type { GameHistoryEntry, ReplayData } from '../../frontend/multiplayerTypes';
@@ -124,7 +134,7 @@ describe('history module', () => {
             setupHistoryDOM();
             const games: GameHistoryEntry[] = [
                 createHistoryEntry('game1', 'red', 5, 3, 10, 4),
-                createHistoryEntry('game2', 'blue', 4, 6, 15, 5)
+                createHistoryEntry('game2', 'blue', 4, 6, 15, 5),
             ];
             renderGameHistory(games);
 
@@ -247,7 +257,7 @@ describe('history module', () => {
 
             // All cards should have just 'replay-card' class
             const cards = document.querySelectorAll('.replay-card');
-            cards.forEach(card => {
+            cards.forEach((card) => {
                 expect(card.className).toBe('replay-card');
             });
         });
@@ -257,7 +267,7 @@ describe('history module', () => {
             const data = createReplayData();
             data.events = [
                 { type: 'reveal', data: { index: 0, type: 'red', word: 'APPLE', team: 'red' } },
-                { type: 'reveal', data: { index: 1, type: 'blue', word: 'BANANA', team: 'blue' } }
+                { type: 'reveal', data: { index: 1, type: 'blue', word: 'BANANA', team: 'blue' } },
             ];
             renderReplayData(data);
 
@@ -284,7 +294,7 @@ describe('history module', () => {
             setupReplayDOM();
             state.currentReplayData = {
                 ...createReplayData(),
-                events: [{ type: 'clue', data: { word: 'Fruit', number: 3, team: 'red' } }]
+                events: [{ type: 'clue', data: { word: 'Fruit', number: 3, team: 'red' } }],
             };
             state.currentReplayIndex = -1;
             renderReplayEventLog();
@@ -297,7 +307,7 @@ describe('history module', () => {
             setupReplayDOM();
             state.currentReplayData = {
                 ...createReplayData(),
-                events: [{ type: 'reveal', data: { word: 'APPLE', type: 'red', index: 0, team: 'red' } }]
+                events: [{ type: 'reveal', data: { word: 'APPLE', type: 'red', index: 0, team: 'red' } }],
             };
             renderReplayEventLog();
 
@@ -311,8 +321,8 @@ describe('history module', () => {
                 ...createReplayData(),
                 events: [
                     { type: 'clue', data: { word: 'A', team: 'red' } },
-                    { type: 'reveal', data: { word: 'B', type: 'red', index: 0, team: 'red' } }
-                ]
+                    { type: 'reveal', data: { word: 'B', type: 'red', index: 0, team: 'red' } },
+                ],
             };
             state.currentReplayIndex = 1;
             renderReplayEventLog();
@@ -335,7 +345,10 @@ describe('history module', () => {
 
         test('disables next button at end', () => {
             setupReplayDOM();
-            state.currentReplayData = { ...createReplayData(), events: [{ type: 'reveal', data: { index: 0, team: 'red' } }] };
+            state.currentReplayData = {
+                ...createReplayData(),
+                events: [{ type: 'reveal', data: { index: 0, team: 'red' } }],
+            };
             state.currentReplayIndex = 0;
             updateReplayControls();
 
@@ -348,8 +361,8 @@ describe('history module', () => {
                 ...createReplayData(),
                 events: [
                     { type: 'reveal', data: { index: 0, team: 'red' } },
-                    { type: 'reveal', data: { index: 1, team: 'red' } }
-                ]
+                    { type: 'reveal', data: { index: 1, team: 'red' } },
+                ],
             };
             state.currentReplayIndex = 0;
             updateReplayControls();
@@ -504,7 +517,7 @@ describe('history module', () => {
             setupReplayDOM();
             state.currentReplayData = {
                 ...createReplayData(),
-                events: [{ type: 'endTurn', data: { team: 'red' } }]
+                events: [{ type: 'endTurn', data: { team: 'red' } }],
             };
             renderReplayEventLog();
 
@@ -516,7 +529,7 @@ describe('history module', () => {
             setupReplayDOM();
             state.currentReplayData = {
                 ...createReplayData(),
-                events: [{ type: 'forfeit', data: { team: 'blue', winner: 'red' } }]
+                events: [{ type: 'forfeit', data: { team: 'blue', winner: 'red' } }],
             };
             renderReplayEventLog();
 
@@ -530,7 +543,7 @@ describe('history module', () => {
             setupReplayDOM();
             state.currentReplayData = {
                 ...createReplayData(),
-                events: [{ type: 'custom', data: { team: 'red' } }]
+                events: [{ type: 'custom', data: { team: 'red' } }],
             };
             renderReplayEventLog();
 
@@ -614,7 +627,7 @@ describe('history module', () => {
 
             global.fetch = jest.fn().mockResolvedValue({
                 ok: true,
-                json: jest.fn().mockResolvedValue({ replay: true, ...createReplayData() })
+                json: jest.fn().mockResolvedValue({ replay: true, ...createReplayData() }),
             }) as any;
 
             const result = await checkURLForReplayLoad();
@@ -628,7 +641,7 @@ describe('history module', () => {
 
             global.fetch = jest.fn().mockResolvedValue({
                 ok: false,
-                status: 404
+                status: 404,
             }) as any;
 
             const result = await checkURLForReplayLoad();
@@ -642,7 +655,7 @@ describe('history module', () => {
 
             global.fetch = jest.fn().mockResolvedValue({
                 ok: false,
-                status: 500
+                status: 500,
             }) as any;
 
             const result = await checkURLForReplayLoad();
@@ -754,8 +767,12 @@ function setupReplayDOM(): void {
 }
 
 function createHistoryEntry(
-    id: string, winner: string, redScore: number, blueScore: number,
-    moveCount: number, clueCount: number
+    id: string,
+    winner: string,
+    redScore: number,
+    blueScore: number,
+    moveCount: number,
+    clueCount: number
 ): GameHistoryEntry {
     return {
         id,
@@ -767,7 +784,7 @@ function createHistoryEntry(
         endReason: 'completed',
         duration: 272000,
         timestamp: Date.now(),
-        teamNames: { red: 'Red', blue: 'Blue' }
+        teamNames: { red: 'Red', blue: 'Blue' },
     };
 }
 
@@ -777,11 +794,11 @@ function createReplayData(): ReplayData {
         events: [],
         initialBoard: {
             words: Array.from({ length: 25 }, (_, i) => `WORD${i}`),
-            types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin']
+            types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
         },
         finalState: { winner: 'red' },
         teamNames: { red: 'Red', blue: 'Blue' },
         duration: 120000,
-        totalMoves: 15
+        totalMoves: 15,
     };
 }

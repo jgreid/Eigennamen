@@ -15,7 +15,7 @@ const {
     resetMetrics,
     getPrometheusMetrics,
     updateSystemMetrics,
-    METRIC_NAMES
+    METRIC_NAMES,
 } = require('../../utils/metrics');
 
 describe('Metrics Extended Tests', () => {

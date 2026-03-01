@@ -19,6 +19,7 @@ cd server && npm test               # All tests (backend + frontend)
 cd server && npm run test:frontend  # Frontend tests only
 cd server && npm run test:e2e       # Playwright E2E tests
 cd server && npm run lint           # ESLint
+cd server && npm run format:check   # Prettier check
 cd server && npm run typecheck      # TypeScript check
 cd server && npm run test:coverage  # Coverage report
 ```
@@ -37,7 +38,7 @@ Eigennamen/
     │   └── admin.html          # Admin dashboard
     ├── src/
     │   ├── index.ts            # Server entry point
-    │   ├── app.ts              # Express + Swagger setup
+    │   ├── app.ts              # Express 5 + Swagger setup
     │   ├── config/             # Configuration (constants.ts re-exports all)
     │   ├── errors/             # GameError hierarchy
     │   ├── middleware/          # Express + socket auth middleware
@@ -55,8 +56,8 @@ Eigennamen/
     │   ├── types/              # TypeScript definitions
     │   ├── utils/              # Utilities
     │   ├── validators/         # Zod schemas
-    │   ├── scripts/            # Redis Lua scripts (atomic ops)
-    │   └── __tests__/          # Jest tests (126 suites)
+    │   ├── scripts/            # Redis Lua scripts (23 atomic ops)
+    │   └── __tests__/          # Jest tests (133 suites)
     └── e2e/                    # Playwright E2E tests (9 specs)
 ```
 
@@ -78,6 +79,11 @@ All paths relative to `server/src/`.
 ### Naming
 - **Files**: camelCase — **Classes**: PascalCase — **Events**: colon-separated (`game:start`)
 - **Error Codes**: SCREAMING_SNAKE_CASE (`ROOM_NOT_FOUND`)
+
+### Formatting
+- **Prettier** enforces formatting (4-space indent, single quotes, semicolons, 120 char width)
+- **ESLint** enforces code quality (`@typescript-eslint/no-explicit-any` is `warn` for all code including frontend)
+- Run `npm run format` to auto-format, `npm run format:check` to verify
 
 ### Architecture Patterns
 1. **Service Layer**: Business logic in `services/`, handlers delegate to services
@@ -112,7 +118,7 @@ Client event → Zod validation → rate limiter → context handler → service
 4. Update Swagger spec in `config/swagger.ts`
 
 ### Modifying Game Rules
-1. Update constants in `config/gameConfig.ts`
+1. Update constants in `shared/gameRules.ts` or `config/gameConfig.ts`
 2. Modify logic in `services/gameService.ts`
 3. Update client in `frontend/game.ts` if needed
 4. Add/update tests
@@ -123,7 +129,8 @@ Client event → Zod validation → rate limiter → context handler → service
 |------|----------------|
 | `config/constants.ts` | Re-exports all config (game, errors, room, socket, security) |
 | `config/socketConfig.ts` | All WebSocket event names |
-| `config/gameConfig.ts` | Game modes (Classic, Blitz, Duet), board layout, PRNG |
+| `config/gameConfig.ts` | Game modes (Classic, Duet, Match), board layout, PRNG |
+| `shared/gameRules.ts` | Game mode rules shared between frontend and backend |
 | `services/gameService.ts` | Core game logic, Mulberry32 PRNG |
 | `services/playerService.ts` | Player CRUD, reconnection tokens |
 | `socket/handlers/` | Event handlers (game, room, player, timer, chat) |

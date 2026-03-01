@@ -28,7 +28,10 @@ function announceToScreenReader(message: string): void {
     setTimeout(() => {
         el.textContent = message;
         // Clear after 3 seconds so subsequent identical messages are re-announced
-        srClearTimeout = setTimeout(() => { el.textContent = ''; srClearTimeout = null; }, 3000);
+        srClearTimeout = setTimeout(() => {
+            el.textContent = '';
+            srClearTimeout = null;
+        }, 3000);
     }, 50);
 }
 
@@ -117,7 +120,7 @@ export function canClickCards(): boolean {
     // In multiplayer: any team member can click if clicker is disconnected
     if (state.playerTeam === state.gameState.currentTurn) {
         const teamClicker = state.multiplayerPlayers.find(
-            p => p.team === state.gameState.currentTurn && p.role === 'clicker'
+            (p) => p.team === state.gameState.currentTurn && p.role === 'clicker'
         );
         // Allow if no clicker assigned or clicker is disconnected
         if (!teamClicker || !teamClicker.connected) {
@@ -155,7 +158,9 @@ export function initBoardEventDelegation(): void {
             if (!card.classList.contains('revealed')) {
                 if (cardClickHandler) cardClickHandler(index);
             }
-        } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes((e as KeyboardEvent).key)) {
+        } else if (
+            ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes((e as KeyboardEvent).key)
+        ) {
             e.preventDefault();
             navigateCards(index, (e as KeyboardEvent).key);
         }
@@ -269,7 +274,10 @@ export function renderBoard(): void {
             const col = (index % 5) + 1;
             card.setAttribute('role', 'gridcell');
             card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-            card.setAttribute('aria-label', buildCardAriaLabel(word, isRevealed, state.gameState.types[index], row, col));
+            card.setAttribute(
+                'aria-label',
+                buildCardAriaLabel(word, isRevealed, state.gameState.types[index], row, col)
+            );
             if (isRevealed) {
                 card.setAttribute('aria-disabled', 'true');
             }
@@ -414,7 +422,12 @@ export function updateSingleCard(index: number): void {
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
 
     // Announce reveal to screen readers (localized)
-    const typeNames: Record<string, string> = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
+    const typeNames: Record<string, string> = {
+        red: state.teamNames.red,
+        blue: state.teamNames.blue,
+        neutral: 'neutral',
+        assassin: 'assassin',
+    };
     const typeName = typeNames[type] || type;
     announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
 

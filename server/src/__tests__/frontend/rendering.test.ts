@@ -65,7 +65,12 @@ interface MockPlayer {
     connected?: boolean;
 }
 
-function updatePlayerList(ul: HTMLUListElement, players: MockPlayer[], mySessionId: string | null, amHost: boolean): void {
+function updatePlayerList(
+    ul: HTMLUListElement,
+    players: MockPlayer[],
+    mySessionId: string | null,
+    amHost: boolean
+): void {
     ul.innerHTML = '';
     for (const p of players) {
         const isMe = p.sessionId === mySessionId;
@@ -115,11 +120,13 @@ describe('updatePlayerList', () => {
     });
 
     it('renders player names safely using textContent', () => {
-        const players: MockPlayer[] = [{
-            sessionId: '1',
-            nickname: '<img src=x onerror=alert(1)>',
-            team: 'red'
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: '1',
+                nickname: '<img src=x onerror=alert(1)>',
+                team: 'red',
+            },
+        ];
         updatePlayerList(ul, players, null, false);
 
         // The malicious string should appear as text, not be parsed as HTML
@@ -133,11 +140,13 @@ describe('updatePlayerList', () => {
     });
 
     it('renders host badge safely without innerHTML injection', () => {
-        const players: MockPlayer[] = [{
-            sessionId: '1',
-            nickname: 'Player1',
-            isHost: true
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: '1',
+                nickname: 'Player1',
+                isHost: true,
+            },
+        ];
         updatePlayerList(ul, players, null, false);
 
         const badge = ul.querySelector('.host-badge');
@@ -147,10 +156,12 @@ describe('updatePlayerList', () => {
     });
 
     it('renders kick button safely with session ID in data attribute', () => {
-        const players: MockPlayer[] = [{
-            sessionId: 'session"><script>alert(1)</script>',
-            nickname: 'Player1'
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: 'session"><script>alert(1)</script>',
+                nickname: 'Player1',
+            },
+        ];
         updatePlayerList(ul, players, 'me', true);
 
         const kickBtn = ul.querySelector('.btn-kick') as HTMLButtonElement;
@@ -164,11 +175,13 @@ describe('updatePlayerList', () => {
     });
 
     it('marks current player with (you) suffix', () => {
-        const players: MockPlayer[] = [{
-            sessionId: 'me-123',
-            nickname: 'Alice',
-            team: 'blue'
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: 'me-123',
+                nickname: 'Alice',
+                team: 'blue',
+            },
+        ];
         updatePlayerList(ul, players, 'me-123', false);
 
         const nameSpan = ul.querySelector('.player-name.you');
@@ -177,22 +190,26 @@ describe('updatePlayerList', () => {
     });
 
     it('does not show kick button for self', () => {
-        const players: MockPlayer[] = [{
-            sessionId: 'me-123',
-            nickname: 'Alice'
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: 'me-123',
+                nickname: 'Alice',
+            },
+        ];
         updatePlayerList(ul, players, 'me-123', true);
 
         expect(ul.querySelector('.btn-kick')).toBeNull();
     });
 
     it('shows disconnected state', () => {
-        const players: MockPlayer[] = [{
-            sessionId: '1',
-            nickname: 'Player1',
-            role: 'spymaster',
-            connected: false
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: '1',
+                nickname: 'Player1',
+                role: 'spymaster',
+                connected: false,
+            },
+        ];
         updatePlayerList(ul, players, null, false);
 
         const li = ul.querySelector('li');
@@ -207,11 +224,13 @@ describe('updatePlayerList', () => {
     });
 
     it('sanitizes team name in class attribute', () => {
-        const players: MockPlayer[] = [{
-            sessionId: '1',
-            nickname: 'Player1',
-            team: '"><script>alert(1)</script>'
-        }];
+        const players: MockPlayer[] = [
+            {
+                sessionId: '1',
+                nickname: 'Player1',
+                team: '"><script>alert(1)</script>',
+            },
+        ];
         updatePlayerList(ul, players, null, false);
 
         // The class should not contain unescaped script
@@ -284,7 +303,7 @@ describe('renderGameHistory', () => {
             winner: 'red',
             teamNames: { red: '<script>alert("xss")</script>' },
             redScore: 9,
-            blueScore: 5
+            blueScore: 5,
         });
 
         const winnerDiv = listEl.querySelector('.history-item-winner');
@@ -296,7 +315,7 @@ describe('renderGameHistory', () => {
         renderGameHistoryItem(listEl, {
             id: '"><img src=x onerror=alert(1)>',
             timestamp: Date.now(),
-            winner: 'blue'
+            winner: 'blue',
         });
 
         const item = listEl.querySelector('.history-item') as HTMLElement;
@@ -310,7 +329,7 @@ describe('renderGameHistory', () => {
         renderGameHistoryItem(listEl, {
             id: 'game-1',
             timestamp: Date.now(),
-            winner: 'red"><script>alert(1)</script>'
+            winner: 'red"><script>alert(1)</script>',
         });
 
         const winnerDiv = listEl.querySelector('.history-item-winner');
@@ -325,7 +344,7 @@ describe('renderGameHistory', () => {
             timestamp: Date.now(),
             winner: 'red',
             redScore: 9,
-            blueScore: 8
+            blueScore: 8,
         });
 
         const redScore = listEl.querySelector('.red-score');

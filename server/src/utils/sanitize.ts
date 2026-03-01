@@ -19,7 +19,7 @@ function removeControlChars(input: unknown): string {
 function isReservedName(nickname: unknown, reservedNames: string[]): boolean {
     if (typeof nickname !== 'string') return false;
     const normalized = toEnglishLowerCase(nickname).trim();
-    return reservedNames.some(reserved => normalized === reserved);
+    return reservedNames.some((reserved) => normalized === reserved);
 }
 
 function toEnglishLowerCase(input: unknown): string {
@@ -36,11 +36,4 @@ function normalizeRoomCode(roomCode: string): string {
     return toEnglishLowerCase(roomCode.trim());
 }
 
-export {
-    sanitizeHtml,
-    removeControlChars,
-    isReservedName,
-    toEnglishLowerCase,
-    toEnglishUpperCase,
-    normalizeRoomCode
-};
+export { sanitizeHtml, removeControlChars, isReservedName, toEnglishLowerCase, toEnglishUpperCase, normalizeRoomCode };

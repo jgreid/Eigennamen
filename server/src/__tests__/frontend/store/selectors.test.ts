@@ -23,19 +23,29 @@ jest.mock('../../../frontend/state', () => ({
             blueTotal: 8,
             gameOver: false,
             winner: null,
-        }
-    }
+        },
+    },
 }));
 
 import { state } from '../../../frontend/state';
 import {
-    isSpymaster, isClicker, hasTeam, hasRole,
-    isPlayerTurn, isTeamOnTurn,
-    showSpymasterView, gameInProgress,
-    redRemaining, blueRemaining,
-    currentTeamName, teamName,
-    isCurrentTeamClickerUnavailable, isClickerFallback, canActAsClicker,
-    isDuetMode, playerCount,
+    isSpymaster,
+    isClicker,
+    hasTeam,
+    hasRole,
+    isPlayerTurn,
+    isTeamOnTurn,
+    showSpymasterView,
+    gameInProgress,
+    redRemaining,
+    blueRemaining,
+    currentTeamName,
+    teamName,
+    isCurrentTeamClickerUnavailable,
+    isClickerFallback,
+    canActAsClicker,
+    isDuetMode,
+    playerCount,
 } from '../../../frontend/store/selectors';
 
 function resetState(): void {
@@ -242,25 +252,19 @@ describe('teamName', () => {
 describe('isCurrentTeamClickerUnavailable', () => {
     test('returns true when no clicker assigned', () => {
         state.gameState.currentTurn = 'red';
-        state.multiplayerPlayers = [
-            { sessionId: '1', team: 'red', role: 'spymaster', connected: true } as any
-        ];
+        state.multiplayerPlayers = [{ sessionId: '1', team: 'red', role: 'spymaster', connected: true } as any];
         expect(isCurrentTeamClickerUnavailable()).toBe(true);
     });
 
     test('returns true when clicker is disconnected', () => {
         state.gameState.currentTurn = 'red';
-        state.multiplayerPlayers = [
-            { sessionId: '1', team: 'red', role: 'clicker', connected: false } as any
-        ];
+        state.multiplayerPlayers = [{ sessionId: '1', team: 'red', role: 'clicker', connected: false } as any];
         expect(isCurrentTeamClickerUnavailable()).toBe(true);
     });
 
     test('returns false when clicker is connected', () => {
         state.gameState.currentTurn = 'red';
-        state.multiplayerPlayers = [
-            { sessionId: '1', team: 'red', role: 'clicker', connected: true } as any
-        ];
+        state.multiplayerPlayers = [{ sessionId: '1', team: 'red', role: 'clicker', connected: true } as any];
         expect(isCurrentTeamClickerUnavailable()).toBe(false);
     });
 });
@@ -341,10 +345,7 @@ describe('playerCount', () => {
     });
 
     test('returns correct count', () => {
-        state.multiplayerPlayers = [
-            { sessionId: '1' } as any,
-            { sessionId: '2' } as any,
-        ];
+        state.multiplayerPlayers = [{ sessionId: '1' } as any, { sessionId: '2' } as any];
         expect(playerCount()).toBe(2);
     });
 });

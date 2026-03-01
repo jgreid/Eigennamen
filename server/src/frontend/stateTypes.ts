@@ -19,7 +19,13 @@ import type { ClueData, ServerPlayerData, RoomStats, ReplayData } from './multip
 export type RoleChangeState =
     | { phase: 'idle' }
     | { phase: 'changing_team'; target: string; operationId: string; revertFn: () => void }
-    | { phase: 'team_then_role'; target: string; operationId: string; revertFn: () => void; pendingRole: 'spymaster' | 'clicker' }
+    | {
+          phase: 'team_then_role';
+          target: string;
+          operationId: string;
+          revertFn: () => void;
+          pendingRole: 'spymaster' | 'clicker';
+      }
     | { phase: 'changing_role'; target: string; operationId: string; revertFn: () => void };
 
 export interface CachedElements {

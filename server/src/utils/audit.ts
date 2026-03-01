@@ -15,10 +15,10 @@ const instanceId: string = process.env.FLY_ALLOC_ID || process.env.INSTANCE_ID |
  */
 const AUDIT_EVENTS = {
     GAME_STARTED: 'GAME_STARTED',
-    GAME_ENDED: 'GAME_ENDED'
+    GAME_ENDED: 'GAME_ENDED',
 } as const;
 
-type AuditEventType = typeof AUDIT_EVENTS[keyof typeof AUDIT_EVENTS];
+type AuditEventType = (typeof AUDIT_EVENTS)[keyof typeof AUDIT_EVENTS];
 
 /**
  * Audit entry details interface
@@ -54,7 +54,7 @@ function audit(event: AuditEventType, details: AuditDetails = {}): AuditEntry {
         timestamp: new Date().toISOString(),
         correlationId: getCorrelationId() || 'unknown',
         instanceId,
-        ...details
+        ...details,
     };
 
     // Log at info level - audit logs should always be visible
@@ -63,9 +63,6 @@ function audit(event: AuditEventType, details: AuditDetails = {}): AuditEntry {
     return entry;
 }
 
-export {
-    AUDIT_EVENTS,
-    audit
-};
+export { AUDIT_EVENTS, audit };
 
 export type { AuditEventType, AuditDetails, AuditEntry };

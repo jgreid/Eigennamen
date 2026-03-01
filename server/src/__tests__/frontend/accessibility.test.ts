@@ -31,10 +31,7 @@ jest.mock('../../frontend/i18n', () => ({
     DEFAULT_LANGUAGE: 'en',
 }));
 
-import {
-    initColorBlindMode,
-    initKeyboardShortcuts,
-} from '../../frontend/accessibility';
+import { initColorBlindMode, initKeyboardShortcuts } from '../../frontend/accessibility';
 import { state } from '../../frontend/state';
 
 beforeEach(() => {
@@ -132,7 +129,7 @@ describe('keyboard shortcut handling', () => {
     beforeEach(() => {
         // Mock offsetParent on buttons — jsdom doesn't implement CSS layout
         // so offsetParent is always null, but the handler checks it before clicking
-        document.querySelectorAll('button').forEach(btn => {
+        document.querySelectorAll('button').forEach((btn) => {
             Object.defineProperty(btn, 'offsetParent', { value: document.body, configurable: true });
         });
     });

@@ -4,6 +4,7 @@
  */
 
 const globals = require('globals');
+const prettierConfig = require('eslint-config-prettier');
 
 // Base rules shared between JS and TS
 const baseRules = {
@@ -19,14 +20,6 @@ const baseRules = {
     'no-throw-literal': 'off', // Codebase uses custom error objects with codes
     'no-return-await': 'warn',
     'require-await': 'warn',
-
-    // Code style (relaxed for existing codebase)
-    'semi': ['error', 'always'],
-    'quotes': ['warn', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
-    'indent': ['warn', 4, { SwitchCase: 1 }],
-    'comma-dangle': 'off',
-    'no-trailing-spaces': 'warn',
-    'no-multiple-empty-lines': ['warn', { max: 2, maxEOF: 1 }],
 
     // Async/await
     'no-async-promise-executor': 'error',
@@ -113,7 +106,7 @@ module.exports = [
             '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
             '@typescript-eslint/explicit-function-return-type': 'off',
             '@typescript-eslint/explicit-module-boundary-types': 'off',
-            '@typescript-eslint/no-explicit-any': 'off', // Relaxed for frontend migration
+            '@typescript-eslint/no-explicit-any': 'warn',
             '@typescript-eslint/no-non-null-assertion': 'off',
             '@typescript-eslint/consistent-type-imports': 'off' // Not useful for browser ES modules
         }
@@ -161,5 +154,8 @@ module.exports = [
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-non-null-assertion': 'off'
         }
-    }
+    },
+    // Prettier: disables ESLint rules that conflict with Prettier formatting.
+    // Must be last to override any formatting rules from earlier configs.
+    prettierConfig
 ];

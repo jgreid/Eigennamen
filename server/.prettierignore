@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+public/js/modules/
+public/js/socket-client.js
+playwright-report/
+test-results/
+*.lua

@@ -7,14 +7,13 @@
 
 const { createMockRedis, createMockPlayer } = require('../helpers/mocks');
 
-
 type AnyRecord = Record<string, any>;
 
 // Mock Redis
 let mockRedis: AnyRecord;
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -26,8 +25,8 @@ jest.mock('../../utils/logger', () => ({
         info: jest.fn(),
         debug: jest.fn(),
         warn: jest.fn(),
-        error: jest.fn()
-    }))
+        error: jest.fn(),
+    })),
 }));
 
 const { GAME_MODES, GAME_MODE_CONFIG } = require('../../config/constants');
@@ -65,7 +64,7 @@ describe('Game Modes', () => {
         test('roomCreateSchema accepts classic mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
-                settings: { gameMode: 'classic' }
+                settings: { gameMode: 'classic' },
             });
             expect(result.success).toBe(true);
             expect(result.data.settings.gameMode).toBe('classic');
@@ -74,7 +73,7 @@ describe('Game Modes', () => {
         test('roomCreateSchema accepts duet mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
-                settings: { gameMode: 'duet' }
+                settings: { gameMode: 'duet' },
             });
             expect(result.success).toBe(true);
             expect(result.data.settings.gameMode).toBe('duet');
@@ -83,7 +82,7 @@ describe('Game Modes', () => {
         test('roomCreateSchema accepts match mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
-                settings: { gameMode: 'match' }
+                settings: { gameMode: 'match' },
             });
             expect(result.success).toBe(true);
             expect(result.data.settings.gameMode).toBe('match');
@@ -91,7 +90,7 @@ describe('Game Modes', () => {
 
         test('roomCreateSchema defaults to classic mode', () => {
             const result = roomCreateSchema.safeParse({
-                roomId: 'test-room'
+                roomId: 'test-room',
             });
             expect(result.success).toBe(true);
             expect(result.data.settings.gameMode).toBe('classic');
@@ -100,7 +99,7 @@ describe('Game Modes', () => {
         test('roomCreateSchema rejects invalid game mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
-                settings: { gameMode: 'invalid' }
+                settings: { gameMode: 'invalid' },
             });
             expect(result.success).toBe(false);
         });
@@ -108,14 +107,14 @@ describe('Game Modes', () => {
         test('roomCreateSchema rejects blitz mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
-                settings: { gameMode: 'blitz' }
+                settings: { gameMode: 'blitz' },
             });
             expect(result.success).toBe(false);
         });
 
         test('roomSettingsSchema accepts gameMode', () => {
             const result = roomSettingsSchema.safeParse({
-                gameMode: 'duet'
+                gameMode: 'duet',
             });
             expect(result.success).toBe(true);
             expect(result.data.gameMode).toBe('duet');
@@ -123,7 +122,7 @@ describe('Game Modes', () => {
 
         test('roomSettingsSchema makes gameMode optional', () => {
             const result = roomSettingsSchema.safeParse({
-                turnTimer: 60
+                turnTimer: 60,
             });
             expect(result.success).toBe(true);
             expect(result.data.gameMode).toBeUndefined();
@@ -131,7 +130,7 @@ describe('Game Modes', () => {
 
         test('roomSettingsSchema accepts turnTimer within bounds', () => {
             const result = roomSettingsSchema.safeParse({
-                turnTimer: 120
+                turnTimer: 120,
             });
             expect(result.success).toBe(true);
             expect(result.data.turnTimer).toBe(120);
@@ -139,21 +138,21 @@ describe('Game Modes', () => {
 
         test('roomSettingsSchema accepts turnTimer at min bound (20s)', () => {
             const result = roomSettingsSchema.safeParse({
-                turnTimer: 20
+                turnTimer: 20,
             });
             expect(result.success).toBe(true);
         });
 
         test('roomSettingsSchema accepts turnTimer at max bound (600s)', () => {
             const result = roomSettingsSchema.safeParse({
-                turnTimer: 600
+                turnTimer: 600,
             });
             expect(result.success).toBe(true);
         });
 
         test('roomSettingsSchema rejects turnTimer below min', () => {
             const result = roomSettingsSchema.safeParse({
-                turnTimer: 10
+                turnTimer: 10,
             });
             expect(result.success).toBe(false);
         });
@@ -163,8 +162,9 @@ describe('Game Modes', () => {
         test('room creation defaults to classic mode', async () => {
             const hostSessionId = 'host-session-123';
             mockRedis.eval = jest.fn(async () => 1);
-            jest.spyOn(require('../../services/playerService'), 'createPlayer')
-                .mockResolvedValue(createMockPlayer({ sessionId: hostSessionId, isHost: true }));
+            jest.spyOn(require('../../services/playerService'), 'createPlayer').mockResolvedValue(
+                createMockPlayer({ sessionId: hostSessionId, isHost: true })
+            );
 
             const result = await roomService.createRoom('testroom', hostSessionId, {});
 
@@ -174,29 +174,32 @@ describe('Game Modes', () => {
         test('room creation accepts duet mode', async () => {
             const hostSessionId = 'host-session-456';
             mockRedis.eval = jest.fn(async () => 1);
-            jest.spyOn(require('../../services/playerService'), 'createPlayer')
-                .mockResolvedValue(createMockPlayer({ sessionId: hostSessionId, isHost: true }));
+            jest.spyOn(require('../../services/playerService'), 'createPlayer').mockResolvedValue(
+                createMockPlayer({ sessionId: hostSessionId, isHost: true })
+            );
 
             const result = await roomService.createRoom('duetroom', hostSessionId, {
-                gameMode: 'duet'
+                gameMode: 'duet',
             });
 
             expect(result.room.settings.gameMode).toBe('duet');
         });
 
         test('updateSettings preserves custom timer in classic mode', async () => {
-            mockRedis.eval = jest.fn(async () => JSON.stringify({
-                success: true,
-                settings: {
-                    teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 180,
-                    allowSpectators: true,
-                    gameMode: 'classic'
-                }
-            }));
+            mockRedis.eval = jest.fn(async () =>
+                JSON.stringify({
+                    success: true,
+                    settings: {
+                        teamNames: { red: 'Red', blue: 'Blue' },
+                        turnTimer: 180,
+                        allowSpectators: true,
+                        gameMode: 'classic',
+                    },
+                })
+            );
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
-                turnTimer: 180
+                turnTimer: 180,
             });
 
             expect(result.gameMode).toBe('classic');
@@ -204,18 +207,20 @@ describe('Game Modes', () => {
         });
 
         test('updateSettings allows disabling timer', async () => {
-            mockRedis.eval = jest.fn(async () => JSON.stringify({
-                success: true,
-                settings: {
-                    teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: null,
-                    allowSpectators: true,
-                    gameMode: 'classic'
-                }
-            }));
+            mockRedis.eval = jest.fn(async () =>
+                JSON.stringify({
+                    success: true,
+                    settings: {
+                        teamNames: { red: 'Red', blue: 'Blue' },
+                        turnTimer: null,
+                        allowSpectators: true,
+                        gameMode: 'classic',
+                    },
+                })
+            );
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
-                turnTimer: null
+                turnTimer: null,
             });
 
             expect(result.gameMode).toBe('classic');
@@ -223,19 +228,21 @@ describe('Game Modes', () => {
         });
 
         test('updateSettings includes gameMode in allowed keys', async () => {
-            mockRedis.eval = jest.fn(async () => JSON.stringify({
-                success: true,
-                settings: {
-                    teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: null,
-                    allowSpectators: true,
-                    gameMode: 'duet'
-                }
-            }));
+            mockRedis.eval = jest.fn(async () =>
+                JSON.stringify({
+                    success: true,
+                    settings: {
+                        teamNames: { red: 'Red', blue: 'Blue' },
+                        turnTimer: null,
+                        allowSpectators: true,
+                        gameMode: 'duet',
+                    },
+                })
+            );
 
             const result = await roomService.updateSettings('testroom', 'host-123', {
                 gameMode: 'duet',
-                someMaliciousKey: 'evil'
+                someMaliciousKey: 'evil',
             } as AnyRecord);
 
             expect(result.gameMode).toBe('duet');

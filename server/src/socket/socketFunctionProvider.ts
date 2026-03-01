@@ -37,7 +37,7 @@ const REQUIRED_FUNCTIONS: (keyof SocketFunctions)[] = [
     'stopTurnTimer',
     'getTimerStatus',
     'getIO',
-    'createTimerExpireCallback'
+    'createTimerExpireCallback',
 ];
 
 /**
@@ -53,9 +53,7 @@ function registerSocketFunctions(functions: SocketFunctions): void {
     }
 
     // Validate all required functions are present
-    const missingFunctions = REQUIRED_FUNCTIONS.filter(
-        name => typeof functions[name] !== 'function'
-    );
+    const missingFunctions = REQUIRED_FUNCTIONS.filter((name) => typeof functions[name] !== 'function');
 
     if (missingFunctions.length > 0) {
         throw new Error(`Missing required socket functions: ${missingFunctions.join(', ')}`);
@@ -83,8 +81,8 @@ function getSocketFunctions(): SocketFunctions {
     if (!socketFunctions) {
         throw new Error(
             'Socket functions not yet registered. ' +
-            'Ensure registerSocketFunctions() is called during socket initialization ' +
-            'before any handlers are invoked.'
+                'Ensure registerSocketFunctions() is called during socket initialization ' +
+                'before any handlers are invoked.'
         );
     }
     return socketFunctions;
@@ -118,10 +116,4 @@ function getRequiredFunctions(): (keyof SocketFunctions)[] {
     return [...REQUIRED_FUNCTIONS];
 }
 
-export {
-    registerSocketFunctions,
-    getSocketFunctions,
-    isRegistered,
-    clearSocketFunctions,
-    getRequiredFunctions
-};
+export { registerSocketFunctions, getSocketFunctions, isRegistered, clearSocketFunctions, getRequiredFunctions };

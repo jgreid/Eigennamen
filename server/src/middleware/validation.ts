@@ -23,11 +23,11 @@ function validateInput<T>(schema: ZodSchema<T>, data: unknown): T {
     } catch (error) {
         if (error instanceof ZodError) {
             const zodError = error as ZodErrorType;
-            const message = zodError.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+            const message = zodError.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
             const validationError: ValidationError = {
                 code: ERROR_CODES.INVALID_INPUT,
                 message: `Validation error: ${message}`,
-                details: zodError.issues
+                details: zodError.issues,
             };
             throw validationError;
         }
@@ -38,7 +38,10 @@ function validateInput<T>(schema: ZodSchema<T>, data: unknown): T {
 /**
  * Create Express validation middleware for a given request source
  */
-function validateSource<T>(source: 'body' | 'query' | 'params', schema: ZodSchema<T>): (req: Request, res: Response, next: NextFunction) => void {
+function validateSource<T>(
+    source: 'body' | 'query' | 'params',
+    schema: ZodSchema<T>
+): (req: Request, res: Response, next: NextFunction) => void {
     return (req: Request, _res: Response, next: NextFunction): void => {
         try {
             const validated = validateInput(schema, req[source]);
@@ -62,9 +65,4 @@ const validateBody = <T>(schema: ZodSchema<T>) => validateSource('body', schema)
 const validateQuery = <T>(schema: ZodSchema<T>) => validateSource('query', schema);
 const validateParams = <T>(schema: ZodSchema<T>) => validateSource('params', schema);
 
-export {
-    validateInput,
-    validateBody,
-    validateQuery,
-    validateParams
-};
+export { validateInput, validateBody, validateQuery, validateParams };

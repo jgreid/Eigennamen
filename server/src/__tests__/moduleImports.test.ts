@@ -24,12 +24,12 @@ function parseImports(source) {
     while ((match = importRegex.exec(source)) !== null) {
         const symbols = match[1]
             .split(',')
-            .map(s => {
+            .map((s) => {
                 // Handle "name as alias" — check the original name (what the source exports)
                 const parts = s.trim().split(/\s+as\s+/);
                 return parts[0].trim();
             })
-            .filter(s => s.length > 0);
+            .filter((s) => s.length > 0);
         const sourcePath = match[2];
         // Find line number
         const lineNum = source.substring(0, match.index).split('\n').length;
@@ -62,7 +62,7 @@ function parseExports(source) {
     // export { name1, name2, ... }
     const namedRegex = /export\s*\{([^}]+)\}/g;
     while ((match = namedRegex.exec(source)) !== null) {
-        match[1].split(',').forEach(s => {
+        match[1].split(',').forEach((s) => {
             // Handle "name as alias" — export the alias
             const parts = s.trim().split(/\s+as\s+/);
             const exported = parts.length > 1 ? parts[1].trim() : parts[0].trim();
@@ -86,7 +86,7 @@ describe('Module import/export validation', () => {
         if (!fs.existsSync(MODULES_DIR)) {
             return;
         }
-        moduleFiles = fs.readdirSync(MODULES_DIR).filter(f => f.endsWith('.js'));
+        moduleFiles = fs.readdirSync(MODULES_DIR).filter((f) => f.endsWith('.js'));
     });
 
     it('modules directory should exist and contain JS files', () => {
@@ -119,8 +119,8 @@ describe('Module import/export validation', () => {
                     if (!exportedSymbols.has(symbol)) {
                         errors.push(
                             `${file}:${imp.line} imports '${symbol}' from '${imp.source}', ` +
-                            `but '${sourceName}' does not export it. ` +
-                            `Available exports: ${[...exportedSymbols].sort().join(', ')}`
+                                `but '${sourceName}' does not export it. ` +
+                                `Available exports: ${[...exportedSymbols].sort().join(', ')}`
                         );
                     }
                 }

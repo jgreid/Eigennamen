@@ -9,29 +9,29 @@ jest.mock('../../socket/playerContext');
 jest.mock('../../socket/rateLimitHandler', () => ({
     // Bug #11 fix: Updated mock to simulate real rateLimitHandler behavior
     // Real rateLimitHandler catches errors from handler and emits error events + ACK
-    createRateLimitedHandler: jest.fn()
+    createRateLimitedHandler: jest.fn(),
 }));
 jest.mock('../../middleware/validation', () => ({
-    validateInput: jest.fn((schema, data) => data)
+    validateInput: jest.fn((schema, data) => data),
 }));
 jest.mock('../../utils/timeout', () => ({
     withTimeout: jest.fn((promise) => promise),
-    TIMEOUTS: { SOCKET_HANDLER: 30000 }
+    TIMEOUTS: { SOCKET_HANDLER: 30000 },
 }));
 jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 jest.mock('../../errors/GameError', () => {
     const actual = jest.requireActual('../../errors/GameError');
     return {
         ...actual,
-        sanitizeErrorForClient: jest.fn(err => ({
+        sanitizeErrorForClient: jest.fn((err) => ({
             code: err.code || 'SERVER_ERROR',
-            message: err.message || 'An unexpected error occurred'
-        }))
+            message: err.message || 'An unexpected error occurred',
+        })),
     };
 });
 
@@ -42,7 +42,7 @@ const {
     createContextHandler,
     createRoomHandler,
     createHostHandler,
-    createGameHandler
+    createGameHandler,
 } = require('../../socket/contextHandler');
 
 describe('contextHandler', () => {
@@ -56,11 +56,30 @@ describe('contextHandler', () => {
             roomCode: 'ROOM01',
             emit: jest.fn(),
             join: jest.fn(),
-            leave: jest.fn()
+            leave: jest.fn(),
         };
         // Bug #11 fix: Mock rateLimitHandler to simulate real behavior
         // Real rateLimitHandler catches errors from handler and emits error events + ACK
-        const SAFE_CODES = ['RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS', 'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM', 'GAME_NOT_STARTED'];
+        const SAFE_CODES = [
+            'RATE_LIMITED',
+            'ROOM_NOT_FOUND',
+            'ROOM_FULL',
+            'NOT_HOST',
+            'NOT_YOUR_TURN',
+            'GAME_OVER',
+            'INVALID_INPUT',
+            'CARD_ALREADY_REVEALED',
+            'NOT_SPYMASTER',
+            'NOT_CLICKER',
+            'NOT_AUTHORIZED',
+            'SESSION_EXPIRED',
+            'PLAYER_NOT_FOUND',
+            'GAME_IN_PROGRESS',
+            'CANNOT_SWITCH_TEAM_DURING_TURN',
+            'CANNOT_CHANGE_ROLE_DURING_TURN',
+            'SPYMASTER_CANNOT_CHANGE_TEAM',
+            'GAME_NOT_STARTED',
+        ];
         createRateLimitedHandler.mockImplementation((socket, eventName, handler) => {
             return async (data) => {
                 try {
@@ -71,7 +90,9 @@ describe('contextHandler', () => {
                     const isSafe = SAFE_CODES.includes(code);
                     socket.emit(errorEvent, {
                         code,
-                        message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+                        message: isSafe
+                            ? error.message || 'An unexpected error occurred'
+                            : 'An unexpected error occurred',
                     });
                     // In real code, this would also call ackCallback({ error: true })
                 }
@@ -88,15 +109,18 @@ describe('contextHandler', () => {
                 roomCode: 'ROOM01',
                 player: { sessionId: 'session-1', team: 'red', role: 'clicker' },
                 game: null,
-                isInRoom: true
+                isInRoom: true,
             };
             getPlayerContext.mockResolvedValue(ctx);
             validateInput.mockReturnValue({ team: 'blue' });
 
             const handler = jest.fn().mockResolvedValue({ player: { team: 'blue', roomCode: 'ROOM01' } });
             const wrappedFn = createContextHandler(
-                mockSocket, 'player:setTeam', schema,
-                { requireRoom: true }, handler
+                mockSocket,
+                'player:setTeam',
+                schema,
+                { requireRoom: true },
+                handler
             );
 
             await wrappedFn({ team: 'blue' });
@@ -113,24 +137,17 @@ describe('contextHandler', () => {
                 roomCode: 'ROOM01',
                 player: previousPlayer,
                 game: null,
-                isInRoom: true
+                isInRoom: true,
             };
             getPlayerContext.mockResolvedValue(ctx);
 
             const updatedPlayer = { sessionId: 'session-1', team: 'blue', role: 'spectator', roomCode: 'ROOM01' };
             const handler = jest.fn().mockResolvedValue({ player: updatedPlayer });
 
-            const wrappedFn = createContextHandler(
-                mockSocket, 'player:setTeam', null,
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'player:setTeam', null, { requireRoom: true }, handler);
             await wrappedFn({});
 
-            expect(syncSocketRooms).toHaveBeenCalledWith(
-                mockSocket,
-                updatedPlayer,
-                previousPlayer
-            );
+            expect(syncSocketRooms).toHaveBeenCalledWith(mockSocket, updatedPlayer, previousPlayer);
         });
 
         it('does not call syncSocketRooms when handler returns no player', async () => {
@@ -139,15 +156,12 @@ describe('contextHandler', () => {
                 roomCode: 'ROOM01',
                 player: { sessionId: 'session-1' },
                 game: null,
-                isInRoom: true
+                isInRoom: true,
             };
             getPlayerContext.mockResolvedValue(ctx);
             const handler = jest.fn().mockResolvedValue(undefined);
 
-            const wrappedFn = createContextHandler(
-                mockSocket, 'room:leave', null,
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'room:leave', null, { requireRoom: true }, handler);
             await wrappedFn({});
 
             expect(syncSocketRooms).not.toHaveBeenCalled();
@@ -155,26 +169,29 @@ describe('contextHandler', () => {
 
         it('emits prefixed error event on handler failure', async () => {
             getPlayerContext.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01',
-                player: { sessionId: 'session-1' }, game: null, isInRoom: true
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                player: { sessionId: 'session-1' },
+                game: null,
+                isInRoom: true,
             });
             const error = new Error('Something broke');
             error.code = 'SERVER_ERROR';
             const handler = jest.fn().mockRejectedValue(error);
 
-            const wrappedFn = createContextHandler(
-                mockSocket, 'game:reveal', null,
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'game:reveal', null, { requireRoom: true }, handler);
             await wrappedFn({});
 
             // Bug #11 fix: Error event is now emitted by rateLimitHandler mock
             // Error event should use the prefix of the event name
             // SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: 'SERVER_ERROR',
+                    message: 'An unexpected error occurred',
+                })
+            );
         });
 
         it('emits error on context validation failure', async () => {
@@ -183,29 +200,28 @@ describe('contextHandler', () => {
             getPlayerContext.mockRejectedValue(ctxError);
 
             const handler = jest.fn();
-            const wrappedFn = createContextHandler(
-                mockSocket, 'player:setTeam', null,
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'player:setTeam', null, { requireRoom: true }, handler);
             await wrappedFn({});
 
             expect(handler).not.toHaveBeenCalled();
             // Bug #11 fix: Error event is now emitted by rateLimitHandler mock
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'ROOM_NOT_FOUND',
-                message: 'You must be in a room'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'player:error',
+                expect.objectContaining({
+                    code: 'ROOM_NOT_FOUND',
+                    message: 'You must be in a room',
+                })
+            );
         });
 
         it('emits error on schema validation failure', async () => {
             const valError = { code: 'INVALID_INPUT', message: 'bad data' };
-            validateInput.mockImplementation(() => { throw valError; });
+            validateInput.mockImplementation(() => {
+                throw valError;
+            });
 
             const handler = jest.fn();
-            const wrappedFn = createContextHandler(
-                mockSocket, 'player:setTeam', {},
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'player:setTeam', {}, { requireRoom: true }, handler);
             await wrappedFn({ team: 'invalid' });
 
             expect(handler).not.toHaveBeenCalled();
@@ -214,15 +230,15 @@ describe('contextHandler', () => {
 
         it('skips schema validation when schema is null', async () => {
             getPlayerContext.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01',
-                player: { sessionId: 'session-1' }, game: null, isInRoom: true
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                player: { sessionId: 'session-1' },
+                game: null,
+                isInRoom: true,
             });
             const handler = jest.fn().mockResolvedValue(undefined);
 
-            const wrappedFn = createContextHandler(
-                mockSocket, 'room:leave', null,
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'room:leave', null, { requireRoom: true }, handler);
             await wrappedFn({ arbitrary: 'data' });
 
             expect(validateInput).not.toHaveBeenCalled();
@@ -233,8 +249,11 @@ describe('contextHandler', () => {
         it('passes previousPlayer as snapshot (spread copy) to syncSocketRooms', async () => {
             const playerObj = { sessionId: 's1', team: 'red', role: 'spectator', roomCode: 'ROOM01' };
             getPlayerContext.mockResolvedValue({
-                sessionId: 's1', roomCode: 'ROOM01',
-                player: playerObj, game: null, isInRoom: true
+                sessionId: 's1',
+                roomCode: 'ROOM01',
+                player: playerObj,
+                game: null,
+                isInRoom: true,
             });
 
             const handler = jest.fn().mockImplementation(async (ctx) => {
@@ -243,10 +262,7 @@ describe('contextHandler', () => {
                 return { player: { ...ctx.player } };
             });
 
-            const wrappedFn = createContextHandler(
-                mockSocket, 'player:setTeam', null,
-                { requireRoom: true }, handler
-            );
+            const wrappedFn = createContextHandler(mockSocket, 'player:setTeam', null, { requireRoom: true }, handler);
             await wrappedFn({});
 
             // previousPlayer should be the snapshot taken BEFORE handler ran
@@ -258,8 +274,11 @@ describe('contextHandler', () => {
     describe('createRoomHandler', () => {
         it('passes requireRoom: true to context options', async () => {
             getPlayerContext.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01',
-                player: { sessionId: 'session-1' }, game: null, isInRoom: true
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
+                player: { sessionId: 'session-1' },
+                game: null,
+                isInRoom: true,
             });
             const handler = jest.fn().mockResolvedValue(undefined);
 
@@ -273,9 +292,12 @@ describe('contextHandler', () => {
     describe('createHostHandler', () => {
         it('passes requireRoom and requireHost to context options', async () => {
             getPlayerContext.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01',
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
                 player: { sessionId: 'session-1', isHost: true },
-                game: null, isInRoom: true, isHost: true
+                game: null,
+                isInRoom: true,
+                isHost: true,
             });
             const handler = jest.fn().mockResolvedValue(undefined);
 
@@ -284,7 +306,7 @@ describe('contextHandler', () => {
 
             expect(getPlayerContext).toHaveBeenCalledWith(mockSocket, {
                 requireRoom: true,
-                requireHost: true
+                requireHost: true,
             });
         });
     });
@@ -292,9 +314,11 @@ describe('contextHandler', () => {
     describe('createGameHandler', () => {
         it('passes requireRoom and requireGame to context options', async () => {
             getPlayerContext.mockResolvedValue({
-                sessionId: 'session-1', roomCode: 'ROOM01',
+                sessionId: 'session-1',
+                roomCode: 'ROOM01',
                 player: { sessionId: 'session-1' },
-                game: { gameOver: false }, isInRoom: true
+                game: { gameOver: false },
+                isInRoom: true,
             });
             const handler = jest.fn().mockResolvedValue(undefined);
 
@@ -303,7 +327,7 @@ describe('contextHandler', () => {
 
             expect(getPlayerContext).toHaveBeenCalledWith(mockSocket, {
                 requireRoom: true,
-                requireGame: true
+                requireGame: true,
             });
         });
     });
@@ -320,10 +344,7 @@ describe('contextHandler', () => {
         it.each(cases)('%s emits %s on error', async (eventName, expectedErrorEvent) => {
             getPlayerContext.mockRejectedValue(new Error('fail'));
 
-            const wrappedFn = createContextHandler(
-                mockSocket, eventName, null,
-                { requireRoom: true }, jest.fn()
-            );
+            const wrappedFn = createContextHandler(mockSocket, eventName, null, { requireRoom: true }, jest.fn());
             await wrappedFn({});
 
             expect(mockSocket.emit).toHaveBeenCalledWith(expectedErrorEvent, expect.any(Object));

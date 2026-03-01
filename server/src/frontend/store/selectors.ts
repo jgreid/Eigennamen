@@ -55,11 +55,7 @@ export function hasRole(): boolean {
  *   `Boolean(state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver)`
  */
 export function isPlayerTurn(): boolean {
-    return Boolean(
-        state.clickerTeam &&
-        state.clickerTeam === state.gameState.currentTurn &&
-        !state.gameState.gameOver
-    );
+    return Boolean(state.clickerTeam && state.clickerTeam === state.gameState.currentTurn && !state.gameState.gameOver);
 }
 
 /**
@@ -114,9 +110,7 @@ export function blueRemaining(): number {
  *   `state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue`
  */
 export function currentTeamName(): string {
-    return state.gameState.currentTurn === 'red'
-        ? state.teamNames.red
-        : state.teamNames.blue;
+    return state.gameState.currentTurn === 'red' ? state.teamNames.red : state.teamNames.blue;
 }
 
 /**

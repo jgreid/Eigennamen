@@ -59,9 +59,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
 }));
 
-const mockGetPrometheusMetrics = jest.fn().mockReturnValue(
-    '# TYPE games_started counter\ngames_started 42\n'
-);
+const mockGetPrometheusMetrics = jest.fn().mockReturnValue('# TYPE games_started counter\ngames_started 42\n');
 const mockUpdateSystemMetrics = jest.fn();
 
 const mockGetAllMetrics = jest.fn().mockReturnValue({
@@ -69,7 +67,7 @@ const mockGetAllMetrics = jest.fn().mockReturnValue({
     instanceId: 'test',
     counters: { broadcasts_sent_total: { value: 10, labels: {} } },
     gauges: { active_rooms: { value: 3, labels: {} } },
-    histograms: {}
+    histograms: {},
 });
 
 jest.mock('../../utils/metrics', () => ({
@@ -416,12 +414,14 @@ describe('Health Routes', () => {
 
         // --- Memory alert thresholds ---
         it('should include warning alert when Redis memory at 75%+', async () => {
-            mockGetRedisMemoryInfo.mockResolvedValue(makeRedisMemory({
-                memory_usage_percent: 78,
-                alert: 'warning',
-                used_memory_human: '7.8MB',
-                maxmemory_human: '10MB',
-            }));
+            mockGetRedisMemoryInfo.mockResolvedValue(
+                makeRedisMemory({
+                    memory_usage_percent: 78,
+                    alert: 'warning',
+                    used_memory_human: '7.8MB',
+                    maxmemory_human: '10MB',
+                })
+            );
 
             const res = await request(app).get('/health/metrics').expect(200);
 
@@ -435,12 +435,14 @@ describe('Health Routes', () => {
         });
 
         it('should include critical alert when Redis memory at 90%+', async () => {
-            mockGetRedisMemoryInfo.mockResolvedValue(makeRedisMemory({
-                memory_usage_percent: 95,
-                alert: 'critical',
-                used_memory_human: '9.5MB',
-                maxmemory_human: '10MB',
-            }));
+            mockGetRedisMemoryInfo.mockResolvedValue(
+                makeRedisMemory({
+                    memory_usage_percent: 95,
+                    alert: 'critical',
+                    used_memory_human: '9.5MB',
+                    maxmemory_human: '10MB',
+                })
+            );
 
             const res = await request(app).get('/health/metrics').expect(200);
 
@@ -454,10 +456,12 @@ describe('Health Routes', () => {
         });
 
         it('should not include alerts when Redis memory is under 75%', async () => {
-            mockGetRedisMemoryInfo.mockResolvedValue(makeRedisMemory({
-                memory_usage_percent: 50,
-                alert: null,
-            }));
+            mockGetRedisMemoryInfo.mockResolvedValue(
+                makeRedisMemory({
+                    memory_usage_percent: 50,
+                    alert: null,
+                })
+            );
 
             const res = await request(app).get('/health/metrics').expect(200);
 
@@ -469,12 +473,14 @@ describe('Health Routes', () => {
             process.env.NODE_ENV = 'development';
             app = createTestApp();
 
-            mockGetRedisMemoryInfo.mockResolvedValue(makeRedisMemory({
-                memory_usage_percent: 80,
-                alert: 'warning',
-                used_memory_human: '8MB',
-                maxmemory_human: '10MB',
-            }));
+            mockGetRedisMemoryInfo.mockResolvedValue(
+                makeRedisMemory({
+                    memory_usage_percent: 80,
+                    alert: 'warning',
+                    used_memory_human: '8MB',
+                    maxmemory_human: '10MB',
+                })
+            );
 
             const res = await request(app).get('/health/metrics').expect(200);
 
@@ -488,12 +494,14 @@ describe('Health Routes', () => {
             process.env.NODE_ENV = 'production';
             app = createTestApp();
 
-            mockGetRedisMemoryInfo.mockResolvedValue(makeRedisMemory({
-                memory_usage_percent: 92,
-                alert: 'critical',
-                used_memory_human: '9.2MB',
-                maxmemory_human: '10MB',
-            }));
+            mockGetRedisMemoryInfo.mockResolvedValue(
+                makeRedisMemory({
+                    memory_usage_percent: 92,
+                    alert: 'critical',
+                    used_memory_human: '9.2MB',
+                    maxmemory_human: '10MB',
+                })
+            );
 
             const res = await request(app).get('/health/metrics').expect(200);
 
@@ -550,10 +558,7 @@ describe('Health Routes', () => {
             const res = await request(app).get('/health/metrics').expect(500);
 
             expect(res.body).toEqual({ error: 'Failed to collect metrics' });
-            expect(logger.error).toHaveBeenCalledWith(
-                'Metrics collection failed:',
-                expect.any(Error)
-            );
+            expect(logger.error).toHaveBeenCalledWith('Metrics collection failed:', expect.any(Error));
         });
     });
 
@@ -562,9 +567,7 @@ describe('Health Routes', () => {
     // -----------------------------------------------------------------------
     describe('GET /health/metrics/prometheus', () => {
         it('should return Prometheus text format with correct content type', async () => {
-            const res = await request(app)
-                .get('/health/metrics/prometheus')
-                .expect(200);
+            const res = await request(app).get('/health/metrics/prometheus').expect(200);
 
             expect(res.headers['content-type']).toMatch(/text\/plain/);
             expect(res.headers['content-type']).toContain('version=0.0.4');
@@ -586,15 +589,10 @@ describe('Health Routes', () => {
                 throw new Error('Metrics registry corrupted');
             });
 
-            const res = await request(app)
-                .get('/health/metrics/prometheus')
-                .expect(500);
+            const res = await request(app).get('/health/metrics/prometheus').expect(500);
 
             expect(res.text).toBe('# Error exporting metrics\n');
-            expect(logger.error).toHaveBeenCalledWith(
-                'Prometheus metrics export failed:',
-                expect.any(Error)
-            );
+            expect(logger.error).toHaveBeenCalledWith('Prometheus metrics export failed:', expect.any(Error));
         });
 
         it('should return 500 when updateSystemMetrics throws', async () => {
@@ -602,9 +600,7 @@ describe('Health Routes', () => {
                 throw new Error('memoryUsage() failed');
             });
 
-            const res = await request(app)
-                .get('/health/metrics/prometheus')
-                .expect(500);
+            const res = await request(app).get('/health/metrics/prometheus').expect(500);
 
             expect(res.text).toBe('# Error exporting metrics\n');
         });

@@ -5,8 +5,11 @@ import { handleSpectatorChatMessage } from '../multiplayerUI.js';
 import { revertAndClearRoleChange } from '../roles.js';
 import { state } from '../state.js';
 import type {
-    ChatMessageData, SpectatorChatData,
-    HistoryResultData, ReplayData, ServerErrorData
+    ChatMessageData,
+    SpectatorChatData,
+    HistoryResultData,
+    ReplayData,
+    ServerErrorData,
 } from '../multiplayerTypes.js';
 import { getErrorMessage } from './errorMessages.js';
 
@@ -24,21 +27,25 @@ export function registerChatAndErrorHandlers(): void {
     // Game history events
     EigennamenClient.on('historyResult', (data: HistoryResultData) => {
         // Import dynamically to avoid circular dependency
-        import('../history.js').then(({ renderGameHistory }) => {
-            renderGameHistory(data.history || []);
-        }).catch((err: unknown) => {
-            logger.error('Failed to load history module:', err);
-            showToast('Could not load game history', 'error');
-        });
+        import('../history.js')
+            .then(({ renderGameHistory }) => {
+                renderGameHistory(data.history || []);
+            })
+            .catch((err: unknown) => {
+                logger.error('Failed to load history module:', err);
+                showToast('Could not load game history', 'error');
+            });
     });
 
     EigennamenClient.on('replayData', (data: ReplayData) => {
-        import('../history.js').then(({ renderReplayData }) => {
-            renderReplayData(data);
-        }).catch((err: unknown) => {
-            logger.error('Failed to load history module:', err);
-            showToast('Could not load replay data', 'error');
-        });
+        import('../history.js')
+            .then(({ renderReplayData }) => {
+                renderReplayData(data);
+            })
+            .catch((err: unknown) => {
+                logger.error('Failed to load history module:', err);
+                showToast('Could not load replay data', 'error');
+            });
     });
 
     // Error handling for game actions
@@ -52,7 +59,7 @@ export function registerChatAndErrorHandlers(): void {
         // Clear any in-progress card reveal flags
         state.revealingCards.clear();
         state.isRevealingCard = false;
-        document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+        document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 
         // Map technical error codes to user-friendly messages
         showToast(getErrorMessage(error), 'error');

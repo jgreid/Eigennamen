@@ -23,49 +23,64 @@ jest.mock('../../frontend/state', () => ({
         revealTimeouts: new Map<number, ReturnType<typeof setTimeout>>(),
         roleChange: { phase: 'idle' as const },
         gameState: {
-            words: [], types: [], revealed: [],
-            currentTurn: 'red', redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null, seed: null,
-            currentClue: null, guessesUsed: 0, guessesAllowed: 0,
+            words: [],
+            types: [],
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            currentClue: null,
+            guessesUsed: 0,
+            guessesAllowed: 0,
             status: 'waiting',
-            duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0
+            duetTypes: [],
+            timerTokens: 0,
+            greenFound: 0,
+            greenTotal: 0,
         },
         timerState: {
-            active: false, endTime: null, duration: null,
-            remainingSeconds: null, intervalId: null
+            active: false,
+            endTime: null,
+            duration: null,
+            remainingSeconds: null,
+            intervalId: null,
         },
         spectatorCount: 0,
-        roomStats: null
-    }
+        roomStats: null,
+    },
 }));
 
 jest.mock('../../frontend/ui', () => ({
     showToast: jest.fn(),
-    announceToScreenReader: jest.fn()
+    announceToScreenReader: jest.fn(),
 }));
 
 jest.mock('../../frontend/board', () => ({
-    renderBoard: jest.fn()
+    renderBoard: jest.fn(),
 }));
 
 jest.mock('../../frontend/game', () => ({
     revealCardFromServer: jest.fn(),
     showGameOver: jest.fn(),
-    updateTurnIndicator: jest.fn()
+    updateTurnIndicator: jest.fn(),
 }));
 
 jest.mock('../../frontend/roles', () => ({
     updateRoleBanner: jest.fn(),
     updateControls: jest.fn(),
     clearRoleChange: jest.fn(),
-    revertAndClearRoleChange: jest.fn()
+    revertAndClearRoleChange: jest.fn(),
 }));
 
 jest.mock('../../frontend/notifications', () => ({
     playNotificationSound: jest.fn(),
     setTabNotification: jest.fn(),
-    checkAndNotifyTurn: jest.fn()
+    checkAndNotifyTurn: jest.fn(),
 }));
 
 jest.mock('../../frontend/multiplayerUI', () => ({
@@ -80,7 +95,7 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     syncTurnTimerUI: jest.fn(),
     handleSpectatorChatMessage: jest.fn(),
     updateSpectatorCount: jest.fn(),
-    updateRoomStats: jest.fn()
+    updateRoomStats: jest.fn(),
 }));
 
 jest.mock('../../frontend/multiplayerSync', () => ({
@@ -88,17 +103,17 @@ jest.mock('../../frontend/multiplayerSync', () => ({
     syncLocalPlayerState: jest.fn(),
     leaveMultiplayerMode: jest.fn(),
     detectOfflineChanges: jest.fn(() => []),
-    domListenerCleanup: []
+    domListenerCleanup: [],
 }));
 
 jest.mock('../../frontend/timer', () => ({
     handleTimerStarted: jest.fn(),
     handleTimerStopped: jest.fn(),
-    handleTimerStatus: jest.fn()
+    handleTimerStatus: jest.fn(),
 }));
 
 jest.mock('../../frontend/chat', () => ({
-    handleChatMessage: jest.fn()
+    handleChatMessage: jest.fn(),
 }));
 
 jest.mock('../../frontend/logger', () => ({
@@ -106,8 +121,8 @@ jest.mock('../../frontend/logger', () => ({
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
-        debug: jest.fn()
-    }
+        debug: jest.fn(),
+    },
 }));
 
 // Mock history module for dynamic import tests
@@ -115,7 +130,7 @@ const mockRenderGameHistory = jest.fn();
 const mockRenderReplayData = jest.fn();
 jest.mock('../../frontend/history', () => ({
     renderGameHistory: mockRenderGameHistory,
-    renderReplayData: mockRenderReplayData
+    renderReplayData: mockRenderReplayData,
 }));
 
 // Set up global EigennamenClient mock
@@ -125,11 +140,18 @@ const mockEigennamenClient = {
     on: jest.fn((event: string, handler: EventHandler) => {
         handlers[event] = handler;
     }),
-    player: { sessionId: 'me-123', nickname: 'TestPlayer', isHost: false, team: 'red', role: 'clicker', connected: true },
+    player: {
+        sessionId: 'me-123',
+        nickname: 'TestPlayer',
+        isHost: false,
+        team: 'red',
+        role: 'clicker',
+        connected: true,
+    },
     getRoomCode: jest.fn(() => 'TESTROOM'),
     requestResync: jest.fn(() => Promise.resolve()),
     setRole: jest.fn(),
-    updateSettings: jest.fn()
+    updateSettings: jest.fn(),
 };
 (global as any).EigennamenClient = mockEigennamenClient;
 
@@ -139,8 +161,23 @@ import { renderBoard } from '../../frontend/board';
 import { revealCardFromServer, showGameOver, updateTurnIndicator } from '../../frontend/game';
 import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../../frontend/roles';
 import { playNotificationSound, setTabNotification, checkAndNotifyTurn } from '../../frontend/notifications';
-import { updateDuetUI, updateDuetInfoBar, updateForfeitButton, updateMpIndicator, showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, updateSpectatorCount, updateRoomStats } from '../../frontend/multiplayerUI';
-import { syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode, detectOfflineChanges } from '../../frontend/multiplayerSync';
+import {
+    updateDuetUI,
+    updateDuetInfoBar,
+    updateForfeitButton,
+    updateMpIndicator,
+    showReconnectionOverlay,
+    hideReconnectionOverlay,
+    syncGameModeUI,
+    updateSpectatorCount,
+    updateRoomStats,
+} from '../../frontend/multiplayerUI';
+import {
+    syncGameStateFromServer,
+    syncLocalPlayerState,
+    leaveMultiplayerMode,
+    detectOfflineChanges,
+} from '../../frontend/multiplayerSync';
 import { handleTimerStarted, handleTimerStopped, handleTimerStatus } from '../../frontend/timer';
 import { handleChatMessage } from '../../frontend/chat';
 
@@ -157,7 +194,7 @@ describe('Frontend Handler Registration', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         // Reset handlers registry
-        Object.keys(handlers).forEach(key => delete handlers[key]);
+        Object.keys(handlers).forEach((key) => delete handlers[key]);
         mockEigennamenClient.on.mockImplementation((event: string, handler: EventHandler) => {
             handlers[event] = handler;
         });
@@ -171,13 +208,25 @@ describe('Frontend Handler Registration', () => {
         state.revealTimeouts = new Map();
         state.roleChange = { phase: 'idle' };
         state.gameState = {
-            words: [], types: [], revealed: [],
-            currentTurn: 'red', redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null, seed: null,
-            currentClue: null, guessesUsed: 0, guessesAllowed: 0,
+            words: [],
+            types: [],
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            currentClue: null,
+            guessesUsed: 0,
+            guessesAllowed: 0,
             status: 'waiting',
-            duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0
+            duetTypes: [],
+            timerTokens: 0,
+            greenFound: 0,
+            greenTotal: 0,
         };
     });
 
@@ -437,7 +486,7 @@ describe('Frontend Handler Registration', () => {
         test('playerLeft removes player by sessionId', () => {
             state.multiplayerPlayers = [
                 { sessionId: 'p1', nickname: 'P1' } as any,
-                { sessionId: 'p2', nickname: 'P2' } as any
+                { sessionId: 'p2', nickname: 'P2' } as any,
             ];
             handlers['playerLeft']({ sessionId: 'p1', nickname: 'P1' });
 
@@ -454,9 +503,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated updates player in list', () => {
-            state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'P1', team: 'red', role: 'clicker' } as any
-            ];
+            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'P1', team: 'red', role: 'clicker' } as any];
             handlers['playerUpdated']({ sessionId: 'p1', changes: { team: 'blue' } });
 
             expect(state.multiplayerPlayers[0].team).toBe('blue');
@@ -464,9 +511,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated announces role change to screen reader', () => {
-            state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', team: 'red', role: 'clicker' } as any
-            ];
+            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'Alice', team: 'red', role: 'clicker' } as any];
             handlers['playerUpdated']({ sessionId: 'p1', changes: { role: 'spymaster' } });
 
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Alice'));
@@ -475,10 +520,15 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated syncs local state when update is for current player (idle phase)', () => {
             // Set up current player
-            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
-            state.multiplayerPlayers = [
-                { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any
-            ];
+            mockEigennamenClient.player = {
+                sessionId: 'me-123',
+                nickname: 'Me',
+                team: 'red',
+                role: 'clicker',
+                isHost: false,
+                connected: true,
+            } as any;
+            state.multiplayerPlayers = [{ sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any];
             state.roleChange = { phase: 'idle' };
 
             handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue' } });
@@ -491,15 +541,20 @@ describe('Frontend Handler Registration', () => {
 
         test('playerUpdated handles team_then_role phase: team confirmed, sends role', () => {
             jest.useFakeTimers();
-            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
-            state.multiplayerPlayers = [
-                { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any
-            ];
+            mockEigennamenClient.player = {
+                sessionId: 'me-123',
+                nickname: 'Me',
+                team: 'red',
+                role: 'clicker',
+                isHost: false,
+                connected: true,
+            } as any;
+            state.multiplayerPlayers = [{ sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker' } as any];
             state.roleChange = {
                 phase: 'team_then_role',
                 target: 'spymaster',
                 pendingRole: 'spymaster',
-                operationId: 'op-1'
+                operationId: 'op-1',
             } as any;
 
             handlers['playerUpdated']({ sessionId: 'me-123', changes: { team: 'blue' } });
@@ -511,14 +566,19 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated clears role change on confirming update', () => {
-            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'clicker', isHost: false, connected: true } as any;
-            state.multiplayerPlayers = [
-                { sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'spymaster' } as any
-            ];
+            mockEigennamenClient.player = {
+                sessionId: 'me-123',
+                nickname: 'Me',
+                team: 'red',
+                role: 'clicker',
+                isHost: false,
+                connected: true,
+            } as any;
+            state.multiplayerPlayers = [{ sessionId: 'me-123', nickname: 'Me', team: 'red', role: 'spymaster' } as any];
             state.roleChange = {
                 phase: 'changing_role',
                 target: 'spymaster',
-                operationId: 'op-2'
+                operationId: 'op-2',
             } as any;
 
             handlers['playerUpdated']({ sessionId: 'me-123', changes: { role: 'spymaster' } });
@@ -529,7 +589,14 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated constructs player from changes when not in list (Bug #8)', () => {
-            mockEigennamenClient.player = { sessionId: 'me-123', nickname: 'Me', team: null, role: null, isHost: false, connected: true } as any;
+            mockEigennamenClient.player = {
+                sessionId: 'me-123',
+                nickname: 'Me',
+                team: null,
+                role: null,
+                isHost: false,
+                connected: true,
+            } as any;
             state.multiplayerPlayers = []; // player not in list
             state.roleChange = { phase: 'idle' };
 
@@ -541,9 +608,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated announces team change to screen reader', () => {
-            state.multiplayerPlayers = [
-                { sessionId: 'p2', nickname: 'Bob', team: null } as any
-            ];
+            state.multiplayerPlayers = [{ sessionId: 'p2', nickname: 'Bob', team: null } as any];
             handlers['playerUpdated']({ sessionId: 'p2', changes: { team: 'red' } });
 
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('Bob'));
@@ -551,18 +616,14 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerUpdated announces team removal (spectator) to screen reader', () => {
-            state.multiplayerPlayers = [
-                { sessionId: 'p2', nickname: 'Bob', team: 'red' } as any
-            ];
+            state.multiplayerPlayers = [{ sessionId: 'p2', nickname: 'Bob', team: 'red' } as any];
             handlers['playerUpdated']({ sessionId: 'p2', changes: { team: null } });
 
             expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('spectators'));
         });
 
         test('playerDisconnected marks player as disconnected', () => {
-            state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', connected: true } as any
-            ];
+            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'Alice', connected: true } as any];
             handlers['playerDisconnected']({ sessionId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers[0].connected).toBe(false);
@@ -571,9 +632,7 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('playerReconnected marks player as connected', () => {
-            state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', connected: false } as any
-            ];
+            state.multiplayerPlayers = [{ sessionId: 'p1', nickname: 'Alice', connected: false } as any];
             handlers['playerReconnected']({ sessionId: 'p1', nickname: 'Alice' });
 
             expect(state.multiplayerPlayers[0].connected).toBe(true);
@@ -629,7 +688,7 @@ describe('Frontend Handler Registration', () => {
                 game: gameData,
                 players,
                 you: { sessionId: 'me', nickname: 'Me', team: 'red' },
-                room: { code: 'ROOM' }
+                room: { code: 'ROOM' },
             });
 
             expect(syncLocalPlayerState).toHaveBeenCalled();
@@ -649,7 +708,7 @@ describe('Frontend Handler Registration', () => {
                 game: { words: ['A'] },
                 players: [],
                 you: { sessionId: 'me', nickname: 'Me' },
-                room: { code: 'ROOM' }
+                room: { code: 'ROOM' },
             });
 
             expect(state.revealingCards.size).toBe(0);
@@ -720,7 +779,9 @@ describe('Frontend Handler Registration', () => {
         });
 
         test('rejoinFailed handles cleanup error gracefully', () => {
-            (leaveMultiplayerMode as jest.Mock).mockImplementation(() => { throw new Error('cleanup failed'); });
+            (leaveMultiplayerMode as jest.Mock).mockImplementation(() => {
+                throw new Error('cleanup failed');
+            });
             state.isMultiplayerMode = true;
 
             handlers['rejoinFailed']({});
@@ -750,7 +811,7 @@ describe('Frontend Handler Registration', () => {
         test('playerKicked removes player from list', () => {
             state.multiplayerPlayers = [
                 { sessionId: 'p1', nickname: 'Alice' } as any,
-                { sessionId: 'p2', nickname: 'Bob' } as any
+                { sessionId: 'p2', nickname: 'Bob' } as any,
             ];
             handlers['playerKicked']({ sessionId: 'p1', nickname: 'Alice' });
 
@@ -843,13 +904,13 @@ describe('Frontend Handler Registration', () => {
         test('historyResult dynamically imports and calls renderGameHistory', async () => {
             handlers['historyResult']({ history: [{ id: 1 }] });
             // Allow the dynamic import promise chain to settle
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
             expect(mockRenderGameHistory).toHaveBeenCalledWith([{ id: 1 }]);
         });
 
         test('historyResult defaults to empty array when history missing', async () => {
             handlers['historyResult']({});
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
             expect(mockRenderGameHistory).toHaveBeenCalledWith([]);
         });
 
@@ -857,20 +918,20 @@ describe('Frontend Handler Registration', () => {
             // The old bug: backend sends { history: [...] } but frontend read data.games
             // Verify that sending data with "games" but no "history" defaults to empty
             handlers['historyResult']({ games: [{ id: 'old-bug' }] } as any);
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
             expect(mockRenderGameHistory).toHaveBeenCalledWith([]);
         });
 
         test('historyResult with null history defaults to empty array', async () => {
             handlers['historyResult']({ history: null } as any);
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
             expect(mockRenderGameHistory).toHaveBeenCalledWith([]);
         });
 
         test('replayData dynamically imports and calls renderReplayData', async () => {
             const data = { replayId: '123', moves: [] };
             handlers['replayData'](data);
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
             expect(mockRenderReplayData).toHaveBeenCalledWith(data);
         });
 
@@ -895,12 +956,18 @@ describe('Frontend Handler Registration', () => {
             expect(revertAndClearRoleChange).toHaveBeenCalled();
             expect(state.revealingCards.size).toBe(0);
             expect(state.isRevealingCard).toBe(false);
-            expect(showToast).toHaveBeenCalledWith('Too many requests \u2014 wait a few seconds and try again', 'error');
+            expect(showToast).toHaveBeenCalledWith(
+                'Too many requests \u2014 wait a few seconds and try again',
+                'error'
+            );
         });
 
         test('error handler shows user-friendly message for known codes', () => {
             handlers['error']({ code: 'NOT_YOUR_TURN', message: '' });
-            expect(showToast).toHaveBeenCalledWith("It's not your team's turn \u2014 wait for the other team to finish", 'error');
+            expect(showToast).toHaveBeenCalledWith(
+                "It's not your team's turn \u2014 wait for the other team to finish",
+                'error'
+            );
         });
 
         test('error handler falls back to original message for unknown codes', () => {

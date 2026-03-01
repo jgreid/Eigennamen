@@ -1,4 +1,3 @@
-
 import type { Request, Response, NextFunction } from 'express';
 
 import logger from '../utils/logger';
@@ -36,8 +35,8 @@ function notFoundHandler(_req: Request, res: Response, _next: NextFunction): voi
     res.status(404).json({
         error: {
             code: 'NOT_FOUND',
-            message: 'The requested resource was not found'
-        }
+            message: 'The requested resource was not found',
+        },
     });
 }
 
@@ -72,7 +71,7 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN]: 400,
             [ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN]: 400,
             [ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM]: 400,
-            [ERROR_CODES.PLAYER_NOT_FOUND]: 404
+            [ERROR_CODES.PLAYER_NOT_FOUND]: 404,
         };
 
         // Strip internal identifiers from details before sending to client
@@ -87,8 +86,8 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             error: {
                 code: err.code,
                 message: err.message,
-                ...(safeDetails !== undefined && { details: safeDetails })
-            }
+                ...(safeDetails !== undefined && { details: safeDetails }),
+            },
         });
     }
 
@@ -99,8 +98,8 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             error: {
                 code: ERROR_CODES.INVALID_INPUT,
                 message: 'Validation error',
-                details: zodErr.issues
-            }
+                details: zodErr.issues,
+            },
         });
     }
 
@@ -108,10 +107,8 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
     return res.status(500).json({
         error: {
             code: ERROR_CODES.SERVER_ERROR,
-            message: process.env.NODE_ENV === 'production'
-                ? 'Internal server error'
-                : err.message
-        }
+            message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+        },
     });
 }
 

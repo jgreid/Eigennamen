@@ -24,7 +24,8 @@ const sharedConfig = {
 module.exports = {
     // Top-level settings
     verbose: true,
-    forceExit: true,
+    // Note: forceExit is NOT set here so local runs surface unclosed handle warnings.
+    // CI uses --forceExit on the command line as a safety net against hangs.
     detectOpenHandles: true,
     testTimeout: 15000,
     coverageDirectory: 'coverage',

@@ -15,15 +15,15 @@ import { invalidateGameStateCache } from '../playerContext';
  */
 export async function saveCompletedGameHistory(roomCode: string): Promise<void> {
     try {
-        const [completedGame, roomForHistory] = await Promise.all([
+        const [completedGame, roomForHistory] = (await Promise.all([
             gameService.getGame(roomCode),
-            roomService.getRoom(roomCode)
-        ]) as [GameState | null, Room | null];
+            roomService.getRoom(roomCode),
+        ])) as [GameState | null, Room | null];
         if (completedGame) {
             const gameDataWithTeamNames = {
                 ...completedGame,
                 winner: completedGame.winner ?? undefined,
-                teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' }
+                teamNames: roomForHistory?.settings?.teamNames || { red: 'Red', blue: 'Blue' },
             } as GameDataInput;
             await gameHistoryService.saveGameResult(roomCode, gameDataWithTeamNames);
         }
@@ -41,10 +41,7 @@ export async function saveCompletedGameHistory(roomCode: string): Promise<void> 
  *
  * No-ops gracefully if the game is not in match mode.
  */
-export async function handleMatchRoundFinalization(
-    io: Server,
-    roomCode: string
-): Promise<void> {
+export async function handleMatchRoundFinalization(io: Server, roomCode: string): Promise<void> {
     const result = await gameService.finalizeMatchRound(roomCode);
     if (!result) return;
 
@@ -56,14 +53,14 @@ export async function handleMatchRoundFinalization(
             redMatchScore: result.redMatchScore,
             blueMatchScore: result.blueMatchScore,
             roundHistory: result.roundHistory,
-            roundResult: result.roundResult
+            roundResult: result.roundResult,
         });
     } else {
         safeEmitToRoom(io, roomCode, SOCKET_EVENTS.GAME_ROUND_ENDED, {
             roundResult: result.roundResult,
             redMatchScore: result.redMatchScore,
             blueMatchScore: result.blueMatchScore,
-            matchRound: result.matchRound
+            matchRound: result.matchRound,
         });
     }
 }

@@ -35,8 +35,8 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
         return res.status(401).json({
             error: {
                 code: 'ADMIN_NOT_CONFIGURED',
-                message: 'Admin access is not configured on this server'
-            }
+                message: 'Admin access is not configured on this server',
+            },
         });
     }
 
@@ -47,8 +47,8 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
         return res.status(401).json({
             error: {
                 code: 'AUTH_REQUIRED',
-                message: 'Authentication required'
-            }
+                message: 'Authentication required',
+            },
         });
     }
 
@@ -68,25 +68,29 @@ function basicAuth(req: AdminRequest, res: Response, next: NextFunction): Respon
             if (crypto.timingSafeEqual(passwordHash, adminHash)) {
                 req.adminUsername = username || 'admin';
                 // Audit successful login
-                Promise.resolve(audit.adminLogin(req.ip ?? '', true))
-                    .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
+                Promise.resolve(audit.adminLogin(req.ip ?? '', true)).catch((err: Error) =>
+                    logger.warn('Audit log failed', { error: err.message })
+                );
                 return next();
             }
         }
     } catch (error) {
-        logger.warn('Failed to decode admin credentials', { error: error instanceof Error ? error.message : String(error) });
+        logger.warn('Failed to decode admin credentials', {
+            error: error instanceof Error ? error.message : String(error),
+        });
     }
 
     // Audit failed login
-    Promise.resolve(audit.adminLogin(req.ip ?? '', false))
-        .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
+    Promise.resolve(audit.adminLogin(req.ip ?? '', false)).catch((err: Error) =>
+        logger.warn('Audit log failed', { error: err.message })
+    );
 
     res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
     return res.status(401).json({
         error: {
             code: 'AUTH_INVALID',
-            message: 'Invalid credentials'
-        }
+            message: 'Invalid credentials',
+        },
     });
 }
 
@@ -103,10 +107,10 @@ const adminLimiter = rateLimit({
         res.status(429).json({
             error: {
                 code: 'RATE_LIMITED',
-                message: 'Too many requests, please try again later'
-            }
+                message: 'Too many requests, please try again later',
+            },
         });
-    }
+    },
 });
 
 // Apply rate limiting first, then basic auth to all admin routes
@@ -124,8 +128,8 @@ router.get('/', (_req: Request, res: Response) => {
             res.status(500).json({
                 error: {
                     code: 'ADMIN_PAGE_ERROR',
-                    message: 'Failed to load admin dashboard'
-                }
+                    message: 'Failed to load admin dashboard',
+                },
             });
         }
     });

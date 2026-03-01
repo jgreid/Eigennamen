@@ -59,7 +59,12 @@ Thank you for your interest in contributing to Eigennamen Online! This document 
    npm test
    ```
 
-5. **Open the game**
+5. **Verify formatting**
+   ```bash
+   npm run format:check
+   ```
+
+6. **Open the game**
    Navigate to `http://localhost:3000`
 
 ## Development Workflow
@@ -99,6 +104,19 @@ git checkout -b feature/your-feature-name
 | Handlers | camelCase | `roomHandlers.ts` |
 | Tests | camelCase + `.test.ts` | `gameService.test.ts` |
 | Constants | SCREAMING_SNAKE_CASE | `ERROR_CODES` |
+
+### Code Formatting
+
+The project uses **Prettier** for consistent formatting. Configuration is in `server/.prettierrc.json`.
+
+```bash
+npm run format        # Auto-format all source files
+npm run format:check  # Check formatting (CI runs this)
+```
+
+Key settings: 4-space indent, single quotes, semicolons, trailing commas (ES5), 120 char line width.
+
+ESLint formatting rules are disabled via `eslint-config-prettier` to avoid conflicts.
 
 ### JavaScript Style
 
@@ -230,11 +248,12 @@ git commit -m "refactor(services): extract timer logic to separate module"
 
 ### Before Submitting
 
-1. **Run all tests**
+1. **Run all checks**
    ```bash
    cd server
    npm test
    npm run lint
+   npm run format:check
    ```
 
 2. **Check coverage**

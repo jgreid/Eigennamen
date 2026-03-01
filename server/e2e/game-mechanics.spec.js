@@ -35,7 +35,7 @@ test.describe('Score Tracking', () => {
         let targetIndex = -1;
 
         for (let i = 0; i < 25; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes(targetClass)) {
                 targetIndex = i;
                 break;
@@ -79,7 +79,7 @@ test.describe('Turn Switching', () => {
         let opposingIndex = -1;
 
         for (let i = 0; i < 25; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes(opposingClass)) {
                 opposingIndex = i;
                 break;
@@ -112,7 +112,7 @@ test.describe('Turn Switching', () => {
         let neutralIndex = -1;
 
         for (let i = 0; i < 25; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes('spy-neutral')) {
                 neutralIndex = i;
                 break;
@@ -146,7 +146,7 @@ test.describe('Turn Switching', () => {
         let ownIndex = -1;
 
         for (let i = 0; i < 25; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes(ownClass)) {
                 ownIndex = i;
                 break;
@@ -227,7 +227,7 @@ test.describe('Revealed Cards', () => {
         const ownCardIndices = [];
 
         for (let i = 0; i < 25; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes(ownClass)) {
                 ownCardIndices.push(i);
                 if (ownCardIndices.length >= 2) break;
@@ -272,7 +272,7 @@ test.describe('Board Layout', () => {
     test('each card has unique text', async ({ page }) => {
         const cards = page.locator(sel.boardCard);
         const words = await cards.allTextContents();
-        const trimmed = words.map(w => w.trim().toLowerCase());
+        const trimmed = words.map((w) => w.trim().toLowerCase());
         const unique = new Set(trimmed);
         expect(unique.size).toBe(25);
     });

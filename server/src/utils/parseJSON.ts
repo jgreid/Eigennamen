@@ -32,7 +32,7 @@ export function parseJSON<T>(data: string, schema: ZodSchema<T>, context?: strin
 
     const result = schema.safeParse(parsed);
     if (!result.success) {
-        const issues = (result.error as ZodError).issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+        const issues = (result.error as ZodError).issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
         const msg = `JSON validation failed${context ? ` (${context})` : ''}: ${issues}`;
         logger.warn(msg);
         throw new Error(msg);
@@ -57,4 +57,3 @@ export function tryParseJSON<T>(data: string, schema: ZodSchema<T>, context?: st
         return null;
     }
 }
-

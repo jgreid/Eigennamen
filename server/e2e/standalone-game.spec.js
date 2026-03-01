@@ -19,7 +19,7 @@ test.describe('Standalone Game Board', () => {
         await expect(cards).toHaveCount(25);
 
         const words = await cards.allTextContents();
-        const unique = new Set(words.map(w => w.trim().toLowerCase()));
+        const unique = new Set(words.map((w) => w.trim().toLowerCase()));
         expect(unique.size).toBe(25);
     });
 
@@ -29,9 +29,14 @@ test.describe('Standalone Game Board', () => {
 
         await page.locator(sel.newGameBtn).click();
 
-        await page.waitForURL(url => {
-            return url.searchParams.get('game') !== new URL(page.url()).searchParams.get('game');
-        }, { timeout: 5000 }).catch(() => {});
+        await page
+            .waitForURL(
+                (url) => {
+                    return url.searchParams.get('game') !== new URL(page.url()).searchParams.get('game');
+                },
+                { timeout: 5000 }
+            )
+            .catch(() => {});
 
         const wordsAfter = await cards.allTextContents();
         const same = wordsBefore.every((w, i) => w === wordsAfter[i]);
@@ -96,7 +101,7 @@ test.describe('Standalone Spymaster View', () => {
         const types = { red: 0, blue: 0, neutral: 0, assassin: 0 };
 
         for (let i = 0; i < count; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes('spy-red')) types.red++;
             else if (cls.includes('spy-blue')) types.blue++;
             else if (cls.includes('spy-neutral')) types.neutral++;
@@ -122,7 +127,7 @@ test.describe('Standalone Spymaster View', () => {
         const count = await cards.count();
 
         for (let i = 0; i < count; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes('spy-red')) redCount++;
             else if (cls.includes('spy-blue')) blueCount++;
         }
@@ -164,7 +169,7 @@ test.describe('Game Over Detection', () => {
         const cards = page.locator(sel.boardCard);
         let assassinIndex = -1;
         for (let i = 0; i < 25; i++) {
-            const cls = await cards.nth(i).getAttribute('class') || '';
+            const cls = (await cards.nth(i).getAttribute('class')) || '';
             if (cls.includes('spy-assassin')) {
                 assassinIndex = i;
                 break;
@@ -183,9 +188,11 @@ test.describe('Game Over Detection', () => {
 
         // Game over indicator should appear
         const gameOverIndicator = page.locator(sel.gameOverModal);
-        await expect(gameOverIndicator).toBeVisible({ timeout: 3000 }).catch(() => {
-            // Alternative: board enters spymaster-mode on game over
-        });
+        await expect(gameOverIndicator)
+            .toBeVisible({ timeout: 3000 })
+            .catch(() => {
+                // Alternative: board enters spymaster-mode on game over
+            });
     });
 });
 
@@ -213,10 +220,12 @@ test.describe('Settings Panel', () => {
             await page.keyboard.press('Escape');
 
             const body = page.locator('body');
-            const hasColorblindClass = await body.evaluate(el => {
-                return el.classList.contains('colorblind') ||
+            const hasColorblindClass = await body.evaluate((el) => {
+                return (
+                    el.classList.contains('colorblind') ||
                     document.querySelector('[data-testid="game-board"]')?.classList.contains('colorblind') ||
-                    document.querySelector('.colorblind') !== null;
+                    document.querySelector('.colorblind') !== null
+                );
             });
             expect(hasColorblindClass).toBe(true);
         }
@@ -236,10 +245,11 @@ test.describe('Settings Panel', () => {
             await langSelect.selectOption('de');
             await page.keyboard.press('Escape');
             // Wait for modal to close (CSS transition)
-            await page.waitForFunction(
-                () => !document.querySelector('.modal.active, [class*="modal"].active'),
-                { timeout: 3000 }
-            ).catch(() => {});
+            await page
+                .waitForFunction(() => !document.querySelector('.modal.active, [class*="modal"].active'), {
+                    timeout: 3000,
+                })
+                .catch(() => {});
 
             const body = await page.locator('body').textContent();
             expect(body).toBeTruthy();

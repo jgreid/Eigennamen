@@ -6,7 +6,7 @@
 // Mock rate limit handler FIRST to bypass rate limiting
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
 }));
 
 // Mock dependencies
@@ -17,17 +17,17 @@ jest.mock('../../services/gameHistoryService', () => ({
     saveGameResult: jest.fn().mockResolvedValue({ gameId: 'test-game-id' }),
     getGameHistory: jest.fn().mockResolvedValue([]),
     getGameById: jest.fn().mockResolvedValue(null),
-    getReplayEvents: jest.fn().mockResolvedValue({ events: [] })
+    getReplayEvents: jest.fn().mockResolvedValue({ events: [] }),
 }));
 jest.mock('../../utils/audit', () => ({
     auditGameStarted: jest.fn(),
-    auditGameEnded: jest.fn()
+    auditGameEnded: jest.fn(),
 }));
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const gameService = require('../../services/gameService');
@@ -42,9 +42,9 @@ jest.mock('../../socket/socketFunctionProvider', () => ({
         emitToRoom: jest.fn(),
         emitToPlayer: jest.fn(),
         getTimerStatus: jest.fn().mockResolvedValue(null),
-        getIO: jest.fn()
+        getIO: jest.fn(),
     })),
-    isRegistered: jest.fn(() => true)
+    isRegistered: jest.fn(() => true),
 }));
 
 describe('Extended Game Handlers Tests', () => {
@@ -66,13 +66,13 @@ describe('Extended Game Handlers Tests', () => {
             leave: jest.fn(),
             handshake: {
                 headers: { 'x-forwarded-for': '192.168.1.1' },
-                address: '127.0.0.1'
-            }
+                address: '127.0.0.1',
+            },
         };
 
         mockIo = {
             to: jest.fn().mockReturnThis(),
-            emit: jest.fn()
+            emit: jest.fn(),
         };
 
         // Default player mock with roomCode for context handler
@@ -82,7 +82,7 @@ describe('Extended Game Handlers Tests', () => {
             nickname: 'Player1',
             team: 'red',
             role: 'clicker',
-            isHost: false
+            isHost: false,
         });
         gameService.getGame.mockResolvedValue(null);
 
@@ -92,24 +92,29 @@ describe('Extended Game Handlers Tests', () => {
 
     describe('game:start edge cases', () => {
         test('handles emit error for individual players', async () => {
-            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true, team: 'red' });
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+                team: 'red',
+            });
             gameService.getGame.mockResolvedValue(null);
             gameService.createGame.mockResolvedValue({
                 id: 'game-1',
                 currentTurn: 'red',
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             });
             gameService.getGameStateForPlayer.mockImplementation(() => {
                 throw new Error('Emit error');
             });
             playerService.getPlayersInRoom.mockResolvedValue([
-                { sessionId: 'session-456', team: 'red', role: 'clicker' }
+                { sessionId: 'session-456', team: 'red', role: 'clicker' },
             ]);
             roomService.getRoom.mockResolvedValue({ settings: { turnTimer: null } });
 
             const handlers = mockSocket.on.mock.calls;
-            const startHandler = handlers.find(h => h[0] === 'game:start');
+            const startHandler = handlers.find((h) => h[0] === 'game:start');
             await startHandler[1]({});
 
             // Should continue despite emit error for individual player
@@ -122,31 +127,39 @@ describe('Extended Game Handlers Tests', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const startHandler = handlers.find(h => h[0] === 'game:start');
+            const startHandler = handlers.find((h) => h[0] === 'game:start');
             await startHandler[1]({});
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('must be in a room')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('must be in a room'),
+                })
+            );
         });
 
         test('uses socket handshake address when x-forwarded-for not present', async () => {
             mockSocket.handshake.headers = {};
 
-            playerService.getPlayer.mockResolvedValue({ sessionId: 'session-456', roomCode: 'TEST12', isHost: true, team: 'red' });
+            playerService.getPlayer.mockResolvedValue({
+                sessionId: 'session-456',
+                roomCode: 'TEST12',
+                isHost: true,
+                team: 'red',
+            });
             gameService.getGame.mockResolvedValue(null);
             gameService.createGame.mockResolvedValue({
                 id: 'game-1',
                 currentTurn: 'red',
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             });
             gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
             playerService.getPlayersInRoom.mockResolvedValue([]);
             roomService.getRoom.mockResolvedValue({ settings: {} });
 
             const handlers = mockSocket.on.mock.calls;
-            const startHandler = handlers.find(h => h[0] === 'game:start');
+            const startHandler = handlers.find((h) => h[0] === 'game:start');
             await startHandler[1]({});
 
             expect(gameService.createGame).toHaveBeenCalled();
@@ -160,22 +173,25 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'spymaster',
                 team: 'red',
-                nickname: 'Spymaster1'
+                nickname: 'Spymaster1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             // Clicker is disconnected
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red', role: 'spymaster' },
-                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' }
+                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('Spymasters cannot reveal')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('Spymasters cannot reveal'),
+                })
+            );
             expect(gameService.revealCard).not.toHaveBeenCalled();
         });
 
@@ -185,28 +201,34 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'spectator',
                 team: 'red',
-                nickname: 'TeamMember1'
+                nickname: 'TeamMember1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             // Clicker is disconnected
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red', role: 'spectator' },
-                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' }
+                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' },
             ]);
             gameService.revealCard.mockResolvedValue({
-                index: 5, type: 'red', word: 'TEST',
-                redScore: 1, blueScore: 0, currentTurn: 'red',
-                turnEnded: false, gameOver: false,
-                guessesUsed: 1, guessesAllowed: 3
+                index: 5,
+                type: 'red',
+                word: 'TEST',
+                redScore: 1,
+                blueScore: 0,
+                currentTurn: 'red',
+                turnEnded: false,
+                gameOver: false,
+                guessesUsed: 1,
+                guessesAllowed: 3,
             });
             gameService.getGameStateForPlayer.mockReturnValue({ id: 'game-1' });
             playerService.getPlayersInRoom.mockResolvedValue([
-                { sessionId: 'session-456', team: 'red', role: 'spectator' }
+                { sessionId: 'session-456', team: 'red', role: 'spectator' },
             ]);
             roomService.getRoom.mockResolvedValue({ settings: {} });
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
             expect(gameService.revealCard).toHaveBeenCalledWith('TEST12', 5, 'TeamMember1', 'red');
@@ -218,22 +240,25 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'spectator',
                 team: 'red',
-                nickname: 'TeamMember1'
+                nickname: 'TeamMember1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             // Clicker is connected
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red', role: 'spectator' },
-                { sessionId: 'session-789', connected: true, team: 'red', role: 'clicker' }
+                { sessionId: 'session-789', connected: true, team: 'red', role: 'clicker' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('clicker')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('clicker'),
+                })
+            );
             expect(gameService.revealCard).not.toHaveBeenCalled();
         });
 
@@ -243,19 +268,22 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             playerService.getTeamMembers.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
             // SERVER_ERROR code is not in the safe error list, so message gets scrubbed
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: 'SERVER_ERROR'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: 'SERVER_ERROR',
+                })
+            );
             expect(gameService.revealCard).not.toHaveBeenCalled();
         });
     });
@@ -267,23 +295,23 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             playerService.getTeamMembers.mockResolvedValue([
-                { sessionId: 'session-456', connected: true, team: 'red' }
+                { sessionId: 'session-456', connected: true, team: 'red' },
             ]);
             gameService.revealCard.mockResolvedValue({
                 index: 5,
                 type: 'blue',
                 word: 'TEST',
                 turnEnded: true,
-                gameOver: false
+                gameOver: false,
             });
             roomService.getRoom.mockResolvedValue({ settings: { turnTimer: 60 } });
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
             expect(roomService.getRoom).toHaveBeenCalled();
@@ -295,29 +323,35 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('active game')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('active game'),
+                })
+            );
         });
 
         test('handles null player from getPlayer', async () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('must be in a room')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('must be in a room'),
+                })
+            );
         });
     });
 
@@ -326,12 +360,15 @@ describe('Extended Game Handlers Tests', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('must be in a room')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('must be in a room'),
+                })
+            );
         });
 
         test('handles null game state', async () => {
@@ -340,17 +377,20 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('No active game')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('No active game'),
+                })
+            );
         });
 
         test('validates team turn match', async () => {
@@ -359,17 +399,20 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'blue' });
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('turn')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('turn'),
+                })
+            );
         });
 
         test('restarts timer when configured', async () => {
@@ -378,20 +421,20 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
             playerService.getTeamMembers.mockResolvedValue([
-                { sessionId: 'session-456', role: 'clicker', connected: true }
+                { sessionId: 'session-456', role: 'clicker', connected: true },
             ]);
             gameService.endTurn.mockResolvedValue({
                 currentTurn: 'blue',
-                previousTurn: 'red'
+                previousTurn: 'red',
             });
             roomService.getRoom.mockResolvedValue({ settings: { turnTimer: 90 } });
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
             expect(roomService.getRoom).toHaveBeenCalledWith('TEST12');
@@ -403,20 +446,20 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
             playerService.getTeamMembers.mockResolvedValue([
-                { sessionId: 'session-456', role: 'clicker', connected: true }
+                { sessionId: 'session-456', role: 'clicker', connected: true },
             ]);
             gameService.endTurn.mockResolvedValue({
                 currentTurn: 'blue',
-                previousTurn: 'red'
+                previousTurn: 'red',
             });
             roomService.getRoom.mockResolvedValue({ settings: {} });
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
             expect(gameService.endTurn).toHaveBeenCalled();
@@ -428,12 +471,15 @@ describe('Extended Game Handlers Tests', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const forfeitHandler = handlers.find(h => h[0] === 'game:forfeit');
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
             await forfeitHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('must be in a room')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('must be in a room'),
+                })
+            );
         });
 
         test('logs event for forfeit', async () => {
@@ -442,11 +488,11 @@ describe('Extended Game Handlers Tests', () => {
             gameService.forfeitGame.mockResolvedValue({
                 winner: 'blue',
                 forfeitingTeam: 'red',
-                allTypes: ['red', 'blue', 'neutral', 'assassin']
+                allTypes: ['red', 'blue', 'neutral', 'assassin'],
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const forfeitHandler = handlers.find(h => h[0] === 'game:forfeit');
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
             await forfeitHandler[1]();
 
             expect(gameService.forfeitGame).toHaveBeenCalled();
@@ -460,21 +506,24 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'spymaster',
                 team: 'red',
-                nickname: 'Spymaster1'
+                nickname: 'Spymaster1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red', currentClue: { word: 'test', number: 2 } });
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', connected: true, team: 'red', role: 'spymaster' },
-                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' }
+                { sessionId: 'session-789', connected: false, team: 'red', role: 'clicker' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('Spymasters cannot end turns')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('Spymasters cannot end turns'),
+                })
+            );
             expect(gameService.endTurn).not.toHaveBeenCalled();
         });
 
@@ -484,17 +533,20 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'spectator',
                 team: null,
-                nickname: 'Spectator1'
+                nickname: 'Spectator1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
-            const endTurnHandler = handlers.find(h => h[0] === 'game:endTurn');
+            const endTurnHandler = handlers.find((h) => h[0] === 'game:endTurn');
             await endTurnHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                message: expect.stringContaining('join a team')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('join a team'),
+                })
+            );
             expect(gameService.endTurn).not.toHaveBeenCalled();
         });
     });
@@ -504,18 +556,21 @@ describe('Extended Game Handlers Tests', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
-                isHost: true
+                isHost: true,
             });
             gameService.getGame.mockResolvedValue({ gameOver: true });
 
             const handlers = mockSocket.on.mock.calls;
-            const forfeitHandler = handlers.find(h => h[0] === 'game:forfeit');
+            const forfeitHandler = handlers.find((h) => h[0] === 'game:forfeit');
             await forfeitHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED',
-                message: 'No active game'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: 'GAME_NOT_STARTED',
+                    message: 'No active game',
+                })
+            );
             expect(gameService.forfeitGame).not.toHaveBeenCalled();
         });
     });
@@ -527,22 +582,25 @@ describe('Extended Game Handlers Tests', () => {
                 roomCode: 'TEST12',
                 role: 'clicker',
                 team: 'red',
-                nickname: 'Clicker1'
+                nickname: 'Clicker1',
             });
             gameService.getGame.mockResolvedValue({ currentTurn: 'red' });
             // All team members disconnected (except the current player is marked connected
             // but the filter checks p.connected)
             playerService.getTeamMembers.mockResolvedValue([
-                { sessionId: 'session-456', connected: false, team: 'red', role: 'clicker' }
+                { sessionId: 'session-456', connected: false, team: 'red', role: 'clicker' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const revealHandler = handlers.find(h => h[0] === 'game:reveal');
+            const revealHandler = handlers.find((h) => h[0] === 'game:reveal');
             await revealHandler[1]({ index: 5 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: 'SERVER_ERROR'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: 'SERVER_ERROR',
+                })
+            );
             expect(gameService.revealCard).not.toHaveBeenCalled();
         });
     });
@@ -554,60 +612,68 @@ describe('Extended Game Handlers Tests', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
-                nickname: 'Player1'
+                nickname: 'Player1',
             });
             gameHistoryService.getGameHistory.mockResolvedValue([
                 { gameId: 'g1', winner: 'red' },
-                { gameId: 'g2', winner: 'blue' }
+                { gameId: 'g2', winner: 'blue' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const getHistoryHandler = handlers.find(h => h[0] === 'game:getHistory');
+            const getHistoryHandler = handlers.find((h) => h[0] === 'game:getHistory');
             await getHistoryHandler[1]({ limit: 10 });
 
             expect(gameHistoryService.getGameHistory).toHaveBeenCalledWith('TEST12', 10);
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:historyResult', expect.objectContaining({
-                history: expect.arrayContaining([expect.objectContaining({ gameId: 'g1' })])
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:historyResult',
+                expect.objectContaining({
+                    history: expect.arrayContaining([expect.objectContaining({ gameId: 'g1' })]),
+                })
+            );
         });
 
         test('retrieves replay data for a specific game', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
-                nickname: 'Player1'
+                nickname: 'Player1',
             });
             gameHistoryService.getReplayEvents.mockResolvedValue({
                 gameId: 'g1',
-                events: [{ type: 'reveal', index: 3 }]
+                events: [{ type: 'reveal', index: 3 }],
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const getReplayHandler = handlers.find(h => h[0] === 'game:getReplay');
+            const getReplayHandler = handlers.find((h) => h[0] === 'game:getReplay');
             await getReplayHandler[1]({ gameId: 'g1' });
 
             expect(gameHistoryService.getReplayEvents).toHaveBeenCalledWith('TEST12', 'g1');
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:replayData', expect.objectContaining({
-                replay: expect.objectContaining({ gameId: 'g1' })
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:replayData',
+                expect.objectContaining({
+                    replay: expect.objectContaining({ gameId: 'g1' }),
+                })
+            );
         });
 
         test('returns error when replay data not found', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
-                nickname: 'Player1'
+                nickname: 'Player1',
             });
             gameHistoryService.getReplayEvents.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const getReplayHandler = handlers.find(h => h[0] === 'game:getReplay');
+            const getReplayHandler = handlers.find((h) => h[0] === 'game:getReplay');
             await getReplayHandler[1]({ gameId: 'nonexistent' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.objectContaining({
-                code: 'GAME_NOT_STARTED'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'game:error',
+                expect.objectContaining({
+                    code: 'GAME_NOT_STARTED',
+                })
+            );
         });
     });
-
 });

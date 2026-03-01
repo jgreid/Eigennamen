@@ -13,38 +13,38 @@ jest.mock('../../utils/distributedLock', () => ({
 }));
 
 jest.mock('../../config/redis', () => ({
-    getRedis: jest.fn()
+    getRedis: jest.fn(),
 }));
 
 jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 jest.mock('../../config/constants', () => ({
     REDIS_TTL: {
         PLAYER: 86400,
         SESSION_SOCKET: 300,
-        DISCONNECTED_PLAYER: 600
+        DISCONNECTED_PLAYER: 600,
     },
     ERROR_CODES: {
         SERVER_ERROR: 'SERVER_ERROR',
-        INVALID_INPUT: 'INVALID_INPUT'
+        INVALID_INPUT: 'INVALID_INPUT',
     },
     SESSION_SECURITY: {
         RECONNECTION_TOKEN_LENGTH: 32,
-        RECONNECTION_TOKEN_TTL_SECONDS: 300
+        RECONNECTION_TOKEN_TTL_SECONDS: 300,
     },
     VALIDATION: {
         NICKNAME_MIN_LENGTH: 1,
-        NICKNAME_MAX_LENGTH: 30
+        NICKNAME_MAX_LENGTH: 30,
     },
     PLAYER_CLEANUP: {
         INTERVAL_MS: 60000,
-        BATCH_SIZE: 50
-    }
+        BATCH_SIZE: 50,
+    },
 }));
 
 const { getRedis } = require('../../config/redis');
@@ -61,7 +61,7 @@ function mockPlayer(overrides = {}) {
         isHost: false,
         connected: true,
         lastSeen: 1000,
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -73,7 +73,7 @@ describe('Player Service', () => {
 
         const mockMulti = {
             set: jest.fn().mockReturnThis(),
-            exec: jest.fn().mockResolvedValue(['OK'])
+            exec: jest.fn().mockResolvedValue(['OK']),
         };
 
         mockRedis = {
@@ -93,7 +93,7 @@ describe('Player Service', () => {
             zRangeByScore: jest.fn(),
             watch: jest.fn().mockResolvedValue('OK'),
             unwatch: jest.fn().mockResolvedValue('OK'),
-            multi: jest.fn().mockReturnValue(mockMulti)
+            multi: jest.fn().mockReturnValue(mockMulti),
         };
         getRedis.mockReturnValue(mockRedis);
     });
@@ -112,7 +112,7 @@ describe('Player Service', () => {
                 team: null,
                 role: 'spectator',
                 isHost: false,
-                connected: true
+                connected: true,
             });
             expect(player.connectedAt).toBeDefined();
             expect(player.lastSeen).toBeDefined();
@@ -150,11 +150,7 @@ describe('Player Service', () => {
 
             await playerService.createPlayer('session-123', 'ABC123', 'TestPlayer');
 
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'player:session-123',
-                expect.any(String),
-                { EX: 86400 }
-            );
+            expect(mockRedis.set).toHaveBeenCalledWith('player:session-123', expect.any(String), { EX: 86400 });
         });
 
         test('logs player creation', async () => {
@@ -220,8 +216,7 @@ describe('Player Service', () => {
             // Lua script returns null when player key doesn't exist
             mockRedis.eval.mockResolvedValue(null);
 
-            await expect(playerService.updatePlayer('nonexistent', {}))
-                .rejects.toMatchObject({ code: 'SERVER_ERROR' });
+            await expect(playerService.updatePlayer('nonexistent', {})).rejects.toMatchObject({ code: 'SERVER_ERROR' });
         });
 
         test('preserves existing values not in updates', async () => {
@@ -266,8 +261,7 @@ describe('Player Service', () => {
         test('throws error when player not found', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            await expect(playerService.setTeam('nonexistent', 'red'))
-                .rejects.toMatchObject({ code: 'SERVER_ERROR' });
+            await expect(playerService.setTeam('nonexistent', 'red')).rejects.toMatchObject({ code: 'SERVER_ERROR' });
         });
 
         test('throws error when Lua script returns null', async () => {
@@ -275,8 +269,7 @@ describe('Player Service', () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue(null);
 
-            await expect(playerService.setTeam('session-123', 'red'))
-                .rejects.toMatchObject({ code: 'SERVER_ERROR' });
+            await expect(playerService.setTeam('session-123', 'red')).rejects.toMatchObject({ code: 'SERVER_ERROR' });
         });
 
         test('throws error on JSON parse failure', async () => {
@@ -284,8 +277,7 @@ describe('Player Service', () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
             mockRedis.eval.mockResolvedValue('invalid json');
 
-            await expect(playerService.setTeam('session-123', 'red'))
-                .rejects.toMatchObject({ code: 'SERVER_ERROR' });
+            await expect(playerService.setTeam('session-123', 'red')).rejects.toMatchObject({ code: 'SERVER_ERROR' });
         });
 
         test('handles null team with sentinel value', async () => {
@@ -299,7 +291,7 @@ describe('Player Service', () => {
             expect(mockRedis.eval).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({
-                    arguments: expect.arrayContaining(['__NULL__'])
+                    arguments: expect.arrayContaining(['__NULL__']),
                 })
             );
         });
@@ -307,13 +299,16 @@ describe('Player Service', () => {
         test('rejects team change when team would become empty', async () => {
             const existingPlayer = mockPlayer({ team: 'red' });
             mockRedis.get.mockResolvedValue(JSON.stringify(existingPlayer));
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: false,
-                reason: 'TEAM_WOULD_BE_EMPTY'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: false,
+                    reason: 'TEAM_WOULD_BE_EMPTY',
+                })
+            );
 
-            await expect(playerService.setTeam('session-123', 'blue', true))
-                .rejects.toMatchObject({ code: 'INVALID_INPUT' });
+            await expect(playerService.setTeam('session-123', 'blue', true)).rejects.toMatchObject({
+                code: 'INVALID_INPUT',
+            });
         });
     });
 
@@ -324,11 +319,13 @@ describe('Player Service', () => {
             const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns success with updated player
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: true,
-                player: updatedPlayer,
-                oldRole: 'spectator'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: true,
+                    player: updatedPlayer,
+                    oldRole: 'spectator',
+                })
+            );
 
             const result = await playerService.setRole('session-123', 'spymaster');
 
@@ -337,7 +334,7 @@ describe('Player Service', () => {
             expect(mockRedis.eval).toHaveBeenCalledWith(
                 expect.any(String), // The Lua script
                 expect.objectContaining({
-                    keys: ['player:session-123', 'room:ABC123:players']
+                    keys: ['player:session-123', 'room:ABC123:players'],
                 })
             );
         });
@@ -345,36 +342,39 @@ describe('Player Service', () => {
         test('throws error when player not found', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            await expect(playerService.setRole('nonexistent', 'spymaster'))
-                .rejects.toMatchObject({ code: 'SERVER_ERROR' });
+            await expect(playerService.setRole('nonexistent', 'spymaster')).rejects.toMatchObject({
+                code: 'SERVER_ERROR',
+            });
         });
 
         test('throws error when setting spymaster without team', async () => {
             const player = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: false,
-                reason: 'NO_TEAM'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: false,
+                    reason: 'NO_TEAM',
+                })
+            );
 
-            await expect(playerService.setRole('session-123', 'spymaster'))
-                .rejects.toMatchObject({
-                    code: 'INVALID_INPUT'
-                });
+            await expect(playerService.setRole('session-123', 'spymaster')).rejects.toMatchObject({
+                code: 'INVALID_INPUT',
+            });
         });
 
         test('throws error when setting clicker without team', async () => {
             const player = mockPlayer();
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: false,
-                reason: 'NO_TEAM'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: false,
+                    reason: 'NO_TEAM',
+                })
+            );
 
-            await expect(playerService.setRole('session-123', 'clicker'))
-                .rejects.toMatchObject({
-                    code: 'INVALID_INPUT'
-                });
+            await expect(playerService.setRole('session-123', 'clicker')).rejects.toMatchObject({
+                code: 'INVALID_INPUT',
+            });
         });
 
         test('throws error when role is already taken (via Lua script)', async () => {
@@ -382,16 +382,17 @@ describe('Player Service', () => {
             const player = mockPlayer({ team: 'red' });
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns ROLE_TAKEN response
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: false,
-                reason: 'ROLE_TAKEN',
-                existingNickname: 'ExistingPlayer'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: false,
+                    reason: 'ROLE_TAKEN',
+                    existingNickname: 'ExistingPlayer',
+                })
+            );
 
-            await expect(playerService.setRole('session-123', 'spymaster'))
-                .rejects.toMatchObject({
-                    code: 'INVALID_INPUT'
-                });
+            await expect(playerService.setRole('session-123', 'spymaster')).rejects.toMatchObject({
+                code: 'INVALID_INPUT',
+            });
         });
 
         test('throws error when team already has role (via Lua script)', async () => {
@@ -400,16 +401,17 @@ describe('Player Service', () => {
 
             mockRedis.get.mockResolvedValue(JSON.stringify(player1));
             // Lua script returns ROLE_TAKEN response
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: false,
-                reason: 'ROLE_TAKEN',
-                existingNickname: 'OtherPlayer'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: false,
+                    reason: 'ROLE_TAKEN',
+                    existingNickname: 'OtherPlayer',
+                })
+            );
 
-            await expect(playerService.setRole('session-123', 'spymaster'))
-                .rejects.toMatchObject({
-                    code: 'INVALID_INPUT'
-                });
+            await expect(playerService.setRole('session-123', 'spymaster')).rejects.toMatchObject({
+                code: 'INVALID_INPUT',
+            });
         });
 
         test('allows setting spectator role without team', async () => {
@@ -417,11 +419,13 @@ describe('Player Service', () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // setRole('spectator') now uses the same Lua script as other roles
             const updatedPlayer = { ...player, role: 'spectator', lastSeen: Date.now() };
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: true,
-                player: updatedPlayer,
-                oldRole: player.role
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: true,
+                    player: updatedPlayer,
+                    oldRole: player.role,
+                })
+            );
 
             const result = await playerService.setRole('session-123', 'spectator');
 
@@ -435,11 +439,13 @@ describe('Player Service', () => {
             const updatedPlayer = { ...player, role: 'spymaster' };
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // Lua script returns success with updated player
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: true,
-                player: updatedPlayer,
-                oldRole: 'spectator'
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: true,
+                    player: updatedPlayer,
+                    oldRole: 'spectator',
+                })
+            );
 
             const result = await playerService.setRole('session-123', 'spymaster');
 
@@ -461,13 +467,11 @@ describe('Player Service', () => {
         });
 
         test('throws error for empty nickname', async () => {
-            await expect(playerService.setNickname('session-123', ''))
-                .rejects.toThrow('Nickname cannot be empty');
+            await expect(playerService.setNickname('session-123', '')).rejects.toThrow('Nickname cannot be empty');
         });
 
         test('throws error for whitespace-only nickname', async () => {
-            await expect(playerService.setNickname('session-123', '   '))
-                .rejects.toThrow('Nickname cannot be empty');
+            await expect(playerService.setNickname('session-123', '   ')).rejects.toThrow('Nickname cannot be empty');
         });
     });
 
@@ -518,7 +522,10 @@ describe('Player Service', () => {
 
         test('handles JSON parse errors', async () => {
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
-            mockRedis.mGet.mockResolvedValue(['invalid json', JSON.stringify(mockPlayer({ sessionId: 's2', team: 'red' }))]);
+            mockRedis.mGet.mockResolvedValue([
+                'invalid json',
+                JSON.stringify(mockPlayer({ sessionId: 's2', team: 'red' })),
+            ]);
             mockRedis.sRem.mockResolvedValue(1);
 
             const members = await playerService.getTeamMembers('ABC123', 'red');
@@ -564,7 +571,10 @@ describe('Player Service', () => {
 
         test('handles JSON parse errors', async () => {
             mockRedis.sMembers.mockResolvedValue(['s1', 's2']);
-            mockRedis.mGet.mockResolvedValue(['invalid json', JSON.stringify(mockPlayer({ sessionId: 's2', connectedAt: 1000 }))]);
+            mockRedis.mGet.mockResolvedValue([
+                'invalid json',
+                JSON.stringify(mockPlayer({ sessionId: 's2', connectedAt: 1000 })),
+            ]);
             mockRedis.sRem.mockResolvedValue(1);
 
             const players = await playerService.getPlayersInRoom('ABC123');
@@ -576,8 +586,8 @@ describe('Player Service', () => {
 
         test('logs slow queries', async () => {
             const player = mockPlayer({ sessionId: 's1', connectedAt: 1000 });
-            mockRedis.sMembers.mockImplementation(() =>
-                new Promise(resolve => setTimeout(() => resolve(['s1']), 60))
+            mockRedis.sMembers.mockImplementation(
+                () => new Promise((resolve) => setTimeout(() => resolve(['s1']), 60))
             );
             mockRedis.mGet.mockResolvedValue([JSON.stringify(player)]);
 
@@ -614,7 +624,7 @@ describe('Player Service', () => {
                 expect.any(String),
                 expect.objectContaining({
                     keys: ['player:s1'],
-                    arguments: ['s1']
+                    arguments: ['s1'],
                 })
             );
             // Sequential sRem should NOT be called (handled inside Lua)
@@ -645,7 +655,12 @@ describe('Player Service', () => {
             const player = mockPlayer({ sessionId: 's1' });
             mockRedis.get.mockResolvedValue(JSON.stringify(player));
             // updatePlayer uses Lua script
-            const disconnectedPlayer = { ...player, connected: false, disconnectedAt: Date.now(), lastSeen: Date.now() };
+            const disconnectedPlayer = {
+                ...player,
+                connected: false,
+                disconnectedAt: Date.now(),
+                lastSeen: Date.now(),
+            };
             mockRedis.eval.mockResolvedValue(JSON.stringify(disconnectedPlayer));
             mockRedis.zAdd.mockResolvedValue(1);
             mockRedis.expire.mockResolvedValue(true);
@@ -739,7 +754,7 @@ describe('Player Service', () => {
                 expect.any(String),
                 expect.objectContaining({
                     keys: [`reconnect:session:s1`, expect.stringMatching(/^reconnect:token:[a-f0-9]{64}$/)],
-                    arguments: [expect.stringMatching(/^[a-f0-9]{64}$/), expect.any(String), '300']
+                    arguments: [expect.stringMatching(/^[a-f0-9]{64}$/), expect.any(String), '300'],
                 })
             );
         });
@@ -884,11 +899,7 @@ describe('Player Service', () => {
             const result = await playerService.setSocketMapping('s1', 'socket-123', '192.168.1.1');
 
             expect(result).toBe(true);
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'session:s1:socket',
-                'socket-123',
-                { EX: 300 }
-            );
+            expect(mockRedis.set).toHaveBeenCalledWith('session:s1:socket', 'socket-123', { EX: 300 });
         });
 
         test('creates socket mapping atomically via Lua script', async () => {
@@ -902,12 +913,7 @@ describe('Player Service', () => {
                 expect.any(String),
                 expect.objectContaining({
                     keys: ['player:s1', 'session:s1:socket'],
-                    arguments: expect.arrayContaining([
-                        'socket-123',
-                        '300',
-                        expect.any(String),
-                        '192.168.1.1'
-                    ])
+                    arguments: expect.arrayContaining(['socket-123', '300', expect.any(String), '192.168.1.1']),
                 })
             );
             // Sequential get/set should NOT be called (handled inside Lua)
@@ -1187,9 +1193,7 @@ describe('Player Service', () => {
             const result = await playerService.updatePlayer('s1', { nickname: 'NewName' });
 
             expect(result.nickname).toBe('NewName');
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Lua updatePlayer failed'),
-            );
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Lua updatePlayer failed'));
         });
 
         test('fallback retries on WATCH/MULTI conflict', async () => {
@@ -1204,9 +1208,7 @@ describe('Player Service', () => {
             // Second attempt: success
             const mockMulti1 = { set: jest.fn().mockReturnThis(), exec: jest.fn().mockResolvedValue(null) };
             const mockMulti2 = { set: jest.fn().mockReturnThis(), exec: jest.fn().mockResolvedValue([['OK']]) };
-            mockRedis.multi
-                .mockReturnValueOnce(mockMulti1)
-                .mockReturnValueOnce(mockMulti2);
+            mockRedis.multi.mockReturnValueOnce(mockMulti1).mockReturnValueOnce(mockMulti2);
 
             const result = await playerService.updatePlayer('s1', { team: 'blue' });
 
@@ -1220,16 +1222,18 @@ describe('Player Service', () => {
             mockRedis.get.mockResolvedValue(null);
             mockRedis.unwatch.mockResolvedValue('OK');
 
-            await expect(playerService.updatePlayer('nonexistent', { nickname: 'X' }))
-                .rejects.toThrow('Player not found');
+            await expect(playerService.updatePlayer('nonexistent', { nickname: 'X' })).rejects.toThrow(
+                'Player not found'
+            );
         });
 
         test('propagates ServerError from Lua script (player not found)', async () => {
             // Lua script returns null (player not found)
             mockRedis.eval.mockResolvedValue(null);
 
-            await expect(playerService.updatePlayer('nonexistent', { nickname: 'X' }))
-                .rejects.toThrow('Player not found');
+            await expect(playerService.updatePlayer('nonexistent', { nickname: 'X' })).rejects.toThrow(
+                'Player not found'
+            );
         });
     });
 
@@ -1298,13 +1302,13 @@ describe('Player Service', () => {
             ];
 
             mockRedis.sMembers.mockResolvedValue(['s1', 's2', 's3']);
-            mockRedis.mGet.mockResolvedValue(players.map(p => JSON.stringify(p)));
+            mockRedis.mGet.mockResolvedValue(players.map((p) => JSON.stringify(p)));
             mockRedis.eval.mockImplementation(async (_script: any, opts: any) => {
                 // Simulate Lua update returning updated player
                 const key = opts.keys[0];
                 const sessionId = key.replace('player:', '');
                 const updates = JSON.parse(opts.arguments[0]);
-                const player = players.find(p => p.sessionId === sessionId);
+                const player = players.find((p) => p.sessionId === sessionId);
                 return JSON.stringify({ ...player, ...updates, lastSeen: Date.now() });
             });
 
@@ -1326,16 +1330,17 @@ describe('Player Service', () => {
 
     describe('atomicHostTransfer', () => {
         test('returns success on successful transfer', async () => {
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: true, newHostSessionId: 's2',
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: true,
+                    newHostSessionId: 's2',
+                })
+            );
 
             const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
 
             expect(result.success).toBe(true);
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Host transferred')
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Host transferred'));
         });
 
         test('returns failure when Lua script returns null', async () => {
@@ -1357,9 +1362,12 @@ describe('Player Service', () => {
         });
 
         test('logs warning when Lua script returns failure', async () => {
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                success: false, error: 'OLD_HOST_NOT_FOUND',
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    success: false,
+                    error: 'OLD_HOST_NOT_FOUND',
+                })
+            );
 
             const result = await playerService.atomicHostTransfer('s1', 's2', 'ROOM01');
 

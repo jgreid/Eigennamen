@@ -82,7 +82,14 @@ export function playNotificationSound(soundType: string = 'turn'): void {
 }
 
 // Helper function to play a single tone
-export function playTone(ctx: AudioContext, startTime: number, frequency: number, duration: number, volume: number, waveType: OscillatorType): void {
+export function playTone(
+    ctx: AudioContext,
+    startTime: number,
+    frequency: number,
+    duration: number,
+    volume: number,
+    waveType: OscillatorType
+): void {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = waveType;

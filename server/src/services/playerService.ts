@@ -11,7 +11,7 @@ import {
     UPDATE_PLAYER_SCRIPT,
     HOST_TRANSFER_SCRIPT,
     ATOMIC_REMOVE_PLAYER_SCRIPT,
-    ATOMIC_SET_SOCKET_MAPPING_SCRIPT
+    ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
 } from '../scripts';
 import { playerSchema, hostTransferResultSchema } from './player/schemas';
 import { invalidateRoomReconnectToken } from './player/reconnection';
@@ -46,12 +46,7 @@ export interface HostTransferResult {
  * Build a Player data object (pure function, no Redis calls).
  * Used by roomService for atomic join+create in Lua script.
  */
-export function buildPlayerData(
-    sessionId: string,
-    roomCode: string,
-    nickname: string,
-    isHost: boolean
-): Player {
+export function buildPlayerData(sessionId: string, roomCode: string, nickname: string, isHost: boolean): Player {
     const now = Date.now();
     return {
         sessionId,
@@ -63,7 +58,7 @@ export function buildPlayerData(
         connected: true,
         createdAt: now,
         connectedAt: now,
-        lastSeen: now
+        lastSeen: now,
     };
 }
 
@@ -90,7 +85,7 @@ export async function createPlayer(
         connected: true,
         createdAt: now,
         connectedAt: now,
-        lastSeen: now
+        lastSeen: now,
     };
 
     // Save player data
@@ -121,7 +116,6 @@ export async function createPlayer(
     return player;
 }
 
-
 /**
  * Get player by session ID
  */
@@ -149,30 +143,20 @@ export async function getPlayer(sessionId: string): Promise<Player | null> {
  * Uses Lua script for true single-operation atomicity (no WATCH/MULTI retry loop).
  * Falls back to WATCH/MULTI if the Lua call fails (e.g., Redis scripting disabled).
  */
-export async function updatePlayer(
-    sessionId: string,
-    updates: PlayerUpdateData
-): Promise<Player> {
+export async function updatePlayer(sessionId: string, updates: PlayerUpdateData): Promise<Player> {
     const redis: RedisClient = getRedis();
     const playerKey = `player:${sessionId}`;
 
     // Try Lua script first for true atomicity
     try {
-        const result = await withTimeout(
-            redis.eval(
-                UPDATE_PLAYER_SCRIPT,
-                {
-                    keys: [playerKey],
-                    arguments: [
-                        JSON.stringify(updates),
-                        REDIS_TTL.PLAYER.toString(),
-                        Date.now().toString()
-                    ]
-                }
-            ),
+        const result = (await withTimeout(
+            redis.eval(UPDATE_PLAYER_SCRIPT, {
+                keys: [playerKey],
+                arguments: [JSON.stringify(updates), REDIS_TTL.PLAYER.toString(), Date.now().toString()],
+            }),
             TIMEOUTS.REDIS_OPERATION,
             `updatePlayer-lua-${sessionId}`
-        ) as string | null;
+        )) as string | null;
 
         if (!result) {
             throw new ServerError('Player not found');
@@ -189,7 +173,9 @@ export async function updatePlayer(
         if (luaError instanceof ServerError) {
             throw luaError;
         }
-        logger.warn(`Lua updatePlayer failed for ${sessionId}, falling back to WATCH/MULTI: ${(luaError as Error).message}`);
+        logger.warn(
+            `Lua updatePlayer failed for ${sessionId}, falling back to WATCH/MULTI: ${(luaError as Error).message}`
+        );
     }
 
     // Fallback: WATCH/MULTI with retries (original implementation)
@@ -199,14 +185,10 @@ export async function updatePlayer(
         // Add exponential backoff between retries to reduce contention
         if (attempt > 0) {
             const backoffMs = Math.min(50 * Math.pow(2, attempt - 1), 200);
-            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
         }
 
-        await withTimeout(
-            redis.watch(playerKey),
-            TIMEOUTS.REDIS_OPERATION,
-            `updatePlayer-watch-${sessionId}`
-        );
+        await withTimeout(redis.watch(playerKey), TIMEOUTS.REDIS_OPERATION, `updatePlayer-watch-${sessionId}`);
 
         const playerData = await withTimeout(
             redis.get(playerKey),
@@ -227,10 +209,11 @@ export async function updatePlayer(
         const updatedPlayer: Player = {
             ...player,
             ...updates,
-            lastSeen: Date.now()
+            lastSeen: Date.now(),
         };
 
-        const txResult = await redis.multi()
+        const txResult = await redis
+            .multi()
             .set(playerKey, JSON.stringify(updatedPlayer), { EX: REDIS_TTL.PLAYER })
             .exec();
 
@@ -262,17 +245,14 @@ export async function removePlayer(sessionId: string): Promise<void> {
 
         // Lua path: atomic read + remove from sets + delete
         lua: async () => {
-            const result = await withTimeout(
-                redis.eval(
-                    ATOMIC_REMOVE_PLAYER_SCRIPT,
-                    {
-                        keys: [`player:${sessionId}`],
-                        arguments: [sessionId]
-                    }
-                ),
+            const result = (await withTimeout(
+                redis.eval(ATOMIC_REMOVE_PLAYER_SCRIPT, {
+                    keys: [`player:${sessionId}`],
+                    arguments: [sessionId],
+                }),
                 TIMEOUTS.REDIS_OPERATION,
                 `removePlayer-lua-${sessionId}`
-            ) as string | null;
+            )) as string | null;
 
             if (!result) return; // Player doesn't exist
 
@@ -318,7 +298,7 @@ export async function removePlayer(sessionId: string): Promise<void> {
                 `removePlayer-del-${sessionId}`
             );
             logger.info(`Player ${sessionId} removed from room ${player.roomCode}`);
-        }
+        },
     });
 }
 
@@ -343,19 +323,16 @@ export async function setSocketMapping(
         // Lua path: atomic player check + socket mapping + IP update
         lua: async () => {
             const result = await withTimeout(
-                redis.eval(
-                    ATOMIC_SET_SOCKET_MAPPING_SCRIPT,
-                    {
-                        keys: [`player:${sessionId}`, `session:${sessionId}:socket`],
-                        arguments: [
-                            socketId,
-                            REDIS_TTL.SESSION_SOCKET.toString(),
-                            REDIS_TTL.PLAYER.toString(),
-                            clientIP || '',
-                            Date.now().toString()
-                        ]
-                    }
-                ),
+                redis.eval(ATOMIC_SET_SOCKET_MAPPING_SCRIPT, {
+                    keys: [`player:${sessionId}`, `session:${sessionId}:socket`],
+                    arguments: [
+                        socketId,
+                        REDIS_TTL.SESSION_SOCKET.toString(),
+                        REDIS_TTL.PLAYER.toString(),
+                        clientIP || '',
+                        Date.now().toString(),
+                    ],
+                }),
                 TIMEOUTS.REDIS_OPERATION,
                 `setSocketMapping-lua-${sessionId}`
             );
@@ -387,7 +364,7 @@ export async function setSocketMapping(
             }
 
             return true;
-        }
+        },
     });
 }
 
@@ -396,11 +373,7 @@ export async function setSocketMapping(
  */
 export async function getSocketId(sessionId: string): Promise<string | null> {
     const redis: RedisClient = getRedis();
-    return withTimeout(
-        redis.get(`session:${sessionId}:socket`),
-        TIMEOUTS.REDIS_OPERATION,
-        `getSocketId-${sessionId}`
-    );
+    return withTimeout(redis.get(`session:${sessionId}:socket`), TIMEOUTS.REDIS_OPERATION, `getSocketId-${sessionId}`);
 }
 
 /**
@@ -416,31 +389,24 @@ export async function atomicHostTransfer(
 
     try {
         // Wrap redis.eval with timeout to prevent hanging operations
-        const result = await withTimeout(
-            redis.eval(
-                HOST_TRANSFER_SCRIPT,
-                {
-                    keys: [
-                        `player:${oldHostSessionId}`,
-                        `player:${newHostSessionId}`,
-                        `room:${roomCode}`
-                    ],
-                    arguments: [
-                        newHostSessionId,
-                        REDIS_TTL.PLAYER.toString(),
-                        Date.now().toString()
-                    ]
-                }
-            ),
+        const result = (await withTimeout(
+            redis.eval(HOST_TRANSFER_SCRIPT, {
+                keys: [`player:${oldHostSessionId}`, `player:${newHostSessionId}`, `room:${roomCode}`],
+                arguments: [newHostSessionId, REDIS_TTL.PLAYER.toString(), Date.now().toString()],
+            }),
             TIMEOUTS.REDIS_OPERATION,
             `atomicHostTransfer-lua-${roomCode}`
-        ) as string | null;
+        )) as string | null;
 
         if (!result) {
             return { success: false, reason: 'SCRIPT_FAILED' };
         }
 
-        const parsed = parseJSON(result, hostTransferResultSchema, `host transfer in ${roomCode}`) as HostTransferResult;
+        const parsed = parseJSON(
+            result,
+            hostTransferResultSchema,
+            `host transfer in ${roomCode}`
+        ) as HostTransferResult;
 
         if (parsed.success) {
             logger.info(`Host transferred from ${oldHostSessionId} to ${newHostSessionId} in room ${roomCode}`);
@@ -454,7 +420,6 @@ export async function atomicHostTransfer(
         return { success: false, reason: 'SCRIPT_ERROR' };
     }
 }
-
 
 // Cleanup functions (extracted to player/cleanup.ts)
 // Wrapped as functions (not `export { ... } from ...`) to keep writable
@@ -484,11 +449,7 @@ export const getPlayersInRoom = _getPlayersInRoom;
 export const resetRolesForNewGame = _resetRolesForNewGame;
 
 // Mutation functions (extracted to player/mutations.ts)
-import {
-    setTeam as _setTeam,
-    setRole as _setRole,
-    setNickname as _setNickname,
-} from './player/mutations';
+import { setTeam as _setTeam, setRole as _setRole, setNickname as _setNickname } from './player/mutations';
 export const setTeam = _setTeam;
 export const setRole = _setRole;
 export const setNickname = _setNickname;
@@ -503,21 +464,9 @@ export {
     validateSocketAuthToken,
 } from './player/reconnection';
 
-export type {
-    ReconnectionTokenData,
-    TokenValidationResult,
-} from './player/reconnection';
+export type { ReconnectionTokenData, TokenValidationResult } from './player/reconnection';
 
 // Stats functions (extracted to player/stats.ts)
-export {
-    getSpectators,
-    getSpectatorCount,
-    getRoomStats,
-} from './player/stats';
+export { getSpectators, getSpectatorCount, getRoomStats } from './player/stats';
 
-export type {
-    SpectatorInfo,
-    SpectatorsResponse,
-    TeamStats,
-    RoomStats,
-} from './player/stats';
+export type { SpectatorInfo, SpectatorsResponse, TeamStats, RoomStats } from './player/stats';

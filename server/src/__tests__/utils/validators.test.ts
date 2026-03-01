@@ -10,7 +10,7 @@ const {
     playerRoleSchema,
     playerNicknameSchema,
     gameRevealSchema,
-    chatMessageSchema
+    chatMessageSchema,
 } = require('../../validators/schemas');
 const { VALIDATION } = require('../../config/constants');
 
@@ -18,7 +18,7 @@ describe('roomJoinSchema', () => {
     test('accepts valid room ID and nickname', () => {
         const result = roomJoinSchema.safeParse({
             roomId: 'my-room',
-            nickname: 'Player1'
+            nickname: 'Player1',
         });
         expect(result.success).toBe(true);
         expect(result.data.roomId).toBe('my-room');
@@ -28,7 +28,7 @@ describe('roomJoinSchema', () => {
     test('trims room ID whitespace', () => {
         const result = roomJoinSchema.safeParse({
             roomId: '  my-room  ',
-            nickname: 'Player1'
+            nickname: 'Player1',
         });
         expect(result.success).toBe(true);
         expect(result.data.roomId).toBe('my-room');
@@ -37,7 +37,7 @@ describe('roomJoinSchema', () => {
     test('trims nickname whitespace', () => {
         const result = roomJoinSchema.safeParse({
             roomId: 'my-room',
-            nickname: '  Player1  '
+            nickname: '  Player1  ',
         });
         expect(result.success).toBe(true);
         expect(result.data.nickname).toBe('Player1');
@@ -46,7 +46,7 @@ describe('roomJoinSchema', () => {
     test('rejects room ID too short', () => {
         const result = roomJoinSchema.safeParse({
             roomId: 'AB',
-            nickname: 'Player1'
+            nickname: 'Player1',
         });
         expect(result.success).toBe(false);
     });
@@ -54,7 +54,7 @@ describe('roomJoinSchema', () => {
     test('accepts room ID with hyphen and underscore', () => {
         const result = roomJoinSchema.safeParse({
             roomId: 'my-room_123',
-            nickname: 'Player1'
+            nickname: 'Player1',
         });
         expect(result.success).toBe(true);
     });
@@ -62,7 +62,7 @@ describe('roomJoinSchema', () => {
     test('rejects empty nickname', () => {
         const result = roomJoinSchema.safeParse({
             roomId: 'my-room',
-            nickname: ''
+            nickname: '',
         });
         expect(result.success).toBe(false);
     });
@@ -70,7 +70,7 @@ describe('roomJoinSchema', () => {
     test('rejects too long nickname', () => {
         const result = roomJoinSchema.safeParse({
             roomId: 'my-room',
-            nickname: 'A'.repeat(31)
+            nickname: 'A'.repeat(31),
         });
         expect(result.success).toBe(false);
     });
@@ -218,7 +218,7 @@ describe('gameRevealSchema', () => {
 describe('chatMessageSchema', () => {
     test('accepts valid message', () => {
         const result = chatMessageSchema.safeParse({
-            text: 'Hello team!'
+            text: 'Hello team!',
         });
         expect(result.success).toBe(true);
         expect(result.data.teamOnly).toBe(false); // default
@@ -227,7 +227,7 @@ describe('chatMessageSchema', () => {
     test('accepts team-only message', () => {
         const result = chatMessageSchema.safeParse({
             text: 'Secret strategy',
-            teamOnly: true
+            teamOnly: true,
         });
         expect(result.success).toBe(true);
         expect(result.data.teamOnly).toBe(true);
@@ -235,7 +235,7 @@ describe('chatMessageSchema', () => {
 
     test('trims whitespace', () => {
         const result = chatMessageSchema.safeParse({
-            text: '  Hello  '
+            text: '  Hello  ',
         });
         expect(result.success).toBe(true);
         expect(result.data.text).toBe('Hello');
@@ -243,21 +243,21 @@ describe('chatMessageSchema', () => {
 
     test('rejects empty message', () => {
         const result = chatMessageSchema.safeParse({
-            text: ''
+            text: '',
         });
         expect(result.success).toBe(false);
     });
 
     test('rejects too long message', () => {
         const result = chatMessageSchema.safeParse({
-            text: 'A'.repeat(501)
+            text: 'A'.repeat(501),
         });
         expect(result.success).toBe(false);
     });
 
     test('removes control characters from message', () => {
         const result = chatMessageSchema.safeParse({
-            text: 'Hello\x00World'
+            text: 'Hello\x00World',
         });
         expect(result.success).toBe(true);
         expect(result.data.text).toBe('HelloWorld');
@@ -272,7 +272,7 @@ describe('roomCreateSchema', () => {
 
     test('accepts valid roomId with default settings', () => {
         const result = roomCreateSchema.safeParse({
-            roomId: 'my-game'
+            roomId: 'my-game',
         });
         expect(result.success).toBe(true);
         expect(result.data.roomId).toBe('my-game');
@@ -284,9 +284,9 @@ describe('roomCreateSchema', () => {
             settings: {
                 teamNames: {
                     red: 'Fire',
-                    blue: 'Ice'
-                }
-            }
+                    blue: 'Ice',
+                },
+            },
         });
         expect(result.success).toBe(true);
         expect(result.data.settings.teamNames.red).toBe('Fire');
@@ -298,9 +298,9 @@ describe('roomCreateSchema', () => {
             settings: {
                 teamNames: {
                     red: 'A'.repeat(VALIDATION.TEAM_NAME_MAX_LENGTH + 1),
-                    blue: 'Blue'
-                }
-            }
+                    blue: 'Blue',
+                },
+            },
         });
         expect(result.success).toBe(false);
     });
@@ -309,8 +309,8 @@ describe('roomCreateSchema', () => {
         const result = roomCreateSchema.safeParse({
             roomId: 'my-game',
             settings: {
-                turnTimer: 60
-            }
+                turnTimer: 60,
+            },
         });
         expect(result.success).toBe(true);
     });
@@ -319,8 +319,8 @@ describe('roomCreateSchema', () => {
         const result = roomCreateSchema.safeParse({
             roomId: 'my-game',
             settings: {
-                turnTimer: 10
-            }
+                turnTimer: 10,
+            },
         });
         expect(result.success).toBe(false);
     });
@@ -329,29 +329,29 @@ describe('roomCreateSchema', () => {
         const result = roomCreateSchema.safeParse({
             roomId: 'my-game',
             settings: {
-                turnTimer: 601
-            }
+                turnTimer: 601,
+            },
         });
         expect(result.success).toBe(false);
     });
 
     test('rejects roomId too short', () => {
         const result = roomCreateSchema.safeParse({
-            roomId: 'AB'
+            roomId: 'AB',
         });
         expect(result.success).toBe(false);
     });
 
     test('rejects roomId too long', () => {
         const result = roomCreateSchema.safeParse({
-            roomId: 'A'.repeat(21)
+            roomId: 'A'.repeat(21),
         });
         expect(result.success).toBe(false);
     });
 
     test('accepts roomId with allowed characters', () => {
         const result = roomCreateSchema.safeParse({
-            roomId: 'My-Game_123'
+            roomId: 'My-Game_123',
         });
         expect(result.success).toBe(true);
     });
@@ -360,7 +360,7 @@ describe('roomCreateSchema', () => {
 describe('roomSettingsSchema', () => {
     test('accepts valid settings with turn timer', () => {
         const result = roomSettingsSchema.safeParse({
-            turnTimer: 90
+            turnTimer: 90,
         });
         expect(result.success).toBe(true);
         expect(result.data.turnTimer).toBe(90);
@@ -368,7 +368,7 @@ describe('roomSettingsSchema', () => {
 
     test('accepts null turn timer to disable it', () => {
         const result = roomSettingsSchema.safeParse({
-            turnTimer: null
+            turnTimer: null,
         });
         expect(result.success).toBe(true);
         expect(result.data.turnTimer).toBeNull();
@@ -378,9 +378,9 @@ describe('roomSettingsSchema', () => {
         const result = roomSettingsSchema.safeParse({
             teamNames: {
                 red: 'Fire',
-                blue: 'Ice'
+                blue: 'Ice',
             },
-            turnTimer: 90
+            turnTimer: 90,
         });
         expect(result.success).toBe(true);
         expect(result.data.teamNames.red).toBe('Fire');
@@ -389,7 +389,7 @@ describe('roomSettingsSchema', () => {
 
     test('accepts turn timer setting', () => {
         const result = roomSettingsSchema.safeParse({
-            turnTimer: 120
+            turnTimer: 120,
         });
         expect(result.success).toBe(true);
         expect(result.data.turnTimer).toBe(120);
@@ -397,14 +397,14 @@ describe('roomSettingsSchema', () => {
 
     test('rejects invalid turn timer', () => {
         const result = roomSettingsSchema.safeParse({
-            turnTimer: 10
+            turnTimer: 10,
         });
         expect(result.success).toBe(false);
     });
 
     test('accepts allowSpectators setting', () => {
         const result = roomSettingsSchema.safeParse({
-            allowSpectators: false
+            allowSpectators: false,
         });
         expect(result.success).toBe(true);
         expect(result.data.allowSpectators).toBe(false);

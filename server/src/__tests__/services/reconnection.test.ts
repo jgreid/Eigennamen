@@ -19,7 +19,10 @@ jest.mock('../../config/redis', () => ({
 }));
 
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
 }));
 
 jest.mock('../../config/constants', () => ({
@@ -40,10 +43,7 @@ jest.mock('../../services/playerService', () => ({
 
 const logger = require('../../utils/logger');
 const { getPlayer } = require('../../services/playerService');
-const {
-    cleanupOrphanedReconnectionTokens,
-    validateSocketAuthToken,
-} = require('../../services/player/reconnection');
+const { cleanupOrphanedReconnectionTokens, validateSocketAuthToken } = require('../../services/player/reconnection');
 
 describe('Reconnection Service', () => {
     beforeEach(() => {
@@ -56,9 +56,11 @@ describe('Reconnection Service', () => {
     describe('cleanupOrphanedReconnectionTokens', () => {
         it('should clean up orphaned tokens when player no longer exists', async () => {
             const keys = ['reconnect:session:orphan-1', 'reconnect:session:active-1'];
-            mockRedis.scanIterator.mockReturnValue((async function* () {
-                for (const key of keys) yield key;
-            })());
+            mockRedis.scanIterator.mockReturnValue(
+                (async function* () {
+                    for (const key of keys) yield key;
+                })()
+            );
 
             // Lua script returns 1 if orphaned (cleaned), 0 if player exists
             mockRedis.eval.mockImplementation(async (_script: string, opts: any) => {
@@ -72,15 +74,15 @@ describe('Reconnection Service', () => {
             expect(cleaned).toBe(1);
             // Lua script handles deletion atomically — verify eval was called for both keys
             expect(mockRedis.eval).toHaveBeenCalledTimes(2);
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Cleaned up 1 orphaned')
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Cleaned up 1 orphaned'));
         });
 
         it('should handle orphaned session with no token mapping', async () => {
-            mockRedis.scanIterator.mockReturnValue((async function* () {
-                yield 'reconnect:session:orphan-1';
-            })());
+            mockRedis.scanIterator.mockReturnValue(
+                (async function* () {
+                    yield 'reconnect:session:orphan-1';
+                })()
+            );
 
             // Lua script handles missing token mapping internally — still returns 1 (cleaned)
             mockRedis.eval.mockResolvedValue(1);
@@ -97,9 +99,11 @@ describe('Reconnection Service', () => {
                 keys.push(`reconnect:session:orphan-${i}`);
             }
 
-            mockRedis.scanIterator.mockReturnValue((async function* () {
-                for (const key of keys) yield key;
-            })());
+            mockRedis.scanIterator.mockReturnValue(
+                (async function* () {
+                    for (const key of keys) yield key;
+                })()
+            );
 
             // All orphaned — Lua script returns 1 for each
             mockRedis.eval.mockResolvedValue(1);
@@ -110,9 +114,11 @@ describe('Reconnection Service', () => {
         });
 
         it('should return 0 when no orphans found', async () => {
-            mockRedis.scanIterator.mockReturnValue((async function* () {
-                yield 'reconnect:session:active-1';
-            })());
+            mockRedis.scanIterator.mockReturnValue(
+                (async function* () {
+                    yield 'reconnect:session:active-1';
+                })()
+            );
 
             // Player still exists — Lua script returns 0 (not cleaned)
             mockRedis.eval.mockResolvedValue(0);
@@ -120,23 +126,20 @@ describe('Reconnection Service', () => {
             const cleaned = await cleanupOrphanedReconnectionTokens();
 
             expect(cleaned).toBe(0);
-            expect(logger.info).not.toHaveBeenCalledWith(
-                expect.stringContaining('Cleaned up')
-            );
+            expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Cleaned up'));
         });
 
         it('should handle scanIterator errors gracefully', async () => {
-            mockRedis.scanIterator.mockReturnValue((async function* () {
-                throw new Error('SCAN failed');
-            })());
+            mockRedis.scanIterator.mockReturnValue(
+                (async function* () {
+                    throw new Error('SCAN failed');
+                })()
+            );
 
             const cleaned = await cleanupOrphanedReconnectionTokens();
 
             expect(cleaned).toBe(0);
-            expect(logger.warn).toHaveBeenCalledWith(
-                'Reconnection token cleanup skipped:',
-                'SCAN failed'
-            );
+            expect(logger.warn).toHaveBeenCalledWith('Reconnection token cleanup skipped:', 'SCAN failed');
         });
 
         it('should return 0 when scanIterator is not available', async () => {

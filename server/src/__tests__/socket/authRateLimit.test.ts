@@ -2,7 +2,7 @@ import {
     recordAuthFailure,
     isAuthBlocked,
     clearAuthFailures,
-    getAuthFailuresMap
+    getAuthFailuresMap,
 } from '../../socket/connectionTracker';
 
 // Access the SOCKET config to verify defaults

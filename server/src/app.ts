@@ -114,47 +114,53 @@ if (isProduction && corsOrigin === '*') {
 }
 
 // Security middleware with enhanced CSP
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'"],                    // All scripts loaded from external files
-            styleSrc: ["'self'", "'unsafe-inline'"],  // Game uses inline styles
-            imgSrc: ["'self'", 'data:', 'blob:'],
-            connectSrc: ["'self'", 'wss:', 'ws:'],    // WebSocket connections
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            mediaSrc: ["'self'"],
-            frameSrc: ["'none'"],
-            // Additional security directives
-            baseUri: ["'self'"],                      // Prevent base tag hijacking
-            formAction: ["'self'"],                   // Control form submissions
-            frameAncestors: ["'none'"],               // Prevent clickjacking (defense in depth)
-            workerSrc: ["'self'", 'blob:'],           // Service worker support
-            manifestSrc: ["'self'"],                  // PWA manifest
-            upgradeInsecureRequests: isProduction ? [] : null
-        }
-    },
-    crossOriginEmbedderPolicy: false, // Required for some game assets
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
-    // Additional security headers
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    dnsPrefetchControl: { allow: false },
-    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
-    // HSTS: Enforce HTTPS in production (1 year, include subdomains)
-    strictTransportSecurity: isProduction ? {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
-    } : false
-}));
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"], // All scripts loaded from external files
+                styleSrc: ["'self'", "'unsafe-inline'"], // Game uses inline styles
+                imgSrc: ["'self'", 'data:', 'blob:'],
+                connectSrc: ["'self'", 'wss:', 'ws:'], // WebSocket connections
+                fontSrc: ["'self'"],
+                objectSrc: ["'none'"],
+                mediaSrc: ["'self'"],
+                frameSrc: ["'none'"],
+                // Additional security directives
+                baseUri: ["'self'"], // Prevent base tag hijacking
+                formAction: ["'self'"], // Control form submissions
+                frameAncestors: ["'none'"], // Prevent clickjacking (defense in depth)
+                workerSrc: ["'self'", 'blob:'], // Service worker support
+                manifestSrc: ["'self'"], // PWA manifest
+                upgradeInsecureRequests: isProduction ? [] : null,
+            },
+        },
+        crossOriginEmbedderPolicy: false, // Required for some game assets
+        crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+        // Additional security headers
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+        dnsPrefetchControl: { allow: false },
+        permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+        // HSTS: Enforce HTTPS in production (1 year, include subdomains)
+        strictTransportSecurity: isProduction
+            ? {
+                  maxAge: 31536000,
+                  includeSubDomains: true,
+                  preload: true,
+              }
+            : false,
+    })
+);
 
-app.use(cors({
-    origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With']
-}));
+app.use(
+    cors({
+        origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With'],
+    })
+);
 
 // Compression
 app.use(compression());
@@ -201,11 +207,13 @@ app.get('/', (_req: Request, res: Response, next: NextFunction) => {
 });
 
 // Serve static files (the game client) with caching headers
-app.use(express.static(path.join(__dirname, '../public'), {
-    maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
-    etag: true,
-    lastModified: true
-}));
+app.use(
+    express.static(path.join(__dirname, '../public'), {
+        maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+        etag: true,
+        lastModified: true,
+    })
+);
 
 // Health check routes (readiness, liveness, metrics)
 // Mounted before static files so /health/* is handled by the router
@@ -249,7 +257,7 @@ app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) =
         timestamp: new Date().toISOString(),
         process: isProduction
             ? { uptime: process.uptime() }
-            : { uptime: process.uptime(), memory: process.memoryUsage(), cpu: process.cpuUsage() }
+            : { uptime: process.uptime(), memory: process.memoryUsage(), cpu: process.cpuUsage() },
     };
 
     // Add Fly.io instance info if available (region only in production; full details in dev)
@@ -268,14 +276,14 @@ app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) =
                 status: 'ok',
                 connections: count,
                 cached,
-                ...(stale && { note: 'Count may be stale' })
+                ...(stale && { note: 'Count may be stale' }),
             };
         }
     } catch (error) {
         logger.warn('Failed to fetch socket stats for metrics:', (error as Error).message);
         metricsData.socketio = {
             status: 'error',
-            error: 'Failed to fetch socket stats'
+            error: 'Failed to fetch socket stats',
         };
     }
 
@@ -287,7 +295,7 @@ app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) =
         logger.warn('Failed to fetch application metrics:', (error as Error).message);
         metricsData.application = {
             status: 'error',
-            error: 'Failed to fetch application metrics'
+            error: 'Failed to fetch application metrics',
         };
     }
 
@@ -295,7 +303,7 @@ app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) =
     try {
         const socketRateLimiter = app.get('socketRateLimiter') as RateLimiterWithMetrics | undefined;
         metricsData.rateLimits = {
-            socket: socketRateLimiter ? socketRateLimiter.getMetrics() : { status: 'not initialized' }
+            socket: socketRateLimiter ? socketRateLimiter.getMetrics() : { status: 'not initialized' },
         };
     } catch (error) {
         logger.warn('Failed to fetch rate limit metrics:', (error as Error).message);
@@ -310,7 +318,7 @@ app.get('/metrics', ...metricsMiddleware, async (_req: Request, res: Response) =
 // asset references (e.g. socket-client.js?v=7) take effect immediately.
 const RESERVED_PATH_PREFIXES = ['/api', '/socket.io', '/health', '/metrics', '/api-docs', '/admin'];
 app.get('/{*splat}', (req: Request, res: Response, next: NextFunction) => {
-    if (RESERVED_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) {
+    if (RESERVED_PATH_PREFIXES.some((prefix) => req.path.startsWith(prefix))) {
         return next();
     }
     res.set('Cache-Control', 'no-cache');

@@ -33,8 +33,8 @@ describe('WebSocket Reconnection', () => {
             pingInterval: 2000,
             connectionStateRecovery: {
                 maxDisconnectionDuration: 2 * 60 * 1000,
-                skipMiddlewares: false
-            }
+                skipMiddlewares: false,
+            },
         });
 
         // Set up rate limiter
@@ -86,7 +86,7 @@ describe('WebSocket Reconnection', () => {
         test('establishes connection successfully', (done) => {
             const client = Client(SOCKET_URL, {
                 transports: ['websocket'],
-                timeout: CONNECTION_TIMEOUT
+                timeout: CONNECTION_TIMEOUT,
             });
 
             client.on('connect', () => {
@@ -105,7 +105,7 @@ describe('WebSocket Reconnection', () => {
         test('handles echo event correctly', (done) => {
             const client = Client(SOCKET_URL, {
                 transports: ['websocket'],
-                timeout: CONNECTION_TIMEOUT
+                timeout: CONNECTION_TIMEOUT,
             });
 
             client.on('connect', () => {
@@ -120,7 +120,7 @@ describe('WebSocket Reconnection', () => {
         test('can join rooms', (done) => {
             const client = Client(SOCKET_URL, {
                 transports: ['websocket'],
-                timeout: CONNECTION_TIMEOUT
+                timeout: CONNECTION_TIMEOUT,
             });
 
             client.on('connect', () => {
@@ -138,7 +138,7 @@ describe('WebSocket Reconnection', () => {
             const client = Client(SOCKET_URL, {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
-                reconnection: false
+                reconnection: false,
             });
 
             client.on('connect', () => {
@@ -156,7 +156,7 @@ describe('WebSocket Reconnection', () => {
             const client = Client(SOCKET_URL, {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
-                reconnection: false
+                reconnection: false,
             });
 
             client.on('connect', () => {
@@ -190,7 +190,7 @@ describe('WebSocket Reconnection', () => {
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: true,
                 reconnectionAttempts: 3,
-                reconnectionDelay: 100
+                reconnectionDelay: 100,
             });
 
             client.on('connect', () => {
@@ -227,7 +227,7 @@ describe('WebSocket Reconnection', () => {
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: true,
                 reconnectionAttempts: 3,
-                reconnectionDelay: 100
+                reconnectionDelay: 100,
             });
 
             client.on('connect', () => {
@@ -263,7 +263,7 @@ describe('WebSocket Reconnection', () => {
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: true,
                 reconnectionAttempts: 3,
-                reconnectionDelay: 100
+                reconnectionDelay: 100,
             });
 
             client.on('connect', () => {
@@ -302,7 +302,7 @@ describe('WebSocket Reconnection', () => {
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: true,
                 reconnectionAttempts: 3,
-                reconnectionDelay: 100
+                reconnectionDelay: 100,
             });
 
             client.on('connect', () => {
@@ -312,11 +312,13 @@ describe('WebSocket Reconnection', () => {
                     // Hit rate limit by making many requests
                     const requests = [];
                     for (let i = 0; i < 10; i++) {
-                        requests.push(new Promise((resolve) => {
-                            client.emit('rate-limited-event', { i }, (_response) => {
-                                resolve();
-                            });
-                        }));
+                        requests.push(
+                            new Promise((resolve) => {
+                                client.emit('rate-limited-event', { i }, (_response) => {
+                                    resolve();
+                                });
+                            })
+                        );
                     }
 
                     Promise.all(requests).then(() => {
@@ -355,7 +357,7 @@ describe('WebSocket Reconnection', () => {
                 const client = Client(SOCKET_URL, {
                     transports: ['websocket'],
                     timeout: CONNECTION_TIMEOUT,
-                    reconnection: false
+                    reconnection: false,
                 });
 
                 client.on('connect', () => {
@@ -366,7 +368,7 @@ describe('WebSocket Reconnection', () => {
                         expect(io.engine.clientsCount).toBe(TOTAL_CLIENTS);
 
                         // Disconnect all
-                        clients.forEach(c => c.disconnect());
+                        clients.forEach((c) => c.disconnect());
                         done();
                     }
                 });
@@ -376,7 +378,7 @@ describe('WebSocket Reconnection', () => {
 
             timeoutRef.id = setTimeout(() => {
                 if (connectedCount.value < TOTAL_CLIENTS) {
-                    clients.forEach(c => c.disconnect());
+                    clients.forEach((c) => c.disconnect());
                     done(new Error(`Only ${connectedCount.value} of ${TOTAL_CLIENTS} clients connected`));
                 }
             }, 5000);
@@ -387,13 +389,13 @@ describe('WebSocket Reconnection', () => {
             const client1 = Client(SOCKET_URL, {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
-                reconnection: false
+                reconnection: false,
             });
 
             const client2 = Client(SOCKET_URL, {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
-                reconnection: false
+                reconnection: false,
             });
 
             let bothConnected = false;
@@ -443,7 +445,7 @@ describe('WebSocket Reconnection', () => {
             const client = Client(SOCKET_URL, {
                 transports: ['polling', 'websocket'],
                 timeout: CONNECTION_TIMEOUT,
-                reconnection: false
+                reconnection: false,
             });
 
             client.on('connect', () => {
@@ -467,7 +469,7 @@ describe('Socket Rate Limiter Unit Tests', () => {
 
     beforeEach(() => {
         rateLimiter = createSocketRateLimiter({
-            'test:event': { window: 1000, max: 2 }
+            'test:event': { window: 1000, max: 2 },
         });
     });
 

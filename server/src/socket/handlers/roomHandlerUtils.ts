@@ -9,11 +9,7 @@ import { getSocketFunctions } from '../socketFunctionProvider';
 import { getSocketRateLimiter } from '../rateLimitHandler';
 import { isPlayerSpectator } from '../playerContext';
 
-export async function sendTimerStatus(
-    socket: GameSocket,
-    roomCode: string,
-    context: string
-): Promise<void> {
+export async function sendTimerStatus(socket: GameSocket, roomCode: string, context: string): Promise<void> {
     try {
         const { getTimerStatus } = getSocketFunctions();
         const timerStatus: TimerStatus | null = await getTimerStatus(roomCode);
@@ -22,11 +18,13 @@ export async function sendTimerStatus(
                 roomCode,
                 remainingSeconds: timerStatus.remainingSeconds,
                 endTime: timerStatus.endTime,
-                isPaused: timerStatus.isPaused || false
+                isPaused: timerStatus.isPaused || false,
             });
         }
     } catch (timerError) {
-        logger.warn(`Failed to send timer status on ${context}: ${timerError instanceof Error ? timerError.message : String(timerError)}`);
+        logger.warn(
+            `Failed to send timer status on ${context}: ${timerError instanceof Error ? timerError.message : String(timerError)}`
+        );
     }
 }
 
@@ -59,7 +57,7 @@ export async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> 
                 if (err) {
                     logger.warn('Failed join rate limit exceeded', {
                         socketId: socket.id,
-                        sessionId: socket.sessionId
+                        sessionId: socket.sessionId,
                     });
                 }
                 resolve();
@@ -73,16 +71,16 @@ export async function trackFailedJoinAttempt(socket: GameSocket): Promise<void> 
 
 export function computeFallbackStats(players: Player[]): RoomStats {
     const teamStats = (team: string): TeamStats => {
-        const teamPlayers = players.filter(p => p.team === team);
+        const teamPlayers = players.filter((p) => p.team === team);
         return {
             total: teamPlayers.length,
-            spymaster: teamPlayers.find(p => p.role === 'spymaster')?.nickname || null,
-            clicker: teamPlayers.find(p => p.role === 'clicker')?.nickname || null
+            spymaster: teamPlayers.find((p) => p.role === 'spymaster')?.nickname || null,
+            clicker: teamPlayers.find((p) => p.role === 'clicker')?.nickname || null,
         };
     };
     return {
         totalPlayers: players.length,
-        spectatorCount: players.filter(p => isPlayerSpectator(p)).length,
-        teams: { red: teamStats('red'), blue: teamStats('blue') }
+        spectatorCount: players.filter((p) => isPlayerSpectator(p)).length,
+        teams: { red: teamStats('red'), blue: teamStats('blue') },
     };
 }

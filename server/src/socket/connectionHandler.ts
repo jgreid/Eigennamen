@@ -3,15 +3,10 @@ import type { GameSocket, SocketRateLimiter } from './rateLimitHandler';
 
 import logger from '../utils/logger';
 import { SOCKET, ERROR_CODES } from '../config/constants';
-import {
-    socketRateLimiter,
-} from './rateLimitHandler';
+import { socketRateLimiter } from './rateLimitHandler';
 import { registerSocketFunctions, isRegistered } from './socketFunctionProvider';
 import type { SocketFunctions } from './socketFunctionProvider';
-import {
-    handleDisconnect,
-    createTimerExpireCallback as createTimerExpireCallbackImpl
-} from './disconnectHandler';
+import { handleDisconnect, createTimerExpireCallback as createTimerExpireCallbackImpl } from './disconnectHandler';
 import { decrementConnectionCount } from './connectionTracker';
 
 // Import handlers
@@ -43,7 +38,7 @@ function ensureSocketFunctionsRegistered(socketFns: SocketFunctions): void {
     if (!isRegistered()) {
         registerSocketFunctions({
             ...socketFns,
-            createTimerExpireCallback: createTimerExpireCallback(socketFns)
+            createTimerExpireCallback: createTimerExpireCallback(socketFns),
         });
     }
 }
@@ -133,11 +128,13 @@ function handleConnection(
                         abortController.abort();
                         reject(new Error('Disconnect handler timeout'));
                     }, SOCKET.DISCONNECT_TIMEOUT_MS);
-                })
+                }),
             ]);
         } catch (error) {
             if ((error as Error).message === 'Disconnect handler timeout') {
-                logger.error(`Disconnect handler timed out after ${SOCKET.DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`);
+                logger.error(
+                    `Disconnect handler timed out after ${SOCKET.DISCONNECT_TIMEOUT_MS}ms for socket ${socket.id}`
+                );
             } else {
                 logger.error('Error in disconnect handler:', error);
             }
@@ -153,12 +150,12 @@ function handleConnection(
     socket.on('error', (error: Error) => {
         logger.error(`Socket error for ${socket.id}:`, {
             message: error.message,
-            sessionId: gameSocket.sessionId
+            sessionId: gameSocket.sessionId,
         });
 
         socket.emit('socket:error', {
             code: ERROR_CODES.SERVER_ERROR,
-            message: 'An unexpected error occurred. Please try again.'
+            message: 'An unexpected error occurred. Please try again.',
         });
     });
 }

@@ -8,11 +8,7 @@ import { batch } from '../batch.js';
 /**
  * Start the timer with server-provided data.
  */
-export function startTimer(data: {
-    endTime: number;
-    duration: number;
-    serverRemainingSeconds: number;
-}): void {
+export function startTimer(data: { endTime: number; duration: number; serverRemainingSeconds: number }): void {
     batch(() => {
         state.timerState.active = true;
         state.timerState.endTime = data.endTime;

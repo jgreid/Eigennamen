@@ -8,18 +8,21 @@
 // Mock rate limit handler to bypass rate limiting
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
 }));
 
 jest.mock('../../services/playerService');
 jest.mock('../../services/gameService');
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
 }));
 jest.mock('../../utils/sanitize', () => ({
     sanitizeHtml: jest.fn((str: string) => str),
     removeControlChars: jest.fn((str: string) => str),
-    isReservedName: jest.fn(() => false)
+    isReservedName: jest.fn(() => false),
 }));
 jest.mock('../../utils/distributedLock', () => ({
     withLock: jest.fn(async (_key, fn) => fn()),
@@ -83,9 +86,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 fetchSockets: jest.fn().mockResolvedValue([mockHostSocket]),
             });
 
-            playerService.getPlayersInRoom.mockResolvedValue([
-                { sessionId: 'host-1', isHost: true, nickname: 'Host' },
-            ]);
+            playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'host-1', isHost: true, nickname: 'Host' }]);
 
             await handlers['spectator:requestJoin']({ team: 'red' });
 
@@ -110,21 +111,25 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
             await handlers['spectator:requestJoin']({ team: 'blue' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('spectator:error', expect.objectContaining({
-                code: 'NOT_AUTHORIZED',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({
+                    code: 'NOT_AUTHORIZED',
+                })
+            );
         });
 
         it('should error when no host found', async () => {
-            playerService.getPlayersInRoom.mockResolvedValue([
-                { sessionId: 'session-2', isHost: false },
-            ]);
+            playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'session-2', isHost: false }]);
 
             await handlers['spectator:requestJoin']({ team: 'red' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('spectator:error', expect.objectContaining({
-                code: 'NOT_HOST',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({
+                    code: 'NOT_HOST',
+                })
+            );
         });
 
         it('should handle host with no connected socket', async () => {
@@ -132,9 +137,7 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 fetchSockets: jest.fn().mockResolvedValue([]),
             });
 
-            playerService.getPlayersInRoom.mockResolvedValue([
-                { sessionId: 'host-1', isHost: true },
-            ]);
+            playerService.getPlayersInRoom.mockResolvedValue([{ sessionId: 'host-1', isHost: true }]);
 
             // Should not throw, just silently skip emit
             await handlers['spectator:requestJoin']({ team: 'red' });
@@ -246,9 +249,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 approved: true,
             });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('spectator:error', expect.objectContaining({
-                code: 'PLAYER_NOT_FOUND',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({
+                    code: 'PLAYER_NOT_FOUND',
+                })
+            );
         });
 
         it('should error when requester is in different room', async () => {
@@ -274,9 +280,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 approved: true,
             });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('spectator:error', expect.objectContaining({
-                code: 'PLAYER_NOT_FOUND',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({
+                    code: 'PLAYER_NOT_FOUND',
+                })
+            );
         });
 
         it('should reject if requester is not a spectator', async () => {
@@ -302,9 +311,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
                 approved: true,
             });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('spectator:error', expect.objectContaining({
-                code: 'NOT_AUTHORIZED',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'spectator:error',
+                expect.objectContaining({
+                    code: 'NOT_AUTHORIZED',
+                })
+            );
         });
 
         it('should handle requester with no connected socket on approve', async () => {
@@ -383,9 +395,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
             await handlers['player:setTeam']({ team: 'red' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'SERVER_ERROR',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'player:error',
+                expect.objectContaining({
+                    code: 'SERVER_ERROR',
+                })
+            );
         });
     });
 
@@ -403,9 +418,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
             await handlers['player:setNickname']({ nickname: 'NewName' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'PLAYER_NOT_FOUND',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'player:error',
+                expect.objectContaining({
+                    code: 'PLAYER_NOT_FOUND',
+                })
+            );
         });
     });
 
@@ -426,9 +444,12 @@ describe('Player Handlers - Spectator & Missing Paths', () => {
 
             await handlers['player:setRole']({ role: 'spectator' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error', expect.objectContaining({
-                code: 'CANNOT_CHANGE_ROLE_DURING_TURN',
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'player:error',
+                expect.objectContaining({
+                    code: 'CANNOT_CHANGE_ROLE_DURING_TURN',
+                })
+            );
         });
     });
 });

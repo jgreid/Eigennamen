@@ -12,16 +12,16 @@ jest.mock('../../services/playerService');
 jest.mock('../../utils/logger');
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
 }));
 jest.mock('../../socket/socketFunctionProvider', () => ({
     getSocketFunctions: jest.fn(() => ({
         getTimerStatus: jest.fn().mockResolvedValue({
             remainingSeconds: 30,
             endTime: Date.now() + 30000,
-            isPaused: false
-        })
-    }))
+            isPaused: false,
+        }),
+    })),
 }));
 
 // Mock timeout to just pass through the promise
@@ -30,13 +30,13 @@ jest.mock('../../utils/timeout', () => ({
     TIMEOUTS: {
         SOCKET_HANDLER: 30000,
         JOIN_ROOM: 15000,
-        RECONNECT: 15000
-    }
+        RECONNECT: 15000,
+    },
 }));
 
 // Mock validation to pass through
 jest.mock('../../middleware/validation', () => ({
-    validateInput: jest.fn((schema, data) => data)
+    validateInput: jest.fn((schema, data) => data),
 }));
 
 const roomService = require('../../services/roomService');
@@ -66,11 +66,11 @@ describe('Room Handlers', () => {
             emit: jest.fn(),
             join: jest.fn(),
             leave: jest.fn(),
-            to: jest.fn().mockReturnValue({ emit: jest.fn() })
+            to: jest.fn().mockReturnValue({ emit: jest.fn() }),
         };
 
         mockIo = {
-            to: jest.fn().mockReturnValue({ emit: jest.fn() })
+            to: jest.fn().mockReturnValue({ emit: jest.fn() }),
         };
 
         eventHandlers = {};
@@ -78,13 +78,13 @@ describe('Room Handlers', () => {
         // Default service mocks - updated for new API
         roomService.createRoom.mockResolvedValue({
             room: { code: 'test-room', roomId: 'test-room', settings: {} },
-            player: { sessionId: 'session-1', nickname: 'Host' }
+            player: { sessionId: 'session-1', nickname: 'Host' },
         });
         roomService.joinRoom.mockResolvedValue({
             room: { code: 'test-room', roomId: 'test-room', settings: {} },
             players: [],
             game: null,
-            player: { sessionId: 'session-1', nickname: 'Player1' }
+            player: { sessionId: 'session-1', nickname: 'Player1' },
         });
         roomService.leaveRoom.mockResolvedValue({ newHostId: null });
         roomService.updateSettings.mockResolvedValue({ turnTimer: 60 });
@@ -97,7 +97,7 @@ describe('Room Handlers', () => {
             sessionId: 'session-1',
             nickname: 'Player1',
             role: null,
-            roomCode: null
+            roomCode: null,
         });
         playerService.getPlayersInRoom.mockResolvedValue([]);
         playerService.getRoomStats.mockResolvedValue({});
@@ -106,7 +106,7 @@ describe('Room Handlers', () => {
         playerService.getExistingReconnectionToken.mockResolvedValue(null);
         playerService.validateRoomReconnectToken.mockResolvedValue({
             valid: true,
-            tokenData: { roomCode: 'test-room', sessionId: 'session-1' }
+            tokenData: { roomCode: 'test-room', sessionId: 'session-1' },
         });
         playerService.updatePlayer.mockResolvedValue();
 
@@ -136,7 +136,7 @@ describe('Room Handlers', () => {
         test('emits room:created with fallback stats when getRoomStats fails', async () => {
             roomService.createRoom.mockResolvedValue({
                 room: { code: 'fail-room', roomId: 'fail-room', settings: {} },
-                player: { sessionId: 'session-1', nickname: 'Host' }
+                player: { sessionId: 'session-1', nickname: 'Host' },
             });
             // getRoomStats failure should not prevent room creation
             playerService.getRoomStats.mockRejectedValue(new Error('Stats failed'));
@@ -144,10 +144,13 @@ describe('Room Handlers', () => {
             await eventHandlers['room:create']({ roomId: 'fail-room', settings: {} });
 
             // Room creation succeeds with fallback stats
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:created', expect.objectContaining({
-                room: expect.objectContaining({ code: 'fail-room' }),
-                stats: expect.objectContaining({ totalPlayers: 1 })
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:created',
+                expect.objectContaining({
+                    room: expect.objectContaining({ code: 'fail-room' }),
+                    stats: expect.objectContaining({ totalPlayers: 1 }),
+                })
+            );
         });
 
         test('emits room:error on failure', async () => {
@@ -156,22 +159,24 @@ describe('Room Handlers', () => {
             await eventHandlers['room:create']({ roomId: 'my-game', settings: {} });
 
             // sanitizeErrorForClient returns generic message for unsafe error codes
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: expect.any(String)
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: expect.any(String),
+                })
+            );
         });
 
         test('creates room with custom settings', async () => {
             await eventHandlers['room:create']({
                 roomId: 'custom-game',
-                settings: { turnTimer: 90, allowSpectators: false }
+                settings: { turnTimer: 90, allowSpectators: false },
             });
 
-            expect(roomService.createRoom).toHaveBeenCalledWith(
-                'custom-game',
-                'session-1',
-                { turnTimer: 90, allowSpectators: false }
-            );
+            expect(roomService.createRoom).toHaveBeenCalledWith('custom-game', 'session-1', {
+                turnTimer: 90,
+                allowSpectators: false,
+            });
         });
     });
 
@@ -197,13 +202,13 @@ describe('Room Handlers', () => {
                 room: { code: 'test-room', roomId: 'test-room' },
                 players: [],
                 game: { gameOver: false, types: ['red', 'blue', 'neutral'] },
-                player: { role: 'spymaster' }
+                player: { role: 'spymaster' },
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
-                types: ['red', 'blue', 'neutral']
+                types: ['red', 'blue', 'neutral'],
             });
         });
 
@@ -217,16 +222,16 @@ describe('Room Handlers', () => {
                     gameOver: false,
                     gameMode: 'match',
                     types: matchTypes,
-                    cardScores: matchScores
+                    cardScores: matchScores,
                 },
-                player: { role: 'spymaster' }
+                player: { role: 'spymaster' },
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
                 types: matchTypes,
-                cardScores: matchScores
+                cardScores: matchScores,
             });
         });
 
@@ -244,9 +249,9 @@ describe('Room Handlers', () => {
                 player: {
                     sessionId: 'session-1',
                     nickname: 'Player1',
-                    team: 'red'
+                    team: 'red',
                 },
-                isReconnecting: true
+                isReconnecting: true,
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
@@ -260,7 +265,7 @@ describe('Room Handlers', () => {
                 players: [],
                 game: null,
                 player: { nickname: 'Player1' },
-                isReconnecting: false
+                isReconnecting: false,
             });
 
             await eventHandlers['room:join']({ roomId: 'test-room', nickname: 'Player1' });
@@ -273,16 +278,19 @@ describe('Room Handlers', () => {
                 room: { code: 'fail-room', roomId: 'fail-room' },
                 players: [],
                 game: null,
-                player: {}
+                player: {},
             });
             playerService.invalidateRoomReconnectToken.mockRejectedValue(new Error('Failed'));
 
             await eventHandlers['room:join']({ roomId: 'fail-room', nickname: 'Player1' });
 
             // Token invalidation failure is caught gracefully - join still succeeds
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:joined', expect.objectContaining({
-                room: expect.objectContaining({ code: 'fail-room' })
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:joined',
+                expect.objectContaining({
+                    room: expect.objectContaining({ code: 'fail-room' }),
+                })
+            );
         });
 
         test('normalizes room ID case', async () => {
@@ -299,7 +307,7 @@ describe('Room Handlers', () => {
                 sessionId: 'session-1',
                 roomCode: 'test-room',
                 nickname: 'Player1',
-                role: null
+                role: null,
             });
         });
 
@@ -348,18 +356,14 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                isHost: true
+                isHost: true,
             });
         });
 
         test('updates settings and broadcasts', async () => {
             await eventHandlers['room:settings']({ turnTimer: 90 });
 
-            expect(roomService.updateSettings).toHaveBeenCalledWith(
-                'test-room',
-                'session-1',
-                { turnTimer: 90 }
-            );
+            expect(roomService.updateSettings).toHaveBeenCalledWith('test-room', 'session-1', { turnTimer: 90 });
             expect(mockIo.to).toHaveBeenCalledWith('room:test-room');
             expect(mockIo.to().emit).toHaveBeenCalledWith('room:settingsUpdated', expect.any(Object));
         });
@@ -388,33 +392,34 @@ describe('Room Handlers', () => {
                 sessionId: 'session-1',
                 roomCode: 'test-room',
                 nickname: 'Player1',
-                role: null
+                role: null,
             });
         });
 
         test('sends full room state', async () => {
             await eventHandlers['room:resync']();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:resynced',
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:resynced',
                 expect.objectContaining({
                     room: expect.any(Object),
                     players: expect.any(Array),
-                    you: expect.any(Object)
+                    you: expect.any(Object),
                 })
             );
             // game can be null or object
-            const resyncCall = mockSocket.emit.mock.calls.find(c => c[0] === 'room:resynced');
+            const resyncCall = mockSocket.emit.mock.calls.find((c) => c[0] === 'room:resynced');
             expect(resyncCall[1]).toHaveProperty('game');
         });
 
         test('includes game state if exists', async () => {
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                currentTurn: 'red'
+                currentTurn: 'red',
             });
             gameService.getGameStateForPlayer.mockReturnValue({
                 currentTurn: 'red',
-                words: ['word1', 'word2']
+                words: ['word1', 'word2'],
             });
 
             await eventHandlers['room:resync']();
@@ -451,11 +456,11 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                role: 'spymaster'
+                role: 'spymaster',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                types: ['red', 'blue']
+                types: ['red', 'blue'],
             });
 
             await eventHandlers['room:resync']();
@@ -472,7 +477,7 @@ describe('Room Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: expect.any(String),
-                message: expect.any(String)
+                message: expect.any(String),
             });
         });
     });
@@ -483,7 +488,7 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                nickname: 'Player1'
+                nickname: 'Player1',
             });
         });
 
@@ -495,7 +500,7 @@ describe('Room Handlers', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnectionToken', {
                 token: 'existing-token',
                 sessionId: 'session-1',
-                roomCode: 'test-room'
+                roomCode: 'test-room',
             });
         });
 
@@ -509,7 +514,7 @@ describe('Room Handlers', () => {
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnectionToken', {
                 token: 'new-token',
                 sessionId: 'session-1',
-                roomCode: 'test-room'
+                roomCode: 'test-room',
             });
         });
 
@@ -530,7 +535,7 @@ describe('Room Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
     });
@@ -542,13 +547,10 @@ describe('Room Handlers', () => {
         test('reconnects with valid token', async () => {
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: validToken
+                reconnectionToken: validToken,
             });
 
-            expect(playerService.validateRoomReconnectToken).toHaveBeenCalledWith(
-                validToken,
-                'session-1'
-            );
+            expect(playerService.validateRoomReconnectToken).toHaveBeenCalledWith(validToken, 'session-1');
             expect(mockSocket.join).toHaveBeenCalledWith('room:test-room');
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnected', expect.any(Object));
         });
@@ -562,34 +564,34 @@ describe('Room Handlers', () => {
         test('throws error when token is invalid', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
-                reason: 'Token expired'
+                reason: 'Token expired',
             });
 
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: validToken
+                reconnectionToken: validToken,
             });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Token expired')
+                message: expect.stringContaining('Token expired'),
             });
         });
 
         test('throws error when room code mismatch', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'other-room', sessionId: 'session-1' }
+                tokenData: { roomCode: 'other-room', sessionId: 'session-1' },
             });
 
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: validToken
+                reconnectionToken: validToken,
             });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('does not match')
+                message: expect.stringContaining('does not match'),
             });
         });
 
@@ -598,7 +600,7 @@ describe('Room Handlers', () => {
 
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: validToken
+                reconnectionToken: validToken,
             });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.any(Object));
@@ -607,41 +609,38 @@ describe('Room Handlers', () => {
         test('updates player connected status', async () => {
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: 'valid-token'
+                reconnectionToken: 'valid-token',
             });
 
             expect(playerService.updatePlayer).toHaveBeenCalledWith('session-1', {
                 connected: true,
-                lastSeen: expect.any(Number)
+                lastSeen: expect.any(Number),
             });
         });
 
         test('notifies room of player reconnection', async () => {
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: 'valid-token'
+                reconnectionToken: 'valid-token',
             });
 
-            expect(mockSocket.to().emit).toHaveBeenCalledWith(
-                'room:playerReconnected',
-                expect.any(Object)
-            );
+            expect(mockSocket.to().emit).toHaveBeenCalledWith('room:playerReconnected', expect.any(Object));
         });
 
         test('sends spymaster view for spymaster with active game', async () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 nickname: 'Player1',
-                role: 'spymaster'
+                role: 'spymaster',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                types: ['red', 'blue']
+                types: ['red', 'blue'],
             });
 
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: 'valid-token'
+                reconnectionToken: 'valid-token',
             });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', expect.any(Object));
@@ -654,13 +653,16 @@ describe('Room Handlers', () => {
 
             await eventHandlers['room:reconnect']({
                 code: 'test-room',
-                reconnectionToken: 'valid-token'
+                reconnectionToken: 'valid-token',
             });
 
             // createPreRoomHandler catches and emits sanitized error
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: expect.any(String)
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: expect.any(String),
+                })
+            );
         });
     });
 
@@ -671,22 +673,20 @@ describe('Room Handlers', () => {
                 sessionId: 'session-1',
                 roomCode: 'test-room',
                 nickname: 'Player1',
-                role: null
+                role: null,
             });
         });
 
         test('sendTimerStatus skips when no timer active', async () => {
             // Mock getSocketFunctions to return null timer status
             getSocketFunctions.mockReturnValue({
-                getTimerStatus: jest.fn().mockResolvedValue(null)
+                getTimerStatus: jest.fn().mockResolvedValue(null),
             });
 
             await eventHandlers['room:resync']();
 
             // Should not emit timer:status when no timer
-            const timerStatusCalls = mockSocket.emit.mock.calls.filter(
-                call => call[0] === 'timer:status'
-            );
+            const timerStatusCalls = mockSocket.emit.mock.calls.filter((call) => call[0] === 'timer:status');
             expect(timerStatusCalls.length).toBe(0);
         });
 
@@ -694,17 +694,15 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                role: 'clicker'
+                role: 'clicker',
             });
             gameService.getGame.mockResolvedValue({
-                gameOver: false
+                gameOver: false,
             });
 
             await eventHandlers['room:resync']();
 
-            const spymasterViewCalls = mockSocket.emit.mock.calls.filter(
-                call => call[0] === 'game:spymasterView'
-            );
+            const spymasterViewCalls = mockSocket.emit.mock.calls.filter((call) => call[0] === 'game:spymasterView');
             expect(spymasterViewCalls.length).toBe(0);
         });
 
@@ -712,18 +710,16 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                role: 'spymaster'
+                role: 'spymaster',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: true,
-                types: ['red', 'blue']
+                types: ['red', 'blue'],
             });
 
             await eventHandlers['room:resync']();
 
-            const spymasterViewCalls = mockSocket.emit.mock.calls.filter(
-                call => call[0] === 'game:spymasterView'
-            );
+            const spymasterViewCalls = mockSocket.emit.mock.calls.filter((call) => call[0] === 'game:spymasterView');
             expect(spymasterViewCalls.length).toBe(0);
         });
 
@@ -733,20 +729,20 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                role: 'spymaster'
+                role: 'spymaster',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
                 gameMode: 'match',
                 types: matchTypes,
-                cardScores: matchScores
+                cardScores: matchScores,
             });
 
             await eventHandlers['room:resync']();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
                 types: matchTypes,
-                cardScores: matchScores
+                cardScores: matchScores,
             });
         });
 
@@ -755,19 +751,19 @@ describe('Room Handlers', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'test-room',
-                role: 'spymaster'
+                role: 'spymaster',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
                 gameMode: 'classic',
                 types: classicTypes,
-                cardScores: [1, 1, 1] // shouldn't happen, but verify it's not sent
+                cardScores: [1, 1, 1], // shouldn't happen, but verify it's not sent
             });
 
             await eventHandlers['room:resync']();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
-                types: classicTypes
+                types: classicTypes,
             });
         });
 
@@ -777,18 +773,18 @@ describe('Room Handlers', () => {
                 sessionId: 'session-1',
                 roomCode: 'test-room',
                 role: 'spymaster',
-                team: 'red'
+                team: 'red',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
                 gameMode: 'duet',
-                types: duetTypes
+                types: duetTypes,
             });
 
             await eventHandlers['room:resync']();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
-                types: duetTypes
+                types: duetTypes,
             });
         });
     });

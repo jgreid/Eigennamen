@@ -5,16 +5,37 @@
  * listeners and maps them to the adapter's internal event bus.
  */
 
-import type { Player, ClientEventMap, ClientEventName,
-    RoomCreatedPayload, RoomJoinedPayload, RoomResyncedPayload, RoomReconnectedPayload
+import type {
+    Player,
+    ClientEventMap,
+    ClientEventName,
+    RoomCreatedPayload,
+    RoomJoinedPayload,
+    RoomResyncedPayload,
+    RoomReconnectedPayload,
 } from './socket-client-types.js';
 import type {
-    PlayerJoinedData, PlayerLeftData, SettingsUpdatedData, StatsUpdatedData,
-    HostChangedData, KickedData, PlayerKickedData, RoomWarningData,
-    PlayerUpdatedData, PlayerDisconnectedData,
-    GameStartedData, CardRevealedData, TurnEndedData, GameOverData,
-    SpymasterViewData, HistoryResultData, ReplayData,
-    TimerEventData, ChatMessageData, SpectatorChatData, ServerErrorData
+    PlayerJoinedData,
+    PlayerLeftData,
+    SettingsUpdatedData,
+    StatsUpdatedData,
+    HostChangedData,
+    KickedData,
+    PlayerKickedData,
+    RoomWarningData,
+    PlayerUpdatedData,
+    PlayerDisconnectedData,
+    GameStartedData,
+    CardRevealedData,
+    TurnEndedData,
+    GameOverData,
+    SpymasterViewData,
+    HistoryResultData,
+    ReplayData,
+    TimerEventData,
+    ChatMessageData,
+    SpectatorChatData,
+    ServerErrorData,
 } from './multiplayerTypes.js';
 
 /** Callback signature for registering a socket listener with tracking. */
@@ -36,11 +57,7 @@ interface ClientState {
  * @param emit     - Emits an event to the adapter's internal listener map
  * @param client   - Read/write access to the client state the handlers update
  */
-export function registerAllEventListeners(
-    register: RegisterFn,
-    emit: EmitFn,
-    client: ClientState
-): void {
+export function registerAllEventListeners(register: RegisterFn, emit: EmitFn, client: ClientState): void {
     // Room events
     register('room:created', (raw: unknown) => {
         const data = raw as RoomCreatedPayload;

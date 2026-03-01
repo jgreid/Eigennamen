@@ -7,7 +7,7 @@ const {
     createRateLimitedHandler,
     getSocketRateLimiter,
     startRateLimitCleanup,
-    stopRateLimitCleanup
+    stopRateLimitCleanup,
 } = require('../../socket/rateLimitHandler');
 
 describe('Rate Limit Handler', () => {
@@ -18,8 +18,8 @@ describe('Rate Limit Handler', () => {
             id: 'test-socket-id',
             emit: jest.fn(),
             handshake: {
-                address: '127.0.0.1'
-            }
+                address: '127.0.0.1',
+            },
         };
     });
 
@@ -66,7 +66,7 @@ describe('Rate Limit Handler', () => {
             await wrapped({ test: 'data' });
 
             // Give time for async callback
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith({ test: 'data' });
         });
@@ -81,11 +81,11 @@ describe('Rate Limit Handler', () => {
             await wrapped({ test: 'data' });
 
             // Give time for async callback
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', {
                 code: 'INVALID_INPUT',
-                message: 'Invalid input provided'
+                message: 'Invalid input provided',
             });
         });
 
@@ -98,11 +98,11 @@ describe('Rate Limit Handler', () => {
 
             await wrapped({});
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: 'UNKNOWN_CODE',
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
 
@@ -113,12 +113,12 @@ describe('Rate Limit Handler', () => {
 
             await wrapped({});
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             // Message should be sanitized for SERVER_ERROR
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
 
@@ -128,7 +128,7 @@ describe('Rate Limit Handler', () => {
 
             await wrapped({});
 
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             // Should use first part as error event prefix
             expect(mockSocket.emit).toHaveBeenCalledWith('simpleevent:error', expect.any(Object));
@@ -170,7 +170,7 @@ describe('Rate Limit Handler', () => {
             const testSocket = {
                 id: 'rate-limit-test-' + Date.now(),
                 emit: jest.fn(),
-                handshake: { address: '192.168.1.100' }
+                handshake: { address: '192.168.1.100' },
             };
 
             const handler = jest.fn().mockResolvedValue(undefined);
@@ -183,11 +183,11 @@ describe('Rate Limit Handler', () => {
             }
 
             await Promise.all(promises);
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise((resolve) => setTimeout(resolve, 50));
 
             // Some should be rate limited (emit RATE_LIMITED error)
             const rateLimitedCalls = testSocket.emit.mock.calls.filter(
-                call => call[0] === 'chat:error' && call[1]?.code === 'RATE_LIMITED'
+                (call) => call[0] === 'chat:error' && call[1]?.code === 'RATE_LIMITED'
             );
 
             // Depending on rate limit config, some may be limited

@@ -6,12 +6,17 @@ import { UI, validateNickname, validateRoomCode } from './constants.js';
 import { logger } from './logger.js';
 import { t } from './i18n.js';
 import {
-    updateMpIndicator, updateRoomSettingsNavVisibility,
-    updateForfeitButton, copyRoomId
+    updateMpIndicator,
+    updateRoomSettingsNavVisibility,
+    updateForfeitButton,
+    copyRoomId,
 } from './multiplayerUI.js';
 import {
-    syncLocalPlayerState, syncGameStateFromServer, resetMultiplayerState,
-    getRoomCodeFromURL, updateURLWithRoomCode
+    syncLocalPlayerState,
+    syncGameStateFromServer,
+    resetMultiplayerState,
+    getRoomCodeFromURL,
+    updateURLWithRoomCode,
 } from './multiplayerSync.js';
 import { resetGameState } from './stateMutations.js';
 import { renderBoard } from './board.js';
@@ -24,14 +29,24 @@ import type { JoinCreateResult, ServerPlayerData } from './multiplayerTypes.js';
 // Re-export sub-module functions so app.ts imports continue to work
 
 export {
-    initPlayerListUI, initNicknameEditUI,
-    confirmForfeit, closeForfeitConfirm, forfeitGame,
-    closeKickConfirm, confirmKickPlayer, updateForfeitButton
+    initPlayerListUI,
+    initNicknameEditUI,
+    confirmForfeit,
+    closeForfeitConfirm,
+    forfeitGame,
+    closeKickConfirm,
+    confirmKickPlayer,
+    updateForfeitButton,
 } from './multiplayerUI.js';
 
 export {
-    leaveMultiplayerMode, syncGameStateFromServer, syncLocalPlayerState,
-    cleanupMultiplayerListeners, getRoomCodeFromURL, updateURLWithRoomCode, clearRoomCodeFromURL
+    leaveMultiplayerMode,
+    syncGameStateFromServer,
+    syncLocalPlayerState,
+    cleanupMultiplayerListeners,
+    getRoomCodeFromURL,
+    updateURLWithRoomCode,
+    clearRoomCodeFromURL,
 } from './multiplayerSync.js';
 
 export { setupMultiplayerListeners } from './multiplayerListeners.js';
@@ -59,7 +74,6 @@ export function cancelAllOperations(): void {
     cancelJoinOperation();
     cancelCreateOperation();
 }
-
 
 export function openMultiplayer(): void {
     // Pre-fill nickname from storage
@@ -134,11 +148,10 @@ export function setFieldError(message: string, fieldId: string): void {
 }
 
 export function clearFormErrors(): void {
-    ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach(id => {
+    ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach((id) => {
         setFieldError('', id);
     });
 }
-
 
 export async function handleMpAction(): Promise<void> {
     const actionBtn = document.getElementById('btn-mp-action') as HTMLButtonElement;
@@ -221,7 +234,6 @@ async function handleJoinGame(): Promise<void> {
 
         state.currentRoomId = result.room?.code || normalizedRoomId;
         onMultiplayerJoined(result, false);
-
     } catch (error: unknown) {
         const err = error as { name?: string; code?: string; message?: string };
         if (err.name === 'AbortError' || signal.aborted) return;
@@ -296,14 +308,13 @@ async function handleCreateGame(): Promise<void> {
         const normalizedRoomId = roomId.toLocaleLowerCase('en-US');
         const result: JoinCreateResult = await EigennamenClient.createRoom({
             roomId: normalizedRoomId,
-            nickname: nickname
+            nickname: nickname,
         });
 
         if (signal.aborted) return;
 
         state.currentRoomId = result.room?.code || normalizedRoomId;
         onMultiplayerJoined(result, true);
-
     } catch (error: unknown) {
         const err = error as { name?: string; code?: string; message?: string };
         if (err.name === 'AbortError' || signal.aborted) return;
@@ -321,7 +332,6 @@ async function handleCreateGame(): Promise<void> {
         createAbortController = null;
     }
 }
-
 
 export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boolean = false): void {
     // Detect room change and reset stale state
@@ -345,7 +355,8 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     state.multiplayerPlayers = result.players || (result.player ? [result.player] : []);
 
     // Sync current player's team and role from server
-    const currentPlayer: ServerPlayerData | undefined = result.you || result.player || EigennamenClient.player || undefined;
+    const currentPlayer: ServerPlayerData | undefined =
+        result.you || result.player || EigennamenClient.player || undefined;
     if (currentPlayer) {
         syncLocalPlayerState(currentPlayer);
     }
@@ -397,7 +408,6 @@ export function onMultiplayerJoined(result: JoinCreateResult, isHostParam: boole
     }, UI.MP_JOIN_CLOSE_DELAY_MS);
 }
 
-
 // Guard: prevent duplicate registration of multiplayer modal listeners
 let mpModalInitialized = false;
 
@@ -416,7 +426,7 @@ export function initMultiplayerModal(): void {
     if (actionBtn) actionBtn.addEventListener('click', handleMpAction);
 
     // Enter key submits
-    ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach(id => {
+    ['join-nickname', 'join-room-id', 'create-nickname', 'create-room-id'].forEach((id) => {
         const input = document.getElementById(id);
         if (input) {
             input.addEventListener('keypress', (e: KeyboardEvent) => {

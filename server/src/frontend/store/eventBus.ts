@@ -58,7 +58,11 @@ export function emit(event: StateChangeEvent): void {
     const exact = exactListeners.get(event.path);
     if (exact) {
         for (const cb of exact) {
-            try { cb(event); } catch { /* subscriber errors are non-fatal */ }
+            try {
+                cb(event);
+            } catch {
+                /* subscriber errors are non-fatal */
+            }
         }
     }
 
@@ -70,7 +74,11 @@ export function emit(event: StateChangeEvent): void {
         const wildcards = wildcardListeners.get(prefix);
         if (wildcards) {
             for (const cb of wildcards) {
-                try { cb(event); } catch { /* subscriber errors are non-fatal */ }
+                try {
+                    cb(event);
+                } catch {
+                    /* subscriber errors are non-fatal */
+                }
             }
         }
     }

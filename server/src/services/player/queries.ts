@@ -29,7 +29,7 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
     }
 
     // Batch fetch all player data
-    const playerKeys = sessionIds.map(id => `player:${id}`);
+    const playerKeys = sessionIds.map((id) => `player:${id}`);
     const playerDataArray = await withTimeout(
         redis.mGet(playerKeys),
         TIMEOUTS.REDIS_OPERATION,
@@ -81,19 +81,23 @@ export async function getTeamMembers(roomCode: string, team: Team): Promise<Play
                     redis.sRem(teamKey, ...orphanedIds),
                     TIMEOUTS.REDIS_OPERATION,
                     `getTeamMembers-sRem-${roomCode}-${team}`
-                )
+                ),
             ];
             // Only delete player keys for truly expired sessions (no data in Redis)
             if (expiredIds.length > 0) {
-                const playerKeysToDelete = expiredIds.map(id => `player:${id}`);
-                cleanupOps.push(withTimeout(
-                    redis.del(playerKeysToDelete),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `getTeamMembers-del-${roomCode}-${team}`
-                ));
+                const playerKeysToDelete = expiredIds.map((id) => `player:${id}`);
+                cleanupOps.push(
+                    withTimeout(
+                        redis.del(playerKeysToDelete),
+                        TIMEOUTS.REDIS_OPERATION,
+                        `getTeamMembers-del-${roomCode}-${team}`
+                    )
+                );
             }
             await Promise.all(cleanupOps);
-            logger.debug(`Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey} (${expiredIds.length} expired)`);
+            logger.debug(
+                `Cleaned up ${orphanedIds.length} orphaned entries from ${teamKey} (${expiredIds.length} expired)`
+            );
 
             // If team set is now empty, delete it
             const remainingCount = await withTimeout(
@@ -136,7 +140,7 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
     }
 
     // Use MGET to fetch all players in a single Redis call (much faster than N individual GETs)
-    const playerKeys = sessionIds.map(sessionId => `player:${sessionId}`);
+    const playerKeys = sessionIds.map((sessionId) => `player:${sessionId}`);
     const playerDataArray = await withTimeout(
         redis.mGet(playerKeys),
         TIMEOUTS.REDIS_OPERATION,
@@ -180,8 +184,8 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
 
             // Also remove from team sets (both teams since we don't know which team they were on)
             // Performance fix: Batch DEL operations into single Redis calls
-            const playerKeysToDelete = orphanedSessionIds.map(id => `player:${id}`);
-            const socketKeysToDelete = orphanedSessionIds.map(id => `session:${id}:socket`);
+            const playerKeysToDelete = orphanedSessionIds.map((id) => `player:${id}`);
+            const socketKeysToDelete = orphanedSessionIds.map((id) => `session:${id}:socket`);
 
             await Promise.all([
                 withTimeout(
@@ -203,18 +207,21 @@ export async function getPlayersInRoom(roomCode: string): Promise<Player[]> {
                     redis.del(socketKeysToDelete),
                     TIMEOUTS.REDIS_OPERATION,
                     `getPlayersInRoom-del-sockets-${roomCode}`
-                )
+                ),
             ]);
             logger.info(`Cleaned up ${orphanedSessionIds.length} orphaned session IDs from room ${roomCode}`);
         } catch (cleanupError) {
-            logger.warn(`Failed to clean up orphaned session IDs from room ${roomCode}:`, (cleanupError as Error).message);
+            logger.warn(
+                `Failed to clean up orphaned session IDs from room ${roomCode}:`,
+                (cleanupError as Error).message
+            );
         }
     }
 
     // Sort by join time, with sessionId as secondary key for stability
     // Handle null/undefined array elements defensively
     return players
-        .filter((p): p is Player => p != null)  // Remove any null/undefined entries
+        .filter((p): p is Player => p != null) // Remove any null/undefined entries
         .sort((a, b) => {
             const aTime = a.connectedAt ?? 0;
             const bTime = b.connectedAt ?? 0;
@@ -234,11 +241,15 @@ export async function resetRolesForNewGame(roomCode: string): Promise<Player[]> 
     const players = await getPlayersInRoom(roomCode);
 
     const results = await Promise.all(
-        players.map(player => {
+        players.map((player) => {
             if (player.role && player.role !== 'spectator') {
-                return withLock(`player-mutation:${player.sessionId}`, async () => {
-                    return updatePlayer(player.sessionId, { role: 'spectator' as Role });
-                }, { lockTimeout: 3000, maxRetries: 5 });
+                return withLock(
+                    `player-mutation:${player.sessionId}`,
+                    async () => {
+                        return updatePlayer(player.sessionId, { role: 'spectator' as Role });
+                    },
+                    { lockTimeout: 3000, maxRetries: 5 }
+                );
             }
             return Promise.resolve(player);
         })

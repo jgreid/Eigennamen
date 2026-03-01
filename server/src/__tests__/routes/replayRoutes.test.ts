@@ -16,7 +16,10 @@ jest.mock('../../services/playerService', () => ({
 }));
 
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
 }));
 
 const gameHistoryService = require('../../services/gameHistoryService');
@@ -44,7 +47,7 @@ function mockAuthenticatedPlayer(roomCode: string) {
         roomCode,
         nickname: 'TestPlayer',
         team: 'red',
-        role: 'spectator'
+        role: 'spectator',
     });
 }
 
@@ -82,9 +85,7 @@ describe('Replay Routes', () => {
         });
 
         it('should return 401 when X-Session-Id header is missing', async () => {
-            const response = await request(app)
-                .get(`/api/replays/TEST12/${validGameId}`)
-                .expect(401);
+            const response = await request(app).get(`/api/replays/TEST12/${validGameId}`).expect(401);
 
             expect(response.body.error.code).toBe('NOT_AUTHORIZED');
             expect(response.body.error.message).toBe('Session ID required');
@@ -94,7 +95,7 @@ describe('Replay Routes', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: VALID_SESSION_ID,
                 roomCode: 'other-room', // different room
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
 
             const response = await request(app)
@@ -178,7 +179,10 @@ describe('Replay Routes', () => {
                 .set('X-Session-Id', VALID_SESSION_ID)
                 .expect(500);
 
-            expect(logger.error).toHaveBeenCalledWith('Error fetching replay', expect.objectContaining({ roomCode: 'TEST12', error: 'DB error' }));
+            expect(logger.error).toHaveBeenCalledWith(
+                'Error fetching replay',
+                expect.objectContaining({ roomCode: 'TEST12', error: 'DB error' })
+            );
             expect(response.body.error.code).toBe('SERVER_ERROR');
         });
     });

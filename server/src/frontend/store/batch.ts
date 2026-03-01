@@ -61,7 +61,7 @@ function flush(): void {
     }
 
     // Emit batch summary
-    const changedPaths = [...new Set(events.map(e => e.path))];
+    const changedPaths = [...new Set(events.map((e) => e.path))];
     emit({
         path: 'batch:complete',
         oldValue: null,

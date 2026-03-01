@@ -1,6 +1,5 @@
 import logger from './logger';
 
-
 /**
  * Health status interface
  */
@@ -16,7 +15,6 @@ interface HealthStatus {
     failureRate: string;
     lastError: Error | null;
 }
-
 
 /** Timestamp of the last successful pub client PING/event */
 let lastPubSuccess: number | null = null;
@@ -51,7 +49,6 @@ const MAX_SILENCE_MS = 90_000;
  */
 const FAILURE_THRESHOLD = 3;
 
-
 function recordSuccess(client: 'pub' | 'sub'): void {
     const now = Date.now();
     if (client === 'pub') {
@@ -69,7 +66,6 @@ function recordFailure(err: Error): void {
     lastError = err;
 }
 
-
 /**
  * Attach health monitoring to pub/sub Redis clients.
  *
@@ -81,8 +77,16 @@ function recordFailure(err: Error): void {
  * @param subClient - The Redis subscribe client (must support .ping())
  */
 function attachToClients(
-    pubClient: { on: (event: string, cb: (...args: unknown[]) => void) => void; removeAllListeners?: (event: string) => void; ping: () => Promise<string> },
-    subClient: { on: (event: string, cb: (...args: unknown[]) => void) => void; removeAllListeners?: (event: string) => void; ping: () => Promise<string> }
+    pubClient: {
+        on: (event: string, cb: (...args: unknown[]) => void) => void;
+        removeAllListeners?: (event: string) => void;
+        ping: () => Promise<string>;
+    },
+    subClient: {
+        on: (event: string, cb: (...args: unknown[]) => void) => void;
+        removeAllListeners?: (event: string) => void;
+        ping: () => Promise<string>;
+    }
 ): void {
     // Mark both as healthy on attach (they just connected)
     const now = Date.now();
@@ -170,9 +174,7 @@ function getHealth(): HealthStatus {
     const isHealthy = !failureUnhealthy && !pubStale && !subStale;
 
     const total = totalPublishes + totalFailures;
-    const failureRate = total > 0
-        ? `${((totalFailures / total) * 100).toFixed(1)}%`
-        : '0%';
+    const failureRate = total > 0 ? `${((totalFailures / total) * 100).toFixed(1)}%` : '0%';
 
     return {
         isHealthy,
@@ -184,7 +186,7 @@ function getHealth(): HealthStatus {
         totalPublishes,
         totalFailures,
         failureRate,
-        lastError
+        lastError,
     };
 }
 
@@ -220,7 +222,7 @@ export {
     reset,
     FAILURE_THRESHOLD,
     MAX_SILENCE_MS,
-    PING_INTERVAL_MS
+    PING_INTERVAL_MS,
 };
 
 export type { HealthStatus };

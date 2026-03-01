@@ -5,15 +5,8 @@ import { getRedis } from '../../config/redis';
 import logger from '../../utils/logger';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { parseJSON, tryParseJSON } from '../../utils/parseJSON';
-import {
-    REDIS_TTL,
-    GAME_HISTORY,
-    RETRY_CONFIG
-} from '../../config/constants';
-import {
-    GameStateError,
-    ServerError
-} from '../../errors/GameError';
+import { REDIS_TTL, GAME_HISTORY, RETRY_CONFIG } from '../../config/constants';
+import { GameStateError, ServerError } from '../../errors/GameError';
 import { REVEAL_CARD_SCRIPT, END_TURN_SCRIPT } from '../../scripts';
 
 // Re-export Lua scripts from centralized barrel (previously loaded from disk here)
@@ -24,55 +17,55 @@ export const OPTIMIZED_END_TURN_SCRIPT: string = END_TURN_SCRIPT;
 // This preprocessor normalizes empty objects back to empty arrays so
 // Zod's z.array() validation succeeds after Lua script re-encodes game state.
 const emptyObjToArray = (val: unknown) =>
-    val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val as object).length === 0
-        ? []
-        : val;
+    val && typeof val === 'object' && !Array.isArray(val) && Object.keys(val as object).length === 0 ? [] : val;
 
 // Zod schemas
-const gameStateSchema = z.object({
-    id: z.string(),
-    seed: z.string().optional(),
-    words: z.array(z.string()).optional(),
-    types: z.array(z.string()).optional(),
-    revealed: z.array(z.boolean()).optional(),
-    currentTurn: z.string().optional(),
-    redScore: z.number().optional(),
-    blueScore: z.number().optional(),
-    redTotal: z.number().optional(),
-    blueTotal: z.number().optional(),
-    gameOver: z.boolean().optional(),
-    winner: z.string().nullable().optional(),
-    currentClue: z.unknown().optional(),
-    guessesUsed: z.number().optional(),
-    guessesAllowed: z.number().optional(),
-    clues: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
-    history: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
-    stateVersion: z.number().optional(),
-    createdAt: z.number().optional(),
-    gameMode: z.string().optional(),
-    wordListId: z.string().nullable().optional(),
-    duetTypes: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),
-    timerTokens: z.number().optional(),
-    greenFound: z.number().optional(),
-    greenTotal: z.number().optional(),
-    // Match mode fields
-    cardScores: z.preprocess(emptyObjToArray, z.array(z.number())).optional(),
-    revealedBy: z.preprocess(emptyObjToArray, z.array(z.string().nullable())).optional(),
-    matchRound: z.number().optional(),
-    redMatchScore: z.number().optional(),
-    blueMatchScore: z.number().optional(),
-    roundHistory: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
-    matchOver: z.boolean().optional(),
-    matchWinner: z.string().nullable().optional(),
-    firstTeamHistory: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),
-}).refine(
-    (data) => {
-        // Only validate length consistency when all three arrays are present
-        if (!data.words || !data.types || !data.revealed) return true;
-        return data.words.length === data.types.length && data.types.length === data.revealed.length;
-    },
-    { message: 'Game state arrays (words, types, revealed) must have the same length' }
-);
+const gameStateSchema = z
+    .object({
+        id: z.string(),
+        seed: z.string().optional(),
+        words: z.array(z.string()).optional(),
+        types: z.array(z.string()).optional(),
+        revealed: z.array(z.boolean()).optional(),
+        currentTurn: z.string().optional(),
+        redScore: z.number().optional(),
+        blueScore: z.number().optional(),
+        redTotal: z.number().optional(),
+        blueTotal: z.number().optional(),
+        gameOver: z.boolean().optional(),
+        winner: z.string().nullable().optional(),
+        currentClue: z.unknown().optional(),
+        guessesUsed: z.number().optional(),
+        guessesAllowed: z.number().optional(),
+        clues: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
+        history: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
+        stateVersion: z.number().optional(),
+        createdAt: z.number().optional(),
+        gameMode: z.string().optional(),
+        wordListId: z.string().nullable().optional(),
+        duetTypes: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),
+        timerTokens: z.number().optional(),
+        greenFound: z.number().optional(),
+        greenTotal: z.number().optional(),
+        // Match mode fields
+        cardScores: z.preprocess(emptyObjToArray, z.array(z.number())).optional(),
+        revealedBy: z.preprocess(emptyObjToArray, z.array(z.string().nullable())).optional(),
+        matchRound: z.number().optional(),
+        redMatchScore: z.number().optional(),
+        blueMatchScore: z.number().optional(),
+        roundHistory: z.preprocess(emptyObjToArray, z.array(z.unknown())).optional(),
+        matchOver: z.boolean().optional(),
+        matchWinner: z.string().nullable().optional(),
+        firstTeamHistory: z.preprocess(emptyObjToArray, z.array(z.string())).optional(),
+    })
+    .refine(
+        (data) => {
+            // Only validate length consistency when all three arrays are present
+            if (!data.words || !data.types || !data.revealed) return true;
+            return data.words.length === data.types.length && data.types.length === data.revealed.length;
+        },
+        { message: 'Game state arrays (words, types, revealed) must have the same length' }
+    );
 
 const luaResultObjectSchema = z.record(z.string(), z.unknown());
 
@@ -108,41 +101,45 @@ const cardTypeSchema = z.enum(['red', 'blue', 'neutral', 'assassin']);
 // Use cardTypeSchema (matching the TS type) to preserve type compatibility.
 // If the TS type is broadened to include 'green', update this too.
 
-export const revealResultSchema = z.object({
-    index: z.number(),
-    type: cardTypeSchema,
-    word: z.string(),
-    redScore: z.number(),
-    blueScore: z.number(),
-    currentTurn: teamSchema,
-    guessesUsed: z.number(),
-    guessesAllowed: z.number(),
-    turnEnded: z.boolean(),
-    gameOver: z.boolean(),
-    winner: teamSchema.nullable(),
-    endReason: z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens']).nullable(),
-    // allTypes is absent from Lua result when gameOver=false, present when true
-    allTypes: z.array(cardTypeSchema).nullable().optional().default(null),
-    // Duet mode fields
-    timerTokens: z.number().optional(),
-    greenFound: z.number().optional(),
-    greenTotal: z.number().optional(),
-    allDuetTypes: z.array(cardTypeSchema).nullable().optional(),
-    // Match mode fields
-    cardScore: z.number().optional(),
-    matchRound: z.number().optional(),
-    redMatchScore: z.number().optional(),
-    blueMatchScore: z.number().optional(),
-    roundHistory: z.array(z.unknown()).optional(),
-    matchOver: z.boolean().optional(),
-    matchWinner: teamSchema.nullable().optional(),
-    cardScores: z.array(z.number().nullable()).optional(),
-}).passthrough();
+export const revealResultSchema = z
+    .object({
+        index: z.number(),
+        type: cardTypeSchema,
+        word: z.string(),
+        redScore: z.number(),
+        blueScore: z.number(),
+        currentTurn: teamSchema,
+        guessesUsed: z.number(),
+        guessesAllowed: z.number(),
+        turnEnded: z.boolean(),
+        gameOver: z.boolean(),
+        winner: teamSchema.nullable(),
+        endReason: z.enum(['assassin', 'completed', 'maxGuesses', 'timerTokens']).nullable(),
+        // allTypes is absent from Lua result when gameOver=false, present when true
+        allTypes: z.array(cardTypeSchema).nullable().optional().default(null),
+        // Duet mode fields
+        timerTokens: z.number().optional(),
+        greenFound: z.number().optional(),
+        greenTotal: z.number().optional(),
+        allDuetTypes: z.array(cardTypeSchema).nullable().optional(),
+        // Match mode fields
+        cardScore: z.number().optional(),
+        matchRound: z.number().optional(),
+        redMatchScore: z.number().optional(),
+        blueMatchScore: z.number().optional(),
+        roundHistory: z.array(z.unknown()).optional(),
+        matchOver: z.boolean().optional(),
+        matchWinner: teamSchema.nullable().optional(),
+        cardScores: z.array(z.number().nullable()).optional(),
+    })
+    .passthrough();
 
-export const endTurnResultSchema = z.object({
-    currentTurn: teamSchema,
-    previousTurn: teamSchema,
-}).passthrough();
+export const endTurnResultSchema = z
+    .object({
+        currentTurn: teamSchema,
+        previousTurn: teamSchema,
+    })
+    .passthrough();
 
 /**
  * Safely parse game data from Redis
@@ -179,11 +176,11 @@ export async function executeLuaScript<T>(
 ): Promise<T> {
     const redis: RedisClient = getRedis();
 
-    const resultStr = await withTimeout(
+    const resultStr = (await withTimeout(
         redis.eval(script, { keys: [gameKey], arguments: args }),
         TIMEOUTS.REDIS_OPERATION,
         `${operationName}-lua`
-    ) as string | null;
+    )) as string | null;
 
     if (!resultStr || typeof resultStr !== 'string') {
         throw new ServerError('Invalid Lua script result: empty or non-string');
@@ -191,7 +188,10 @@ export async function executeLuaScript<T>(
 
     let result: T & { error?: string; word?: string };
     try {
-        result = parseJSON(resultStr, luaResultObjectSchema, `${operationName} Lua result`) as T & { error?: string; word?: string };
+        result = parseJSON(resultStr, luaResultObjectSchema, `${operationName} Lua result`) as T & {
+            error?: string;
+            word?: string;
+        };
     } catch (parseError) {
         logger.error(`Failed to parse Lua ${operationName} result`, { error: (parseError as Error).message });
         throw new ServerError('Failed to parse game operation result');
@@ -208,7 +208,7 @@ export async function executeLuaScript<T>(
         const validated = resultSchema.safeParse(result);
         if (!validated.success) {
             logger.error(`Lua ${operationName} result failed schema validation`, {
-                errors: validated.error.issues.map(i => `${i.path.join('.')}: ${i.message}`)
+                errors: validated.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
             });
             throw new ServerError(`Lua ${operationName} returned unexpected shape`);
         }
@@ -238,13 +238,17 @@ export async function executeGameTransaction<T>(
 
             const gameData = await withTimeout(redis.get(gameKey), TIMEOUTS.REDIS_OPERATION, `${_operationName}-get`);
             if (!gameData) {
-                await redis.unwatch().catch(() => { /* best-effort */ });
+                await redis.unwatch().catch(() => {
+                    /* best-effort */
+                });
                 throw GameStateError.noActiveGame();
             }
 
             const game = safeParseGameData(gameData, roomCode);
             if (!game) {
-                await redis.unwatch().catch(() => { /* best-effort */ });
+                await redis.unwatch().catch(() => {
+                    /* best-effort */
+                });
                 await withTimeout(redis.del(gameKey), TIMEOUTS.REDIS_OPERATION, `${_operationName}-delCorrupted`);
                 throw GameStateError.corrupted(roomCode);
             }
@@ -257,9 +261,7 @@ export async function executeGameTransaction<T>(
             const ttl = currentTTL > 0 ? currentTTL : REDIS_TTL.ROOM;
 
             const txResult = await withTimeout(
-                redis.multi()
-                    .set(gameKey, JSON.stringify(game), { EX: ttl })
-                    .exec(),
+                redis.multi().set(gameKey, JSON.stringify(game), { EX: ttl }).exec(),
                 TIMEOUTS.REDIS_OPERATION,
                 `${_operationName}-exec`
             );
@@ -270,15 +272,18 @@ export async function executeGameTransaction<T>(
                 if (retries < MAX_TRANSACTION_RETRIES) {
                     // Exponential backoff to reduce contention
                     const delay = TRANSACTION_BASE_DELAY_MS * Math.pow(2, retries - 1);
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                    await new Promise((resolve) => setTimeout(resolve, delay));
                 }
                 continue;
             }
 
             return result;
-
         } catch (error) {
-            try { await redis.unwatch(); } catch { /* don't mask original error */ }
+            try {
+                await redis.unwatch();
+            } catch {
+                /* don't mask original error */
+            }
             throw error;
         }
     }
@@ -286,4 +291,3 @@ export async function executeGameTransaction<T>(
 
     throw ServerError.concurrentModification();
 }
-

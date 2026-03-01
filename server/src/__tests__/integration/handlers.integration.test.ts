@@ -30,25 +30,34 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         sAdd: jest.fn(async (key, ...members) => {
             if (!mockRedisSets.has(key)) mockRedisSets.set(key, new Set());
             const set = mockRedisSets.get(key);
             let added = 0;
-            members.forEach(m => { if (!set.has(m)) { set.add(m); added++; } });
+            members.forEach((m) => {
+                if (!set.has(m)) {
+                    set.add(m);
+                    added++;
+                }
+            });
             return added;
         }),
         sRem: jest.fn(async (key, ...members) => {
             const set = mockRedisSets.get(key);
             if (!set) return 0;
             let removed = 0;
-            members.forEach(m => { if (set.delete(m)) removed++; });
+            members.forEach((m) => {
+                if (set.delete(m)) removed++;
+            });
             return removed;
         }),
         sMembers: jest.fn(async (key) => {
@@ -65,11 +74,11 @@ jest.mock('../../config/redis', () => {
         }),
         watch: jest.fn(async () => 'OK'),
         unwatch: jest.fn(async () => 'OK'),
-        mGet: jest.fn(async (keys) => keys.map(k => mockRedisStorage.get(k) || null)),
+        mGet: jest.fn(async (keys) => keys.map((k) => mockRedisStorage.get(k) || null)),
         multi: jest.fn(() => ({
             set: jest.fn().mockReturnThis(),
             del: jest.fn().mockReturnThis(),
-            exec: jest.fn(async () => [[null, 'OK']])
+            exec: jest.fn(async () => [[null, 'OK']]),
         })),
         eval: jest.fn(async (script, options) => {
             // Simulate atomic room creation script (includes host player creation)
@@ -146,7 +155,8 @@ jest.mock('../../config/redis', () => {
 
                 if (newSettings.teamNames !== undefined) room.settings.teamNames = newSettings.teamNames;
                 if (newSettings.turnTimer !== undefined) room.settings.turnTimer = newSettings.turnTimer;
-                if (newSettings.allowSpectators !== undefined) room.settings.allowSpectators = newSettings.allowSpectators;
+                if (newSettings.allowSpectators !== undefined)
+                    room.settings.allowSpectators = newSettings.allowSpectators;
                 if (newSettings.gameMode !== undefined) room.settings.gameMode = newSettings.gameMode;
 
                 mockRedisStorage.set(roomKey, JSON.stringify(room));
@@ -200,13 +210,13 @@ jest.mock('../../config/redis', () => {
             return null;
         }),
         publish: jest.fn(async () => 0),
-        duplicate: jest.fn(() => mockRedis)
+        duplicate: jest.fn(() => mockRedis),
     };
 
     return {
         getRedis: () => mockRedis,
         getPubSubClients: () => ({ pubClient: mockRedis, subClient: mockRedis }),
-        isUsingMemoryMode: () => true
+        isUsingMemoryMode: () => true,
     };
 });
 
@@ -215,14 +225,14 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock timer service to avoid actual timers
 jest.mock('../../services/timerService', () => ({
     startTimer: jest.fn(async () => ({ durationSeconds: 120, endTime: Date.now() + 120000 })),
     stopTimer: jest.fn(async () => {}),
-    getTimerStatus: jest.fn(async () => null)
+    getTimerStatus: jest.fn(async () => null),
 }));
 jest.mock('../../utils/distributedLock', () => ({
     withLock: jest.fn(async (_key, fn) => fn()),
@@ -253,7 +263,7 @@ describe('Socket Handler Integration Tests', () => {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: false,
-                auth: { sessionId }
+                auth: { sessionId },
             });
 
             const timeout = setTimeout(() => {
@@ -289,7 +299,7 @@ describe('Socket Handler Integration Tests', () => {
         httpServer = http.createServer();
         io = new Server(httpServer, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         socketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
@@ -353,7 +363,7 @@ describe('Socket Handler Integration Tests', () => {
                     const responsePromise = waitForEvent(client, 'room:created');
                     client.emit('room:create', {
                         roomId: 'custom-room',
-                        settings: { turnTimer: 90 }
+                        settings: { turnTimer: 90 },
                     });
 
                     const response = await responsePromise;
@@ -380,7 +390,7 @@ describe('Socket Handler Integration Tests', () => {
                     const joinResponsePromise = waitForEvent(joinerClient, 'room:joined');
                     joinerClient.emit('room:join', {
                         roomId: room.code,
-                        nickname: 'TestPlayer'
+                        nickname: 'TestPlayer',
                     });
 
                     const joinResponse = await joinResponsePromise;
@@ -399,7 +409,7 @@ describe('Socket Handler Integration Tests', () => {
                     const errorPromise = waitForEvent(client, 'room:error');
                     client.emit('room:join', {
                         roomId: 'nonexistent',
-                        nickname: 'TestPlayer'
+                        nickname: 'TestPlayer',
                     });
 
                     const error = await errorPromise;
@@ -423,7 +433,7 @@ describe('Socket Handler Integration Tests', () => {
                     const joinResponsePromise = waitForEvent(joinerClient, 'room:joined');
                     joinerClient.emit('room:join', {
                         roomId: 'CASETEST',
-                        nickname: 'TestPlayer'
+                        nickname: 'TestPlayer',
                     });
 
                     const joinResponse = await joinResponsePromise;
@@ -448,7 +458,7 @@ describe('Socket Handler Integration Tests', () => {
                     // Update settings - we just verify we get a response
                     const updatePromise = waitForEvent(client, 'room:settingsUpdated');
                     client.emit('room:settings', {
-                        turnTimer: 120
+                        turnTimer: 120,
                     });
 
                     const response = await updatePromise;
@@ -552,7 +562,7 @@ describe('Socket Handler Integration Tests', () => {
             playerClient.emit('room:join', { roomId: room.code, nickname: 'Player1' });
 
             const settledResults = await Promise.allSettled([joinPromise, hostNotifyPromise]);
-            const [joinResponse, notification] = settledResults.map(r => {
+            const [joinResponse, notification] = settledResults.map((r) => {
                 if (r.status === 'rejected') throw r.reason;
                 return r.value;
             });
@@ -661,7 +671,7 @@ describe('Chat Handlers', () => {
         httpServer = http.createServer();
         io = new Server(httpServer, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         socketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
@@ -700,7 +710,7 @@ describe('Chat Handlers', () => {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: false,
-                auth: { sessionId }
+                auth: { sessionId },
             });
 
             const timeout = setTimeout(() => {

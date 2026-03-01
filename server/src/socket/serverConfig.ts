@@ -27,7 +27,7 @@ function createSocketServer(server: HttpServer): SocketIOServer {
         cors: {
             origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((s: string) => s.trim()),
             methods: ['GET', 'POST'],
-            credentials: true
+            credentials: true,
         },
         // Use WebSocket only in production for better Fly.io compatibility
         // Polling can have issues with Fly.io's proxy and load balancing
@@ -44,7 +44,7 @@ function createSocketServer(server: HttpServer): SocketIOServer {
             // Maximum duration a connection can be offline
             maxDisconnectionDuration: SOCKET.MAX_DISCONNECTION_DURATION_MS,
             // Skip middlewares on reconnection
-            skipMiddlewares: false
+            skipMiddlewares: false,
         },
         // Allow EIO4 for older clients
         allowEIO3: true,
@@ -52,14 +52,14 @@ function createSocketServer(server: HttpServer): SocketIOServer {
         perMessageDeflate: {
             threshold: 1024, // Only compress messages larger than 1KB
             zlibDeflateOptions: {
-                chunkSize: 16 * 1024 // 16KB chunks
+                chunkSize: 16 * 1024, // 16KB chunks
             },
             zlibInflateOptions: {
-                chunkSize: 16 * 1024
+                chunkSize: 16 * 1024,
             },
             clientNoContextTakeover: true, // Don't keep compression context between messages
-            serverNoContextTakeover: true
-        }
+            serverNoContextTakeover: true,
+        },
     });
 
     // Use Redis adapter for horizontal scaling (skip in memory mode)
@@ -71,7 +71,10 @@ function createSocketServer(server: HttpServer): SocketIOServer {
             socketServer.adapter(createAdapter(pubClient, subClient));
             logger.info('Socket.io Redis adapter configured for horizontal scaling');
         } catch (error) {
-            logger.warn('Redis adapter not available, using in-memory adapter (single instance only):', (error as Error).message);
+            logger.warn(
+                'Redis adapter not available, using in-memory adapter (single instance only):',
+                (error as Error).message
+            );
         }
     }
 

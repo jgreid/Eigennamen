@@ -113,16 +113,13 @@ export interface ChangeCheckOptions {
  * @param options - Options for context building
  * @returns PlayerContext
  */
-async function getPlayerContext(
-    socket: GameSocket,
-    options: PlayerContextOptions = {}
-): Promise<PlayerContextResult> {
+async function getPlayerContext(socket: GameSocket, options: PlayerContextOptions = {}): Promise<PlayerContextResult> {
     const {
         requireRoom = true,
         requireGame = false,
         requireHost = false,
         requireTeam = false,
-        requireRole = null
+        requireRole = null,
     } = options;
 
     const sessionId = socket.sessionId;
@@ -140,7 +137,7 @@ async function getPlayerContext(
             sessionId,
             socketRoomCode,
             redisRoomCode,
-            playerExists: !!player
+            playerExists: !!player,
         });
 
         if (redisRoomCode) {
@@ -161,7 +158,7 @@ async function getPlayerContext(
 
             logger.info('Corrected socket room membership to match Redis', {
                 sessionId,
-                roomCode: redisRoomCode
+                roomCode: redisRoomCode,
             });
         } else {
             if (socketRoomCode) {
@@ -171,7 +168,7 @@ async function getPlayerContext(
             socket.roomCode = null;
             logger.info('Cleared stale socket room membership', {
                 sessionId,
-                staleRoomCode: socketRoomCode
+                staleRoomCode: socketRoomCode,
             });
         }
     }
@@ -187,17 +184,15 @@ async function getPlayerContext(
         isInRoom: !!roomCode && !!player,
         isHost: player?.isHost || false,
         team: player?.team || null,
-        role: player?.role || null
+        role: player?.role || null,
     };
 
     // Step 5: Apply requirements
 
     if (requireRoom && !context.isInRoom) {
-        throw new RoomError(
-            ERROR_CODES.ROOM_NOT_FOUND,
-            'You must be in a room to perform this action',
-            { roomCode: 'none' }
-        );
+        throw new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'You must be in a room to perform this action', {
+            roomCode: 'none',
+        });
     }
 
     if (roomCode) {
@@ -211,11 +206,9 @@ async function getPlayerContext(
     }
 
     if (requireGame && !context.game) {
-        throw new RoomError(
-            ERROR_CODES.GAME_NOT_STARTED,
-            'No active game in this room',
-            { roomCode: roomCode ?? undefined }
-        );
+        throw new RoomError(ERROR_CODES.GAME_NOT_STARTED, 'No active game in this room', {
+            roomCode: roomCode ?? undefined,
+        });
     }
 
     if (requireHost && !context.isHost) {
@@ -223,19 +216,15 @@ async function getPlayerContext(
     }
 
     if (requireTeam && !context.team) {
-        throw new PlayerError(
-            ERROR_CODES.NOT_AUTHORIZED,
-            'You must join a team first',
-            { sessionId }
-        );
+        throw new PlayerError(ERROR_CODES.NOT_AUTHORIZED, 'You must join a team first', { sessionId });
     }
 
     if (requireRole && context.role !== requireRole) {
-        throw new PlayerError(
-            ERROR_CODES.NOT_AUTHORIZED,
-            `This action requires the ${requireRole} role`,
-            { sessionId, currentRole: context.role, requiredRole: requireRole }
-        );
+        throw new PlayerError(ERROR_CODES.NOT_AUTHORIZED, `This action requires the ${requireRole} role`, {
+            sessionId,
+            currentRole: context.role,
+            requiredRole: requireRole,
+        });
     }
 
     return context;
@@ -267,7 +256,7 @@ function canChangeTeamOrRole(
         return {
             allowed: false,
             reason: 'Cannot change teams as spymaster during an active game (card information would leak)',
-            code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM
+            code: ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM,
         };
     }
 
@@ -280,7 +269,7 @@ function canChangeTeamOrRole(
             }
             return {
                 allowed: false,
-                reason: `Cannot change while you are the active ${player.role} during your team's turn`
+                reason: `Cannot change while you are the active ${player.role} during your team's turn`,
             };
         }
     }
@@ -308,11 +297,7 @@ function isPlayerSpectator(player: { team?: Team | null; role?: Role | string | 
  * @param currentPlayer - Current player state
  * @param previousPlayer - Previous player state (null on first call)
  */
-function syncSocketRooms(
-    socket: GameSocket,
-    currentPlayer: Player | null,
-    previousPlayer: Player | null
-): void {
+function syncSocketRooms(socket: GameSocket, currentPlayer: Player | null, previousPlayer: Player | null): void {
     if (!currentPlayer || !currentPlayer.roomCode) {
         return;
     }
@@ -322,9 +307,7 @@ function syncSocketRooms(
     const isSpectator = isPlayerSpectator(currentPlayer);
 
     // Default previous state to spectator (first call)
-    const wasSpectator = previousPlayer
-        ? isPlayerSpectator(previousPlayer)
-        : true;
+    const wasSpectator = previousPlayer ? isPlayerSpectator(previousPlayer) : true;
 
     if (wasSpectator && !isSpectator) {
         // Transitioning from spectator to team player
@@ -335,9 +318,4 @@ function syncSocketRooms(
     }
 }
 
-export {
-    getPlayerContext,
-    canChangeTeamOrRole,
-    syncSocketRooms,
-    isPlayerSpectator
-};
+export { getPlayerContext, canChangeTeamOrRole, syncSocketRooms, isPlayerSpectator };

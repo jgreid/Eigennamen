@@ -102,7 +102,7 @@ async function startServer(): Promise<void> {
                                     logger.warn(`${name} disconnect timed out after ${ms}ms`);
                                     resolve();
                                 }, ms)
-                            )
+                            ),
                         ]);
 
                     await disconnectWithTimeout(disconnectRedis, 'Redis', 3000);
@@ -136,7 +136,6 @@ async function startServer(): Promise<void> {
                 shutdown('UNHANDLED_REJECTION');
             }
         });
-
     } catch (error) {
         logger.error('Failed to start server:', error);
         process.exit(1);

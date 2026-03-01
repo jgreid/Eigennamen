@@ -60,11 +60,31 @@ import { updateURL } from '../../frontend/url-state';
 
 const SAMPLE_WORDS = Array.from({ length: 25 }, (_, i) => `WORD_${i}`);
 const SAMPLE_TYPES = [
-    'red', 'red', 'red', 'red', 'red',
-    'red', 'red', 'red', 'red', 'blue',
-    'blue', 'blue', 'blue', 'blue', 'blue',
-    'blue', 'blue', 'neutral', 'neutral', 'neutral',
-    'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'assassin',
 ];
 
 function resetState() {
@@ -159,9 +179,7 @@ describe('revealCard (standalone mode)', () => {
 
     test('announces reveal to screen reader', () => {
         revealCard(0);
-        expect(announceToScreenReader).toHaveBeenCalledWith(
-            expect.stringContaining('game.wordRevealedAs')
-        );
+        expect(announceToScreenReader).toHaveBeenCalledWith(expect.stringContaining('game.wordRevealedAs'));
     });
 
     test('clears animation tracking after timeout', () => {
@@ -176,17 +194,17 @@ describe('revealCard (standalone mode)', () => {
 
     test('rejects invalid index', () => {
         revealCard(-1);
-        expect(state.gameState.revealed.filter(r => r).length).toBe(0);
+        expect(state.gameState.revealed.filter((r) => r).length).toBe(0);
     });
 
     test('rejects out-of-bounds index', () => {
         revealCard(99);
-        expect(state.gameState.revealed.filter(r => r).length).toBe(0);
+        expect(state.gameState.revealed.filter((r) => r).length).toBe(0);
     });
 
     test('rejects non-number index', () => {
         revealCard('abc' as unknown as number);
-        expect(state.gameState.revealed.filter(r => r).length).toBe(0);
+        expect(state.gameState.revealed.filter((r) => r).length).toBe(0);
     });
 
     test('shows toast when game is over', () => {
@@ -214,10 +232,7 @@ describe('revealCard (standalone mode)', () => {
         state.clickerTeam = 'blue';
         state.gameState.currentTurn = 'red';
         revealCard(0);
-        expect(showToast).toHaveBeenCalledWith(
-            expect.stringContaining('game.notYourTurn'),
-            'warning'
-        );
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.notYourTurn'), 'warning');
     });
 
     test('shows toast when no team and no clicker', () => {
@@ -234,10 +249,7 @@ describe('revealCard (standalone mode)', () => {
         state.playerTeam = 'blue';
         state.gameState.currentTurn = 'red';
         revealCard(0);
-        expect(showToast).toHaveBeenCalledWith(
-            expect.stringContaining('game.notYourTurn'),
-            'warning'
-        );
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('game.notYourTurn'), 'warning');
     });
 
     test('shows toast for onlyClickerCanReveal fallback', () => {

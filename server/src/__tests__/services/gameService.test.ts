@@ -2,12 +2,7 @@
  * Unit Tests for Game Service
  */
 
-const {
-    seededRandom,
-    hashString,
-    shuffleWithSeed,
-    generateSeed
-} = require('../../services/game/boardGenerator');
+const { seededRandom, hashString, shuffleWithSeed, generateSeed } = require('../../services/game/boardGenerator');
 
 describe('seededRandom', () => {
     test('returns consistent values for the same seed', () => {
@@ -31,16 +26,8 @@ describe('seededRandom', () => {
     });
 
     test('produces deterministic sequence when incremented', () => {
-        const sequence1 = [
-            seededRandom(100),
-            seededRandom(101),
-            seededRandom(102)
-        ];
-        const sequence2 = [
-            seededRandom(100),
-            seededRandom(101),
-            seededRandom(102)
-        ];
+        const sequence1 = [seededRandom(100), seededRandom(101), seededRandom(102)];
+        const sequence2 = [seededRandom(100), seededRandom(101), seededRandom(102)];
         expect(sequence1).toEqual(sequence2);
     });
 });
@@ -167,24 +154,18 @@ describe('Game Board Generation', () => {
 
         let types = [];
         if (firstTeam === 'red') {
-            types = [
-                ...Array(FIRST_TEAM_CARDS).fill('red'),
-                ...Array(SECOND_TEAM_CARDS).fill('blue')
-            ];
+            types = [...Array(FIRST_TEAM_CARDS).fill('red'), ...Array(SECOND_TEAM_CARDS).fill('blue')];
         } else {
-            types = [
-                ...Array(SECOND_TEAM_CARDS).fill('red'),
-                ...Array(FIRST_TEAM_CARDS).fill('blue')
-            ];
+            types = [...Array(SECOND_TEAM_CARDS).fill('red'), ...Array(FIRST_TEAM_CARDS).fill('blue')];
         }
         types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral'), 'assassin'];
 
         expect(types.length).toBe(BOARD_SIZE);
-        expect(types.filter(t => t === 'neutral').length).toBe(NEUTRAL_CARDS);
-        expect(types.filter(t => t === 'assassin').length).toBe(ASSASSIN_CARDS);
+        expect(types.filter((t) => t === 'neutral').length).toBe(NEUTRAL_CARDS);
+        expect(types.filter((t) => t === 'assassin').length).toBe(ASSASSIN_CARDS);
 
-        const redCount = types.filter(t => t === 'red').length;
-        const blueCount = types.filter(t => t === 'blue').length;
+        const redCount = types.filter((t) => t === 'red').length;
+        const blueCount = types.filter((t) => t === 'blue').length;
 
         // First team gets 9, second gets 8
         if (firstTeam === 'red') {

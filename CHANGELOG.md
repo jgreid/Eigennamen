@@ -4,6 +4,26 @@ All notable changes to Eigennamen Online are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [4.1.0] - 2026-03-01
+
+### Added
+- Prettier code formatter with `.prettierrc.json` config (4-space indent, single quotes, 120 char width)
+- `npm run format` and `npm run format:check` scripts
+- Prettier check step in CI pipeline (lint job)
+- `eslint-config-prettier` to disable formatting rules that conflict with Prettier
+- `ServerRevealData` interface to replace `Record<string, any>` in frontend reveal logic
+- `TranslationValue` type for i18n translation data
+
+### Changed
+- Re-enabled `@typescript-eslint/no-explicit-any` as `warn` for frontend code (was `off`)
+- Replaced all 4 `any` type annotations in frontend with proper types (`unknown`, typed interfaces)
+- Removed `forceExit: true` from Jest config (CI still uses `--forceExit` flag as safety net; local runs now surface unclosed handle warnings)
+- Removed ESLint formatting rules (`semi`, `quotes`, `indent`, `no-trailing-spaces`, etc.) — Prettier handles formatting
+- Updated all documentation to reflect accurate test suite counts (133), game modes, CI pipeline stages, and coverage thresholds
+
+### Removed
+- `CODEBASE_REVIEW.md`, `CODEBASE_REVIEW_2.md`, `CODE_REVIEW_REPORT.md` — stale point-in-time review artifacts
+
 ## [4.0.0] - 2026-02-27
 
 ### Added

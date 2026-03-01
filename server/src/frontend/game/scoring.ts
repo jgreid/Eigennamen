@@ -1,8 +1,12 @@
 import { state } from '../state.js';
 import {
-    redRemaining as getRedRemaining, blueRemaining as getBlueRemaining,
-    currentTeamName as getCurrentTeamName, teamName as getTeamName,
-    isPlayerTurn, isDuetMode, isMatchMode
+    redRemaining as getRedRemaining,
+    blueRemaining as getBlueRemaining,
+    currentTeamName as getCurrentTeamName,
+    teamName as getTeamName,
+    isPlayerTurn,
+    isDuetMode,
+    isMatchMode,
 } from '../store/selectors.js';
 import { t } from '../i18n.js';
 

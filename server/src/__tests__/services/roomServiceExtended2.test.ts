@@ -13,16 +13,16 @@ const mockRedis = {
     sMembers: jest.fn(),
     sRem: jest.fn(),
     mGet: jest.fn(),
-    eval: jest.fn()
+    eval: jest.fn(),
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: jest.fn(() => mockRedis)
+    getRedis: jest.fn(() => mockRedis),
 }));
 
 // Mock uuid
 jest.mock('uuid', () => ({
-    v4: jest.fn(() => 'mock-uuid-1234')
+    v4: jest.fn(() => 'mock-uuid-1234'),
 }));
 
 // Mock player service
@@ -44,19 +44,19 @@ jest.mock('../../services/playerService', () => ({
         isHost,
         connected: true,
         connectedAt: Date.now(),
-        lastSeen: Date.now()
-    }))
+        lastSeen: Date.now(),
+    })),
 }));
 
 // Mock game service
 jest.mock('../../services/gameService', () => ({
     getGame: jest.fn(),
-    getGameStateForPlayer: jest.fn()
+    getGameStateForPlayer: jest.fn(),
 }));
 
 // Mock timer service
 jest.mock('../../services/timerService', () => ({
-    stopTimer: jest.fn()
+    stopTimer: jest.fn(),
 }));
 
 // Mock logger
@@ -64,7 +64,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const roomService = require('../../services/roomService');
@@ -82,19 +82,19 @@ describe('Extended Room Service Tests (Part 2)', () => {
             roomId: 'test-room',
             hostSessionId: 'host-session-123',
             status: 'waiting',
-            settings: {}
+            settings: {},
         };
 
         test('allows reconnection for existing player', async () => {
             mockRedis.get.mockResolvedValue(JSON.stringify(mockRoom));
             playerService.getPlayer.mockResolvedValue({
                 sessionId: 'player-session',
-                roomCode: 'test-room'
+                roomCode: 'test-room',
             });
             playerService.updatePlayer.mockResolvedValue({
                 sessionId: 'player-session',
                 roomCode: 'test-room',
-                connected: true
+                connected: true,
             });
             gameService.getGame.mockResolvedValue(null);
             playerService.getPlayersInRoom.mockResolvedValue([]);
@@ -102,9 +102,12 @@ describe('Extended Room Service Tests (Part 2)', () => {
             const result = await roomService.joinRoom('test-room', 'player-session', 'Player1');
 
             expect(result.isReconnecting).toBe(true);
-            expect(playerService.updatePlayer).toHaveBeenCalledWith('player-session', expect.objectContaining({
-                connected: true
-            }));
+            expect(playerService.updatePlayer).toHaveBeenCalledWith(
+                'player-session',
+                expect.objectContaining({
+                    connected: true,
+                })
+            );
         });
 
         test('handles player already in set but missing data', async () => {
@@ -113,7 +116,7 @@ describe('Extended Room Service Tests (Part 2)', () => {
             playerService.getPlayer.mockResolvedValue(null);
             playerService.createPlayer.mockResolvedValue({
                 sessionId: 'player-session',
-                nickname: 'Player1'
+                nickname: 'Player1',
             });
             gameService.getGame.mockResolvedValue(null);
             playerService.getPlayersInRoom.mockResolvedValue([]);
@@ -128,8 +131,9 @@ describe('Extended Room Service Tests (Part 2)', () => {
             mockRedis.eval.mockResolvedValue(99); // Unexpected result
             playerService.getPlayer.mockResolvedValue(null);
 
-            await expect(roomService.joinRoom('test-room', 'player-session', 'Player1'))
-                .rejects.toThrow('unexpected error');
+            await expect(roomService.joinRoom('test-room', 'player-session', 'Player1')).rejects.toThrow(
+                'unexpected error'
+            );
         });
 
         test('creates player atomically in join script (Sprint D1)', async () => {
@@ -142,28 +146,28 @@ describe('Extended Room Service Tests (Part 2)', () => {
             const result = await roomService.joinRoom('test-room', 'player-session', 'Player1');
 
             // Player data is built by buildPlayerData and passed to the Lua script
-            expect(playerService.buildPlayerData).toHaveBeenCalledWith(
-                'player-session', 'test-room', 'Player1', false
-            );
+            expect(playerService.buildPlayerData).toHaveBeenCalledWith('player-session', 'test-room', 'Player1', false);
             // createPlayer should NOT be called for result===1 (atomic in Lua)
             expect(playerService.createPlayer).not.toHaveBeenCalled();
             expect(result.player).toMatchObject({
                 sessionId: 'player-session',
                 roomCode: 'test-room',
-                nickname: 'Player1'
+                nickname: 'Player1',
             });
         });
     });
 
     describe('updateSettings', () => {
         test('updates allow spectators setting', async () => {
-            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
-                success: true,
-                settings: { allowSpectators: false }
-            }));
+            mockRedis.eval.mockResolvedValueOnce(
+                JSON.stringify({
+                    success: true,
+                    settings: { allowSpectators: false },
+                })
+            );
 
             const result = await roomService.updateSettings('test-room', 'host-session', {
-                allowSpectators: false
+                allowSpectators: false,
             });
 
             expect(result.allowSpectators).toBe(false);

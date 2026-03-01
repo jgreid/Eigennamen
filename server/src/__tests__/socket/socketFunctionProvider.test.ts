@@ -10,7 +10,7 @@ const {
     getSocketFunctions,
     isRegistered,
     clearSocketFunctions,
-    getRequiredFunctions
+    getRequiredFunctions,
 } = require('../../socket/socketFunctionProvider');
 
 describe('Socket Function Provider', () => {
@@ -32,7 +32,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             expect(() => registerSocketFunctions(mockFunctions)).not.toThrow();
@@ -40,23 +40,19 @@ describe('Socket Function Provider', () => {
         });
 
         test('throws error if functions is null', () => {
-            expect(() => registerSocketFunctions(null))
-                .toThrow('Socket functions must be an object');
+            expect(() => registerSocketFunctions(null)).toThrow('Socket functions must be an object');
         });
 
         test('throws error if functions is undefined', () => {
-            expect(() => registerSocketFunctions(undefined))
-                .toThrow('Socket functions must be an object');
+            expect(() => registerSocketFunctions(undefined)).toThrow('Socket functions must be an object');
         });
 
         test('throws error if functions is not an object', () => {
-            expect(() => registerSocketFunctions('not an object'))
-                .toThrow('Socket functions must be an object');
+            expect(() => registerSocketFunctions('not an object')).toThrow('Socket functions must be an object');
         });
 
         test('throws error if functions is a number', () => {
-            expect(() => registerSocketFunctions(123))
-                .toThrow('Socket functions must be an object');
+            expect(() => registerSocketFunctions(123)).toThrow('Socket functions must be an object');
         });
 
         test('throws error if required function is missing', () => {
@@ -65,14 +61,13 @@ describe('Socket Function Provider', () => {
                 // Missing other required functions
             };
 
-            expect(() => registerSocketFunctions(incompleteFunctions))
-                .toThrow(/Missing required socket functions/);
+            expect(() => registerSocketFunctions(incompleteFunctions)).toThrow(/Missing required socket functions/);
         });
 
         test('throws error listing all missing functions', () => {
             const partialFunctions = {
                 emitToRoom: jest.fn(),
-                emitToPlayer: jest.fn()
+                emitToPlayer: jest.fn(),
                 // Missing: startTurnTimer, stopTurnTimer, getTimerStatus, getIO, createTimerExpireCallback
             };
 
@@ -95,11 +90,12 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
-            expect(() => registerSocketFunctions(invalidFunctions))
-                .toThrow(/Missing required socket functions.*emitToRoom/);
+            expect(() => registerSocketFunctions(invalidFunctions)).toThrow(
+                /Missing required socket functions.*emitToRoom/
+            );
         });
 
         test('freezes the registered functions object', () => {
@@ -110,7 +106,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions);
@@ -135,7 +131,7 @@ describe('Socket Function Provider', () => {
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
                 createTimerExpireCallback: jest.fn(),
-                extraFunction: jest.fn()
+                extraFunction: jest.fn(),
             };
 
             expect(() => registerSocketFunctions(mockFunctions)).not.toThrow();
@@ -155,7 +151,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions);
@@ -165,8 +161,7 @@ describe('Socket Function Provider', () => {
         });
 
         test('throws error if functions not registered', () => {
-            expect(() => getSocketFunctions())
-                .toThrow(/Socket functions not yet registered/);
+            expect(() => getSocketFunctions()).toThrow(/Socket functions not yet registered/);
         });
 
         test('error message includes helpful guidance', () => {
@@ -187,7 +182,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions);
@@ -212,7 +207,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions);
@@ -227,7 +222,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions);
@@ -247,7 +242,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions);
@@ -274,7 +269,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             const mockFunctions2 = {
@@ -284,7 +279,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             };
 
             registerSocketFunctions(mockFunctions1);
@@ -337,7 +332,7 @@ describe('Socket Function Provider', () => {
                 stopTurnTimer: jest.fn(),
                 getTimerStatus: jest.fn(),
                 getIO: jest.fn(),
-                createTimerExpireCallback: jest.fn()
+                createTimerExpireCallback: jest.fn(),
             });
 
             // 2. Handler calls getSocketFunctions at runtime
@@ -363,8 +358,7 @@ describe('Socket Function Provider', () => {
             }
 
             // Should throw with helpful message
-            expect(() => prematureHandler())
-                .toThrow(/Socket functions not yet registered/);
+            expect(() => prematureHandler()).toThrow(/Socket functions not yet registered/);
         });
     });
 });

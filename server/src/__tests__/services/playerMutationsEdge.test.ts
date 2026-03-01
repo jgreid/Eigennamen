@@ -14,14 +14,14 @@ const mockRedis = {
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../services/playerService', () => ({
@@ -44,7 +44,7 @@ describe('setTeam edge cases', () => {
         getPlayer.mockResolvedValue({
             sessionId: 'p1',
             team: 'red',
-            roomCode: null
+            roomCode: null,
         });
 
         await expect(setTeam('p1', 'blue')).rejects.toThrow('not associated with a room');
@@ -54,12 +54,14 @@ describe('setTeam edge cases', () => {
         getPlayer.mockResolvedValue({
             sessionId: 'p1',
             team: 'red',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: false,
-            reason: 'INVALID_TEAM'
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: false,
+                reason: 'INVALID_TEAM',
+            })
+        );
 
         await expect(setTeam('p1', 'invalid')).rejects.toThrow('Invalid team');
     });
@@ -68,12 +70,14 @@ describe('setTeam edge cases', () => {
         getPlayer.mockResolvedValue({
             sessionId: 'p1',
             team: 'red',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: true,
-            player: null
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: true,
+                player: null,
+            })
+        );
 
         await expect(setTeam('p1', 'blue')).rejects.toThrow();
     });
@@ -82,12 +86,14 @@ describe('setTeam edge cases', () => {
         getPlayer.mockResolvedValue({
             sessionId: 'p1',
             team: 'red',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: false,
-            reason: 'SOMETHING_UNKNOWN'
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: false,
+                reason: 'SOMETHING_UNKNOWN',
+            })
+        );
 
         await expect(setTeam('p1', 'blue')).rejects.toThrow('Failed to update player team');
     });
@@ -103,7 +109,7 @@ describe('setRole edge cases', () => {
             sessionId: 'p1',
             team: 'red',
             role: 'clicker',
-            roomCode: null
+            roomCode: null,
         });
 
         await expect(setRole('p1', 'spymaster')).rejects.toThrow('not associated with a room');
@@ -114,13 +120,24 @@ describe('setRole edge cases', () => {
             sessionId: 'p1',
             team: 'red',
             role: 'clicker',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: true,
-            player: { sessionId: 'p1', role: 'spectator', team: 'red', roomCode: 'ROOM1', nickname: 'Test', isHost: false, connected: true, lastSeen: Date.now() },
-            oldRole: 'clicker'
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: true,
+                player: {
+                    sessionId: 'p1',
+                    role: 'spectator',
+                    team: 'red',
+                    roomCode: 'ROOM1',
+                    nickname: 'Test',
+                    isHost: false,
+                    connected: true,
+                    lastSeen: Date.now(),
+                },
+                oldRole: 'clicker',
+            })
+        );
 
         const result = await setRole('p1', 'spectator');
         expect(mockRedis.eval).toHaveBeenCalled();
@@ -133,12 +150,14 @@ describe('setRole edge cases', () => {
             sessionId: 'p1',
             team: 'red',
             role: 'clicker',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: false,
-            reason: 'INVALID_ROLE'
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: false,
+                reason: 'INVALID_ROLE',
+            })
+        );
 
         await expect(setRole('p1', 'spymaster')).rejects.toThrow('Invalid role');
     });
@@ -148,12 +167,14 @@ describe('setRole edge cases', () => {
             sessionId: 'p1',
             team: null,
             role: 'clicker',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: false,
-            reason: 'NO_TEAM'
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: false,
+                reason: 'NO_TEAM',
+            })
+        );
 
         await expect(setRole('p1', 'spymaster')).rejects.toThrow('Must join a team');
     });
@@ -163,12 +184,14 @@ describe('setRole edge cases', () => {
             sessionId: 'p1',
             team: 'red',
             role: 'clicker',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
-        mockRedis.eval.mockResolvedValue(JSON.stringify({
-            success: true,
-            player: null
-        }));
+        mockRedis.eval.mockResolvedValue(
+            JSON.stringify({
+                success: true,
+                player: null,
+            })
+        );
 
         await expect(setRole('p1', 'spymaster')).rejects.toThrow();
     });
@@ -178,7 +201,7 @@ describe('setRole edge cases', () => {
             sessionId: 'p1',
             team: 'red',
             role: 'clicker',
-            roomCode: 'ROOM1'
+            roomCode: 'ROOM1',
         });
         mockRedis.eval.mockResolvedValue('not-json');
 

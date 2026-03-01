@@ -85,14 +85,14 @@ interface MetricsConfig {
 const metrics: MetricsStorage = {
     counters: {},
     gauges: {},
-    histograms: {}
+    histograms: {},
 };
 
 // Configuration
 const config: MetricsConfig = {
     histogramBuckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
     maxHistogramSize: 1000,
-    reportingInterval: 60000 // 1 minute
+    reportingInterval: 60000, // 1 minute
 };
 
 // Instance ID for distributed metrics
@@ -132,7 +132,7 @@ function setGauge(name: string, value: number, labels: MetricLabels = {}): void 
     metrics.gauges[key] = {
         value,
         labels,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
     };
 }
 
@@ -167,7 +167,7 @@ function recordHistogram(name: string, value: number, labels: MetricLabels = {})
             min: Infinity,
             max: -Infinity,
             labels,
-            createdAt: Date.now()
+            createdAt: Date.now(),
         };
     }
 
@@ -215,7 +215,7 @@ function getHistogramStats(name: string, labels: MetricLabels = {}): HistogramSt
         p90: calculatePercentile(sorted, 0.9),
         p95: calculatePercentile(sorted, 0.95),
         p99: calculatePercentile(sorted, 0.99),
-        labels: histogram.labels
+        labels: histogram.labels,
     };
 }
 
@@ -229,14 +229,14 @@ function getAllMetrics(): AllMetrics {
         instanceId,
         counters: {},
         gauges: {},
-        histograms: {}
+        histograms: {},
     };
 
     // Export counters
     for (const [key, counter] of Object.entries(metrics.counters)) {
         result.counters[key] = {
             value: counter.value,
-            labels: counter.labels
+            labels: counter.labels,
         };
     }
 
@@ -244,7 +244,7 @@ function getAllMetrics(): AllMetrics {
     for (const [key, gauge] of Object.entries(metrics.gauges)) {
         result.gauges[key] = {
             value: gauge.value,
-            labels: gauge.labels
+            labels: gauge.labels,
         };
     }
 
@@ -262,7 +262,7 @@ function getAllMetrics(): AllMetrics {
             p90: calculatePercentile(sorted, 0.9),
             p95: calculatePercentile(sorted, 0.95),
             p99: calculatePercentile(sorted, 0.99),
-            labels: histogram.labels
+            labels: histogram.labels,
         };
     }
 
@@ -279,21 +279,21 @@ function pruneStaleMetrics(maxAgeMs: number = 3600000): void {
 
     for (const key of Object.keys(metrics.counters)) {
         const counter = metrics.counters[key];
-        if (counter && (now - (counter.lastUpdated || counter.createdAt)) > maxAgeMs) {
+        if (counter && now - (counter.lastUpdated || counter.createdAt) > maxAgeMs) {
             delete metrics.counters[key];
         }
     }
 
     for (const key of Object.keys(metrics.gauges)) {
         const gauge = metrics.gauges[key];
-        if (gauge && (now - gauge.lastUpdated) > maxAgeMs) {
+        if (gauge && now - gauge.lastUpdated > maxAgeMs) {
             delete metrics.gauges[key];
         }
     }
 
     for (const key of Object.keys(metrics.histograms)) {
         const histogram = metrics.histograms[key];
-        if (histogram && (now - (histogram.lastUpdated || histogram.createdAt)) > maxAgeMs) {
+        if (histogram && now - (histogram.lastUpdated || histogram.createdAt) > maxAgeMs) {
             delete metrics.histograms[key];
         }
     }
@@ -361,10 +361,10 @@ const METRIC_NAMES = {
     SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
     // Additional histograms
     HTTP_REQUEST_DURATION: 'http_request_duration_ms',
-    WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
+    WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes',
 } as const;
 
-type MetricName = typeof METRIC_NAMES[keyof typeof METRIC_NAMES];
+type MetricName = (typeof METRIC_NAMES)[keyof typeof METRIC_NAMES];
 
 // Update system metrics (call periodically)
 function updateSystemMetrics(): void {
@@ -410,9 +410,15 @@ function getPrometheusMetrics(): string {
         lines.push(`# TYPE ${name} summary`);
         lines.push(`${name}_count${formatPrometheusLabels(baseLabels)} ${histogram.count} ${timestamp}`);
         lines.push(`${name}_sum${formatPrometheusLabels(baseLabels)} ${histogram.sum} ${timestamp}`);
-        lines.push(`${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.5' })} ${percentile(0.5)} ${timestamp}`);
-        lines.push(`${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.9' })} ${percentile(0.9)} ${timestamp}`);
-        lines.push(`${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.99' })} ${percentile(0.99)} ${timestamp}`);
+        lines.push(
+            `${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.5' })} ${percentile(0.5)} ${timestamp}`
+        );
+        lines.push(
+            `${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.9' })} ${percentile(0.9)} ${timestamp}`
+        );
+        lines.push(
+            `${name}${formatPrometheusLabels({ ...baseLabels, quantile: '0.99' })} ${percentile(0.99)} ${timestamp}`
+        );
     }
 
     return lines.join('\n');
@@ -440,7 +446,7 @@ export {
     pruneStaleMetrics,
     getPrometheusMetrics,
     updateSystemMetrics,
-    METRIC_NAMES
+    METRIC_NAMES,
 };
 
 export type {
@@ -452,5 +458,5 @@ export type {
     HistogramStats,
     AllMetrics,
     MetricsConfig,
-    MetricName
+    MetricName,
 };

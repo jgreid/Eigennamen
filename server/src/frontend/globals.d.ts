@@ -34,7 +34,10 @@ interface EigennamenClientAPI {
 
     // Room management
     joinRoom(roomId: string, nickname: string): Promise<import('./multiplayerTypes.js').JoinCreateResult>;
-    createRoom(options: { roomId: string; nickname: string }): Promise<import('./multiplayerTypes.js').JoinCreateResult>;
+    createRoom(options: {
+        roomId: string;
+        nickname: string;
+    }): Promise<import('./multiplayerTypes.js').JoinCreateResult>;
     leaveRoom(): void;
     getRoomCode(): string | null;
     requestResync(): Promise<void>;

@@ -53,8 +53,18 @@ export interface RedisClient {
     // ── Sorted set commands ──────────────────────────────────────────
     zAdd(key: string, member: { score: number; value: string }, options?: { NX?: boolean }): Promise<number>;
     zRem(key: string, member: string | string[]): Promise<number>;
-    zRange(key: string, start: number, stop: number, options?: { REV?: boolean; WITHSCORES?: boolean }): Promise<string[] | Array<{ value: string; score: number }>>;
-    zRangeByScore(key: string, min: number, max: number, options?: { LIMIT?: { offset: number; count: number } }): Promise<string[]>;
+    zRange(
+        key: string,
+        start: number,
+        stop: number,
+        options?: { REV?: boolean; WITHSCORES?: boolean }
+    ): Promise<string[] | Array<{ value: string; score: number }>>;
+    zRangeByScore(
+        key: string,
+        min: number,
+        max: number,
+        options?: { LIMIT?: { offset: number; count: number } }
+    ): Promise<string[]>;
     zRemRangeByRank(key: string, start: number, stop: number): Promise<number>;
     zCard(key: string): Promise<number>;
 

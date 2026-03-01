@@ -77,7 +77,10 @@ function incrementConnectionCount(ip: string): void {
         evictStaleEntries();
         // If still at capacity after eviction, log warning but allow the connection
         if (connectionsPerIP.size >= MAX_TRACKED_IPS) {
-            logger.warn('Connection tracker IP map at capacity after eviction, allowing new IP', { ip, mapSize: connectionsPerIP.size });
+            logger.warn('Connection tracker IP map at capacity after eviction, allowing new IP', {
+                ip,
+                mapSize: connectionsPerIP.size,
+            });
         }
     }
     connectionsPerIP.set(ip, currentCount + 1);
@@ -201,7 +204,7 @@ function recordAuthFailure(ip: string): boolean {
         logger.warn('Auth failure limit exceeded, blocking IP', {
             ip,
             failures: entry.count,
-            blockedUntilMs: SOCKET.AUTH_FAILURE_BLOCK_MS
+            blockedUntilMs: SOCKET.AUTH_FAILURE_BLOCK_MS,
         });
         return true;
     }
@@ -254,6 +257,6 @@ export {
     recordAuthFailure,
     isAuthBlocked,
     clearAuthFailures,
-    getAuthFailuresMap
+    getAuthFailuresMap,
 };
 export type { AuthFailureEntry };

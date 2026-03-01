@@ -8,34 +8,31 @@
  */
 
 export {
-    resetGame, setGameOver, syncScores, syncBoardData,
-    syncTurnAndMetadata, clearRevealTracking
+    resetGame,
+    setGameOver,
+    syncScores,
+    syncBoardData,
+    syncTurnAndMetadata,
+    clearRevealTracking,
 } from './gameActions.js';
 
 export {
-    setPlayerRole, clearPlayerRole, syncLocalPlayerState,
-    setHost, setPlayers, addPlayer, removePlayer, updatePlayer
+    setPlayerRole,
+    clearPlayerRole,
+    syncLocalPlayerState,
+    setHost,
+    setPlayers,
+    addPlayer,
+    removePlayer,
+    updatePlayer,
 } from './playerActions.js';
 
-export {
-    joinedRoom, setMpMode, setResyncInProgress, setSpectatorCount
-} from './multiplayerActions.js';
+export { joinedRoom, setMpMode, setResyncInProgress, setSpectatorCount } from './multiplayerActions.js';
 
-export {
-    startTimer, stopTimer, tickTimer,
-    setTimerInterval, setCountdownStartTime
-} from './timerActions.js';
+export { startTimer, stopTimer, tickTimer, setTimerInterval, setCountdownStartTime } from './timerActions.js';
 
-export {
-    setBoardInitialized, setColorBlindMode,
-    setActiveModal, setLanguage, setGameMode
-} from './uiActions.js';
+export { setBoardInitialized, setColorBlindMode, setActiveModal, setLanguage, setGameMode } from './uiActions.js';
 
-export {
-    openReplay, stepReplay, setReplayPlaying,
-    setReplayInterval, clearReplay
-} from './replayActions.js';
+export { openReplay, stepReplay, setReplayPlaying, setReplayInterval, clearReplay } from './replayActions.js';
 
-export {
-    setTeamNames, setActiveWords, setWordSource
-} from './settingsActions.js';
+export { setTeamNames, setActiveWords, setWordSource } from './settingsActions.js';

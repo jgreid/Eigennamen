@@ -16,7 +16,7 @@ const {
     switchTurn,
     buildRevealResult,
     getGameStateForPlayer,
-    validateRevealPreconditions
+    validateRevealPreconditions,
 } = require('../../services/game/revealEngine');
 
 const { DUET_BOARD_CONFIG } = require('../../config/constants');
@@ -24,29 +24,35 @@ const { DUET_BOARD_CONFIG } = require('../../config/constants');
 // Helper to create a basic Duet game state
 function createDuetGameState(overrides = {}) {
     const types = [
-        ...Array(3).fill('red'),        // green/green overlap (positions 0-2)
-        ...Array(6).fill('red'),        // green(A)/bystander(B) (positions 3-8)
-        ...Array(6).fill('neutral'),    // bystander(A)/green(B) (positions 9-14)
-        'assassin',                      // assassin/assassin (position 15)
-        'assassin', 'assassin',         // assassin(A)/bystander(B) (positions 16-17)
-        'neutral', 'neutral',           // bystander(A)/assassin(B) (positions 18-19)
-        ...Array(5).fill('neutral')     // bystander/bystander (positions 20-24)
+        ...Array(3).fill('red'), // green/green overlap (positions 0-2)
+        ...Array(6).fill('red'), // green(A)/bystander(B) (positions 3-8)
+        ...Array(6).fill('neutral'), // bystander(A)/green(B) (positions 9-14)
+        'assassin', // assassin/assassin (position 15)
+        'assassin',
+        'assassin', // assassin(A)/bystander(B) (positions 16-17)
+        'neutral',
+        'neutral', // bystander(A)/assassin(B) (positions 18-19)
+        ...Array(5).fill('neutral'), // bystander/bystander (positions 20-24)
     ];
 
     const duetTypes = [
-        ...Array(3).fill('blue'),       // green/green overlap
-        ...Array(6).fill('neutral'),    // green(A)/bystander(B)
-        ...Array(6).fill('blue'),       // bystander(A)/green(B)
-        'assassin',                      // assassin/assassin
-        'neutral', 'neutral',           // assassin(A)/bystander(B)
-        'assassin', 'assassin',         // bystander(A)/assassin(B)
-        ...Array(5).fill('neutral')     // bystander/bystander
+        ...Array(3).fill('blue'), // green/green overlap
+        ...Array(6).fill('neutral'), // green(A)/bystander(B)
+        ...Array(6).fill('blue'), // bystander(A)/green(B)
+        'assassin', // assassin/assassin
+        'neutral',
+        'neutral', // assassin(A)/bystander(B)
+        'assassin',
+        'assassin', // bystander(A)/assassin(B)
+        ...Array(5).fill('neutral'), // bystander/bystander
     ];
 
     return {
         id: 'test-duet-game',
         gameMode: 'duet',
-        words: Array(25).fill(null).map((_, i) => `WORD${i}`),
+        words: Array(25)
+            .fill(null)
+            .map((_, i) => `WORD${i}`),
         types,
         duetTypes,
         revealed: Array(25).fill(false),
@@ -69,7 +75,7 @@ function createDuetGameState(overrides = {}) {
         greenTotal: 15,
         seed: 'test-seed',
         wordListId: null,
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -82,22 +88,22 @@ describe('Duet Mode - Board Generation', () => {
         expect(duetTypes).toHaveLength(25);
 
         // Count Side A types
-        const redCountA = types.filter(t => t === 'red').length;
-        const assassinCountA = types.filter(t => t === 'assassin').length;
-        const neutralCountA = types.filter(t => t === 'neutral').length;
+        const redCountA = types.filter((t) => t === 'red').length;
+        const assassinCountA = types.filter((t) => t === 'assassin').length;
+        const neutralCountA = types.filter((t) => t === 'neutral').length;
 
-        expect(redCountA).toBe(9);       // 3 overlap + 6 greenOnlyA
-        expect(assassinCountA).toBe(3);  // 1 overlap + 2 assassinOnlyA
-        expect(neutralCountA).toBe(13);  // 6 greenOnlyB + 2 assassinOnlyB + 5 bystanderBoth
+        expect(redCountA).toBe(9); // 3 overlap + 6 greenOnlyA
+        expect(assassinCountA).toBe(3); // 1 overlap + 2 assassinOnlyA
+        expect(neutralCountA).toBe(13); // 6 greenOnlyB + 2 assassinOnlyB + 5 bystanderBoth
 
         // Count Side B types
-        const blueCountB = duetTypes.filter(t => t === 'blue').length;
-        const assassinCountB = duetTypes.filter(t => t === 'assassin').length;
-        const neutralCountB = duetTypes.filter(t => t === 'neutral').length;
+        const blueCountB = duetTypes.filter((t) => t === 'blue').length;
+        const assassinCountB = duetTypes.filter((t) => t === 'assassin').length;
+        const neutralCountB = duetTypes.filter((t) => t === 'neutral').length;
 
-        expect(blueCountB).toBe(9);       // 3 overlap + 6 greenOnlyB
-        expect(assassinCountB).toBe(3);   // 1 overlap + 2 assassinOnlyB
-        expect(neutralCountB).toBe(13);   // 6 greenOnlyA + 2 assassinOnlyA + 5 bystanderBoth
+        expect(blueCountB).toBe(9); // 3 overlap + 6 greenOnlyB
+        expect(assassinCountB).toBe(3); // 1 overlap + 2 assassinOnlyB
+        expect(neutralCountB).toBe(13); // 6 greenOnlyA + 2 assassinOnlyA + 5 bystanderBoth
     });
 
     it('should produce deterministic boards for same seed', () => {
@@ -143,12 +149,12 @@ describe('Duet Mode - Board Generation', () => {
             else if (a === 'neutral' && b === 'neutral') bystanderBystander++;
         }
 
-        expect(greenGreen).toBe(DUET_BOARD_CONFIG.greenOverlap);          // 3
-        expect(greenBystander).toBe(DUET_BOARD_CONFIG.greenOnlyA);         // 6
-        expect(bystanderGreen).toBe(DUET_BOARD_CONFIG.greenOnlyB);         // 6
-        expect(assassinAssassin).toBe(DUET_BOARD_CONFIG.assassinOverlap);  // 1
-        expect(assassinBystander).toBe(DUET_BOARD_CONFIG.assassinOnlyA);   // 2
-        expect(bystanderAssassin).toBe(DUET_BOARD_CONFIG.assassinOnlyB);   // 2
+        expect(greenGreen).toBe(DUET_BOARD_CONFIG.greenOverlap); // 3
+        expect(greenBystander).toBe(DUET_BOARD_CONFIG.greenOnlyA); // 6
+        expect(bystanderGreen).toBe(DUET_BOARD_CONFIG.greenOnlyB); // 6
+        expect(assassinAssassin).toBe(DUET_BOARD_CONFIG.assassinOverlap); // 1
+        expect(assassinBystander).toBe(DUET_BOARD_CONFIG.assassinOnlyA); // 2
+        expect(bystanderAssassin).toBe(DUET_BOARD_CONFIG.assassinOnlyB); // 2
         expect(bystanderBystander).toBe(DUET_BOARD_CONFIG.bystanderBoth); // 5
     });
 });
@@ -262,7 +268,7 @@ describe('Duet Mode - Reveal Outcome', () => {
             greenFound: 5,
             guessesUsed: 4,
             guessesAllowed: 4,
-            currentTurn: 'red'
+            currentTurn: 'red',
         });
         const outcome = determineRevealOutcome(game, 'red', 'red');
 
@@ -303,7 +309,7 @@ describe('Duet Mode - Build Reveal Result', () => {
             guessesUsed: 0,
             guessesAllowed: 0,
             gameOver: false,
-            winner: null
+            winner: null,
         };
         const outcome = { turnEnded: false, endReason: null };
         const result = buildRevealResult(game, 0, 'neutral', outcome);
@@ -323,7 +329,7 @@ describe('Duet Mode - Player State Visibility', () => {
         // Red spymaster should see all of types[] (Side A)
         expect(playerState.types).toEqual(game.types);
         // But duetTypes should be hidden for unrevealed
-        expect(playerState.duetTypes.every((t, i) => game.revealed[i] ? t !== null : t === null)).toBe(true);
+        expect(playerState.duetTypes.every((t, i) => (game.revealed[i] ? t !== null : t === null))).toBe(true);
     });
 
     it('should show Side B types to blue spymaster', () => {
@@ -334,7 +340,7 @@ describe('Duet Mode - Player State Visibility', () => {
         // Blue spymaster should see all of duetTypes[] (Side B)
         expect(playerState.duetTypes).toEqual(game.duetTypes);
         // But types should be hidden for unrevealed
-        expect(playerState.types.every((t, i) => game.revealed[i] ? t !== null : t === null)).toBe(true);
+        expect(playerState.types.every((t, i) => (game.revealed[i] ? t !== null : t === null))).toBe(true);
     });
 
     it('should hide both key cards from non-spymasters', () => {
@@ -343,8 +349,8 @@ describe('Duet Mode - Player State Visibility', () => {
         const playerState = getGameStateForPlayer(game, player);
 
         // All unrevealed should be null
-        expect(playerState.types.every(t => t === null)).toBe(true);
-        expect(playerState.duetTypes.every(t => t === null)).toBe(true);
+        expect(playerState.types.every((t) => t === null)).toBe(true);
+        expect(playerState.duetTypes.every((t) => t === null)).toBe(true);
     });
 
     it('should reveal types for revealed cards to non-spymasters', () => {
@@ -397,7 +403,7 @@ describe('Duet Mode - Edge Cases', () => {
 
         expect(game.timerTokens).toBe(0);
         expect(game.gameOver).toBe(true);
-        expect(outcome => outcome.endReason).toBeDefined();
+        expect((outcome) => outcome.endReason).toBeDefined();
     });
 
     it('should correctly switch turns in duet mode', () => {
@@ -419,6 +425,6 @@ describe('Duet Mode - Edge Cases', () => {
         const playerState = getGameStateForPlayer(game, null);
 
         // Should hide all types
-        expect(playerState.types.every(t => t === null)).toBe(true);
+        expect(playerState.types.every((t) => t === null)).toBe(true);
     });
 });

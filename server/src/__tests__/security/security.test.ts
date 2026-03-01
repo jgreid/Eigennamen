@@ -18,7 +18,7 @@ const {
     signToken: _signToken,
     verifyToken: _verifyToken,
     decodeToken,
-    generateSessionToken: _generateSessionToken
+    generateSessionToken: _generateSessionToken,
 } = require('../../config/jwt');
 
 const { RESERVED_NAMES } = require('../../config/constants');
@@ -131,18 +131,30 @@ describe('JWT Configuration', () => {
 describe('Reserved Names Validation', () => {
     test('all expected reserved names are present', () => {
         const expectedNames = [
-            'admin', 'administrator', 'system', 'host', 'server',
-            'mod', 'moderator', 'bot', 'eigennamen', 'game',
-            'official', 'support', 'help', 'null', 'undefined'
+            'admin',
+            'administrator',
+            'system',
+            'host',
+            'server',
+            'mod',
+            'moderator',
+            'bot',
+            'eigennamen',
+            'game',
+            'official',
+            'support',
+            'help',
+            'null',
+            'undefined',
         ];
 
-        expectedNames.forEach(name => {
+        expectedNames.forEach((name) => {
             expect(RESERVED_NAMES).toContain(name);
         });
     });
 
     test('reserved names are lowercase', () => {
-        RESERVED_NAMES.forEach(name => {
+        RESERVED_NAMES.forEach((name) => {
             expect(name).toBe(name.toLowerCase());
         });
     });

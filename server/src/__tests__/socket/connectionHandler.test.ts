@@ -6,7 +6,10 @@
  */
 
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
 }));
 
 jest.mock('../../socket/rateLimitHandler', () => ({
@@ -42,8 +45,11 @@ jest.mock('../../config/constants', () => ({
     ERROR_CODES: { SERVER_ERROR: 'SERVER_ERROR' },
 }));
 
-const { handleConnection, ensureSocketFunctionsRegistered, createTimerExpireCallback } =
-    require('../../socket/connectionHandler');
+const {
+    handleConnection,
+    ensureSocketFunctionsRegistered,
+    createTimerExpireCallback,
+} = require('../../socket/connectionHandler');
 const { registerSocketFunctions, isRegistered } = require('../../socket/socketFunctionProvider');
 const { handleDisconnect } = require('../../socket/disconnectHandler');
 const { socketRateLimiter } = require('../../socket/rateLimitHandler');
@@ -69,7 +75,7 @@ describe('connectionHandler', () => {
         (isRegistered as jest.Mock).mockReturnValue(false);
 
         // Reset event handlers
-        Object.keys(eventHandlers).forEach(k => delete eventHandlers[k]);
+        Object.keys(eventHandlers).forEach((k) => delete eventHandlers[k]);
 
         mockIo = { to: jest.fn().mockReturnThis(), emit: jest.fn() };
         mockSocket = {
@@ -97,9 +103,7 @@ describe('connectionHandler', () => {
         it('should log connection and register all handlers', () => {
             handleConnection(mockIo, mockSocket, mockApp, mockSocketFns);
 
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Client connected: sock-1')
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Client connected: sock-1'));
             expect(roomHandlers).toHaveBeenCalledWith(mockIo, mockSocket);
             expect(gameHandlers).toHaveBeenCalledWith(mockIo, mockSocket);
             expect(playerHandlers).toHaveBeenCalledWith(mockIo, mockSocket);
@@ -198,11 +202,11 @@ describe('connectionHandler', () => {
             mockSocket.clientIP = '10.0.0.1';
             await eventHandlers['disconnect']('transport close');
 
-            expect(logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Client disconnected: sock-1')
-            );
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Client disconnected: sock-1'));
             expect(handleDisconnect).toHaveBeenCalledWith(
-                mockIo, mockSocket, 'transport close',
+                mockIo,
+                mockSocket,
+                'transport close',
                 expect.any(AbortSignal)
             );
         });
@@ -234,10 +238,7 @@ describe('connectionHandler', () => {
 
             await eventHandlers['disconnect']('transport close');
 
-            expect(logger.error).toHaveBeenCalledWith(
-                'Error updating socket count:',
-                expect.any(Error)
-            );
+            expect(logger.error).toHaveBeenCalledWith('Error updating socket count:', expect.any(Error));
         });
 
         it('should clean up rate limiter on disconnect', async () => {
@@ -253,10 +254,7 @@ describe('connectionHandler', () => {
 
             await eventHandlers['disconnect']('transport close');
 
-            expect(logger.error).toHaveBeenCalledWith(
-                'Error cleaning up rate limiter:',
-                expect.any(Error)
-            );
+            expect(logger.error).toHaveBeenCalledWith('Error cleaning up rate limiter:', expect.any(Error));
         });
 
         it('should handle handleDisconnect timeout', async () => {
@@ -272,9 +270,7 @@ describe('connectionHandler', () => {
 
             await eventHandlers['disconnect']('transport close');
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Disconnect handler timed out'),
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Disconnect handler timed out'));
 
             constants.SOCKET.DISCONNECT_TIMEOUT_MS = originalTimeout;
         });
@@ -284,10 +280,7 @@ describe('connectionHandler', () => {
 
             await eventHandlers['disconnect']('transport close');
 
-            expect(logger.error).toHaveBeenCalledWith(
-                'Error in disconnect handler:',
-                expect.any(Error)
-            );
+            expect(logger.error).toHaveBeenCalledWith('Error in disconnect handler:', expect.any(Error));
         });
     });
 
@@ -306,7 +299,7 @@ describe('connectionHandler', () => {
             );
             expect(mockSocket.emit).toHaveBeenCalledWith('socket:error', {
                 code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred. Please try again.'
+                message: 'An unexpected error occurred. Please try again.',
             });
         });
     });

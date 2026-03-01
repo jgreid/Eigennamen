@@ -19,7 +19,9 @@ function announceTimerThreshold(remaining: number): void {
             if (!el) return;
             const label = threshold === 1 ? '1 second remaining' : `${threshold} seconds remaining`;
             el.textContent = '';
-            requestAnimationFrame(() => { el.textContent = label; });
+            requestAnimationFrame(() => {
+                el.textContent = label;
+            });
             return;
         }
     }
@@ -98,7 +100,12 @@ export function stopTimerCountdown(): void {
 }
 
 // Handle timer started event
-export function handleTimerStarted(data: { endTime?: number; duration?: number; durationSeconds?: number; remainingSeconds?: number }): void {
+export function handleTimerStarted(data: {
+    endTime?: number;
+    duration?: number;
+    durationSeconds?: number;
+    remainingSeconds?: number;
+}): void {
     state.timerState.active = true;
     state.timerState.endTime = data.endTime ?? null;
     state.timerState.duration = data.duration ?? data.durationSeconds ?? null;
@@ -122,7 +129,13 @@ export function handleTimerStopped(): void {
 
 // Handle timer status on join/reconnect
 // Uses server's remaining seconds to avoid clock skew issues
-export function handleTimerStatus(data: { active?: boolean; remainingSeconds?: number; remaining?: number; endTime?: number; duration?: number }): void {
+export function handleTimerStatus(data: {
+    active?: boolean;
+    remainingSeconds?: number;
+    remaining?: number;
+    endTime?: number;
+    duration?: number;
+}): void {
     if (data && (data.active || (data.remainingSeconds ?? 0) > 0)) {
         state.timerState.active = true;
         state.timerState.endTime = data.endTime ?? null;

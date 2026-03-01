@@ -16,7 +16,8 @@ const nicknameRegex = NICKNAME_REGEX;
  * Reduces duplication across room ID, team name, chat message, and similar fields.
  */
 const createSanitizedString = (maxLength: number, regex: RegExp, regexMessage: string) =>
-    z.string()
+    z
+        .string()
         .min(1, 'Value is required')
         .max(maxLength)
         .transform((val: string) => removeControlChars(val).trim())
@@ -35,7 +36,8 @@ const createTeamNameSchema = () =>
  * service layer (roomService.ts) and HTTP routes (roomRoutes.ts).
  */
 const createRoomIdSchema = () =>
-    z.string()
+    z
+        .string()
         .min(3, 'Room ID must be at least 3 characters')
         .max(20, 'Room ID must be at most 20 characters')
         .transform((val: string) => normalizeRoomCode(removeControlChars(val)))
@@ -46,18 +48,15 @@ const createRoomIdSchema = () =>
  * Create a validated nickname schema with reserved name checking
  * Used for all nickname inputs throughout the application
  */
-const createNicknameSchema = () => z.string()
-    .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-    .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
-    .transform((val: string) => removeControlChars(val).trim())
-    .refine((val: string) => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
-    .refine((val: string) => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
-    .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
-    .refine((val: string) => !isReservedName(val, [...RESERVED_NAMES]), 'This nickname is reserved');
+const createNicknameSchema = () =>
+    z
+        .string()
+        .min(VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+        .max(VALIDATION.NICKNAME_MAX_LENGTH, 'Nickname too long')
+        .transform((val: string) => removeControlChars(val).trim())
+        .refine((val: string) => val.length >= VALIDATION.NICKNAME_MIN_LENGTH, 'Nickname is required')
+        .refine((val: string) => !/^\s*$/.test(val), 'Nickname cannot be only whitespace')
+        .refine((val: string) => nicknameRegex.test(val), 'Nickname contains invalid characters')
+        .refine((val: string) => !isReservedName(val, [...RESERVED_NAMES]), 'This nickname is reserved');
 
-export {
-    createSanitizedString,
-    createTeamNameSchema,
-    createRoomIdSchema,
-    createNicknameSchema
-};
+export { createSanitizedString, createTeamNameSchema, createRoomIdSchema, createNicknameSchema };

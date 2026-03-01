@@ -4,11 +4,7 @@ import { validate as isValidUuid } from 'uuid';
 import logger from '../../utils/logger';
 import * as playerService from '../../services/playerService';
 import { getRedis } from '../../config/redis';
-import {
-    SESSION_SECURITY,
-    REDIS_TTL,
-    ERROR_CODES
-} from '../../config/constants';
+import { SESSION_SECURITY, REDIS_TTL, ERROR_CODES } from '../../config/constants';
 
 /**
  * Rate limit check result
@@ -52,7 +48,6 @@ interface SessionResolutionResult {
     sessionValidation: SessionValidationResult | null;
     ipMismatch: boolean;
 }
-
 
 /**
  * In-memory rate limit fallback when Redis is unavailable.
@@ -103,13 +98,12 @@ function checkMemoryRateLimit(clientIP: string): RateLimitResult {
         logger.warn('Session validation rate limited (in-memory fallback)', {
             clientIP,
             attempts: entry.count,
-            maxAttempts
+            maxAttempts,
         });
         return { allowed: false, attempts: entry.count };
     }
     return { allowed: true, attempts: entry.count };
 }
-
 
 /**
  * Rate limit session validation attempts by IP
@@ -133,17 +127,17 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
             end
             return count
         `;
-        const attempts = await redis.eval(ATOMIC_RATE_LIMIT_SCRIPT, {
+        const attempts = (await redis.eval(ATOMIC_RATE_LIMIT_SCRIPT, {
             keys: [key],
-            arguments: [REDIS_TTL.SESSION_VALIDATION_WINDOW.toString()]
-        }) as number;
+            arguments: [REDIS_TTL.SESSION_VALIDATION_WINDOW.toString()],
+        })) as number;
 
         const maxAttempts = SESSION_SECURITY.MAX_VALIDATION_ATTEMPTS_PER_IP;
         if (attempts > maxAttempts) {
             logger.warn('Session validation rate limited', {
                 clientIP,
                 attempts,
-                maxAttempts
+                maxAttempts,
             });
             return { allowed: false, attempts };
         }
@@ -155,7 +149,6 @@ async function checkValidationRateLimit(clientIP: string): Promise<RateLimitResu
         return checkMemoryRateLimit(clientIP);
     }
 }
-
 
 /**
  * Validate session age
@@ -176,7 +169,7 @@ function validateSessionAge(player: Player): SessionAgeResult {
     if (sessionAge > SESSION_SECURITY.MAX_SESSION_AGE_MS) {
         return {
             valid: false,
-            reason: ERROR_CODES.SESSION_EXPIRED
+            reason: ERROR_CODES.SESSION_EXPIRED,
         };
     }
 
@@ -198,7 +191,7 @@ function validateIPConsistency(player: Player, currentIP: string): IPValidationR
             previousIP: player.lastIP,
             currentIP,
             nickname: player.nickname,
-            roomCode: player.roomCode
+            roomCode: player.roomCode,
         });
 
         if (SESSION_SECURITY.IP_MISMATCH_ALLOWED) {
@@ -221,7 +214,7 @@ async function validateSession(sessionId: string, clientIP: string): Promise<Ses
     if (!rateLimit.allowed) {
         return {
             valid: false,
-            reason: ERROR_CODES.SESSION_VALIDATION_RATE_LIMITED
+            reason: ERROR_CODES.SESSION_VALIDATION_RATE_LIMITED,
         };
     }
 
@@ -230,7 +223,7 @@ async function validateSession(sessionId: string, clientIP: string): Promise<Ses
     if (!player) {
         return {
             valid: false,
-            reason: ERROR_CODES.SESSION_NOT_FOUND
+            reason: ERROR_CODES.SESSION_NOT_FOUND,
         };
     }
 
@@ -239,7 +232,7 @@ async function validateSession(sessionId: string, clientIP: string): Promise<Ses
     if (!ageValidation.valid) {
         return {
             valid: false,
-            reason: ageValidation.reason
+            reason: ageValidation.reason,
         };
     }
 
@@ -248,17 +241,16 @@ async function validateSession(sessionId: string, clientIP: string): Promise<Ses
     if (!ipValidation.valid) {
         return {
             valid: false,
-            reason: ERROR_CODES.NOT_AUTHORIZED
+            reason: ERROR_CODES.NOT_AUTHORIZED,
         };
     }
 
     return {
         valid: true,
         player,
-        ipMismatch: ipValidation.ipMismatch
+        ipMismatch: ipValidation.ipMismatch,
     };
 }
-
 
 /**
  * Validate reconnection token format and value.
@@ -273,17 +265,18 @@ async function validateRoomReconnectToken(
     // Validate token format before processing
     // Reconnection tokens are hex-encoded, so length should be 64 chars (32 bytes * 2)
     const expectedTokenLength = (SESSION_SECURITY.RECONNECTION_TOKEN_LENGTH || 32) * 2;
-    const isValidFormat = !reconnectToken ||
+    const isValidFormat =
+        !reconnectToken ||
         (typeof reconnectToken === 'string' &&
-         reconnectToken.length === expectedTokenLength &&
-         /^[0-9a-f]+$/i.test(reconnectToken));
+            reconnectToken.length === expectedTokenLength &&
+            /^[0-9a-f]+$/i.test(reconnectToken));
 
     if (reconnectToken && !isValidFormat) {
         logger.warn('Invalid reconnection token format', {
             sessionId,
             tokenLength: reconnectToken?.length,
             expectedLength: expectedTokenLength,
-            clientIP: currentIP
+            clientIP: currentIP,
         });
         return false;
     }
@@ -295,14 +288,13 @@ async function validateRoomReconnectToken(
         logger.warn('Reconnection token validation failed', {
             sessionId,
             hasToken: !!reconnectToken,
-            clientIP: currentIP
+            clientIP: currentIP,
         });
         return false;
     }
 
     return true;
 }
-
 
 /**
  * Resolve session ID from handshake auth params.
@@ -325,7 +317,7 @@ async function resolveSessionId(
     if (!isValidUuid(sessionId)) {
         logger.warn('Invalid session ID format rejected', {
             sessionId: sessionId.substring(0, 10) + '...',
-            clientIP: currentIP
+            clientIP: currentIP,
         });
         return noSession;
     }
@@ -346,12 +338,12 @@ async function resolveSessionId(
         if (!existingPlayer.lastIP || existingPlayer.lastIP === currentIP) {
             logger.info('Allowing session continuity from same IP (previous socket still connected)', {
                 sessionId,
-                clientIP: currentIP
+                clientIP: currentIP,
             });
             return {
                 validatedSessionId: sessionId,
                 sessionValidation: { valid: true, player: existingPlayer },
-                ipMismatch: false
+                ipMismatch: false,
             };
         }
 
@@ -359,7 +351,7 @@ async function resolveSessionId(
         logger.warn('Session hijacking attempt blocked: different IP', {
             sessionId,
             clientIP: currentIP,
-            existingIP: existingPlayer.lastIP
+            existingIP: existingPlayer.lastIP,
         });
         return noSession;
     }
@@ -372,7 +364,7 @@ async function resolveSessionId(
         logger.warn('Session validation failed', {
             sessionId,
             reason: sessionValidation.reason,
-            clientIP: currentIP
+            clientIP: currentIP,
         });
         return { validatedSessionId: null, sessionValidation, ipMismatch: false };
     }
@@ -386,13 +378,13 @@ async function resolveSessionId(
     // for missing a token the client never had after a page refresh.
     logger.debug('Session validated for reconnection', {
         sessionId,
-        ipMismatch: sessionValidation.ipMismatch
+        ipMismatch: sessionValidation.ipMismatch,
     });
 
     return {
         validatedSessionId: sessionId,
         sessionValidation,
-        ipMismatch: !!sessionValidation.ipMismatch
+        ipMismatch: !!sessionValidation.ipMismatch,
     };
 }
 
@@ -402,7 +394,7 @@ export {
     validateSessionAge,
     validateIPConsistency,
     validateRoomReconnectToken,
-    checkValidationRateLimit
+    checkValidationRateLimit,
 };
 
 export type { SessionValidationResult, SessionResolutionResult, RateLimitResult };

@@ -21,7 +21,7 @@ const { BOARD_SIZE, ERROR_CODES, DEFAULT_WORDS } = require('../../config/constan
 const mockMultiResult = [['OK']];
 const mockMulti = {
     set: jest.fn().mockReturnThis(),
-    exec: jest.fn().mockResolvedValue(mockMultiResult)
+    exec: jest.fn().mockResolvedValue(mockMultiResult),
 };
 
 const mockRedis = {
@@ -33,11 +33,11 @@ const mockRedis = {
     unwatch: jest.fn(),
     multi: jest.fn(() => mockMulti),
     eval: jest.fn(),
-    ttl: jest.fn().mockResolvedValue(86400)
+    ttl: jest.fn().mockResolvedValue(86400),
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 // Mock logger
@@ -45,7 +45,7 @@ const mockLogger = {
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 };
 
 jest.mock('../../utils/logger', () => mockLogger);
@@ -58,16 +58,9 @@ const {
     determineRevealOutcome,
     switchTurn,
     buildRevealResult,
-    getGameStateForPlayer
+    getGameStateForPlayer,
 } = require('../../services/game/revealEngine');
-const {
-    createGame,
-    getGame,
-    revealCard,
-    endTurn,
-    forfeitGame,
-    cleanupGame
-} = require('../../services/gameService');
+const { createGame, getGame, revealCard, endTurn, forfeitGame, cleanupGame } = require('../../services/gameService');
 
 describe('validateCardIndex', () => {
     test('accepts valid indices 0-24', () => {
@@ -120,7 +113,7 @@ describe('validateRevealPreconditions', () => {
         guessesAllowed: 3,
         guessesUsed: 0,
         revealed: Array(BOARD_SIZE).fill(false),
-        ...overrides
+        ...overrides,
     });
 
     test('passes with valid game state', () => {
@@ -183,7 +176,7 @@ describe('executeCardReveal', () => {
         redScore: 0,
         blueScore: 0,
         guessesUsed: 0,
-        ...overrides
+        ...overrides,
     });
 
     test('reveals card and returns type', () => {
@@ -253,7 +246,7 @@ describe('determineRevealOutcome', () => {
         currentTurn: 'red',
         guessesUsed: 1,
         guessesAllowed: 3,
-        ...overrides
+        ...overrides,
     });
 
     test('assassin ends game, other team wins', () => {
@@ -340,7 +333,7 @@ describe('switchTurn', () => {
             currentTurn: 'red',
             currentClue: { word: 'TEST', number: 2 },
             guessesUsed: 2,
-            guessesAllowed: 3
+            guessesAllowed: 3,
         };
 
         switchTurn(game);
@@ -356,7 +349,7 @@ describe('switchTurn', () => {
             currentTurn: 'blue',
             currentClue: { word: 'OTHER', number: 1 },
             guessesUsed: 1,
-            guessesAllowed: 2
+            guessesAllowed: 2,
         };
 
         switchTurn(game);
@@ -377,7 +370,7 @@ describe('buildRevealResult', () => {
             guessesAllowed: 3,
             gameOver: false,
             winner: null,
-            types: ['red', 'blue', 'neutral']
+            types: ['red', 'blue', 'neutral'],
         };
 
         const outcome = { turnEnded: false, endReason: null };
@@ -396,7 +389,7 @@ describe('buildRevealResult', () => {
             gameOver: false,
             winner: null,
             endReason: null,
-            allTypes: null
+            allTypes: null,
         });
     });
 
@@ -410,7 +403,7 @@ describe('buildRevealResult', () => {
             guessesAllowed: 3,
             gameOver: true,
             winner: 'red',
-            types: ['red', 'blue', 'neutral']
+            types: ['red', 'blue', 'neutral'],
         };
 
         const outcome = { turnEnded: true, endReason: 'completed' };
@@ -427,7 +420,7 @@ describe('Game State Edge Cases', () => {
             types: Array(9).fill('red').concat(Array(8).fill('blue'), Array(7).fill('neutral'), ['assassin']),
             redScore: 0,
             blueScore: 0,
-            guessesUsed: 0
+            guessesUsed: 0,
         };
 
         // Reveal multiple red cards
@@ -454,7 +447,7 @@ describe('Game State Edge Cases', () => {
             blueTotal: 8,
             currentTurn: 'red',
             guessesUsed: 1,
-            guessesAllowed: 3
+            guessesAllowed: 3,
         };
 
         // Red reveals their last card
@@ -495,7 +488,7 @@ describe('createGame', () => {
         expect(game.words.length).toBe(BOARD_SIZE);
         expect(game.types.length).toBe(BOARD_SIZE);
         expect(game.revealed.length).toBe(BOARD_SIZE);
-        expect(game.revealed.every(r => r === false)).toBe(true);
+        expect(game.revealed.every((r) => r === false)).toBe(true);
         expect(game.gameOver).toBe(false);
         expect(game.winner).toBeNull();
         expect(game.currentClue).toBeNull();
@@ -511,15 +504,21 @@ describe('createGame', () => {
 
         expect(game.words.length).toBe(BOARD_SIZE);
         // Words should be uppercased
-        expect(game.words.every(w => w === w.toUpperCase())).toBe(true);
+        expect(game.words.every((w) => w === w.toUpperCase())).toBe(true);
         expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('custom words'));
     });
 
     test('creates a game with custom word list with duplicates', async () => {
         // Word list with duplicates and whitespace
         const customWords = [
-            'WORD1', 'word1', 'WORD1', ' word2 ', 'WORD3', 'word4', 'word5',
-            ...Array.from({ length: 25 }, (_, i) => `UNIQUE${i}`)
+            'WORD1',
+            'word1',
+            'WORD1',
+            ' word2 ',
+            'WORD3',
+            'word4',
+            'word5',
+            ...Array.from({ length: 25 }, (_, i) => `UNIQUE${i}`),
         ];
         const game = await createGame('TEST03', { wordList: customWords });
 
@@ -610,7 +609,7 @@ describe('getGame', () => {
             id: 'test-id',
             words: ['WORD1', 'WORD2'],
             types: ['red', 'blue'],
-            revealed: [false, false]
+            revealed: [false, false],
         };
         mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
 
@@ -623,9 +622,7 @@ describe('getGame', () => {
         mockRedis.get.mockResolvedValue('invalid-json{corrupted');
 
         await expect(getGame('CORRUPT')).rejects.toThrow('Game data corrupted');
-        expect(mockLogger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Corrupted game data')
-        );
+        expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Corrupted game data'));
         // Should delete corrupted data
         expect(mockRedis.del).toHaveBeenCalledWith('room:CORRUPT:game');
     });
@@ -648,7 +645,7 @@ describe('getGameStateForPlayer', () => {
         guessesUsed: 0,
         guessesAllowed: 0,
         clues: [],
-        history: []
+        history: [],
     };
 
     test('spymaster sees all types', () => {
@@ -686,7 +683,7 @@ describe('getGameStateForPlayer', () => {
             blueMatchScore: 0,
             roundHistory: [],
             matchOver: false,
-            matchWinner: null
+            matchWinner: null,
         };
 
         test('spymaster sees all card scores', () => {
@@ -701,7 +698,7 @@ describe('getGameStateForPlayer', () => {
             const player = { role: 'clicker', team: 'red' };
             const state = getGameStateForPlayer(game, player);
 
-            expect(state.cardScores[0]).toBe(1);   // Revealed card shows score
+            expect(state.cardScores[0]).toBe(1); // Revealed card shows score
             expect(state.cardScores[1]).toBeNull(); // Unrevealed card hidden
         });
 
@@ -751,7 +748,7 @@ describe('revealCard Lua error mapping', () => {
             gameOver: false,
             winner: null,
             endReason: null,
-            allTypes: null
+            allTypes: null,
         };
         mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
@@ -766,7 +763,7 @@ describe('revealCard Lua error mapping', () => {
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.GAME_NOT_STARTED,
-            message: 'No active game'
+            message: 'No active game',
         });
     });
 
@@ -775,7 +772,7 @@ describe('revealCard Lua error mapping', () => {
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.GAME_OVER,
-            message: 'Game is already over'
+            message: 'Game is already over',
         });
     });
 
@@ -784,7 +781,7 @@ describe('revealCard Lua error mapping', () => {
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.INVALID_INPUT,
-            message: 'No guesses remaining this turn'
+            message: 'No guesses remaining this turn',
         });
     });
 
@@ -793,7 +790,7 @@ describe('revealCard Lua error mapping', () => {
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.CARD_ALREADY_REVEALED,
-            message: 'Card already revealed'
+            message: 'Card already revealed',
         });
     });
 
@@ -802,13 +799,13 @@ describe('revealCard Lua error mapping', () => {
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'UNKNOWN_ERROR' }));
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
-            code: ERROR_CODES.SERVER_ERROR
+            code: ERROR_CODES.SERVER_ERROR,
         });
     });
 
     test('rejects invalid card index before calling Redis', async () => {
         await expect(revealCard('TEST01', -1)).rejects.toMatchObject({
-            code: ERROR_CODES.INVALID_INPUT
+            code: ERROR_CODES.INVALID_INPUT,
         });
 
         // Lock should still be acquired, but eval should not be called for invalid index
@@ -844,7 +841,7 @@ describe('revealCard', () => {
             gameOver: false,
             winner: null,
             endReason: null,
-            allTypes: null
+            allTypes: null,
         };
         mockRedis.eval.mockResolvedValue(JSON.stringify(luaResult));
 
@@ -862,7 +859,7 @@ describe('revealCard', () => {
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.SERVER_ERROR,
-            message: expect.stringContaining('Failed to acquire lock')
+            message: expect.stringContaining('Failed to acquire lock'),
         });
 
         mockRedis.set = origSet;
@@ -874,7 +871,7 @@ describe('revealCard', () => {
 
         await expect(revealCard('TEST01', 5)).rejects.toMatchObject({
             code: ERROR_CODES.GAME_OVER,
-            message: 'Game is already over'
+            message: 'Game is already over',
         });
     });
 
@@ -895,22 +892,30 @@ describe('revealCard', () => {
     test('logs error when lock release fails', async () => {
         mockRedis.set.mockResolvedValueOnce('OK'); // Lock acquired
         const luaResult = {
-            success: true, index: 5, type: 'red', word: 'APPLE',
-            redScore: 1, blueScore: 0, currentTurn: 'red',
-            guessesUsed: 1, guessesAllowed: 3, turnEnded: false,
-            gameOver: false, winner: null, endReason: null, allTypes: null
+            success: true,
+            index: 5,
+            type: 'red',
+            word: 'APPLE',
+            redScore: 1,
+            blueScore: 0,
+            currentTurn: 'red',
+            guessesUsed: 1,
+            guessesAllowed: 3,
+            turnEnded: false,
+            gameOver: false,
+            winner: null,
+            endReason: null,
+            allTypes: null,
         };
         // First eval: Lua reveal succeeds. Second eval: lock release fails.
-        mockRedis.eval
-            .mockResolvedValueOnce(JSON.stringify(luaResult))
-            .mockRejectedValueOnce(new Error('Redis down'));
+        mockRedis.eval.mockResolvedValueOnce(JSON.stringify(luaResult)).mockRejectedValueOnce(new Error('Redis down'));
 
         await revealCard('TEST01', 5);
 
         expect(mockLogger.error).toHaveBeenCalledWith(
             'Lock release error',
             expect.objectContaining({
-                error: 'Redis down'
+                error: 'Redis down',
             })
         );
     });
@@ -943,19 +948,17 @@ describe('endTurn', () => {
     test('rejects when no game exists', async () => {
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'NO_GAME' }));
 
-        await expect(endTurn('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.GAME_NOT_STARTED
-            });
+        await expect(endTurn('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_NOT_STARTED,
+        });
     });
 
     test('rejects when game is over', async () => {
         mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
 
-        await expect(endTurn('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.GAME_OVER
-            });
+        await expect(endTurn('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_OVER,
+        });
     });
 });
 
@@ -984,7 +987,7 @@ describe('forfeitGame', () => {
         clues: [],
         history: [],
         stateVersion: 1,
-        ...overrides
+        ...overrides,
     });
 
     test('successfully forfeits game - red forfeits, blue wins', async () => {
@@ -996,7 +999,7 @@ describe('forfeitGame', () => {
         expect(result).toMatchObject({
             winner: 'blue',
             forfeitingTeam: 'red',
-            allTypes: expect.any(Array)
+            allTypes: expect.any(Array),
         });
     });
 
@@ -1008,45 +1011,40 @@ describe('forfeitGame', () => {
 
         expect(result).toMatchObject({
             winner: 'red',
-            forfeitingTeam: 'blue'
+            forfeitingTeam: 'blue',
         });
     });
 
     test('rejects when no game exists', async () => {
         mockRedis.get.mockResolvedValue(null);
 
-        await expect(forfeitGame('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.GAME_NOT_STARTED
-            });
+        await expect(forfeitGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_NOT_STARTED,
+        });
     });
 
     test('rejects when game data is corrupted', async () => {
         mockRedis.get.mockResolvedValue('invalid-json');
 
-        await expect(forfeitGame('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: expect.stringContaining('corrupted')
-            });
+        await expect(forfeitGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.SERVER_ERROR,
+            message: expect.stringContaining('corrupted'),
+        });
     });
 
     test('rejects when game is already over', async () => {
         const gameData = createMockGameData({ gameOver: true, winner: 'red' });
         mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
 
-        await expect(forfeitGame('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.GAME_OVER
-            });
+        await expect(forfeitGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.GAME_OVER,
+        });
     });
 
     test('retries on concurrent modification', async () => {
         const gameData = createMockGameData();
         mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
-        mockMulti.exec
-            .mockResolvedValueOnce(null)
-            .mockResolvedValueOnce(mockMultiResult);
+        mockMulti.exec.mockResolvedValueOnce(null).mockResolvedValueOnce(mockMultiResult);
 
         const result = await forfeitGame('TEST01');
 
@@ -1059,11 +1057,10 @@ describe('forfeitGame', () => {
         mockRedis.get.mockResolvedValue(JSON.stringify(gameData));
         mockMulti.exec.mockResolvedValue(null);
 
-        await expect(forfeitGame('TEST01'))
-            .rejects.toMatchObject({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: expect.stringContaining('concurrent modifications')
-            });
+        await expect(forfeitGame('TEST01')).rejects.toMatchObject({
+            code: ERROR_CODES.SERVER_ERROR,
+            message: expect.stringContaining('concurrent modifications'),
+        });
     });
 });
 

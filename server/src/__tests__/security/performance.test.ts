@@ -15,14 +15,14 @@ describe('Rate Limiter Optimizations', () => {
 
         beforeEach(() => {
             rateLimiter = createSocketRateLimiter({
-                'test:event': { max: 5, window: 1000 }
+                'test:event': { max: 5, window: 1000 },
             });
         });
 
         test('allows requests within limit', (done) => {
             const mockSocket = {
                 id: 'socket-123',
-                clientIP: '127.0.0.1'
+                clientIP: '127.0.0.1',
             };
 
             const limiter = rateLimiter.getLimiter('test:event');
@@ -37,7 +37,7 @@ describe('Rate Limiter Optimizations', () => {
         test('blocks requests exceeding limit', (done) => {
             const mockSocket = {
                 id: 'socket-123',
-                clientIP: '127.0.0.1'
+                clientIP: '127.0.0.1',
             };
 
             const limiter = rateLimiter.getLimiter('test:event');
@@ -61,7 +61,7 @@ describe('Rate Limiter Optimizations', () => {
         test('cleans up socket entries on disconnect', () => {
             const mockSocket = {
                 id: 'socket-cleanup-test',
-                clientIP: '127.0.0.1'
+                clientIP: '127.0.0.1',
             };
 
             const limiter = rateLimiter.getLimiter('test:event');
@@ -84,7 +84,7 @@ describe('Rate Limiter Optimizations', () => {
         test('returns no-op limiter for unconfigured events', (done) => {
             const mockSocket = {
                 id: 'socket-123',
-                clientIP: '127.0.0.1'
+                clientIP: '127.0.0.1',
             };
 
             const limiter = rateLimiter.getLimiter('unconfigured:event');
@@ -99,7 +99,7 @@ describe('Rate Limiter Optimizations', () => {
         test('tracks metrics correctly', () => {
             const mockSocket = {
                 id: 'socket-metrics',
-                clientIP: '192.168.1.1'
+                clientIP: '192.168.1.1',
             };
 
             const limiter = rateLimiter.getLimiter('test:event');
@@ -119,7 +119,7 @@ describe('Rate Limiter Optimizations', () => {
         test('resets metrics correctly', () => {
             const mockSocket = {
                 id: 'socket-reset',
-                clientIP: '10.0.0.1'
+                clientIP: '10.0.0.1',
             };
 
             const limiter = rateLimiter.getLimiter('test:event');
@@ -136,12 +136,12 @@ describe('Rate Limiter Optimizations', () => {
         test('stale cleanup removes old entries', (done) => {
             // Create limiter with very short window for testing
             const shortWindowLimiter = createSocketRateLimiter({
-                'short:event': { max: 10, window: 50 } // 50ms window
+                'short:event': { max: 10, window: 50 }, // 50ms window
             });
 
             const mockSocket = {
                 id: 'socket-stale',
-                clientIP: '127.0.0.1'
+                clientIP: '127.0.0.1',
             };
 
             const limiter = shortWindowLimiter.getLimiter('short:event');
@@ -160,4 +160,3 @@ describe('Rate Limiter Optimizations', () => {
         });
     });
 });
-

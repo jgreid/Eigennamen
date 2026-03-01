@@ -31,5 +31,5 @@ export const logger = {
     },
     setLevel(level: LogLevel): void {
         currentLevel = level;
-    }
+    },
 };

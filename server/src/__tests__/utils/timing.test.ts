@@ -10,7 +10,7 @@ const {
     requestTiming,
     socketEventTiming,
     startMemoryMonitoring,
-    stopMemoryMonitoring
+    stopMemoryMonitoring,
 } = require('../../middleware/timing');
 
 describe('Timing Middleware', () => {
@@ -35,13 +35,13 @@ describe('Timing Middleware', () => {
                 get: jest.fn((header) => {
                     if (header === 'User-Agent') return 'Test Browser';
                     return null;
-                })
+                }),
             };
             mockRes = {
                 setHeader: jest.fn(),
                 get: jest.fn(),
                 statusCode: 200,
-                on: jest.fn()
+                on: jest.fn(),
             };
             mockNext = jest.fn();
         });
@@ -67,7 +67,7 @@ describe('Timing Middleware', () => {
             requestTiming(mockReq, mockRes, mockNext);
 
             // Capture the finish handler
-            const finishHandler = mockRes.on.mock.calls.find(call => call[0] === 'finish')[1];
+            const finishHandler = mockRes.on.mock.calls.find((call) => call[0] === 'finish')[1];
             expect(finishHandler).toBeDefined();
 
             // Trigger finish
@@ -78,7 +78,7 @@ describe('Timing Middleware', () => {
                 expect.objectContaining({
                     method: 'GET',
                     path: '/test',
-                    statusCode: 200
+                    statusCode: 200,
                 })
             );
         });
@@ -88,13 +88,10 @@ describe('Timing Middleware', () => {
 
             requestTiming(mockReq, mockRes, mockNext);
 
-            const finishHandler = mockRes.on.mock.calls.find(call => call[0] === 'finish')[1];
+            const finishHandler = mockRes.on.mock.calls.find((call) => call[0] === 'finish')[1];
             finishHandler();
 
-            expect(logger.error).toHaveBeenCalledWith(
-                'HTTP request completed with error',
-                expect.any(Object)
-            );
+            expect(logger.error).toHaveBeenCalledWith('HTTP request completed with error', expect.any(Object));
         });
 
         it('should not log health check endpoints', () => {
@@ -102,7 +99,7 @@ describe('Timing Middleware', () => {
 
             requestTiming(mockReq, mockRes, mockNext);
 
-            const finishHandler = mockRes.on.mock.calls.find(call => call[0] === 'finish')[1];
+            const finishHandler = mockRes.on.mock.calls.find((call) => call[0] === 'finish')[1];
             finishHandler();
 
             expect(logger.debug).not.toHaveBeenCalled();
@@ -113,7 +110,7 @@ describe('Timing Middleware', () => {
 
             requestTiming(mockReq, mockRes, mockNext);
 
-            const finishHandler = mockRes.on.mock.calls.find(call => call[0] === 'finish')[1];
+            const finishHandler = mockRes.on.mock.calls.find((call) => call[0] === 'finish')[1];
             finishHandler();
 
             expect(logger.debug).not.toHaveBeenCalled();
@@ -128,13 +125,13 @@ describe('Timing Middleware', () => {
 
             requestTiming(mockReq, mockRes, mockNext);
 
-            const finishHandler = mockRes.on.mock.calls.find(call => call[0] === 'finish')[1];
+            const finishHandler = mockRes.on.mock.calls.find((call) => call[0] === 'finish')[1];
             finishHandler();
 
             expect(logger.debug).toHaveBeenCalledWith(
                 'HTTP request completed',
                 expect.objectContaining({
-                    userAgent: 'A'.repeat(100)
+                    userAgent: 'A'.repeat(100),
                 })
             );
         });
@@ -144,13 +141,13 @@ describe('Timing Middleware', () => {
 
             requestTiming(mockReq, mockRes, mockNext);
 
-            const finishHandler = mockRes.on.mock.calls.find(call => call[0] === 'finish')[1];
+            const finishHandler = mockRes.on.mock.calls.find((call) => call[0] === 'finish')[1];
             finishHandler();
 
             expect(logger.debug).toHaveBeenCalledWith(
                 'HTTP request completed',
                 expect.objectContaining({
-                    contentLength: 0
+                    contentLength: 0,
                 })
             );
         });
@@ -162,7 +159,7 @@ describe('Timing Middleware', () => {
         beforeEach(() => {
             mockSocket = {
                 id: 'socket-123',
-                sessionId: 'session-456'
+                sessionId: 'session-456',
             };
         });
 
@@ -216,7 +213,7 @@ describe('Timing Middleware', () => {
                     event: 'test:event',
                     socketId: 'socket-123',
                     sessionId: 'session-456',
-                    error: 'Handler error'
+                    error: 'Handler error',
                 })
             );
         });
@@ -273,9 +270,7 @@ describe('Timing Middleware', () => {
             startMemoryMonitoring();
 
             // Should only log once
-            expect(logger.info.mock.calls.filter(
-                call => call[0] === 'Memory monitoring started'
-            ).length).toBe(1);
+            expect(logger.info.mock.calls.filter((call) => call[0] === 'Memory monitoring started').length).toBe(1);
         });
 
         it('should stop memory monitoring', () => {
@@ -301,7 +296,7 @@ describe('Timing Middleware', () => {
                 expect.objectContaining({
                     heapUsedMB: expect.any(Number),
                     heapTotalMB: expect.any(Number),
-                    rssMB: expect.any(Number)
+                    rssMB: expect.any(Number),
                 })
             );
         });
@@ -314,9 +309,7 @@ describe('Timing Middleware', () => {
             jest.advanceTimersByTime(60000);
 
             // Should have logged 3 times
-            const memoryCalls = logger.debug.mock.calls.filter(
-                call => call[0] === 'Memory usage'
-            );
+            const memoryCalls = logger.debug.mock.calls.filter((call) => call[0] === 'Memory usage');
             expect(memoryCalls.length).toBe(3);
         });
 
@@ -341,7 +334,7 @@ describe('Timing Middleware', () => {
             expect(logger.debug).toHaveBeenCalledWith(
                 'Memory usage',
                 expect.objectContaining({
-                    heapUsagePercent: expect.any(Number)
+                    heapUsagePercent: expect.any(Number),
                 })
             );
         });

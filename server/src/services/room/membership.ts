@@ -1,7 +1,4 @@
-import type {
-    JoinRoomResult,
-    LeaveRoomResult,
-} from '../../types/room';
+import type { JoinRoomResult, LeaveRoomResult } from '../../types/room';
 import type { Player, PlayerGameState, RedisClient } from '../../types';
 
 import { getRedis } from '../../config/redis';
@@ -10,11 +7,7 @@ import * as playerService from '../playerService';
 import * as gameService from '../gameService';
 import { withTimeout, TIMEOUTS } from '../../utils/timeout';
 import { normalizeRoomCode } from '../../utils/sanitize';
-import {
-    ROOM_MAX_PLAYERS,
-    REDIS_TTL,
-    LOCKS,
-} from '../../config/constants';
+import { ROOM_MAX_PLAYERS, REDIS_TTL, LOCKS } from '../../config/constants';
 import { RoomError, ServerError, GameStateError } from '../../errors/GameError';
 import { ATOMIC_JOIN_SCRIPT, RELEASE_LOCK_SCRIPT } from '../../scripts';
 import { getRoom, refreshRoomTTL, cleanupRoom } from '../roomService';
@@ -26,11 +19,7 @@ import { getRoom, refreshRoomTTL, cleanupRoom } from '../roomService';
  * @param sessionId - Player's session ID
  * @param nickname - Player's nickname
  */
-export async function joinRoom(
-    roomId: string,
-    sessionId: string,
-    nickname: string
-): Promise<JoinRoomResult> {
+export async function joinRoom(roomId: string, sessionId: string, nickname: string): Promise<JoinRoomResult> {
     const redis: RedisClient = getRedis();
 
     // Normalize room ID (case-insensitive)
@@ -64,23 +53,20 @@ export async function joinRoom(
         const playerObj = playerService.buildPlayerData(sessionId, normalizedRoomId, nickname, false);
         const playerJSON = JSON.stringify(playerObj);
 
-        const result = await withTimeout(
-            redis.eval(
-                ATOMIC_JOIN_SCRIPT,
-                {
-                    keys: [`room:${normalizedRoomId}:players`, `room:${normalizedRoomId}`],
-                    arguments: [
-                        ROOM_MAX_PLAYERS.toString(),
-                        sessionId,
-                        playerJSON,
-                        `player:${sessionId}`,
-                        REDIS_TTL.PLAYER.toString()
-                    ]
-                }
-            ),
+        const result = (await withTimeout(
+            redis.eval(ATOMIC_JOIN_SCRIPT, {
+                keys: [`room:${normalizedRoomId}:players`, `room:${normalizedRoomId}`],
+                arguments: [
+                    ROOM_MAX_PLAYERS.toString(),
+                    sessionId,
+                    playerJSON,
+                    `player:${sessionId}`,
+                    REDIS_TTL.PLAYER.toString(),
+                ],
+            }),
             TIMEOUTS.REDIS_OPERATION,
             `joinRoom-lua-${normalizedRoomId}`
-        ) as number;
+        )) as number;
 
         if (result === -2) {
             // Room was deleted between getRoom() and the atomic script
@@ -122,7 +108,7 @@ export async function joinRoom(
     } catch (ttlError) {
         logger.warn('Failed to refresh room TTL during join', {
             roomId: normalizedRoomId,
-            error: (ttlError as Error).message
+            error: (ttlError as Error).message,
         });
     }
 
@@ -136,7 +122,7 @@ export async function joinRoom(
         players: await playerService.getPlayersInRoom(normalizedRoomId),
         game: gameState,
         player,
-        isReconnecting
+        isReconnecting,
     };
 }
 
@@ -172,7 +158,7 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
 
     // Get remaining players (excluding the leaving player) for host transfer decision
     const allPlayers: Player[] = await playerService.getPlayersInRoom(code);
-    const remainingPlayers = allPlayers.filter(p => p.sessionId !== sessionId);
+    const remainingPlayers = allPlayers.filter((p) => p.sessionId !== sessionId);
 
     let newHostId: string | null = null;
     let roomDeleted = false;
@@ -211,7 +197,9 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
                     await playerService.updatePlayer(newHostId, { isHost: true });
                 }
             } else {
-                logger.info(`Host transfer lock not acquired in leaveRoom for room ${code}, another handler is transferring`);
+                logger.info(
+                    `Host transfer lock not acquired in leaveRoom for room ${code}, another handler is transferring`
+                );
             }
         } catch (lockError) {
             logger.error(`Host transfer lock error in leaveRoom for room ${code}: ${(lockError as Error).message}`);
@@ -224,7 +212,9 @@ export async function leaveRoom(code: string, sessionId: string): Promise<LeaveR
                         `release-host-transfer-lock-leave-${code}`
                     );
                 } catch (delErr) {
-                    logger.error(`Failed to release host transfer lock in leaveRoom for ${code}: ${(delErr as Error).message}`);
+                    logger.error(
+                        `Failed to release host transfer lock in leaveRoom for ${code}: ${(delErr as Error).message}`
+                    );
                 }
             }
         }

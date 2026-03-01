@@ -7,7 +7,6 @@
 
 const { v4: uuidv4 } = require('uuid');
 
-
 type AnyRecord = Record<string, any>;
 
 /**
@@ -48,11 +47,11 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             return deleted;
         }),
         exists: jest.fn(async (...keys: Array<string | string[]>) => {
-            return keys.flat().filter(k => storage.has(k) || sets.has(k)).length;
+            return keys.flat().filter((k) => storage.has(k) || sets.has(k)).length;
         }),
         expire: jest.fn(async () => 1),
         ttl: jest.fn(async () => -1),
-        mGet: jest.fn(async (keys: string[]) => keys.map(k => storage.get(k) || null)),
+        mGet: jest.fn(async (keys: string[]) => keys.map((k) => storage.get(k) || null)),
         incr: jest.fn(async (key: string) => {
             const val = parseInt(storage.get(key) || '0', 10) + 1;
             storage.set(key, val.toString());
@@ -110,7 +109,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             if (!sorted) return 0;
             let removed = 0;
             for (const member of members.flat()) {
-                const idx = sorted.findIndex(i => i.value === member);
+                const idx = sorted.findIndex((i) => i.value === member);
                 if (idx !== -1) {
                     sorted.splice(idx, 1);
                     removed++;
@@ -138,16 +137,14 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
                 items = items.slice(options.LIMIT.offset, options.LIMIT.offset + options.LIMIT.count);
             }
             if (options.WITHSCORES) {
-                return items.map(i => ({ value: i.value, score: i.score }));
+                return items.map((i) => ({ value: i.value, score: i.score }));
             }
-            return items.map(i => i.value);
+            return items.map((i) => i.value);
         }),
         zRangeByScore: jest.fn(async (key: string, min: number, max: number, options: AnyRecord = {}) => {
             const sorted = sortedSets.get(key);
             if (!sorted) return [];
-            let results = sorted
-                .filter(i => i.score >= min && i.score <= max)
-                .map(i => i.value);
+            let results = sorted.filter((i) => i.score >= min && i.score <= max).map((i) => i.value);
             if (options.LIMIT) {
                 results = results.slice(options.LIMIT.offset, options.LIMIT.offset + options.LIMIT.count);
             }
@@ -240,7 +237,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
                         }
                     }
                     return results;
-                }
+                },
             };
 
             return chain;
@@ -249,7 +246,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
         // Pub/Sub operations
         publish: jest.fn(async (channel: string, message: string) => {
             const handlers = subscriptions.get(channel) || [];
-            handlers.forEach(h => h(message));
+            handlers.forEach((h) => h(message));
             return handlers.length;
         }),
         subscribe: jest.fn(async (channel: string, handler: (message: string) => void) => {
@@ -272,7 +269,7 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             const pattern = options.MATCH || '*';
             const count = options.COUNT || 10;
             const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-            const allKeys = [...storage.keys()].filter(key => regex.test(key));
+            const allKeys = [...storage.keys()].filter((key) => regex.test(key));
             const startIdx = cursor;
             const endIdx = Math.min(startIdx + count, allKeys.length);
             const keys = allKeys.slice(startIdx, endIdx);
@@ -309,12 +306,12 @@ function createMockRedis(overrides: AnyRecord = {}): AnyRecord {
             subscriptions.clear();
         },
         _resetMocks: () => {
-            Object.keys(mockRedis).forEach(key => {
+            Object.keys(mockRedis).forEach((key) => {
                 if (typeof mockRedis[key] === 'function' && mockRedis[key].mockReset) {
                     mockRedis[key].mockReset();
                 }
             });
-        }
+        },
     };
 
     // Apply overrides
@@ -335,7 +332,7 @@ function createMockPlayer(overrides: AnyRecord = {}): AnyRecord {
         connected: true,
         connectedAt: Date.now(),
         lastSeen: Date.now(),
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -351,11 +348,11 @@ function createMockRoom(overrides: AnyRecord = {}): AnyRecord {
             redTeamName: 'Red Team',
             blueTeamName: 'Blue Team',
             turnTimer: null,
-            ...overrides.settings
+            ...overrides.settings,
         },
         status: 'waiting',
         createdAt: Date.now(),
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -368,7 +365,7 @@ function createMockGame(overrides: AnyRecord = {}): AnyRecord {
         ...Array(9).fill('red'),
         ...Array(8).fill('blue'),
         ...Array(7).fill('neutral'),
-        'assassin'
+        'assassin',
     ];
 
     return {
@@ -392,7 +389,7 @@ function createMockGame(overrides: AnyRecord = {}): AnyRecord {
         history: [],
         stateVersion: 1,
         createdAt: Date.now(),
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -416,22 +413,30 @@ function createMockSocket(overrides: AnyRecord = {}): AnyRecord {
         handshake: {
             auth: { sessionId },
             address: '127.0.0.1',
-            ...overrides.handshake
+            ...overrides.handshake,
         },
-        join: jest.fn((room: string) => { mockSocket.rooms.add(room); }),
-        leave: jest.fn((room: string) => { mockSocket.rooms.delete(room); }),
+        join: jest.fn((room: string) => {
+            mockSocket.rooms.add(room);
+        }),
+        leave: jest.fn((room: string) => {
+            mockSocket.rooms.delete(room);
+        }),
         to: jest.fn(() => ({ emit: jest.fn() })),
-        on: jest.fn((event: string, handler: Function) => { eventHandlers[event] = handler; }),
-        once: jest.fn((event: string, handler: Function) => { eventHandlers[event] = handler; }),
+        on: jest.fn((event: string, handler: Function) => {
+            eventHandlers[event] = handler;
+        }),
+        once: jest.fn((event: string, handler: Function) => {
+            eventHandlers[event] = handler;
+        }),
         removeAllListeners: jest.fn(),
         emit: jest.fn(),
         broadcast: {
-            to: jest.fn(() => ({ emit: jest.fn() }))
+            to: jest.fn(() => ({ emit: jest.fn() })),
         },
         disconnect: jest.fn(),
         // Test utility: access registered handlers
         _eventHandlers: eventHandlers,
-        ...overrides
+        ...overrides,
     };
 
     return mockSocket;
@@ -447,7 +452,7 @@ function createMockIO(overrides: AnyRecord = {}): AnyRecord {
         to: jest.fn(() => ({ emit: mockEmit })),
         in: jest.fn(() => ({
             emit: mockEmit,
-            fetchSockets: jest.fn(async () => [])
+            fetchSockets: jest.fn(async () => []),
         })),
         emit: jest.fn(),
         on: jest.fn(),
@@ -456,13 +461,13 @@ function createMockIO(overrides: AnyRecord = {}): AnyRecord {
         sockets: {
             adapter: {
                 rooms: new Map(),
-                sids: new Map()
+                sids: new Map(),
             },
-            sockets: new Map()
+            sockets: new Map(),
         },
         // Test utility: access the emit mock used by .to()/.in()
         _roomEmit: mockEmit,
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -475,7 +480,7 @@ function createMockLogger(): AnyRecord {
         info: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
-        child: jest.fn(() => createMockLogger())
+        child: jest.fn(() => createMockLogger()),
     };
 }
 
@@ -503,7 +508,7 @@ function createMockServices(): AnyRecord {
             revealCard: jest.fn(async () => ({ index: 0, type: 'red' })),
             endTurn: jest.fn(async () => ({ currentTurn: 'blue' })),
             forfeitGame: jest.fn(async () => ({ winner: 'blue' })),
-            cleanupGame: jest.fn(async () => {})
+            cleanupGame: jest.fn(async () => {}),
         },
         roomService: {
             createRoom: jest.fn(async () => createMockRoom()),
@@ -511,7 +516,7 @@ function createMockServices(): AnyRecord {
             getRoomWithPlayers: jest.fn(async () => null),
             updateRoomSettings: jest.fn(async () => createMockRoom()),
             deleteRoom: jest.fn(async () => {}),
-            roomExists: jest.fn(async () => false)
+            roomExists: jest.fn(async () => false),
         },
         playerService: {
             createPlayer: jest.fn(async () => createMockPlayer()),
@@ -522,7 +527,7 @@ function createMockServices(): AnyRecord {
             setNickname: jest.fn(async () => createMockPlayer()),
             getPlayersInRoom: jest.fn(async () => []),
             removePlayer: jest.fn(async () => {}),
-            handleDisconnect: jest.fn(async () => null)
+            handleDisconnect: jest.fn(async () => null),
         },
         timerService: {
             startTimer: jest.fn(async () => ({ endTime: Date.now() + 60000 })),
@@ -530,8 +535,8 @@ function createMockServices(): AnyRecord {
             getTimerStatus: jest.fn(async () => null),
             pauseTimer: jest.fn(async () => 60),
             resumeTimer: jest.fn(async () => ({ endTime: Date.now() + 60000 })),
-            hasActiveTimer: jest.fn(async () => false)
-        }
+            hasActiveTimer: jest.fn(async () => false),
+        },
     };
 }
 
@@ -539,14 +544,14 @@ function createMockServices(): AnyRecord {
  * Wait for a specified time
  */
 function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
  * Flush all pending promises (single cycle)
  */
 function flushPromises(): Promise<void> {
-    return new Promise(resolve => setImmediate(resolve));
+    return new Promise((resolve) => setImmediate(resolve));
 }
 
 /**
@@ -557,7 +562,7 @@ function flushPromises(): Promise<void> {
  */
 async function drainMicrotasks(cycles: number = 3): Promise<void> {
     for (let i = 0; i < cycles; i++) {
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
     }
 }
 
@@ -633,9 +638,11 @@ function createFailingRedis(
         publish: makeFailingFn('publish'),
         subscribe: makeFailingFn('subscribe'),
         ping: makeFailingFn('ping'),
-        scanIterator: jest.fn(function* () { throw error; }),
+        scanIterator: jest.fn(function* () {
+            throw error;
+        }),
         _callCount: () => callCount,
-        _error: error
+        _error: error,
     };
 }
 
@@ -644,12 +651,24 @@ function createFailingRedis(
  * Centralized here to prevent duplication across 11+ handler test files.
  */
 const SAFE_ERROR_CODES = [
-    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'NOT_HOST', 'NOT_YOUR_TURN',
-    'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED', 'NOT_SPYMASTER',
-    'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED', 'PLAYER_NOT_FOUND',
-    'GAME_IN_PROGRESS', 'CANNOT_SWITCH_TEAM_DURING_TURN',
-    'CANNOT_CHANGE_ROLE_DURING_TURN', 'SPYMASTER_CANNOT_CHANGE_TEAM',
-    'GAME_NOT_STARTED'
+    'RATE_LIMITED',
+    'ROOM_NOT_FOUND',
+    'ROOM_FULL',
+    'NOT_HOST',
+    'NOT_YOUR_TURN',
+    'GAME_OVER',
+    'INVALID_INPUT',
+    'CARD_ALREADY_REVEALED',
+    'NOT_SPYMASTER',
+    'NOT_CLICKER',
+    'NOT_AUTHORIZED',
+    'SESSION_EXPIRED',
+    'PLAYER_NOT_FOUND',
+    'GAME_IN_PROGRESS',
+    'CANNOT_SWITCH_TEAM_DURING_TURN',
+    'CANNOT_CHANGE_ROLE_DURING_TURN',
+    'SPYMASTER_CANNOT_CHANGE_TEAM',
+    'GAME_NOT_STARTED',
 ];
 
 /**
@@ -674,7 +693,7 @@ function createMockRateLimitHandler(safeErrorCodes: string[] = SAFE_ERROR_CODES)
                 const isSafe = safeErrorCodes.includes(code);
                 socket.emit(errorEvent, {
                     code,
-                    message: isSafe ? (error.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+                    message: isSafe ? error.message || 'An unexpected error occurred' : 'An unexpected error occurred',
                 });
                 return undefined;
             }
@@ -698,5 +717,5 @@ module.exports = {
     drainMicrotasks,
     expectAsyncError,
     SAFE_ERROR_CODES,
-    createMockRateLimitHandler
+    createMockRateLimitHandler,
 };

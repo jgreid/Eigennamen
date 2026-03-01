@@ -8,7 +8,7 @@ jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const { withTimeout, TimeoutError, TIMEOUTS } = require('../../utils/timeout');
@@ -58,7 +58,7 @@ describe('Timeout Utility', () => {
         test('resolves with correct value for async operation', async () => {
             jest.useRealTimers();
 
-            const promise = new Promise(resolve => {
+            const promise = new Promise((resolve) => {
                 setTimeout(() => resolve({ data: 'test' }), 10);
             });
 
@@ -77,7 +77,7 @@ describe('Timeout Utility', () => {
             await expect(promise).rejects.toThrow(TimeoutError);
             await expect(promise).rejects.toMatchObject({
                 operationName: 'slowOp',
-                code: 'OPERATION_TIMEOUT'
+                code: 'OPERATION_TIMEOUT',
             });
         });
 
@@ -94,9 +94,7 @@ describe('Timeout Utility', () => {
                 // Expected
             }
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Operation timeout: loggingOp')
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Operation timeout: loggingOp'));
         });
 
         test('includes timeout duration in error message', async () => {
@@ -176,7 +174,7 @@ describe('Timeout Utility', () => {
         });
 
         test('all timeout values are positive numbers', () => {
-            Object.values(TIMEOUTS).forEach(value => {
+            Object.values(TIMEOUTS).forEach((value) => {
                 expect(typeof value).toBe('number');
                 expect(value).toBeGreaterThan(0);
             });
@@ -196,7 +194,7 @@ describe('Timeout Utility', () => {
 
         test('handles async function correctly', async () => {
             async function asyncOperation() {
-                await new Promise(resolve => setTimeout(resolve, 10));
+                await new Promise((resolve) => setTimeout(resolve, 10));
                 return 'async result';
             }
 
@@ -205,7 +203,7 @@ describe('Timeout Utility', () => {
         });
 
         test('race condition: promise resolves just before timeout', async () => {
-            const promise = new Promise(resolve => {
+            const promise = new Promise((resolve) => {
                 setTimeout(() => resolve('just in time'), 50);
             });
 
@@ -261,14 +259,15 @@ describe('Timeout Utility', () => {
             process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '1000' };
             // Re-mock logger after resetModules so the fresh require picks it up
             jest.mock('../../utils/logger', () => ({
-                error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn()
+                error: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+                debug: jest.fn(),
             }));
             const { TIMEOUTS: t } = require('../../utils/timeout');
             const freshLogger = require('../../utils/logger');
             expect(t.SOCKET_HANDLER).toBe(5000);
-            expect(freshLogger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('out of bounds')
-            );
+            expect(freshLogger.warn).toHaveBeenCalledWith(expect.stringContaining('out of bounds'));
         });
 
         test('clamps value above maximum to maximum', () => {
@@ -276,14 +275,15 @@ describe('Timeout Utility', () => {
             // SOCKET_HANDLER min is 5000, max is 120000
             process.env = { ...originalEnv, TIMEOUT_SOCKET_HANDLER: '500000' };
             jest.mock('../../utils/logger', () => ({
-                error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn()
+                error: jest.fn(),
+                warn: jest.fn(),
+                info: jest.fn(),
+                debug: jest.fn(),
             }));
             const { TIMEOUTS: t } = require('../../utils/timeout');
             const freshLogger = require('../../utils/logger');
             expect(t.SOCKET_HANDLER).toBe(120000);
-            expect(freshLogger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('out of bounds')
-            );
+            expect(freshLogger.warn).toHaveBeenCalledWith(expect.stringContaining('out of bounds'));
         });
 
         test('accepts value at exact minimum boundary', () => {

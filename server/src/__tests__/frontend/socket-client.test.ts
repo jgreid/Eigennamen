@@ -222,8 +222,11 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client.socket = { connected: false, emit: jest.fn() };
 
             const queueableEvents = [
-                'chat:message', 'chat:spectator',
-                'player:setTeam', 'player:setRole', 'player:setNickname',
+                'chat:message',
+                'chat:spectator',
+                'player:setTeam',
+                'player:setRole',
+                'player:setNickname',
                 'game:endTurn',
             ];
 
@@ -319,15 +322,13 @@ describe('socket-client (EigennamenClient IIFE)', () => {
         it('prevents double-join via joinInProgress flag', async () => {
             client.joinInProgress = true;
 
-            await expect(client.joinRoom('ABCD', 'Alice'))
-                .rejects.toThrow('Join already in progress');
+            await expect(client.joinRoom('ABCD', 'Alice')).rejects.toThrow('Join already in progress');
         });
 
         it('prevents double-create via createInProgress flag', async () => {
             client.createInProgress = true;
 
-            await expect(client.createRoom({ roomId: 'ABCD' }))
-                .rejects.toThrow('Room creation already in progress');
+            await expect(client.createRoom({ roomId: 'ABCD' })).rejects.toThrow('Room creation already in progress');
         });
 
         it('resets joinInProgress and createInProgress on disconnect', () => {
@@ -455,8 +456,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
         it('createRoom rejects immediately if roomId is missing', async () => {
             client.socket = createMockSocket();
 
-            await expect(client.createRoom({ roomId: '' }))
-                .rejects.toThrow('Room ID is required');
+            await expect(client.createRoom({ roomId: '' })).rejects.toThrow('Room ID is required');
             expect(client.createInProgress).toBe(false);
         });
 
@@ -476,7 +476,9 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             const promise = client._doConnect('http://localhost:3000');
             let rejected = false;
 
-            promise.catch(() => { rejected = true; });
+            promise.catch(() => {
+                rejected = true;
+            });
 
             // Fire fewer errors than the max
             for (let i = 0; i < 4; i++) {
@@ -589,7 +591,13 @@ describe('socket-client (EigennamenClient IIFE)', () => {
 
             // Should still be pending (not rejected by the mismatched error)
             let settled = false;
-            promise.then(() => { settled = true; }).catch(() => { settled = true; });
+            promise
+                .then(() => {
+                    settled = true;
+                })
+                .catch(() => {
+                    settled = true;
+                });
             await Promise.resolve();
             await Promise.resolve();
 
@@ -637,7 +645,13 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client._emit('error', { type: 'room', message: 'different error', requestId: 'req_999' });
 
             let settled = false;
-            promise.then(() => { settled = true; }).catch(() => { settled = true; });
+            promise
+                .then(() => {
+                    settled = true;
+                })
+                .catch(() => {
+                    settled = true;
+                });
             await Promise.resolve();
             await Promise.resolve();
 
@@ -671,7 +685,13 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client._emit('error', { type: 'room', message: 'stale error', requestId: 'req_999' });
 
             let settled = false;
-            promise.then(() => { settled = true; }).catch(() => { settled = true; });
+            promise
+                .then(() => {
+                    settled = true;
+                })
+                .catch(() => {
+                    settled = true;
+                });
             await Promise.resolve();
             await Promise.resolve();
 
@@ -711,11 +731,14 @@ describe('socket-client (EigennamenClient IIFE)', () => {
 
             client.joinRoom('ABCD', 'Alice');
 
-            expect(emitFn).toHaveBeenCalledWith('room:join', expect.objectContaining({
-                roomId: 'ABCD',
-                nickname: 'Alice',
-                requestId: expect.stringMatching(/^req_\d+$/),
-            }));
+            expect(emitFn).toHaveBeenCalledWith(
+                'room:join',
+                expect.objectContaining({
+                    roomId: 'ABCD',
+                    nickname: 'Alice',
+                    requestId: expect.stringMatching(/^req_\d+$/),
+                })
+            );
         });
 
         it('createRoom sends requestId to the server for correlation', () => {
@@ -724,10 +747,13 @@ describe('socket-client (EigennamenClient IIFE)', () => {
 
             client.createRoom({ roomId: 'MYROOM', nickname: 'Host' });
 
-            expect(emitFn).toHaveBeenCalledWith('room:create', expect.objectContaining({
-                roomId: 'MYROOM',
-                requestId: expect.stringMatching(/^req_\d+$/),
-            }));
+            expect(emitFn).toHaveBeenCalledWith(
+                'room:create',
+                expect.objectContaining({
+                    roomId: 'MYROOM',
+                    requestId: expect.stringMatching(/^req_\d+$/),
+                })
+            );
         });
     });
 
@@ -878,7 +904,9 @@ describe('socket-client (EigennamenClient IIFE)', () => {
 
         it('_emit catches and logs errors in listeners without breaking others', () => {
             const { logger } = require('../../frontend/logger');
-            const cb1 = jest.fn(() => { throw new Error('boom'); });
+            const cb1 = jest.fn(() => {
+                throw new Error('boom');
+            });
             const cb2 = jest.fn();
 
             client.on('connected', cb1);

@@ -17,11 +17,13 @@ function requestTiming(req: TimedRequest, res: Response, next: NextFunction): vo
     res.on('finish', () => {
         const duration = Number(process.hrtime.bigint() - start) / 1e6;
         const logData = {
-            requestId, method: req.method, path: req.path,
+            requestId,
+            method: req.method,
+            path: req.path,
             statusCode: res.statusCode,
             durationMs: Math.round(duration * 100) / 100,
             contentLength: res.get('Content-Length') || 0,
-            userAgent: req.get('User-Agent')?.substring(0, 100)
+            userAgent: req.get('User-Agent')?.substring(0, 100),
         };
 
         if (res.statusCode >= 500) {
@@ -49,8 +51,10 @@ function socketEventTiming<T extends unknown[]>(
             const duration = Number(process.hrtime.bigint() - start) / 1e6;
 
             const logData = {
-                event: eventName, socketId: socket.id,
-                sessionId: socket.sessionId, durationMs: Math.round(duration * 100) / 100
+                event: eventName,
+                socketId: socket.id,
+                sessionId: socket.sessionId,
+                durationMs: Math.round(duration * 100) / 100,
             };
 
             if (duration > 500) {
@@ -67,7 +71,7 @@ function socketEventTiming<T extends unknown[]>(
                 socketId: socket.id,
                 sessionId: socket.sessionId,
                 durationMs: Math.round(duration * 100) / 100,
-                error: (error as Error).message
+                error: (error as Error).message,
             });
             throw error;
         }
@@ -90,9 +94,11 @@ function startMemoryMonitoring(): void {
         const rssMB = Math.round(usage.rss / 1024 / 1024);
 
         const logData = {
-            heapUsedMB, heapTotalMB, rssMB,
+            heapUsedMB,
+            heapTotalMB,
+            rssMB,
             externalMB: Math.round(usage.external / 1024 / 1024),
-            heapUsagePercent: Math.round((heapUsedMB / heapTotalMB) * 100)
+            heapUsagePercent: Math.round((heapUsedMB / heapTotalMB) * 100),
         };
 
         if (heapUsedMB > MEMORY_CRITICAL_THRESHOLD_MB) {
@@ -119,9 +125,4 @@ function generateRequestId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
-export {
-    requestTiming,
-    socketEventTiming,
-    startMemoryMonitoring,
-    stopMemoryMonitoring
-};
+export { requestTiming, socketEventTiming, startMemoryMonitoring, stopMemoryMonitoring };

@@ -12,26 +12,31 @@ jest.mock('../../frontend/state', () => ({
             types: [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'],
             revealed: Array(25).fill(false),
             currentTurn: 'red',
-            redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
         },
         teamNames: { red: 'Red', blue: 'Blue' },
         clickerTeam: null,
         gameMode: 'classic',
         cachedElements: {
-            redRemaining: null, blueRemaining: null,
-            redTeamName: null, blueTeamName: null,
-            turnIndicator: null
-        }
-    }
+            redRemaining: null,
+            blueRemaining: null,
+            redTeamName: null,
+            blueTeamName: null,
+            turnIndicator: null,
+        },
+    },
 }));
 
 jest.mock('../../frontend/i18n', () => ({
     t: jest.fn((key: string, params?: Record<string, string>) => {
         if (params?.team) return `${params.team}'s turn`;
         return key;
-    })
+    }),
 }));
 
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from '../../frontend/game/scoring';
@@ -43,7 +48,7 @@ function resetState(): void {
         ...Array(9).fill('red'),
         ...Array(8).fill('blue'),
         ...Array(7).fill('neutral'),
-        'assassin'
+        'assassin',
     ];
     state.gameState.revealed = Array(25).fill(false);
     state.gameState.currentTurn = 'red';

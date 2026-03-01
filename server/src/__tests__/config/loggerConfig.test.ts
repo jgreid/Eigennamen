@@ -24,7 +24,7 @@ describe('Logger Configuration', () => {
             // Mock fs to prevent actual file creation in production path
             jest.doMock('fs', () => ({
                 existsSync: jest.fn(() => true),
-                mkdirSync: jest.fn()
+                mkdirSync: jest.fn(),
             }));
 
             const winston = require('winston');
@@ -71,7 +71,7 @@ describe('Logger Configuration', () => {
 
             jest.doMock('fs', () => ({
                 existsSync: jest.fn(() => true),
-                mkdirSync: jest.fn()
+                mkdirSync: jest.fn(),
             }));
 
             const winston = require('winston');
@@ -94,7 +94,9 @@ describe('Logger Configuration', () => {
 
             jest.doMock('fs', () => ({
                 existsSync: jest.fn(() => false),
-                mkdirSync: jest.fn(() => { throw new Error('Read-only filesystem'); })
+                mkdirSync: jest.fn(() => {
+                    throw new Error('Read-only filesystem');
+                }),
             }));
 
             const logger = require('../../utils/logger');

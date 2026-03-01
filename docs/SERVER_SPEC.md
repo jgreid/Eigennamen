@@ -11,7 +11,7 @@ This document describes the technical architecture of Eigennamen Online, a real-
 - Room-based multiplayer with join codes (implemented)
 - Optional user accounts and game history (implemented)
 - Scalable architecture with horizontal scaling support (implemented)
-- Three game modes: Classic, Blitz, Duet (implemented)
+- Three game modes: Classic, Duet, Match (implemented)
 - Internationalization — 4 languages (implemented)
 - Accessibility — WCAG 2.1 AA (implemented)
 

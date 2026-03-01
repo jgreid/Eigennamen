@@ -13,7 +13,7 @@ const mockLogger = {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 };
 
 jest.mock('../../utils/logger', () => mockLogger);
@@ -32,11 +32,11 @@ const mockRedis = {
         delete mockRedisStorage[key];
         return 1;
     }),
-    eval: jest.fn(async () => null)
+    eval: jest.fn(async () => null),
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 const timerService = require('../../services/timerService');
@@ -79,7 +79,8 @@ describe('Timer Service Branch Coverage', () => {
                 // Resume timer script contains 'NOT_PAUSED'.
                 const isPauseTimerScript = typeof script === 'string' && script.includes('ALREADY_PAUSED');
                 const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
-                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
+                const isTimerStatusScript =
+                    options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
 
                 if (isPauseTimerScript) {
                     // Simulate ATOMIC_PAUSE_TIMER_SCRIPT
@@ -121,7 +122,11 @@ describe('Timer Service Branch Coverage', () => {
                         const remainingMs = remainingSeconds * 1000;
                         if (pausedDurationMs >= remainingMs) {
                             delete mockRedisStorage[key];
-                            return JSON.stringify({ expired: true, pausedFor: pausedDurationMs, hadRemaining: remainingMs });
+                            return JSON.stringify({
+                                expired: true,
+                                pausedFor: pausedDurationMs,
+                                hadRemaining: remainingMs,
+                            });
                         }
                     }
 
@@ -140,19 +145,24 @@ describe('Timer Service Branch Coverage', () => {
                             return 'EXPIRED';
                         }
                         return JSON.stringify({
-                            startTime: timer.startTime, endTime: timer.endTime,
-                            duration: timer.duration, remainingSeconds: timer.remainingWhenPaused,
-                            expired: false, isPaused: true
+                            startTime: timer.startTime,
+                            endTime: timer.endTime,
+                            duration: timer.duration,
+                            remainingSeconds: timer.remainingWhenPaused,
+                            expired: false,
+                            isPaused: true,
                         });
                     }
 
                     const remainingMs = timer.endTime - now;
                     const expired = remainingMs <= 0;
                     return JSON.stringify({
-                        startTime: timer.startTime, endTime: timer.endTime,
+                        startTime: timer.startTime,
+                        endTime: timer.endTime,
                         duration: timer.duration,
                         remainingSeconds: expired ? 0 : Math.ceil(remainingMs / 1000),
-                        expired, isPaused: false
+                        expired,
+                        isPaused: false,
                     });
                 }
 
@@ -179,7 +189,7 @@ describe('Timer Service Branch Coverage', () => {
                 instanceId: '123',
                 paused: true,
                 pausedAt: Date.now(),
-                remainingWhenPaused: 30
+                remainingWhenPaused: 30,
             };
             mockRedisStorage['timer:PAUSED_ROOM'] = JSON.stringify(timerData);
 
@@ -198,7 +208,7 @@ describe('Timer Service Branch Coverage', () => {
                 endTime: Date.now() + 30000,
                 duration: 60,
                 instanceId: '123',
-                paused: true
+                paused: true,
                 // no remainingWhenPaused - should fall through to normal calculation
             };
             mockRedisStorage['timer:PAUSED_NOREMAINING'] = JSON.stringify(timerData);
@@ -218,7 +228,7 @@ describe('Timer Service Branch Coverage', () => {
                 endTime: Date.now() + 30000,
                 duration: 60,
                 instanceId: '123',
-                paused: false
+                paused: false,
             };
             mockRedisStorage['timer:NORMAL_ROOM'] = JSON.stringify(timerData);
 
@@ -244,7 +254,7 @@ describe('Timer Service Branch Coverage', () => {
                 instanceId: '123',
                 paused: true,
                 remainingWhenPaused: 10, // had 10 seconds left
-                pausedAt: Date.now() - 30000 // was paused 30 seconds ago
+                pausedAt: Date.now() - 30000, // was paused 30 seconds ago
             };
             mockRedisStorage['timer:EXPIRED_PAUSED'] = JSON.stringify(timerData);
 
@@ -252,9 +262,7 @@ describe('Timer Service Branch Coverage', () => {
 
             expect(result).toBeNull();
             expect(onExpire).toHaveBeenCalledWith('EXPIRED_PAUSED');
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                expect.stringContaining('expired while paused')
-            );
+            expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('expired while paused'));
             // Timer should be deleted from Redis by Lua script
             expect(mockRedisStorage['timer:EXPIRED_PAUSED']).toBeUndefined();
         });
@@ -270,7 +278,7 @@ describe('Timer Service Branch Coverage', () => {
                 instanceId: '123',
                 paused: true,
                 remainingWhenPaused: 5,
-                pausedAt: Date.now() - 30000
+                pausedAt: Date.now() - 30000,
             };
             mockRedisStorage['timer:EXPIRE_ERR'] = JSON.stringify(timerData);
 
@@ -295,7 +303,7 @@ describe('Timer Service Branch Coverage', () => {
                 instanceId: '123',
                 paused: true,
                 remainingWhenPaused: 30,
-                pausedAt: Date.now() - 5000 // only paused for 5 seconds
+                pausedAt: Date.now() - 5000, // only paused for 5 seconds
             };
             mockRedisStorage['timer:RESUME_OK'] = JSON.stringify(timerData);
 
@@ -316,7 +324,7 @@ describe('Timer Service Branch Coverage', () => {
                 duration: 60,
                 instanceId: '123',
                 paused: true,
-                remainingWhenPaused: 30
+                remainingWhenPaused: 30,
                 // no pausedAt
             };
             mockRedisStorage['timer:NO_PAUSED_AT'] = JSON.stringify(timerData);
@@ -336,7 +344,7 @@ describe('Timer Service Branch Coverage', () => {
                 endTime: Date.now() + 30000,
                 duration: 60,
                 instanceId: '123',
-                paused: true
+                paused: true,
                 // no remainingWhenPaused
             };
             mockRedisStorage['timer:UNDEFINED_REMAINING'] = JSON.stringify(timerData);
@@ -355,7 +363,7 @@ describe('Timer Service Branch Coverage', () => {
                 endTime: Date.now() + 30000,
                 duration: 60,
                 instanceId: '123',
-                paused: false
+                paused: false,
             };
             mockRedisStorage['timer:NOT_PAUSED'] = JSON.stringify(timerData);
 
@@ -384,7 +392,7 @@ describe('Timer Service Branch Coverage', () => {
                 instanceId: '123',
                 paused: true,
                 remainingWhenPaused: 5,
-                pausedAt: Date.now() - 30000
+                pausedAt: Date.now() - 30000,
             };
             mockRedisStorage['timer:EXPIRED_NO_CB'] = JSON.stringify(timerData);
 
@@ -432,9 +440,7 @@ describe('Timer Service Branch Coverage', () => {
             jest.advanceTimersByTime(1500);
             await flushPromises();
 
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                'Timer expired for room ROOM_NO_CB'
-            );
+            expect(mockLogger.info).toHaveBeenCalledWith('Timer expired for room ROOM_NO_CB');
         });
     });
 
@@ -478,11 +484,13 @@ describe('Timer Service Branch Coverage', () => {
             await timerService.startTimer('ADD_TIME_ROOM', 60);
 
             const newEndTime = Date.now() + 90000;
-            mockRedis.eval.mockResolvedValue(JSON.stringify({
-                endTime: newEndTime,
-                duration: 90,
-                remainingSeconds: 90
-            }));
+            mockRedis.eval.mockResolvedValue(
+                JSON.stringify({
+                    endTime: newEndTime,
+                    duration: 90,
+                    remainingSeconds: 90,
+                })
+            );
 
             const result = await timerService.addTime('ADD_TIME_ROOM', 30);
 
@@ -513,7 +521,7 @@ describe('Timer Service Branch Coverage', () => {
                 startTime: Date.now() - 120000,
                 endTime: Date.now() - 60000,
                 duration: 60,
-                instanceId: '123'
+                instanceId: '123',
             };
             mockRedisStorage['timer:EXPIRED_PAUSE'] = JSON.stringify(timerData);
 
@@ -569,7 +577,7 @@ describe('Timer Service Branch Coverage', () => {
                 startTime: Date.now() - 120000,
                 endTime: Date.now() - 60000,
                 duration: 60,
-                instanceId: '123'
+                instanceId: '123',
             };
             mockRedisStorage['timer:EXPIRED_TIMER'] = JSON.stringify(timerData);
 

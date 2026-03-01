@@ -7,14 +7,17 @@
 import type * as ConnectionTracker from '../../socket/connectionTracker';
 
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
 }));
 
 jest.mock('../../config/constants', () => ({
     SOCKET: {
         MAX_CONNECTIONS_PER_IP: 5,
-        CONNECTIONS_CLEANUP_INTERVAL_MS: 100
-    }
+        CONNECTIONS_CLEANUP_INTERVAL_MS: 100,
+    },
 }));
 
 describe('Connection Tracker', () => {
@@ -77,7 +80,11 @@ describe('Connection Tracker', () => {
 
     it('should handle cleanup errors gracefully', () => {
         const logger = require('../../utils/logger');
-        const badSockets = { [Symbol.iterator]: () => { throw new Error('boom'); } };
+        const badSockets = {
+            [Symbol.iterator]: () => {
+                throw new Error('boom');
+            },
+        };
         tracker.startConnectionsCleanup({ sockets: { sockets: badSockets } } as any);
         expect(() => jest.advanceTimersByTime(100)).not.toThrow();
         expect(logger.error).toHaveBeenCalled();

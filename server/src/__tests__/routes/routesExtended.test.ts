@@ -21,12 +21,14 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         sMembers: jest.fn(async (key) => {
             const set = mockRedisSets.get(key);
@@ -36,8 +38,8 @@ jest.mock('../../config/redis', () => {
             const set = mockRedisSets.get(key);
             return set ? set.size : 0;
         }),
-        mGet: jest.fn(async (keys) => keys.map(k => mockRedisStorage.get(k) || null)),
-        eval: jest.fn(async () => 1)
+        mGet: jest.fn(async (keys) => keys.map((k) => mockRedisStorage.get(k) || null)),
+        eval: jest.fn(async () => 1),
     };
 
     return {
@@ -56,8 +58,8 @@ jest.mock('../../config/redis', () => {
             maxmemory: 0,
             maxmemory_human: 'N/A',
             memory_usage_percent: 0,
-            alert: null
-        }))
+            alert: null,
+        })),
     };
 });
 
@@ -68,21 +70,21 @@ jest.mock('../../utils/pubSubHealth', () => ({
         totalFailures: 0,
         failureRate: 0,
         consecutiveFailures: 0,
-        lastError: null
-    }))
+        lastError: null,
+    })),
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock player service
 jest.mock('../../services/playerService', () => ({
     getPlayersInRoom: jest.fn(async () => []),
-    getPlayer: jest.fn(async () => null)
+    getPlayer: jest.fn(async () => null),
 }));
 
 // Mock room service - keep createRoom for routes that need it
@@ -94,8 +96,8 @@ jest.mock('../../services/roomService', () => ({
     roomExists: jest.fn(async (code) => mockRedisStorage.has(`room:${code}`)),
     createRoom: jest.fn(async () => ({
         room: { code: 'TEST12', settings: {} },
-        player: { sessionId: 'test', nickname: 'Host' }
-    }))
+        player: { sessionId: 'test', nickname: 'Host' },
+    })),
 }));
 
 // Import routes after mocks
@@ -124,53 +126,55 @@ describe('Extended Room Routes', () => {
 
     describe('GET /api/rooms/:code/exists', () => {
         it('handles room codes with various valid formats', async () => {
-            mockRedisStorage.set('room:xy7890', JSON.stringify({
-                code: 'xy7890',
-                status: 'waiting',
-                settings: {}
-            }));
+            mockRedisStorage.set(
+                'room:xy7890',
+                JSON.stringify({
+                    code: 'xy7890',
+                    status: 'waiting',
+                    settings: {},
+                })
+            );
 
-            const response = await request(app)
-                .get('/api/rooms/XY7890/exists')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/XY7890/exists').expect(200);
 
             expect(response.body.exists).toBe(true);
         });
 
         it('handles special valid characters', async () => {
-            mockRedisStorage.set('room:hjk234', JSON.stringify({
-                code: 'hjk234',
-                status: 'waiting'
-            }));
+            mockRedisStorage.set(
+                'room:hjk234',
+                JSON.stringify({
+                    code: 'hjk234',
+                    status: 'waiting',
+                })
+            );
 
-            const response = await request(app)
-                .get('/api/rooms/HJK234/exists')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/HJK234/exists').expect(200);
 
             expect(response.body.exists).toBe(true);
         });
-
     });
 
     describe('GET /api/rooms/:code', () => {
         it('returns full room info with player count', async () => {
-            mockRedisStorage.set('room:game01', JSON.stringify({
-                code: 'game01',
-                status: 'playing',
-                hostSessionId: 'host-123',
-                settings: {
-                    teamNames: { red: 'Red', blue: 'Blue' },
-                    turnTimer: 120
-                }
-            }));
+            mockRedisStorage.set(
+                'room:game01',
+                JSON.stringify({
+                    code: 'game01',
+                    status: 'playing',
+                    hostSessionId: 'host-123',
+                    settings: {
+                        teamNames: { red: 'Red', blue: 'Blue' },
+                        turnTimer: 120,
+                    },
+                })
+            );
             playerService.getPlayersInRoom.mockResolvedValue([
                 { sessionId: 'p1', nickname: 'Player1' },
-                { sessionId: 'p2', nickname: 'Player2' }
+                { sessionId: 'p2', nickname: 'Player2' },
             ]);
 
-            const response = await request(app)
-                .get('/api/rooms/GAME01')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/GAME01').expect(200);
 
             expect(response.body.room.code).toBe('game01');
             expect(response.body.room.status).toBe('playing');
@@ -178,17 +182,18 @@ describe('Extended Room Routes', () => {
         });
 
         it('does not expose internal fields', async () => {
-            mockRedisStorage.set('room:secret', JSON.stringify({
-                code: 'secret',
-                status: 'waiting',
-                hostSessionId: 'host-secret',
-                settings: { teamNames: { red: 'Red', blue: 'Blue' } }
-            }));
+            mockRedisStorage.set(
+                'room:secret',
+                JSON.stringify({
+                    code: 'secret',
+                    status: 'waiting',
+                    hostSessionId: 'host-secret',
+                    settings: { teamNames: { red: 'Red', blue: 'Blue' } },
+                })
+            );
             playerService.getPlayersInRoom.mockResolvedValue([]);
 
-            const response = await request(app)
-                .get('/api/rooms/SECRET')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/SECRET').expect(200);
 
             // The route only returns selected fields, not internal data
             expect(response.body.room.hostSessionId).toBeUndefined();
@@ -215,9 +220,7 @@ describe('Extended Health Routes', () => {
 
     describe('GET /api/health', () => {
         it('returns consistent timestamp format', async () => {
-            const response = await request(app)
-                .get('/api/health')
-                .expect(200);
+            const response = await request(app).get('/api/health').expect(200);
 
             expect(response.body.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
         });
@@ -230,12 +233,10 @@ describe('Extended Health Routes', () => {
             pubSubHealth.getHealth.mockReturnValue({
                 isHealthy: false,
                 consecutiveFailures: 3,
-                lastError: 'Temporary failure'
+                lastError: 'Temporary failure',
             });
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(503);
+            const response = await request(app).get('/api/health/ready').expect(503);
 
             expect(response.body.status).toBe('degraded');
             expect(response.body.checks.redis.healthy).toBe(true);
@@ -248,12 +249,10 @@ describe('Extended Health Routes', () => {
             pubSubHealth.getHealth.mockReturnValue({
                 isHealthy: false,
                 consecutiveFailures: 10,
-                lastError: { type: 'error', message: 'Connection timeout', timestamp: Date.now() }
+                lastError: { type: 'error', message: 'Connection timeout', timestamp: Date.now() },
             });
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(503);
+            const response = await request(app).get('/api/health/ready').expect(503);
 
             expect(response.body.checks.pubsub.consecutiveFailures).toBe(10);
         });
@@ -268,12 +267,10 @@ describe('Extended Health Routes', () => {
                 totalPublishes: 1000,
                 totalFailures: 5,
                 failureRate: 0.005,
-                consecutiveFailures: 0
+                consecutiveFailures: 0,
             });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body).toHaveProperty('timestamp');
             expect(response.body).toHaveProperty('uptime');
@@ -288,9 +285,7 @@ describe('Extended Health Routes', () => {
             isRedisHealthy.mockResolvedValue(true);
             pubSubHealth.getHealth.mockReturnValue({ isHealthy: true });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             // Memory values should be strings ending with "MB"
             expect(response.body.memory.heapUsed).toMatch(/^\d+MB$/);
@@ -303,9 +298,7 @@ describe('Extended Health Routes', () => {
             isRedisHealthy.mockResolvedValue(true);
             pubSubHealth.getHealth.mockReturnValue({ isHealthy: true });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body.redis.mode).toBe('redis');
         });
@@ -315,9 +308,7 @@ describe('Extended Health Routes', () => {
             isRedisHealthy.mockResolvedValue(true);
             pubSubHealth.getHealth.mockReturnValue({ isHealthy: true });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body.redis.mode).toBe('memory');
         });
@@ -327,9 +318,7 @@ describe('Extended Health Routes', () => {
         it('always returns success quickly', async () => {
             const startTime = Date.now();
 
-            const response = await request(app)
-                .get('/api/health/live')
-                .expect(200);
+            const response = await request(app).get('/api/health/live').expect(200);
 
             const duration = Date.now() - startTime;
             expect(duration).toBeLessThan(100); // Should be very fast
@@ -356,9 +345,7 @@ describe('Error Handler Integration', () => {
     });
 
     it('handles 404 for unknown routes', async () => {
-        await request(app)
-            .get('/api/unknown/route')
-            .expect(404);
+        await request(app).get('/api/unknown/route').expect(404);
 
         // Express default 404
     });

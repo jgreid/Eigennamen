@@ -2,21 +2,14 @@
  * Tests for Environment Configuration and Validation
  */
 
-const {
-    validateEnv,
-    getEnv,
-    getEnvInt,
-    getEnvBool,
-    isProduction,
-    isDevelopment
-} = require('../../config/env');
+const { validateEnv, getEnv, getEnvInt, getEnvBool, isProduction, isDevelopment } = require('../../config/env');
 
 // Mock logger
 jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 const logger = require('../../utils/logger');
@@ -108,12 +101,8 @@ describe('Environment Configuration', () => {
 
             expect(() => validateEnv()).not.toThrow();
 
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('DANGER: Memory mode forced on Fly.io')
-            );
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Ensure EXACTLY 1 machine is running')
-            );
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('DANGER: Memory mode forced on Fly.io'));
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Ensure EXACTLY 1 machine is running'));
         });
 
         it('should not block memory mode when FLY_ALLOC_ID is absent (non-Fly deployment)', () => {
@@ -139,8 +128,8 @@ describe('Environment Configuration', () => {
             expect(() => validateEnv()).not.toThrow();
 
             // Should NOT have the memory mode warning
-            const memoryWarnings = (logger.warn as jest.Mock).mock.calls.filter(
-                (call: string[]) => call[0].includes('memory storage mode')
+            const memoryWarnings = (logger.warn as jest.Mock).mock.calls.filter((call: string[]) =>
+                call[0].includes('memory storage mode')
             );
             expect(memoryWarnings).toHaveLength(0);
         });
@@ -153,9 +142,7 @@ describe('Environment Configuration', () => {
 
             validateEnv();
 
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('SECURITY WARNING: JWT_SECRET not set')
-            );
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('SECURITY WARNING: JWT_SECRET not set'));
         });
 
         it('should throw for short JWT_SECRET in production', () => {
@@ -188,9 +175,7 @@ describe('Environment Configuration', () => {
 
             validateEnv();
 
-            const corsWarnings = logger.warn.mock.calls.filter(
-                call => call[0].includes('CORS_ORIGIN')
-            );
+            const corsWarnings = logger.warn.mock.calls.filter((call) => call[0].includes('CORS_ORIGIN'));
             expect(corsWarnings).toHaveLength(0);
         });
 
@@ -240,8 +225,8 @@ describe('Environment Configuration', () => {
 
                 validateEnv();
 
-                const levelWarnings = (logger.warn as jest.Mock).mock.calls.filter(
-                    (call: string[]) => call[0].includes('LOG_LEVEL')
+                const levelWarnings = (logger.warn as jest.Mock).mock.calls.filter((call: string[]) =>
+                    call[0].includes('LOG_LEVEL')
                 );
                 expect(levelWarnings).toHaveLength(0);
             }
@@ -262,8 +247,8 @@ describe('Environment Configuration', () => {
 
             validateEnv();
 
-            const corsFormatWarnings = (logger.warn as jest.Mock).mock.calls.filter(
-                (call: string[]) => call[0].includes('does not start with http')
+            const corsFormatWarnings = (logger.warn as jest.Mock).mock.calls.filter((call: string[]) =>
+                call[0].includes('does not start with http')
             );
             expect(corsFormatWarnings).toHaveLength(0);
         });
