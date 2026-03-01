@@ -6,7 +6,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(4px);
     z-index: 1000;
     justify-content: center;
@@ -271,7 +271,9 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff80' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease;
 }
 
 .language-select:hover {
@@ -322,7 +324,7 @@
     cursor: pointer;
 }
 
-.game-mode-option input[type="radio"] {
+.game-mode-option input[type='radio'] {
     display: none;
 }
 
@@ -333,7 +335,9 @@
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     border: 2px solid rgba(255, 255, 255, 0.1);
-    transition: border-color 0.2s, background 0.2s;
+    transition:
+        border-color 0.2s,
+        background 0.2s;
     text-align: center;
 }
 
@@ -347,7 +351,7 @@
     color: rgba(255, 255, 255, 0.6);
 }
 
-.game-mode-option input[type="radio"]:checked + .game-mode-card {
+.game-mode-option input[type='radio']:checked + .game-mode-card {
     border-color: rgba(100, 200, 255, 0.6);
     background: rgba(100, 200, 255, 0.1);
 }
@@ -357,7 +361,7 @@
 }
 
 /* Duet mode card accent */
-.game-mode-option input[type="radio"]:checked + .duet-mode-card {
+.game-mode-option input[type='radio']:checked + .duet-mode-card {
     border-color: rgba(50, 205, 50, 0.6);
     background: rgba(50, 205, 50, 0.1);
 }
@@ -378,7 +382,7 @@
     color: rgba(255, 255, 255, 0.9);
 }
 
-.turn-timer-toggle input[type="checkbox"] {
+.turn-timer-toggle input[type='checkbox'] {
     width: 18px;
     height: 18px;
     cursor: pointer;
@@ -392,7 +396,7 @@
     padding: 8px 0;
 }
 
-.turn-timer-slider input[type="range"] {
+.turn-timer-slider input[type='range'] {
     flex: 1;
     height: 6px;
     cursor: pointer;
@@ -520,10 +524,18 @@
     background: rgba(0, 0, 0, 0.3);
 }
 
-.card-type.red { color: #ff6b6b; }
-.card-type.blue { color: #74b9ff; }
-.card-type.neutral { color: #a89060; }
-.card-type.assassin { color: #e74c3c; }
+.card-type.red {
+    color: #ff6b6b;
+}
+.card-type.blue {
+    color: #74b9ff;
+}
+.card-type.neutral {
+    color: #a89060;
+}
+.card-type.assassin {
+    color: #e74c3c;
+}
 
 .turn-flow {
     margin: 0;
@@ -548,7 +560,7 @@
     margin-bottom: 4px;
 }
 
-#settings-modal .modal-section input[type="text"] {
+#settings-modal .modal-section input[type='text'] {
     margin-bottom: 2px;
 }
 
@@ -582,7 +594,7 @@
     color: rgba(255, 255, 255, 0.8);
 }
 
-.modal-section input[type="text"] {
+.modal-section input[type='text'] {
     width: 100%;
     padding: 12px 14px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -593,7 +605,7 @@
     color: white;
 }
 
-.modal-section input[type="text"]:focus {
+.modal-section input[type='text']:focus {
     outline: none;
     border-color: #667eea;
 }
@@ -657,7 +669,9 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
 }
 
 .radio-option:hover {
@@ -665,7 +679,7 @@
     border-color: rgba(255, 255, 255, 0.12);
 }
 
-.radio-option input[type="radio"] {
+.radio-option input[type='radio'] {
     width: 16px;
     height: 16px;
     cursor: pointer;
@@ -743,6 +757,44 @@
 /* Game over modal */
 .game-over-content {
     text-align: center;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Celebration sparkles background on game over */
+.game-over-content::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background-image:
+        radial-gradient(2px 2px at 20% 15%, rgba(255, 215, 0, 0.7), transparent),
+        radial-gradient(2px 2px at 75% 20%, rgba(255, 215, 0, 0.5), transparent),
+        radial-gradient(1.5px 1.5px at 40% 80%, rgba(255, 215, 0, 0.6), transparent),
+        radial-gradient(2px 2px at 85% 70%, rgba(255, 215, 0, 0.4), transparent),
+        radial-gradient(1.5px 1.5px at 10% 55%, rgba(255, 215, 0, 0.5), transparent),
+        radial-gradient(2px 2px at 60% 40%, rgba(255, 215, 0, 0.3), transparent);
+    animation: sparkle-float 3s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes sparkle-float {
+    0% {
+        opacity: 0.4;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-6px);
+    }
+}
+
+.game-over-content > * {
+    position: relative;
+    z-index: 1;
 }
 
 .game-over-content .winner {
@@ -750,6 +802,21 @@
     margin-bottom: 20px;
     padding: 16px;
     border-radius: 12px;
+    animation: winner-entrance 0.5s ease-out;
+}
+
+@keyframes winner-entrance {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    60% {
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .game-over-content .winner.red {
@@ -782,4 +849,3 @@
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
 }
-

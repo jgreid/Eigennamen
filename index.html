@@ -1,625 +1,1416 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Play Eigennamen online with friends. No account required, just share a link!">
-    <meta name="theme-color" content="#1a1a2e">
-    <meta property="og:title" content="Eigennamen Online">
-    <meta property="og:description" content="Play Eigennamen online with friends. No account required!">
-    <meta property="og:type" content="website">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icons/icon.svg">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Eigennamen">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Play Eigennamen online with friends. No account required, just share a link!"
+    />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta property="og:title" content="Eigennamen Online" />
+    <meta
+      property="og:description"
+      content="Play Eigennamen online with friends. No account required!"
+    />
+    <meta property="og:type" content="website" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='15' fill='%231a1a2e'/><text y='68' x='50' text-anchor='middle' font-size='50' fill='white'>🕵</text></svg>"
+    />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Eigennamen" />
     <title>Eigennamen Online</title>
     <!-- Socket.io client - deferred to avoid blocking HTML parsing -->
-    <script defer src="/js/socket.io.min.js" integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" crossorigin="anonymous"></script>
-    <script defer src="/js/socket-client.js?v=f5f0064e" integrity="sha384-9fAGTkI4VRE2Ale3co1vHbpoE+wCebzAgyctg5gzjjfWYd6uyi1pdask3bMfY8bk" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="/css/variables.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/modals.css">
-    <link rel="stylesheet" href="/css/responsive.css">
-    <link rel="stylesheet" href="/css/accessibility.css">
-    <link rel="stylesheet" href="/css/multiplayer.css">
-    <link rel="stylesheet" href="/css/replay.css">
-</head>
-<body>
+    <script
+      defer
+      src="/js/socket.io.min.js"
+      integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      defer
+      src="/js/socket-client.js?v=f5f0064e"
+      integrity="sha384-9fAGTkI4VRE2Ale3co1vHbpoE+wCebzAgyctg5gzjjfWYd6uyi1pdask3bMfY8bk"
+      crossorigin="anonymous"
+    ></script>
+    <link rel="stylesheet" href="/css/variables.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/modals.css" />
+    <link rel="stylesheet" href="/css/responsive.css" />
+    <link rel="stylesheet" href="/css/accessibility.css" />
+    <link rel="stylesheet" href="/css/multiplayer.css" />
+    <link rel="stylesheet" href="/css/replay.css" />
+  </head>
+  <body>
     <a href="#board" class="skip-link">Skip to game board</a>
 
     <!-- Screen reader announcements -->
-    <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <div
+      id="sr-announcements"
+      class="sr-only"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
 
     <!-- Toast notification container -->
-    <div id="toast-container" class="toast-container" role="alert" aria-live="polite"></div>
+    <div
+      id="toast-container"
+      class="toast-container"
+      role="alert"
+      aria-live="polite"
+    ></div>
 
     <!-- Reconnection overlay -->
-    <div class="reconnection-overlay" id="reconnection-overlay" style="display: none;" role="alert" aria-live="assertive">
-        <div class="reconnection-content">
-            <div class="reconnection-spinner"></div>
-            <span class="reconnection-text">Reconnecting...</span>
-        </div>
+    <div
+      class="reconnection-overlay"
+      id="reconnection-overlay"
+      style="display: none"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="reconnection-content">
+        <div class="reconnection-spinner"></div>
+        <span class="reconnection-text">Reconnecting...</span>
+      </div>
     </div>
 
     <div class="app-layout">
-        <!-- LEFT SIDEBAR - Controls & Info -->
-        <aside class="sidebar">
-            <header>
-                <h1 class="game-title">Eigennamen</h1>
-            </header>
+      <!-- LEFT SIDEBAR - Controls & Info -->
+      <aside class="sidebar">
+        <header>
+          <h1 class="game-title">Eigennamen</h1>
+        </header>
 
-            <!-- Multiplayer Status Indicator -->
-            <div class="multiplayer-indicator" id="mp-indicator" data-testid="mp-indicator">
-                <span class="status-dot"></span>
-                <button type="button" class="room-code-copy-btn" id="btn-copy-room-id" title="Click to copy room code">Room: <span class="room-code" id="mp-room-code" data-testid="room-code">----</span></button>
-                <button type="button" class="player-count-btn" id="mp-player-count-btn" title="Click to see players" aria-label="Show player list" aria-expanded="false">
-                    <span id="mp-player-count" data-testid="player-count">0 players</span>
-                    <span class="expand-icon">▾</span>
+        <!-- Multiplayer Status Indicator -->
+        <div
+          class="multiplayer-indicator"
+          id="mp-indicator"
+          data-testid="mp-indicator"
+        >
+          <span class="status-dot"></span>
+          <button
+            type="button"
+            class="room-code-copy-btn"
+            id="btn-copy-room-id"
+            title="Click to copy room code"
+          >
+            Room:
+            <span class="room-code" id="mp-room-code" data-testid="room-code"
+              >----</span
+            >
+          </button>
+          <button
+            type="button"
+            class="player-count-btn"
+            id="mp-player-count-btn"
+            title="Click to see players"
+            aria-label="Show player list"
+            aria-expanded="false"
+          >
+            <span id="mp-player-count" data-testid="player-count"
+              >0 players</span
+            >
+            <span class="expand-icon">▾</span>
+          </button>
+          <div
+            class="mp-spectator-inline"
+            id="mp-spectator-inline"
+            style="display: none"
+          >
+            <span class="spectator-icon" aria-hidden="true">👁</span>
+            <span><span id="mp-spectator-count">0</span> watching</span>
+          </div>
+          <!-- Player list (expandable) -->
+          <div
+            class="mp-player-list"
+            id="mp-player-list"
+            data-testid="player-list"
+            style="display: none"
+          >
+            <ul id="mp-players-ul"></ul>
+            <div class="nickname-edit" id="nickname-edit">
+              <button
+                type="button"
+                class="btn-edit-nickname"
+                id="btn-edit-nickname"
+                title="Change your nickname"
+              >
+                Edit Nickname
+              </button>
+              <div
+                class="nickname-edit-form"
+                id="nickname-edit-form"
+                style="display: none"
+              >
+                <input
+                  type="text"
+                  id="nickname-edit-input"
+                  placeholder="New nickname"
+                  minlength="1"
+                  maxlength="30"
+                  autocomplete="off"
+                />
+                <button
+                  type="button"
+                  class="btn-nickname-save"
+                  id="btn-nickname-save"
+                  title="Save nickname"
+                >
+                  Save
                 </button>
-                <div class="mp-spectator-inline" id="mp-spectator-inline" style="display: none;">
-                    <span class="spectator-icon" aria-hidden="true">👁</span>
-                    <span><span id="mp-spectator-count">0</span> watching</span>
-                </div>
-                <!-- Player list (expandable) -->
-                <div class="mp-player-list" id="mp-player-list" data-testid="player-list" style="display: none;">
-                    <ul id="mp-players-ul"></ul>
-                    <div class="nickname-edit" id="nickname-edit">
-                        <button type="button" class="btn-edit-nickname" id="btn-edit-nickname" title="Change your nickname">Edit Nickname</button>
-                        <div class="nickname-edit-form" id="nickname-edit-form" style="display: none;">
-                            <input type="text" id="nickname-edit-input" placeholder="New nickname" minlength="1" maxlength="30" autocomplete="off">
-                            <button type="button" class="btn-nickname-save" id="btn-nickname-save" title="Save nickname">Save</button>
-                            <button type="button" class="btn-nickname-cancel" id="btn-nickname-cancel" title="Cancel">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="role-banner" id="role-banner" data-testid="role-banner" role="status" aria-live="polite">
-                <!-- Filled by JS -->
-            </div>
-
-            <!-- Scoreboard with clickable team names for team selection -->
-            <div class="scoreboard" role="group" aria-label="Team scores">
-                <button type="button" class="score red" id="btn-team-red" data-testid="team-red-btn" data-action="set-team" data-team="red" title="Click to join Red team">
-                    <span id="red-team-name" class="team-name">Red</span>
-                    <span class="count"><span id="red-remaining" data-testid="red-remaining">9</span> left</span>
+                <button
+                  type="button"
+                  class="btn-nickname-cancel"
+                  id="btn-nickname-cancel"
+                  title="Cancel"
+                >
+                  Cancel
                 </button>
-                <button type="button" class="score blue" id="btn-team-blue" data-testid="team-blue-btn" data-action="set-team" data-team="blue" title="Click to join Blue team">
-                    <span id="blue-team-name" class="team-name">Blue</span>
-                    <span class="count"><span id="blue-remaining" data-testid="blue-remaining">8</span> left</span>
-                </button>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Match mode scoreboard (hidden by default) -->
-            <div class="match-scoreboard" id="match-scoreboard" style="display: none;" role="group" aria-label="Eigennamen scores">
-                <span class="match-round">Round <span id="match-round">1</span></span>
-                <span class="match-score red-match"><span id="red-match-score">0</span></span>
-                <span class="match-separator">-</span>
-                <span class="match-score blue-match"><span id="blue-match-score">0</span></span>
-                <span class="match-target">First to 42</span>
+        <div
+          class="role-banner"
+          id="role-banner"
+          data-testid="role-banner"
+          role="status"
+          aria-live="polite"
+        >
+          <!-- Filled by JS -->
+        </div>
+
+        <!-- Scoreboard with clickable team names for team selection -->
+        <div class="scoreboard" role="group" aria-label="Team scores">
+          <button
+            type="button"
+            class="score red"
+            id="btn-team-red"
+            data-testid="team-red-btn"
+            data-action="set-team"
+            data-team="red"
+            title="Click to join Red team"
+          >
+            <span id="red-team-name" class="team-name">Red</span>
+            <span class="count"
+              ><span id="red-remaining" data-testid="red-remaining">9</span>
+              left</span
+            >
+          </button>
+          <button
+            type="button"
+            class="score blue"
+            id="btn-team-blue"
+            data-testid="team-blue-btn"
+            data-action="set-team"
+            data-team="blue"
+            title="Click to join Blue team"
+          >
+            <span id="blue-team-name" class="team-name">Blue</span>
+            <span class="count"
+              ><span id="blue-remaining" data-testid="blue-remaining">8</span>
+              left</span
+            >
+          </button>
+        </div>
+
+        <!-- Match mode scoreboard (hidden by default) -->
+        <div
+          class="match-scoreboard"
+          id="match-scoreboard"
+          style="display: none"
+          role="group"
+          aria-label="Eigennamen scores"
+        >
+          <span class="match-round">Round <span id="match-round">1</span></span>
+          <span class="match-score red-match"
+            ><span id="red-match-score">0</span></span
+          >
+          <span class="match-separator">-</span>
+          <span class="match-score blue-match"
+            ><span id="blue-match-score">0</span></span
+          >
+          <span class="match-target">First to 42</span>
+        </div>
+
+        <!-- Duet mode cooperative info bar (hidden by default) -->
+        <div class="duet-info-bar" id="duet-info-bar" style="display: none">
+          <span class="duet-progress"
+            ><span id="duet-green-found">0</span>/<span id="duet-green-total"
+              >15</span
+            >
+            agents found</span
+          >
+          <span class="duet-tokens"
+            ><span id="duet-timer-tokens">9</span> tokens left</span
+          >
+        </div>
+
+        <div
+          class="turn-indicator"
+          id="turn-indicator"
+          data-testid="turn-indicator"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span class="turn-text">Red Team's Turn</span>
+          <span
+            class="timer-inline"
+            id="timer-display"
+            data-testid="timer-display"
+            role="timer"
+          >
+            <span class="timer-icon" aria-hidden="true">⏱️</span>
+            <span
+              class="timer-value"
+              id="timer-value"
+              aria-live="polite"
+              aria-atomic="true"
+              >--:--</span
+            >
+          </span>
+        </div>
+
+        <div
+          class="controls"
+          id="controls"
+          role="toolbar"
+          aria-label="Game controls"
+        >
+          <div class="role-controls" id="role-controls">
+            <div class="role-buttons-row">
+              <button
+                type="button"
+                class="btn-spymaster"
+                id="btn-spymaster"
+                data-testid="spymaster-btn"
+                data-action="set-spymaster-current"
+                data-i18n="roles.spymaster"
+              >
+                Spymaster
+              </button>
+              <button
+                type="button"
+                class="btn-clicker"
+                id="btn-clicker"
+                data-testid="clicker-btn"
+                data-action="set-clicker-current"
+                data-i18n="roles.clicker"
+              >
+                Clicker
+              </button>
             </div>
+          </div>
 
-            <!-- Duet mode cooperative info bar (hidden by default) -->
-            <div class="duet-info-bar" id="duet-info-bar" style="display: none;">
-                <span class="duet-progress"><span id="duet-green-found">0</span>/<span id="duet-green-total">15</span> agents found</span>
-                <span class="duet-tokens"><span id="duet-timer-tokens">9</span> tokens left</span>
+          <div class="action-buttons-row">
+            <button
+              type="button"
+              class="btn-end-turn"
+              id="btn-end-turn"
+              data-testid="end-turn-btn"
+              data-action="confirm-end-turn"
+              data-i18n="game.endTurn"
+            >
+              End Turn
+            </button>
+            <button
+              type="button"
+              class="btn-new-game"
+              data-testid="new-game-btn"
+              data-action="confirm-new-game"
+              data-i18n="game.newGame"
+            >
+              New Game
+            </button>
+          </div>
+
+          <div class="utility-buttons-row">
+            <button
+              type="button"
+              class="btn-spectate"
+              id="btn-spectate"
+              data-testid="spectator-btn"
+              data-action="spectate"
+              data-i18n="roles.spectator"
+            >
+              Spectator
+            </button>
+            <button
+              type="button"
+              class="btn-settings"
+              data-testid="settings-btn"
+              data-action="open-settings"
+              data-i18n="nav.settings"
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              class="btn-settings"
+              id="btn-multiplayer"
+              data-testid="multiplayer-btn"
+              data-action="open-multiplayer"
+              data-i18n="nav.playOnline"
+            >
+              Play Online
+            </button>
+          </div>
+
+          <div
+            class="utility-buttons-row mp-only"
+            id="mp-extra-buttons-row"
+            style="display: none"
+          >
+            <button
+              type="button"
+              class="btn-settings"
+              id="btn-history"
+              data-testid="history-btn"
+              data-action="open-history"
+              data-i18n="nav.history"
+            >
+              Game History
+            </button>
+            <button
+              type="button"
+              class="btn-forfeit"
+              id="btn-forfeit"
+              data-testid="forfeit-btn"
+              data-action="confirm-forfeit"
+              title="Forfeit the current game (host only)"
+            >
+              Forfeit
+            </button>
+          </div>
+        </div>
+
+        <div class="keyboard-hint" aria-hidden="true">
+          <kbd>?</kbd>
+          <span data-i18n="modals.keyboardHint">Keyboard shortcuts</span>
+        </div>
+
+        <!-- D-1: Chat panel (multiplayer only, collapsed by default) -->
+        <div class="chat-panel mp-only" id="chat-panel" style="display: none">
+          <button
+            type="button"
+            class="chat-toggle"
+            id="chat-toggle"
+            aria-expanded="false"
+            aria-controls="chat-body"
+          >
+            <span class="chat-toggle-icon" aria-hidden="true">💬</span>
+            <span data-i18n="chat.title">Chat</span>
+            <span
+              class="chat-unread-badge"
+              id="chat-unread-badge"
+              style="display: none"
+              >0</span
+            >
+            <span class="expand-icon chat-expand-icon">▾</span>
+          </button>
+          <div class="chat-body" id="chat-body" style="display: none">
+            <div
+              class="chat-messages"
+              id="chat-messages"
+              role="log"
+              aria-live="polite"
+              aria-label="Chat messages"
+            ></div>
+            <div class="chat-input-row">
+              <input
+                type="text"
+                class="chat-input"
+                id="chat-input"
+                placeholder="Type a message..."
+                maxlength="500"
+                autocomplete="off"
+                aria-label="Chat message input"
+              />
+              <label class="chat-team-only" title="Send to team only">
+                <input type="checkbox" id="chat-team-only" />
+                <span class="chat-team-label">Team</span>
+              </label>
+              <button
+                type="button"
+                class="chat-send-btn"
+                id="chat-send-btn"
+                aria-label="Send message"
+              >
+                Send
+              </button>
             </div>
+          </div>
+        </div>
+      </aside>
 
-            <div class="turn-indicator" id="turn-indicator" data-testid="turn-indicator" role="status" aria-live="polite" aria-atomic="true">
-                <span class="turn-text">Red Team's Turn</span>
-                <span class="timer-inline" id="timer-display" data-testid="timer-display" role="timer">
-                    <span class="timer-icon" aria-hidden="true">⏱️</span>
-                    <span class="timer-value" id="timer-value" aria-live="polite" aria-atomic="true">--:--</span>
-                </span>
+      <!-- RIGHT MAIN AREA - Game Board -->
+      <main class="main-content" id="main-content">
+        <noscript>
+          <div style="text-align: center; padding: 40px; color: #e0e0e0">
+            <h2>JavaScript Required</h2>
+            <p>Please enable JavaScript to play Eigennamen Online.</p>
+          </div>
+        </noscript>
+        <div class="board-container">
+          <div
+            class="board"
+            id="board"
+            data-testid="game-board"
+            role="grid"
+            aria-label="Eigennamen game board"
+          >
+            <div
+              id="board-loading"
+              style="
+                grid-column: 1/-1;
+                text-align: center;
+                padding: 40px;
+                color: #a0a0b0;
+                font-size: 1.1rem;
+              "
+              data-i18n="modals.loadingGame"
+            >
+              Loading game...
             </div>
-
-            <div class="controls" id="controls" role="toolbar" aria-label="Game controls">
-                <div class="role-controls" id="role-controls">
-                    <div class="role-buttons-row">
-                        <button type="button" class="btn-spymaster" id="btn-spymaster" data-testid="spymaster-btn" data-action="set-spymaster-current" data-i18n="roles.spymaster">Spymaster</button>
-                        <button type="button" class="btn-clicker" id="btn-clicker" data-testid="clicker-btn" data-action="set-clicker-current" data-i18n="roles.clicker">Clicker</button>
-                    </div>
-                </div>
-
-                <div class="action-buttons-row">
-                    <button type="button" class="btn-end-turn" id="btn-end-turn" data-testid="end-turn-btn" data-action="confirm-end-turn" data-i18n="game.endTurn">End Turn</button>
-                    <button type="button" class="btn-new-game" data-testid="new-game-btn" data-action="confirm-new-game" data-i18n="game.newGame">New Game</button>
-                </div>
-
-                <div class="utility-buttons-row">
-                    <button type="button" class="btn-spectate" id="btn-spectate" data-testid="spectator-btn" data-action="spectate" data-i18n="roles.spectator">Spectator</button>
-                    <button type="button" class="btn-settings" data-testid="settings-btn" data-action="open-settings" data-i18n="nav.settings">Settings</button>
-                    <button type="button" class="btn-settings" id="btn-multiplayer" data-testid="multiplayer-btn" data-action="open-multiplayer" data-i18n="nav.playOnline">Play Online</button>
-                </div>
-
-                <div class="utility-buttons-row mp-only" id="mp-extra-buttons-row" style="display: none;">
-                    <button type="button" class="btn-settings" id="btn-history" data-testid="history-btn" data-action="open-history" data-i18n="nav.history">Game History</button>
-                    <button type="button" class="btn-forfeit" id="btn-forfeit" data-testid="forfeit-btn" data-action="confirm-forfeit" title="Forfeit the current game (host only)">Forfeit</button>
-                </div>
-            </div>
-
-            <!-- D-1: Chat panel (multiplayer only, collapsed by default) -->
-            <div class="chat-panel mp-only" id="chat-panel" style="display: none;">
-                <button type="button" class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-body">
-                    <span class="chat-toggle-icon" aria-hidden="true">💬</span>
-                    <span data-i18n="chat.title">Chat</span>
-                    <span class="chat-unread-badge" id="chat-unread-badge" style="display: none;">0</span>
-                    <span class="expand-icon chat-expand-icon">▾</span>
-                </button>
-                <div class="chat-body" id="chat-body" style="display: none;">
-                    <div class="chat-messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
-                    <div class="chat-input-row">
-                        <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" aria-label="Chat message input">
-                        <label class="chat-team-only" title="Send to team only">
-                            <input type="checkbox" id="chat-team-only">
-                            <span class="chat-team-label">Team</span>
-                        </label>
-                        <button type="button" class="chat-send-btn" id="chat-send-btn" aria-label="Send message">Send</button>
-                    </div>
-                </div>
-            </div>
-
-        </aside>
-
-        <!-- RIGHT MAIN AREA - Game Board -->
-        <main class="main-content" id="main-content">
-            <noscript>
-                <div style="text-align:center;padding:40px;color:#e0e0e0;">
-                    <h2>JavaScript Required</h2>
-                    <p>Please enable JavaScript to play Eigennamen Online.</p>
-                </div>
-            </noscript>
-            <div class="board-container">
-                <div class="board" id="board" data-testid="game-board" role="grid" aria-label="Eigennamen game board">
-                    <div id="board-loading" style="grid-column:1/-1;text-align:center;padding:40px;color:#a0a0b0;font-size:1.1rem;">Loading game...</div>
-                </div>
-            </div>
-        </main>
+          </div>
+        </div>
+      </main>
     </div>
 
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settings-modal" data-testid="settings-modal">
-        <div class="modal">
-            <div class="settings-layout">
-                <!-- Sidebar Navigation -->
-                <aside class="settings-sidebar">
-                    <nav class="settings-nav">
-                        <button type="button" class="settings-nav-item active" data-panel="teams">
-                            <span class="nav-icon">👥</span>
-                            <span class="nav-text" data-i18n="settings.teams">Teams</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="words">
-                            <span class="nav-icon">📝</span>
-                            <span class="nav-text" data-i18n="settings.words">Words</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="prefs">
-                            <span class="nav-icon">⚙️</span>
-                            <span class="nav-text" data-i18n="settings.preferences">Prefs</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="room" id="nav-room-settings" style="display: none;">
-                            <span class="nav-icon">🎮</span>
-                            <span class="nav-text" data-i18n="settings.gameMode">Mode</span>
-                        </button>
-                        <button type="button" class="settings-nav-item" data-panel="help">
-                            <span class="nav-icon">❓</span>
-                            <span class="nav-text" data-i18n="settings.help">Help</span>
-                        </button>
-                    </nav>
-                </aside>
+      <div class="modal">
+        <div class="settings-layout">
+          <!-- Sidebar Navigation -->
+          <aside class="settings-sidebar">
+            <nav class="settings-nav">
+              <button
+                type="button"
+                class="settings-nav-item active"
+                data-panel="teams"
+              >
+                <span class="nav-icon">👥</span>
+                <span class="nav-text" data-i18n="settings.teams">Teams</span>
+              </button>
+              <button
+                type="button"
+                class="settings-nav-item"
+                data-panel="words"
+              >
+                <span class="nav-icon">📝</span>
+                <span class="nav-text" data-i18n="settings.words">Words</span>
+              </button>
+              <button
+                type="button"
+                class="settings-nav-item"
+                data-panel="prefs"
+              >
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-text" data-i18n="settings.preferences"
+                  >Prefs</span
+                >
+              </button>
+              <button
+                type="button"
+                class="settings-nav-item"
+                data-panel="room"
+                id="nav-room-settings"
+                style="display: none"
+              >
+                <span class="nav-icon">🎮</span>
+                <span class="nav-text" data-i18n="settings.gameMode">Mode</span>
+              </button>
+              <button type="button" class="settings-nav-item" data-panel="help">
+                <span class="nav-icon">❓</span>
+                <span class="nav-text" data-i18n="settings.help">Help</span>
+              </button>
+            </nav>
+          </aside>
 
-                <!-- Content Area -->
-                <div class="settings-content">
-                    <!-- Teams Panel -->
-                    <div class="settings-panel active" id="panel-teams">
-                        <h2 data-i18n="settings.teams">Team Names</h2>
-                        <p class="panel-description" data-i18n="settings.teamsDesc">Customize team names for this game. Names are encoded in the shareable link.</p>
-                        <div class="team-inputs-row">
-                            <div class="modal-section">
-                                <label for="red-name-input" data-i18n="teams.redTeam">Red Team</label>
-                                <input type="text" id="red-name-input" placeholder="Red" maxlength="32" data-counter="red-char-counter" data-max="32">
-                                <div id="red-char-counter" class="char-counter">0/32</div>
-                            </div>
-                            <div class="modal-section">
-                                <label for="blue-name-input" data-i18n="teams.blueTeam">Blue Team</label>
-                                <input type="text" id="blue-name-input" placeholder="Blue" maxlength="32" data-counter="blue-char-counter" data-max="32">
-                                <div id="blue-char-counter" class="char-counter">0/32</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Words Panel -->
-                    <div class="settings-panel" id="panel-words">
-                        <h2 data-i18n="settings.words">Word List</h2>
-                        <p class="panel-description" data-i18n="settings.wordsDesc">Choose which words appear on the board. Custom words are encoded in the shareable link.</p>
-                        <div class="modal-section wordlist-mode-section">
-                            <div class="wordlist-mode-options">
-                                <label class="radio-option">
-                                    <input type="radio" name="wordlist-mode" value="default" id="wordlist-mode-default">
-                                    <span>Default only <em>(400 classic words)</em></span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="wordlist-mode" value="combined" id="wordlist-mode-combined" checked>
-                                    <span>Default + Custom <em>(combine both)</em></span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="wordlist-mode" value="custom" id="wordlist-mode-custom">
-                                    <span>Custom only <em>(min 25 words required)</em></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="modal-section">
-                            <label for="custom-words">Custom words <span class="word-count-inline" id="word-count">0 words</span></label>
-                            <textarea id="custom-words" placeholder="Enter words, one per line..."></textarea>
-                            <div id="word-error" class="input-error">Need at least 25 custom words for "Custom only" mode.</div>
-                        </div>
-                    </div>
-
-                    <!-- Preferences Panel -->
-                    <div class="settings-panel" id="panel-prefs">
-                        <h2 data-i18n="settings.preferences">Preferences</h2>
-                        <div class="prefs-content">
-                            <p class="panel-description" data-i18n="settings.prefsDesc">Customize your game experience. Settings are saved locally.</p>
-
-                            <div class="pref-group">
-                                <h3 data-i18n="settings.language">Language</h3>
-                                <select id="language-select" data-testid="language-select" class="language-select">
-                                    <option value="en">English</option>
-                                    <option value="de">Deutsch</option>
-                                    <option value="es">Español</option>
-                                    <option value="fr">Français</option>
-                                </select>
-                            </div>
-
-                            <div class="pref-group">
-                                <h3 data-i18n="settings.accessibility">Accessibility</h3>
-                                <label class="toggle-label">
-                                    <input type="checkbox" id="pref-colorblind" data-testid="colorblind-toggle" class="toggle-checkbox">
-                                    <span class="toggle-switch"></span>
-                                    <span class="toggle-text" data-i18n="settings.colorBlindMode">Color blind friendly mode (orange/blue with labels)</span>
-                                </label>
-                            </div>
-
-                            <div class="pref-group">
-                                <h3 data-i18n="settings.notifications">Notifications</h3>
-                                <label class="toggle-label">
-                                    <input type="checkbox" id="pref-sound-notifications" class="toggle-checkbox">
-                                    <span class="toggle-switch"></span>
-                                    <span class="toggle-text">Sound notifications when it's your turn</span>
-                                </label>
-                                <label class="toggle-label">
-                                    <input type="checkbox" id="pref-tab-notification" class="toggle-checkbox">
-                                    <span class="toggle-switch"></span>
-                                    <span class="toggle-text">Browser tab notification when it's your turn</span>
-                                </label>
-                            </div>
-
-                            <div class="pref-group">
-                                <button type="button" class="btn-test-sound" id="btn-test-sound">🔊 Test Sound</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Game Mode Panel (Multiplayer Host Only) -->
-                    <div class="settings-panel" id="panel-room">
-                        <h2 data-i18n="roomSettings.gameMode">Game Mode</h2>
-                        <p class="panel-description" data-i18n="roomSettings.gameModeHint">Choose how you want to play.</p>
-
-                        <div class="room-settings-content">
-                            <div class="game-mode-selector">
-                                <label class="game-mode-option">
-                                    <input type="radio" name="gameMode" value="classic" checked>
-                                    <span class="game-mode-card">
-                                        <strong data-i18n="roomSettings.classic">Vintage</strong>
-                                        <small data-i18n="roomSettings.classicDesc">Standard Eigennamen rules</small>
-                                    </span>
-                                </label>
-                                <label class="game-mode-option">
-                                    <input type="radio" name="gameMode" value="duet">
-                                    <span class="game-mode-card duet-mode-card">
-                                        <strong data-i18n="roomSettings.duet">Duet</strong>
-                                        <small data-i18n="roomSettings.duetDesc">Cooperative 2-player mode</small>
-                                    </span>
-                                </label>
-                                <label class="game-mode-option">
-                                    <input type="radio" name="gameMode" value="match">
-                                    <span class="game-mode-card match-mode-card">
-                                        <strong data-i18n="roomSettings.match">Eigennamen</strong>
-                                        <small data-i18n="roomSettings.matchDesc">Multi-round match with card scoring</small>
-                                    </span>
-                                </label>
-                            </div>
-
-                            <div class="turn-timer-control">
-                                <label class="turn-timer-toggle">
-                                    <input type="checkbox" id="turn-timer-toggle">
-                                    <span data-i18n="roomSettings.turnTimer">Turn Timer</span>
-                                </label>
-                                <div class="turn-timer-slider" id="turn-timer-slider" style="display: none;">
-                                    <input type="range" id="turn-timer-range" min="20" max="600" step="10" value="120">
-                                    <span class="turn-timer-value" id="turn-timer-value">120s</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Help Panel (Rules + About) -->
-                    <div class="settings-panel" id="panel-help">
-                        <h2 data-i18n="settings.help">Help</h2>
-                        <div class="rules-content compact">
-                            <p class="rules-intro" data-i18n="rules.intro">Two teams race to find all their words. Spymasters give clues, Clickers reveal cards.</p>
-                            <div class="rules-grid">
-                                <div class="rules-card">
-                                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
-                                    <div class="card-types">
-                                        <span class="card-type red" data-i18n="rules.redCard">■ Red Team</span>
-                                        <span class="card-type blue" data-i18n="rules.blueCard">● Blue Team</span>
-                                        <span class="card-type neutral" data-i18n="rules.neutralCard">◆ Neutral</span>
-                                        <span class="card-type assassin" data-i18n="rules.assassinCard">☠ Assassin</span>
-                                    </div>
-                                </div>
-                                <div class="rules-card">
-                                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
-                                    <ol class="turn-flow">
-                                        <li data-i18n="rules.step1">Spymaster gives a one-word clue + number</li>
-                                        <li data-i18n="rules.step2">Clickers reveal cards matching the clue</li>
-                                        <li data-i18n="rules.step3">Your color = keep going, Neutral/Enemy = turn ends</li>
-                                        <li data-i18n="rules.step4">Assassin = instant loss!</li>
-                                    </ol>
-                                </div>
-                            </div>
-                            <p class="rules-note" data-i18n="rules.note">Starting team finds 9 words, other team finds 8. First to find all wins!</p>
-
-                            <div class="rules-match-section">
-                                <h3 data-i18n="rules.matchTitle">Eigennamen Mode</h3>
-                                <p data-i18n="rules.matchIntro">A multi-round match where every card has a hidden point value. Teams play rounds until one reaches 42 points.</p>
-                                <div class="rules-grid">
-                                    <div class="rules-card">
-                                        <h4 data-i18n="rules.matchScoring">Card Scores</h4>
-                                        <div class="card-types">
-                                            <span class="card-type card-score-gold-text" data-i18n="rules.matchGold">★ Gold (+3)</span>
-                                            <span class="card-type card-score-silver-text" data-i18n="rules.matchSilver">◆ Silver (+2)</span>
-                                            <span class="card-type card-score-standard-text" data-i18n="rules.matchStandard">● Standard (+1)</span>
-                                            <span class="card-type card-score-blank-text" data-i18n="rules.matchBlank">○ Blank (0)</span>
-                                            <span class="card-type card-score-trap-text" data-i18n="rules.matchTrap">✕ Trap (-1)</span>
-                                        </div>
-                                    </div>
-                                    <div class="rules-card">
-                                        <h4 data-i18n="rules.matchFlow">Match Flow</h4>
-                                        <ol class="turn-flow">
-                                            <li data-i18n="rules.matchStep1">Each round plays like a Vintage game</li>
-                                            <li data-i18n="rules.matchStep2">When you reveal a card, your team earns its point value</li>
-                                            <li data-i18n="rules.matchStep3">Round winner gets a +7 bonus</li>
-                                            <li data-i18n="rules.matchStep4">First to 42 points (win by 3) wins!</li>
-                                        </ol>
-                                    </div>
-                                </div>
-                                <p class="rules-note" data-i18n="rules.matchNote">Only spymasters can see card scores before they are revealed. The assassin still ends the round instantly!</p>
-                            </div>
-                        </div>
-                        <div class="help-about-section">
-                            <p class="about-intro" data-i18n="about.description">A free, open-source implementation of the popular board game.</p>
-                            <div class="credits">
-                                <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
-                                <p>Open source under GPL v3.0</p>
-                            </div>
-                        </div>
-                    </div>
+          <!-- Content Area -->
+          <div class="settings-content">
+            <!-- Teams Panel -->
+            <div class="settings-panel active" id="panel-teams">
+              <h2 data-i18n="settings.teams">Team Names</h2>
+              <p class="panel-description" data-i18n="settings.teamsDesc">
+                Customize team names for this game. Names are encoded in the
+                shareable link.
+              </p>
+              <div class="team-inputs-row">
+                <div class="modal-section">
+                  <label for="red-name-input" data-i18n="teams.redTeam"
+                    >Red Team</label
+                  >
+                  <input
+                    type="text"
+                    id="red-name-input"
+                    placeholder="Red"
+                    maxlength="32"
+                    data-counter="red-char-counter"
+                    data-max="32"
+                  />
+                  <div id="red-char-counter" class="char-counter">0/32</div>
                 </div>
+                <div class="modal-section">
+                  <label for="blue-name-input" data-i18n="teams.blueTeam"
+                    >Blue Team</label
+                  >
+                  <input
+                    type="text"
+                    id="blue-name-input"
+                    placeholder="Blue"
+                    maxlength="32"
+                    data-counter="blue-char-counter"
+                    data-max="32"
+                  />
+                  <div id="blue-char-counter" class="char-counter">0/32</div>
+                </div>
+              </div>
             </div>
 
-            <!-- Footer with buttons -->
-            <div class="settings-footer">
-                <button type="button" id="btn-reset-words" class="btn-reset" data-action="reset-words" style="display: none;" data-i18n="settings.resetWords">Reset Words</button>
-                <div class="footer-spacer"></div>
-                <button type="button" class="btn-cancel" data-action="close-settings" data-i18n="settings.close">Close</button>
-                <button type="button" class="btn-save" data-action="save-settings" data-i18n="settings.saveAndApply">Save & Apply</button>
+            <!-- Words Panel -->
+            <div class="settings-panel" id="panel-words">
+              <h2 data-i18n="settings.words">Word List</h2>
+              <p class="panel-description" data-i18n="settings.wordsDesc">
+                Choose which words appear on the board. Custom words are encoded
+                in the shareable link.
+              </p>
+              <div class="modal-section wordlist-mode-section">
+                <div class="wordlist-mode-options">
+                  <label class="radio-option">
+                    <input
+                      type="radio"
+                      name="wordlist-mode"
+                      value="default"
+                      id="wordlist-mode-default"
+                    />
+                    <span>Default only <em>(400 classic words)</em></span>
+                  </label>
+                  <label class="radio-option">
+                    <input
+                      type="radio"
+                      name="wordlist-mode"
+                      value="combined"
+                      id="wordlist-mode-combined"
+                      checked
+                    />
+                    <span>Default + Custom <em>(combine both)</em></span>
+                  </label>
+                  <label class="radio-option">
+                    <input
+                      type="radio"
+                      name="wordlist-mode"
+                      value="custom"
+                      id="wordlist-mode-custom"
+                    />
+                    <span>Custom only <em>(min 25 words required)</em></span>
+                  </label>
+                </div>
+              </div>
+              <div class="modal-section">
+                <label for="custom-words"
+                  >Custom words
+                  <span class="word-count-inline" id="word-count"
+                    >0 words</span
+                  ></label
+                >
+                <textarea
+                  id="custom-words"
+                  placeholder="Enter words, one per line..."
+                ></textarea>
+                <div id="word-error" class="input-error">
+                  Need at least 25 custom words for "Custom only" mode.
+                </div>
+              </div>
             </div>
+
+            <!-- Preferences Panel -->
+            <div class="settings-panel" id="panel-prefs">
+              <h2 data-i18n="settings.preferences">Preferences</h2>
+              <div class="prefs-content">
+                <p class="panel-description" data-i18n="settings.prefsDesc">
+                  Customize your game experience. Settings are saved locally.
+                </p>
+
+                <div class="pref-group">
+                  <h3 data-i18n="settings.language">Language</h3>
+                  <select
+                    id="language-select"
+                    data-testid="language-select"
+                    class="language-select"
+                  >
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                  </select>
+                </div>
+
+                <div class="pref-group">
+                  <h3 data-i18n="settings.accessibility">Accessibility</h3>
+                  <label class="toggle-label">
+                    <input
+                      type="checkbox"
+                      id="pref-colorblind"
+                      data-testid="colorblind-toggle"
+                      class="toggle-checkbox"
+                    />
+                    <span class="toggle-switch"></span>
+                    <span
+                      class="toggle-text"
+                      data-i18n="settings.colorBlindMode"
+                      >Color blind friendly mode (orange/blue with labels)</span
+                    >
+                  </label>
+                </div>
+
+                <div class="pref-group">
+                  <h3 data-i18n="settings.notifications">Notifications</h3>
+                  <label class="toggle-label">
+                    <input
+                      type="checkbox"
+                      id="pref-sound-notifications"
+                      class="toggle-checkbox"
+                    />
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-text"
+                      >Sound notifications when it's your turn</span
+                    >
+                  </label>
+                  <label class="toggle-label">
+                    <input
+                      type="checkbox"
+                      id="pref-tab-notification"
+                      class="toggle-checkbox"
+                    />
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-text"
+                      >Browser tab notification when it's your turn</span
+                    >
+                  </label>
+                </div>
+
+                <div class="pref-group">
+                  <button
+                    type="button"
+                    class="btn-test-sound"
+                    id="btn-test-sound"
+                  >
+                    🔊 Test Sound
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game Mode Panel (Multiplayer Host Only) -->
+            <div class="settings-panel" id="panel-room">
+              <h2 data-i18n="roomSettings.gameMode">Game Mode</h2>
+              <p
+                class="panel-description"
+                data-i18n="roomSettings.gameModeHint"
+              >
+                Choose how you want to play.
+              </p>
+
+              <div class="room-settings-content">
+                <div class="game-mode-selector">
+                  <label class="game-mode-option">
+                    <input
+                      type="radio"
+                      name="gameMode"
+                      value="classic"
+                      checked
+                    />
+                    <span class="game-mode-card">
+                      <strong data-i18n="roomSettings.classic">Vintage</strong>
+                      <small data-i18n="roomSettings.classicDesc"
+                        >Standard Eigennamen rules</small
+                      >
+                    </span>
+                  </label>
+                  <label class="game-mode-option">
+                    <input type="radio" name="gameMode" value="duet" />
+                    <span class="game-mode-card duet-mode-card">
+                      <strong data-i18n="roomSettings.duet">Duet</strong>
+                      <small data-i18n="roomSettings.duetDesc"
+                        >Cooperative 2-player mode</small
+                      >
+                    </span>
+                  </label>
+                  <label class="game-mode-option">
+                    <input type="radio" name="gameMode" value="match" />
+                    <span class="game-mode-card match-mode-card">
+                      <strong data-i18n="roomSettings.match">Eigennamen</strong>
+                      <small data-i18n="roomSettings.matchDesc"
+                        >Multi-round match with card scoring</small
+                      >
+                    </span>
+                  </label>
+                </div>
+
+                <div class="turn-timer-control">
+                  <label class="turn-timer-toggle">
+                    <input type="checkbox" id="turn-timer-toggle" />
+                    <span data-i18n="roomSettings.turnTimer">Turn Timer</span>
+                  </label>
+                  <div
+                    class="turn-timer-slider"
+                    id="turn-timer-slider"
+                    style="display: none"
+                  >
+                    <input
+                      type="range"
+                      id="turn-timer-range"
+                      min="20"
+                      max="600"
+                      step="10"
+                      value="120"
+                    />
+                    <span class="turn-timer-value" id="turn-timer-value"
+                      >120s</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Help Panel (Rules + About) -->
+            <div class="settings-panel" id="panel-help">
+              <h2 data-i18n="settings.help">Help</h2>
+              <div class="rules-content compact">
+                <p class="rules-intro" data-i18n="rules.intro">
+                  Two teams race to find all their words. Spymasters give clues,
+                  Clickers reveal cards.
+                </p>
+                <div class="rules-grid">
+                  <div class="rules-card">
+                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
+                    <div class="card-types">
+                      <span class="card-type red" data-i18n="rules.redCard"
+                        >■ Red Team</span
+                      >
+                      <span class="card-type blue" data-i18n="rules.blueCard"
+                        >● Blue Team</span
+                      >
+                      <span
+                        class="card-type neutral"
+                        data-i18n="rules.neutralCard"
+                        >◆ Neutral</span
+                      >
+                      <span
+                        class="card-type assassin"
+                        data-i18n="rules.assassinCard"
+                        >☠ Assassin</span
+                      >
+                    </div>
+                  </div>
+                  <div class="rules-card">
+                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
+                    <ol class="turn-flow">
+                      <li data-i18n="rules.step1">
+                        Spymaster gives a one-word clue + number
+                      </li>
+                      <li data-i18n="rules.step2">
+                        Clickers reveal cards matching the clue
+                      </li>
+                      <li data-i18n="rules.step3">
+                        Your color = keep going, Neutral/Enemy = turn ends
+                      </li>
+                      <li data-i18n="rules.step4">Assassin = instant loss!</li>
+                    </ol>
+                  </div>
+                </div>
+                <p class="rules-note" data-i18n="rules.note">
+                  Starting team finds 9 words, other team finds 8. First to find
+                  all wins!
+                </p>
+
+                <div class="rules-match-section">
+                  <h3 data-i18n="rules.matchTitle">Eigennamen Mode</h3>
+                  <p data-i18n="rules.matchIntro">
+                    A multi-round match where every card has a hidden point
+                    value. Teams play rounds until one reaches 42 points.
+                  </p>
+                  <div class="rules-grid">
+                    <div class="rules-card">
+                      <h4 data-i18n="rules.matchScoring">Card Scores</h4>
+                      <div class="card-types">
+                        <span
+                          class="card-type card-score-gold-text"
+                          data-i18n="rules.matchGold"
+                          >★ Gold (+3)</span
+                        >
+                        <span
+                          class="card-type card-score-silver-text"
+                          data-i18n="rules.matchSilver"
+                          >◆ Silver (+2)</span
+                        >
+                        <span
+                          class="card-type card-score-standard-text"
+                          data-i18n="rules.matchStandard"
+                          >● Standard (+1)</span
+                        >
+                        <span
+                          class="card-type card-score-blank-text"
+                          data-i18n="rules.matchBlank"
+                          >○ Blank (0)</span
+                        >
+                        <span
+                          class="card-type card-score-trap-text"
+                          data-i18n="rules.matchTrap"
+                          >✕ Trap (-1)</span
+                        >
+                      </div>
+                    </div>
+                    <div class="rules-card">
+                      <h4 data-i18n="rules.matchFlow">Match Flow</h4>
+                      <ol class="turn-flow">
+                        <li data-i18n="rules.matchStep1">
+                          Each round plays like a Vintage game
+                        </li>
+                        <li data-i18n="rules.matchStep2">
+                          When you reveal a card, your team earns its point
+                          value
+                        </li>
+                        <li data-i18n="rules.matchStep3">
+                          Round winner gets a +7 bonus
+                        </li>
+                        <li data-i18n="rules.matchStep4">
+                          First to 42 points (win by 3) wins!
+                        </li>
+                      </ol>
+                    </div>
+                  </div>
+                  <p class="rules-note" data-i18n="rules.matchNote">
+                    Only spymasters can see card scores before they are
+                    revealed. The assassin still ends the round instantly!
+                  </p>
+                </div>
+              </div>
+              <div class="help-about-section">
+                <p class="about-intro" data-i18n="about.description">
+                  A free, open-source implementation of the popular board game.
+                </p>
+                <div class="credits">
+                  <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
+                  <p>Open source under GPL v3.0</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- Footer with buttons -->
+        <div class="settings-footer">
+          <button
+            type="button"
+            id="btn-reset-words"
+            class="btn-reset"
+            data-action="reset-words"
+            style="display: none"
+            data-i18n="settings.resetWords"
+          >
+            Reset Words
+          </button>
+          <div class="footer-spacer"></div>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-settings"
+            data-i18n="settings.close"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            class="btn-save"
+            data-action="save-settings"
+            data-i18n="settings.saveAndApply"
+          >
+            Save & Apply
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Confirm New Game Modal -->
     <div class="modal-overlay" id="confirm-modal">
-        <div class="modal confirm-dialog">
-            <h2>Start New Game?</h2>
-            <p>This will end the current game. Are you sure?</p>
-            <div class="modal-buttons">
-                <button type="button" class="btn-new-game" data-action="confirm-yes-new-game">Yes, New Game</button>
-                <button type="button" class="btn-cancel" data-action="close-confirm">Cancel</button>
-            </div>
+      <div class="modal confirm-dialog">
+        <h2 data-i18n="modals.newGameTitle">Start New Game?</h2>
+        <p data-i18n="modals.newGameBody">
+          This will end the current game. Are you sure?
+        </p>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-new-game"
+            data-action="confirm-yes-new-game"
+            data-i18n="modals.newGameConfirm"
+          >
+            Yes, New Game
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-confirm"
+            data-i18n="modals.cancel"
+          >
+            Cancel
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Confirm End Turn Modal -->
     <div class="modal-overlay" id="confirm-end-turn-modal">
-        <div class="modal confirm-dialog">
-            <h2>End Turn?</h2>
-            <p>Are you sure you want to end your team's turn?</p>
-            <div class="modal-buttons">
-                <button type="button" class="btn-end-turn" data-action="confirm-yes-end-turn">Yes, End Turn</button>
-                <button type="button" class="btn-cancel" data-action="close-end-turn-confirm">Cancel</button>
-            </div>
+      <div class="modal confirm-dialog">
+        <h2 data-i18n="modals.endTurnTitle">End Turn?</h2>
+        <p data-i18n="modals.endTurnBody">
+          Are you sure you want to end your team's turn?
+        </p>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-end-turn"
+            data-action="confirm-yes-end-turn"
+            data-i18n="modals.endTurnConfirm"
+          >
+            Yes, End Turn
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-end-turn-confirm"
+            data-i18n="modals.cancel"
+          >
+            Cancel
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Confirm Forfeit Modal -->
     <div class="modal-overlay" id="confirm-forfeit-modal">
-        <div class="modal confirm-dialog">
-            <h2>Forfeit Game?</h2>
-            <p>This will end the game and award the win to the opposing team. Are you sure?</p>
-            <div class="modal-buttons">
-                <button type="button" class="btn-forfeit" data-action="confirm-yes-forfeit">Yes, Forfeit</button>
-                <button type="button" class="btn-cancel" data-action="close-forfeit-confirm">Cancel</button>
-            </div>
+      <div class="modal confirm-dialog">
+        <h2 data-i18n="modals.forfeitTitle">Forfeit Game?</h2>
+        <p data-i18n="modals.forfeitBody">
+          This will end the game and award the win to the opposing team. Are you
+          sure?
+        </p>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-forfeit"
+            data-action="confirm-yes-forfeit"
+            data-i18n="modals.forfeitConfirm"
+          >
+            Yes, Forfeit
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-forfeit-confirm"
+            data-i18n="modals.cancel"
+          >
+            Cancel
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Confirm Kick Player Modal -->
     <div class="modal-overlay" id="confirm-kick-modal">
-        <div class="modal confirm-dialog">
-            <h2>Kick Player?</h2>
-            <p>Are you sure you want to remove this player from the room?</p>
-            <div class="modal-buttons">
-                <button type="button" class="btn-forfeit" data-action="confirm-yes-kick">Yes, Kick</button>
-                <button type="button" class="btn-cancel" data-action="close-kick-confirm">Cancel</button>
-            </div>
+      <div class="modal confirm-dialog">
+        <h2 data-i18n="modals.kickTitle">Kick Player?</h2>
+        <p data-i18n="modals.kickBody">
+          Are you sure you want to remove this player from the room?
+        </p>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-forfeit"
+            data-action="confirm-yes-kick"
+            data-i18n="modals.kickConfirm"
+          >
+            Yes, Kick
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-kick-confirm"
+            data-i18n="modals.cancel"
+          >
+            Cancel
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Game Over Modal -->
-    <div class="modal-overlay" id="game-over-modal" data-testid="game-over-modal">
-        <div class="modal game-over-content">
-            <h2>Game Over!</h2>
-            <div class="winner" id="winner-display" data-testid="winner-display" role="alert" aria-live="assertive"></div>
-            <div class="rotation-reminder">
-                <h4>Time to Rotate Roles!</h4>
-                <p>For the next game, choose different players to be spymasters and clickers so everyone gets a turn!</p>
-            </div>
-            <div class="modal-buttons">
-                <button type="button" class="btn-new-game" data-action="game-over-new-game">New Game</button>
-                <button type="button" class="btn-cancel" data-action="close-game-over">Close</button>
-            </div>
+    <div
+      class="modal-overlay"
+      id="game-over-modal"
+      data-testid="game-over-modal"
+    >
+      <div class="modal game-over-content">
+        <h2 data-i18n="modals.gameOverTitle">Game Over!</h2>
+        <div
+          class="winner"
+          id="winner-display"
+          data-testid="winner-display"
+          role="alert"
+          aria-live="assertive"
+        ></div>
+        <div class="rotation-reminder">
+          <h4 data-i18n="modals.rotateRolesTitle">Time to Rotate Roles!</h4>
+          <p data-i18n="modals.rotateRolesBody">
+            For the next game, choose different players to be spymasters and
+            clickers so everyone gets a turn!
+          </p>
         </div>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-new-game"
+            data-action="game-over-new-game"
+            data-i18n="game.newGame"
+          >
+            New Game
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-game-over"
+            data-i18n="settings.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Error Modal -->
     <div class="modal-overlay" id="error-modal">
-        <div class="modal error-modal-content">
-            <div class="error-icon">&#9888;</div>
-            <h2>Something Went Wrong</h2>
-            <p id="error-message">An error occurred while loading the game.</p>
-            <p>Please try refreshing the page. If the problem persists, clear your browser cache.</p>
-            <div id="error-details" class="error-details" style="display: none;"></div>
-            <div class="modal-buttons">
-                <button type="button" class="btn-new-game" data-action="refresh-page">Refresh Page</button>
-                <button type="button" class="btn-cancel" data-action="close-error">Close</button>
-            </div>
+      <div class="modal error-modal-content">
+        <div class="error-icon">&#9888;</div>
+        <h2 data-i18n="modals.errorTitle">Something Went Wrong</h2>
+        <p id="error-message" data-i18n="modals.errorDefault">
+          An error occurred while loading the game.
+        </p>
+        <p data-i18n="modals.errorHint">
+          Please try refreshing the page. If the problem persists, clear your
+          browser cache.
+        </p>
+        <div
+          id="error-details"
+          class="error-details"
+          style="display: none"
+        ></div>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-new-game"
+            data-action="refresh-page"
+            data-i18n="modals.refreshPage"
+          >
+            Refresh Page
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-error"
+            data-i18n="settings.close"
+          >
+            Close
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Multiplayer Modal -->
-    <div class="modal-overlay" id="multiplayer-modal" data-testid="multiplayer-modal">
-        <div class="modal multiplayer-modal">
-            <h2 data-i18n="nav.playOnline">Play Online</h2>
-            <p class="subtitle" data-i18n="multiplayer.subtitle">Play with friends in real-time</p>
+    <div
+      class="modal-overlay"
+      id="multiplayer-modal"
+      data-testid="multiplayer-modal"
+    >
+      <div class="modal multiplayer-modal">
+        <h2 data-i18n="nav.playOnline">Play Online</h2>
+        <p class="subtitle" data-i18n="multiplayer.subtitle">
+          Play with friends in real-time
+        </p>
 
-            <div class="mode-buttons">
-                <button type="button" class="mode-btn active" data-mode="join" data-testid="mode-join-btn">
-                    <span class="mode-icon">🎮</span>
-                    <span class="mode-title" data-i18n="multiplayer.joinGame">Join Game</span>
-                    <span class="mode-desc" data-i18n="multiplayer.enterRoomIdShort">Enter a Room ID</span>
-                </button>
-                <button type="button" class="mode-btn" data-mode="create" data-testid="mode-create-btn">
-                    <span class="mode-icon">🏠</span>
-                    <span class="mode-title" data-i18n="multiplayer.hostGame">Host Game</span>
-                    <span class="mode-desc" data-i18n="multiplayer.createRoomShort">Create a new room</span>
-                </button>
-            </div>
-
-            <!-- Join Form -->
-            <div class="join-form active" id="join-form">
-                <div class="form-group">
-                    <label for="join-nickname" data-i18n="multiplayer.nickname">Your Nickname</label>
-                    <input type="text" id="join-nickname" data-testid="join-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off">
-                    <span class="error-text" id="join-nickname-error"></span>
-                </div>
-                <div class="form-group">
-                    <label for="join-room-id" data-i18n="multiplayer.roomId">Room ID</label>
-                    <input type="text" id="join-room-id" data-testid="join-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
-                    <span class="input-hint">Enter the Room ID shared by the host</span>
-                    <span class="error-text" id="join-error"></span>
-                </div>
-            </div>
-
-            <!-- Create Form -->
-            <div class="create-form" id="create-form">
-                <div class="form-group">
-                    <label for="create-nickname" data-i18n="multiplayer.nickname">Your Nickname</label>
-                    <input type="text" id="create-nickname" data-testid="create-nickname" placeholder="Enter your name" minlength="1" maxlength="30" autocomplete="off">
-                    <span class="error-text" id="create-nickname-error"></span>
-                </div>
-                <div class="form-group">
-                    <label for="create-room-id" data-i18n="multiplayer.roomId">Room ID</label>
-                    <input type="text" id="create-room-id" data-testid="create-room-id" placeholder="e.g. my-game or game-night" minlength="3" maxlength="20" autocomplete="off" pattern="[a-zA-Z0-9\-_]+" title="Letters, numbers, hyphens and underscores only">
-                    <span class="input-hint">Share this Room ID with friends to let them join</span>
-                    <span class="error-text" id="create-error"></span>
-                </div>
-            </div>
-
-            <div class="connection-status" id="mp-status" data-testid="mp-status"></div>
-
-            <div class="modal-buttons">
-                <button type="button" class="btn-primary" id="btn-mp-action" data-testid="mp-action-btn">Join Game</button>
-                <button type="button" class="btn-secondary" data-action="close-multiplayer">Cancel</button>
-            </div>
-
-            <div class="divider"><span>or</span></div>
-            <button type="button" class="btn-secondary" data-action="play-offline" style="width: 100%;">Play Offline (URL-based)</button>
+        <div class="mode-buttons">
+          <button
+            type="button"
+            class="mode-btn active"
+            data-mode="join"
+            data-testid="mode-join-btn"
+          >
+            <span class="mode-icon">🎮</span>
+            <span class="mode-title" data-i18n="multiplayer.joinGame"
+              >Join Game</span
+            >
+            <span class="mode-desc" data-i18n="multiplayer.enterRoomIdShort"
+              >Enter a Room ID</span
+            >
+          </button>
+          <button
+            type="button"
+            class="mode-btn"
+            data-mode="create"
+            data-testid="mode-create-btn"
+          >
+            <span class="mode-icon">🏠</span>
+            <span class="mode-title" data-i18n="multiplayer.hostGame"
+              >Host Game</span
+            >
+            <span class="mode-desc" data-i18n="multiplayer.createRoomShort"
+              >Create a new room</span
+            >
+          </button>
         </div>
+
+        <!-- Join Form -->
+        <div class="join-form active" id="join-form">
+          <div class="form-group">
+            <label for="join-nickname" data-i18n="multiplayer.nickname"
+              >Your Nickname</label
+            >
+            <input
+              type="text"
+              id="join-nickname"
+              data-testid="join-nickname"
+              placeholder="Enter your name"
+              minlength="1"
+              maxlength="30"
+              autocomplete="off"
+            />
+            <span class="error-text" id="join-nickname-error"></span>
+          </div>
+          <div class="form-group">
+            <label for="join-room-id" data-i18n="multiplayer.roomId"
+              >Room ID</label
+            >
+            <input
+              type="text"
+              id="join-room-id"
+              data-testid="join-room-id"
+              placeholder="e.g. my-game or game-night"
+              minlength="3"
+              maxlength="20"
+              autocomplete="off"
+              pattern="[a-zA-Z0-9\-_]+"
+              title="Letters, numbers, hyphens and underscores only"
+            />
+            <span class="input-hint">Enter the Room ID shared by the host</span>
+            <span class="error-text" id="join-error"></span>
+          </div>
+        </div>
+
+        <!-- Create Form -->
+        <div class="create-form" id="create-form">
+          <div class="form-group">
+            <label for="create-nickname" data-i18n="multiplayer.nickname"
+              >Your Nickname</label
+            >
+            <input
+              type="text"
+              id="create-nickname"
+              data-testid="create-nickname"
+              placeholder="Enter your name"
+              minlength="1"
+              maxlength="30"
+              autocomplete="off"
+            />
+            <span class="error-text" id="create-nickname-error"></span>
+          </div>
+          <div class="form-group">
+            <label for="create-room-id" data-i18n="multiplayer.roomId"
+              >Room ID</label
+            >
+            <input
+              type="text"
+              id="create-room-id"
+              data-testid="create-room-id"
+              placeholder="e.g. my-game or game-night"
+              minlength="3"
+              maxlength="20"
+              autocomplete="off"
+              pattern="[a-zA-Z0-9\-_]+"
+              title="Letters, numbers, hyphens and underscores only"
+            />
+            <span class="input-hint"
+              >Share this Room ID with friends to let them join</span
+            >
+            <span class="error-text" id="create-error"></span>
+          </div>
+        </div>
+
+        <div
+          class="connection-status"
+          id="mp-status"
+          data-testid="mp-status"
+        ></div>
+
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-primary"
+            id="btn-mp-action"
+            data-testid="mp-action-btn"
+            data-i18n="multiplayer.joinGame"
+          >
+            Join Game
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            data-action="close-multiplayer"
+            data-i18n="modals.cancel"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div class="divider"><span data-i18n="modals.or">or</span></div>
+        <button
+          type="button"
+          class="btn-secondary"
+          data-action="play-offline"
+          style="width: 100%"
+          data-i18n="modals.playOffline"
+        >
+          Play Offline (URL-based)
+        </button>
+      </div>
     </div>
 
     <!-- Game History Modal -->
     <div class="modal-overlay" id="history-modal">
-        <div class="modal history-modal">
-            <h2>Game History</h2>
-            <p class="subtitle">View past games in this room</p>
+      <div class="modal history-modal">
+        <h2 data-i18n="nav.history">Game History</h2>
+        <p class="subtitle" data-i18n="modals.historySubtitle">
+          View past games in this room
+        </p>
 
-            <div class="history-loading" id="history-loading">
-                <div class="spinner"></div>
-                <p>Loading game history...</p>
-            </div>
-
-            <div class="history-empty" id="history-empty" style="display: none;">
-                <p>No games have been played in this room yet.</p>
-            </div>
-
-            <div class="history-list" id="history-list" style="display: none;">
-                <!-- Game history entries will be added here -->
-            </div>
-
-            <div class="modal-buttons">
-                <button type="button" class="btn-secondary" data-action="close-history">Close</button>
-            </div>
+        <div class="history-loading" id="history-loading">
+          <div class="spinner"></div>
+          <p>Loading game history...</p>
         </div>
+
+        <div class="history-empty" id="history-empty" style="display: none">
+          <p>No games have been played in this room yet.</p>
+        </div>
+
+        <div class="history-list" id="history-list" style="display: none">
+          <!-- Game history entries will be added here -->
+        </div>
+
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-secondary"
+            data-action="close-history"
+            data-i18n="settings.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Game Replay Modal -->
     <div class="modal-overlay" id="replay-modal">
-        <div class="modal replay-modal">
-            <h2>Game Replay</h2>
-            <div class="replay-info" id="replay-info"></div>
+      <div class="modal replay-modal">
+        <h2 data-i18n="modals.replayTitle">Game Replay</h2>
+        <div class="replay-info" id="replay-info"></div>
 
-            <div class="replay-board-container">
-                <div class="replay-board" id="replay-board">
-                    <!-- 5x5 grid of cards will be generated -->
-                </div>
-            </div>
-
-            <div class="replay-controls">
-                <button type="button" class="replay-btn" id="replay-prev" title="Previous Move" aria-label="Previous move">&#9664;</button>
-                <button type="button" class="replay-btn" id="replay-play" title="Play/Pause" aria-label="Play or pause replay">&#9654;</button>
-                <button type="button" class="replay-btn" id="replay-next" title="Next Move" aria-label="Next move">&#9654;</button>
-                <!-- PHASE 4: Playback speed control -->
-                <button type="button" class="replay-btn replay-speed-btn" id="replay-speed" title="Playback Speed" aria-label="Playback speed">1x</button>
-                <span class="replay-progress" id="replay-progress">Move 0 / 0</span>
-                <!-- PHASE 4: Share replay link -->
-                <button type="button" class="replay-btn replay-share-btn" id="replay-share" title="Copy Replay Link" aria-label="Copy replay link">🔗</button>
-            </div>
-
-            <div class="replay-event-log" id="replay-event-log">
-                <!-- Event log will be shown here -->
-            </div>
-
-            <div class="modal-buttons">
-                <button type="button" class="btn-secondary" data-action="close-replay">Close</button>
-            </div>
+        <div class="replay-board-container">
+          <div class="replay-board" id="replay-board">
+            <!-- 5x5 grid of cards will be generated -->
+          </div>
         </div>
+
+        <div class="replay-controls">
+          <button
+            type="button"
+            class="replay-btn"
+            id="replay-prev"
+            title="Previous Move"
+            aria-label="Previous move"
+          >
+            &#9664;
+          </button>
+          <button
+            type="button"
+            class="replay-btn"
+            id="replay-play"
+            title="Play/Pause"
+            aria-label="Play or pause replay"
+          >
+            &#9654;
+          </button>
+          <button
+            type="button"
+            class="replay-btn"
+            id="replay-next"
+            title="Next Move"
+            aria-label="Next move"
+          >
+            &#9654;
+          </button>
+          <!-- PHASE 4: Playback speed control -->
+          <button
+            type="button"
+            class="replay-btn replay-speed-btn"
+            id="replay-speed"
+            title="Playback Speed"
+            aria-label="Playback speed"
+          >
+            1x
+          </button>
+          <span class="replay-progress" id="replay-progress">Move 0 / 0</span>
+          <!-- PHASE 4: Share replay link -->
+          <button
+            type="button"
+            class="replay-btn replay-share-btn"
+            id="replay-share"
+            title="Copy Replay Link"
+            aria-label="Copy replay link"
+          >
+            🔗
+          </button>
+        </div>
+
+        <div class="replay-event-log" id="replay-event-log">
+          <!-- Event log will be shown here -->
+        </div>
+
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-secondary"
+            data-action="close-replay"
+            data-i18n="settings.close"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="/js/modules/app.js"></script>
     <!-- Fallback: detect if the ES module failed to load + service worker registration -->
     <script src="/js/app-fallback.js"></script>
-</body>
+  </body>
 </html>
