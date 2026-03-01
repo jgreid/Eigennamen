@@ -160,11 +160,11 @@
   "roomSettings": {
     "gameMode": "Spielmodus",
     "gameModeHint": "Wähle, wie du spielen möchtest.",
-    "classic": "Klassisch",
+    "classic": "Vintage",
     "classicDesc": "Standard-Eigennamen-Regeln",
     "duet": "Duett",
     "duetDesc": "Kooperativer 2-Spieler-Modus",
-    "match": "Match",
+    "match": "Eigennamen",
     "matchDesc": "Mehrrundiges Match mit Kartenpunkten",
     "turnTimer": "Rundenzeit"
   },
@@ -197,7 +197,7 @@
     "step3": "Eigene Farbe = weitermachen, Neutral/Gegner = Zug endet",
     "step4": "Attentäter = sofortige Niederlage!",
     "note": "Das anfangende Team findet 9 Wörter, das andere 8. Wer zuerst alle findet, gewinnt!",
-    "matchTitle": "Match-Modus",
+    "matchTitle": "Eigennamen-Modus",
     "matchIntro": "Ein Mehrrunden-Match, bei dem jede Karte einen versteckten Punktwert hat. Teams spielen Runden, bis eines 42 Punkte erreicht.",
     "matchScoring": "Kartenwerte",
     "matchGold": "★ Gold (+3)",
@@ -205,11 +205,11 @@
     "matchStandard": "● Standard (+1)",
     "matchBlank": "○ Leer (0)",
     "matchTrap": "✕ Falle (-1)",
-    "matchFlow": "Match-Ablauf",
-    "matchStep1": "Jede Runde spielt sich wie ein klassisches Spiel",
+    "matchFlow": "Spielablauf",
+    "matchStep1": "Jede Runde spielt sich wie ein Vintage-Spiel",
     "matchStep2": "Wenn du eine Karte aufdeckst, erhält dein Team den Punktwert",
     "matchStep3": "Der Rundensieger erhält einen +7 Bonus",
-    "matchStep4": "Erster mit 42 Punkten (Vorsprung von 3) gewinnt das Match",
+    "matchStep4": "Erster mit 42 Punkten (Vorsprung von 3) gewinnt!",
     "matchNote": "Nur Geheimdienstchefs können Kartenwerte vor dem Aufdecken sehen. Der Attentäter beendet die Runde sofort!"
   },
   "about": {

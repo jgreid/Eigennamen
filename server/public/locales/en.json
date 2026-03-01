@@ -160,11 +160,11 @@
   "roomSettings": {
     "gameMode": "Game Mode",
     "gameModeHint": "Choose how you want to play.",
-    "classic": "Classic",
+    "classic": "Vintage",
     "classicDesc": "Standard Eigennamen rules",
     "duet": "Duet",
     "duetDesc": "Cooperative 2-player mode",
-    "match": "Match",
+    "match": "Eigennamen",
     "matchDesc": "Multi-round match with card scoring",
     "turnTimer": "Turn Timer"
   },
@@ -197,7 +197,7 @@
     "step3": "Your color = keep going, Neutral/Enemy = turn ends",
     "step4": "Assassin = instant loss!",
     "note": "Starting team finds 9 words, other team finds 8. First to find all wins!",
-    "matchTitle": "Match Mode",
+    "matchTitle": "Eigennamen Mode",
     "matchIntro": "A multi-round match where every card has a hidden point value. Teams play rounds until one reaches 42 points.",
     "matchScoring": "Card Scores",
     "matchGold": "★ Gold (+3)",
@@ -206,10 +206,10 @@
     "matchBlank": "○ Blank (0)",
     "matchTrap": "✕ Trap (-1)",
     "matchFlow": "Match Flow",
-    "matchStep1": "Each round plays like a classic game",
+    "matchStep1": "Each round plays like a Vintage game",
     "matchStep2": "When you reveal a card, your team earns its point value",
     "matchStep3": "Round winner gets a +7 bonus",
-    "matchStep4": "First to 42 points (win by 3) takes the match",
+    "matchStep4": "First to 42 points (win by 3) wins!",
     "matchNote": "Only spymasters can see card scores before they are revealed. The assassin still ends the round instantly!"
   },
   "about": {
