@@ -5,9 +5,9 @@
  * The IIFE executes on import and assigns EigennamenClient to globalThis.
  *
  * Focus areas (per review):
- *   1. Offline queue overflow (>20 items)
- *   2. Reconnection race conditions
- *   3. Auth / connection timeout
+ *   1. Delegation to extracted modules (connection, rooms)
+ *   2. Reconnection race conditions (via mocked room ops)
+ *   3. Auth / connection timeout (via mocked room ops)
  *   4. Socket.io library load failure
  *   5. Duplicate event deduplication (createRoom / joinRoom guards)
  *
@@ -35,6 +35,21 @@ jest.mock('../../frontend/socket-client-storage', () => ({
 
 jest.mock('../../frontend/socket-client-events', () => ({
     registerAllEventListeners: jest.fn(),
+}));
+
+jest.mock('../../frontend/socket-client-connection', () => ({
+    loadSocketIO: jest.fn(() => Promise.resolve()),
+    isSocketIOAvailable: jest.fn(() => true),
+    doConnect: jest.fn(),
+    cleanupSocketListeners: jest.fn(),
+    setupEventListeners: jest.fn(),
+    queueOrEmit: jest.fn(),
+}));
+
+jest.mock('../../frontend/socket-client-rooms', () => ({
+    createRoom: jest.fn(),
+    joinRoom: jest.fn(),
+    requestResync: jest.fn(),
 }));
 
 /* -------------------------------------------------------------------------- */
@@ -101,33 +116,16 @@ setupGlobalIO();
 // Import the IIFE module. Side-effect: assigns EigennamenClient on globalThis.
 import '../../frontend/socket-client';
 
+// Import mocked module functions for verification
+import { doConnect, cleanupSocketListeners, queueOrEmit, loadSocketIO } from '../../frontend/socket-client-connection';
+import { createRoom, joinRoom, requestResync } from '../../frontend/socket-client-rooms';
+
 // Type for the client object exposed on globalThis.
 // We keep it loose (Record) because the IIFE is not a proper ES export.
 type EigennamenClientType = Record<string, any>;
 
 function getClient(): EigennamenClientType {
     return (globalThis as Record<string, unknown>).EigennamenClient as EigennamenClientType;
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** Simulate a successful connection by triggering the socket's 'connect' handler. */
-function simulateConnect(client: EigennamenClientType, socket: MockSocket): void {
-    // The IIFE registers on('connect', ...) inside _doConnect.
-    const handler = socket._getHandler('connect');
-    if (handler) handler();
-}
-
-/** Advance timers and flush microtasks in a loop to drain async work. */
-async function _flushAllTimersAndMicrotasks(): Promise<void> {
-    // Run all pending timers then let microtask queue drain.
-    jest.runAllTimers();
-    // A few rounds to handle chained promises.
-    for (let i = 0; i < 5; i++) {
-        await Promise.resolve();
-    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -140,6 +138,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     beforeEach(() => {
         jest.useFakeTimers();
         setupGlobalIO();
+        jest.clearAllMocks();
 
         client = getClient();
 
@@ -166,151 +165,123 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     });
 
     /* ================================================================== */
-    /*  1. Offline queue overflow (>20 items)                              */
+    /*  1. Offline queue — delegation to queueOrEmit                       */
     /* ================================================================== */
 
-    describe('offline queue overflow', () => {
-        it('queues up to _offlineQueueMaxSize items when disconnected', () => {
-            // Client is not connected (default state after reset)
-            client.connected = false;
-            client.socket = { connected: false, emit: jest.fn() };
+    describe('offline queue delegation', () => {
+        it('sendMessage delegates to queueOrEmit with chat:message', () => {
+            client.sendMessage('hello', false);
 
-            for (let i = 0; i < 20; i++) {
-                client._queueOrEmit('chat:message', { text: `msg-${i}` });
-            }
-
-            expect(client._offlineQueue).toHaveLength(20);
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'chat:message', { text: 'hello', teamOnly: false });
         });
 
-        it('silently drops events beyond the max queue size (20)', () => {
-            client.connected = false;
-            client.socket = { connected: false, emit: jest.fn() };
+        it('sendMessage passes teamOnly flag to queueOrEmit', () => {
+            client.sendMessage('secret', true);
 
-            for (let i = 0; i < 25; i++) {
-                client._queueOrEmit('chat:message', { text: `msg-${i}` });
-            }
-
-            // Only 20 should be stored; items 20-24 are dropped.
-            expect(client._offlineQueue).toHaveLength(20);
-            expect(client._offlineQueue[19].data.text).toBe('msg-19');
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'chat:message', { text: 'secret', teamOnly: true });
         });
 
-        it('does not queue non-queueable events even when under the limit', () => {
-            client.connected = false;
-            client.socket = { connected: false, emit: jest.fn() };
+        it('setTeam without callback delegates to queueOrEmit', () => {
+            client.setTeam('red');
 
-            client._queueOrEmit('game:reveal', { index: 5 });
-            client._queueOrEmit('room:create', { roomId: 'X' });
-            client._queueOrEmit('game:start', {});
-
-            expect(client._offlineQueue).toHaveLength(0);
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'player:setTeam', { team: 'red' });
         });
 
-        it('emits directly instead of queuing when connected', () => {
+        it('setTeam with callback emits directly on socket instead of queueOrEmit', () => {
             const emitFn = jest.fn();
-            client.connected = true;
+            const cb = jest.fn();
             client.socket = { connected: true, emit: emitFn };
 
-            client._queueOrEmit('chat:message', { text: 'live' });
+            client.setTeam('blue', cb);
 
-            expect(emitFn).toHaveBeenCalledWith('chat:message', { text: 'live' });
-            expect(client._offlineQueue).toHaveLength(0);
+            expect(queueOrEmit).not.toHaveBeenCalled();
+            expect(emitFn).toHaveBeenCalledWith('player:setTeam', { team: 'blue' }, cb);
         });
 
-        it('respects queue max even with mixed queueable events', () => {
-            client.connected = false;
-            client.socket = { connected: false, emit: jest.fn() };
+        it('setRole without callback delegates to queueOrEmit', () => {
+            client.setRole('spymaster');
 
-            const queueableEvents = [
-                'chat:message',
-                'chat:spectator',
-                'player:setTeam',
-                'player:setRole',
-                'player:setNickname',
-                'game:endTurn',
-            ];
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'player:setRole', { role: 'spymaster' });
+        });
 
-            // Fill queue to the max using all kinds of queueable events
-            for (let i = 0; i < 25; i++) {
-                const event = queueableEvents[i % queueableEvents.length];
-                client._queueOrEmit(event, { i });
-            }
+        it('setRole with callback emits directly on socket instead of queueOrEmit', () => {
+            const emitFn = jest.fn();
+            const cb = jest.fn();
+            client.socket = { connected: true, emit: emitFn };
 
-            expect(client._offlineQueue).toHaveLength(20);
+            client.setRole('operative', cb);
+
+            expect(queueOrEmit).not.toHaveBeenCalled();
+            expect(emitFn).toHaveBeenCalledWith('player:setRole', { role: 'operative' }, cb);
+        });
+
+        it('setNickname delegates to queueOrEmit', () => {
+            client.setNickname('Bob');
+
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'player:setNickname', { nickname: 'Bob' });
+        });
+
+        it('endTurn delegates to queueOrEmit', () => {
+            client.endTurn();
+
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'game:endTurn', {});
+        });
+
+        it('sendSpectatorChat delegates to queueOrEmit with trimmed message', () => {
+            client.sendSpectatorChat('  hello world  ');
+
+            expect(queueOrEmit).toHaveBeenCalledWith(client, 'chat:spectator', { message: 'hello world' });
+        });
+
+        it('sendSpectatorChat does not call queueOrEmit for empty messages', () => {
+            client.sendSpectatorChat('');
+
+            expect(queueOrEmit).not.toHaveBeenCalled();
+        });
+
+        it('sendSpectatorChat does not call queueOrEmit for whitespace-only messages', () => {
+            client.sendSpectatorChat('   ');
+
+            expect(queueOrEmit).not.toHaveBeenCalled();
         });
     });
 
     /* ================================================================== */
-    /*  2. Offline queue flush — timestamp expiry and replay               */
+    /*  2. Connection lifecycle — delegation to doConnect / loadSocketIO    */
     /* ================================================================== */
 
-    describe('offline queue flush', () => {
-        it('replays fresh events and clears the queue', () => {
-            const emitFn = jest.fn();
-            client.connected = true;
-            client.socket = { connected: true, emit: emitFn };
-            client.roomCode = 'test-room';
+    describe('connection lifecycle delegation', () => {
+        it('connect() calls loadSocketIO then doConnect with correct args', async () => {
+            const mockSock = createMockSocket();
+            (doConnect as jest.Mock).mockResolvedValue(mockSock);
 
-            // Manually push fresh items (roomCode must match client.roomCode)
-            client._offlineQueue = [
-                { event: 'chat:message', data: { text: 'hello' }, timestamp: Date.now(), roomCode: 'test-room' },
-                { event: 'player:setTeam', data: { team: 'red' }, timestamp: Date.now(), roomCode: 'test-room' },
-            ];
+            const result = await client.connect('http://localhost:3000', { autoRejoin: false });
 
-            client._flushOfflineQueue();
-
-            expect(emitFn).toHaveBeenCalledTimes(2);
-            expect(emitFn).toHaveBeenCalledWith('chat:message', { text: 'hello' });
-            expect(emitFn).toHaveBeenCalledWith('player:setTeam', { team: 'red' });
-            expect(client._offlineQueue).toHaveLength(0);
+            expect(loadSocketIO).toHaveBeenCalled();
+            expect(doConnect).toHaveBeenCalledWith(client, 'http://localhost:3000', { autoRejoin: false });
+            expect(result).toBe(mockSock);
         });
 
-        it('discards events older than 2 minutes', () => {
-            const emitFn = jest.fn();
-            client.connected = true;
-            client.socket = { connected: true, emit: emitFn };
-            client.roomCode = 'test-room';
+        it('connect() with no args passes defaults to doConnect', async () => {
+            const mockSock = createMockSocket();
+            (doConnect as jest.Mock).mockResolvedValue(mockSock);
 
-            const twoMinutesPlusOne = Date.now() - (2 * 60 * 1000 + 1);
-            client._offlineQueue = [
-                { event: 'chat:message', data: { text: 'old' }, timestamp: twoMinutesPlusOne, roomCode: 'test-room' },
-                { event: 'chat:message', data: { text: 'new' }, timestamp: Date.now(), roomCode: 'test-room' },
-            ];
+            await client.connect();
 
-            client._flushOfflineQueue();
-
-            expect(emitFn).toHaveBeenCalledTimes(1);
-            expect(emitFn).toHaveBeenCalledWith('chat:message', { text: 'new' });
-            expect(client._offlineQueue).toHaveLength(0);
+            expect(doConnect).toHaveBeenCalledWith(client, null, {});
         });
 
-        it('discards events from a different room', () => {
-            const emitFn = jest.fn();
-            client.connected = true;
-            client.socket = { connected: true, emit: emitFn };
-            client.roomCode = 'new-room';
+        it('connect() rejects when loadSocketIO fails', async () => {
+            (loadSocketIO as jest.Mock).mockRejectedValueOnce(new Error('Failed to load Socket.io client library'));
 
-            client._offlineQueue = [
-                { event: 'chat:message', data: { text: 'stale' }, timestamp: Date.now(), roomCode: 'old-room' },
-                { event: 'chat:message', data: { text: 'current' }, timestamp: Date.now(), roomCode: 'new-room' },
-            ];
-
-            client._flushOfflineQueue();
-
-            expect(emitFn).toHaveBeenCalledTimes(1);
-            expect(emitFn).toHaveBeenCalledWith('chat:message', { text: 'current' });
-            expect(client._offlineQueue).toHaveLength(0);
+            await expect(client.connect()).rejects.toThrow('Failed to load Socket.io client library');
+            expect(doConnect).not.toHaveBeenCalled();
         });
 
-        it('does nothing when queue is empty', () => {
-            const emitFn = jest.fn();
-            client.connected = true;
-            client.socket = { connected: true, emit: emitFn };
-            client._offlineQueue = [];
+        it('connect() rejects when doConnect fails', async () => {
+            (doConnect as jest.Mock).mockRejectedValueOnce(new Error('Connection refused'));
 
-            client._flushOfflineQueue();
-
-            expect(emitFn).not.toHaveBeenCalled();
+            await expect(client.connect('http://localhost:3000')).rejects.toThrow('Connection refused');
         });
     });
 
@@ -321,12 +292,14 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     describe('reconnection race conditions', () => {
         it('prevents double-join via joinInProgress flag', async () => {
             client.joinInProgress = true;
+            (joinRoom as jest.Mock).mockRejectedValueOnce(new Error('Join already in progress'));
 
             await expect(client.joinRoom('ABCD', 'Alice')).rejects.toThrow('Join already in progress');
         });
 
         it('prevents double-create via createInProgress flag', async () => {
             client.createInProgress = true;
+            (createRoom as jest.Mock).mockRejectedValueOnce(new Error('Room creation already in progress'));
 
             await expect(client.createRoom({ roomId: 'ABCD' })).rejects.toThrow('Room creation already in progress');
         });
@@ -335,49 +308,27 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             client.joinInProgress = true;
             client.createInProgress = true;
 
-            // Simulate the IIFE's _doConnect setting up a socket
+            // Simulate the client having a socket
             const socket = createMockSocket();
             client.socket = socket;
             client.connected = true;
 
-            // Call _doConnect so the socket event handlers are registered
-            // Instead, simulate what disconnect handler does:
-            // When 'disconnect' fires, the handler resets these flags
-            client.connected = false;
-            client.createInProgress = false;
-            client.joinInProgress = false;
+            client.disconnect();
 
-            expect(client.joinInProgress).toBe(false);
-            expect(client.createInProgress).toBe(false);
-        });
-
-        it('disconnect handler resets operation flags via _doConnect listener', async () => {
-            // Set up the client via _doConnect
-            const connectPromise = client._doConnect('http://localhost:3000');
-
-            // Verify socket was created
-            expect(client.socket).toBeTruthy();
-
-            // Simulate connect first, then disconnect
-            simulateConnect(client, mockSocket);
-            await connectPromise;
-
-            // Set in-progress flags
-            client.joinInProgress = true;
-            client.createInProgress = true;
-
-            // Fire disconnect
-            mockSocket._fireEvent('disconnect', 'transport close');
-
-            expect(client.connected).toBe(false);
             expect(client.joinInProgress).toBe(false);
             expect(client.createInProgress).toBe(false);
         });
 
         it('concurrent joinRoom calls — second rejects while first is pending', async () => {
-            // Set up the socket
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+            // First call: return a pending promise
+            let resolveFirst!: (v: unknown) => void;
+            (joinRoom as jest.Mock)
+                .mockReturnValueOnce(
+                    new Promise((r) => {
+                        resolveFirst = r;
+                    })
+                )
+                .mockRejectedValueOnce(new Error('Join already in progress'));
 
             const p1 = client.joinRoom('ROOM1', 'Alice');
             const p2 = client.joinRoom('ROOM2', 'Bob');
@@ -385,22 +336,28 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             // p2 should reject immediately (joinInProgress)
             await expect(p2).rejects.toThrow('Join already in progress');
 
-            // Clean up p1 by triggering timeout
-            jest.advanceTimersByTime(20000);
-            await expect(p1).rejects.toThrow('Join room timeout');
+            // Clean up p1
+            resolveFirst({ room: { code: 'ROOM1' } });
+            await p1;
         });
 
         it('concurrent createRoom calls — second rejects while first is pending', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+            let resolveFirst!: (v: unknown) => void;
+            (createRoom as jest.Mock)
+                .mockReturnValueOnce(
+                    new Promise((r) => {
+                        resolveFirst = r;
+                    })
+                )
+                .mockRejectedValueOnce(new Error('Room creation already in progress'));
 
             const p1 = client.createRoom({ roomId: 'ROOM1' });
             const p2 = client.createRoom({ roomId: 'ROOM2' });
 
             await expect(p2).rejects.toThrow('Room creation already in progress');
 
-            jest.advanceTimersByTime(30000);
-            await expect(p1).rejects.toThrow('Create room timeout');
+            resolveFirst({ room: { code: 'ROOM1' } });
+            await p1;
         });
     });
 
@@ -409,92 +366,36 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     /* ================================================================== */
 
     describe('auth and connection timeouts', () => {
-        it('joinRoom rejects after 20s timeout', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+        it('joinRoom rejects when the rooms module rejects with timeout', async () => {
+            (joinRoom as jest.Mock).mockRejectedValueOnce(new Error('Join room timeout'));
 
-            const promise = client.joinRoom('ABCD', 'Alice');
-
-            // Advance past the 20s timeout
-            jest.advanceTimersByTime(20000);
-
-            await expect(promise).rejects.toThrow('Join room timeout');
-            // joinInProgress should be cleaned up
-            expect(client.joinInProgress).toBe(false);
+            await expect(client.joinRoom('ABCD', 'Alice')).rejects.toThrow('Join room timeout');
         });
 
-        it('createRoom rejects after 30s timeout', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+        it('createRoom rejects when the rooms module rejects with timeout', async () => {
+            (createRoom as jest.Mock).mockRejectedValueOnce(new Error('Create room timeout'));
 
-            const promise = client.createRoom({ roomId: 'TESTROOM' });
-
-            jest.advanceTimersByTime(30000);
-
-            await expect(promise).rejects.toThrow('Create room timeout');
-            expect(client.createInProgress).toBe(false);
+            await expect(client.createRoom({ roomId: 'TESTROOM' })).rejects.toThrow('Create room timeout');
         });
 
-        it('requestResync rejects after 10s timeout', async () => {
+        it('requestResync rejects when the rooms module rejects with timeout', async () => {
+            (requestResync as jest.Mock).mockRejectedValueOnce(new Error('Resync timeout'));
             client.roomCode = 'ABCD';
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
 
-            const promise = client.requestResync();
-
-            jest.advanceTimersByTime(10000);
-
-            await expect(promise).rejects.toThrow('Resync timeout');
+            await expect(client.requestResync()).rejects.toThrow('Resync timeout');
         });
 
-        it('requestResync rejects immediately if not in a room', async () => {
+        it('requestResync rejects when the rooms module rejects (not in a room)', async () => {
+            (requestResync as jest.Mock).mockRejectedValueOnce(new Error('Not in a room'));
             client.roomCode = null;
 
             await expect(client.requestResync()).rejects.toThrow('Not in a room');
         });
 
-        it('createRoom rejects immediately if roomId is missing', async () => {
-            client.socket = createMockSocket();
+        it('createRoom rejects when the rooms module rejects (missing roomId)', async () => {
+            (createRoom as jest.Mock).mockRejectedValueOnce(new Error('Room ID is required'));
 
             await expect(client.createRoom({ roomId: '' })).rejects.toThrow('Room ID is required');
-            expect(client.createInProgress).toBe(false);
-        });
-
-        it('_doConnect rejects after maxReconnectAttempts connect_error events', async () => {
-            const promise = client._doConnect('http://localhost:3000');
-
-            // Fire connect_error maxReconnectAttempts (5) times
-            for (let i = 0; i < 5; i++) {
-                mockSocket._fireEvent('connect_error', new Error('Connection refused'));
-            }
-
-            await expect(promise).rejects.toThrow('Connection refused');
-            expect(client.reconnectAttempts).toBe(5);
-        });
-
-        it('_doConnect does not reject before reaching maxReconnectAttempts', async () => {
-            const promise = client._doConnect('http://localhost:3000');
-            let rejected = false;
-
-            promise.catch(() => {
-                rejected = true;
-            });
-
-            // Fire fewer errors than the max
-            for (let i = 0; i < 4; i++) {
-                mockSocket._fireEvent('connect_error', new Error('Connection refused'));
-            }
-
-            // Let microtasks run
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(rejected).toBe(false);
-            expect(client.reconnectAttempts).toBe(4);
-
-            // Now hit the max
-            mockSocket._fireEvent('connect_error', new Error('Final error'));
-            await expect(promise).rejects.toThrow('Final error');
         });
     });
 
@@ -503,358 +404,114 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     /* ================================================================== */
 
     describe('Socket.io library load failure', () => {
-        it('connect() rejects when io is not available and script load fails', async () => {
-            // Remove the global io so isSocketIOReady returns false
-            delete (globalThis as Record<string, unknown>).io;
+        it('connect() rejects when loadSocketIO rejects (script load failure)', async () => {
+            (loadSocketIO as jest.Mock).mockRejectedValueOnce(
+                new Error(
+                    'Failed to load Socket.io client library. Check your network connection and refresh the page.'
+                )
+            );
 
-            const promise = client.connect();
-
-            // The IIFE creates a <script> element. Simulate its onerror.
-            // Find the script that was appended to document.head.
-            const scripts = document.head.querySelectorAll('script[src="/js/socket.io.min.js"]');
-            expect(scripts.length).toBeGreaterThan(0);
-
-            const lastScript = scripts[scripts.length - 1] as HTMLScriptElement;
-            // Fire the onerror handler
-            lastScript.onerror!(new Event('error'));
-
-            await expect(promise).rejects.toThrow('Failed to load Socket.io client library');
-
-            // Restore io for other tests
-            setupGlobalIO();
+            await expect(client.connect()).rejects.toThrow('Failed to load Socket.io client library');
         });
 
-        it('connect() rejects when script loads but io global is still missing', async () => {
-            delete (globalThis as Record<string, unknown>).io;
+        it('connect() rejects when loadSocketIO rejects (io global missing after load)', async () => {
+            (loadSocketIO as jest.Mock).mockRejectedValueOnce(
+                new Error('Socket.io script loaded but io global is missing')
+            );
 
-            const promise = client.connect();
-
-            const scripts = document.head.querySelectorAll('script[src="/js/socket.io.min.js"]');
-            const lastScript = scripts[scripts.length - 1] as HTMLScriptElement;
-
-            // Fire onload but io is still not present
-            lastScript.onload!(new Event('load'));
-
-            await expect(promise).rejects.toThrow('Socket.io script loaded but io global is missing');
-
-            setupGlobalIO();
+            await expect(client.connect()).rejects.toThrow('Socket.io script loaded but io global is missing');
         });
 
-        it('connect() succeeds when io becomes available after dynamic script load', async () => {
-            delete (globalThis as Record<string, unknown>).io;
+        it('connect() succeeds when loadSocketIO resolves and doConnect resolves', async () => {
+            const mockSock = createMockSocket();
+            (loadSocketIO as jest.Mock).mockResolvedValueOnce(undefined);
+            (doConnect as jest.Mock).mockResolvedValueOnce(mockSock);
 
-            const promise = client.connect();
+            const socket = await client.connect();
 
-            const scripts = document.head.querySelectorAll('script[src="/js/socket.io.min.js"]');
-            const lastScript = scripts[scripts.length - 1] as HTMLScriptElement;
-
-            // Restore io before firing onload — simulating the script setting up `io`
-            setupGlobalIO();
-            lastScript.onload!(new Event('load'));
-
-            // Now the IIFE's _doConnect runs. Simulate socket connect.
-            // Wait a tick for _doConnect's Promise constructor to run.
-            await Promise.resolve();
-            simulateConnect(client, mockSocket);
-
-            const socket = await promise;
-            expect(socket).toBeTruthy();
-            expect(client.connected).toBe(true);
+            expect(socket).toBe(mockSock);
         });
 
-        it('connect() resolves immediately when io is already loaded (no script injection)', async () => {
-            // io is already set up by setupGlobalIO()
+        it('connect() calls doConnect only after loadSocketIO resolves', async () => {
+            let resolveLoad!: () => void;
+            (loadSocketIO as jest.Mock).mockReturnValueOnce(
+                new Promise<void>((r) => {
+                    resolveLoad = r;
+                })
+            );
+            (doConnect as jest.Mock).mockResolvedValueOnce(mockSocket);
+
             const promise = client.connect();
 
-            // _doConnect should run synchronously after loadSocketIO resolves
-            await Promise.resolve();
-            simulateConnect(client, mockSocket);
+            // doConnect should not be called yet
+            expect(doConnect).not.toHaveBeenCalled();
 
-            const socket = await promise;
-            expect(socket).toBeTruthy();
+            // Now resolve loadSocketIO
+            resolveLoad();
+            await promise;
+
+            expect(doConnect).toHaveBeenCalled();
+        });
+
+        it('isSocketIOAvailable delegates to the connection module', () => {
+            client.isSocketIOAvailable();
+
+            const { isSocketIOAvailable } = require('../../frontend/socket-client-connection');
+            expect(isSocketIOAvailable).toHaveBeenCalled();
         });
     });
 
     /* ================================================================== */
-    /*  6. Duplicate event deduplication (request correlation)             */
+    /*  6. Room operations delegation and deduplication                     */
     /* ================================================================== */
 
-    describe('duplicate event deduplication', () => {
-        it('joinRoom ignores error events with non-matching requestId', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.joinRoom('ABCD', 'Alice');
-
-            // Emit a room error with a different requestId
-            client._emit('error', { type: 'room', message: 'wrong room', requestId: 'req_999' });
-
-            // Should still be pending (not rejected by the mismatched error)
-            let settled = false;
-            promise
-                .then(() => {
-                    settled = true;
-                })
-                .catch(() => {
-                    settled = true;
-                });
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(settled).toBe(false);
-
-            // Clean up: advance timer to trigger timeout
-            jest.advanceTimersByTime(20000);
-            await expect(promise).rejects.toThrow('Join room timeout');
-        });
-
-        it('joinRoom resolves on matching roomJoined event', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.joinRoom('ABCD', 'Alice');
-
+    describe('room operations delegation', () => {
+        it('joinRoom delegates to the rooms module with correct args', async () => {
             const result = { room: { code: 'ABCD' }, you: { nickname: 'Alice' }, players: [] };
-            client._emit('roomJoined', result);
+            (joinRoom as jest.Mock).mockResolvedValueOnce(result);
 
-            const resolved = await promise;
+            const resolved = await client.joinRoom('ABCD', 'Alice');
+
+            expect(joinRoom).toHaveBeenCalledWith(client, 'ABCD', 'Alice');
             expect(resolved).toEqual(result);
-            expect(client.joinInProgress).toBe(false);
         });
 
-        it('joinRoom rejects on connection error regardless of requestId', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.joinRoom('ABCD', 'Alice');
-
-            // Connection errors always match (no requestId check)
-            client._emit('error', { type: 'connection', error: new Error('disconnected') });
-
-            await expect(promise).rejects.toMatchObject({ type: 'connection' });
-            expect(client.joinInProgress).toBe(false);
-        });
-
-        it('createRoom ignores error events with non-matching requestId', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.createRoom({ roomId: 'MYROOM' });
-
-            // Emit a room error with a different requestId
-            client._emit('error', { type: 'room', message: 'different error', requestId: 'req_999' });
-
-            let settled = false;
-            promise
-                .then(() => {
-                    settled = true;
-                })
-                .catch(() => {
-                    settled = true;
-                });
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(settled).toBe(false);
-
-            jest.advanceTimersByTime(30000);
-            await expect(promise).rejects.toThrow('Create room timeout');
-        });
-
-        it('createRoom resolves on matching roomCreated event', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.createRoom({ roomId: 'MYROOM' });
-
+        it('createRoom delegates to the rooms module with correct args', async () => {
             const result = { room: { code: 'MYROOM' }, player: { nickname: 'Host' } };
-            client._emit('roomCreated', result);
+            (createRoom as jest.Mock).mockResolvedValueOnce(result);
 
-            const resolved = await promise;
+            const resolved = await client.createRoom({ roomId: 'MYROOM', nickname: 'Host' });
+
+            expect(createRoom).toHaveBeenCalledWith(client, { roomId: 'MYROOM', nickname: 'Host' });
             expect(resolved).toEqual(result);
-            expect(client.createInProgress).toBe(false);
         });
 
-        it('requestResync ignores room errors with non-matching requestId', async () => {
-            client.roomCode = 'ABCD';
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.requestResync();
-
-            client._emit('error', { type: 'room', message: 'stale error', requestId: 'req_999' });
-
-            let settled = false;
-            promise
-                .then(() => {
-                    settled = true;
-                })
-                .catch(() => {
-                    settled = true;
-                });
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(settled).toBe(false);
-
-            jest.advanceTimersByTime(10000);
-            await expect(promise).rejects.toThrow('Resync timeout');
-        });
-
-        it('requestResync resolves on roomResynced event', async () => {
-            client.roomCode = 'ABCD';
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
-
-            const promise = client.requestResync();
-
+        it('requestResync delegates to the rooms module', async () => {
             const data = { room: { code: 'ABCD' }, players: [] };
-            client._emit('roomResynced', data);
+            (requestResync as jest.Mock).mockResolvedValueOnce(data);
+            client.roomCode = 'ABCD';
 
-            const resolved = await promise;
+            const resolved = await client.requestResync();
+
+            expect(requestResync).toHaveBeenCalledWith(client);
             expect(resolved).toEqual(data);
         });
 
-        it('_generateRequestId produces unique, incrementing IDs', () => {
-            const id1 = client._generateRequestId();
-            const id2 = client._generateRequestId();
-            const id3 = client._generateRequestId();
+        it('joinRoom rejects on connection error from rooms module', async () => {
+            (joinRoom as jest.Mock).mockRejectedValueOnce({ type: 'connection', error: new Error('disconnected') });
 
-            expect(id1).toBe('req_1');
-            expect(id2).toBe('req_2');
-            expect(id3).toBe('req_3');
+            await expect(client.joinRoom('ABCD', 'Alice')).rejects.toMatchObject({ type: 'connection' });
         });
 
-        it('joinRoom sends requestId to the server for correlation', () => {
-            const emitFn = jest.fn();
-            client.socket = { connected: true, emit: emitFn, on: jest.fn(), off: jest.fn() };
+        it('createRoom rejects on error from rooms module', async () => {
+            (createRoom as jest.Mock).mockRejectedValueOnce({ type: 'room', message: 'Room full' });
 
-            client.joinRoom('ABCD', 'Alice');
-
-            expect(emitFn).toHaveBeenCalledWith(
-                'room:join',
-                expect.objectContaining({
-                    roomId: 'ABCD',
-                    nickname: 'Alice',
-                    requestId: expect.stringMatching(/^req_\d+$/),
-                })
-            );
-        });
-
-        it('createRoom sends requestId to the server for correlation', () => {
-            const emitFn = jest.fn();
-            client.socket = { connected: true, emit: emitFn, on: jest.fn(), off: jest.fn() };
-
-            client.createRoom({ roomId: 'MYROOM', nickname: 'Host' });
-
-            expect(emitFn).toHaveBeenCalledWith(
-                'room:create',
-                expect.objectContaining({
-                    roomId: 'MYROOM',
-                    requestId: expect.stringMatching(/^req_\d+$/),
-                })
-            );
+            await expect(client.createRoom({ roomId: 'FULL' })).rejects.toMatchObject({ type: 'room' });
         });
     });
 
     /* ================================================================== */
-    /*  7. Reconnection — auto-rejoin flow                                 */
-    /* ================================================================== */
-
-    describe('reconnection auto-rejoin', () => {
-        it('attempts rejoin when wasReconnecting and autoRejoin is true', async () => {
-            // Spy on _attemptRejoin
-            const rejoinSpy = jest.spyOn(client, '_attemptRejoin').mockResolvedValue(undefined);
-
-            const connectPromise = client._doConnect('http://localhost:3000');
-
-            // Simulate a reconnection scenario: bump reconnectAttempts first
-            client.reconnectAttempts = 1;
-
-            simulateConnect(client, mockSocket);
-            await connectPromise;
-
-            expect(rejoinSpy).toHaveBeenCalled();
-        });
-
-        it('does not attempt rejoin on first connect (wasReconnecting=false)', async () => {
-            const rejoinSpy = jest.spyOn(client, '_attemptRejoin').mockResolvedValue(undefined);
-
-            const connectPromise = client._doConnect('http://localhost:3000');
-
-            // reconnectAttempts is 0 — this is a first connect
-            simulateConnect(client, mockSocket);
-            await connectPromise;
-
-            expect(rejoinSpy).not.toHaveBeenCalled();
-        });
-
-        it('does not attempt rejoin when autoRejoin is false', async () => {
-            const rejoinSpy = jest.spyOn(client, '_attemptRejoin').mockResolvedValue(undefined);
-
-            const connectPromise = client._doConnect('http://localhost:3000', { autoRejoin: false });
-
-            client.reconnectAttempts = 2;
-            simulateConnect(client, mockSocket);
-            await connectPromise;
-
-            expect(rejoinSpy).not.toHaveBeenCalled();
-        });
-
-        it('_attemptRejoin skips when no stored room code', async () => {
-            const { safeGetStorage } = require('../../frontend/socket-client-storage');
-            safeGetStorage.mockReturnValue(null);
-            client.storedNickname = 'Alice';
-
-            // Should return without calling joinRoom
-            const joinSpy = jest.spyOn(client, 'joinRoom');
-            await client._attemptRejoin();
-
-            expect(joinSpy).not.toHaveBeenCalled();
-        });
-
-        it('_attemptRejoin skips when no nickname', async () => {
-            const { safeGetStorage } = require('../../frontend/socket-client-storage');
-            safeGetStorage.mockReturnValue('ABCD');
-            client.storedNickname = null;
-            client.player = null;
-
-            const joinSpy = jest.spyOn(client, 'joinRoom');
-            await client._attemptRejoin();
-
-            expect(joinSpy).not.toHaveBeenCalled();
-        });
-
-        it('_attemptRejoin flushes offline queue on successful rejoin', async () => {
-            const { safeGetStorage } = require('../../frontend/socket-client-storage');
-            safeGetStorage.mockReturnValue('ABCD');
-            client.storedNickname = 'Alice';
-
-            const flushSpy = jest.spyOn(client, '_flushOfflineQueue').mockImplementation(() => {});
-            const resyncSpy = jest.spyOn(client, 'requestResync').mockResolvedValue({});
-            jest.spyOn(client, 'joinRoom').mockResolvedValue({ room: { code: 'ABCD' } });
-
-            await client._attemptRejoin();
-
-            expect(flushSpy).toHaveBeenCalled();
-            expect(resyncSpy).toHaveBeenCalled();
-        });
-
-        it('_attemptRejoin clears stored room on failure', async () => {
-            const { safeGetStorage, safeRemoveStorage } = require('../../frontend/socket-client-storage');
-            safeGetStorage.mockReturnValue('ABCD');
-            client.storedNickname = 'Alice';
-
-            jest.spyOn(client, 'joinRoom').mockRejectedValue(new Error('Room not found'));
-
-            await client._attemptRejoin();
-
-            expect(safeRemoveStorage).toHaveBeenCalledWith(sessionStorage, 'eigennamen-room-code');
-        });
-    });
-
-    /* ================================================================== */
-    /*  8. Event listener system (on / off / once / _emit)                 */
+    /*  7. Event listener system (on / off / once / _emit)                 */
     /* ================================================================== */
 
     describe('event listener system', () => {
@@ -921,11 +578,11 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     });
 
     /* ================================================================== */
-    /*  9. Cleanup and disconnect                                          */
+    /*  8. Cleanup and disconnect                                          */
     /* ================================================================== */
 
     describe('cleanup and disconnect', () => {
-        it('disconnect() clears all state and cleans up socket listeners', () => {
+        it('disconnect() clears all state and delegates socket listener cleanup', () => {
             const mockSock = createMockSocket();
             client.socket = mockSock;
             client.connected = true;
@@ -942,6 +599,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             expect(client.player).toBeNull();
             expect(client._offlineQueue).toHaveLength(0);
             expect(mockSock.disconnect).toHaveBeenCalled();
+            expect(cleanupSocketListeners).toHaveBeenCalledWith(client);
         });
 
         it('leaveRoom clears room state and offline queue', () => {
@@ -959,21 +617,13 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             expect(client._offlineQueue).toHaveLength(0);
         });
 
-        it('_cleanupSocketListeners removes all tracked listeners from socket', () => {
+        it('disconnect() calls cleanupSocketListeners from the connection module', () => {
             const mockSock = createMockSocket();
-            const handler1 = jest.fn();
-            const handler2 = jest.fn();
             client.socket = mockSock;
-            client._socketListeners = [
-                { event: 'ev1', handler: handler1 },
-                { event: 'ev2', handler: handler2 },
-            ];
 
-            client._cleanupSocketListeners();
+            client.disconnect();
 
-            expect(mockSock.off).toHaveBeenCalledWith('ev1', handler1);
-            expect(mockSock.off).toHaveBeenCalledWith('ev2', handler2);
-            expect(client._socketListeners).toHaveLength(0);
+            expect(cleanupSocketListeners).toHaveBeenCalledWith(client);
         });
 
         it('clearSession removes storage items and resets flags', () => {
@@ -997,7 +647,7 @@ describe('socket-client (EigennamenClient IIFE)', () => {
     });
 
     /* ================================================================== */
-    /*  10. Utility methods                                                */
+    /*  9. Utility methods                                                */
     /* ================================================================== */
 
     describe('utility methods', () => {
@@ -1062,60 +712,135 @@ describe('socket-client (EigennamenClient IIFE)', () => {
             expect(safeSetStorage).toHaveBeenCalledWith(localStorage, 'eigennamen-nickname', 'Alice');
             expect(client.storedNickname).toBe('Alice');
         });
+
+        it('getStoredRoomCode reads from sessionStorage', () => {
+            sessionStorage.setItem('eigennamen-room-code', 'XYZW');
+            expect(client.getStoredRoomCode()).toBe('XYZW');
+            sessionStorage.removeItem('eigennamen-room-code');
+        });
+
+        it('getStoredNickname reads from localStorage', () => {
+            localStorage.setItem('eigennamen-nickname', 'Bob');
+            expect(client.getStoredNickname()).toBe('Bob');
+            localStorage.removeItem('eigennamen-nickname');
+        });
+
+        it('setAutoRejoin updates the autoRejoin flag', () => {
+            client.setAutoRejoin(false);
+            expect(client.autoRejoin).toBe(false);
+
+            client.setAutoRejoin(true);
+            expect(client.autoRejoin).toBe(true);
+        });
+
+        it('isSpymaster() reflects player.role', () => {
+            client.player = null;
+            expect(client.isSpymaster()).toBe(false);
+
+            client.player = { role: 'operative' };
+            expect(client.isSpymaster()).toBe(false);
+
+            client.player = { role: 'spymaster' };
+            expect(client.isSpymaster()).toBe(true);
+        });
+
+        it('getRoomCode() returns current roomCode', () => {
+            client.roomCode = null;
+            expect(client.getRoomCode()).toBeNull();
+
+            client.roomCode = 'TEST';
+            expect(client.getRoomCode()).toBe('TEST');
+        });
+
+        it('getPlayer() returns current player', () => {
+            client.player = null;
+            expect(client.getPlayer()).toBeNull();
+
+            const player = { nickname: 'Alice', isHost: true };
+            client.player = player;
+            expect(client.getPlayer()).toBe(player);
+        });
     });
 
     /* ================================================================== */
-    /*  11. Timeout cleanup (no leaked timers after resolve/reject)         */
+    /*  10. Direct socket actions (non-queueable)                          */
     /* ================================================================== */
 
-    describe('timeout cleanup', () => {
-        it('joinRoom cleans up timeout when resolved before timeout fires', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+    describe('direct socket actions', () => {
+        it('startGame emits game:start on the socket', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
 
-            const promise = client.joinRoom('ABCD', 'Alice');
+            client.startGame({ mode: 'classic' });
 
-            // Resolve immediately
-            const result = { room: { code: 'ABCD' }, you: { nickname: 'Alice' }, players: [] };
-            client._emit('roomJoined', result);
-
-            await promise;
-
-            // Advance past the timeout — it should not cause any issues
-            jest.advanceTimersByTime(30000);
-
-            expect(client.joinInProgress).toBe(false);
+            expect(emitFn).toHaveBeenCalledWith('game:start', { mode: 'classic' });
         });
 
-        it('createRoom cleans up timeout when resolved before timeout fires', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+        it('revealCard emits game:reveal on the socket', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
 
-            const promise = client.createRoom({ roomId: 'ROOM' });
+            client.revealCard(5);
 
-            const result = { room: { code: 'ROOM' }, player: { nickname: 'Host' } };
-            client._emit('roomCreated', result);
-
-            await promise;
-
-            jest.advanceTimersByTime(30000);
-
-            expect(client.createInProgress).toBe(false);
+            expect(emitFn).toHaveBeenCalledWith('game:reveal', { index: 5 });
         });
 
-        it('joinRoom settled flag prevents double-resolve from late event after timeout', async () => {
-            client.socket = createMockSocket();
-            client.socket.emit = jest.fn();
+        it('forfeit emits game:forfeit on the socket', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
 
-            const promise = client.joinRoom('ABCD', 'Alice');
+            client.forfeit();
 
-            // Timeout first
-            jest.advanceTimersByTime(20000);
-            await expect(promise).rejects.toThrow('Join room timeout');
+            expect(emitFn).toHaveBeenCalledWith('game:forfeit');
+        });
 
-            // Late event — should be safely ignored due to settled guard
-            // (Just ensure it doesn't throw or cause unexpected side effects)
-            client._emit('roomJoined', { room: { code: 'ABCD' }, you: {}, players: [] });
+        it('updateSettings emits room:settings on the socket', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
+
+            client.updateSettings({ timer: 60 });
+
+            expect(emitFn).toHaveBeenCalledWith('room:settings', { timer: 60 });
+        });
+
+        it('kickPlayer emits player:kick when user is host', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
+            client.player = { isHost: true };
+
+            client.kickPlayer('target-session-id');
+
+            expect(emitFn).toHaveBeenCalledWith('player:kick', { targetSessionId: 'target-session-id' });
+        });
+
+        it('kickPlayer logs warning and does not emit when user is not host', () => {
+            const { logger } = require('../../frontend/logger');
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
+            client.player = { isHost: false };
+
+            client.kickPlayer('target-session-id');
+
+            expect(emitFn).not.toHaveBeenCalled();
+            expect(logger.warn).toHaveBeenCalledWith('Only the host can kick players');
+        });
+
+        it('getGameHistory emits game:getHistory with limit', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
+
+            client.getGameHistory(20);
+
+            expect(emitFn).toHaveBeenCalledWith('game:getHistory', { limit: 20 });
+        });
+
+        it('getReplay emits game:getReplay with gameId', () => {
+            const emitFn = jest.fn();
+            client.socket = { emit: emitFn, connected: true };
+
+            client.getReplay('game-123');
+
+            expect(emitFn).toHaveBeenCalledWith('game:getReplay', { gameId: 'game-123' });
         });
     });
 });

@@ -11,7 +11,6 @@ import { withLock } from '../utils/distributedLock';
 import * as gameService from '../services/gameService';
 import * as roomService from '../services/roomService';
 import * as playerService from '../services/playerService';
-import { invalidateGameStateCache } from './playerContext';
 import { isRedisHealthy } from '../config/redis';
 
 /**
@@ -50,7 +49,6 @@ function createTimerExpireCallback(
                         }
 
                         const turnResult = await gameService.endTurn(roomCode, 'Timer');
-                        invalidateGameStateCache(roomCode);
                         return turnResult;
                     },
                     { lockTimeout: 5000, maxRetries: 3 }

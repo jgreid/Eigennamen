@@ -336,6 +336,7 @@ const METRIC_NAMES = {
     RECONNECTIONS: 'reconnections_total',
     PLAYER_KICKS: 'player_kicks_total',
     BROADCASTS_SENT: 'broadcasts_sent_total',
+    HISTORY_ENTRIES_DROPPED: 'history_entries_dropped_total',
 
     // Gauges
     ACTIVE_ROOMS: 'active_rooms',

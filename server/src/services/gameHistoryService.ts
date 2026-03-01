@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { tryParseJSON } from '../utils/parseJSON';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { ATOMIC_SAVE_GAME_HISTORY_SCRIPT } from '../scripts';
+import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
 import { BOARD_SIZE } from '../shared';
 
@@ -205,6 +206,8 @@ export interface ReplayData {
     duration: number;
     totalMoves: number;
     totalClues: number;
+    /** Number of corrupted history entries skipped during replay construction */
+    skippedEntries?: number;
 }
 
 /**
@@ -487,15 +490,23 @@ export async function getGameHistory(roomCode: string, limit: number = 10): Prom
             `getGameHistory-mGet-${roomCode}`
         );
 
-        // Parse and create summaries
+        // Parse and create summaries, tracking dropped entries
+        const droppedIds: string[] = [];
         const summaries: (GameHistorySummary | null)[] = gameDataArray.map((data, index): GameHistorySummary | null => {
-            if (!data) return null;
+            const gameId = gameIds[index] ?? `unknown-${index}`;
+            if (!data) {
+                droppedIds.push(gameId);
+                return null;
+            }
             const game = tryParseJSON(
                 data,
                 gameHistoryEntrySchema,
-                `game history ${gameIds[index]}`
+                `game history ${gameId}`
             ) as GameHistoryEntry | null;
-            if (!game) return null;
+            if (!game) {
+                droppedIds.push(gameId);
+                return null;
+            }
             // Return summary (not full replay data)
             const summary: GameHistorySummary = {
                 id: game.id,
@@ -515,6 +526,15 @@ export async function getGameHistory(roomCode: string, limit: number = 10): Prom
             };
             return summary;
         });
+
+        if (droppedIds.length > 0) {
+            logger.warn('Dropped corrupted or missing game history entries', {
+                roomCode,
+                droppedCount: droppedIds.length,
+                droppedIds,
+            });
+            incrementCounter(METRIC_NAMES.HISTORY_ENTRIES_DROPPED, droppedIds.length, { roomCode });
+        }
 
         // Filter out nulls
         const history: GameHistorySummary[] = summaries.filter((g): g is GameHistorySummary => g !== null);
@@ -558,6 +578,10 @@ export async function getGameById(roomCode: string, gameId: string): Promise<Gam
             gameHistoryEntrySchema,
             `game ${roomCode}:${gameId}`
         ) as GameHistoryEntry | null;
+        if (!game) {
+            logger.warn('Game history entry failed schema validation', { roomCode, gameId });
+            incrementCounter(METRIC_NAMES.HISTORY_ENTRIES_DROPPED, 1, { roomCode });
+        }
         return game;
     } catch (error) {
         logger.error('Failed to get game by ID', {
@@ -587,27 +611,19 @@ export async function getReplayEvents(roomCode: string, gameId: string): Promise
         }
 
         // Build structured replay data
+        const { events, skippedCount } = buildReplayEvents(game);
         const replayData: ReplayData = {
             id: game.id,
             roomCode: game.roomCode,
             timestamp: game.timestamp,
-
-            // Initial board state
             initialBoard: game.initialBoard,
-
-            // Ordered list of events for replay
-            events: buildReplayEvents(game),
-
-            // Final state
+            events,
             finalState: game.finalState,
-
-            // Team names
             teamNames: game.teamNames,
-
-            // Metadata
             duration: game.endedAt - game.startedAt,
             totalMoves: game.history?.length || 0,
             totalClues: countCluesFromHistory(game.history),
+            ...(skippedCount > 0 && { skippedEntries: skippedCount }),
         };
 
         return replayData;
@@ -624,14 +640,20 @@ export async function getReplayEvents(roomCode: string, gameId: string): Promise
 /**
  * Build ordered replay events from game history
  */
-function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
+interface BuildReplayResult {
+    events: ReplayEvent[];
+    skippedCount: number;
+}
+
+function buildReplayEvents(game: GameHistoryEntry): BuildReplayResult {
     const events: ReplayEvent[] = [];
     const history = game.history || [];
+    let skippedCount = 0;
 
     // Convert history entries to replay events (skip corrupted entries)
     for (const entry of history) {
         if (!entry || typeof entry !== 'object' || !entry.action) {
-            logger.warn('Skipping corrupted game history entry (missing action)', { entry });
+            skippedCount++;
             continue;
         }
 
@@ -691,10 +713,20 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
         events.push(event);
     }
 
+    if (skippedCount > 0) {
+        logger.warn('Skipped corrupted entries while building replay', {
+            gameId: game.id,
+            roomCode: game.roomCode,
+            skippedCount,
+            totalEntries: history.length,
+        });
+        incrementCounter(METRIC_NAMES.HISTORY_ENTRIES_DROPPED, skippedCount, { roomCode: game.roomCode });
+    }
+
     // Sort by timestamp to ensure correct order
     events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
-    return events;
+    return { events, skippedCount };
 }
 
 /**

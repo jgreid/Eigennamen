@@ -6,6 +6,7 @@ import * as gameService from '../services/gameService';
 import logger from '../utils/logger';
 import { RoomError, PlayerError } from '../errors/GameError';
 import { ERROR_CODES } from '../config/constants';
+import { onGameMutation } from './gameMutationNotifier';
 
 /**
  * Short-lived LRU cache for game state lookups.
@@ -44,6 +45,13 @@ export function invalidateGameStateCache(roomCode: string): void {
 export function clearGameStateCache(): void {
     gameStateCache.clear();
 }
+
+// Auto-invalidate cache when any game service mutation occurs.
+// This replaces the manual invalidateGameStateCache() calls that
+// each handler previously had to remember after every game mutation.
+onGameMutation((roomCode: string) => {
+    gameStateCache.delete(roomCode);
+});
 
 /**
  * Options for building player context

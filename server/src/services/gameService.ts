@@ -30,6 +30,7 @@ import { tryParseJSON } from '../utils/parseJSON';
 import { ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../scripts';
 import { withLock } from '../utils/distributedLock';
 import { retryAsync } from '../utils/retryAsync';
+import { notifyGameMutation } from '../socket/gameMutationNotifier';
 
 // Focused modules
 import {
@@ -242,6 +243,7 @@ export async function createGame(roomCode: string, options: CreateGameOptions = 
             const game = buildGameState(seed, usedWordListId, boardWords, layout, options);
 
             await persistGameState(redis, roomCode, game);
+            notifyGameMutation(roomCode);
 
             logger.info(`Game created for room ${roomCode} with seed ${seed}`);
             return game;
@@ -296,7 +298,7 @@ export async function revealCard(
                 INVALID_INDEX: new ValidationError('Invalid card index'),
             };
 
-            return await executeLuaScript<RevealResult>(
+            const result = await executeLuaScript<RevealResult>(
                 OPTIMIZED_REVEAL_SCRIPT,
                 gameKey,
                 [
@@ -310,6 +312,8 @@ export async function revealCard(
                 `revealCard-${roomCode}`,
                 revealResultSchema
             );
+            notifyGameMutation(roomCode);
+            return result;
         },
         { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
@@ -331,7 +335,7 @@ export async function endTurn(
         NOT_YOUR_TURN: PlayerError.notYourTurn(expectedTeam as Team),
     };
 
-    return executeLuaScript<EndTurnResult>(
+    const result = await executeLuaScript<EndTurnResult>(
         OPTIMIZED_END_TURN_SCRIPT,
         gameKey,
         [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
@@ -339,6 +343,8 @@ export async function endTurn(
         `endTurn-${roomCode}`,
         endTurnResultSchema
     );
+    notifyGameMutation(roomCode);
+    return result;
 }
 
 /**
@@ -347,7 +353,7 @@ export async function endTurn(
 export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult> {
     const gameKey = `room:${roomCode}:game`;
 
-    return executeGameTransaction(
+    const result = await executeGameTransaction(
         gameKey,
         (game: GameState) => {
             if (game.gameOver) {
@@ -379,6 +385,8 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
         },
         'forfeitGame'
     );
+    notifyGameMutation(roomCode);
+    return result;
 }
 
 /**
@@ -387,6 +395,7 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
 export async function cleanupGame(roomCode: string): Promise<void> {
     const redis: RedisClient = getRedis();
     await withTimeout(redis.del(`room:${roomCode}:game`), TIMEOUTS.REDIS_OPERATION, `cleanupGame-${roomCode}`);
+    notifyGameMutation(roomCode);
     logger.info(`Game data cleaned up for room ${roomCode}`);
 }
 
@@ -493,7 +502,7 @@ export async function finalizeMatchRound(roomCode: string): Promise<MatchRoundFi
 
     const gameKey = `room:${roomCode}:game`;
 
-    return executeGameTransaction(
+    const result = await executeGameTransaction(
         gameKey,
         (game: GameState) => {
             if (game.gameMode !== 'match') return null;
@@ -512,6 +521,8 @@ export async function finalizeMatchRound(roomCode: string): Promise<MatchRoundFi
         },
         'finalizeMatchRound'
     );
+    if (result) notifyGameMutation(roomCode);
+    return result;
 }
 
 /**
@@ -565,6 +576,7 @@ export async function startNextRound(
             const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions);
 
             await persistGameState(redis, roomCode, game);
+            notifyGameMutation(roomCode);
 
             logger.info(`Match round ${nextRound} started for room ${roomCode} with seed ${seed}`);
             return game;
