@@ -895,12 +895,12 @@ describe('Frontend Handler Registration', () => {
             expect(revertAndClearRoleChange).toHaveBeenCalled();
             expect(state.revealingCards.size).toBe(0);
             expect(state.isRevealingCard).toBe(false);
-            expect(showToast).toHaveBeenCalledWith('Please wait a moment before trying again', 'error');
+            expect(showToast).toHaveBeenCalledWith('Too many requests \u2014 wait a few seconds and try again', 'error');
         });
 
         test('error handler shows user-friendly message for known codes', () => {
             handlers['error']({ code: 'NOT_YOUR_TURN', message: '' });
-            expect(showToast).toHaveBeenCalledWith("It's not your team's turn", 'error');
+            expect(showToast).toHaveBeenCalledWith("It's not your team's turn \u2014 wait for the other team to finish", 'error');
         });
 
         test('error handler falls back to original message for unknown codes', () => {

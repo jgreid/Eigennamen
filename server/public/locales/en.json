@@ -26,7 +26,8 @@
     "selectTeamFirst": "Select a team above to choose a role",
     "clickerOfflineCanClick": "Clicker offline - you can reveal cards",
     "chooseRole": "Choose Spymaster or Clicker",
-    "joinTeamFirst": "Please join a team first by clicking on a team score"
+    "joinTeamFirst": "Please join a team first by clicking on a team score",
+    "changeTimeout": "Role change timed out - please try again"
   },
   "game": {
     "redTurn": "Red Team's Turn",
@@ -64,7 +65,9 @@
     "wordRevealedAs": "{{word}} revealed as {{type}}",
     "roleCleared": "{{role}} role cleared. Now on {{team}} team.",
     "copy": "Copy",
-    "copiedShort": "Copied!"
+    "copiedShort": "Copied!",
+    "revealTimeout": "Card reveal timed out - try clicking again",
+    "newGameTimeout": "New game request timed out - please try again"
   },
   "board": {
     "clickToReveal": "Click to reveal",

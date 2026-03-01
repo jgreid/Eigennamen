@@ -221,17 +221,6 @@ export function updateSpectatorCount(count: number): void {
         mpSpectatorInline.style.display = count > 0 ? 'flex' : 'none';
     }
 
-    // Legacy standalone element (kept for backwards compat)
-    const spectatorCountEl = document.getElementById('spectator-count');
-    const spectatorSection = document.getElementById('spectator-section');
-
-    if (spectatorCountEl) {
-        spectatorCountEl.textContent = String(count);
-    }
-    if (spectatorSection) {
-        spectatorSection.style.display = count > 0 ? 'flex' : 'none';
-    }
-
     // Store in state for other components
     state.spectatorCount = count;
 }

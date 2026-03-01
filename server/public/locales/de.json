@@ -26,7 +26,8 @@
     "selectTeamFirst": "Wähle oben ein Team, um eine Rolle auszuwählen",
     "clickerOfflineCanClick": "Ermittler offline – du kannst Karten aufdecken",
     "chooseRole": "Wähle Geheimdienstchef oder Ermittler",
-    "joinTeamFirst": "Bitte tritt zuerst einem Team bei, indem du auf eine Teampunktzahl klickst"
+    "joinTeamFirst": "Bitte tritt zuerst einem Team bei, indem du auf eine Teampunktzahl klickst",
+    "changeTimeout": "Rollenwechsel abgelaufen – bitte erneut versuchen"
   },
   "game": {
     "redTurn": "Rotes Team ist dran",
@@ -64,7 +65,9 @@
     "wordRevealedAs": "{{word}} aufgedeckt als {{type}}",
     "roleCleared": "{{role}}-Rolle entfernt. Jetzt im {{team}}-Team.",
     "copy": "Kopieren",
-    "copiedShort": "Kopiert!"
+    "copiedShort": "Kopiert!",
+    "revealTimeout": "Kartenaufdeckung abgelaufen – bitte erneut klicken",
+    "newGameTimeout": "Neues-Spiel-Anfrage abgelaufen – bitte erneut versuchen"
   },
   "board": {
     "clickToReveal": "Klicken zum Aufdecken",

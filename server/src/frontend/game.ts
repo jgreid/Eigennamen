@@ -100,8 +100,11 @@ export function newGame(): void {
             newGameBtn.classList.add('loading');
             // Safety timeout to re-enable button if server doesn't respond
             setTimeout(() => {
-                newGameBtn.disabled = false;
-                newGameBtn.classList.remove('loading');
+                if (newGameBtn.classList.contains('loading')) {
+                    newGameBtn.disabled = false;
+                    newGameBtn.classList.remove('loading');
+                    showToast(t('game.newGameTimeout'), 'warning');
+                }
             }, UI.NEW_GAME_SAFETY_TIMEOUT_MS);
         }
         // Don't clear the board here — wait for the server to confirm

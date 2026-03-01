@@ -306,12 +306,12 @@
 
 .match-scoreboard .match-separator {
     font-weight: 300;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .match-scoreboard .match-target {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     font-style: italic;
 }
 
@@ -359,7 +359,7 @@
 .card-score-gold-text { color: #ffd700; }
 .card-score-silver-text { color: #c0c0c0; }
 .card-score-standard-text { color: rgba(255, 255, 255, 0.8); }
-.card-score-blank-text { color: rgba(255, 255, 255, 0.45); }
+.card-score-blank-text { color: rgba(255, 255, 255, 0.6); }
 .card-score-trap-text { color: #ff4444; }
 
 /* Match mode card in game mode selector */
@@ -523,7 +523,7 @@ button:focus-visible,
 
 .btn-spectate {
     background: rgba(108, 117, 125, 0.15);
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(108, 117, 125, 0.3);
     flex: 1;
 }
@@ -572,7 +572,7 @@ button:focus-visible,
 
 .btn-settings {
     background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     flex: 1;
 }
