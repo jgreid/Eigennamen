@@ -16,8 +16,8 @@ jest.mock('../../frontend/state', () => ({
     state: {
         language: 'en',
         wordSource: 'default',
-        localizedDefaultWords: null
-    }
+        localizedDefaultWords: null,
+    },
 }));
 
 jest.mock('../../frontend/logger', () => ({
@@ -25,8 +25,8 @@ jest.mock('../../frontend/logger', () => ({
         warn: jest.fn(),
         error: jest.fn(),
         info: jest.fn(),
-        debug: jest.fn()
-    }
+        debug: jest.fn(),
+    },
 }));
 
 // Mock fetch globally
@@ -34,8 +34,14 @@ const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
 
 import {
-    LANGUAGES, DEFAULT_LANGUAGE, initI18n, setLanguage,
-    getLanguage, t, translatePage, getLocalizedWordList
+    LANGUAGES,
+    DEFAULT_LANGUAGE,
+    initI18n,
+    setLanguage,
+    getLanguage,
+    t,
+    translatePage,
+    getLocalizedWordList,
 } from '../../frontend/i18n';
 import { state } from '../../frontend/state';
 
@@ -52,7 +58,7 @@ describe('i18n module', () => {
         // Default fetch mock
         mockFetch.mockResolvedValue({
             ok: true,
-            json: async () => ({})
+            json: async () => ({}),
         });
     });
 
@@ -88,12 +94,15 @@ describe('i18n module', () => {
         test('fetches translations for new language', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({ greeting: 'Hallo' })
+                json: async () => ({ greeting: 'Hallo' }),
             });
 
             await setLanguage('de');
 
-            expect(mockFetch).toHaveBeenCalledWith('/locales/de.json', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+            expect(mockFetch).toHaveBeenCalledWith(
+                '/locales/de.json',
+                expect.objectContaining({ signal: expect.any(AbortSignal) })
+            );
             expect(getLanguage()).toBe('de');
         });
 
@@ -129,7 +138,7 @@ describe('i18n module', () => {
         test('uses cached translations on repeat call', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({ test: 'value' })
+                json: async () => ({ test: 'value' }),
             });
             await setLanguage('fr');
             mockFetch.mockClear();
@@ -162,10 +171,10 @@ describe('i18n module', () => {
                         game: {
                             turn: { red: "Red's turn" },
                             teamsTurn: '{{team}} plays next',
-                            score: '{{red}} - {{blue}}'
+                            score: '{{red}} - {{blue}}',
                         },
-                        simple: 'A simple string'
-                    })
+                        simple: 'A simple string',
+                    }),
                 });
 
                 const mod = await import('../../frontend/i18n');
@@ -197,8 +206,8 @@ describe('i18n module', () => {
                     ok: true,
                     json: async () => ({
                         nav: { settings: 'Settings' },
-                        form: { placeholder: 'Enter name', title: 'Click here' }
-                    })
+                        form: { placeholder: 'Enter name', title: 'Click here' },
+                    }),
                 });
 
                 const mod = await import('../../frontend/i18n');
@@ -215,7 +224,7 @@ describe('i18n module', () => {
                 mockFetch.mockReset();
                 mockFetch.mockResolvedValue({
                     ok: true,
-                    json: async () => ({ form: { placeholder: 'Enter name' } })
+                    json: async () => ({ form: { placeholder: 'Enter name' } }),
                 });
 
                 const mod = await import('../../frontend/i18n');
@@ -232,7 +241,7 @@ describe('i18n module', () => {
                 mockFetch.mockReset();
                 mockFetch.mockResolvedValue({
                     ok: true,
-                    json: async () => ({ form: { title: 'Click here' } })
+                    json: async () => ({ form: { title: 'Click here' } }),
                 });
 
                 const mod = await import('../../frontend/i18n');
@@ -266,11 +275,14 @@ describe('i18n module', () => {
         test('fetches word list for non-English language', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: async () => 'Apfel\nBanane\nKirsche\n' + Array(25).fill('WORT').join('\n')
+                text: async () => 'Apfel\nBanane\nKirsche\n' + Array(25).fill('WORT').join('\n'),
             });
 
             const result = await getLocalizedWordList('de');
-            expect(mockFetch).toHaveBeenCalledWith('/locales/wordlist-de.txt', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+            expect(mockFetch).toHaveBeenCalledWith(
+                '/locales/wordlist-de.txt',
+                expect.objectContaining({ signal: expect.any(AbortSignal) })
+            );
             expect(result).not.toBeNull();
             expect(result!.length).toBeGreaterThanOrEqual(25);
             expect(result![0]).toBe('APFEL');
@@ -291,8 +303,8 @@ describe('i18n module', () => {
         test('filters empty lines and comments', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
-                text: async () => '# Comment\n\nApfel\n  \nBanane\n# Another comment\n' +
-                    Array(25).fill('WORT').join('\n')
+                text: async () =>
+                    '# Comment\n\nApfel\n  \nBanane\n# Another comment\n' + Array(25).fill('WORT').join('\n'),
             });
 
             const result = await getLocalizedWordList('de');

@@ -18,8 +18,8 @@ jest.mock('socket.io-client', () => ({
         connect: jest.fn(),
         disconnect: jest.fn(),
         removeAllListeners: jest.fn(),
-        id: 'mock-socket-id'
-    }))
+        id: 'mock-socket-id',
+    })),
 }));
 
 /**
@@ -43,14 +43,21 @@ function createOfflineQueue(maxSize: number = 20) {
      * Matches the queueableEvents list in socket-client.ts _queueOrEmit.
      */
     const queueableEvents = [
-        'chat:message', 'chat:spectator',
-        'player:setTeam', 'player:setRole', 'player:setNickname',
-        'game:endTurn'
+        'chat:message',
+        'chat:spectator',
+        'player:setTeam',
+        'player:setRole',
+        'player:setNickname',
+        'game:endTurn',
     ];
 
     return {
-        get queue() { return queue; },
-        get queueableEvents() { return queueableEvents; },
+        get queue() {
+            return queue;
+        },
+        get queueableEvents() {
+            return queueableEvents;
+        },
 
         /**
          * Queue an event if the client is offline and the event is queueable.
@@ -87,7 +94,7 @@ function createOfflineQueue(maxSize: number = 20) {
 
         clear(): void {
             queue = [];
-        }
+        },
     };
 }
 
@@ -240,7 +247,7 @@ describe('socketClientOfflineQueue', () => {
             offlineQueue.queue.push({
                 event: 'chat:message',
                 data: { text: 'old message' },
-                timestamp: twoMinutesAgo
+                timestamp: twoMinutesAgo,
             });
 
             // Add a recent event
@@ -253,12 +260,12 @@ describe('socketClientOfflineQueue', () => {
 
         it('clears the queue after flushing regardless of expiry', () => {
             const offlineQueue = createOfflineQueue();
-            const oldTimestamp = Date.now() - (3 * 60 * 1000); // 3 min ago
+            const oldTimestamp = Date.now() - 3 * 60 * 1000; // 3 min ago
 
             offlineQueue.queue.push({
                 event: 'chat:message',
                 data: { text: 'very old' },
-                timestamp: oldTimestamp
+                timestamp: oldTimestamp,
             });
 
             offlineQueue.flush();
@@ -281,7 +288,7 @@ describe('socketClientOfflineQueue', () => {
             offlineQueue.queue.push({
                 event: 'chat:message',
                 data: { text: 'semi-old' },
-                timestamp: thirtySecondsAgo
+                timestamp: thirtySecondsAgo,
             });
 
             // With a 10-second maxAge, the 30-second-old event should be expired
@@ -296,7 +303,7 @@ describe('socketClientOfflineQueue', () => {
             offlineQueue.queue.push({
                 event: 'game:endTurn',
                 data: {},
-                timestamp: justUnderTwoMinutes
+                timestamp: justUnderTwoMinutes,
             });
 
             const replayed = offlineQueue.flush();

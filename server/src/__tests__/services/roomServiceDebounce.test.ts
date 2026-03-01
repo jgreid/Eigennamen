@@ -13,25 +13,25 @@ const mockRedis = {
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../services/timerService', () => ({
-    stopTimer: jest.fn()
+    stopTimer: jest.fn(),
 }));
 
 jest.mock('../../services/playerService', () => ({}));
 
 jest.mock('../../utils/metrics', () => ({
     incrementCounter: jest.fn(),
-    METRIC_NAMES: { ERRORS: 'errors' }
+    METRIC_NAMES: { ERRORS: 'errors' },
 }));
 
 const { debouncedRefreshRoomTTL, clearTTLRefreshEntry } = require('../../services/roomService');
@@ -73,9 +73,7 @@ describe('debouncedRefreshRoomTTL', () => {
 
         // Should have logged warning and incremented error counter
         const logger = require('../../utils/logger');
-        expect(logger.warn).toHaveBeenCalledWith(
-            expect.stringContaining('Debounced TTL refresh failed')
-        );
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Debounced TTL refresh failed'));
         expect(incrementCounter).toHaveBeenCalled();
 
         // Next call should retry (timestamp was not set)

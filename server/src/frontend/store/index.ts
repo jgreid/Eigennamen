@@ -12,11 +12,21 @@ export { createReactiveProxy } from './reactiveProxy.js';
 
 // Selectors — derived state
 export {
-    isSpymaster, isClicker, hasTeam, hasRole,
-    isPlayerTurn, isTeamOnTurn,
-    showSpymasterView, gameInProgress,
-    redRemaining, blueRemaining,
-    currentTeamName, teamName,
-    isCurrentTeamClickerUnavailable, isClickerFallback, canActAsClicker,
-    isDuetMode, playerCount,
+    isSpymaster,
+    isClicker,
+    hasTeam,
+    hasRole,
+    isPlayerTurn,
+    isTeamOnTurn,
+    showSpymasterView,
+    gameInProgress,
+    redRemaining,
+    blueRemaining,
+    currentTeamName,
+    teamName,
+    isCurrentTeamClickerUnavailable,
+    isClickerFallback,
+    canActAsClicker,
+    isDuetMode,
+    playerCount,
 } from './selectors.js';

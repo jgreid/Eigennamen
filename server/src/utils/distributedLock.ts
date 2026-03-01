@@ -3,10 +3,7 @@ import logger from './logger';
 import { v4 as uuidv4 } from 'uuid';
 import { withTimeout } from './timeout';
 import { ServerError } from '../errors/GameError';
-import {
-    RELEASE_LOCK_SCRIPT as _RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT as _EXTEND_LOCK_SCRIPT,
-} from '../scripts';
+import { RELEASE_LOCK_SCRIPT as _RELEASE_LOCK_SCRIPT, EXTEND_LOCK_SCRIPT as _EXTEND_LOCK_SCRIPT } from '../scripts';
 
 export const RELEASE_LOCK_SCRIPT = _RELEASE_LOCK_SCRIPT;
 export const EXTEND_LOCK_SCRIPT = _EXTEND_LOCK_SCRIPT;
@@ -22,11 +19,11 @@ interface LockConfig {
 }
 
 const DEFAULT_CONFIG: LockConfig = {
-    lockTimeout: 5000,      // Lock expires after 5 seconds
-    retryDelay: 50,         // Initial retry delay in ms (grows exponentially)
-    maxRetryDelay: 500,     // Cap on retry delay to prevent excessive waits
-    maxRetries: 20,         // Max retry attempts
-    extendThreshold: 0.5    // Extend when 50% of time remains
+    lockTimeout: 5000, // Lock expires after 5 seconds
+    retryDelay: 50, // Initial retry delay in ms (grows exponentially)
+    maxRetryDelay: 500, // Cap on retry delay to prevent excessive waits
+    maxRetries: 20, // Max retry attempts
+    extendThreshold: 0.5, // Extend when 50% of time remains
 };
 
 interface LockResult {
@@ -57,21 +54,22 @@ class DistributedLock {
             try {
                 const result = await redis.set(key, ownerId, {
                     NX: true,
-                    PX: config.lockTimeout
+                    PX: config.lockTimeout,
                 });
 
                 if (result === 'OK') {
                     logger.info('Lock acquired', {
                         lockKey,
                         ownerId,
-                        attempt
+                        attempt,
                     });
 
                     return {
                         acquired: true,
                         ownerId,
                         release: () => this.release(key, ownerId),
-                        extend: (additionalMs?: number) => this.extend(key, ownerId, additionalMs || config.lockTimeout)
+                        extend: (additionalMs?: number) =>
+                            this.extend(key, ownerId, additionalMs || config.lockTimeout),
                     };
                 }
 
@@ -85,7 +83,7 @@ class DistributedLock {
                 logger.error('Lock acquisition error', {
                     lockKey,
                     attempt,
-                    error: (error as Error).message
+                    error: (error as Error).message,
                 });
                 // Continue retrying
             }
@@ -93,7 +91,7 @@ class DistributedLock {
 
         logger.warn('Failed to acquire lock after max retries', {
             lockKey,
-            maxRetries: config.maxRetries
+            maxRetries: config.maxRetries,
         });
 
         return { acquired: false };
@@ -104,13 +102,10 @@ class DistributedLock {
 
         try {
             const result = await withTimeout(
-                redis.eval(
-                    RELEASE_LOCK_SCRIPT,
-                    {
-                        keys: [key],
-                        arguments: [ownerId]
-                    }
-                ),
+                redis.eval(RELEASE_LOCK_SCRIPT, {
+                    keys: [key],
+                    arguments: [ownerId],
+                }),
                 LOCK_OPERATION_TIMEOUT,
                 `lock-release-${key}`
             );
@@ -126,7 +121,7 @@ class DistributedLock {
             logger.error('Lock release error', {
                 key,
                 ownerId,
-                error: (error as Error).message
+                error: (error as Error).message,
             });
             return false;
         }
@@ -137,13 +132,10 @@ class DistributedLock {
 
         try {
             const result = await withTimeout(
-                redis.eval(
-                    EXTEND_LOCK_SCRIPT,
-                    {
-                        keys: [key],
-                        arguments: [ownerId, additionalMs.toString()]
-                    }
-                ),
+                redis.eval(EXTEND_LOCK_SCRIPT, {
+                    keys: [key],
+                    arguments: [ownerId, additionalMs.toString()],
+                }),
                 LOCK_OPERATION_TIMEOUT,
                 `lock-extend-${key}`
             );
@@ -159,7 +151,7 @@ class DistributedLock {
             logger.error('Lock extension error', {
                 key,
                 ownerId,
-                error: (error as Error).message
+                error: (error as Error).message,
             });
             return false;
         }
@@ -169,7 +161,10 @@ class DistributedLock {
         const lockResult = await this.acquire(lockKey, options);
 
         if (!lockResult.acquired || !lockResult.release) {
-            throw new ServerError(`Failed to acquire lock: ${lockKey}`, { operation: `lock:${lockKey}`, retryable: true });
+            throw new ServerError(`Failed to acquire lock: ${lockKey}`, {
+                operation: `lock:${lockKey}`,
+                retryable: true,
+            });
         }
 
         // Capture release function after the guard above ensures it exists
@@ -187,7 +182,10 @@ class DistributedLock {
         const lockResult = await this.acquire(lockKey, options);
 
         if (!lockResult.acquired || !lockResult.extend || !lockResult.release) {
-            throw new ServerError(`Failed to acquire lock: ${lockKey}`, { operation: `lock:${lockKey}`, retryable: true });
+            throw new ServerError(`Failed to acquire lock: ${lockKey}`, {
+                operation: `lock:${lockKey}`,
+                retryable: true,
+            });
         }
 
         // Capture functions after the guard above ensures they exist
@@ -198,15 +196,17 @@ class DistributedLock {
         const extendInterval = config.lockTimeout * config.extendThreshold;
         let pendingExtension: Promise<boolean> | null = null;
         const extensionTimer = setInterval(() => {
-            pendingExtension = extendFn(config.lockTimeout).then(extended => {
-                if (!extended) {
-                    logger.warn('Auto-extension failed, lock may have been lost', { lockKey });
-                }
-                return extended;
-            }).catch(err => {
-                logger.error('Auto-extension error', { lockKey, error: (err as Error).message });
-                return false;
-            });
+            pendingExtension = extendFn(config.lockTimeout)
+                .then((extended) => {
+                    if (!extended) {
+                        logger.warn('Auto-extension failed, lock may have been lost', { lockKey });
+                    }
+                    return extended;
+                })
+                .catch((err) => {
+                    logger.error('Auto-extension error', { lockKey, error: (err as Error).message });
+                    return false;
+                });
         }, extendInterval);
 
         try {
@@ -223,14 +223,13 @@ class DistributedLock {
     }
 
     private _sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 }
 
 const defaultLock = new DistributedLock();
 
-const acquire = (lockKey: string, options?: LockOptions): Promise<LockResult> =>
-    defaultLock.acquire(lockKey, options);
+const acquire = (lockKey: string, options?: LockOptions): Promise<LockResult> => defaultLock.acquire(lockKey, options);
 
 const withLock = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOptions): Promise<T> =>
     defaultLock.withLock(lockKey, fn, options);
@@ -238,11 +237,6 @@ const withLock = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOption
 const withAutoExtend = <T>(lockKey: string, fn: () => Promise<T>, options?: LockOptions): Promise<T> =>
     defaultLock.withAutoExtend(lockKey, fn, options);
 
-export {
-    DistributedLock,
-    acquire,
-    withLock,
-    withAutoExtend,
-};
+export { DistributedLock, acquire, withLock, withAutoExtend };
 
 export type { LockConfig, LockResult, LockOptions };

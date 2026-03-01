@@ -9,11 +9,7 @@ import { sanitizeErrorForClient } from '../errors/GameError';
 import type { GameSocket } from './handlers/types';
 export type { GameSocket } from './handlers/types';
 
-type RateLimiterMiddleware = (
-    socket: GameSocket,
-    data: unknown,
-    next: (error?: Error) => void
-) => void;
+type RateLimiterMiddleware = (socket: GameSocket, data: unknown, next: (error?: Error) => void) => void;
 
 interface EventStats {
     event: string;
@@ -75,9 +71,10 @@ function createRateLimitedHandler(
         // Stored as a closure variable (not on socket) to avoid concurrency issues
         // when multiple handlers run in parallel for the same socket.
         // Zod validation strips unknown keys, so we capture it here before validation.
-        const requestId = (data != null && typeof data === 'object' && !Array.isArray(data))
-            ? (data as Record<string, unknown>).requestId as string | undefined
-            : undefined;
+        const requestId =
+            data != null && typeof data === 'object' && !Array.isArray(data)
+                ? ((data as Record<string, unknown>).requestId as string | undefined)
+                : undefined;
 
         const limiter = socketRateLimiter.getLimiter(eventName);
         return new Promise((resolve) => {
@@ -88,7 +85,7 @@ function createRateLimitedHandler(
                     socket.emit(errorEvent, {
                         code: ERROR_CODES.RATE_LIMITED,
                         message: 'Too many requests, please slow down',
-                        ...(requestId !== undefined && { requestId })
+                        ...(requestId !== undefined && { requestId }),
                     });
                     if (typeof ackCallback === 'function') ackCallback({ error: true });
                     resolve();
@@ -102,7 +99,7 @@ function createRateLimitedHandler(
                     const errorEvent = `${eventName.split(':')[0]}:error`;
                     socket.emit(errorEvent, {
                         ...sanitizeErrorForClient(error),
-                        ...(requestId !== undefined && { requestId })
+                        ...(requestId !== undefined && { requestId }),
                     });
                     if (typeof ackCallback === 'function') ackCallback({ error: true });
                 } finally {
@@ -122,5 +119,5 @@ export {
     createRateLimitedHandler,
     getSocketRateLimiter,
     startRateLimitCleanup,
-    stopRateLimitCleanup
+    stopRateLimitCleanup,
 };

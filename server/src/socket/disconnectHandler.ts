@@ -35,25 +35,31 @@ function createTimerExpireCallback(
             // Without this lock, concurrent endTurn calls could double-flip the turn.
             let result: { currentTurn: string; previousTurn: string } | null = null;
             try {
-                result = await withLock(`timer-expire:${roomCode}`, async () => {
-                    // Check if game is still active before ending turn (prevents race condition)
-                    const game: GameState | null = await gameService.getGame(roomCode);
-                    if (!game) {
-                        logger.debug(`Timer expired for room ${roomCode} but no game found`);
-                        return null;
-                    }
-                    if (game.gameOver) {
-                        logger.debug(`Timer expired for room ${roomCode} but game already over`);
-                        return null;
-                    }
+                result = await withLock(
+                    `timer-expire:${roomCode}`,
+                    async () => {
+                        // Check if game is still active before ending turn (prevents race condition)
+                        const game: GameState | null = await gameService.getGame(roomCode);
+                        if (!game) {
+                            logger.debug(`Timer expired for room ${roomCode} but no game found`);
+                            return null;
+                        }
+                        if (game.gameOver) {
+                            logger.debug(`Timer expired for room ${roomCode} but game already over`);
+                            return null;
+                        }
 
-                    const turnResult = await gameService.endTurn(roomCode, 'Timer');
-                    invalidateGameStateCache(roomCode);
-                    return turnResult;
-                }, { lockTimeout: 5000, maxRetries: 3 });
+                        const turnResult = await gameService.endTurn(roomCode, 'Timer');
+                        invalidateGameStateCache(roomCode);
+                        return turnResult;
+                    },
+                    { lockTimeout: 5000, maxRetries: 3 }
+                );
             } catch (lockError) {
                 // If lock acquisition fails, another instance is handling this expiration
-                logger.info(`Timer expiration lock not acquired for room ${roomCode}, skipping: ${(lockError as Error).message}`);
+                logger.info(
+                    `Timer expiration lock not acquired for room ${roomCode}, skipping: ${(lockError as Error).message}`
+                );
                 return;
             }
 
@@ -64,7 +70,7 @@ function createTimerExpireCallback(
             emitToRoom(roomCode, SOCKET_EVENTS.GAME_TURN_ENDED, {
                 currentTurn: result.currentTurn,
                 previousTurn: result.previousTurn,
-                reason: 'timerExpired'
+                reason: 'timerExpired',
             });
             emitToRoom(roomCode, SOCKET_EVENTS.TIMER_EXPIRED, { roomCode });
 
@@ -82,34 +88,42 @@ function createTimerExpireCallback(
                             return;
                         }
 
-                        await withLock(`timer-restart:${roomCode}`, async () => {
-                            const room = await roomService.getRoom(roomCode);
-                            const currentGame: GameState | null = await gameService.getGame(roomCode);
+                        await withLock(
+                            `timer-restart:${roomCode}`,
+                            async () => {
+                                const room = await roomService.getRoom(roomCode);
+                                const currentGame: GameState | null = await gameService.getGame(roomCode);
 
-                            if (!room) {
-                                logger.warn(`Timer restart skipped for room ${roomCode}: room not found`);
-                                return;
-                            }
-                            if (!room.settings || !room.settings.turnTimer) {
-                                logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
-                                return;
-                            }
-                            if (!currentGame) {
-                                logger.warn(`Timer restart skipped for room ${roomCode}: game not found`);
-                                return;
-                            }
-                            if (currentGame.gameOver) {
-                                logger.debug(`Timer restart skipped for room ${roomCode}: game over (winner: ${currentGame.winner})`);
-                                return;
-                            }
+                                if (!room) {
+                                    logger.warn(`Timer restart skipped for room ${roomCode}: room not found`);
+                                    return;
+                                }
+                                if (!room.settings || !room.settings.turnTimer) {
+                                    logger.debug(`Timer restart skipped for room ${roomCode}: timer not configured`);
+                                    return;
+                                }
+                                if (!currentGame) {
+                                    logger.warn(`Timer restart skipped for room ${roomCode}: game not found`);
+                                    return;
+                                }
+                                if (currentGame.gameOver) {
+                                    logger.debug(
+                                        `Timer restart skipped for room ${roomCode}: game over (winner: ${currentGame.winner})`
+                                    );
+                                    return;
+                                }
 
-                            await startTurnTimer(roomCode, room.settings.turnTimer);
-                            logger.debug(`Timer restarted for room ${roomCode}, new turn: ${currentGame.currentTurn}`);
-                        }, { lockTimeout: LOCKS.TIMER_RESTART * 1000, maxRetries: 3 });
+                                await startTurnTimer(roomCode, room.settings.turnTimer);
+                                logger.debug(
+                                    `Timer restarted for room ${roomCode}, new turn: ${currentGame.currentTurn}`
+                                );
+                            },
+                            { lockTimeout: LOCKS.TIMER_RESTART * 1000, maxRetries: 3 }
+                        );
                     })(),
                     TIMEOUTS.SOCKET_HANDLER,
                     `timer-restart-${roomCode}`
-                ).catch(err => {
+                ).catch((err) => {
                     // Lock contention, timeout, or Redis failure — non-critical
                     logger.warn(`Timer restart skipped for room ${roomCode}: ${(err as Error).message}`);
                 });
@@ -159,7 +173,10 @@ async function handleDisconnect(
                 `disconnect-genToken-${socket.sessionId}`
             );
         } catch (tokenError) {
-            logger.warn(`Failed to generate reconnection token for ${socket.sessionId}:`, (tokenError as Error).message);
+            logger.warn(
+                `Failed to generate reconnection token for ${socket.sessionId}:`,
+                (tokenError as Error).message
+            );
         }
 
         // Update player's connected status
@@ -185,7 +202,7 @@ async function handleDisconnect(
             );
 
             // Calculate reconnection deadline for frontend display
-            const reconnectionDeadline = Date.now() + (SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000);
+            const reconnectionDeadline = Date.now() + SESSION_SECURITY.RECONNECTION_TOKEN_TTL_SECONDS * 1000;
 
             // Do NOT broadcast reconnection token to the room!
             // The token was previously broadcast to all players, allowing potential session hijacking.
@@ -203,7 +220,7 @@ async function handleDisconnect(
                 // Indicate player may reconnect and when the window closes
                 // Token is NOT broadcast - stored server-side only for security
                 reconnecting: !!reconnectionToken,
-                reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null
+                reconnectionDeadline: reconnectionToken ? reconnectionDeadline : null,
             });
 
             // Broadcast updated stats so clients reflect the disconnection
@@ -223,61 +240,69 @@ async function handleDisconnect(
             // Check if disconnected player was host - use distributed lock
             if (player.isHost) {
                 try {
-                    await withLock(`host-transfer:${roomCode}`, async () => {
-                        // Re-check if the disconnected host has reconnected
-                        // This prevents transferring host to someone else when the original host
-                        // successfully reconnected within the grace period
-                        const currentHostPlayer: Player | null = await playerService.getPlayer(socket.sessionId);
-                        if (currentHostPlayer && currentHostPlayer.connected) {
-                            logger.info(`Host ${socket.sessionId} reconnected before transfer, skipping host transfer for room ${roomCode}`);
-                            return;
-                        }
+                    await withLock(
+                        `host-transfer:${roomCode}`,
+                        async () => {
+                            // Re-check if the disconnected host has reconnected
+                            // This prevents transferring host to someone else when the original host
+                            // successfully reconnected within the grace period
+                            const currentHostPlayer: Player | null = await playerService.getPlayer(socket.sessionId);
+                            if (currentHostPlayer && currentHostPlayer.connected) {
+                                logger.info(
+                                    `Host ${socket.sessionId} reconnected before transfer, skipping host transfer for room ${roomCode}`
+                                );
+                                return;
+                            }
 
-                        const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
-                        if (!players || !Array.isArray(players)) {
-                            logger.warn(`Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`);
-                            return;
-                        }
+                            const players: Player[] | null = await playerService.getPlayersInRoom(roomCode);
+                            if (!players || !Array.isArray(players)) {
+                                logger.warn(
+                                    `Unable to fetch players for host transfer in room ${roomCode}, room may be left without host`
+                                );
+                                return;
+                            }
 
-                        const connectedPlayers = players.filter((p: Player) => p.connected && p.sessionId !== socket.sessionId);
-
-                        if (connectedPlayers.length > 0) {
-                            // Transfer host to first connected player
-                            // Safe to cast: we just verified length > 0
-                            const newHost = connectedPlayers[0] as Player;
-
-                            // Use atomic host transfer to prevent race conditions
-                            // This atomically updates old host, new host, and room in a single Lua script
-                            const transferResult = await playerService.atomicHostTransfer(
-                                socket.sessionId,
-                                newHost.sessionId,
-                                roomCode
+                            const connectedPlayers = players.filter(
+                                (p: Player) => p.connected && p.sessionId !== socket.sessionId
                             );
 
-                            if (transferResult.success) {
-                                safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
-                                    newHostSessionId: newHost.sessionId,
-                                    newHostNickname: newHost.nickname,
-                                    reason: 'previousHostDisconnected'
-                                });
-                            } else {
-                                logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
+                            if (connectedPlayers.length > 0) {
+                                // Transfer host to first connected player
+                                // Safe to cast: we just verified length > 0
+                                const newHost = connectedPlayers[0] as Player;
+
+                                // Use atomic host transfer to prevent race conditions
+                                // This atomically updates old host, new host, and room in a single Lua script
+                                const transferResult = await playerService.atomicHostTransfer(
+                                    socket.sessionId,
+                                    newHost.sessionId,
+                                    roomCode
+                                );
+
+                                if (transferResult.success) {
+                                    safeEmitToRoom(ioInstance, roomCode, SOCKET_EVENTS.ROOM_HOST_CHANGED, {
+                                        newHostSessionId: newHost.sessionId,
+                                        newHostNickname: newHost.nickname,
+                                        reason: 'previousHostDisconnected',
+                                    });
+                                } else {
+                                    logger.error(`Atomic host transfer failed: ${transferResult.reason}`, { roomCode });
+                                }
                             }
-                        }
-                    }, { lockTimeout: LOCKS.HOST_TRANSFER * 1000, maxRetries: 5 });
+                        },
+                        { lockTimeout: LOCKS.HOST_TRANSFER * 1000, maxRetries: 5 }
+                    );
                 } catch (hostTransferError) {
                     // If lock acquisition fails, another instance is handling this transfer
-                    logger.info(`Host transfer lock not acquired for room ${roomCode}: ${(hostTransferError as Error).message}`);
+                    logger.info(
+                        `Host transfer lock not acquired for room ${roomCode}: ${(hostTransferError as Error).message}`
+                    );
                 }
             }
         }
-
     } catch (error) {
         logger.error('Error handling disconnect:', error);
     }
 }
 
-export {
-    handleDisconnect,
-    createTimerExpireCallback
-};
+export { handleDisconnect, createTimerExpireCallback };

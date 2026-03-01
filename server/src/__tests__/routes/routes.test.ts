@@ -23,25 +23,34 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         sAdd: jest.fn(async (key, ...members) => {
             if (!mockRedisSets.has(key)) mockRedisSets.set(key, new Set());
             const set = mockRedisSets.get(key);
             let added = 0;
-            members.forEach(m => { if (!set.has(m)) { set.add(m); added++; } });
+            members.forEach((m) => {
+                if (!set.has(m)) {
+                    set.add(m);
+                    added++;
+                }
+            });
             return added;
         }),
         sRem: jest.fn(async (key, ...members) => {
             const set = mockRedisSets.get(key);
             if (!set) return 0;
             let removed = 0;
-            members.forEach(m => { if (set.delete(m)) removed++; });
+            members.forEach((m) => {
+                if (set.delete(m)) removed++;
+            });
             return removed;
         }),
         sMembers: jest.fn(async (key) => {
@@ -58,19 +67,19 @@ jest.mock('../../config/redis', () => {
         }),
         watch: jest.fn(async () => 'OK'),
         unwatch: jest.fn(async () => 'OK'),
-        mGet: jest.fn(async (keys) => keys.map(k => mockRedisStorage.get(k) || null)),
+        mGet: jest.fn(async (keys) => keys.map((k) => mockRedisStorage.get(k) || null)),
         multi: jest.fn(() => ({
             set: jest.fn().mockReturnThis(),
             del: jest.fn().mockReturnThis(),
             lPush: jest.fn().mockReturnThis(),
             lTrim: jest.fn().mockReturnThis(),
-            exec: jest.fn(async () => [[null, 'OK']])
+            exec: jest.fn(async () => [[null, 'OK']]),
         })),
         lPush: jest.fn(async () => 1),
         lTrim: jest.fn(async () => 'OK'),
         lRange: jest.fn(async () => []),
         lIndex: jest.fn(async () => null),
-        lLen: jest.fn(async () => 0)
+        lLen: jest.fn(async () => 0),
     };
 
     return {
@@ -89,8 +98,8 @@ jest.mock('../../config/redis', () => {
             maxmemory: 0,
             maxmemory_human: 'N/A',
             memory_usage_percent: 0,
-            alert: null
-        }))
+            alert: null,
+        })),
     };
 });
 
@@ -102,8 +111,8 @@ jest.mock('../../utils/pubSubHealth', () => ({
         totalFailures: 0,
         failureRate: 0,
         consecutiveFailures: 0,
-        lastError: null
-    }))
+        lastError: null,
+    })),
 }));
 
 // Mock logger to suppress output
@@ -111,7 +120,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Import routes after mocks
@@ -147,22 +156,18 @@ describe('Room Routes', () => {
                 roomId: 'ABC123',
                 status: 'waiting',
                 hostSessionId: 'host-123',
-                settings: { teamNames: { red: 'Red', blue: 'Blue' } }
+                settings: { teamNames: { red: 'Red', blue: 'Blue' } },
             };
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
 
             // Request can use any case - will be normalized
-            const response = await request(app)
-                .get('/api/rooms/ABC123/exists')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/ABC123/exists').expect(200);
 
             expect(response.body.exists).toBe(true);
         });
 
         it('should return exists: false for non-existing room', async () => {
-            const response = await request(app)
-                .get('/api/rooms/NOTFND/exists')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/NOTFND/exists').expect(200);
 
             expect(response.body.exists).toBe(false);
         });
@@ -174,14 +179,12 @@ describe('Room Routes', () => {
                 code: roomCode,
                 roomId: 'ABC123',
                 status: 'waiting',
-                settings: { teamNames: { red: 'Red', blue: 'Blue' } }
+                settings: { teamNames: { red: 'Red', blue: 'Blue' } },
             };
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
 
             // Request with lowercase should find the room
-            const response = await request(app)
-                .get('/api/rooms/abc123/exists')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/abc123/exists').expect(200);
 
             expect(response.body.exists).toBe(true);
         });
@@ -215,16 +218,14 @@ describe('Room Routes', () => {
                 settings: {
                     teamNames: { red: 'Fire', blue: 'Ice' },
                     allowSpectators: true,
-                    turnTimer: 60
-                }
+                    turnTimer: 60,
+                },
             };
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
             mockRedisSets.set(`room:${roomCode}:players`, new Set(['player1', 'player2']));
 
             // Request can use any case - will be normalized
-            const response = await request(app)
-                .get('/api/rooms/XYZ789')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/XYZ789').expect(200);
 
             expect(response.body.room).toBeDefined();
             expect(response.body.room.code).toBe(roomCode);
@@ -236,9 +237,7 @@ describe('Room Routes', () => {
         });
 
         it('should return 404 for non-existing room', async () => {
-            const response = await request(app)
-                .get('/api/rooms/NOROOM')
-                .expect(404);
+            const response = await request(app).get('/api/rooms/NOROOM').expect(404);
 
             expect(response.body.error.code).toBe('ROOM_NOT_FOUND');
         });
@@ -254,14 +253,12 @@ describe('Room Routes', () => {
                 settings: {
                     teamNames: { red: 'Red', blue: 'Blue' },
                     allowSpectators: false,
-                    privateData: 'should-not-expose'
-                }
+                    privateData: 'should-not-expose',
+                },
             };
             mockRedisStorage.set(`room:${roomCode}`, JSON.stringify(roomData));
 
-            const response = await request(app)
-                .get('/api/rooms/SECRET')
-                .expect(200);
+            const response = await request(app).get('/api/rooms/SECRET').expect(200);
 
             // Should not include hostSessionId
             expect(response.body.room.hostSessionId).toBeUndefined();
@@ -282,30 +279,24 @@ describe('Health Routes (/api/health)', () => {
 
     describe('GET /api/health', () => {
         it('should return 200 with basic health status', async () => {
-            const response = await request(app)
-                .get('/api/health')
-                .expect(200);
+            const response = await request(app).get('/api/health').expect(200);
 
             expect(response.body).toMatchObject({
                 status: 'ok',
                 timestamp: expect.any(String),
-                uptime: expect.any(Number)
+                uptime: expect.any(Number),
             });
         });
 
         it('should include valid ISO timestamp', async () => {
-            const response = await request(app)
-                .get('/api/health')
-                .expect(200);
+            const response = await request(app).get('/api/health').expect(200);
 
             const timestamp = new Date(response.body.timestamp);
             expect(timestamp.toISOString()).toBe(response.body.timestamp);
         });
 
         it('should include non-negative uptime', async () => {
-            const response = await request(app)
-                .get('/api/health')
-                .expect(200);
+            const response = await request(app).get('/api/health').expect(200);
 
             expect(response.body.uptime).toBeGreaterThanOrEqual(0);
         });
@@ -313,13 +304,11 @@ describe('Health Routes (/api/health)', () => {
 
     describe('GET /api/health/live', () => {
         it('should return 200 with live status', async () => {
-            const response = await request(app)
-                .get('/api/health/live')
-                .expect(200);
+            const response = await request(app).get('/api/health/live').expect(200);
 
             expect(response.body).toMatchObject({
                 status: 'live',
-                timestamp: expect.any(String)
+                timestamp: expect.any(String),
             });
         });
     });
@@ -328,17 +317,15 @@ describe('Health Routes (/api/health)', () => {
         it('should return 200 when in memory mode', async () => {
             isUsingMemoryMode.mockReturnValue(true);
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(200);
+            const response = await request(app).get('/api/health/ready').expect(200);
 
             expect(response.body).toMatchObject({
                 status: 'ready',
                 timestamp: expect.any(String),
                 checks: {
                     redis: { healthy: true, mode: 'memory' },
-                    pubsub: { healthy: true, status: 'memory_mode' }
-                }
+                    pubsub: { healthy: true, status: 'memory_mode' },
+                },
             });
         });
 
@@ -348,19 +335,17 @@ describe('Health Routes (/api/health)', () => {
             pubSubHealth.getHealth = jest.fn().mockReturnValue({
                 isHealthy: true,
                 consecutiveFailures: 0,
-                lastError: null
+                lastError: null,
             });
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(200);
+            const response = await request(app).get('/api/health/ready').expect(200);
 
             expect(response.body).toMatchObject({
                 status: 'ready',
                 checks: {
                     redis: { healthy: true, mode: 'redis' },
-                    pubsub: { healthy: true, status: 'connected' }
-                }
+                    pubsub: { healthy: true, status: 'connected' },
+                },
             });
         });
 
@@ -370,18 +355,16 @@ describe('Health Routes (/api/health)', () => {
             pubSubHealth.getHealth = jest.fn().mockReturnValue({
                 isHealthy: true,
                 consecutiveFailures: 0,
-                lastError: null
+                lastError: null,
             });
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(503);
+            const response = await request(app).get('/api/health/ready').expect(503);
 
             expect(response.body).toMatchObject({
                 status: 'degraded',
                 checks: {
-                    redis: { healthy: false, mode: 'redis' }
-                }
+                    redis: { healthy: false, mode: 'redis' },
+                },
             });
         });
 
@@ -391,12 +374,10 @@ describe('Health Routes (/api/health)', () => {
             pubSubHealth.getHealth = jest.fn().mockReturnValue({
                 isHealthy: false,
                 consecutiveFailures: 5,
-                lastError: { type: 'error', message: 'Connection lost', timestamp: Date.now() }
+                lastError: { type: 'error', message: 'Connection lost', timestamp: Date.now() },
             });
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(503);
+            const response = await request(app).get('/api/health/ready').expect(503);
 
             expect(response.body).toMatchObject({
                 status: 'degraded',
@@ -404,9 +385,9 @@ describe('Health Routes (/api/health)', () => {
                     pubsub: {
                         healthy: false,
                         status: 'degraded',
-                        consecutiveFailures: 5
-                    }
-                }
+                        consecutiveFailures: 5,
+                    },
+                },
             });
         });
 
@@ -414,13 +395,11 @@ describe('Health Routes (/api/health)', () => {
             isUsingMemoryMode.mockReturnValue(false);
             isRedisHealthy.mockRejectedValue(new Error('Redis connection failed'));
 
-            const response = await request(app)
-                .get('/api/health/ready')
-                .expect(503);
+            const response = await request(app).get('/api/health/ready').expect(503);
 
             expect(response.body).toMatchObject({
                 status: 'error',
-                error: 'Health check failed'
+                error: 'Health check failed',
             });
         });
     });
@@ -434,12 +413,10 @@ describe('Health Routes (/api/health)', () => {
                 totalPublishes: 100,
                 totalFailures: 2,
                 failureRate: 0.02,
-                consecutiveFailures: 0
+                consecutiveFailures: 0,
             });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body).toMatchObject({
                 timestamp: expect.any(String),
@@ -447,7 +424,7 @@ describe('Health Routes (/api/health)', () => {
                 memory: expect.any(Object),
                 redis: expect.any(Object),
                 pubsub: expect.any(Object),
-                process: expect.any(Object)
+                process: expect.any(Object),
             });
         });
 
@@ -456,15 +433,13 @@ describe('Health Routes (/api/health)', () => {
             isRedisHealthy.mockResolvedValue(true);
             pubSubHealth.getHealth = jest.fn().mockReturnValue({ isHealthy: true });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body.memory).toMatchObject({
                 heapUsed: expect.stringMatching(/^\d+MB$/),
                 heapTotal: expect.stringMatching(/^\d+MB$/),
                 rss: expect.stringMatching(/^\d+MB$/),
-                external: expect.stringMatching(/^\d+MB$/)
+                external: expect.stringMatching(/^\d+MB$/),
             });
         });
 
@@ -473,13 +448,11 @@ describe('Health Routes (/api/health)', () => {
             isRedisHealthy.mockResolvedValue(true);
             pubSubHealth.getHealth = jest.fn().mockReturnValue({ isHealthy: true });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body.uptime).toMatchObject({
                 seconds: expect.any(Number),
-                startTime: expect.any(String)
+                startTime: expect.any(String),
             });
         });
 
@@ -488,14 +461,12 @@ describe('Health Routes (/api/health)', () => {
             isRedisHealthy.mockResolvedValue(true);
             pubSubHealth.getHealth = jest.fn().mockReturnValue({ isHealthy: true });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body.process).toMatchObject({
                 pid: expect.any(Number),
                 nodeVersion: expect.any(String),
-                platform: expect.any(String)
+                platform: expect.any(String),
             });
         });
 
@@ -507,19 +478,17 @@ describe('Health Routes (/api/health)', () => {
                 totalPublishes: 500,
                 totalFailures: 10,
                 failureRate: 0.02,
-                consecutiveFailures: 0
+                consecutiveFailures: 0,
             });
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(200);
+            const response = await request(app).get('/api/health/metrics').expect(200);
 
             expect(response.body.pubsub).toMatchObject({
                 healthy: true,
                 totalPublishes: 500,
                 totalFailures: 10,
                 failureRate: 0.02,
-                consecutiveFailures: 0
+                consecutiveFailures: 0,
             });
         });
 
@@ -527,12 +496,10 @@ describe('Health Routes (/api/health)', () => {
             isUsingMemoryMode.mockReturnValue(false);
             isRedisHealthy.mockRejectedValue(new Error('Metrics collection error'));
 
-            const response = await request(app)
-                .get('/api/health/metrics')
-                .expect(500);
+            const response = await request(app).get('/api/health/metrics').expect(500);
 
             expect(response.body).toMatchObject({
-                error: 'Failed to collect metrics'
+                error: 'Failed to collect metrics',
             });
         });
     });

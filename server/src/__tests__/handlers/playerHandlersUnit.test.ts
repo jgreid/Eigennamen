@@ -13,7 +13,7 @@ jest.mock('../../utils/distributedLock', () => ({
 }));
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
 }));
 
 const playerService = require('../../services/playerService');
@@ -38,17 +38,17 @@ describe('Player Handlers', () => {
             }),
             emit: jest.fn(),
             join: jest.fn(),
-            leave: jest.fn()
+            leave: jest.fn(),
         };
 
         // Create mock io
         mockIo = {
             to: jest.fn().mockReturnValue({
-                emit: jest.fn()
+                emit: jest.fn(),
             }),
             sockets: {
-                sockets: new Map()
-            }
+                sockets: new Map(),
+            },
         };
 
         // Reset event handlers
@@ -61,23 +61,23 @@ describe('Player Handlers', () => {
             roomCode: 'TEST12',
             team: 'red',
             role: null,
-            isHost: false
+            isHost: false,
         });
         playerService.setTeam.mockResolvedValue({
             sessionId: 'session-1',
             nickname: 'TestPlayer',
-            team: 'blue'
+            team: 'blue',
         });
         playerService.setRole.mockResolvedValue({
             sessionId: 'session-1',
             nickname: 'TestPlayer',
             roomCode: 'TEST12',
-            role: 'spymaster'
+            role: 'spymaster',
         });
         playerService.setNickname.mockResolvedValue({
             sessionId: 'session-1',
             nickname: 'NewNickname',
-            roomCode: 'TEST12'
+            roomCode: 'TEST12',
         });
         playerService.getPlayersInRoom.mockResolvedValue([]);
         playerService.getSocketId.mockResolvedValue(null);
@@ -99,15 +99,11 @@ describe('Player Handlers', () => {
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
             // When no game exists, shouldCheckEmpty is false
-            expect(playerService.setTeam).toHaveBeenCalledWith(
-                'session-1',
-                'blue',
-                false
-            );
+            expect(playerService.setTeam).toHaveBeenCalledWith('session-1', 'blue', false);
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
             expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
                 sessionId: 'session-1',
-                changes: { team: 'blue' }
+                changes: { team: 'blue' },
             });
         });
 
@@ -119,7 +115,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('must be in a room')
+                message: expect.stringContaining('must be in a room'),
             });
         });
 
@@ -130,7 +126,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.any(String)
+                message: expect.any(String),
             });
         });
 
@@ -140,18 +136,18 @@ describe('Player Handlers', () => {
                 roomCode: 'TEST12',
                 team: 'red',
                 role: 'spymaster',
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                currentTurn: 'red'
+                currentTurn: 'red',
             });
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Cannot change')
+                message: expect.stringContaining('Cannot change'),
             });
         });
 
@@ -161,18 +157,18 @@ describe('Player Handlers', () => {
                 roomCode: 'TEST12',
                 team: 'blue',
                 role: 'clicker',
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                currentTurn: 'blue'
+                currentTurn: 'blue',
             });
 
             await eventHandlers['player:setTeam']({ team: 'red' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Cannot change')
+                message: expect.stringContaining('Cannot change'),
             });
         });
 
@@ -182,11 +178,11 @@ describe('Player Handlers', () => {
                 roomCode: 'TEST12',
                 team: 'red',
                 role: 'spymaster',
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: true,
-                currentTurn: 'red'
+                currentTurn: 'red',
             });
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
@@ -200,11 +196,11 @@ describe('Player Handlers', () => {
                 roomCode: 'TEST12',
                 team: 'red',
                 role: 'clicker',
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                currentTurn: 'blue' // Different team's turn
+                currentTurn: 'blue', // Different team's turn
             });
 
             await eventHandlers['player:setTeam']({ team: 'blue' });
@@ -226,7 +222,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
             // Note: logger.error is called by rateLimitHandler (which is mocked),
             // so we don't test for it here
@@ -249,7 +245,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('must be in a room')
+                message: expect.stringContaining('must be in a room'),
             });
         });
 
@@ -257,7 +253,7 @@ describe('Player Handlers', () => {
             playerService.setRole.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'OTHER',
-                role: 'spymaster'
+                role: 'spymaster',
             });
 
             await eventHandlers['player:setRole']({ role: 'spymaster' });
@@ -269,20 +265,20 @@ describe('Player Handlers', () => {
         test('sends spymaster view when becoming spymaster', async () => {
             gameService.getGame.mockResolvedValue({
                 gameOver: false,
-                types: ['red', 'blue', 'neutral', 'assassin']
+                types: ['red', 'blue', 'neutral', 'assassin'],
             });
 
             await eventHandlers['player:setRole']({ role: 'spymaster' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
-                types: ['red', 'blue', 'neutral', 'assassin']
+                types: ['red', 'blue', 'neutral', 'assassin'],
             });
         });
 
         test('does not send spymaster view when game is over', async () => {
             gameService.getGame.mockResolvedValue({
                 gameOver: true,
-                types: ['red', 'blue', 'neutral', 'assassin']
+                types: ['red', 'blue', 'neutral', 'assassin'],
             });
 
             await eventHandlers['player:setRole']({ role: 'spymaster' });
@@ -294,7 +290,7 @@ describe('Player Handlers', () => {
             playerService.setRole.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'TEST12',
-                role: 'clicker'
+                role: 'clicker',
             });
 
             await eventHandlers['player:setRole']({ role: 'clicker' });
@@ -316,7 +312,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
     });
@@ -337,7 +333,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('must be in a room')
+                message: expect.stringContaining('must be in a room'),
             });
         });
 
@@ -345,7 +341,7 @@ describe('Player Handlers', () => {
             playerService.setNickname.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'OTHER',
-                nickname: 'NewName'
+                nickname: 'NewName',
             });
 
             await eventHandlers['player:setNickname']({ nickname: 'NewName' });
@@ -358,14 +354,14 @@ describe('Player Handlers', () => {
             playerService.setNickname.mockResolvedValue({
                 sessionId: 'session-1',
                 roomCode: 'TEST12',
-                nickname: 'CleanNickname'
+                nickname: 'CleanNickname',
             });
 
             await eventHandlers['player:setNickname']({ nickname: 'CleanNickname' });
 
             expect(mockIo.to().emit).toHaveBeenCalledWith('player:updated', {
                 sessionId: 'session-1',
-                changes: { nickname: expect.any(String) }
+                changes: { nickname: expect.any(String) },
             });
         });
 
@@ -381,17 +377,19 @@ describe('Player Handlers', () => {
         beforeEach(() => {
             // Setup host as requester
             playerService.getPlayer
-                .mockResolvedValueOnce({ // First call for requester
+                .mockResolvedValueOnce({
+                    // First call for requester
                     sessionId: 'session-1',
                     nickname: 'Host',
                     roomCode: 'TEST12',
-                    isHost: true
+                    isHost: true,
                 })
-                .mockResolvedValueOnce({ // Second call for target
+                .mockResolvedValueOnce({
+                    // Second call for target
                     sessionId: 'session-2',
                     nickname: 'Target',
                     roomCode: 'TEST12',
-                    isHost: false
+                    isHost: false,
                 });
         });
 
@@ -412,7 +410,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('must be in a room')
+                message: expect.stringContaining('must be in a room'),
             });
         });
 
@@ -421,7 +419,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringMatching(/required|expected string/i)  // Zod v3: "Required", Zod v4: "expected string, received undefined"
+                message: expect.stringMatching(/required|expected string/i), // Zod v3: "Required", Zod v4: "expected string, received undefined"
             });
         });
 
@@ -430,7 +428,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.any(String)
+                message: expect.any(String),
             });
         });
 
@@ -440,14 +438,14 @@ describe('Player Handlers', () => {
                 sessionId: 'session-1',
                 nickname: 'NotHost',
                 roomCode: 'TEST12',
-                isHost: false
+                isHost: false,
             });
 
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.any(String)
+                message: expect.any(String),
             });
         });
 
@@ -457,14 +455,14 @@ describe('Player Handlers', () => {
                 sessionId: 'session-1',
                 nickname: 'Host',
                 roomCode: 'TEST12',
-                isHost: true
+                isHost: true,
             });
 
             await eventHandlers['player:kick']({ targetSessionId: 'session-1' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.stringContaining('Cannot kick yourself')
+                message: expect.stringContaining('Cannot kick yourself'),
             });
         });
 
@@ -474,7 +472,7 @@ describe('Player Handlers', () => {
                 .mockResolvedValueOnce({
                     sessionId: 'session-1',
                     isHost: true,
-                    roomCode: 'TEST12'
+                    roomCode: 'TEST12',
                 })
                 .mockResolvedValueOnce(null);
 
@@ -482,7 +480,7 @@ describe('Player Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.any(String)
+                message: expect.any(String),
             });
         });
 
@@ -492,18 +490,18 @@ describe('Player Handlers', () => {
                 .mockResolvedValueOnce({
                     sessionId: 'session-1',
                     isHost: true,
-                    roomCode: 'TEST12'
+                    roomCode: 'TEST12',
                 })
                 .mockResolvedValueOnce({
                     sessionId: 'session-2',
-                    roomCode: 'OTHER'
+                    roomCode: 'OTHER',
                 });
 
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('player:error', {
                 code: expect.any(String),
-                message: expect.any(String)
+                message: expect.any(String),
             });
         });
 
@@ -512,7 +510,7 @@ describe('Player Handlers', () => {
                 emit: jest.fn(),
                 leave: jest.fn(),
                 disconnect: jest.fn(),
-                roomCode: 'TEST12'
+                roomCode: 'TEST12',
             };
             mockIo.sockets.sockets.set('target-socket-id', mockTargetSocket);
             playerService.getSocketId.mockResolvedValue('target-socket-id');
@@ -520,7 +518,7 @@ describe('Player Handlers', () => {
             await eventHandlers['player:kick']({ targetSessionId: 'session-2' });
 
             expect(mockTargetSocket.emit).toHaveBeenCalledWith('room:kicked', {
-                reason: expect.any(String)
+                reason: expect.any(String),
             });
             expect(mockTargetSocket.leave).toHaveBeenCalledWith('room:TEST12');
             expect(mockTargetSocket.disconnect).toHaveBeenCalledWith(true);

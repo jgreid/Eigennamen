@@ -63,6 +63,9 @@ jobs:
       - name: Run ESLint
         run: npx eslint --ext .ts src/ --max-warnings 0
 
+      - name: Check Prettier formatting
+        run: npx prettier --check "src/**/*.ts" "e2e/**/*.js"
+
   # ── Type check ─────────────────────────────────────────────────────────
   typecheck:
     name: Typecheck

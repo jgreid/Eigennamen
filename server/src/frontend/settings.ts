@@ -26,13 +26,17 @@ export function openSettings(): void {
     const allowedModes = ['default', 'combined', 'custom'];
     const savedMode = allowedModes.includes(rawSavedMode ?? '') ? rawSavedMode : 'combined';
     const escapedMode = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(savedMode ?? '') : (savedMode ?? '');
-    const modeRadio = document.querySelector(`input[name="wordlist-mode"][value="${escapedMode}"]`) as HTMLInputElement | null;
+    const modeRadio = document.querySelector(
+        `input[name="wordlist-mode"][value="${escapedMode}"]`
+    ) as HTMLInputElement | null;
     if (modeRadio) {
         modeRadio.checked = true;
         // Update selected class for older browsers
         const radios = document.querySelectorAll('input[name="wordlist-mode"]');
-        radios.forEach(r => {
-            (r as HTMLInputElement).closest('.radio-option')?.classList.toggle('selected', (r as HTMLInputElement).checked);
+        radios.forEach((r) => {
+            (r as HTMLInputElement)
+                .closest('.radio-option')
+                ?.classList.toggle('selected', (r as HTMLInputElement).checked);
         });
     }
 
@@ -51,13 +55,13 @@ export function closeSettings(): void {
 export function switchSettingsPanel(panelId: string): void {
     // Update nav items
     const navItems = document.querySelectorAll('.settings-nav-item');
-    navItems.forEach(item => {
+    navItems.forEach((item) => {
         item.classList.toggle('active', (item as HTMLElement).dataset.panel === panelId);
     });
 
     // Update panels
     const panels = document.querySelectorAll('.settings-panel');
-    panels.forEach(panel => {
+    panels.forEach((panel) => {
         panel.classList.toggle('active', panel.id === `panel-${panelId}`);
     });
 
@@ -77,7 +81,7 @@ export function initSettingsNav(): void {
     settingsNavInitialized = true;
 
     const navItems = document.querySelectorAll('.settings-nav-item');
-    navItems.forEach(item => {
+    navItems.forEach((item) => {
         item.addEventListener('click', () => {
             switchSettingsPanel((item as HTMLElement).dataset.panel || '');
         });
@@ -109,7 +113,11 @@ export function updateWordCount(): void {
             countEl.textContent = t('wordList.usingDefault', { count: DEFAULT_WORDS.length });
         } else {
             const totalUnique = new Set([...DEFAULT_WORDS, ...words]).size;
-            countEl.textContent = t('wordList.customPlusDefault', { custom: count, default: DEFAULT_WORDS.length, total: totalUnique });
+            countEl.textContent = t('wordList.customPlusDefault', {
+                custom: count,
+                default: DEFAULT_WORDS.length,
+                total: totalUnique,
+            });
         }
         countEl.className = 'word-count';
         if (errorEl) errorEl.classList.remove('visible');
@@ -146,9 +154,9 @@ export function parseWords(text: string): string[] {
     // FIX: Handle Windows \r\n line endings to prevent empty entries
     const words = text
         .split(/\r?\n/)
-        .map(w => w.trim())
-        .filter(w => w.length > 0 && !w.startsWith('#'))
-        .map(w => w.substring(0, MAX_WORD_LENGTH).toUpperCase());
+        .map((w) => w.trim())
+        .filter((w) => w.length > 0 && !w.startsWith('#'))
+        .map((w) => w.substring(0, MAX_WORD_LENGTH).toUpperCase());
     // Cap at MAX_WORD_LIST_SIZE to prevent memory issues
     return words.slice(0, MAX_WORD_LIST_SIZE);
 }
@@ -220,7 +228,11 @@ export function saveSettings(): void {
     closeSettings();
 
     if (storageFailed) {
-        showToast(t('settings.storageFailed') || 'Settings applied but could not be saved. They will be lost on reload.', 'warning', 6000);
+        showToast(
+            t('settings.storageFailed') || 'Settings applied but could not be saved. They will be lost on reload.',
+            'warning',
+            6000
+        );
     }
 }
 
@@ -234,8 +246,10 @@ export function resetWords(): void {
         combinedRadio.checked = true;
         // Update selected class for older browsers
         const radios = document.querySelectorAll('input[name="wordlist-mode"]');
-        radios.forEach(r => {
-            (r as HTMLInputElement).closest('.radio-option')?.classList.toggle('selected', (r as HTMLInputElement).checked);
+        radios.forEach((r) => {
+            (r as HTMLInputElement)
+                .closest('.radio-option')
+                ?.classList.toggle('selected', (r as HTMLInputElement).checked);
         });
     }
 
@@ -314,7 +328,7 @@ export async function tryLoadWordlistFile(): Promise<void> {
 // Initialize selected class on page load
 export function initRadioOptionStyles(): void {
     const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
-    wordlistModeRadios.forEach(r => {
+    wordlistModeRadios.forEach((r) => {
         (r as HTMLInputElement).closest('.radio-option')?.classList.toggle('selected', (r as HTMLInputElement).checked);
     });
 }
@@ -328,11 +342,13 @@ export function initSettingsListeners(): void {
 
     // Add event listeners for word list mode radio buttons
     const wordlistModeRadios = document.querySelectorAll('input[name="wordlist-mode"]');
-    wordlistModeRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
+    wordlistModeRadios.forEach((radio) => {
+        radio.addEventListener('change', function () {
             // Update selected class for older browser support
-            wordlistModeRadios.forEach(r => {
-                (r as HTMLInputElement).closest('.radio-option')?.classList.toggle('selected', (r as HTMLInputElement).checked);
+            wordlistModeRadios.forEach((r) => {
+                (r as HTMLInputElement)
+                    .closest('.radio-option')
+                    ?.classList.toggle('selected', (r as HTMLInputElement).checked);
             });
             updateWordCount();
         });

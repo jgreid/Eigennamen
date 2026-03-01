@@ -19,6 +19,7 @@ cd server && npm test               # All tests (backend + frontend)
 cd server && npm run test:frontend  # Frontend tests only
 cd server && npm run test:e2e       # Playwright E2E tests
 cd server && npm run lint           # ESLint
+cd server && npm run format:check   # Prettier check
 cd server && npm run typecheck      # TypeScript check
 cd server && npm run test:coverage  # Coverage report
 ```
@@ -37,7 +38,7 @@ Eigennamen/
     │   └── admin.html          # Admin dashboard
     ├── src/
     │   ├── index.ts            # Server entry point
-    │   ├── app.ts              # Express + Swagger setup
+    │   ├── app.ts              # Express 5 + Swagger setup
     │   ├── config/             # Configuration (constants.ts re-exports all)
     │   ├── errors/             # GameError hierarchy
     │   ├── middleware/          # Express + socket auth middleware
@@ -55,8 +56,8 @@ Eigennamen/
     │   ├── types/              # TypeScript definitions
     │   ├── utils/              # Utilities
     │   ├── validators/         # Zod schemas
-    │   ├── scripts/            # Redis Lua scripts (atomic ops)
-    │   └── __tests__/          # Jest tests (126 suites)
+    │   ├── scripts/            # Redis Lua scripts (23 atomic ops)
+    │   └── __tests__/          # Jest tests (133 suites)
     └── e2e/                    # Playwright E2E tests (9 specs)
 ```
 
@@ -79,6 +80,11 @@ All paths relative to `server/src/`.
 - **Files**: camelCase — **Classes**: PascalCase — **Events**: colon-separated (`game:start`)
 - **Error Codes**: SCREAMING_SNAKE_CASE (`ROOM_NOT_FOUND`)
 
+### Formatting
+- **Prettier** enforces formatting (4-space indent, single quotes, semicolons, 120 char width)
+- **ESLint** enforces code quality (`@typescript-eslint/no-explicit-any` is `warn` for all code including frontend)
+- Run `npm run format` to auto-format, `npm run format:check` to verify
+
 ### Architecture Patterns
 1. **Service Layer**: Business logic in `services/`, handlers delegate to services
 2. **Context Handler**: `socket/contextHandler.ts` validates, rate-limits, resolves player context
@@ -92,6 +98,8 @@ All paths relative to `server/src/`.
 - **Return null** only for "resource not found" (key doesn't exist in Redis)
 - **Catch gracefully** in non-critical paths (history, cleanup, TTL refresh)
 - Audit/history services use log-and-continue (never break game flow)
+- **Error detail allowlist**: `errorHandler.ts` only exposes `roomCode`, `team`, `index`, `max`, `recoverable`, `suggestion`, `retryable` to clients — all other detail fields are stripped
+- **Production Zod scrubbing**: Validation error field paths are stripped in production to prevent schema disclosure
 
 ### Data Flow
 Client event → Zod validation → rate limiter → context handler → service → Redis → broadcast via `safeEmit`
@@ -105,6 +113,8 @@ Client event → Zod validation → rate limiter → context handler → service
 4. Register in `socket/index.ts`
 5. Add client handling in `frontend/handlers/`
 
+See [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) for a full worked example.
+
 ### Adding a New REST Endpoint
 1. Add route in `routes/` (register in `routes/index.ts`)
 2. Add validation middleware
@@ -112,7 +122,7 @@ Client event → Zod validation → rate limiter → context handler → service
 4. Update Swagger spec in `config/swagger.ts`
 
 ### Modifying Game Rules
-1. Update constants in `config/gameConfig.ts`
+1. Update constants in `shared/gameRules.ts` or `config/gameConfig.ts`
 2. Modify logic in `services/gameService.ts`
 3. Update client in `frontend/game.ts` if needed
 4. Add/update tests
@@ -123,7 +133,8 @@ Client event → Zod validation → rate limiter → context handler → service
 |------|----------------|
 | `config/constants.ts` | Re-exports all config (game, errors, room, socket, security) |
 | `config/socketConfig.ts` | All WebSocket event names |
-| `config/gameConfig.ts` | Game modes (Classic, Blitz, Duet), board layout, PRNG |
+| `config/gameConfig.ts` | Game modes (Classic, Duet, Match), board layout, PRNG |
+| `shared/gameRules.ts` | Game mode rules shared between frontend and backend |
 | `services/gameService.ts` | Core game logic, Mulberry32 PRNG |
 | `services/playerService.ts` | Player CRUD, reconnection tokens |
 | `socket/handlers/` | Event handlers (game, room, player, timer, chat) |
@@ -132,7 +143,7 @@ Client event → Zod validation → rate limiter → context handler → service
 | `middleware/socketAuth.ts` | Auth orchestrator |
 | `errors/GameError.ts` | Error class hierarchy |
 | `validators/schemas.ts` | Barrel for all Zod schemas |
-| `scripts/index.ts` | All Lua scripts (barrel export) |
+| `scripts/index.ts` | All Lua scripts (barrel export, each script has documented KEYS/ARGV/Returns header) |
 | `frontend/app.ts` | Frontend entry point |
 | `frontend/state.ts` | Frontend state management |
 | `frontend/store/` | Reactive state store with actions and selectors |
@@ -152,6 +163,8 @@ Key env vars (see `server/.env.example` for full list):
 
 - [QUICKSTART.md](QUICKSTART.md) — Getting started
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Code standards, PR process
+- [CONTRIBUTING_QUICK.md](CONTRIBUTING_QUICK.md) — 1-page quick-start contributor guide
+- [docs/ADDING_A_FEATURE.md](docs/ADDING_A_FEATURE.md) — Worked example of adding a socket event
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — System architecture
 - [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) — API specification (REST + WebSocket)
 - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) — Testing patterns and coverage

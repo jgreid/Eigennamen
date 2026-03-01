@@ -1,8 +1,5 @@
 import { state, ROLE_BANNER_CONFIG } from './state.js';
-import {
-    isSpymaster, isClicker as isClickerSelector,
-    canActAsClicker, isClickerFallback
-} from './store/selectors.js';
+import { isSpymaster, isClicker as isClickerSelector, canActAsClicker, isClickerFallback } from './store/selectors.js';
 import { escapeHTML } from './utils.js';
 import { showToast, announceToScreenReader } from './ui.js';
 import { renderBoard } from './board.js';
@@ -169,7 +166,10 @@ export function updateControls(): void {
         // Enable only if on a team and not currently changing role
         spymasterBtn.disabled = !state.playerTeam || isChangingRole();
         spymasterBtn.classList.toggle('active', isSpy);
-        spymasterBtn.classList.toggle('loading', isChangingRole() && (changingTarget() === 'spymaster' || pendingRole() === 'spymaster'));
+        spymasterBtn.classList.toggle(
+            'loading',
+            isChangingRole() && (changingTarget() === 'spymaster' || pendingRole() === 'spymaster')
+        );
         spymasterBtn.classList.remove('red-team', 'blue-team');
         if (state.playerTeam) {
             spymasterBtn.classList.add(state.playerTeam + '-team');
@@ -180,7 +180,10 @@ export function updateControls(): void {
         // Enable only if on a team and not currently changing role
         clickerBtn.disabled = !state.playerTeam || isChangingRole();
         clickerBtn.classList.toggle('active', isClickerRole);
-        clickerBtn.classList.toggle('loading', isChangingRole() && (changingTarget() === 'clicker' || pendingRole() === 'clicker'));
+        clickerBtn.classList.toggle(
+            'loading',
+            isChangingRole() && (changingTarget() === 'clicker' || pendingRole() === 'clicker')
+        );
         clickerBtn.classList.remove('red-team', 'blue-team');
         if (state.playerTeam) {
             clickerBtn.classList.add(state.playerTeam + '-team');
@@ -247,7 +250,7 @@ export function setTeam(team: string | null): void {
                 state.spymasterTeam = prevSpymaster;
                 state.clickerTeam = prevClicker;
                 refreshRoleUI();
-            }
+            },
         };
         refreshRoleUI();
 
@@ -267,7 +270,7 @@ export function setTeam(team: string | null): void {
     // Standalone mode: update local state directly
     // When changing teams, clear any team-specific roles
     const hadRole = state.spymasterTeam || state.clickerTeam;
-    const oldRole = state.spymasterTeam ? t('roles.spymaster') : (state.clickerTeam ? t('roles.clicker') : null);
+    const oldRole = state.spymasterTeam ? t('roles.spymaster') : state.clickerTeam ? t('roles.clicker') : null;
 
     if (state.playerTeam !== team) {
         if (state.spymasterTeam) state.spymasterTeam = null;
@@ -279,7 +282,9 @@ export function setTeam(team: string | null): void {
     // Announce role change to screen reader if role was cleared
     if (hadRole && oldRole) {
         // Use nullish coalescing for safe team name access
-        const teamName = (team && state.teamNames[team as keyof typeof state.teamNames]) || (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : t('roles.spectator'));
+        const teamName =
+            (team && state.teamNames[team as keyof typeof state.teamNames]) ||
+            (team === 'red' ? 'Red' : team === 'blue' ? 'Blue' : t('roles.spectator'));
         announceToScreenReader(t('game.roleCleared', { role: oldRole, team: teamName }));
     }
 }
@@ -357,7 +362,13 @@ function setRoleForTeam(
             EigennamenClient.setRole('spectator', ackHandler);
         } else if (prevTeam !== team) {
             // Need team change first, then role
-            state.roleChange = { phase: 'team_then_role', target: roleName, operationId, revertFn: revertOptimistic, pendingRole: roleName };
+            state.roleChange = {
+                phase: 'team_then_role',
+                target: roleName,
+                operationId,
+                revertFn: revertOptimistic,
+                pendingRole: roleName,
+            };
             EigennamenClient.setTeam(team, ackHandler);
         } else {
             // Already on correct team, just change role
@@ -385,19 +396,29 @@ function setRoleForTeam(
 
 export function setSpymaster(team: string): void {
     setRoleForTeam(
-        team, 'spymaster',
+        team,
+        'spymaster',
         () => state.spymasterTeam,
-        (v) => { state.spymasterTeam = v; },
-        () => { state.clickerTeam = null; }
+        (v) => {
+            state.spymasterTeam = v;
+        },
+        () => {
+            state.clickerTeam = null;
+        }
     );
 }
 
 export function setClicker(team: string): void {
     setRoleForTeam(
-        team, 'clicker',
+        team,
+        'clicker',
         () => state.clickerTeam,
-        (v) => { state.clickerTeam = v; },
-        () => { state.spymasterTeam = null; }
+        (v) => {
+            state.clickerTeam = v;
+        },
+        () => {
+            state.spymasterTeam = null;
+        }
     );
 }
 

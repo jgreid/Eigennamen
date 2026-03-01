@@ -2,19 +2,16 @@
  * Audit Logging Tests
  */
 
-const {
-    AUDIT_EVENTS,
-    audit
-} = require('../../utils/audit');
+const { AUDIT_EVENTS, audit } = require('../../utils/audit');
 
 // Mock the logger
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn()
+    info: jest.fn(),
 }));
 
 // Mock correlationId
 jest.mock('../../utils/correlationId', () => ({
-    getCorrelationId: jest.fn().mockReturnValue('test-correlation-id')
+    getCorrelationId: jest.fn().mockReturnValue('test-correlation-id'),
 }));
 
 const logger = require('../../utils/logger');
@@ -39,7 +36,7 @@ describe('Audit Logging', () => {
         test('logs audit event with required fields', () => {
             const result = audit(AUDIT_EVENTS.GAME_STARTED, {
                 roomCode: 'ABCDEF',
-                sessionId: 'session-123'
+                sessionId: 'session-123',
             });
 
             expect(result.type).toBe('AUDIT');
@@ -62,7 +59,7 @@ describe('Audit Logging', () => {
         test('includes metadata in log', () => {
             const result = audit(AUDIT_EVENTS.GAME_ENDED, {
                 roomCode: 'XYZABC',
-                metadata: { winner: 'red', duration: 300 }
+                metadata: { winner: 'red', duration: 300 },
             });
 
             expect(result.metadata.winner).toBe('red');

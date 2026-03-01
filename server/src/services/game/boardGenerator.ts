@@ -12,7 +12,7 @@ import {
     CARD_SCORE_DISTRIBUTION,
     BOARD_VALUE_MIN,
     BOARD_VALUE_MAX,
-    ASSASSIN_SCORE_POOL
+    ASSASSIN_SCORE_POOL,
 } from '../../config/constants';
 
 /**
@@ -21,7 +21,7 @@ import {
  * Must stay in sync with client-side implementation in index.html
  */
 export function seededRandom(seed: number): number {
-    let t = (seed + 0x6D2B79F5) | 0;
+    let t = (seed + 0x6d2b79f5) | 0;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -36,7 +36,7 @@ export function hashString(str: string): number {
     for (const char of str) {
         const codePoint = char.codePointAt(0);
         if (codePoint !== undefined) {
-            hash = ((hash << 5) - hash) + codePoint;
+            hash = (hash << 5) - hash + codePoint;
             hash = hash & hash;
         }
     }
@@ -68,8 +68,7 @@ export function generateSeed(): string {
     try {
         return crypto.randomBytes(6).toString('hex');
     } catch {
-        return Math.random().toString(36).substring(2, 10) +
-               Math.random().toString(36).substring(2, 6);
+        return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
     }
 }
 
@@ -79,22 +78,37 @@ export function generateSeed(): string {
  * Side B (duetTypes[]): 9 green (as 'blue'), 3 assassin, 13 bystander (as 'neutral')
  */
 export function generateDuetBoard(seed: number): { types: CardType[]; duetTypes: CardType[] } {
-    const { greenOverlap, greenOnlyA, greenOnlyB, assassinOverlap, assassinOnlyA, assassinOnlyB, bystanderBoth } = DUET_BOARD_CONFIG;
+    const { greenOverlap, greenOnlyA, greenOnlyB, assassinOverlap, assassinOnlyA, assassinOnlyB, bystanderBoth } =
+        DUET_BOARD_CONFIG;
 
     const pairs: [CardType, CardType][] = [
-        ...Array(greenOverlap).fill(null).map((): [CardType, CardType] => ['red', 'blue']),
-        ...Array(greenOnlyA).fill(null).map((): [CardType, CardType] => ['red', 'neutral']),
-        ...Array(greenOnlyB).fill(null).map((): [CardType, CardType] => ['neutral', 'blue']),
-        ...Array(assassinOverlap).fill(null).map((): [CardType, CardType] => ['assassin', 'assassin']),
-        ...Array(assassinOnlyA).fill(null).map((): [CardType, CardType] => ['assassin', 'neutral']),
-        ...Array(assassinOnlyB).fill(null).map((): [CardType, CardType] => ['neutral', 'assassin']),
-        ...Array(bystanderBoth).fill(null).map((): [CardType, CardType] => ['neutral', 'neutral'])
+        ...Array(greenOverlap)
+            .fill(null)
+            .map((): [CardType, CardType] => ['red', 'blue']),
+        ...Array(greenOnlyA)
+            .fill(null)
+            .map((): [CardType, CardType] => ['red', 'neutral']),
+        ...Array(greenOnlyB)
+            .fill(null)
+            .map((): [CardType, CardType] => ['neutral', 'blue']),
+        ...Array(assassinOverlap)
+            .fill(null)
+            .map((): [CardType, CardType] => ['assassin', 'assassin']),
+        ...Array(assassinOnlyA)
+            .fill(null)
+            .map((): [CardType, CardType] => ['assassin', 'neutral']),
+        ...Array(assassinOnlyB)
+            .fill(null)
+            .map((): [CardType, CardType] => ['neutral', 'assassin']),
+        ...Array(bystanderBoth)
+            .fill(null)
+            .map((): [CardType, CardType] => ['neutral', 'neutral']),
     ];
 
     const shuffledPairs = shuffleWithSeed(pairs, seed);
 
-    const types: CardType[] = shuffledPairs.map(p => p[0]);
-    const duetTypes: CardType[] = shuffledPairs.map(p => p[1]);
+    const types: CardType[] = shuffledPairs.map((p) => p[0]);
+    const duetTypes: CardType[] = shuffledPairs.map((p) => p[1]);
 
     return { types, duetTypes };
 }
@@ -111,7 +125,8 @@ export interface BoardLayout {
  * Generate a complete board layout given a seed and game mode
  */
 export function generateBoardLayout(numericSeed: number, isDuet: boolean): BoardLayout {
-    const firstTeam: 'red' | 'blue' = seededRandom(numericSeed + GAME_INTERNALS.FIRST_TEAM_SEED_OFFSET) > 0.5 ? 'red' : 'blue';
+    const firstTeam: 'red' | 'blue' =
+        seededRandom(numericSeed + GAME_INTERNALS.FIRST_TEAM_SEED_OFFSET) > 0.5 ? 'red' : 'blue';
 
     if (isDuet) {
         const duetBoard = generateDuetBoard(numericSeed + GAME_INTERNALS.TYPES_SHUFFLE_SEED_OFFSET);
@@ -120,7 +135,7 @@ export function generateBoardLayout(numericSeed: number, isDuet: boolean): Board
             duetTypes: duetBoard.duetTypes,
             redTotal: DUET_BOARD_CONFIG.greenOverlap + DUET_BOARD_CONFIG.greenOnlyA,
             blueTotal: DUET_BOARD_CONFIG.greenOverlap + DUET_BOARD_CONFIG.greenOnlyB,
-            firstTeam
+            firstTeam,
         };
     }
 
@@ -130,20 +145,20 @@ export function generateBoardLayout(numericSeed: number, isDuet: boolean): Board
 
     if (firstTeam === 'red') {
         types = [
-            ...Array(FIRST_TEAM_CARDS).fill('red') as CardType[],
-            ...Array(SECOND_TEAM_CARDS).fill('blue') as CardType[]
+            ...(Array(FIRST_TEAM_CARDS).fill('red') as CardType[]),
+            ...(Array(SECOND_TEAM_CARDS).fill('blue') as CardType[]),
         ];
         redTotal = FIRST_TEAM_CARDS;
         blueTotal = SECOND_TEAM_CARDS;
     } else {
         types = [
-            ...Array(SECOND_TEAM_CARDS).fill('red') as CardType[],
-            ...Array(FIRST_TEAM_CARDS).fill('blue') as CardType[]
+            ...(Array(SECOND_TEAM_CARDS).fill('red') as CardType[]),
+            ...(Array(FIRST_TEAM_CARDS).fill('blue') as CardType[]),
         ];
         redTotal = SECOND_TEAM_CARDS;
         blueTotal = FIRST_TEAM_CARDS;
     }
-    types = [...types, ...Array(NEUTRAL_CARDS).fill('neutral') as CardType[], 'assassin'];
+    types = [...types, ...(Array(NEUTRAL_CARDS).fill('neutral') as CardType[]), 'assassin'];
 
     if (types.length !== BOARD_SIZE) {
         throw new Error(
@@ -216,11 +231,11 @@ export function generateCardScores(numericSeed: number, types: CardType[]): Card
 
         // Build non-assassin scores array
         const nonAssassinScores: number[] = [
-            ...Array(goldCount).fill(gold.score) as number[],
-            ...Array(silverCount).fill(silver.score) as number[],
-            ...Array(standardCount).fill(1) as number[],
-            ...Array(trapCount).fill(trap.score) as number[],
-            ...Array(blankCount).fill(0) as number[]
+            ...(Array(goldCount).fill(gold.score) as number[]),
+            ...(Array(silverCount).fill(silver.score) as number[]),
+            ...(Array(standardCount).fill(1) as number[]),
+            ...(Array(trapCount).fill(trap.score) as number[]),
+            ...(Array(blankCount).fill(0) as number[]),
         ];
 
         // Check board value constraint (all 25 cards including assassin)
@@ -252,11 +267,11 @@ export function generateCardScores(numericSeed: number, types: CardType[]): Card
     const assassinIndex = types.indexOf('assassin');
     const fallbackScores: number[] = [];
     const fallbackNonAssassin = [
-        ...Array(3).fill(3) as number[],
-        ...Array(5).fill(2) as number[],
-        ...Array(8).fill(1) as number[],
-        ...Array(2).fill(-1) as number[],
-        ...Array(6).fill(0) as number[]
+        ...(Array(3).fill(3) as number[]),
+        ...(Array(5).fill(2) as number[]),
+        ...(Array(8).fill(1) as number[]),
+        ...(Array(2).fill(-1) as number[]),
+        ...(Array(6).fill(0) as number[]),
     ];
     const shuffled = shuffleWithSeed(fallbackNonAssassin, scoreSeed + 99999);
     let si = 0;
@@ -269,4 +284,3 @@ export function generateCardScores(numericSeed: number, types: CardType[]): Card
     }
     return { cardScores: fallbackScores, assassinScore: -1 };
 }
-

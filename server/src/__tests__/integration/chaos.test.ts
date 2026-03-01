@@ -46,8 +46,7 @@ describe('Chaos/Resilience Tests', () => {
         it('should handle eval() (Lua script) failure gracefully', async () => {
             mockRedis.eval.mockRejectedValueOnce(new Error('NOSCRIPT'));
 
-            await expect(mockRedis.eval('invalid-script', { keys: [], arguments: [] }))
-                .rejects.toThrow('NOSCRIPT');
+            await expect(mockRedis.eval('invalid-script', { keys: [], arguments: [] })).rejects.toThrow('NOSCRIPT');
         });
     });
 
@@ -223,7 +222,11 @@ describe('Chaos/Resilience Tests', () => {
             // System should handle null timer data gracefully
             let parsed = null;
             if (result) {
-                try { parsed = JSON.parse(result); } catch { parsed = null; }
+                try {
+                    parsed = JSON.parse(result);
+                } catch {
+                    parsed = null;
+                }
             }
             expect(parsed).toBeNull();
         });
@@ -327,10 +330,7 @@ describe('Chaos/Resilience Tests', () => {
             await mockRedis.set(roomKey, JSON.stringify(initialData));
 
             // Two concurrent reads
-            const [read1, read2] = await Promise.all([
-                mockRedis.get(roomKey),
-                mockRedis.get(roomKey),
-            ]);
+            const [read1, read2] = await Promise.all([mockRedis.get(roomKey), mockRedis.get(roomKey)]);
 
             const data1 = JSON.parse(read1);
             const data2 = JSON.parse(read2);
@@ -359,9 +359,7 @@ describe('Chaos/Resilience Tests', () => {
             await mockRedis.set(key, 'target-value');
 
             // Simulate intermittent: fail twice, then succeed
-            mockRedis.get
-                .mockRejectedValueOnce(new Error('ETIMEDOUT'))
-                .mockRejectedValueOnce(new Error('ECONNRESET'));
+            mockRedis.get.mockRejectedValueOnce(new Error('ETIMEDOUT')).mockRejectedValueOnce(new Error('ECONNRESET'));
 
             // Retry logic
             let result = null;

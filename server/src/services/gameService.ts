@@ -6,7 +6,7 @@ import type {
     RevealResult,
     EndTurnResult,
     ForfeitResult,
-    RoundResult
+    RoundResult,
 } from '../types';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -21,14 +21,9 @@ import {
     DUET_BOARD_CONFIG,
     MATCH_TARGET,
     MATCH_WIN_MARGIN,
-    ROUND_WIN_BONUS
+    ROUND_WIN_BONUS,
 } from '../config/constants';
-import {
-    GameStateError,
-    ValidationError,
-    PlayerError,
-    RoomError
-} from '../errors/GameError';
+import { GameStateError, ValidationError, PlayerError, RoomError } from '../errors/GameError';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { toEnglishUpperCase } from '../utils/sanitize';
 import { tryParseJSON } from '../utils/parseJSON';
@@ -42,13 +37,10 @@ import {
     generateSeed,
     generateBoardLayout,
     selectBoardWords,
-    generateCardScores
+    generateCardScores,
 } from './game/boardGenerator';
 
-import {
-    validateCardIndex,
-    getGameStateForPlayer
-} from './game/revealEngine';
+import { validateCardIndex, getGameStateForPlayer } from './game/revealEngine';
 
 import type { RedisClient } from './game/luaGameOps';
 
@@ -60,7 +52,7 @@ import {
     executeLuaScript,
     executeGameTransaction,
     revealResultSchema,
-    endTurnResultSchema
+    endTurnResultSchema,
 } from './game/luaGameOps';
 
 // Re-export types for consumers
@@ -68,7 +60,6 @@ export type { CreateGameOptions, RevealResult, EndTurnResult, ForfeitResult };
 
 // Re-export getGameStateForPlayer from revealEngine for consumers that access it via gameService
 export { getGameStateForPlayer };
-
 
 /**
  * Add entry to game history with cap to prevent unbounded growth
@@ -91,11 +82,11 @@ async function resolveGameWords(
     let words: string[] = [...DEFAULT_WORDS];
 
     if (wordList && Array.isArray(wordList) && wordList.length >= BOARD_SIZE) {
-        const cleanedWords = [...new Set(
-            wordList
-                .map((w: string) => toEnglishUpperCase(String(w).trim()))
-                .filter((w: string) => w.length > 0)
-        )];
+        const cleanedWords = [
+            ...new Set(
+                wordList.map((w: string) => toEnglishUpperCase(String(w).trim())).filter((w: string) => w.length > 0)
+            ),
+        ];
         if (cleanedWords.length >= BOARD_SIZE) {
             words = cleanedWords;
             logger.info(`Using ${cleanedWords.length} custom words for room ${roomCode}`);
@@ -141,7 +132,7 @@ function buildGameState(
         clues: [],
         history: [],
         stateVersion: 1,
-        createdAt: Date.now()
+        createdAt: Date.now(),
     };
 
     if (isDuet) {
@@ -185,11 +176,7 @@ function buildGameState(
 /**
  * Persist game state to Redis and update room status.
  */
-async function persistGameState(
-    redis: RedisClient,
-    roomCode: string,
-    game: GameState
-): Promise<void> {
+async function persistGameState(redis: RedisClient, roomCode: string, game: GameState): Promise<void> {
     await withTimeout(
         redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM }),
         TIMEOUTS.REDIS_OPERATION,
@@ -200,14 +187,15 @@ async function persistGameState(
     // Retries on transient failure since an incorrect room status causes data inconsistency.
     try {
         await retryAsync(
-            () => withTimeout(
-                redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
-                    keys: [`room:${roomCode}`],
-                    arguments: ['playing', REDIS_TTL.ROOM.toString()]
-                }),
-                TIMEOUTS.REDIS_OPERATION,
-                `setRoomStatus-lua-${roomCode}`
-            ),
+            () =>
+                withTimeout(
+                    redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
+                        keys: [`room:${roomCode}`],
+                        arguments: ['playing', REDIS_TTL.ROOM.toString()],
+                    }),
+                    TIMEOUTS.REDIS_OPERATION,
+                    `setRoomStatus-lua-${roomCode}`
+                ),
             { maxRetries: 2, baseDelayMs: 100, operationName: `setRoomStatus-${roomCode}` }
         );
     } catch (e) {
@@ -224,41 +212,42 @@ async function persistGameState(
 /**
  * Create a new game for a room
  */
-export async function createGame(
-    roomCode: string,
-    options: CreateGameOptions = {}
-): Promise<GameState> {
-    return withLock(`game-create:${roomCode}`, async () => {
-        const redis: RedisClient = getRedis();
+export async function createGame(roomCode: string, options: CreateGameOptions = {}): Promise<GameState> {
+    return withLock(
+        `game-create:${roomCode}`,
+        async () => {
+            const redis: RedisClient = getRedis();
 
-        const existingGame = await getGame(roomCode);
-        if (existingGame && !existingGame.gameOver) {
-            throw RoomError.gameInProgress(roomCode);
-        }
+            const existingGame = await getGame(roomCode);
+            if (existingGame && !existingGame.gameOver) {
+                throw RoomError.gameInProgress(roomCode);
+            }
 
-        const preCheckRoomData = await withTimeout(
-            redis.get(`room:${roomCode}`),
-            TIMEOUTS.REDIS_OPERATION,
-            `createGame-roomCheck-${roomCode}`
-        );
-        if (!preCheckRoomData) {
-            throw RoomError.notFound(roomCode);
-        }
+            const preCheckRoomData = await withTimeout(
+                redis.get(`room:${roomCode}`),
+                TIMEOUTS.REDIS_OPERATION,
+                `createGame-roomCheck-${roomCode}`
+            );
+            if (!preCheckRoomData) {
+                throw RoomError.notFound(roomCode);
+            }
 
-        const seed = generateSeed();
-        const numericSeed = hashString(seed);
-        const isDuet = options.gameMode === 'duet';
+            const seed = generateSeed();
+            const numericSeed = hashString(seed);
+            const isDuet = options.gameMode === 'duet';
 
-        const { words, usedWordListId } = await resolveGameWords(roomCode, options);
-        const boardWords = selectBoardWords(words, numericSeed);
-        const layout = generateBoardLayout(numericSeed, isDuet);
-        const game = buildGameState(seed, usedWordListId, boardWords, layout, options);
+            const { words, usedWordListId } = await resolveGameWords(roomCode, options);
+            const boardWords = selectBoardWords(words, numericSeed);
+            const layout = generateBoardLayout(numericSeed, isDuet);
+            const game = buildGameState(seed, usedWordListId, boardWords, layout, options);
 
-        await persistGameState(redis, roomCode, game);
+            await persistGameState(redis, roomCode, game);
 
-        logger.info(`Game created for room ${roomCode} with seed ${seed}`);
-        return game;
-    }, { lockTimeout: LOCKS.GAME_CREATE * 1000, maxRetries: 10 });
+            logger.info(`Game created for room ${roomCode} with seed ${seed}`);
+            return game;
+        },
+        { lockTimeout: LOCKS.GAME_CREATE * 1000, maxRetries: 10 }
+    );
 }
 
 /**
@@ -282,7 +271,6 @@ export async function getGame(roomCode: string): Promise<GameState | null> {
     return game;
 }
 
-
 /**
  * Reveal a card with distributed lock and atomic Lua execution
  */
@@ -296,33 +284,36 @@ export async function revealCard(
 
     validateCardIndex(index);
 
-    return withLock(`reveal:${roomCode}`, async () => {
-        const errorMap: Record<string, Error> = {
-            'NO_GAME': GameStateError.noActiveGame(),
-            'GAME_OVER': GameStateError.gameOver(),
-            'NO_GUESSES': new ValidationError('No guesses remaining this turn'),
-            'ALREADY_REVEALED': GameStateError.cardAlreadyRevealed(index),
-            'NOT_YOUR_TURN': PlayerError.notYourTurn(playerTeam),
-            'INVALID_INDEX': new ValidationError('Invalid card index')
-        };
+    return withLock(
+        `reveal:${roomCode}`,
+        async () => {
+            const errorMap: Record<string, Error> = {
+                NO_GAME: GameStateError.noActiveGame(),
+                GAME_OVER: GameStateError.gameOver(),
+                NO_GUESSES: new ValidationError('No guesses remaining this turn'),
+                ALREADY_REVEALED: GameStateError.cardAlreadyRevealed(index),
+                NOT_YOUR_TURN: PlayerError.notYourTurn(playerTeam),
+                INVALID_INDEX: new ValidationError('Invalid card index'),
+            };
 
-        return await executeLuaScript<RevealResult>(
-            OPTIMIZED_REVEAL_SCRIPT,
-            gameKey,
-            [
-                index.toString(),
-                Date.now().toString(),
-                playerNickname,
-                MAX_HISTORY_ENTRIES.toString(),
-                playerTeam || ''
-            ],
-            errorMap,
-            `revealCard-${roomCode}`,
-            revealResultSchema
-        );
-    }, { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 });
+            return await executeLuaScript<RevealResult>(
+                OPTIMIZED_REVEAL_SCRIPT,
+                gameKey,
+                [
+                    index.toString(),
+                    Date.now().toString(),
+                    playerNickname,
+                    MAX_HISTORY_ENTRIES.toString(),
+                    playerTeam || '',
+                ],
+                errorMap,
+                `revealCard-${roomCode}`,
+                revealResultSchema
+            );
+        },
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
+    );
 }
-
 
 /**
  * End the current turn — atomic Lua execution
@@ -335,9 +326,9 @@ export async function endTurn(
     const gameKey = `room:${roomCode}:game`;
 
     const luaErrorMap: Record<string, Error> = {
-        'NO_GAME': GameStateError.noActiveGame(),
-        'GAME_OVER': GameStateError.gameOver(),
-        'NOT_YOUR_TURN': PlayerError.notYourTurn(expectedTeam as Team)
+        NO_GAME: GameStateError.noActiveGame(),
+        GAME_OVER: GameStateError.gameOver(),
+        NOT_YOUR_TURN: PlayerError.notYourTurn(expectedTeam as Team),
     };
 
     return executeLuaScript<EndTurnResult>(
@@ -350,40 +341,44 @@ export async function endTurn(
     );
 }
 
-
 /**
  * Forfeit the game
  */
 export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult> {
     const gameKey = `room:${roomCode}:game`;
 
-    return executeGameTransaction(gameKey, (game: GameState) => {
-        if (game.gameOver) {
-            throw GameStateError.gameOver();
-        }
+    return executeGameTransaction(
+        gameKey,
+        (game: GameState) => {
+            if (game.gameOver) {
+                throw GameStateError.gameOver();
+            }
 
-        const forfeitingTeam: Team = (forfeitTeam === 'red' || forfeitTeam === 'blue') ? forfeitTeam : game.currentTurn;
-        game.gameOver = true;
+            const forfeitingTeam: Team =
+                forfeitTeam === 'red' || forfeitTeam === 'blue' ? forfeitTeam : game.currentTurn;
+            game.gameOver = true;
 
-        if (game.gameMode === 'duet') {
-            game.winner = null;
-        } else {
-            game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
-        }
+            if (game.gameMode === 'duet') {
+                game.winner = null;
+            } else {
+                game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
+            }
 
-        addToHistory(game, {
-            action: 'forfeit',
-            forfeitingTeam,
-            winner: game.winner,
-            timestamp: Date.now()
-        });
+            addToHistory(game, {
+                action: 'forfeit',
+                forfeitingTeam,
+                winner: game.winner,
+                timestamp: Date.now(),
+            });
 
-        return {
-            winner: game.winner,
-            forfeitingTeam,
-            allTypes: game.types
-        };
-    }, 'forfeitGame');
+            return {
+                winner: game.winner,
+                forfeitingTeam,
+                allTypes: game.types,
+            };
+        },
+        'forfeitGame'
+    );
 }
 
 /**
@@ -391,11 +386,7 @@ export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise
  */
 export async function cleanupGame(roomCode: string): Promise<void> {
     const redis: RedisClient = getRedis();
-    await withTimeout(
-        redis.del(`room:${roomCode}:game`),
-        TIMEOUTS.REDIS_OPERATION,
-        `cleanupGame-${roomCode}`
-    );
+    await withTimeout(redis.del(`room:${roomCode}:game`), TIMEOUTS.REDIS_OPERATION, `cleanupGame-${roomCode}`);
     logger.info(`Game data cleaned up for room ${roomCode}`);
 }
 
@@ -445,8 +436,16 @@ export function finalizeRound(game: GameState): RoundResult {
         blueRoundScore: blueRoundTotal,
         redBonusAwarded: redBonus,
         blueBonusAwarded: blueBonus,
-        endReason: game.history?.slice().reverse().find((h: { action: string }) => h.action === 'reveal' || h.action === 'forfeit')?.action === 'forfeit' ? 'forfeit' : (roundWinner ? 'completed' : 'assassin'),
-        completedAt: Date.now()
+        endReason:
+            game.history
+                ?.slice()
+                .reverse()
+                .find((h: { action: string }) => h.action === 'reveal' || h.action === 'forfeit')?.action === 'forfeit'
+                ? 'forfeit'
+                : roundWinner
+                  ? 'completed'
+                  : 'assassin',
+        completedAt: Date.now(),
     };
 
     // Push to round history
@@ -494,21 +493,25 @@ export async function finalizeMatchRound(roomCode: string): Promise<MatchRoundFi
 
     const gameKey = `room:${roomCode}:game`;
 
-    return executeGameTransaction(gameKey, (game: GameState) => {
-        if (game.gameMode !== 'match') return null;
+    return executeGameTransaction(
+        gameKey,
+        (game: GameState) => {
+            if (game.gameMode !== 'match') return null;
 
-        const roundResult = finalizeRound(game);
-        // game is mutated by finalizeRound; executeGameTransaction persists it
-        return {
-            roundResult,
-            matchOver: game.matchOver ?? false,
-            matchWinner: game.matchWinner ?? null,
-            redMatchScore: game.redMatchScore ?? 0,
-            blueMatchScore: game.blueMatchScore ?? 0,
-            roundHistory: game.roundHistory ?? [],
-            matchRound: game.matchRound ?? 1
-        };
-    }, 'finalizeMatchRound');
+            const roundResult = finalizeRound(game);
+            // game is mutated by finalizeRound; executeGameTransaction persists it
+            return {
+                roundResult,
+                matchOver: game.matchOver ?? false,
+                matchWinner: game.matchWinner ?? null,
+                redMatchScore: game.redMatchScore ?? 0,
+                blueMatchScore: game.blueMatchScore ?? 0,
+                roundHistory: game.roundHistory ?? [],
+                matchRound: game.matchRound ?? 1,
+            };
+        },
+        'finalizeMatchRound'
+    );
 }
 
 /**
@@ -520,50 +523,54 @@ export async function startNextRound(
     currentGame: GameState,
     options: CreateGameOptions = {}
 ): Promise<GameState> {
-    return withLock(`game-create:${roomCode}`, async () => {
-        const redis: RedisClient = getRedis();
+    return withLock(
+        `game-create:${roomCode}`,
+        async () => {
+            const redis: RedisClient = getRedis();
 
-        if (!currentGame.gameOver) {
-            throw new Error('Current round is still in progress');
-        }
-        if (currentGame.matchOver) {
-            throw new Error('Match is already over');
-        }
-
-        const nextRound = (currentGame.matchRound ?? 1) + 1;
-
-        const seed = generateSeed();
-        const numericSeed = hashString(seed);
-
-        const { words, usedWordListId } = await resolveGameWords(roomCode, options);
-        const boardWords = selectBoardWords(words, numericSeed);
-        const layout = generateBoardLayout(numericSeed, false);
-
-        // Explicitly alternate first team based on previous round
-        const previousFirstTeam = currentGame.firstTeamHistory?.slice(-1)[0];
-        if (previousFirstTeam) {
-            layout.firstTeam = previousFirstTeam === 'red' ? 'blue' : 'red';
-        }
-
-        const matchOptions: CreateGameOptions = {
-            ...options,
-            gameMode: 'match',
-            matchCarryOver: {
-                matchRound: nextRound,
-                redMatchScore: currentGame.redMatchScore ?? 0,
-                blueMatchScore: currentGame.blueMatchScore ?? 0,
-                roundHistory: currentGame.roundHistory ?? [],
-                firstTeamHistory: currentGame.firstTeamHistory ?? []
+            if (!currentGame.gameOver) {
+                throw new Error('Current round is still in progress');
             }
-        };
+            if (currentGame.matchOver) {
+                throw new Error('Match is already over');
+            }
 
-        const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions);
+            const nextRound = (currentGame.matchRound ?? 1) + 1;
 
-        await persistGameState(redis, roomCode, game);
+            const seed = generateSeed();
+            const numericSeed = hashString(seed);
 
-        logger.info(`Match round ${nextRound} started for room ${roomCode} with seed ${seed}`);
-        return game;
-    }, { lockTimeout: LOCKS.GAME_CREATE * 1000, maxRetries: 10 });
+            const { words, usedWordListId } = await resolveGameWords(roomCode, options);
+            const boardWords = selectBoardWords(words, numericSeed);
+            const layout = generateBoardLayout(numericSeed, false);
+
+            // Explicitly alternate first team based on previous round
+            const previousFirstTeam = currentGame.firstTeamHistory?.slice(-1)[0];
+            if (previousFirstTeam) {
+                layout.firstTeam = previousFirstTeam === 'red' ? 'blue' : 'red';
+            }
+
+            const matchOptions: CreateGameOptions = {
+                ...options,
+                gameMode: 'match',
+                matchCarryOver: {
+                    matchRound: nextRound,
+                    redMatchScore: currentGame.redMatchScore ?? 0,
+                    blueMatchScore: currentGame.blueMatchScore ?? 0,
+                    roundHistory: currentGame.roundHistory ?? [],
+                    firstTeamHistory: currentGame.firstTeamHistory ?? [],
+                },
+            };
+
+            const game = buildGameState(seed, usedWordListId, boardWords, layout, matchOptions);
+
+            await persistGameState(redis, roomCode, game);
+
+            logger.info(`Match round ${nextRound} started for room ${roomCode} with seed ${seed}`);
+            return game;
+        },
+        { lockTimeout: LOCKS.GAME_CREATE * 1000, maxRetries: 10 }
+    );
 }
 
 // Re-export for consumers

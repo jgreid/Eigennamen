@@ -1,20 +1,7 @@
-import type {
-    Team,
-    CardType,
-    GameState,
-    RevealResult,
-    Player,
-    PlayerGameState
-} from '../../types';
+import type { Team, CardType, GameState, RevealResult, Player, PlayerGameState } from '../../types';
 
-import {
-    BOARD_SIZE,
-    DUET_BOARD_CONFIG
-} from '../../config/constants';
-import {
-    GameStateError,
-    ValidationError
-} from '../../errors/GameError';
+import { BOARD_SIZE, DUET_BOARD_CONFIG } from '../../config/constants';
+import { GameStateError, ValidationError } from '../../errors/GameError';
 
 /**
  * Reveal outcome determination (internal)
@@ -28,8 +15,13 @@ interface RevealOutcome {
  * Validate card index bounds
  */
 export function validateCardIndex(index: number): void {
-    if (typeof index !== 'number' || !Number.isFinite(index) ||
-        index < 0 || index >= BOARD_SIZE || !Number.isInteger(index)) {
+    if (
+        typeof index !== 'number' ||
+        !Number.isFinite(index) ||
+        index < 0 ||
+        index >= BOARD_SIZE ||
+        !Number.isInteger(index)
+    ) {
         throw ValidationError.invalidCardIndex(index, BOARD_SIZE);
     }
 }
@@ -73,7 +65,9 @@ export function executeCardReveal(game: GameState, index: number): CardType {
     if (game.gameMode === 'duet') {
         if (game.currentTurn === 'blue' && game.duetTypes) {
             if (index >= game.duetTypes.length) {
-                throw GameStateError.corrupted(`duetTypes array too short (length ${game.duetTypes.length}, index ${index})`);
+                throw GameStateError.corrupted(
+                    `duetTypes array too short (length ${game.duetTypes.length}, index ${index})`
+                );
             }
             type = game.duetTypes[index] as CardType;
         } else {
@@ -115,11 +109,7 @@ export function switchTurn(game: GameState): void {
 /**
  * Determine the outcome of revealing a card
  */
-export function determineRevealOutcome(
-    game: GameState,
-    cardType: CardType,
-    revealingTeam: Team
-): RevealOutcome {
+export function determineRevealOutcome(game: GameState, cardType: CardType, revealingTeam: Team): RevealOutcome {
     const outcome: RevealOutcome = { turnEnded: false, endReason: null };
 
     if (game.gameMode === 'duet') {
@@ -170,11 +160,7 @@ export function determineRevealOutcome(
 /**
  * Determine reveal outcome for Duet mode (cooperative rules)
  */
-function determineDuetRevealOutcome(
-    game: GameState,
-    cardType: CardType,
-    outcome: RevealOutcome
-): RevealOutcome {
+function determineDuetRevealOutcome(game: GameState, cardType: CardType, outcome: RevealOutcome): RevealOutcome {
     if (cardType === 'assassin') {
         game.gameOver = true;
         game.winner = null;
@@ -226,9 +212,7 @@ export function buildRevealResult(
     type: CardType,
     outcome: RevealOutcome
 ): RevealResult {
-    const word = (game.words && index >= 0 && index < game.words.length)
-        ? game.words[index]
-        : 'UNKNOWN';
+    const word = game.words && index >= 0 && index < game.words.length ? game.words[index] : 'UNKNOWN';
 
     const result: RevealResult = {
         index,
@@ -243,13 +227,13 @@ export function buildRevealResult(
         gameOver: game.gameOver ?? false,
         winner: game.winner,
         endReason: outcome.endReason,
-        allTypes: game.gameOver ? game.types : null
+        allTypes: game.gameOver ? game.types : null,
     };
 
     if (game.gameMode === 'duet') {
         result.timerTokens = game.timerTokens;
         result.greenFound = game.greenFound;
-        result.allDuetTypes = game.gameOver ? (game.duetTypes || null) : null;
+        result.allDuetTypes = game.gameOver ? game.duetTypes || null : null;
     }
 
     // Match mode: include card score and cumulative match scores
@@ -265,10 +249,7 @@ export function buildRevealResult(
 /**
  * Get game state for a specific player (hides card types for non-spymasters)
  */
-export function getGameStateForPlayer(
-    game: GameState | null,
-    player: Player | null
-): PlayerGameState | null {
+export function getGameStateForPlayer(game: GameState | null, player: Player | null): PlayerGameState | null {
     if (!game) {
         return null;
     }
@@ -292,22 +273,26 @@ export function getGameStateForPlayer(
         clues: game.clues || [],
         history: game.history || [],
         types: [],
-        ...(isDuet ? {
-            gameMode: game.gameMode,
-            timerTokens: game.timerTokens,
-            greenFound: game.greenFound,
-            greenTotal: game.greenTotal
-        } : {}),
-        ...(isMatch ? {
-            gameMode: game.gameMode,
-            matchRound: game.matchRound,
-            redMatchScore: game.redMatchScore ?? 0,
-            blueMatchScore: game.blueMatchScore ?? 0,
-            roundHistory: game.roundHistory ?? [],
-            matchOver: game.matchOver ?? false,
-            matchWinner: game.matchWinner ?? null,
-            revealedBy: game.revealedBy
-        } : {})
+        ...(isDuet
+            ? {
+                  gameMode: game.gameMode,
+                  timerTokens: game.timerTokens,
+                  greenFound: game.greenFound,
+                  greenTotal: game.greenTotal,
+              }
+            : {}),
+        ...(isMatch
+            ? {
+                  gameMode: game.gameMode,
+                  matchRound: game.matchRound,
+                  redMatchScore: game.redMatchScore ?? 0,
+                  blueMatchScore: game.blueMatchScore ?? 0,
+                  roundHistory: game.roundHistory ?? [],
+                  matchOver: game.matchOver ?? false,
+                  matchWinner: game.matchWinner ?? null,
+                  revealedBy: game.revealedBy,
+              }
+            : {}),
     };
 
     const isSpymaster = player && player.role === 'spymaster';
@@ -319,29 +304,19 @@ export function getGameStateForPlayer(
             state.duetTypes = game.duetTypes;
         } else if (isSpymaster && playerTeam === 'red') {
             state.types = game.types;
-            state.duetTypes = game.duetTypes?.map((type, i) =>
-                game.revealed[i] ? type : null
-            );
+            state.duetTypes = game.duetTypes?.map((type, i) => (game.revealed[i] ? type : null));
         } else if (isSpymaster && playerTeam === 'blue') {
             state.duetTypes = game.duetTypes;
-            state.types = game.types.map((type, i) =>
-                game.revealed[i] ? type : null
-            );
+            state.types = game.types.map((type, i) => (game.revealed[i] ? type : null));
         } else {
-            state.types = game.types.map((type, i) =>
-                game.revealed[i] ? type : null
-            );
-            state.duetTypes = game.duetTypes?.map((type, i) =>
-                game.revealed[i] ? type : null
-            );
+            state.types = game.types.map((type, i) => (game.revealed[i] ? type : null));
+            state.duetTypes = game.duetTypes?.map((type, i) => (game.revealed[i] ? type : null));
         }
     } else {
         if (isSpymaster || game.gameOver) {
             state.types = game.types;
         } else {
-            state.types = game.types.map((type, i) =>
-                game.revealed[i] ? type : null
-            );
+            state.types = game.types.map((type, i) => (game.revealed[i] ? type : null));
         }
     }
 
@@ -352,12 +327,9 @@ export function getGameStateForPlayer(
             state.cardScores = game.cardScores;
         } else {
             // Non-spymasters only see scores of revealed cards
-            state.cardScores = game.cardScores.map((score, i) =>
-                game.revealed[i] ? score : null
-            );
+            state.cardScores = game.cardScores.map((score, i) => (game.revealed[i] ? score : null));
         }
     }
 
     return state;
 }
-

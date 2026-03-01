@@ -9,18 +9,24 @@ jest.mock('../../../../frontend/state', () => ({
         clickerTeam: null,
         isHost: false,
         multiplayerPlayers: [] as any[],
-    }
+    },
 }));
 
 jest.mock('../../../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
 
 import { state } from '../../../../frontend/state';
 import { clearAllListeners } from '../../../../frontend/store/eventBus';
 import {
-    setPlayerRole, clearPlayerRole, syncLocalPlayerState,
-    setHost, setPlayers, addPlayer, removePlayer, updatePlayer
+    setPlayerRole,
+    clearPlayerRole,
+    syncLocalPlayerState,
+    setHost,
+    setPlayers,
+    addPlayer,
+    removePlayer,
+    updatePlayer,
 } from '../../../../frontend/store/actions/playerActions';
 
 beforeEach(() => {
@@ -65,9 +71,12 @@ describe('clearPlayerRole', () => {
 describe('syncLocalPlayerState', () => {
     test('syncs from server player data', () => {
         syncLocalPlayerState({
-            sessionId: '123', nickname: 'test',
-            team: 'blue', role: 'clicker',
-            isHost: false, connected: true
+            sessionId: '123',
+            nickname: 'test',
+            team: 'blue',
+            role: 'clicker',
+            isHost: false,
+            connected: true,
         } as any);
 
         expect(state.playerTeam).toBe('blue');
@@ -87,8 +96,22 @@ describe('setHost', () => {
 });
 
 describe('player list operations', () => {
-    const player1 = { sessionId: 'a', nickname: 'Alice', team: 'red', role: 'clicker', isHost: true, connected: true } as any;
-    const player2 = { sessionId: 'b', nickname: 'Bob', team: 'blue', role: 'spymaster', isHost: false, connected: true } as any;
+    const player1 = {
+        sessionId: 'a',
+        nickname: 'Alice',
+        team: 'red',
+        role: 'clicker',
+        isHost: true,
+        connected: true,
+    } as any;
+    const player2 = {
+        sessionId: 'b',
+        nickname: 'Bob',
+        team: 'blue',
+        role: 'spymaster',
+        isHost: false,
+        connected: true,
+    } as any;
 
     test('setPlayers replaces entire list', () => {
         setPlayers([player1, player2]);

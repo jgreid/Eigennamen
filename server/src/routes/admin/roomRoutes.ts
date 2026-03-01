@@ -63,26 +63,30 @@ interface RoomSummary {
 }
 
 // Zod schemas for safe Redis data deserialization
-const roomDataSchema = z.object({
-    id: z.string().optional(),
-    code: z.string(),
-    roomId: z.string().optional(),
-    hostSessionId: z.string(),
-    status: z.string(),
-    createdAt: z.number().optional(),
-    expiresAt: z.number().optional(),
-    settings: z.record(z.string(), z.unknown()).optional(),
-}).passthrough();
+const roomDataSchema = z
+    .object({
+        id: z.string().optional(),
+        code: z.string(),
+        roomId: z.string().optional(),
+        hostSessionId: z.string(),
+        status: z.string(),
+        createdAt: z.number().optional(),
+        expiresAt: z.number().optional(),
+        settings: z.record(z.string(), z.unknown()).optional(),
+    })
+    .passthrough();
 
-const playerDataSchema = z.object({
-    sessionId: z.string().optional(),
-    nickname: z.string().optional(),
-    team: z.string().nullable().optional(),
-    role: z.string().optional(),
-    joinedAt: z.number().optional(),
-    isHost: z.boolean().optional(),
-    connected: z.boolean().optional(),
-}).passthrough();
+const playerDataSchema = z
+    .object({
+        sessionId: z.string().optional(),
+        nickname: z.string().optional(),
+        team: z.string().nullable().optional(),
+        role: z.string().optional(),
+        joinedAt: z.number().optional(),
+        isHost: z.boolean().optional(),
+        connected: z.boolean().optional(),
+    })
+    .passthrough();
 
 const router: ExpressRouter = express.Router();
 
@@ -94,8 +98,11 @@ const router: ExpressRouter = express.Router();
 const ROOM_CODE_REGEX = /^[\p{L}\p{N}\-_]{3,20}$/u;
 
 const broadcastSchema = z.object({
-    message: z.string().min(1, 'Broadcast message is required').max(500, 'Broadcast message must be 500 characters or less'),
-    type: z.enum(['info', 'warning', 'error']).default('info')
+    message: z
+        .string()
+        .min(1, 'Broadcast message is required')
+        .max(500, 'Broadcast message must be 500 characters or less'),
+    type: z.enum(['info', 'warning', 'error']).default('info'),
 });
 
 /**
@@ -149,8 +156,8 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
                         settings: {
                             teamNames: room.settings?.teamNames,
                             turnTimer: room.settings?.turnTimer,
-                            allowSpectators: room.settings?.allowSpectators
-                        }
+                            allowSpectators: room.settings?.allowSpectators,
+                        },
                     });
                 }
             } catch (parseError) {
@@ -163,15 +170,15 @@ router.get('/api/rooms', async (_req: Request, res: Response) => {
 
         res.json({
             count: rooms.length,
-            rooms
+            rooms,
         });
     } catch (error) {
         logger.error('Failed to list rooms', { error: (error as Error).message });
         res.status(500).json({
             error: {
                 code: 'ROOMS_ERROR',
-                message: 'Failed to list active rooms'
-            }
+                message: 'Failed to list active rooms',
+            },
         });
     }
 });
@@ -187,8 +194,8 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
             res.status(400).json({
                 error: {
                     code: 'INVALID_INPUT',
-                    message: firstError?.message || 'Invalid broadcast input'
-                }
+                    message: firstError?.message || 'Invalid broadcast input',
+                },
             });
             return;
         }
@@ -201,8 +208,8 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
             res.status(503).json({
                 error: {
                     code: 'SOCKET_UNAVAILABLE',
-                    message: 'Socket.io is not available'
-                }
+                    message: 'Socket.io is not available',
+                },
             });
             return;
         }
@@ -212,28 +219,28 @@ router.post('/api/broadcast', (req: AdminRequest, res: Response): void => {
             message: message.trim(),
             type,
             timestamp: new Date().toISOString(),
-            from: req.adminUsername
+            from: req.adminUsername,
         });
 
         logger.info('Admin broadcast sent', {
             message: message.substring(0, 50),
             type,
-            from: req.adminUsername
+            from: req.adminUsername,
         });
 
         incrementCounter(METRIC_NAMES.BROADCASTS_SENT, 1, { type });
 
         res.json({
             success: true,
-            message: 'Broadcast sent successfully'
+            message: 'Broadcast sent successfully',
         });
     } catch (error) {
         logger.error('Failed to send broadcast', { error: (error as Error).message });
         res.status(500).json({
             error: {
                 code: 'BROADCAST_ERROR',
-                message: 'Failed to send broadcast message'
-            }
+                message: 'Failed to send broadcast message',
+            },
         });
     }
 });
@@ -248,8 +255,8 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
-                    message: 'Room code is required'
-                }
+                    message: 'Room code is required',
+                },
             });
             return;
         }
@@ -259,8 +266,8 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
-                    message: 'Invalid room code format'
-                }
+                    message: 'Invalid room code format',
+                },
             });
             return;
         }
@@ -274,8 +281,8 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             res.status(404).json({
                 error: {
                     code: 'ROOM_NOT_FOUND',
-                    message: 'Room not found'
-                }
+                    message: 'Room not found',
+                },
             });
             return;
         }
@@ -285,8 +292,8 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             res.status(500).json({
                 error: {
                     code: 'ROOM_DATA_CORRUPT',
-                    message: 'Room data could not be parsed'
-                }
+                    message: 'Room data could not be parsed',
+                },
             });
             return;
         }
@@ -307,7 +314,11 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             try {
                 const playerData = await redis.get(`player:${playerId}`);
                 if (playerData) {
-                    const player = tryParseJSON(playerData, playerDataSchema, `admin player: ${playerId}`) as PlayerData | null;
+                    const player = tryParseJSON(
+                        playerData,
+                        playerDataSchema,
+                        `admin player: ${playerId}`
+                    ) as PlayerData | null;
                     if (!player) continue;
                     players.push({
                         id: playerId,
@@ -315,7 +326,7 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
                         team: player.team || null,
                         role: player.role || 'operative',
                         isHost: room.hostSessionId === playerId,
-                        joinedAt: player.joinedAt
+                        joinedAt: player.joinedAt,
                     });
                 }
             } catch (parseError) {
@@ -336,15 +347,18 @@ router.get('/api/rooms/:code/details', async (req: Request, res: Response): Prom
             hostId: room.hostSessionId,
             players,
             settings: room.settings,
-            createdAt: room.createdAt
+            createdAt: room.createdAt,
         });
     } catch (error) {
-        logger.error('Failed to fetch room details', { error: (error as Error).message, code: String(req.params.code) });
+        logger.error('Failed to fetch room details', {
+            error: (error as Error).message,
+            code: String(req.params.code),
+        });
         res.status(500).json({
             error: {
                 code: 'ROOM_DETAILS_ERROR',
-                message: 'Failed to fetch room details'
-            }
+                message: 'Failed to fetch room details',
+            },
         });
     }
 });
@@ -361,8 +375,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
-                    message: 'Room code is required'
-                }
+                    message: 'Room code is required',
+                },
             });
             return;
         }
@@ -372,8 +386,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
-                    message: 'Invalid room code format'
-                }
+                    message: 'Invalid room code format',
+                },
             });
             return;
         }
@@ -383,8 +397,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(400).json({
                 error: {
                     code: 'INVALID_PLAYER_ID',
-                    message: 'Invalid player ID format'
-                }
+                    message: 'Invalid player ID format',
+                },
             });
             return;
         }
@@ -398,8 +412,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(404).json({
                 error: {
                     code: 'ROOM_NOT_FOUND',
-                    message: 'Room not found'
-                }
+                    message: 'Room not found',
+                },
             });
             return;
         }
@@ -409,8 +423,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(500).json({
                 error: {
                     code: 'ROOM_DATA_CORRUPT',
-                    message: 'Room data could not be parsed'
-                }
+                    message: 'Room data could not be parsed',
+                },
             });
             return;
         }
@@ -420,8 +434,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(400).json({
                 error: {
                     code: 'CANNOT_KICK_HOST',
-                    message: 'Cannot kick the room host'
-                }
+                    message: 'Cannot kick the room host',
+                },
             });
             return;
         }
@@ -432,8 +446,8 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
             res.status(404).json({
                 error: {
                     code: 'PLAYER_NOT_FOUND',
-                    message: 'Player not found in room'
-                }
+                    message: 'Player not found in room',
+                },
             });
             return;
         }
@@ -443,13 +457,13 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         if (io) {
             io.to(`player:${playerId}`).emit('room:kicked', {
                 reason: 'Kicked by administrator',
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             });
 
             // Also notify others in the room
             io.to(`room:${normalizedCode}`).emit('room:playerKicked', {
                 playerId,
-                reason: 'Kicked by administrator'
+                reason: 'Kicked by administrator',
             });
 
             // Force the player's socket to leave the room
@@ -462,26 +476,31 @@ router.delete('/api/rooms/:code/players/:playerId', async (req: AdminRequest, re
         logger.info('Player kicked by admin', {
             code: normalizedCode,
             playerId,
-            admin: req.adminUsername
+            admin: req.adminUsername,
         });
 
         incrementCounter(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode: normalizedCode, reason: 'admin' });
 
         // Audit the player kick action
-        Promise.resolve(audit.adminKickPlayer(normalizedCode, playerId, req.ip ?? '', 'Admin action'))
-            .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
+        Promise.resolve(audit.adminKickPlayer(normalizedCode, playerId, req.ip ?? '', 'Admin action')).catch(
+            (err: Error) => logger.warn('Audit log failed', { error: err.message })
+        );
 
         res.json({
             success: true,
-            message: 'Player has been kicked'
+            message: 'Player has been kicked',
         });
     } catch (error) {
-        logger.error('Failed to kick player', { error: (error as Error).message, code: String(req.params.code), playerId: String(req.params.playerId) });
+        logger.error('Failed to kick player', {
+            error: (error as Error).message,
+            code: String(req.params.code),
+            playerId: String(req.params.playerId),
+        });
         res.status(500).json({
             error: {
                 code: 'KICK_ERROR',
-                message: 'Failed to kick player'
-            }
+                message: 'Failed to kick player',
+            },
         });
     }
 });
@@ -497,8 +516,8 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
-                    message: 'Room code is required'
-                }
+                    message: 'Room code is required',
+                },
             });
             return;
         }
@@ -508,8 +527,8 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
             res.status(400).json({
                 error: {
                     code: 'INVALID_ROOM_CODE',
-                    message: 'Invalid room code format'
-                }
+                    message: 'Invalid room code format',
+                },
             });
             return;
         }
@@ -523,8 +542,8 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
             res.status(404).json({
                 error: {
                     code: 'ROOM_NOT_FOUND',
-                    message: 'Room not found'
-                }
+                    message: 'Room not found',
+                },
             });
             return;
         }
@@ -534,7 +553,7 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
         if (io) {
             io.to(`room:${normalizedCode}`).emit('room:forceClosed', {
                 reason: 'Room closed by administrator',
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             });
         }
 
@@ -543,24 +562,25 @@ router.delete('/api/rooms/:code', async (req: AdminRequest, res: Response): Prom
 
         logger.info('Room force closed by admin', {
             code: normalizedCode,
-            admin: req.adminUsername
+            admin: req.adminUsername,
         });
 
         // Audit the room deletion
-        Promise.resolve(audit.adminDeleteRoom(normalizedCode, req.ip ?? '', 'Admin action'))
-            .catch((err: Error) => logger.warn('Audit log failed', { error: err.message }));
+        Promise.resolve(audit.adminDeleteRoom(normalizedCode, req.ip ?? '', 'Admin action')).catch((err: Error) =>
+            logger.warn('Audit log failed', { error: err.message })
+        );
 
         res.json({
             success: true,
-            message: `Room ${normalizedCode} has been closed`
+            message: `Room ${normalizedCode} has been closed`,
         });
     } catch (error) {
         logger.error('Failed to close room', { error: (error as Error).message, code: String(req.params.code) });
         res.status(500).json({
             error: {
                 code: 'ROOM_CLOSE_ERROR',
-                message: 'Failed to close room'
-            }
+                message: 'Failed to close room',
+            },
         });
     }
 });

@@ -38,7 +38,7 @@ export const JWT_CONFIG = {
     algorithm: 'HS256',
     expiresIn: '24h',
     issuer: 'eigennamen',
-    audience: 'game-client'
+    audience: 'game-client',
 } as const;
 
 // Minimum secret length for production
@@ -120,7 +120,7 @@ function signToken(payload: JwtPayload, options: SignOptions = {}): string | nul
         algorithm: JWT_CONFIG.algorithm,
         issuer: JWT_CONFIG.issuer,
         audience: JWT_CONFIG.audience,
-        expiresIn
+        expiresIn,
     };
 
     return jwt.sign(payload, secret, signOptions as jwt.SignOptions);
@@ -133,7 +133,7 @@ export const JWT_ERROR_CODES = {
     TOKEN_MALFORMED: 'TOKEN_MALFORMED',
     TOKEN_NOT_ACTIVE: 'TOKEN_NOT_ACTIVE',
     CLAIMS_MISMATCH: 'CLAIMS_MISMATCH',
-    JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED'
+    JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED',
 } as const;
 
 /**
@@ -162,15 +162,14 @@ function verifyToken(token: string, options: VerifyOptions = {}): JwtPayload | T
         return jwt.verify(token, secret, {
             algorithms: [JWT_CONFIG.algorithm],
             issuer: JWT_CONFIG.issuer,
-            audience: JWT_CONFIG.audience
+            audience: JWT_CONFIG.audience,
         }) as JwtPayload;
     } catch (error) {
         let errorCode: string;
         let errorMessage: string;
         // jwt library throws typed errors with name, expiredAt, date properties
-        const err: Error & { expiredAt?: Date; date?: Date } = error instanceof Error
-            ? error
-            : new Error(String(error));
+        const err: Error & { expiredAt?: Date; date?: Date } =
+            error instanceof Error ? error : new Error(String(error));
 
         if (err.name === 'TokenExpiredError') {
             errorCode = JWT_ERROR_CODES.TOKEN_EXPIRED;
@@ -228,12 +227,12 @@ function verifyTokenWithClaims(token: string, expectedClaims: Record<string, unk
             logger.debug('JWT claims mismatch', {
                 claim: key,
                 expected: expectedValue,
-                actual: decoded[key]
+                actual: decoded[key],
             });
             return {
                 valid: false,
                 error: JWT_ERROR_CODES.CLAIMS_MISMATCH,
-                message: `Claim '${key}' does not match expected value`
+                message: `Claim '${key}' does not match expected value`,
             };
         }
     }
@@ -262,21 +261,17 @@ function decodeToken(token: string): JwtPayload | null {
  * @param additionalClaims - Additional claims to include
  * @returns Signed token or null if JWT not configured
  */
-function generateSessionToken(userId: string, sessionId: string, additionalClaims: Record<string, unknown> = {}): string | null {
+function generateSessionToken(
+    userId: string,
+    sessionId: string,
+    additionalClaims: Record<string, unknown> = {}
+): string | null {
     return signToken({
         userId,
         sessionId,
         type: 'session',
-        ...additionalClaims
+        ...additionalClaims,
     });
 }
 
-export {
-    getJwtSecret,
-    isJwtEnabled,
-    signToken,
-    verifyToken,
-    verifyTokenWithClaims,
-    decodeToken,
-    generateSessionToken
-};
+export { getJwtSecret, isJwtEnabled, signToken, verifyToken, verifyTokenWithClaims, decodeToken, generateSessionToken };

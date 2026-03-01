@@ -1,3 +1,11 @@
+-- atomicRemovePlayer.lua
+-- Description: Atomically removes a player from their room and team sets, then deletes the player key
+--
+-- KEYS[1]: Player key (e.g., `player:<sessionId>`)
+-- ARGV[1]: Session ID
+--
+-- Returns: Player JSON on success, nil if player not found
+
 local playerKey = KEYS[1]
 local sessionId = ARGV[1]
 

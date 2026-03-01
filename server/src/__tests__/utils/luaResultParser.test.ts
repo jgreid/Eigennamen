@@ -9,7 +9,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { parseLuaResult, unwrapLuaResult } from '../../utils/luaResultParser';
 
 const testSchema = z.object({
     name: z.string(),
-    value: z.number()
+    value: z.number(),
 });
 
 describe('parseLuaResult', () => {
@@ -58,7 +58,7 @@ describe('parseLuaResult', () => {
         test('recognizes configured sentinels', () => {
             const result = parseLuaResult('EXPIRED', {
                 operationName: 'test',
-                sentinels: ['EXPIRED', 'RECONNECTED']
+                sentinels: ['EXPIRED', 'RECONNECTED'],
             });
             expect(result).toEqual({ kind: 'sentinel', value: 'EXPIRED' });
         });
@@ -67,7 +67,7 @@ describe('parseLuaResult', () => {
             // Non-JSON string without sentinels list → treated as sentinel anyway (catch-all)
             const result = parseLuaResult('UNKNOWN', {
                 operationName: 'test',
-                sentinels: ['EXPIRED']
+                sentinels: ['EXPIRED'],
             });
             // Falls through to JSON parse, fails, treated as sentinel
             expect(result).toEqual({ kind: 'sentinel', value: 'UNKNOWN' });
@@ -77,24 +77,23 @@ describe('parseLuaResult', () => {
     describe('JSON error handling', () => {
         test('detects error field in JSON (no schema)', () => {
             const result = parseLuaResult(JSON.stringify({ error: 'ROOM_NOT_FOUND' }), {
-                operationName: 'test'
+                operationName: 'test',
             });
             expect(result).toEqual({
                 kind: 'error',
                 code: 'ROOM_NOT_FOUND',
-                detail: 'ROOM_NOT_FOUND'
+                detail: 'ROOM_NOT_FOUND',
             });
         });
 
         test('detects success:false with reason (no schema)', () => {
-            const result = parseLuaResult(
-                JSON.stringify({ success: false, reason: 'OLD_HOST_NOT_FOUND' }),
-                { operationName: 'test' }
-            );
+            const result = parseLuaResult(JSON.stringify({ success: false, reason: 'OLD_HOST_NOT_FOUND' }), {
+                operationName: 'test',
+            });
             expect(result).toEqual({
                 kind: 'error',
                 code: 'OLD_HOST_NOT_FOUND',
-                detail: 'OLD_HOST_NOT_FOUND'
+                detail: 'OLD_HOST_NOT_FOUND',
             });
         });
 
@@ -103,49 +102,46 @@ describe('parseLuaResult', () => {
             const errorSchema = z.object({
                 error: z.string().optional(),
                 name: z.string().optional(),
-                value: z.number().optional()
+                value: z.number().optional(),
             });
 
-            const result = parseLuaResult(
-                JSON.stringify({ error: 'CORRUPTED_DATA' }),
-                { operationName: 'test', schema: errorSchema }
-            );
+            const result = parseLuaResult(JSON.stringify({ error: 'CORRUPTED_DATA' }), {
+                operationName: 'test',
+                schema: errorSchema,
+            });
             expect(result).toEqual({
                 kind: 'error',
                 code: 'CORRUPTED_DATA',
-                detail: 'CORRUPTED_DATA'
+                detail: 'CORRUPTED_DATA',
             });
         });
     });
 
     describe('JSON success handling', () => {
         test('parses valid JSON with schema', () => {
-            const result = parseLuaResult(
-                JSON.stringify({ name: 'test', value: 42 }),
-                { operationName: 'test', schema: testSchema }
-            );
+            const result = parseLuaResult(JSON.stringify({ name: 'test', value: 42 }), {
+                operationName: 'test',
+                schema: testSchema,
+            });
             expect(result).toEqual({
                 kind: 'success',
-                data: { name: 'test', value: 42 }
+                data: { name: 'test', value: 42 },
             });
         });
 
         test('parses valid JSON without schema', () => {
-            const result = parseLuaResult(
-                JSON.stringify({ foo: 'bar', count: 5 }),
-                { operationName: 'test' }
-            );
+            const result = parseLuaResult(JSON.stringify({ foo: 'bar', count: 5 }), { operationName: 'test' });
             expect(result).toEqual({
                 kind: 'success',
-                data: { foo: 'bar', count: 5 }
+                data: { foo: 'bar', count: 5 },
             });
         });
 
         test('returns error kind when schema validation fails', () => {
-            const result = parseLuaResult(
-                JSON.stringify({ name: 123, value: 'not-a-number' }),
-                { operationName: 'test', schema: testSchema }
-            );
+            const result = parseLuaResult(JSON.stringify({ name: 123, value: 'not-a-number' }), {
+                operationName: 'test',
+                schema: testSchema,
+            });
             expect(result.kind).toBe('error');
             expect(result.code).toBe('PARSE_FAILED');
         });
@@ -168,10 +164,7 @@ describe('parseLuaResult', () => {
     describe('defaults', () => {
         test('defaults sentinels to empty array', () => {
             // Non-sentinel string that is valid JSON → success
-            const result = parseLuaResult(
-                JSON.stringify({ key: 'val' }),
-                { operationName: 'test' }
-            );
+            const result = parseLuaResult(JSON.stringify({ key: 'val' }), { operationName: 'test' });
             expect(result.kind).toBe('success');
         });
     });
@@ -185,30 +178,24 @@ describe('unwrapLuaResult', () => {
     });
 
     test('throws for error kind', () => {
-        expect(() => unwrapLuaResult(
-            { kind: 'error', code: 'ROOM_NOT_FOUND' },
-            'getRoom'
-        )).toThrow('Lua getRoom error: ROOM_NOT_FOUND');
+        expect(() => unwrapLuaResult({ kind: 'error', code: 'ROOM_NOT_FOUND' }, 'getRoom')).toThrow(
+            'Lua getRoom error: ROOM_NOT_FOUND'
+        );
     });
 
     test('throws for null kind', () => {
-        expect(() => unwrapLuaResult(
-            { kind: 'null' },
-            'getPlayer'
-        )).toThrow('Lua getPlayer: resource not found');
+        expect(() => unwrapLuaResult({ kind: 'null' }, 'getPlayer')).toThrow('Lua getPlayer: resource not found');
     });
 
     test('throws for sentinel kind', () => {
-        expect(() => unwrapLuaResult(
-            { kind: 'sentinel', value: 'EXPIRED' },
-            'resumeTimer'
-        )).toThrow("Lua resumeTimer: unexpected result kind 'sentinel'");
+        expect(() => unwrapLuaResult({ kind: 'sentinel', value: 'EXPIRED' }, 'resumeTimer')).toThrow(
+            "Lua resumeTimer: unexpected result kind 'sentinel'"
+        );
     });
 
     test('throws for numeric kind', () => {
-        expect(() => unwrapLuaResult(
-            { kind: 'numeric', value: -1 },
-            'joinRoom'
-        )).toThrow("Lua joinRoom: unexpected result kind 'numeric'");
+        expect(() => unwrapLuaResult({ kind: 'numeric', value: -1 }, 'joinRoom')).toThrow(
+            "Lua joinRoom: unexpected result kind 'numeric'"
+        );
     });
 });

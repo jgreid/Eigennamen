@@ -37,22 +37,24 @@ npx playwright test
 
 Global thresholds are set lower because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
 
-| Metric | Minimum | Current |
-|--------|---------|---------|
-| Statements | 75% | 94%+ |
-| Branches | 65% | 84%+ |
-| Functions | 80% | 90%+ |
-| Lines | 75% | 94%+ |
+**Backend thresholds** (configured in `jest.config.ts.js`):
 
-### Current Test Counts (as of Feb 17, 2026)
+| Metric | Backend Min | Frontend Min | Current |
+|--------|-------------|--------------|---------|
+| Statements | 80% | 70% | 94%+ |
+| Branches | 75% | 70% | 84%+ |
+| Functions | 85% | 70% | 90%+ |
+| Lines | 80% | 70% | 94%+ |
+
+### Current Test Counts (as of March 2026)
 
 | Category | Suites | Tests |
 |----------|--------|-------|
-| Jest (backend + frontend) | 126 | — |
+| Jest (backend + frontend) | 133 | — |
 | E2E (Playwright) | 9 | — |
-| **Total** | **135** | — |
+| **Total** | **142** | — |
 
-All 126 Jest suites pass with 0 failures.
+All 133 Jest suites pass with 0 failures.
 
 ## Backend Testing (Jest)
 
@@ -505,15 +507,16 @@ npx playwright show-trace trace.zip
 
 ## Continuous Integration
 
-Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 6 quality gates:
+Tests run automatically on every PR and push to main via `.github/workflows/ci.yml`. The CI pipeline includes 8 quality gates:
 
 | Job | Description |
 |-----|-------------|
-| **Test** | Jest with coverage (Node 20 + 22 matrix) |
-| **Typecheck** | `tsc --noEmit` |
+| **Test** | Jest with coverage (Node 22 + 24 matrix) |
+| **Typecheck** | `tsc --noEmit` (backend + frontend) |
 | **Lint** | ESLint with `--max-warnings 0` |
+| **Format** | Prettier formatting check |
 | **Security** | `npm audit` (fails on critical vulnerabilities) |
-| **Docker** | Build image and verify health endpoint starts |
+| **Docker** | Build image, verify health endpoint, Trivy vulnerability scan |
 | **E2E** | Playwright tests against a running server (Chromium) |
 
 Additionally, **CodeQL** runs weekly for automated security scanning (`.github/workflows/codeql.yml`).
@@ -532,23 +535,21 @@ open coverage/lcov-report/index.html
 
 ### Coverage Thresholds
 
-Configured in `jest.config.ts.js` (primary backend config) and `package.json` (fallback):
+Configured in `jest.config.ts.js` with separate backend and frontend projects:
 
 ```javascript
-// jest.config.ts.js - actual enforced thresholds
-module.exports = {
-    coverageThreshold: {
-        global: {
-            statements: 75,
-            branches: 65,
-            functions: 80,
-            lines: 75
-        }
-    }
-};
+// jest.config.ts.js - backend thresholds
+coverageThreshold: {
+    global: { statements: 80, branches: 75, functions: 85, lines: 80 }
+}
+
+// jest.config.ts.js - frontend thresholds
+coverageThreshold: {
+    global: { statements: 70, branches: 70, functions: 70, lines: 70 }
+}
 ```
 
-Global thresholds are lower because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
+Backend thresholds are set lower globally because infrastructure modules (redis.ts, socket/index.ts) require real integration tests for meaningful coverage. Business logic modules individually exceed 80%.
 
 ## Related Documentation
 

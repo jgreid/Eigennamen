@@ -15,7 +15,7 @@ import {
     getSocketRateLimiter,
     createRateLimitedHandler,
     startRateLimitCleanup,
-    stopRateLimitCleanup
+    stopRateLimitCleanup,
 } from './rateLimitHandler';
 import { safeEmitToRoom, safeEmitToPlayer } from './safeEmit';
 import {
@@ -27,11 +27,9 @@ import {
     stopConnectionsCleanup,
     recordAuthFailure,
     isAuthBlocked,
-    clearAuthFailures
+    clearAuthFailures,
 } from './connectionTracker';
-import {
-    createTimerExpireCallback as createTimerExpireCallbackImpl
-} from './disconnectHandler';
+import { createTimerExpireCallback as createTimerExpireCallbackImpl } from './disconnectHandler';
 import { createSocketServer } from './serverConfig';
 import { handleConnection, ensureSocketFunctionsRegistered } from './connectionHandler';
 
@@ -41,7 +39,6 @@ let io: SocketIOServer | null = null;
 let app: ExpressAppWithSockets | null = null;
 let shuttingDown = false;
 let timerSweepIntervalRef: ReturnType<typeof setInterval> | null = null;
-
 
 /**
  * Get the Socket.io server instance
@@ -100,7 +97,6 @@ function createTimerExpireCallback(): TimerCallback {
     return createTimerExpireCallbackImpl(emitToRoom, startTurnTimer);
 }
 
-
 /** Bundle of socket functions passed to connectionHandler */
 const socketFns = {
     emitToRoom,
@@ -109,9 +105,8 @@ const socketFns = {
     stopTurnTimer,
     getTimerStatus,
     getIO,
-    createTimerExpireCallback
+    createTimerExpireCallback,
 };
-
 
 /**
  * Initialize Socket.io with the HTTP server
@@ -191,7 +186,6 @@ function initializeSocket(server: HttpServer, expressApp?: ExpressAppWithSockets
     return socketServer;
 }
 
-
 /**
  * Cleanup socket module resources on shutdown.
  *
@@ -220,7 +214,7 @@ async function cleanupSocketModule(): Promise<void> {
                 io.emit(SOCKET_EVENTS.ROOM_WARNING, {
                     type: 'server_shutdown',
                     message: 'Server is restarting. You will be reconnected automatically.',
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
                 });
             } catch (emitErr) {
                 logger.warn('Failed to emit shutdown warning:', (emitErr as Error).message);
@@ -229,7 +223,7 @@ async function cleanupSocketModule(): Promise<void> {
             // Brief drain period so clients can process the warning
             // (capped by the force-exit timeout in index.ts)
             const drainMs = SOCKET.SHUTDOWN_DRAIN_MS;
-            await new Promise<void>(resolve => setTimeout(resolve, drainMs));
+            await new Promise<void>((resolve) => setTimeout(resolve, drainMs));
         }
 
         io.disconnectSockets(true);
@@ -239,7 +233,6 @@ async function cleanupSocketModule(): Promise<void> {
 
     logger.info('Socket module cleaned up');
 }
-
 
 export {
     initializeSocket,
@@ -251,5 +244,5 @@ export {
     getTimerStatus,
     getSocketRateLimiter,
     createRateLimitedHandler,
-    cleanupSocketModule
+    cleanupSocketModule,
 };

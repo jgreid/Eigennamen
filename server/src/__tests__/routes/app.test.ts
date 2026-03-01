@@ -9,7 +9,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 jest.mock('../../utils/metrics', () => ({
@@ -46,36 +46,38 @@ jest.mock('../../utils/metrics', () => ({
         TURN_DURATION: 'turn_duration_seconds',
         SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
         HTTP_REQUEST_DURATION: 'http_request_duration_ms',
-        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
-    }
+        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes',
+    },
 }));
 
 jest.mock('../../utils/correlationId', () => ({
     getCorrelationId: jest.fn(() => 'test-correlation-id'),
-    correlationMiddleware: (req, res, next) => next()
+    correlationMiddleware: (req, res, next) => next(),
 }));
 
 jest.mock('../../socket/rateLimitHandler', () => ({}));
 
 jest.mock('../../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next()
+    strictLimiter: (req, res, next) => next(),
 }));
 
 jest.mock('../../middleware/csrf', () => ({
-    csrfProtection: (req, res, next) => next()
+    csrfProtection: (req, res, next) => next(),
 }));
 
 jest.mock('../../config/redis', () => ({
     isRedisHealthy: jest.fn(() => Promise.resolve(true)),
     isUsingMemoryMode: jest.fn(() => true),
     getRedis: jest.fn(),
-    getRedisMemoryInfo: jest.fn(() => Promise.resolve({
-        used_memory_human: '1M',
-        maxmemory_human: '100M',
-        memory_usage_percent: 1,
-        alert: null
-    }))
+    getRedisMemoryInfo: jest.fn(() =>
+        Promise.resolve({
+            used_memory_human: '1M',
+            maxmemory_human: '100M',
+            memory_usage_percent: 1,
+            alert: null,
+        })
+    ),
 }));
 
 jest.mock('../../utils/pubSubHealth', () => ({
@@ -85,12 +87,12 @@ jest.mock('../../utils/pubSubHealth', () => ({
         totalPublishes: 0,
         totalFailures: 0,
         failureRate: '0%',
-        lastError: null
-    }))
+        lastError: null,
+    })),
 }));
 
 jest.mock('../../utils/timeout', () => ({
-    withTimeout: jest.fn((promise) => promise)
+    withTimeout: jest.fn((promise) => promise),
 }));
 
 // Store original env
@@ -122,7 +124,7 @@ describe('Express Application', () => {
             expect(response.body).toMatchObject({
                 status: 'ok',
                 timestamp: expect.any(String),
-                uptime: expect.any(Number)
+                uptime: expect.any(Number),
             });
         });
 
@@ -147,7 +149,7 @@ describe('Express Application', () => {
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
                 status: 'live',
-                timestamp: expect.any(String)
+                timestamp: expect.any(String),
             });
         });
 
@@ -167,7 +169,7 @@ describe('Express Application', () => {
             expect(response.body).toMatchObject({
                 status: expect.any(String),
                 timestamp: expect.any(String),
-                checks: expect.any(Object)
+                checks: expect.any(Object),
             });
         });
 
@@ -184,7 +186,7 @@ describe('Express Application', () => {
             expect(response.body.checks).toHaveProperty('redis');
             expect(response.body.checks.redis).toMatchObject({
                 healthy: expect.any(Boolean),
-                mode: expect.any(String)
+                mode: expect.any(String),
             });
         });
 
@@ -194,7 +196,7 @@ describe('Express Application', () => {
             expect(response.body.checks).toHaveProperty('pubsub');
             expect(response.body.checks.pubsub).toMatchObject({
                 healthy: expect.any(Boolean),
-                status: expect.any(String)
+                status: expect.any(String),
             });
         });
 
@@ -230,7 +232,7 @@ describe('Express Application', () => {
             expect(response.status).toBe(200);
             expect(response.body).toMatchObject({
                 timestamp: expect.any(String),
-                process: expect.any(Object)
+                process: expect.any(Object),
             });
         });
 
@@ -240,7 +242,7 @@ describe('Express Application', () => {
             expect(response.body.process).toMatchObject({
                 uptime: expect.any(Number),
                 memory: expect.any(Object),
-                cpu: expect.any(Object)
+                cpu: expect.any(Object),
             });
         });
 
@@ -249,7 +251,7 @@ describe('Express Application', () => {
 
             expect(response.body).toHaveProperty('rateLimits');
             expect(response.body.rateLimits).toMatchObject({
-                socket: expect.any(Object)
+                socket: expect.any(Object),
             });
         });
 
@@ -261,7 +263,7 @@ describe('Express Application', () => {
 
         it('should include socketio metrics when configured', async () => {
             const mockIo = {
-                fetchSockets: jest.fn(() => Promise.resolve([{}, {}, {}]))
+                fetchSockets: jest.fn(() => Promise.resolve([{}, {}, {}])),
             };
             app.set('io', mockIo);
 
@@ -269,7 +271,7 @@ describe('Express Application', () => {
 
             expect(response.body.socketio).toMatchObject({
                 status: 'ok',
-                connections: expect.any(Number)
+                connections: expect.any(Number),
             });
         });
     });
@@ -439,7 +441,7 @@ describe('Express Application - Fly.io Environment', () => {
 
         expect(response.body.instance).toMatchObject({
             flyAllocId: 'test-alloc-id',
-            flyRegion: 'iad'
+            flyRegion: 'iad',
         });
     });
 });

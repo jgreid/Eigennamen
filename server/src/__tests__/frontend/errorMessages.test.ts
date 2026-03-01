@@ -18,8 +18,14 @@ describe('getErrorMessage', () => {
             ['GAME_OVER', 'The game has ended \u2014 click New Game to play again'],
             ['CARD_ALREADY_REVEALED', 'That card has already been revealed'],
             ['TEAM_WOULD_BE_EMPTY', 'Cannot leave \u2014 your team needs at least one player'],
-            ['CANNOT_SWITCH_TEAM_DURING_TURN', "Cannot switch teams during your team's active turn \u2014 wait for the turn to end"],
-            ['CANNOT_CHANGE_ROLE_DURING_TURN', "Cannot change roles during your team's active turn \u2014 wait for the turn to end"],
+            [
+                'CANNOT_SWITCH_TEAM_DURING_TURN',
+                "Cannot switch teams during your team's active turn \u2014 wait for the turn to end",
+            ],
+            [
+                'CANNOT_CHANGE_ROLE_DURING_TURN',
+                "Cannot change roles during your team's active turn \u2014 wait for the turn to end",
+            ],
             ['SPYMASTER_CANNOT_CHANGE_TEAM', 'Spymasters cannot change teams during an active game'],
             ['MUST_JOIN_TEAM', 'Join a team first by clicking a team score, then select a role'],
             ['ROLE_TAKEN', 'That role is already taken \u2014 try the other role or wait for it to open'],

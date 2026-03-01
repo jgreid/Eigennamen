@@ -7,8 +7,11 @@ import { logger } from '../logger.js';
 import { updateMpIndicator } from '../multiplayerUI.js';
 import { syncLocalPlayerState } from '../multiplayerSync.js';
 import type {
-    ServerPlayerData, PlayerJoinedData, PlayerLeftData,
-    PlayerUpdatedData, PlayerDisconnectedData
+    ServerPlayerData,
+    PlayerJoinedData,
+    PlayerLeftData,
+    PlayerUpdatedData,
+    PlayerDisconnectedData,
 } from '../multiplayerTypes.js';
 
 export function registerPlayerHandlers(): void {
@@ -17,7 +20,9 @@ export function registerPlayerHandlers(): void {
             state.multiplayerPlayers = data.players;
         } else if (data.player) {
             // Add new player to list if not already present
-            const exists = state.multiplayerPlayers.some((p: ServerPlayerData) => p.sessionId === data.player!.sessionId);
+            const exists = state.multiplayerPlayers.some(
+                (p: ServerPlayerData) => p.sessionId === data.player!.sessionId
+            );
             if (!exists) {
                 state.multiplayerPlayers = [...state.multiplayerPlayers, data.player];
             }
@@ -32,7 +37,9 @@ export function registerPlayerHandlers(): void {
             state.multiplayerPlayers = data.players;
         } else if (data.sessionId) {
             // Remove player from list
-            state.multiplayerPlayers = state.multiplayerPlayers.filter((p: ServerPlayerData) => p.sessionId !== data.sessionId);
+            state.multiplayerPlayers = state.multiplayerPlayers.filter(
+                (p: ServerPlayerData) => p.sessionId !== data.sessionId
+            );
         }
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         // Refresh controls and board — the departed player may have been the
@@ -53,20 +60,24 @@ export function registerPlayerHandlers(): void {
         if (data.sessionId && data.changes) {
             // Update player in local list
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) =>
-                p.sessionId === data.sessionId ? { ...p, ...data.changes } as ServerPlayerData : p
+                p.sessionId === data.sessionId ? ({ ...p, ...data.changes } as ServerPlayerData) : p
             );
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
 
             // Announce role/team changes to screen readers
             if (data.changes.role || data.changes.team !== undefined) {
-                const changedPlayer = state.multiplayerPlayers.find((p: ServerPlayerData) => p.sessionId === data.sessionId);
+                const changedPlayer = state.multiplayerPlayers.find(
+                    (p: ServerPlayerData) => p.sessionId === data.sessionId
+                );
                 const name = changedPlayer?.nickname || 'A player';
                 if (data.changes.role) {
                     announceToScreenReader(`${name} is now ${data.changes.role}.`);
                 }
                 if (data.changes.team !== undefined) {
                     const teamName = data.changes.team
-                        ? (data.changes.team === 'red' ? (state.teamNames?.red || 'Red') : (state.teamNames?.blue || 'Blue'))
+                        ? data.changes.team === 'red'
+                            ? state.teamNames?.red || 'Red'
+                            : state.teamNames?.blue || 'Blue'
                         : 'spectators';
                     announceToScreenReader(`${name} joined ${teamName}.`);
                 }
@@ -74,7 +85,9 @@ export function registerPlayerHandlers(): void {
 
             // If this is the current player, update local state variables
             if (data.sessionId === EigennamenClient.player?.sessionId) {
-                let updatedPlayer = state.multiplayerPlayers.find((p: ServerPlayerData) => p.sessionId === data.sessionId);
+                let updatedPlayer = state.multiplayerPlayers.find(
+                    (p: ServerPlayerData) => p.sessionId === data.sessionId
+                );
 
                 // Bug #8 fix: If player not in list, construct from changes and EigennamenClient.player
                 if (!updatedPlayer) {
@@ -91,11 +104,11 @@ export function registerPlayerHandlers(): void {
                     // During a role change, skip syncLocalPlayerState for unrelated updates
                     // to avoid overwriting optimistic UI state (race condition fix).
                     const rc = state.roleChange;
-                    const isConfirmingUpdate = rc.phase !== 'idle' && (
-                        (rc.phase === 'changing_team' && data.changes.team !== undefined) ||
-                        (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
-                        (rc.phase === 'team_then_role' && data.changes.team !== undefined)
-                    );
+                    const isConfirmingUpdate =
+                        rc.phase !== 'idle' &&
+                        ((rc.phase === 'changing_team' && data.changes.team !== undefined) ||
+                            (rc.phase === 'changing_role' && data.changes.role !== undefined) ||
+                            (rc.phase === 'team_then_role' && data.changes.team !== undefined));
 
                     if (rc.phase === 'idle' || isConfirmingUpdate) {
                         syncLocalPlayerState(updatedPlayer);
@@ -120,7 +133,7 @@ export function registerPlayerHandlers(): void {
                                 updateRoleBanner();
                                 updateControls();
                                 renderBoard();
-                            }
+                            },
                         };
 
                         EigennamenClient.setRole(roleToSet);

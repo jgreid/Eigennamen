@@ -10,7 +10,7 @@ const {
     requireAuth,
     getClientIP,
     validateSession,
-    validateOrigin
+    validateOrigin,
 } = require('../../middleware/socketAuth');
 
 // Mock dependencies
@@ -18,13 +18,13 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 jest.mock('../../services/playerService', () => ({
     getPlayer: jest.fn(),
     setSocketMapping: jest.fn(),
-    validateSocketAuthToken: jest.fn()
+    validateSocketAuthToken: jest.fn(),
 }));
 
 jest.mock('../../config/jwt', () => ({
@@ -36,12 +36,12 @@ jest.mock('../../config/jwt', () => ({
         TOKEN_INVALID: 'TOKEN_INVALID',
         TOKEN_MALFORMED: 'TOKEN_MALFORMED',
         CLAIMS_MISMATCH: 'CLAIMS_MISMATCH',
-        JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED'
-    }
+        JWT_NOT_CONFIGURED: 'JWT_NOT_CONFIGURED',
+    },
 }));
 
 jest.mock('../../config/redis', () => ({
-    getRedis: jest.fn()
+    getRedis: jest.fn(),
 }));
 
 jest.mock('../../config/constants', () => ({
@@ -51,16 +51,16 @@ jest.mock('../../config/constants', () => ({
         IP_MISMATCH_ALLOWED: true,
         SESSION_ID_MIN_LENGTH: 36,
         RECONNECTION_TOKEN_TTL_SECONDS: 300,
-        RECONNECTION_TOKEN_LENGTH: 32
+        RECONNECTION_TOKEN_LENGTH: 32,
     },
     REDIS_TTL: {
-        SESSION_VALIDATION_WINDOW: 60
+        SESSION_VALIDATION_WINDOW: 60,
     },
     ERROR_CODES: {
         SESSION_EXPIRED: 'SESSION_EXPIRED',
         SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
-        SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED'
-    }
+        SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
+    },
 }));
 
 const logger = require('../../utils/logger');
@@ -80,7 +80,7 @@ describe('Socket Authentication Middleware', () => {
             eval: jest.fn(),
             set: jest.fn(),
             get: jest.fn(),
-            del: jest.fn()
+            del: jest.fn(),
         };
         getRedis.mockReturnValue(mockRedis);
     });
@@ -90,9 +90,9 @@ describe('Socket Authentication Middleware', () => {
             handshake: {
                 address,
                 headers: {
-                    'x-forwarded-for': forwardedFor
-                }
-            }
+                    'x-forwarded-for': forwardedFor,
+                },
+            },
         });
 
         afterEach(() => {
@@ -172,8 +172,8 @@ describe('Socket Authentication Middleware', () => {
         test('session age validation via validateSession - valid session', async () => {
             const validPlayer = {
                 sessionId: 'valid-session',
-                createdAt: Date.now() - (1 * 60 * 60 * 1000), // 1 hour ago
-                lastIP: '192.168.1.1'
+                createdAt: Date.now() - 1 * 60 * 60 * 1000, // 1 hour ago
+                lastIP: '192.168.1.1',
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -189,8 +189,8 @@ describe('Socket Authentication Middleware', () => {
         test('session age validation via validateSession - expired session', async () => {
             const expiredPlayer = {
                 sessionId: 'expired-session',
-                createdAt: Date.now() - (25 * 60 * 60 * 1000), // 25 hours ago
-                lastIP: '192.168.1.1'
+                createdAt: Date.now() - 25 * 60 * 60 * 1000, // 25 hours ago
+                lastIP: '192.168.1.1',
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -206,8 +206,8 @@ describe('Socket Authentication Middleware', () => {
         test('session with connectedAt instead of createdAt - valid', async () => {
             const player = {
                 sessionId: 'test-session',
-                connectedAt: Date.now() - (1 * 60 * 60 * 1000), // 1 hour ago
-                lastIP: '192.168.1.1'
+                connectedAt: Date.now() - 1 * 60 * 60 * 1000, // 1 hour ago
+                lastIP: '192.168.1.1',
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -225,7 +225,7 @@ describe('Socket Authentication Middleware', () => {
             const player = {
                 sessionId: 'test-session',
                 createdAt: Date.now(),
-                lastIP: null
+                lastIP: null,
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -242,7 +242,7 @@ describe('Socket Authentication Middleware', () => {
             const player = {
                 sessionId: 'test-session',
                 createdAt: Date.now(),
-                lastIP: '192.168.1.1'
+                lastIP: '192.168.1.1',
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -261,7 +261,7 @@ describe('Socket Authentication Middleware', () => {
                 nickname: 'TestPlayer',
                 roomCode: 'ABC123',
                 createdAt: Date.now(),
-                lastIP: '192.168.1.1'
+                lastIP: '192.168.1.1',
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -272,11 +272,14 @@ describe('Socket Authentication Middleware', () => {
 
             expect(result.valid).toBe(true);
             expect(result.ipMismatch).toBe(true);
-            expect(logger.warn).toHaveBeenCalledWith('IP mismatch on session reconnection', expect.objectContaining({
-                sessionId: 'test-session',
-                previousIP: '192.168.1.1',
-                currentIP: '10.0.0.1'
-            }));
+            expect(logger.warn).toHaveBeenCalledWith(
+                'IP mismatch on session reconnection',
+                expect.objectContaining({
+                    sessionId: 'test-session',
+                    previousIP: '192.168.1.1',
+                    currentIP: '10.0.0.1',
+                })
+            );
         });
     });
 
@@ -305,7 +308,7 @@ describe('Socket Authentication Middleware', () => {
             const player = {
                 sessionId: 'valid-session',
                 createdAt: Date.now(),
-                lastIP: '192.168.1.1'
+                lastIP: '192.168.1.1',
             };
 
             mockRedis.eval.mockResolvedValue(1);
@@ -326,8 +329,8 @@ describe('Socket Authentication Middleware', () => {
             handshake: {
                 auth,
                 address,
-                headers: {}
-            }
+                headers: {},
+            },
         });
 
         test('generates new session ID when none provided', async () => {
@@ -380,7 +383,7 @@ describe('Socket Authentication Middleware', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: validUuid,
                 connected: true,
-                lastIP: '192.168.1.1' // Same IP as the socket
+                lastIP: '192.168.1.1', // Same IP as the socket
             });
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
@@ -400,14 +403,17 @@ describe('Socket Authentication Middleware', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId: validUuid,
                 connected: true,
-                lastIP: '192.168.1.1' // Different IP from the socket
+                lastIP: '192.168.1.1', // Different IP from the socket
             });
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(false);
 
             await authenticateSocket(socket, next);
 
-            expect(logger.warn).toHaveBeenCalledWith('Session hijacking attempt blocked: different IP', expect.any(Object));
+            expect(logger.warn).toHaveBeenCalledWith(
+                'Session hijacking attempt blocked: different IP',
+                expect.any(Object)
+            );
             expect(socket.sessionId).not.toBe(validUuid);
             expect(next).toHaveBeenCalledWith();
         });
@@ -415,7 +421,7 @@ describe('Socket Authentication Middleware', () => {
         test('validates disconnected player session without requiring token', async () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
             const socket = createMockSocket({
-                sessionId: validUuid
+                sessionId: validUuid,
             });
             const next = jest.fn();
 
@@ -423,7 +429,7 @@ describe('Socket Authentication Middleware', () => {
                 sessionId: validUuid,
                 connected: false,
                 createdAt: Date.now(),
-                lastIP: '192.168.1.1'
+                lastIP: '192.168.1.1',
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
@@ -452,7 +458,7 @@ describe('Socket Authentication Middleware', () => {
                 connected: false,
                 // Session created 25 hours ago — exceeds MAX_SESSION_AGE_MS (24h)
                 createdAt: Date.now() - 25 * 60 * 60 * 1000,
-                lastIP: '192.168.1.1'
+                lastIP: '192.168.1.1',
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
@@ -472,17 +478,20 @@ describe('Socket Authentication Middleware', () => {
             const validUuid = '550e8400-e29b-41d4-a716-446655440000';
             // Token must be 64 hex characters (32 bytes * 2)
             const validHexToken = 'c'.repeat(64);
-            const socket = createMockSocket({
-                sessionId: validUuid,
-                reconnectToken: validHexToken
-            }, '10.0.0.1');
+            const socket = createMockSocket(
+                {
+                    sessionId: validUuid,
+                    reconnectToken: validHexToken,
+                },
+                '10.0.0.1'
+            );
             const next = jest.fn();
 
             const disconnectedPlayer = {
                 sessionId: validUuid,
                 connected: false,
                 createdAt: Date.now(),
-                lastIP: '192.168.1.1' // Different IP
+                lastIP: '192.168.1.1', // Different IP
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
@@ -505,7 +514,10 @@ describe('Socket Authentication Middleware', () => {
 
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(true);
-            verifyTokenWithClaims.mockReturnValue({ valid: true, decoded: { userId: 'user-123', email: 'test@test.com' } });
+            verifyTokenWithClaims.mockReturnValue({
+                valid: true,
+                decoded: { userId: 'user-123', email: 'test@test.com' },
+            });
 
             await authenticateSocket(socket, next);
 
@@ -522,7 +534,11 @@ describe('Socket Authentication Middleware', () => {
 
             playerService.setSocketMapping.mockResolvedValue(true);
             isJwtEnabled.mockReturnValue(true);
-            verifyTokenWithClaims.mockReturnValue({ valid: false, error: JWT_ERROR_CODES.TOKEN_INVALID, message: 'Invalid token' });
+            verifyTokenWithClaims.mockReturnValue({
+                valid: false,
+                error: JWT_ERROR_CODES.TOKEN_INVALID,
+                message: 'Invalid token',
+            });
 
             await authenticateSocket(socket, next);
 
@@ -593,8 +609,8 @@ describe('Socket Authentication Middleware', () => {
             const disconnectedPlayer = {
                 sessionId: validUuid,
                 connected: false,
-                createdAt: Date.now() - (25 * 60 * 60 * 1000), // Expired
-                lastIP: '192.168.1.1'
+                createdAt: Date.now() - 25 * 60 * 60 * 1000, // Expired
+                lastIP: '192.168.1.1',
             };
 
             playerService.getPlayer.mockResolvedValue(disconnectedPlayer);
@@ -616,7 +632,7 @@ describe('Socket Authentication Middleware', () => {
 
             playerService.getPlayer.mockResolvedValue({
                 sessionId: validUuid,
-                connected: true
+                connected: true,
                 // no lastIP field — first connection had no IP tracking
             });
             playerService.setSocketMapping.mockResolvedValue(true);
@@ -713,7 +729,10 @@ describe('Socket Authentication Middleware', () => {
         test('allows wildcard subdomain match', () => {
             process.env.NODE_ENV = 'production';
             process.env.CORS_ORIGIN = '*.example.com';
-            const socket = { id: 's1', handshake: { headers: { origin: 'http://sub.example.com' }, address: '127.0.0.1' } };
+            const socket = {
+                id: 's1',
+                handshake: { headers: { origin: 'http://sub.example.com' }, address: '127.0.0.1' },
+            };
             expect(validateOrigin(socket).valid).toBe(true);
         });
 
@@ -725,8 +744,8 @@ describe('Socket Authentication Middleware', () => {
                 handshake: {
                     headers: { origin: 'http://evil.com' },
                     address: '127.0.0.1',
-                    auth: { sessionId: 'test-session' }
-                }
+                    auth: { sessionId: 'test-session' },
+                },
             };
             const result = validateOrigin(socket);
             expect(result.valid).toBe(false);
@@ -785,9 +804,12 @@ describe('Socket Authentication Middleware', () => {
             const result = await validateRoomReconnectToken('session-1', 'tooshort', '192.168.1.1');
 
             expect(result).toBe(false);
-            expect(logger.warn).toHaveBeenCalledWith('Invalid reconnection token format', expect.objectContaining({
-                sessionId: 'session-1'
-            }));
+            expect(logger.warn).toHaveBeenCalledWith(
+                'Invalid reconnection token format',
+                expect.objectContaining({
+                    sessionId: 'session-1',
+                })
+            );
             // Should not even call playerService when format is invalid
             expect(playerService.validateSocketAuthToken).not.toHaveBeenCalled();
         });
@@ -818,10 +840,13 @@ describe('Socket Authentication Middleware', () => {
             const result = await validateRoomReconnectToken('session-1', validToken, '192.168.1.1');
 
             expect(result).toBe(false);
-            expect(logger.warn).toHaveBeenCalledWith('Reconnection token validation failed', expect.objectContaining({
-                sessionId: 'session-1',
-                hasToken: true
-            }));
+            expect(logger.warn).toHaveBeenCalledWith(
+                'Reconnection token validation failed',
+                expect.objectContaining({
+                    sessionId: 'session-1',
+                    hasToken: true,
+                })
+            );
         });
 
         test('delegates to playerService when no token provided', async () => {
@@ -842,8 +867,8 @@ describe('Socket Authentication Middleware', () => {
                 handshake: {
                     headers: {},
                     address: '1.2.3.4',
-                    auth: {}
-                }
+                    auth: {},
+                },
             };
             const next = jest.fn();
             await authenticateSocket(socket, next);
@@ -852,5 +877,4 @@ describe('Socket Authentication Middleware', () => {
             expect(socket).toHaveProperty('sessionId');
         });
     });
-
 });

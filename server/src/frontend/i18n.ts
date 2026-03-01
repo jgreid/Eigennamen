@@ -16,14 +16,17 @@ export const LANGUAGES: Record<string, { name: string; flag: string }> = {
     en: { name: 'English', flag: 'EN' },
     de: { name: 'Deutsch', flag: 'DE' },
     es: { name: 'Español', flag: 'ES' },
-    fr: { name: 'Français', flag: 'FR' }
+    fr: { name: 'Français', flag: 'FR' },
 };
 
 export const DEFAULT_LANGUAGE = 'en';
 const STORAGE_KEY = 'eigennamen-language';
 
+/** Nested translation data (strings or nested objects) */
+type TranslationValue = string | { [key: string]: TranslationValue };
+
 /** Loaded translation data keyed by language code */
-const translations: Record<string, Record<string, any>> = {};
+const translations: Record<string, Record<string, TranslationValue>> = {};
 
 /** Current active language */
 let currentLanguage = DEFAULT_LANGUAGE;
@@ -117,9 +120,10 @@ export function getLanguage(): string {
  * @returns Translated string or key as fallback
  */
 export function t(key: string, params: Record<string, string | number> = {}): string {
-    const value = getNestedValue(translations[currentLanguage], key)
-        || getNestedValue(translations[DEFAULT_LANGUAGE], key)
-        || key;
+    const value =
+        getNestedValue(translations[currentLanguage], key) ||
+        getNestedValue(translations[DEFAULT_LANGUAGE], key) ||
+        key;
 
     if (typeof value !== 'string') return key;
 
@@ -129,12 +133,18 @@ export function t(key: string, params: Record<string, string | number> = {}): st
         const raw = String(params[name]);
         return raw.replace(/[&<>"']/g, (ch: string) => {
             switch (ch) {
-                case '&': return '&amp;';
-                case '<': return '&lt;';
-                case '>': return '&gt;';
-                case '"': return '&quot;';
-                case "'": return '&#39;';
-                default: return ch;
+                case '&':
+                    return '&amp;';
+                case '<':
+                    return '&lt;';
+                case '>':
+                    return '&gt;';
+                case '"':
+                    return '&quot;';
+                case "'":
+                    return '&#39;';
+                default:
+                    return ch;
             }
         });
     });
@@ -145,7 +155,7 @@ export function t(key: string, params: Record<string, string | number> = {}): st
  */
 export function translatePage(): void {
     const elements = document.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
+    elements.forEach((el) => {
         const key = el.getAttribute('data-i18n');
         if (!key) return;
 
@@ -157,7 +167,7 @@ export function translatePage(): void {
 
     // Handle data-i18n-placeholder for input elements
     const placeholders = document.querySelectorAll('[data-i18n-placeholder]');
-    placeholders.forEach(el => {
+    placeholders.forEach((el) => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (!key) return;
 
@@ -169,7 +179,7 @@ export function translatePage(): void {
 
     // Handle data-i18n-title for title attributes
     const titles = document.querySelectorAll('[data-i18n-title]');
-    titles.forEach(el => {
+    titles.forEach((el) => {
         const key = el.getAttribute('data-i18n-title');
         if (!key) return;
 
@@ -198,9 +208,9 @@ export async function getLocalizedWordList(lang: string = currentLanguage): Prom
         const text = await response.text();
         return text
             .split('\n')
-            .map(w => w.trim())
-            .filter(w => w.length > 0 && !w.startsWith('#'))
-            .map(w => w.toUpperCase());
+            .map((w) => w.trim())
+            .filter((w) => w.length > 0 && !w.startsWith('#'))
+            .map((w) => w.toUpperCase());
     } catch {
         return null;
     }
@@ -213,6 +223,11 @@ export async function getLocalizedWordList(lang: string = currentLanguage): Prom
  */
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
     if (!obj || !path) return undefined;
-    return path.split('.').reduce((curr: Record<string, unknown> | undefined, key: string) =>
-        (curr && typeof curr === 'object') ? (curr[key] as Record<string, unknown> | undefined) : undefined, obj as Record<string, unknown> | undefined);
+    return path
+        .split('.')
+        .reduce(
+            (curr: Record<string, unknown> | undefined, key: string) =>
+                curr && typeof curr === 'object' ? (curr[key] as Record<string, unknown> | undefined) : undefined,
+            obj as Record<string, unknown> | undefined
+        );
 }

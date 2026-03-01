@@ -10,7 +10,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 describe('JWT Configuration', () => {
@@ -63,9 +63,7 @@ describe('JWT Configuration', () => {
             process.env.NODE_ENV = 'production';
             jwtModule = require('../../config/jwt');
 
-            expect(() => jwtModule.getJwtSecret()).toThrow(
-                'JWT_SECRET must be configured in production'
-            );
+            expect(() => jwtModule.getJwtSecret()).toThrow('JWT_SECRET must be configured in production');
         });
 
         it('should throw error in production with short secret', () => {
@@ -73,9 +71,7 @@ describe('JWT Configuration', () => {
             process.env.NODE_ENV = 'production';
             jwtModule = require('../../config/jwt');
 
-            expect(() => jwtModule.getJwtSecret()).toThrow(
-                'JWT_SECRET must be at least 32 characters in production'
-            );
+            expect(() => jwtModule.getJwtSecret()).toThrow('JWT_SECRET must be at least 32 characters in production');
         });
 
         it('should return secret in production when properly configured', () => {
@@ -165,11 +161,12 @@ describe('JWT Configuration', () => {
         it('should return null for expired token', () => {
             // Create a token that expires immediately
             const jwt = require('jsonwebtoken');
-            const token = jwt.sign(
-                { userId: 'test' },
-                'a-valid-secret-that-is-long-enough-32chars',
-                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'eigennamen', audience: 'game-client' }
-            );
+            const token = jwt.sign({ userId: 'test' }, 'a-valid-secret-that-is-long-enough-32chars', {
+                expiresIn: '-1s',
+                algorithm: 'HS256',
+                issuer: 'eigennamen',
+                audience: 'game-client',
+            });
 
             const decoded = jwtModule.verifyToken(token);
             expect(decoded).toBeNull();
@@ -182,19 +179,17 @@ describe('JWT Configuration', () => {
             jest.resetModules();
             jwtModule = require('../../config/jwt');
 
-            expect(() => jwtModule.verifyToken('any-token')).toThrow(
-                'JWT_SECRET must be configured in production'
-            );
+            expect(() => jwtModule.verifyToken('any-token')).toThrow('JWT_SECRET must be configured in production');
         });
 
         it('should log warning for unexpected verification errors', () => {
             // Create a token with wrong issuer
             const jwt = require('jsonwebtoken');
-            const token = jwt.sign(
-                { userId: 'test' },
-                'a-valid-secret-that-is-long-enough-32chars',
-                { algorithm: 'HS256', issuer: 'wrong-issuer', audience: 'game-client' }
-            );
+            const token = jwt.sign({ userId: 'test' }, 'a-valid-secret-that-is-long-enough-32chars', {
+                algorithm: 'HS256',
+                issuer: 'wrong-issuer',
+                audience: 'game-client',
+            });
 
             const decoded = jwtModule.verifyToken(token);
             expect(decoded).toBeNull();
@@ -245,7 +240,7 @@ describe('JWT Configuration', () => {
         it('should include additional claims', () => {
             const token = jwtModule.generateSessionToken('user-123', 'session-456', {
                 role: 'admin',
-                permissions: ['read', 'write']
+                permissions: ['read', 'write'],
             });
             const decoded = jwtModule.verifyToken(token);
 
@@ -299,11 +294,12 @@ describe('JWT Configuration', () => {
 
         it('should return error object for expired token when returnError is true', () => {
             const jwt = require('jsonwebtoken');
-            const token = jwt.sign(
-                { userId: 'test' },
-                'a-valid-secret-that-is-long-enough-32chars',
-                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'eigennamen', audience: 'game-client' }
-            );
+            const token = jwt.sign({ userId: 'test' }, 'a-valid-secret-that-is-long-enough-32chars', {
+                expiresIn: '-1s',
+                algorithm: 'HS256',
+                issuer: 'eigennamen',
+                audience: 'game-client',
+            });
 
             const result = jwtModule.verifyToken(token, { returnError: true });
             expect(result.error).toBe(jwtModule.JWT_ERROR_CODES.TOKEN_EXPIRED);
@@ -350,11 +346,12 @@ describe('JWT Configuration', () => {
 
         it('should return valid:false for expired token', () => {
             const jwt = require('jsonwebtoken');
-            const token = jwt.sign(
-                { userId: 'test' },
-                'a-valid-secret-that-is-long-enough-32chars',
-                { expiresIn: '-1s', algorithm: 'HS256', issuer: 'eigennamen', audience: 'game-client' }
-            );
+            const token = jwt.sign({ userId: 'test' }, 'a-valid-secret-that-is-long-enough-32chars', {
+                expiresIn: '-1s',
+                algorithm: 'HS256',
+                issuer: 'eigennamen',
+                audience: 'game-client',
+            });
 
             const result = jwtModule.verifyTokenWithClaims(token, { userId: 'test' });
             expect(result.valid).toBe(false);

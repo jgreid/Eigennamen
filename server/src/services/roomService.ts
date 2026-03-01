@@ -1,9 +1,4 @@
-import type {
-    Room,
-    CreateRoomSettings,
-    CreateRoomResult,
-    RoomSettings
-} from '../types/room';
+import type { Room, CreateRoomSettings, CreateRoomResult, RoomSettings } from '../types/room';
 import type { Player, RedisClient } from '../types';
 
 import { getRedis } from '../config/redis';
@@ -13,11 +8,7 @@ import * as playerService from './playerService';
 import * as timerService from './timerService';
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { normalizeRoomCode } from '../utils/sanitize';
-import {
-    REDIS_TTL,
-    ROOM_STATUS,
-    ERROR_CODES
-} from '../config/constants';
+import { REDIS_TTL, ROOM_STATUS, ERROR_CODES } from '../config/constants';
 import { RoomError, PlayerError, ServerError, GameStateError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
 import { incrementCounter, METRIC_NAMES } from '../utils/metrics';
@@ -61,8 +52,8 @@ export async function createRoom(
 
     const room: Room = {
         id: uuidv4(),
-        code: normalizedRoomId,  // Use normalized room ID as the code
-        roomId: roomId,          // Keep original for display
+        code: normalizedRoomId, // Use normalized room ID as the code
+        roomId: roomId, // Keep original for display
         hostSessionId,
         status: ROOM_STATUS.WAITING,
         settings: {
@@ -70,38 +61,34 @@ export async function createRoom(
             turnTimer: null,
             allowSpectators: true,
             gameMode: 'classic',
-            ...cleanSettings
+            ...cleanSettings,
         },
         createdAt: Date.now(),
-        expiresAt: Date.now() + (REDIS_TTL.ROOM * 1000)
+        expiresAt: Date.now() + REDIS_TTL.ROOM * 1000,
     };
 
     // Build host player data to create atomically with the room
     const hostPlayer: Player = playerService.buildPlayerData(
-        hostSessionId, normalizedRoomId, hostNickname || 'Player', true
+        hostSessionId,
+        normalizedRoomId,
+        hostNickname || 'Player',
+        true
     );
 
     // Atomically create room + host player in a single Lua script call.
     // This eliminates the crash window between room creation and player creation
     // that could leave an orphaned room without a host player.
     const created = await withTimeout(
-        redis.eval(
-            ATOMIC_CREATE_ROOM_SCRIPT,
-            {
-                keys: [
-                    `room:${normalizedRoomId}`,
-                    `room:${normalizedRoomId}:players`,
-                    `player:${hostSessionId}`
-                ],
-                arguments: [
-                    JSON.stringify(room),
-                    REDIS_TTL.ROOM.toString(),
-                    JSON.stringify(hostPlayer),
-                    REDIS_TTL.PLAYER.toString(),
-                    hostSessionId
-                ]
-            }
-        ),
+        redis.eval(ATOMIC_CREATE_ROOM_SCRIPT, {
+            keys: [`room:${normalizedRoomId}`, `room:${normalizedRoomId}:players`, `player:${hostSessionId}`],
+            arguments: [
+                JSON.stringify(room),
+                REDIS_TTL.ROOM.toString(),
+                JSON.stringify(hostPlayer),
+                REDIS_TTL.PLAYER.toString(),
+                hostSessionId,
+            ],
+        }),
         TIMEOUTS.REDIS_OPERATION,
         `createRoom-lua-${normalizedRoomId}`
     );
@@ -145,7 +132,7 @@ export async function getRoom(roomId: string): Promise<Room | null> {
         logger.error('Room data exists in Redis but failed to parse', {
             roomId: normalizedId,
             rawDataLength: roomData.length,
-            rawDataPreview: roomData.substring(0, 200)
+            rawDataPreview: roomData.substring(0, 200),
         });
         throw GameStateError.corrupted(normalizedId, { operation: 'getRoom' });
     }
@@ -175,18 +162,14 @@ export async function updateSettings(
         }
     }
 
-    const resultStr = await withTimeout(
+    const resultStr = (await withTimeout(
         redis.eval(ATOMIC_UPDATE_SETTINGS_SCRIPT, {
             keys: [`room:${code}`],
-            arguments: [
-                sessionId,
-                JSON.stringify(sanitizedSettings),
-                REDIS_TTL.ROOM.toString()
-            ]
+            arguments: [sessionId, JSON.stringify(sanitizedSettings), REDIS_TTL.ROOM.toString()],
         }),
         TIMEOUTS.REDIS_OPERATION,
         'updateSettings-lua'
-    ) as string | null;
+    )) as string | null;
 
     if (!resultStr) {
         throw new ServerError('Failed to update room settings');
@@ -197,7 +180,11 @@ export async function updateSettings(
         success: z.boolean().optional(),
         settings: z.unknown().optional(),
     });
-    const result = tryParseJSON(resultStr, luaSettingsResultSchema, `updateSettings for room ${code}`) as { error?: string; success?: boolean; settings?: RoomSettings } | null;
+    const result = tryParseJSON(resultStr, luaSettingsResultSchema, `updateSettings for room ${code}`) as {
+        error?: string;
+        success?: boolean;
+        settings?: RoomSettings;
+    } | null;
 
     if (!result) {
         throw new ServerError('Failed to parse room settings update result');
@@ -225,11 +212,13 @@ export async function updateSettings(
 export async function roomExists(code: string): Promise<boolean> {
     const redis: RedisClient = getRedis();
     const normalizedCode = normalizeRoomCode(code);
-    return await withTimeout(
-        redis.exists(`room:${normalizedCode}`),
-        TIMEOUTS.REDIS_OPERATION,
-        `roomExists-${normalizedCode}`
-    ) === 1;
+    return (
+        (await withTimeout(
+            redis.exists(`room:${normalizedCode}`),
+            TIMEOUTS.REDIS_OPERATION,
+            `roomExists-${normalizedCode}`
+        )) === 1
+    );
 }
 
 /**
@@ -241,19 +230,16 @@ export async function refreshRoomTTL(code: string): Promise<void> {
 
     // Wrap redis.eval with timeout to prevent hanging operations
     await withTimeout(
-        redis.eval(
-            ATOMIC_REFRESH_TTL_SCRIPT,
-            {
-                keys: [
-                    `room:${code}`,
-                    `room:${code}:players`,
-                    `room:${code}:game`,
-                    `room:${code}:team:red`,
-                    `room:${code}:team:blue`
-                ],
-                arguments: [REDIS_TTL.ROOM.toString()]
-            }
-        ),
+        redis.eval(ATOMIC_REFRESH_TTL_SCRIPT, {
+            keys: [
+                `room:${code}`,
+                `room:${code}:players`,
+                `room:${code}:game`,
+                `room:${code}:team:red`,
+                `room:${code}:team:blue`,
+            ],
+            arguments: [REDIS_TTL.ROOM.toString()],
+        }),
         TIMEOUTS.REDIS_OPERATION,
         `refreshRoomTTL-lua-${code}`
     );
@@ -323,35 +309,28 @@ export async function cleanupRoom(code: string): Promise<void> {
     );
 
     // Performance fix: Use mGet for batch token lookup instead of N individual gets
-    const tokenKeys = sessionIds.map(id => `reconnect:session:${id}`);
-    const reconnectTokens = tokenKeys.length > 0
-        ? await withTimeout(
-            redis.mGet(tokenKeys),
-            TIMEOUTS.REDIS_OPERATION,
-            `cleanupRoom-mGet-tokens-${code}`
-        )
-        : [];
+    const tokenKeys = sessionIds.map((id) => `reconnect:session:${id}`);
+    const reconnectTokens =
+        tokenKeys.length > 0
+            ? await withTimeout(redis.mGet(tokenKeys), TIMEOUTS.REDIS_OPERATION, `cleanupRoom-mGet-tokens-${code}`)
+            : [];
 
     // Build list of all keys to delete including team sets
     const keysToDelete: string[] = [
-        ...sessionIds.map(sessionId => `player:${sessionId}`),
-        ...sessionIds.map(sessionId => `session:${sessionId}:socket`), // Also clean socket mappings
-        ...sessionIds.map(sessionId => `reconnect:session:${sessionId}`), // Clean reconnection session keys
-        ...reconnectTokens.filter((t): t is string => t !== null).map(token => `reconnect:token:${token}`), // Clean reconnection token keys
+        ...sessionIds.map((sessionId) => `player:${sessionId}`),
+        ...sessionIds.map((sessionId) => `session:${sessionId}:socket`), // Also clean socket mappings
+        ...sessionIds.map((sessionId) => `reconnect:session:${sessionId}`), // Clean reconnection session keys
+        ...reconnectTokens.filter((t): t is string => t !== null).map((token) => `reconnect:token:${token}`), // Clean reconnection token keys
         `room:${code}`,
         `room:${code}:players`,
         `room:${code}:game`,
-        `room:${code}:team:red`,   // Include team sets
-        `room:${code}:team:blue`   // Include team sets
+        `room:${code}:team:red`, // Include team sets
+        `room:${code}:team:blue`, // Include team sets
     ];
 
     // Delete all keys in parallel using DEL with multiple keys (single Redis call)
     if (keysToDelete.length > 0) {
-        await withTimeout(
-            redis.del(keysToDelete),
-            TIMEOUTS.REDIS_OPERATION,
-            `cleanupRoom-del-${code}`
-        );
+        await withTimeout(redis.del(keysToDelete), TIMEOUTS.REDIS_OPERATION, `cleanupRoom-del-${code}`);
     }
 
     logger.info(`Room ${code} and all associated data cleaned up`);
@@ -364,11 +343,7 @@ export async function deleteRoom(code: string): Promise<void> {
     await cleanupRoom(code);
 }
 
-
 // Membership functions (extracted to room/membership.ts)
-import {
-    joinRoom as _joinRoom,
-    leaveRoom as _leaveRoom,
-} from './room/membership';
+import { joinRoom as _joinRoom, leaveRoom as _leaveRoom } from './room/membership';
 export const joinRoom = _joinRoom;
 export const leaveRoom = _leaveRoom;

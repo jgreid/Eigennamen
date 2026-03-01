@@ -12,20 +12,32 @@ jest.mock('../../frontend/state', () => ({
         spymasterTeam: null,
         clickerTeam: null,
         gameState: {
-            words: [], types: [], revealed: [],
-            currentTurn: 'red', redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null, seed: null,
-            currentClue: null, guessesUsed: 0, guessesAllowed: 0,
-            status: 'waiting', duetTypes: [],
-            timerTokens: 0, greenFound: 0, greenTotal: 0
+            words: [],
+            types: [],
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            currentClue: null,
+            guessesUsed: 0,
+            guessesAllowed: 0,
+            status: 'waiting',
+            duetTypes: [],
+            timerTokens: 0,
+            greenFound: 0,
+            greenTotal: 0,
         },
-        gameMode: 'classic'
-    }
+        gameMode: 'classic',
+    },
 }));
 
 jest.mock('../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
 
 import {
@@ -380,17 +392,34 @@ describe('resetGameState', () => {
         // State was already dirtied by resetMockState in beforeEach
         resetGameState();
         expect(state.gameState).toEqual({
-            words: [], types: [], revealed: [],
-            currentTurn: 'red', redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null, seed: null,
-            currentClue: null, guessesUsed: 0, guessesAllowed: 0,
-            status: 'waiting', duetTypes: [],
-            timerTokens: 0, greenFound: 0, greenTotal: 0,
+            words: [],
+            types: [],
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            currentClue: null,
+            guessesUsed: 0,
+            guessesAllowed: 0,
+            status: 'waiting',
+            duetTypes: [],
+            timerTokens: 0,
+            greenFound: 0,
+            greenTotal: 0,
             // Match mode
-            cardScores: [], revealedBy: [],
-            matchRound: 0, redMatchScore: 0, blueMatchScore: 0,
-            roundHistory: [], matchOver: false, matchWinner: null
+            cardScores: [],
+            revealedBy: [],
+            matchRound: 0,
+            redMatchScore: 0,
+            blueMatchScore: 0,
+            roundHistory: [],
+            matchOver: false,
+            matchWinner: null,
         });
         expect(state.gameMode).toBe('classic');
     });
@@ -528,9 +557,7 @@ describe('validateArrayLength', () => {
     test('returns false when array length does not match and logs warning', () => {
         const result = validateArrayLength('words', [1, 2], 5);
         expect(result).toBe(false);
-        expect(logger.warn).toHaveBeenCalledWith(
-            'words array length mismatch: got 2, expected 5'
-        );
+        expect(logger.warn).toHaveBeenCalledWith('words array length mismatch: got 2, expected 5');
     });
 
     test('returns false for null array', () => {
@@ -557,9 +584,7 @@ describe('validateArrayLength', () => {
 
     test('logs warning with correct name and lengths for mismatch', () => {
         validateArrayLength('types', ['a', 'b', 'c'], 25);
-        expect(logger.warn).toHaveBeenCalledWith(
-            'types array length mismatch: got 3, expected 25'
-        );
+        expect(logger.warn).toHaveBeenCalledWith('types array length mismatch: got 3, expected 25');
     });
 
     test('returns true for array of length 25 when expected is 25', () => {

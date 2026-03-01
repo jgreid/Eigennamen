@@ -6,13 +6,31 @@
  */
 
 import type {
-    ServerPlayerData, ServerRoomData, ServerGameData,
-    GameStartedData, CardRevealedData, TurnEndedData, GameOverData,
-    SpymasterViewData, PlayerJoinedData, PlayerLeftData, PlayerUpdatedData,
-    PlayerDisconnectedData, HostChangedData, TimerEventData, RoomWarningData,
-    ReconnectionData, SettingsUpdatedData, StatsUpdatedData, SpectatorChatData,
-    ChatMessageData, KickedData, PlayerKickedData, HistoryResultData,
-    ReplayData, JoinCreateResult
+    ServerPlayerData,
+    ServerRoomData,
+    ServerGameData,
+    GameStartedData,
+    CardRevealedData,
+    TurnEndedData,
+    GameOverData,
+    SpymasterViewData,
+    PlayerJoinedData,
+    PlayerLeftData,
+    PlayerUpdatedData,
+    PlayerDisconnectedData,
+    HostChangedData,
+    TimerEventData,
+    RoomWarningData,
+    ReconnectionData,
+    SettingsUpdatedData,
+    StatsUpdatedData,
+    SpectatorChatData,
+    ChatMessageData,
+    KickedData,
+    PlayerKickedData,
+    HistoryResultData,
+    ReplayData,
+    JoinCreateResult,
 } from './multiplayerTypes.js';
 
 // Event payload types for server-to-client events (adapter's internal bus)

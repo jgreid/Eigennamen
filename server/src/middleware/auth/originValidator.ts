@@ -39,21 +39,23 @@ function validateOrigin(socket: Socket): OriginValidationResult {
             // Missing Origin is the primary WebSocket CSRF vector.
             logger.warn('WebSocket connection rejected: missing origin header in production', {
                 socketId: socket.id,
-                clientIP: getClientIP(socket)
+                clientIP: getClientIP(socket),
             });
 
-            audit.suspicious(
-                'WebSocket connection without origin header in production',
-                (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
-                getClientIP(socket),
-                { corsOrigin }
-            ).catch((err: Error) => {
-                logger.debug('Failed to audit origin violation:', err.message);
-            });
+            audit
+                .suspicious(
+                    'WebSocket connection without origin header in production',
+                    (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
+                    getClientIP(socket),
+                    { corsOrigin }
+                )
+                .catch((err: Error) => {
+                    logger.debug('Failed to audit origin violation:', err.message);
+                });
 
             return {
                 valid: false,
-                reason: 'Origin header required in production'
+                reason: 'Origin header required in production',
             };
         }
         return { valid: true };
@@ -71,9 +73,10 @@ function validateOrigin(socket: Socket): OriginValidationResult {
         // Support wildcard subdomains (e.g., *.example.com)
         if (allowed.startsWith('*.')) {
             const domain = allowed.slice(2);
-            return originLower.endsWith(domain) &&
-                   (originLower.length === domain.length ||
-                    originLower[originLower.length - domain.length - 1] === '.');
+            return (
+                originLower.endsWith(domain) &&
+                (originLower.length === domain.length || originLower[originLower.length - domain.length - 1] === '.')
+            );
         }
         return false;
     });
@@ -83,22 +86,24 @@ function validateOrigin(socket: Socket): OriginValidationResult {
             origin,
             allowedOrigins,
             socketId: socket.id,
-            clientIP: getClientIP(socket)
+            clientIP: getClientIP(socket),
         });
 
         // Audit suspicious activity
-        audit.suspicious(
-            'WebSocket connection from unauthorized origin',
-            (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
-            getClientIP(socket),
-            { origin, allowedOrigins }
-        ).catch((err: Error) => {
-            logger.debug('Failed to audit origin violation:', err.message);
-        });
+        audit
+            .suspicious(
+                'WebSocket connection from unauthorized origin',
+                (socket.handshake.auth as { sessionId?: string })?.sessionId || 'unknown',
+                getClientIP(socket),
+                { origin, allowedOrigins }
+            )
+            .catch((err: Error) => {
+                logger.debug('Failed to audit origin violation:', err.message);
+            });
 
         return {
             valid: false,
-            reason: 'Origin not allowed'
+            reason: 'Origin not allowed',
         };
     }
 

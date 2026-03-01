@@ -37,7 +37,7 @@ function getContextFields(): ContextFields {
         correlationId: context.correlationId,
         sessionId: context.sessionId,
         roomCode: context.roomCode,
-        instanceId: context.instanceId
+        instanceId: context.instanceId,
     };
 }
 
@@ -45,14 +45,6 @@ function withContext<T>(context: CorrelationContext, fn: () => T): T {
     return asyncLocalStorage.run(context, fn);
 }
 
-export {
-    getContext,
-    getCorrelationId,
-    getContextFields,
-    withContext,
-};
+export { getContext, getCorrelationId, getContextFields, withContext };
 
-export type {
-    CorrelationContext,
-    ContextFields,
-};
+export type { CorrelationContext, ContextFields };

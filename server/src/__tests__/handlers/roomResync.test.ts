@@ -12,7 +12,7 @@
 // Mock rate limit handler FIRST to bypass rate limiting
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES)
+    createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
 }));
 
 // Mock dependencies
@@ -23,7 +23,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock socket/index for timer functions
@@ -31,7 +31,7 @@ const mockGetTimerStatus = jest.fn().mockResolvedValue(null);
 jest.mock('../../socket/index', () => ({
     getTimerStatus: jest.fn().mockResolvedValue(null),
     startTurnTimer: jest.fn().mockResolvedValue({}),
-    stopTurnTimer: jest.fn().mockResolvedValue()
+    stopTurnTimer: jest.fn().mockResolvedValue(),
 }));
 
 // Mock socketFunctionProvider to provide timer functions
@@ -42,9 +42,9 @@ jest.mock('../../socket/socketFunctionProvider', () => ({
         stopTurnTimer: jest.fn().mockResolvedValue(),
         emitToRoom: jest.fn(),
         emitToPlayer: jest.fn(),
-        getIO: jest.fn()
+        getIO: jest.fn(),
     })),
-    isRegistered: jest.fn(() => true)
+    isRegistered: jest.fn(() => true),
 }));
 
 const roomService = require('../../services/roomService');
@@ -73,13 +73,13 @@ describe('Room Resync and Recovery Handlers', () => {
             on: jest.fn(),
             join: jest.fn(),
             leave: jest.fn(),
-            to: jest.fn().mockReturnThis()
+            to: jest.fn().mockReturnThis(),
         };
 
         // Create mock io with chaining
         mockIo = {
             to: jest.fn().mockReturnThis(),
-            emit: jest.fn()
+            emit: jest.fn(),
         };
 
         // Default player mock with roomCode for context handler
@@ -88,7 +88,7 @@ describe('Room Resync and Recovery Handlers', () => {
             roomCode: 'test12',
             nickname: 'Player1',
             team: null,
-            role: 'clicker'
+            role: 'clicker',
         });
         gameService.getGame.mockResolvedValue(null);
         playerService.getRoomStats.mockResolvedValue({});
@@ -101,13 +101,19 @@ describe('Room Resync and Recovery Handlers', () => {
     describe('room:resync handler', () => {
         test('registers handler', () => {
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             expect(resyncHandler).toBeDefined();
         });
 
         test('returns full state for regular player', async () => {
             const mockRoom = { code: 'test12', settings: { turnTimer: 60 } };
-            const mockPlayer = { sessionId: 'session-456', roomCode: 'test12', nickname: 'Player1', role: 'clicker', team: 'red' };
+            const mockPlayer = {
+                sessionId: 'session-456',
+                roomCode: 'test12',
+                nickname: 'Player1',
+                role: 'clicker',
+                team: 'red',
+            };
             const mockPlayers = [mockPlayer, { sessionId: 'session-789', nickname: 'Player2' }];
             const mockGame = { currentTurn: 'red', gameOver: false };
             const mockGameState = { currentTurn: 'red', types: null };
@@ -119,7 +125,7 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGameStateForPlayer.mockReturnValue(mockGameState);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:resynced', {
@@ -127,7 +133,7 @@ describe('Room Resync and Recovery Handlers', () => {
                 players: mockPlayers,
                 game: mockGameState,
                 you: mockPlayer,
-                stats: {}
+                stats: {},
             });
         });
 
@@ -143,11 +149,11 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGameStateForPlayer.mockReturnValue({ currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
-                types: mockGame.types
+                types: mockGame.types,
             });
         });
 
@@ -163,12 +169,10 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGameStateForPlayer.mockReturnValue({ gameOver: true });
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
-            const spymasterViewCalls = mockSocket.emit.mock.calls.filter(
-                call => call[0] === 'game:spymasterView'
-            );
+            const spymasterViewCalls = mockSocket.emit.mock.calls.filter((call) => call[0] === 'game:spymasterView');
             expect(spymasterViewCalls).toHaveLength(0);
         });
 
@@ -178,7 +182,7 @@ describe('Room Resync and Recovery Handlers', () => {
             const mockTimerStatus = {
                 remainingSeconds: 45,
                 endTime: Date.now() + 45000,
-                isPaused: false
+                isPaused: false,
             };
 
             roomService.getRoom.mockResolvedValue(mockRoom);
@@ -188,14 +192,14 @@ describe('Room Resync and Recovery Handlers', () => {
             getTimerStatus.mockResolvedValue(mockTimerStatus);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:status', {
                 roomCode: 'test12',
                 remainingSeconds: 45,
                 endTime: mockTimerStatus.endTime,
-                isPaused: false
+                isPaused: false,
             });
         });
 
@@ -210,12 +214,10 @@ describe('Room Resync and Recovery Handlers', () => {
             getTimerStatus.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
-            const timerStatusCalls = mockSocket.emit.mock.calls.filter(
-                call => call[0] === 'timer:status'
-            );
+            const timerStatusCalls = mockSocket.emit.mock.calls.filter((call) => call[0] === 'timer:status');
             expect(timerStatusCalls).toHaveLength(0);
         });
 
@@ -230,7 +232,7 @@ describe('Room Resync and Recovery Handlers', () => {
             getTimerStatus.mockRejectedValue(new Error('Timer service unavailable'));
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
 
             // Should not throw
             await expect(resyncHandler[1]()).resolves.not.toThrow();
@@ -244,19 +246,22 @@ describe('Room Resync and Recovery Handlers', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: expect.any(String)
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: expect.any(String),
+                })
+            );
         });
 
         test('returns error when room not found', async () => {
             roomService.getRoom.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.any(Object));
@@ -267,7 +272,7 @@ describe('Room Resync and Recovery Handlers', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.any(Object));
@@ -283,19 +288,22 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGame.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const resyncHandler = handlers.find(h => h[0] === 'room:resync');
+            const resyncHandler = handlers.find((h) => h[0] === 'room:resync');
             await resyncHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:resynced', expect.objectContaining({
-                game: null
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:resynced',
+                expect.objectContaining({
+                    game: null,
+                })
+            );
         });
     });
 
     describe('room:getReconnectionToken handler', () => {
         test('registers handler', () => {
             const handlers = mockSocket.on.mock.calls;
-            const tokenHandler = handlers.find(h => h[0] === 'room:getReconnectionToken');
+            const tokenHandler = handlers.find((h) => h[0] === 'room:getReconnectionToken');
             expect(tokenHandler).toBeDefined();
         });
 
@@ -303,13 +311,13 @@ describe('Room Resync and Recovery Handlers', () => {
             playerService.getExistingReconnectionToken.mockResolvedValue('existing-token-123');
 
             const handlers = mockSocket.on.mock.calls;
-            const tokenHandler = handlers.find(h => h[0] === 'room:getReconnectionToken');
+            const tokenHandler = handlers.find((h) => h[0] === 'room:getReconnectionToken');
             await tokenHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnectionToken', {
                 token: 'existing-token-123',
                 sessionId: 'session-456',
-                roomCode: 'test12'
+                roomCode: 'test12',
             });
             expect(playerService.generateReconnectionToken).not.toHaveBeenCalled();
         });
@@ -319,14 +327,14 @@ describe('Room Resync and Recovery Handlers', () => {
             playerService.generateReconnectionToken.mockResolvedValue('new-token-456');
 
             const handlers = mockSocket.on.mock.calls;
-            const tokenHandler = handlers.find(h => h[0] === 'room:getReconnectionToken');
+            const tokenHandler = handlers.find((h) => h[0] === 'room:getReconnectionToken');
             await tokenHandler[1]();
 
             expect(playerService.generateReconnectionToken).toHaveBeenCalledWith('session-456');
             expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnectionToken', {
                 token: 'new-token-456',
                 sessionId: 'session-456',
-                roomCode: 'test12'
+                roomCode: 'test12',
             });
         });
 
@@ -335,7 +343,7 @@ describe('Room Resync and Recovery Handlers', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const tokenHandler = handlers.find(h => h[0] === 'room:getReconnectionToken');
+            const tokenHandler = handlers.find((h) => h[0] === 'room:getReconnectionToken');
             await tokenHandler[1]();
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.any(Object));
@@ -346,20 +354,23 @@ describe('Room Resync and Recovery Handlers', () => {
             playerService.generateReconnectionToken.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const tokenHandler = handlers.find(h => h[0] === 'room:getReconnectionToken');
+            const tokenHandler = handlers.find((h) => h[0] === 'room:getReconnectionToken');
             await tokenHandler[1]();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: ERROR_CODES.SERVER_ERROR,
-                message: 'An unexpected error occurred'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.SERVER_ERROR,
+                    message: 'An unexpected error occurred',
+                })
+            );
         });
     });
 
     describe('room:reconnect handler', () => {
         test('registers handler', () => {
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
             expect(reconnectHandler).toBeDefined();
         });
 
@@ -371,7 +382,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'test12', sessionId: 'session-456' }
+                tokenData: { roomCode: 'test12', sessionId: 'session-456' },
             });
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.updatePlayer.mockResolvedValue(mockPlayer);
@@ -381,16 +392,22 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGameStateForPlayer.mockReturnValue({ currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
             expect(mockSocket.join).toHaveBeenCalledWith('room:test12');
             expect(mockSocket.join).toHaveBeenCalledWith('player:session-456');
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:reconnected', expect.objectContaining({
-                room: mockRoom,
-                players: mockPlayers,
-                you: mockPlayer
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:reconnected',
+                expect.objectContaining({
+                    room: mockRoom,
+                    players: mockPlayers,
+                    you: mockPlayer,
+                })
+            );
         });
 
         test('notifies others in room about reconnection', async () => {
@@ -399,7 +416,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'test12', sessionId: 'session-456' }
+                tokenData: { roomCode: 'test12', sessionId: 'session-456' },
             });
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.updatePlayer.mockResolvedValue(mockPlayer);
@@ -408,8 +425,11 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGame.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
             expect(mockSocket.to).toHaveBeenCalledWith('room:test12');
             // The actual emit is on mockSocket.to(room).emit, not mockIo
@@ -422,7 +442,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'test12', sessionId: 'session-456' }
+                tokenData: { roomCode: 'test12', sessionId: 'session-456' },
             });
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.updatePlayer.mockResolvedValue(mockPlayer);
@@ -432,80 +452,104 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGameStateForPlayer.mockReturnValue({ currentTurn: 'red' });
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('game:spymasterView', {
-                types: mockGame.types
+                types: mockGame.types,
             });
         });
 
         test('rejects reconnection with invalid token', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
-                reason: 'Token expired'
+                reason: 'Token expired',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: ERROR_CODES.NOT_AUTHORIZED,
-                message: expect.stringContaining('Invalid reconnection token')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.NOT_AUTHORIZED,
+                    message: expect.stringContaining('Invalid reconnection token'),
+                })
+            );
         });
 
         test('rejects reconnection when token room code does not match', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'other1', sessionId: 'session-456' }
+                tokenData: { roomCode: 'other1', sessionId: 'session-456' },
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: ERROR_CODES.INVALID_INPUT,
-                message: 'Token does not match room'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.INVALID_INPUT,
+                    message: 'Token does not match room',
+                })
+            );
         });
 
         test('rejects reconnection when room no longer exists', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'test12', sessionId: 'session-456' }
+                tokenData: { roomCode: 'test12', sessionId: 'session-456' },
             });
             roomService.getRoom.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.any(Object));
         });
 
         test('rejects reconnection without required parameters', async () => {
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
             await reconnectHandler[1]({});
 
             // FIX: Zod validation now produces different error messages
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: ERROR_CODES.INVALID_INPUT
-                // Message varies based on Zod validation
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.INVALID_INPUT,
+                    // Message varies based on Zod validation
+                })
+            );
         });
 
         test('rejects reconnection with missing token', async () => {
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
             await reconnectHandler[1]({ code: 'test12' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('room:error', expect.objectContaining({
-                code: ERROR_CODES.INVALID_INPUT
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'room:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.INVALID_INPUT,
+                })
+            );
         });
 
         test('logs reconnection event', async () => {
@@ -514,7 +558,7 @@ describe('Room Resync and Recovery Handlers', () => {
 
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'test12', sessionId: 'session-456' }
+                tokenData: { roomCode: 'test12', sessionId: 'session-456' },
             });
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.updatePlayer.mockResolvedValue(mockPlayer);
@@ -523,8 +567,11 @@ describe('Room Resync and Recovery Handlers', () => {
             gameService.getGame.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
             // Verify reconnection was successful by checking socket joined the room
             expect(mockSocket.join).toHaveBeenCalledWith('room:test12');
@@ -536,12 +583,12 @@ describe('Room Resync and Recovery Handlers', () => {
             const mockTimerStatus = {
                 remainingSeconds: 30,
                 endTime: Date.now() + 30000,
-                isPaused: false
+                isPaused: false,
             };
 
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { roomCode: 'test12', sessionId: 'session-456' }
+                tokenData: { roomCode: 'test12', sessionId: 'session-456' },
             });
             roomService.getRoom.mockResolvedValue(mockRoom);
             playerService.updatePlayer.mockResolvedValue(mockPlayer);
@@ -551,13 +598,19 @@ describe('Room Resync and Recovery Handlers', () => {
             getTimerStatus.mockResolvedValue(mockTimerStatus);
 
             const handlers = mockSocket.on.mock.calls;
-            const reconnectHandler = handlers.find(h => h[0] === 'room:reconnect');
-            await reconnectHandler[1]({ code: 'test12', reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' });
+            const reconnectHandler = handlers.find((h) => h[0] === 'room:reconnect');
+            await reconnectHandler[1]({
+                code: 'test12',
+                reconnectionToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:status', expect.objectContaining({
-                roomCode: 'test12',
-                remainingSeconds: 30
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:status',
+                expect.objectContaining({
+                    roomCode: 'test12',
+                    remainingSeconds: 30,
+                })
+            );
         });
     });
 });

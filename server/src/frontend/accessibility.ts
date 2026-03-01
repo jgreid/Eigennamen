@@ -4,7 +4,6 @@ import { t } from './i18n.js';
 
 const CB_STORAGE_KEY = 'eigennamen-colorblind';
 
-
 export function initColorBlindMode(): void {
     const enabled = safeGetItem(CB_STORAGE_KEY) === 'true';
     applyColorBlindMode(enabled);
@@ -24,14 +23,13 @@ function applyColorBlindMode(enabled: boolean): void {
     state.colorBlindMode = enabled;
 }
 
-
 const SHORTCUTS: Record<string, { action: string; descKey: string }> = {
-    'n': { action: 'confirm-new-game', descKey: 'accessibility.newGame' },
-    'e': { action: 'confirm-end-turn', descKey: 'accessibility.endTurn' },
-    's': { action: 'open-settings', descKey: 'accessibility.settings' },
-    'm': { action: 'open-multiplayer', descKey: 'accessibility.playOnline' },
-    'h': { action: 'open-history', descKey: 'accessibility.gameHistory' },
-    '?': { action: 'show-shortcuts', descKey: 'accessibility.showShortcuts' }
+    n: { action: 'confirm-new-game', descKey: 'accessibility.newGame' },
+    e: { action: 'confirm-end-turn', descKey: 'accessibility.endTurn' },
+    s: { action: 'open-settings', descKey: 'accessibility.settings' },
+    m: { action: 'open-multiplayer', descKey: 'accessibility.playOnline' },
+    h: { action: 'open-history', descKey: 'accessibility.gameHistory' },
+    '?': { action: 'show-shortcuts', descKey: 'accessibility.showShortcuts' },
 };
 
 const shortcutsEnabled = true;
@@ -91,7 +89,6 @@ function handleKeyboardShortcut(e: KeyboardEvent): void {
     }
 }
 
-
 let overlayElement: HTMLElement | null = null;
 let overlayEscListener: ((e: KeyboardEvent) => void) | null = null;
 
@@ -141,7 +138,7 @@ function toggleShortcutOverlay(): void {
     const staticShortcuts: [string, string][] = [
         ['ESC', t('accessibility.closeOverlay')],
         ['↑↓←→', t('accessibility.navigateBoard')],
-        ['ENTER', t('accessibility.revealCard')]
+        ['ENTER', t('accessibility.revealCard')],
     ];
     for (const [keyText, desc] of staticShortcuts) {
         const row = document.createElement('div');
@@ -168,7 +165,7 @@ function toggleShortcutOverlay(): void {
         }
     });
 
-    overlayEscListener = function(e: KeyboardEvent) {
+    overlayEscListener = function (e: KeyboardEvent) {
         if (e.key === 'Escape') {
             closeOverlay();
         }

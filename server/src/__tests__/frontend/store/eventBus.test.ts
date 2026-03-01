@@ -72,7 +72,9 @@ describe('subscribe / emit', () => {
     });
 
     test('subscriber errors do not propagate', () => {
-        const thrower = jest.fn(() => { throw new Error('boom'); });
+        const thrower = jest.fn(() => {
+            throw new Error('boom');
+        });
         const cb = jest.fn();
         subscribe('playerTeam', thrower);
         subscribe('playerTeam', cb);

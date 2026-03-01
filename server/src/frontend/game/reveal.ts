@@ -10,6 +10,20 @@ import { isClientConnected } from '../clientAccessor.js';
 import { closeModal } from '../ui.js';
 import { checkGameOver, updateScoreboard, updateTurnIndicator } from './scoring.js';
 
+/** Data received from the server when a card is revealed */
+interface ServerRevealData {
+    type?: string;
+    redScore?: number;
+    blueScore?: number;
+    gameOver?: boolean;
+    winner?: string | null;
+    currentTurn?: string;
+    guessesUsed?: number;
+    guessesAllowed?: number;
+    turnEnded?: boolean;
+    cardScore?: number;
+}
+
 export function revealCard(index: number): void {
     // Bounds check: prevent out-of-bounds array access
     if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
@@ -53,7 +67,7 @@ export function revealCard(index: number): void {
         // would be pending which indicates lost server responses, not real reveals.
         if (state.revealingCards.size >= BOARD_SIZE) {
             logger.warn(`revealingCards Set at capacity (${state.revealingCards.size}), clearing stale entries`);
-            state.revealTimeouts.forEach(tid => clearTimeout(tid));
+            state.revealTimeouts.forEach((tid) => clearTimeout(tid));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
         }
@@ -90,7 +104,7 @@ export function revealCard(index: number): void {
 
     // Track for animation
     state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
+    state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
 
     if (type === 'red') {
         state.gameState.redScore++;
@@ -118,7 +132,7 @@ export function revealCard(index: number): void {
     if (!state.pendingUIUpdate) {
         state.pendingUIUpdate = true;
         requestAnimationFrame(() => {
-            updateSingleCard(index);  // Only update the revealed card
+            updateSingleCard(index); // Only update the revealed card
             updateBoardIncremental(); // Update board classes
             updateScoreboard();
             updateTurnIndicator();
@@ -136,7 +150,12 @@ export function revealCard(index: number): void {
 
     // Screen reader announcement
     const word = state.gameState.words[index];
-    const typeNames: Record<string, string> = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
+    const typeNames: Record<string, string> = {
+        red: state.teamNames.red,
+        blue: state.teamNames.blue,
+        neutral: 'neutral',
+        assassin: 'assassin',
+    };
     const typeName = typeNames[type] || type;
     announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
 
@@ -150,7 +169,7 @@ export function revealCard(index: number): void {
  * @param index - Card index to reveal
  * @param serverData - Data from server including currentTurn, scores, etc.
  */
-export function revealCardFromServer(index: number, serverData: Record<string, any> = {}): void {
+export function revealCardFromServer(index: number, serverData: ServerRevealData = {}): void {
     // Bounds check: reject invalid index to prevent array growth from malformed server data
     if (typeof index !== 'number' || index < 0 || index >= state.gameState.words.length) {
         logger.error(`revealCardFromServer: invalid index ${index} (board size: ${state.gameState.words.length})`);
@@ -180,7 +199,7 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
 
     // Track for animation (same as local reveal)
     state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
+    state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
 
     // Use server-provided scores if available, otherwise calculate locally
     if (typeof serverData.redScore === 'number') {
@@ -239,9 +258,12 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
     if (state.gameState.revealedBy && serverData.currentTurn) {
         // The revealing team is the team that was on turn before any turn switch
         // Use previous turn (before server updated it) for attribution
-        state.gameState.revealedBy[index] = type === state.gameState.currentTurn
-            ? state.gameState.currentTurn
-            : (state.gameState.currentTurn === 'red' ? 'blue' : 'red');
+        state.gameState.revealedBy[index] =
+            type === state.gameState.currentTurn
+                ? state.gameState.currentTurn
+                : state.gameState.currentTurn === 'red'
+                  ? 'blue'
+                  : 'red';
     }
 
     // Batch DOM updates using requestAnimationFrame for better performance.
@@ -260,7 +282,7 @@ export function revealCardFromServer(index: number, serverData: Record<string, a
 
 export function showGameOverModal(_winner?: string | null, _reason?: string): void {
     // Clear all pending reveal timeouts — game is over, no more reveals expected
-    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
     state.isRevealingCard = false;

@@ -47,28 +47,28 @@ describe('Phase 1.1: Timer Validation Mismatch', () => {
         // Accepts 600s (max)
         const at600 = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 600, gameMode: 'classic' }
+            settings: { turnTimer: 600, gameMode: 'classic' },
         });
         expect(at600.success).toBe(true);
 
         // Accepts 20s (min)
         const at20 = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 20, gameMode: 'classic' }
+            settings: { turnTimer: 20, gameMode: 'classic' },
         });
         expect(at20.success).toBe(true);
 
         // Rejects above max
         const over600 = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 601, gameMode: 'classic' }
+            settings: { turnTimer: 601, gameMode: 'classic' },
         });
         expect(over600.success).toBe(false);
 
         // Rejects blitz (removed mode)
         const blitz = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { gameMode: 'blitz' }
+            settings: { gameMode: 'blitz' },
         });
         expect(blitz.success).toBe(false);
     });

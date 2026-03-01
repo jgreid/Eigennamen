@@ -22,7 +22,7 @@ function setup() {
         roomCode: null as string | null,
         player: null as Player | null,
         sessionId: null as string | null,
-        saveSession: jest.fn()
+        saveSession: jest.fn(),
     };
 
     registerAllEventListeners(register, emit, client);
@@ -39,7 +39,7 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:created']({
                 room: { code: 'ABC' },
-                player: { sessionId: 'new-server-session', nickname: 'Host' }
+                player: { sessionId: 'new-server-session', nickname: 'Host' },
             });
 
             // Must overwrite the stale ID with the server-assigned one
@@ -54,7 +54,7 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:created']({
                 room: { code: 'XYZ' },
-                player: { sessionId: 'fresh-session', nickname: 'Host' }
+                player: { sessionId: 'fresh-session', nickname: 'Host' },
             });
 
             expect(client.sessionId).toBe('fresh-session');
@@ -66,7 +66,7 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:created']({
                 room: { code: 'ABC' },
-                player: { nickname: 'Host' }  // no sessionId
+                player: { nickname: 'Host' }, // no sessionId
             });
 
             // Should keep existing sessionId (guard: `if (data.player?.sessionId)`)
@@ -90,7 +90,7 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:joined']({
                 room: { code: 'GAME' },
-                you: { sessionId: 'server-assigned-session', nickname: 'Joiner' }
+                you: { sessionId: 'server-assigned-session', nickname: 'Joiner' },
             });
 
             expect(client.sessionId).toBe('server-assigned-session');
@@ -170,7 +170,7 @@ describe('registerAllEventListeners', () => {
 
             handlers['room:resynced']({
                 room: { code: 'SYNC' },
-                you: { sessionId: 'p1', nickname: 'Synced' }
+                you: { sessionId: 'p1', nickname: 'Synced' },
             });
 
             expect(client.roomCode).toBe('SYNC');
@@ -187,7 +187,7 @@ describe('registerAllEventListeners', () => {
             expect(emit).toHaveBeenCalledWith('error', {
                 type: 'room',
                 code: 'ROOM_NOT_FOUND',
-                message: 'Not found'
+                message: 'Not found',
             });
         });
 
@@ -199,7 +199,7 @@ describe('registerAllEventListeners', () => {
             expect(emit).toHaveBeenCalledWith('error', {
                 type: 'game',
                 code: 'GAME_ERROR',
-                message: 'Failed'
+                message: 'Failed',
             });
         });
 
@@ -211,7 +211,7 @@ describe('registerAllEventListeners', () => {
             expect(emit).toHaveBeenCalledWith('error', {
                 type: 'player',
                 code: 'PLAYER_ERROR',
-                message: 'Oops'
+                message: 'Oops',
             });
         });
     });
@@ -222,13 +222,32 @@ describe('registerAllEventListeners', () => {
 
         // Key events that must be registered
         const requiredEvents = [
-            'room:created', 'room:joined', 'room:playerJoined', 'room:playerLeft',
-            'room:kicked', 'room:error', 'room:resynced', 'room:reconnected',
-            'room:hostChanged', 'room:settingsUpdated', 'room:statsUpdated',
-            'player:updated', 'player:kicked', 'player:disconnected', 'player:error',
-            'game:started', 'game:cardRevealed', 'game:turnEnded', 'game:over', 'game:error',
-            'timer:started', 'timer:stopped', 'timer:tick', 'timer:expired',
-            'chat:message', 'chat:spectatorMessage'
+            'room:created',
+            'room:joined',
+            'room:playerJoined',
+            'room:playerLeft',
+            'room:kicked',
+            'room:error',
+            'room:resynced',
+            'room:reconnected',
+            'room:hostChanged',
+            'room:settingsUpdated',
+            'room:statsUpdated',
+            'player:updated',
+            'player:kicked',
+            'player:disconnected',
+            'player:error',
+            'game:started',
+            'game:cardRevealed',
+            'game:turnEnded',
+            'game:over',
+            'game:error',
+            'timer:started',
+            'timer:stopped',
+            'timer:tick',
+            'timer:expired',
+            'chat:message',
+            'chat:spectatorMessage',
         ];
 
         for (const event of requiredEvents) {
@@ -312,7 +331,7 @@ describe('registerAllEventListeners', () => {
 
             const data = {
                 room: { code: 'RECON' },
-                you: { sessionId: 'new-p', nickname: 'Reconnected' }
+                you: { sessionId: 'new-p', nickname: 'Reconnected' },
             };
 
             handlers['room:reconnected'](data);

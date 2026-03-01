@@ -23,7 +23,7 @@ import {
     startTimerCountdown,
     handleTimerStarted,
     handleTimerStopped,
-    handleTimerStatus
+    handleTimerStatus,
 } from '../../frontend/timer';
 import { state } from '../../frontend/state';
 

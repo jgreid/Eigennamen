@@ -250,7 +250,7 @@ export function validateGameData(gameData: GameDataInput | null | undefined): Va
         errors.push('words must be an array');
     } else if (gameData.words.length !== BOARD_SIZE) {
         errors.push(`words array must have ${BOARD_SIZE} elements, got ${gameData.words.length}`);
-    } else if (!gameData.words.every(w => typeof w === 'string' && w.length > 0)) {
+    } else if (!gameData.words.every((w) => typeof w === 'string' && w.length > 0)) {
         errors.push('All words must be non-empty strings');
     }
 
@@ -261,7 +261,7 @@ export function validateGameData(gameData: GameDataInput | null | undefined): Va
         errors.push(`types array must have ${BOARD_SIZE} elements, got ${gameData.types.length}`);
     } else {
         const validTypes = ['red', 'blue', 'neutral', 'assassin'];
-        const invalidTypes = gameData.types.filter(t => !validTypes.includes(t));
+        const invalidTypes = gameData.types.filter((t) => !validTypes.includes(t));
         if (invalidTypes.length > 0) {
             errors.push(`Invalid card types found: ${invalidTypes.join(', ')}`);
         }
@@ -311,10 +311,7 @@ export function validateGameData(gameData: GameDataInput | null | undefined): Va
 /**
  * Save a completed game result
  */
-export async function saveGameResult(
-    roomCode: string,
-    gameData: GameDataInput
-): Promise<GameHistoryEntry | null> {
+export async function saveGameResult(roomCode: string, gameData: GameDataInput): Promise<GameHistoryEntry | null> {
     const redis: RedisClient = getRedis();
 
     if (!roomCode || !gameData) {
@@ -327,7 +324,7 @@ export async function saveGameResult(
     if (!validation.valid) {
         logger.error('Invalid game data, refusing to save to history', {
             roomCode,
-            errors: validation.errors
+            errors: validation.errors,
         });
         return null;
     }
@@ -349,7 +346,7 @@ export async function saveGameResult(
             words: gameData.words,
             types: gameData.types,
             seed: gameData.seed,
-            firstTeam: getFirstTeam(gameData)
+            firstTeam: getFirstTeam(gameData),
         },
 
         // Final scores and winner
@@ -359,7 +356,7 @@ export async function saveGameResult(
             redTotal: gameData.redTotal,
             blueTotal: gameData.blueTotal,
             winner: gameData.winner || 'red',
-            gameOver: gameData.gameOver || false
+            gameOver: gameData.gameOver || false,
         },
 
         // All clues given during the game
@@ -373,7 +370,7 @@ export async function saveGameResult(
 
         // Metadata
         wordListId: gameData.wordListId || null,
-        stateVersion: gameData.stateVersion || 1
+        stateVersion: gameData.stateVersion || 1,
     };
 
     try {
@@ -391,8 +388,8 @@ export async function saveGameResult(
                     historyId,
                     timestamp.toString(),
                     GAME_HISTORY_TTL.toString(),
-                    MAX_HISTORY_PER_ROOM.toString()
-                ]
+                    MAX_HISTORY_PER_ROOM.toString(),
+                ],
             }),
             TIMEOUTS.REDIS_OPERATION,
             `saveGameResult-lua-${roomCode}`
@@ -403,16 +400,15 @@ export async function saveGameResult(
             gameId: historyId,
             winner: gameData.winner,
             redScore: gameData.redScore,
-            blueScore: gameData.blueScore
+            blueScore: gameData.blueScore,
         });
 
         return historyEntry;
-
     } catch (error) {
         logger.error('Failed to save game result', {
             roomCode,
             gameId: historyId,
-            error: (error as Error).message
+            error: (error as Error).message,
         });
         // Don't throw - history saving shouldn't break the application
         return null;
@@ -462,10 +458,7 @@ function getFirstTeam(gameData: GameDataInput): Team {
 /**
  * Get game history for a room
  */
-export async function getGameHistory(
-    roomCode: string,
-    limit: number = 10
-): Promise<GameHistorySummary[]> {
+export async function getGameHistory(roomCode: string, limit: number = 10): Promise<GameHistorySummary[]> {
     const redis: RedisClient = getRedis();
 
     if (!roomCode) {
@@ -476,18 +469,18 @@ export async function getGameHistory(
         const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
 
         // Get game IDs from sorted set (most recent first)
-        const gameIds = await withTimeout(
+        const gameIds = (await withTimeout(
             redis.zRange(indexKey, 0, limit - 1, { REV: true }),
             TIMEOUTS.REDIS_OPERATION,
             `getGameHistory-zRange-${roomCode}`
-        ) as string[];
+        )) as string[];
 
         if (!gameIds || gameIds.length === 0) {
             return [];
         }
 
         // Fetch all game entries in parallel
-        const gameKeys = gameIds.map(id => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
+        const gameKeys = gameIds.map((id) => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
         const gameDataArray = await withTimeout(
             redis.mGet(gameKeys),
             TIMEOUTS.REDIS_OPERATION,
@@ -495,43 +488,43 @@ export async function getGameHistory(
         );
 
         // Parse and create summaries
-        const summaries: (GameHistorySummary | null)[] = gameDataArray
-            .map((data, index): GameHistorySummary | null => {
-                if (!data) return null;
-                const game = tryParseJSON(data, gameHistoryEntrySchema, `game history ${gameIds[index]}`) as GameHistoryEntry | null;
-                if (!game) return null;
-                // Return summary (not full replay data)
-                const summary: GameHistorySummary = {
-                    id: game.id,
-                    timestamp: game.timestamp,
-                    startedAt: game.startedAt,
-                    endedAt: game.endedAt,
-                    winner: game.finalState?.winner,
-                    redScore: game.finalState?.redScore,
-                    blueScore: game.finalState?.blueScore,
-                    redTotal: game.finalState?.redTotal,
-                    blueTotal: game.finalState?.blueTotal,
-                    teamNames: game.teamNames,
-                    clueCount: countCluesFromHistory(game.history),
-                    moveCount: game.history?.length || 0,
-                    endReason: deriveEndReason(game),
-                    duration: (game.endedAt || 0) - (game.startedAt || 0)
-                };
-                return summary;
-            });
+        const summaries: (GameHistorySummary | null)[] = gameDataArray.map((data, index): GameHistorySummary | null => {
+            if (!data) return null;
+            const game = tryParseJSON(
+                data,
+                gameHistoryEntrySchema,
+                `game history ${gameIds[index]}`
+            ) as GameHistoryEntry | null;
+            if (!game) return null;
+            // Return summary (not full replay data)
+            const summary: GameHistorySummary = {
+                id: game.id,
+                timestamp: game.timestamp,
+                startedAt: game.startedAt,
+                endedAt: game.endedAt,
+                winner: game.finalState?.winner,
+                redScore: game.finalState?.redScore,
+                blueScore: game.finalState?.blueScore,
+                redTotal: game.finalState?.redTotal,
+                blueTotal: game.finalState?.blueTotal,
+                teamNames: game.teamNames,
+                clueCount: countCluesFromHistory(game.history),
+                moveCount: game.history?.length || 0,
+                endReason: deriveEndReason(game),
+                duration: (game.endedAt || 0) - (game.startedAt || 0),
+            };
+            return summary;
+        });
 
         // Filter out nulls
-        const history: GameHistorySummary[] = summaries.filter(
-            (g): g is GameHistorySummary => g !== null
-        );
+        const history: GameHistorySummary[] = summaries.filter((g): g is GameHistorySummary => g !== null);
 
         return history;
-
     } catch (error) {
         logger.error('Failed to get game history', {
             roomCode,
             limit,
-            error: (error as Error).message
+            error: (error as Error).message,
         });
         return [];
     }
@@ -540,10 +533,7 @@ export async function getGameHistory(
 /**
  * Get a specific game by ID for replay
  */
-export async function getGameById(
-    roomCode: string,
-    gameId: string
-): Promise<GameHistoryEntry | null> {
+export async function getGameById(roomCode: string, gameId: string): Promise<GameHistoryEntry | null> {
     const redis: RedisClient = getRedis();
 
     if (!roomCode || !gameId) {
@@ -563,14 +553,17 @@ export async function getGameById(
             return null;
         }
 
-        const game = tryParseJSON(gameData, gameHistoryEntrySchema, `game ${roomCode}:${gameId}`) as GameHistoryEntry | null;
+        const game = tryParseJSON(
+            gameData,
+            gameHistoryEntrySchema,
+            `game ${roomCode}:${gameId}`
+        ) as GameHistoryEntry | null;
         return game;
-
     } catch (error) {
         logger.error('Failed to get game by ID', {
             roomCode,
             gameId,
-            error: (error as Error).message
+            error: (error as Error).message,
         });
         return null;
     }
@@ -580,10 +573,7 @@ export async function getGameById(
  * Get replay events for a specific game
  * Combines stored history with any additional event log data
  */
-export async function getReplayEvents(
-    roomCode: string,
-    gameId: string
-): Promise<ReplayData | null> {
+export async function getReplayEvents(roomCode: string, gameId: string): Promise<ReplayData | null> {
     if (!roomCode || !gameId) {
         return null;
     }
@@ -617,16 +607,15 @@ export async function getReplayEvents(
             // Metadata
             duration: game.endedAt - game.startedAt,
             totalMoves: game.history?.length || 0,
-            totalClues: countCluesFromHistory(game.history)
+            totalClues: countCluesFromHistory(game.history),
         };
 
         return replayData;
-
     } catch (error) {
         logger.error('Failed to get replay events', {
             roomCode,
             gameId,
-            error: (error as Error).message
+            error: (error as Error).message,
         });
         return null;
     }
@@ -649,7 +638,7 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
         const event: ReplayEvent = {
             timestamp: entry.timestamp || 0,
             type: entry.action,
-            data: {}
+            data: {},
         };
 
         switch (entry.action) {
@@ -659,7 +648,7 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
                     word: entry.word,
                     number: entry.number,
                     spymaster: entry.spymaster,
-                    guessesAllowed: entry.guessesAllowed
+                    guessesAllowed: entry.guessesAllowed,
                 };
                 break;
 
@@ -670,7 +659,7 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
                     type: entry.type,
                     team: entry.team,
                     player: entry.player,
-                    guessNumber: entry.guessNumber
+                    guessNumber: entry.guessNumber,
                 };
                 break;
 
@@ -678,14 +667,14 @@ function buildReplayEvents(game: GameHistoryEntry): ReplayEvent[] {
                 event.data = {
                     fromTeam: entry.fromTeam,
                     toTeam: entry.toTeam,
-                    player: entry.player
+                    player: entry.player,
                 };
                 break;
 
             case 'forfeit':
                 event.data = {
                     forfeitingTeam: entry.forfeitingTeam,
-                    winner: entry.winner
+                    winner: entry.winner,
                 };
                 break;
 
@@ -722,23 +711,19 @@ export async function cleanupOldHistory(roomCode: string): Promise<number> {
         const indexKey = `${GAME_HISTORY_INDEX_PREFIX}${roomCode}`;
 
         // Get all game IDs that exceed the limit
-        const oldGameIds = await withTimeout(
+        const oldGameIds = (await withTimeout(
             redis.zRange(indexKey, 0, -(MAX_HISTORY_PER_ROOM + 1)),
             TIMEOUTS.REDIS_OPERATION,
             `cleanupOldHistory-zRange-${roomCode}`
-        ) as string[];
+        )) as string[];
 
         if (!oldGameIds || oldGameIds.length === 0) {
             return 0;
         }
 
         // Delete old game entries
-        const gameKeys = oldGameIds.map(id => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
-        await withTimeout(
-            redis.del(gameKeys),
-            TIMEOUTS.REDIS_OPERATION,
-            `cleanupOldHistory-del-${roomCode}`
-        );
+        const gameKeys = oldGameIds.map((id) => `${GAME_HISTORY_KEY_PREFIX}${roomCode}:${id}`);
+        await withTimeout(redis.del(gameKeys), TIMEOUTS.REDIS_OPERATION, `cleanupOldHistory-del-${roomCode}`);
 
         // Remove from index
         await withTimeout(
@@ -749,15 +734,14 @@ export async function cleanupOldHistory(roomCode: string): Promise<number> {
 
         logger.info('Cleaned up old game history', {
             roomCode,
-            deletedCount: oldGameIds.length
+            deletedCount: oldGameIds.length,
         });
 
         return oldGameIds.length;
-
     } catch (error) {
         logger.error('Failed to cleanup old history', {
             roomCode,
-            error: (error as Error).message
+            error: (error as Error).message,
         });
         return 0;
     }
@@ -789,7 +773,7 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
         const [oldestRaw, newestRaw] = await withTimeout(
             Promise.all([
                 redis.zRange(indexKey, 0, 0, { WITHSCORES: true }),
-                redis.zRange(indexKey, -1, -1, { WITHSCORES: true })
+                redis.zRange(indexKey, -1, -1, { WITHSCORES: true }),
             ]),
             TIMEOUTS.REDIS_OPERATION,
             `getHistoryStats-zRange-${roomCode}`
@@ -815,15 +799,13 @@ export async function getHistoryStats(roomCode: string): Promise<HistoryStats> {
         return {
             count,
             oldest: extractEntry(oldestRaw as unknown[]),
-            newest: extractEntry(newestRaw as unknown[])
+            newest: extractEntry(newestRaw as unknown[]),
         };
-
     } catch (error) {
         logger.error('Failed to get history stats', {
             roomCode,
-            error: (error as Error).message
+            error: (error as Error).message,
         });
         return { count: 0, oldest: null, newest: null, error: (error as Error).message };
     }
 }
-

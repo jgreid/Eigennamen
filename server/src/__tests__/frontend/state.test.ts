@@ -19,7 +19,7 @@ import {
     getStateHistory,
     clearStateHistory,
     getStateSnapshot,
-    initCachedElements
+    initCachedElements,
 } from '../../frontend/state';
 
 // The source module uses module-level state. We need a way to reset it between tests.
@@ -584,10 +584,22 @@ describe('initCachedElements()', () => {
 
     it('sets cachedElements from document.getElementById when elements exist', () => {
         const ids = [
-            'board', 'role-banner', 'turn-indicator', 'btn-end-turn',
-            'btn-spymaster', 'btn-clicker', 'btn-team-red', 'btn-team-blue',
-            'btn-spectate', 'red-remaining', 'blue-remaining', 'red-team-name',
-            'blue-team-name', 'share-link', 'sr-announcements', 'timer-display',
+            'board',
+            'role-banner',
+            'turn-indicator',
+            'btn-end-turn',
+            'btn-spymaster',
+            'btn-clicker',
+            'btn-team-red',
+            'btn-team-blue',
+            'btn-spectate',
+            'red-remaining',
+            'blue-remaining',
+            'red-team-name',
+            'blue-team-name',
+            'share-link',
+            'sr-announcements',
+            'timer-display',
             'timer-value',
         ];
         for (const id of ids) {

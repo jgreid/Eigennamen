@@ -146,7 +146,6 @@ test.describe('Two-Player Game Flow', () => {
             // Player count should show 2
             const player1Count = player1.locator(sel.playerCount);
             await expect(player1Count).toContainText('2');
-
         } finally {
             await player1Context.close();
             await player2Context.close();
@@ -192,7 +191,6 @@ test.describe('Two-Player Game Flow', () => {
             // Start game button should be visible for host
             const startGameBtn = player1.locator(sel.startGameBtn);
             await expect(startGameBtn).toBeVisible({ timeout: 5000 });
-
         } finally {
             await player1Context.close();
             await player2Context.close();

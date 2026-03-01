@@ -17,7 +17,7 @@ const mockShowToast = jest.fn();
 jest.mock('../../frontend/ui', () => ({
     openModal: mockOpenModal,
     closeModal: mockCloseModal,
-    showToast: mockShowToast
+    showToast: mockShowToast,
 }));
 
 jest.mock('../../frontend/state', () => ({
@@ -29,8 +29,8 @@ jest.mock('../../frontend/state', () => ({
         isHost: true,
         gameMode: 'classic',
         spectatorCount: 0,
-        roomStats: null
-    }
+        roomStats: null,
+    },
 }));
 
 jest.mock('../../frontend/i18n', () => ({
@@ -47,31 +47,31 @@ jest.mock('../../frontend/i18n', () => ({
         if (key === 'forfeit.gameAlreadyOver') return 'Game over';
         if (key === 'chat.spectatorMessage') return 'Spectator';
         return key;
-    })
+    }),
 }));
 
 jest.mock('../../frontend/utils', () => ({
     escapeHTML: jest.fn((str) => str),
-    copyToClipboard: jest.fn().mockResolvedValue(true)
+    copyToClipboard: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock('../../frontend/constants', () => ({
     VALIDATION: { NICKNAME_MIN_LENGTH: 2, NICKNAME_MAX_LENGTH: 20 },
-    UI: { COPY_FEEDBACK_MS: 2000, RECONNECTION_TIMEOUT_MS: 15000 }
+    UI: { COPY_FEEDBACK_MS: 2000, RECONNECTION_TIMEOUT_MS: 15000 },
 }));
 
 jest.mock('../../frontend/chat', () => ({
     showChatPanel: jest.fn(),
     hideChatPanel: jest.fn(),
-    initChat: jest.fn()
+    initChat: jest.fn(),
 }));
 
 jest.mock('../../frontend/clientAccessor', () => ({
     getClient: jest.fn(() => ({
         player: { isHost: true, nickname: 'TestHost' },
-        getRoomCode: () => 'TESTROOM'
+        getRoomCode: () => 'TESTROOM',
     })),
-    isClientConnected: jest.fn(() => true)
+    isClientConnected: jest.fn(() => true),
 }));
 
 // Mock EigennamenClient global
@@ -81,16 +81,26 @@ jest.mock('../../frontend/clientAccessor', () => ({
     kickPlayer: jest.fn(),
     forfeit: jest.fn(),
     setNickname: jest.fn(),
-    sendSpectatorChat: jest.fn()
+    sendSpectatorChat: jest.fn(),
 };
 
 import {
     updateMpIndicator,
-    updatePlayerList, updateRoomSettingsNavVisibility,
-    syncGameModeUI, updateDuetUI, updateDuetInfoBar,
-    updateSpectatorCount, updateRoomStats, handleSpectatorChatMessage,
-    confirmForfeit, closeForfeitConfirm, closeKickConfirm,
-    forfeitGame, updateForfeitButton, showReconnectionOverlay, hideReconnectionOverlay
+    updatePlayerList,
+    updateRoomSettingsNavVisibility,
+    syncGameModeUI,
+    updateDuetUI,
+    updateDuetInfoBar,
+    updateSpectatorCount,
+    updateRoomStats,
+    handleSpectatorChatMessage,
+    confirmForfeit,
+    closeForfeitConfirm,
+    closeKickConfirm,
+    forfeitGame,
+    updateForfeitButton,
+    showReconnectionOverlay,
+    hideReconnectionOverlay,
 } from '../../frontend/multiplayerUI';
 import { state } from '../../frontend/state';
 import type { ServerPlayerData, ServerRoomData } from '../../frontend/multiplayerTypes';
@@ -137,10 +147,7 @@ describe('multiplayerUI module', () => {
         test('shows correct player count for multiple players', () => {
             setupIndicatorDOM();
             const room: ServerRoomData = { code: 'ROOM1' };
-            const players: ServerPlayerData[] = [
-                createPlayer('s1', 'Alice', true),
-                createPlayer('s2', 'Bob', false)
-            ];
+            const players: ServerPlayerData[] = [createPlayer('s1', 'Alice', true), createPlayer('s2', 'Bob', false)];
 
             updateMpIndicator(room, players);
 
@@ -174,10 +181,7 @@ describe('multiplayerUI module', () => {
     describe('updatePlayerList', () => {
         test('renders player names', () => {
             const ul = document.createElement('ul');
-            const players: ServerPlayerData[] = [
-                createPlayer('s1', 'Alice', true),
-                createPlayer('s2', 'Bob', false)
-            ];
+            const players: ServerPlayerData[] = [createPlayer('s1', 'Alice', true), createPlayer('s2', 'Bob', false)];
 
             updatePlayerList(ul as HTMLUListElement, players);
 
@@ -191,7 +195,7 @@ describe('multiplayerUI module', () => {
             (global as any).EigennamenClient.player.sessionId = 'session1';
             const players: ServerPlayerData[] = [
                 createPlayer('session1', 'Me', true),
-                createPlayer('session2', 'Other', false)
+                createPlayer('session2', 'Other', false),
             ];
 
             updatePlayerList(ul as HTMLUListElement, players);
@@ -227,7 +231,7 @@ describe('multiplayerUI module', () => {
             (global as any).EigennamenClient.player = { sessionId: 'host-session', isHost: true };
             const players: ServerPlayerData[] = [
                 createPlayer('host-session', 'Host', true),
-                createPlayer('guest-session', 'Guest', false)
+                createPlayer('guest-session', 'Guest', false),
             ];
 
             updatePlayerList(ul as HTMLUListElement, players);
@@ -518,8 +522,11 @@ function setupIndicatorDOM(): void {
 }
 
 function createPlayer(
-    sessionId: string, nickname: string, isHost: boolean,
-    team: string | null = null, role: string | null = null
+    sessionId: string,
+    nickname: string,
+    isHost: boolean,
+    team: string | null = null,
+    role: string | null = null
 ): ServerPlayerData {
     return { sessionId, nickname, isHost, team, role, connected: true };
 }

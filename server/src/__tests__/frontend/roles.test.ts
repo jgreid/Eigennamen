@@ -548,7 +548,13 @@ describe('updateControls (multiplayer scenarios)', () => {
 
     test('shows loading on clicker button when pending role is clicker', () => {
         state.playerTeam = 'red';
-        state.roleChange = { phase: 'team_then_role', target: 'clicker', operationId: '1', revertFn: () => {}, pendingRole: 'clicker' };
+        state.roleChange = {
+            phase: 'team_then_role',
+            target: 'clicker',
+            operationId: '1',
+            revertFn: () => {},
+            pendingRole: 'clicker',
+        };
         updateControls();
 
         const clicker = document.getElementById('btn-clicker')!;

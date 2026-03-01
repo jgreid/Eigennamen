@@ -26,17 +26,15 @@ export function createReactiveProxy<T extends object>(target: T, path: string = 
                 // Don't proxy opaque host objects — they use internal slots
                 // that break under Proxy or need reference identity (DOM nodes).
                 if (
-                    value instanceof Set || value instanceof Map ||
+                    value instanceof Set ||
+                    value instanceof Map ||
                     (typeof Node !== 'undefined' && value instanceof Node) ||
                     (typeof AudioContext !== 'undefined' && value instanceof AudioContext)
                 ) {
                     return value;
                 }
                 if (!subProxies.has(value as object)) {
-                    subProxies.set(
-                        value as object,
-                        createReactiveProxy(value as object, `${path}.${prop}`)
-                    );
+                    subProxies.set(value as object, createReactiveProxy(value as object, `${path}.${prop}`));
                 }
                 return subProxies.get(value as object);
             }
@@ -64,6 +62,6 @@ export function createReactiveProxy<T extends object>(target: T, path: string = 
                 enqueueOrEmit(event);
             }
             return result;
-        }
+        },
     });
 }

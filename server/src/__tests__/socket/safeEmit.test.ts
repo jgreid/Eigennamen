@@ -9,7 +9,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 const {
@@ -17,7 +17,7 @@ const {
     safeEmitToPlayer,
     safeEmitToPlayers,
     getEmissionMetrics,
-    resetEmissionMetrics
+    resetEmissionMetrics,
 } = require('../../socket/safeEmit');
 const logger = require('../../utils/logger');
 
@@ -32,8 +32,8 @@ describe('Safe Emit Utilities', () => {
         mockEmit = jest.fn();
         mockIo = {
             to: jest.fn().mockReturnValue({
-                emit: mockEmit
-            })
+                emit: mockEmit,
+            }),
         };
     });
 
@@ -175,10 +175,7 @@ describe('Safe Emit Utilities', () => {
             const result = safeEmitToPlayer(mockIo, 'session-123', 'test:event', {});
 
             expect(result).toBe(false);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Failed to emit'),
-                expect.any(Object)
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to emit'), expect.any(Object));
         });
     });
 
@@ -187,7 +184,7 @@ describe('Safe Emit Utilities', () => {
             const players = [
                 { sessionId: 'session-1', name: 'Player 1' },
                 { sessionId: 'session-2', name: 'Player 2' },
-                { sessionId: 'session-3', name: 'Player 3' }
+                { sessionId: 'session-3', name: 'Player 3' },
             ];
 
             const result = safeEmitToPlayers(mockIo, players, 'game:update', { turn: 'red' });
@@ -200,7 +197,7 @@ describe('Safe Emit Utilities', () => {
         it('should use dataFn function to generate per-player data', () => {
             const players = [
                 { sessionId: 'session-1', role: 'spymaster' },
-                { sessionId: 'session-2', role: 'clicker' }
+                { sessionId: 'session-2', role: 'clicker' },
             ];
 
             const dataFn = (player) => ({ yourRole: player.role });
@@ -225,9 +222,7 @@ describe('Safe Emit Utilities', () => {
 
             expect(result.successful).toBe(0);
             expect(result.failed).toBe(0);
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('non-array')
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('non-array'));
         });
 
         it('should skip invalid player objects', () => {
@@ -236,7 +231,7 @@ describe('Safe Emit Utilities', () => {
                 null,
                 { name: 'no-sessionId' },
                 undefined,
-                { sessionId: 'another-valid' }
+                { sessionId: 'another-valid' },
             ];
 
             const result = safeEmitToPlayers(mockIo, players, 'test:event', {});
@@ -259,10 +254,7 @@ describe('Safe Emit Utilities', () => {
         });
 
         it('should count emission failures per player', () => {
-            const players = [
-                { sessionId: 'session-1' },
-                { sessionId: 'session-2' }
-            ];
+            const players = [{ sessionId: 'session-1' }, { sessionId: 'session-2' }];
 
             // Make first emission succeed, second fail
             mockEmit

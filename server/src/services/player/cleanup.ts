@@ -62,12 +62,12 @@ export async function handleDisconnect(sessionId: string): Promise<Player | null
     logger.info(`Player ${sessionId} disconnected from room ${player.roomCode}`);
 
     // Schedule removal after grace period using sorted set
-    const cleanupTime = Date.now() + (REDIS_TTL.DISCONNECTED_PLAYER * 1000);
+    const cleanupTime = Date.now() + REDIS_TTL.DISCONNECTED_PLAYER * 1000;
     try {
         await withTimeout(
             redis.zAdd('scheduled:player:cleanup', {
                 score: cleanupTime,
-                value: JSON.stringify({ sessionId, roomCode: player.roomCode })
+                value: JSON.stringify({ sessionId, roomCode: player.roomCode }),
             }),
             TIMEOUTS.REDIS_OPERATION,
             `handleDisconnect-zAdd-${sessionId}`
@@ -105,12 +105,7 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
     try {
         // Get players due for cleanup
         const toCleanup = await withTimeout(
-            redis.zRangeByScore(
-                'scheduled:player:cleanup',
-                0,
-                now,
-                { LIMIT: { offset: 0, count: limit } }
-            ),
+            redis.zRangeByScore('scheduled:player:cleanup', 0, now, { LIMIT: { offset: 0, count: limit } }),
             TIMEOUTS.REDIS_OPERATION,
             'processScheduledCleanups-zRangeByScore'
         );
@@ -128,17 +123,14 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 // Atomically check connected status AND remove in a single Lua script.
                 // This prevents a TOCTOU race where a player reconnects between
                 // reading their status and removing them.
-                const result = await withTimeout(
-                    redis.eval(
-                        ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT,
-                        {
-                            keys: [`player:${sessionId}`],
-                            arguments: [sessionId]
-                        }
-                    ),
+                const result = (await withTimeout(
+                    redis.eval(ATOMIC_CLEANUP_DISCONNECTED_PLAYER_SCRIPT, {
+                        keys: [`player:${sessionId}`],
+                        arguments: [sessionId],
+                    }),
                     TIMEOUTS.REDIS_OPERATION,
                     `cleanupDisconnectedPlayer-lua-${sessionId}`
-                ) as string | null;
+                )) as string | null;
 
                 if (result === 'RECONNECTED') {
                     // Player reconnected - skip removal, just clear schedule entry
@@ -169,7 +161,10 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 try {
                     await invalidateRoomReconnectToken(sessionId);
                 } catch (tokenError) {
-                    logger.warn(`Failed to clean up reconnection token for ${sessionId}:`, (tokenError as Error).message);
+                    logger.warn(
+                        `Failed to clean up reconnection token for ${sessionId}:`,
+                        (tokenError as Error).message
+                    );
                 }
 
                 // Check if room is now empty and clean it up to prevent orphaned rooms.
@@ -194,7 +189,10 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                             }
                         }
                     } catch (roomCleanupError) {
-                        logger.warn(`Failed to check/cleanup orphaned room ${roomCode}:`, (roomCleanupError as Error).message);
+                        logger.warn(
+                            `Failed to check/cleanup orphaned room ${roomCode}:`,
+                            (roomCleanupError as Error).message
+                        );
                     }
                 }
 
@@ -256,7 +254,9 @@ export function startCleanupTask(): void {
                 setGauge(METRIC_NAMES.CLEANUP_QUEUE_DEPTH, queueDepth);
 
                 if (queueDepth > CLEANUP_BACKPRESSURE_THRESHOLD) {
-                    logger.warn(`Cleanup queue depth (${queueDepth}) exceeds threshold (${CLEANUP_BACKPRESSURE_THRESHOLD}), running additional sweeps`);
+                    logger.warn(
+                        `Cleanup queue depth (${queueDepth}) exceeds threshold (${CLEANUP_BACKPRESSURE_THRESHOLD}), running additional sweeps`
+                    );
 
                     // Continue sweeping until queue is drained below threshold
                     // or we hit the per-cycle hard cap to prevent event-loop starvation.
@@ -277,9 +277,13 @@ export function startCleanupTask(): void {
                     setGauge(METRIC_NAMES.CLEANUP_QUEUE_DEPTH, finalDepth);
 
                     if (finalDepth > CLEANUP_BACKPRESSURE_THRESHOLD) {
-                        logger.warn(`Cleanup queue still elevated after draining (${finalDepth} remaining, processed ${totalProcessed} this cycle)`);
+                        logger.warn(
+                            `Cleanup queue still elevated after draining (${finalDepth} remaining, processed ${totalProcessed} this cycle)`
+                        );
                     } else {
-                        logger.info(`Cleanup backpressure resolved: processed ${totalProcessed} items, ${finalDepth} remaining`);
+                        logger.info(
+                            `Cleanup backpressure resolved: processed ${totalProcessed} items, ${finalDepth} remaining`
+                        );
                     }
                 }
             }

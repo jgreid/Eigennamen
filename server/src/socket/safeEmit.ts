@@ -51,7 +51,7 @@ let emissionMetrics: EmissionMetrics = {
     total: 0,
     successful: 0,
     failed: 0,
-    lastFailure: null
+    lastFailure: null,
 };
 let metricsWindowStart = Date.now();
 
@@ -61,7 +61,7 @@ function maybeResetMetricsWindow(): void {
             logger.info('Emission metrics hourly snapshot', {
                 total: emissionMetrics.total,
                 successful: emissionMetrics.successful,
-                failed: emissionMetrics.failed
+                failed: emissionMetrics.failed,
             });
         }
         // Flush window totals into central gauges so /metrics and Prometheus see them
@@ -71,7 +71,7 @@ function maybeResetMetricsWindow(): void {
             total: 0,
             successful: 0,
             failed: 0,
-            lastFailure: emissionMetrics.lastFailure // Preserve last failure for debugging
+            lastFailure: emissionMetrics.lastFailure, // Preserve last failure for debugging
         };
         metricsWindowStart = Date.now();
     }
@@ -120,7 +120,7 @@ function safeEmitToRoom(
             event,
             roomCode,
             error: errMsg,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         };
 
         const errorMsg = `Failed to emit ${event} to room:${roomCode}: ${errMsg}`;
@@ -176,7 +176,7 @@ function safeEmitToPlayer(
             event,
             sessionId,
             error: errMsg,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         };
 
         const errorMsg = `Failed to emit ${event} to player:${sessionId}: ${errMsg}`;
@@ -229,7 +229,10 @@ function safeEmitToPlayers(
             }
         } catch (error) {
             results.failed++;
-            results.errors.push({ sessionId: player.sessionId, error: error instanceof Error ? error.message : String(error) });
+            results.errors.push({
+                sessionId: player.sessionId,
+                error: error instanceof Error ? error.message : String(error),
+            });
         }
     }
 
@@ -252,7 +255,7 @@ function resetEmissionMetrics(): void {
         total: 0,
         successful: 0,
         failed: 0,
-        lastFailure: null
+        lastFailure: null,
     };
 }
 
@@ -298,7 +301,7 @@ function safeEmitToGroup(
         emissionMetrics.lastFailure = {
             event,
             error: errMsg,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         };
 
         const errorMsg = `Failed to emit ${event} to ${target}: ${errMsg}`;
@@ -317,5 +320,5 @@ export {
     safeEmitToPlayers,
     safeEmitToGroup,
     getEmissionMetrics,
-    resetEmissionMetrics
+    resetEmissionMetrics,
 };

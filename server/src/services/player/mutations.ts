@@ -17,11 +17,7 @@ import { getPlayer, updatePlayer } from '../playerService';
  * Uses a single Lua script that handles both simple team changes and
  * safe team switches (preventing a team from becoming empty during active games).
  */
-export async function setTeam(
-    sessionId: string,
-    team: Team | null,
-    checkEmpty: boolean = false
-): Promise<Player> {
+export async function setTeam(sessionId: string, team: Team | null, checkEmpty: boolean = false): Promise<Player> {
     const redis: RedisClient = getRedis();
 
     // Get player to determine room code and old team for the Lua script
@@ -40,23 +36,20 @@ export async function setTeam(
     const teamValue = team === null || team === undefined ? '__NULL__' : team;
     const teamSetKey = oldTeam ? `room:${roomCode}:team:${oldTeam}` : 'nonexistent:key';
 
-    const result = await withTimeout(
-        redis.eval(
-            SAFE_TEAM_SWITCH_SCRIPT,
-            {
-                keys: [`player:${sessionId}`, teamSetKey, roomCode],
-                arguments: [
-                    teamValue,
-                    sessionId,
-                    REDIS_TTL.PLAYER.toString(),
-                    Date.now().toString(),
-                    checkEmpty.toString()
-                ]
-            }
-        ),
+    const result = (await withTimeout(
+        redis.eval(SAFE_TEAM_SWITCH_SCRIPT, {
+            keys: [`player:${sessionId}`, teamSetKey, roomCode],
+            arguments: [
+                teamValue,
+                sessionId,
+                REDIS_TTL.PLAYER.toString(),
+                Date.now().toString(),
+                checkEmpty.toString(),
+            ],
+        }),
         TIMEOUTS.REDIS_OPERATION,
         `setTeam-lua-${sessionId}`
-    ) as string | null;
+    )) as string | null;
 
     if (!result) {
         throw new ServerError('Player not found');
@@ -67,7 +60,9 @@ export async function setTeam(
 
         if (parsed.success === false) {
             if (parsed.reason === 'TEAM_WOULD_BE_EMPTY') {
-                throw new ValidationError(`Cannot leave team ${oldTeam} - your team cannot be empty during an active game`);
+                throw new ValidationError(
+                    `Cannot leave team ${oldTeam} - your team cannot be empty during an active game`
+                );
             }
             // Defense-in-depth: Invalid team caught by Lua validation
             if (parsed.reason === 'INVALID_TEAM') {
@@ -109,22 +104,14 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
 
     // All roles (including spectator) go through the atomic Lua script to prevent
     // lost updates when a concurrent setTeam operation modifies the same player key.
-    const result = await withTimeout(
-        redis.eval(
-            SET_ROLE_SCRIPT,
-            {
-                keys: [`player:${sessionId}`, `room:${player.roomCode}:players`],
-                arguments: [
-                    role,
-                    sessionId,
-                    REDIS_TTL.PLAYER.toString(),
-                    Date.now().toString()
-                ]
-            }
-        ),
+    const result = (await withTimeout(
+        redis.eval(SET_ROLE_SCRIPT, {
+            keys: [`player:${sessionId}`, `room:${player.roomCode}:players`],
+            arguments: [role, sessionId, REDIS_TTL.PLAYER.toString(), Date.now().toString()],
+        }),
         TIMEOUTS.REDIS_OPERATION,
         `setRole-lua-${sessionId}`
-    ) as string | null;
+    )) as string | null;
 
     if (!result) {
         throw new ServerError('Player not found');
@@ -135,7 +122,9 @@ export async function setRole(sessionId: string, role: Role): Promise<Player> {
 
         if (parsed.success === false) {
             if (parsed.reason === 'ROLE_TAKEN') {
-                throw new ValidationError(`${player.team} team already has a ${role} (${sanitizeHtml(parsed.existingNickname ?? '')})`);
+                throw new ValidationError(
+                    `${player.team} team already has a ${role} (${sanitizeHtml(parsed.existingNickname ?? '')})`
+                );
             }
             if (parsed.reason === 'NO_TEAM') {
                 throw new ValidationError('Must join a team before becoming ' + role);

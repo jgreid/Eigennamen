@@ -9,13 +9,13 @@
 const mockPubClient = {
     publish: jest.fn().mockResolvedValue(1),
     connect: jest.fn().mockResolvedValue(),
-    subscribe: jest.fn().mockResolvedValue()
+    subscribe: jest.fn().mockResolvedValue(),
 };
 
 const mockSubClient = {
     subscribe: jest.fn().mockResolvedValue(),
     unsubscribe: jest.fn().mockResolvedValue(),
-    connect: jest.fn().mockResolvedValue()
+    connect: jest.fn().mockResolvedValue(),
 };
 
 let mockRedisStorage = {};
@@ -29,43 +29,45 @@ const mockRedis = {
         delete mockRedisStorage[key];
         return 1;
     }),
-    exists: jest.fn(async (key) => mockRedisStorage[key] ? 1 : 0),
+    exists: jest.fn(async (key) => (mockRedisStorage[key] ? 1 : 0)),
     expire: jest.fn().mockResolvedValue(1),
     incr: jest.fn().mockResolvedValue(1),
     eval: jest.fn().mockResolvedValue(null),
-    scanIterator: jest.fn(function* () { /* empty iterator */ })
+    scanIterator: jest.fn(function* () {
+        /* empty iterator */
+    }),
 };
 
 jest.mock('../../config/redis', () => ({
     getRedis: () => mockRedis,
     getPubSubClients: () => ({ pubClient: mockPubClient, subClient: mockSubClient }),
-    isUsingMemoryMode: jest.fn().mockReturnValue(false)
+    isUsingMemoryMode: jest.fn().mockReturnValue(false),
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../middleware/socketAuth', () => ({
     authenticateSocket: jest.fn((socket, next) => {
         socket.sessionId = socket.handshake?.auth?.sessionId || 'test-session-id';
         next();
-    })
+    }),
 }));
 
 // Mock services
 jest.mock('../../services/gameService', () => ({
     getGame: jest.fn().mockResolvedValue(null),
     endTurn: jest.fn().mockResolvedValue({ currentTurn: 'blue', previousTurn: 'red' }),
-    getGameStateForPlayer: jest.fn()
+    getGameStateForPlayer: jest.fn(),
 }));
 
 jest.mock('../../services/roomService', () => ({
     getRoom: jest.fn().mockResolvedValue({ code: 'TEST12', settings: { turnTimer: 60 } }),
-    cleanupRoom: jest.fn().mockResolvedValue(undefined)
+    cleanupRoom: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../services/playerService', () => ({
@@ -73,7 +75,7 @@ jest.mock('../../services/playerService', () => ({
     getPlayersInRoom: jest.fn().mockResolvedValue([]),
     handleDisconnect: jest.fn().mockResolvedValue(),
     updatePlayer: jest.fn().mockResolvedValue(),
-    registerRoomCleanup: jest.fn()
+    registerRoomCleanup: jest.fn(),
 }));
 
 // Mock timer service
@@ -82,10 +84,10 @@ jest.mock('../../services/timerService', () => ({
         startTime: Date.now(),
         endTime: Date.now() + 60000,
         duration: 60,
-        remainingSeconds: 60
+        remainingSeconds: 60,
     }),
     stopTimer: jest.fn().mockResolvedValue(),
-    getTimerStatus: jest.fn().mockResolvedValue(null)
+    getTimerStatus: jest.fn().mockResolvedValue(null),
 }));
 
 // Mock handlers
@@ -97,12 +99,12 @@ jest.mock('../../socket/handlers/chatHandlers', () => jest.fn());
 // Mock rate limiter
 jest.mock('../../socket/rateLimitHandler', () => ({
     socketRateLimiter: {
-        cleanupSocket: jest.fn()
+        cleanupSocket: jest.fn(),
     },
     createRateLimitedHandler: jest.fn((socket, eventName, handler) => handler),
     getSocketRateLimiter: jest.fn(),
     startRateLimitCleanup: jest.fn(),
-    stopRateLimitCleanup: jest.fn()
+    stopRateLimitCleanup: jest.fn(),
 }));
 
 const http = require('http');
@@ -174,7 +176,7 @@ describe('Socket Index Module', () => {
         test('accepts Express app for socket count updates', () => {
             jest.resetModules();
             const mockApp = {
-                updateSocketCount: jest.fn()
+                updateSocketCount: jest.fn(),
             };
 
             const socketMod = require('../../socket/index');
@@ -268,7 +270,7 @@ describe('Socket Index Module', () => {
             const timerService = require('../../services/timerService');
             timerService.getTimerStatus.mockResolvedValue({
                 remainingSeconds: 30,
-                duration: 60
+                duration: 60,
             });
             const socketMod = require('../../socket/index');
 
@@ -330,7 +332,7 @@ describe('Socket Connection Handling', () => {
         server = http.createServer();
         ioServer = new Server(server, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         // Simple auth middleware
@@ -364,7 +366,7 @@ describe('Socket Connection Handling', () => {
 
         clientSocket = Client(`http://localhost:${testPort}`, {
             transports: ['websocket'],
-            auth: { sessionId: 'test-123' }
+            auth: { sessionId: 'test-123' },
         });
     });
 
@@ -379,7 +381,7 @@ describe('Socket Connection Handling', () => {
         });
 
         clientSocket = Client(`http://localhost:${testPort}`, {
-            transports: ['websocket']
+            transports: ['websocket'],
         });
 
         clientSocket.on('connected', () => {
@@ -400,7 +402,7 @@ describe('Socket Connection Handling', () => {
         });
 
         clientSocket = Client(`http://localhost:${testPort}`, {
-            transports: ['websocket']
+            transports: ['websocket'],
         });
 
         clientSocket.on('connect', () => {
@@ -417,17 +419,17 @@ describe('Timer Expire Callback', () => {
         gameService.getGame.mockResolvedValue({
             id: 'game-1',
             currentTurn: 'red',
-            gameOver: false
+            gameOver: false,
         });
 
         gameService.endTurn.mockResolvedValue({
             currentTurn: 'blue',
-            previousTurn: 'red'
+            previousTurn: 'red',
         });
 
         roomService.getRoom.mockResolvedValue({
             code: 'TEST12',
-            settings: { turnTimer: 60 }
+            settings: { turnTimer: 60 },
         });
 
         // The actual callback is created internally, but we can verify
@@ -444,7 +446,7 @@ describe('Timer Expire Callback', () => {
             id: 'game-1',
             currentTurn: 'red',
             gameOver: true,
-            winner: 'blue'
+            winner: 'blue',
         });
 
         // When game is over, endTurn should not be called
@@ -471,7 +473,7 @@ describe('Disconnect Handling', () => {
             roomCode: 'TEST12',
             team: 'red',
             isHost: false,
-            connected: true
+            connected: true,
         });
 
         await playerService.handleDisconnect('session-1');
@@ -487,11 +489,11 @@ describe('Disconnect Handling', () => {
             roomCode: 'TEST12',
             team: 'red',
             isHost: true,
-            connected: true
+            connected: true,
         });
 
         playerService.getPlayersInRoom.mockResolvedValue([
-            { sessionId: 'session-2', nickname: 'Player2', connected: true }
+            { sessionId: 'session-2', nickname: 'Player2', connected: true },
         ]);
 
         // Simulate the flow
@@ -499,7 +501,7 @@ describe('Disconnect Handling', () => {
         expect(player.isHost).toBe(true);
 
         const players = await playerService.getPlayersInRoom('TEST12');
-        const connectedPlayers = players.filter(p => p.connected);
+        const connectedPlayers = players.filter((p) => p.connected);
         expect(connectedPlayers.length).toBe(1);
     });
 

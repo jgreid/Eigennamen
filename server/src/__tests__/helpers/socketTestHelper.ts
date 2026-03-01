@@ -11,14 +11,13 @@ import { Server } from 'socket.io';
 const Client = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
 
-
 type AnyRecord = Record<string, any>;
 
 // Default test configuration
 const DEFAULT_CONFIG = {
     port: 3098,
     connectionTimeout: 5000,
-    defaultTimeout: 10000
+    defaultTimeout: 10000,
 };
 
 interface EventLogEntry {
@@ -60,7 +59,7 @@ class SocketTestServer {
                 cors: { origin: '*' },
                 transports: ['websocket', 'polling'],
                 pingTimeout: 5000,
-                pingInterval: 2000
+                pingInterval: 2000,
             });
 
             // Setup connection handler
@@ -117,7 +116,7 @@ class SocketTestServer {
             timeout: this.config.connectionTimeout,
             reconnection: false,
             auth: { sessionId },
-            ...options
+            ...options,
         });
 
         return new Promise((resolve, reject) => {
@@ -148,7 +147,7 @@ class SocketTestServer {
         for (let i = 0; i < count; i++) {
             const clientOptions = {
                 sessionId: options.sessionIds?.[i] || uuidv4(),
-                ...options
+                ...options,
             };
             clients.push(await this.createClient(clientOptions));
         }
@@ -174,7 +173,13 @@ class SocketTestServer {
     /**
      * Emit and wait for response
      */
-    emitAndWait(client: AnyRecord, event: string, data: unknown, responseEvent: string, timeout: number = this.config.defaultTimeout): Promise<unknown> {
+    emitAndWait(
+        client: AnyRecord,
+        event: string,
+        data: unknown,
+        responseEvent: string,
+        timeout: number = this.config.defaultTimeout
+    ): Promise<unknown> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error(`Timeout waiting for response to ${event}`));
@@ -197,7 +202,12 @@ class SocketTestServer {
     /**
      * Emit with callback acknowledgment
      */
-    emitWithAck(client: AnyRecord, event: string, data: unknown, timeout: number = this.config.defaultTimeout): Promise<unknown> {
+    emitWithAck(
+        client: AnyRecord,
+        event: string,
+        data: unknown,
+        timeout: number = this.config.defaultTimeout
+    ): Promise<unknown> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 reject(new Error(`Timeout waiting for ack on ${event}`));
@@ -285,7 +295,7 @@ const {
     sleep,
     flushPromises,
     drainMicrotasks,
-    expectAsyncError
+    expectAsyncError,
 } = require('./mocks');
 
 module.exports = {
@@ -299,5 +309,5 @@ module.exports = {
     flushPromises,
     drainMicrotasks,
     expectAsyncError,
-    DEFAULT_CONFIG
+    DEFAULT_CONFIG,
 };

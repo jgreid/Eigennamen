@@ -77,7 +77,7 @@ router.get('/', (_req: Request, res: Response) => {
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
-        uptime: Math.floor((Date.now() - serverStartTime) / 1000)
+        uptime: Math.floor((Date.now() - serverStartTime) / 1000),
     });
 });
 
@@ -89,7 +89,7 @@ router.get('/', (_req: Request, res: Response) => {
 router.get('/ready', async (_req: Request, res: Response) => {
     const checks: { redis: HealthCheck; pubsub: HealthCheck } = {
         redis: { healthy: false, mode: 'unknown' },
-        pubsub: { healthy: true, status: 'not_applicable' }
+        pubsub: { healthy: true, status: 'not_applicable' },
     };
 
     try {
@@ -110,7 +110,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
             checks.pubsub = {
                 healthy: pubSubStatus.isHealthy,
                 status: pubSubStatus.isHealthy ? 'connected' : 'degraded',
-                consecutiveFailures: pubSubStatus.consecutiveFailures
+                consecutiveFailures: pubSubStatus.consecutiveFailures,
             };
         }
 
@@ -128,11 +128,11 @@ router.get('/ready', async (_req: Request, res: Response) => {
             checks,
             memory: {
                 heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
-                rssMB: Math.round(memUsage.rss / 1024 / 1024)
+                rssMB: Math.round(memUsage.rss / 1024 / 1024),
             },
             inMemory: {
-                activeTimers: getActiveTimerCount()
-            }
+                activeTimers: getActiveTimerCount(),
+            },
         });
     } catch (error) {
         logger.error('Health check failed:', error);
@@ -140,7 +140,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
             status: 'error',
             timestamp: new Date().toISOString(),
             error: 'Health check failed',
-            checks
+            checks,
         });
     }
 });
@@ -153,7 +153,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
 router.get('/live', (_req: Request, res: Response) => {
     res.json({
         status: 'live',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
     });
 });
 
@@ -179,30 +179,32 @@ router.get('/metrics', async (_req: Request, res: Response) => {
             timestamp: new Date().toISOString(),
             uptime: {
                 seconds: Math.floor((Date.now() - serverStartTime) / 1000),
-                startTime: new Date(serverStartTime).toISOString()
+                startTime: new Date(serverStartTime).toISOString(),
             },
             memory: {
                 heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
                 heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
                 rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB',
-                external: Math.round(memUsage.external / 1024 / 1024) + 'MB'
+                external: Math.round(memUsage.external / 1024 / 1024) + 'MB',
             },
             redis: {
                 mode: isUsingMemoryMode() ? 'memory' : 'redis',
                 healthy: await withTimeout(isRedisHealthy(), HEALTH_CHECK_TIMEOUT_MS, 'Redis health check'),
                 // Only expose Redis memory details outside production
-                ...(isProduction ? {} : { memory: redisMemory })
+                ...(isProduction ? {} : { memory: redisMemory }),
             },
             pubsub: {
                 healthy: pubSubStatus.isHealthy,
                 // Only expose pubsub counters outside production
-                ...(isProduction ? {} : {
-                    totalPublishes: pubSubStatus.totalPublishes,
-                    totalFailures: pubSubStatus.totalFailures,
-                    failureRate: pubSubStatus.failureRate,
-                    consecutiveFailures: pubSubStatus.consecutiveFailures
-                })
-            }
+                ...(isProduction
+                    ? {}
+                    : {
+                          totalPublishes: pubSubStatus.totalPublishes,
+                          totalFailures: pubSubStatus.totalFailures,
+                          failureRate: pubSubStatus.failureRate,
+                          consecutiveFailures: pubSubStatus.consecutiveFailures,
+                      }),
+            },
         };
 
         // Only expose process details (PID, Node version, platform) outside production
@@ -211,7 +213,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
             metrics.process = {
                 pid: process.pid,
                 nodeVersion: process.version,
-                platform: process.platform
+                platform: process.platform,
             };
         }
 
@@ -220,7 +222,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
             const appMetrics = getAllMetrics();
             metrics.application = {
                 counters: appMetrics.counters,
-                gauges: appMetrics.gauges
+                gauges: appMetrics.gauges,
             };
         }
 
@@ -232,12 +234,14 @@ router.get('/metrics', async (_req: Request, res: Response) => {
                 type: 'redis_memory',
                 level: redisMemory.alert,
                 message: `Redis memory usage at ${redisMemory.memory_usage_percent}%`,
-                ...(isProduction ? {} : {
-                    details: {
-                        used: redisMemory.used_memory_human,
-                        max: redisMemory.maxmemory_human
-                    }
-                })
+                ...(isProduction
+                    ? {}
+                    : {
+                          details: {
+                              used: redisMemory.used_memory_human,
+                              max: redisMemory.maxmemory_human,
+                          },
+                      }),
             });
         }
 
@@ -245,7 +249,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
     } catch (error) {
         logger.error('Metrics collection failed:', error);
         res.status(500).json({
-            error: 'Failed to collect metrics'
+            error: 'Failed to collect metrics',
         });
     }
 });

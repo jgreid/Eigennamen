@@ -18,7 +18,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const playerService = require('../../services/playerService');
@@ -47,7 +47,7 @@ describe('Reconnection Edge Cases', () => {
                 connected: false,
                 lastSeen: Date.now() - 30000, // 30 seconds ago
                 nickname: 'Player1',
-                team: 'red'
+                team: 'red',
             });
 
             const player = await playerService.getPlayer(sessionId);
@@ -69,7 +69,7 @@ describe('Reconnection Edge Cases', () => {
                 lastSeen: Date.now() - 60000,
                 nickname: 'Player1',
                 team: 'red',
-                role: 'spymaster'
+                role: 'spymaster',
             });
 
             const player = await playerService.getPlayer(sessionId);
@@ -84,14 +84,14 @@ describe('Reconnection Edge Cases', () => {
             const gracePeriod = 5 * 60 * 1000;
 
             // Simulate scheduled cleanup check
-            playerService.getScheduledCleanups = jest.fn().mockResolvedValue([
-                { sessionId, scheduledTime: Date.now() - gracePeriod }
-            ]);
+            playerService.getScheduledCleanups = jest
+                .fn()
+                .mockResolvedValue([{ sessionId, scheduledTime: Date.now() - gracePeriod }]);
 
             playerService.getPlayer.mockResolvedValue({
                 sessionId,
                 connected: false,
-                lastSeen: Date.now() - gracePeriod - 1000
+                lastSeen: Date.now() - gracePeriod - 1000,
             });
 
             const cleanups = await playerService.getScheduledCleanups();
@@ -108,7 +108,7 @@ describe('Reconnection Edge Cases', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId,
                 connected: true,
-                socketId: 'socket-original'
+                socketId: 'socket-original',
             });
 
             const existingPlayer = await playerService.getPlayer(sessionId);
@@ -125,7 +125,7 @@ describe('Reconnection Edge Cases', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId,
                 connected: false,
-                socketId: null
+                socketId: null,
             });
 
             const player = await playerService.getPlayer(sessionId);
@@ -140,7 +140,7 @@ describe('Reconnection Edge Cases', () => {
             playerService.getPlayer.mockImplementation(async () => ({
                 sessionId,
                 connected,
-                lastSeen: Date.now()
+                lastSeen: Date.now(),
             }));
 
             playerService.updatePlayer.mockImplementation(async (id, updates) => {
@@ -168,12 +168,12 @@ describe('Reconnection Edge Cases', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 createdAt: Date.now() - 6 * 60 * 1000, // 6 minutes ago
-                expiresAt: Date.now() - 60 * 1000      // Expired 1 minute ago
+                expiresAt: Date.now() - 60 * 1000, // Expired 1 minute ago
             };
 
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
-                reason: 'Token expired'
+                reason: 'Token expired',
             });
 
             const result = await playerService.validateRoomReconnectToken('expired-token', 'session-456');
@@ -184,7 +184,7 @@ describe('Reconnection Edge Cases', () => {
         test('refreshes token on successful reconnection', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: true,
-                tokenData: { sessionId: 'session-456', roomCode: 'TEST12' }
+                tokenData: { sessionId: 'session-456', roomCode: 'TEST12' },
             });
 
             playerService.generateReconnectionToken.mockResolvedValue('new-token');
@@ -217,10 +217,10 @@ describe('Reconnection Edge Cases', () => {
             const attempts = await Promise.all([
                 playerService.validateRoomReconnectToken('token', sessionId),
                 playerService.validateRoomReconnectToken('token', sessionId),
-                playerService.validateRoomReconnectToken('token', sessionId)
+                playerService.validateRoomReconnectToken('token', sessionId),
             ]);
 
-            const successfulAttempts = attempts.filter(a => a.valid);
+            const successfulAttempts = attempts.filter((a) => a.valid);
             expect(successfulAttempts).toHaveLength(1);
         });
 
@@ -236,7 +236,7 @@ describe('Reconnection Edge Cases', () => {
             // Concurrent updates
             await Promise.all([
                 playerService.updatePlayer(sessionId, { connected: true, socketId: 'socket-1' }),
-                playerService.updatePlayer(sessionId, { connected: true, socketId: 'socket-2' })
+                playerService.updatePlayer(sessionId, { connected: true, socketId: 'socket-2' }),
             ]);
 
             // Both updates should complete (implementation should handle atomicity)
@@ -253,12 +253,12 @@ describe('Reconnection Edge Cases', () => {
             playerService.getPlayer.mockResolvedValueOnce({
                 sessionId: originalHost,
                 isHost: false, // Host status transferred
-                connected: false
+                connected: false,
             });
 
             roomService.getRoom.mockResolvedValue({
                 code: 'TEST12',
-                hostId: newHost // New host
+                hostId: newHost, // New host
             });
 
             const player = await playerService.getPlayer(originalHost);
@@ -273,12 +273,10 @@ describe('Reconnection Edge Cases', () => {
 
             roomService.getRoom.mockResolvedValue({
                 code: 'TEST12',
-                hostId: sessionId // Still host
+                hostId: sessionId, // Still host
             });
 
-            playerService.getPlayersInRoom.mockResolvedValue([
-                { sessionId, isHost: true, connected: false }
-            ]);
+            playerService.getPlayersInRoom.mockResolvedValue([{ sessionId, isHost: true, connected: false }]);
 
             const room = await roomService.getRoom('TEST12');
             const players = await playerService.getPlayersInRoom('TEST12');
@@ -296,10 +294,10 @@ describe('Reconnection Edge Cases', () => {
             // Game progressed during disconnect
             gameService.getGame.mockResolvedValue({
                 currentTurn: 'blue', // Was 'red' when disconnected
-                redScore: 3,         // Was 2 when disconnected
-                blueScore: 4,        // Was 3 when disconnected
+                redScore: 3, // Was 2 when disconnected
+                blueScore: 4, // Was 3 when disconnected
                 gameOver: false,
-                version: 15          // State version increased
+                version: 15, // State version increased
             });
 
             const game = await gameService.getGame('TEST12');
@@ -314,7 +312,7 @@ describe('Reconnection Edge Cases', () => {
                 currentTurn: 'red',
                 gameOver: true,
                 winner: 'blue',
-                endReason: 'assassin'
+                endReason: 'assassin',
             });
 
             const game = await gameService.getGame('TEST12');
@@ -336,18 +334,18 @@ describe('Reconnection Edge Cases', () => {
             playerService.getPlayer.mockResolvedValue({
                 sessionId,
                 role: 'spymaster',
-                team: 'red'
+                team: 'red',
             });
 
             gameService.getGame.mockResolvedValue({
                 gameOver: true,
-                types: ['red', 'blue', 'neutral', 'assassin'] // Full types
+                types: ['red', 'blue', 'neutral', 'assassin'], // Full types
             });
 
             // When game is over, spymaster view should show all types
             gameService.getGameStateForPlayer.mockReturnValue({
                 gameOver: true,
-                types: ['red', 'blue', 'neutral', 'assassin'] // All revealed
+                types: ['red', 'blue', 'neutral', 'assassin'], // All revealed
             });
 
             const game = await gameService.getGame('TEST12');
@@ -364,7 +362,7 @@ describe('Reconnection Edge Cases', () => {
                 sessionId: 'session-456',
                 team: 'red',
                 role: 'clicker',
-                connected: false
+                connected: false,
             });
 
             const player = await playerService.getPlayer('session-456');
@@ -378,7 +376,7 @@ describe('Reconnection Edge Cases', () => {
                 sessionId: 'session-456',
                 team: 'blue', // Was red
                 role: 'spectator', // Lost clicker role on team change
-                connected: false
+                connected: false,
             });
 
             const player = await playerService.getPlayer('session-456');
@@ -394,11 +392,11 @@ describe('Reconnection Edge Cases', () => {
                 tokenData: {
                     sessionId: 'session-456',
                     roomCode: 'TEST12',
-                    ipAddress: '192.168.1.100'
+                    ipAddress: '192.168.1.100',
                 },
                 ipChanged: true,
                 originalIp: '192.168.1.100',
-                newIp: '10.0.0.50'
+                newIp: '10.0.0.50',
             });
 
             const validation = await playerService.validateRoomReconnectToken('token', 'session-456');
@@ -410,7 +408,7 @@ describe('Reconnection Edge Cases', () => {
         test('blocks reconnection from drastically different IP', async () => {
             playerService.validateRoomReconnectToken.mockResolvedValue({
                 valid: false,
-                reason: 'IP address mismatch - possible session hijacking'
+                reason: 'IP address mismatch - possible session hijacking',
             });
 
             const validation = await playerService.validateRoomReconnectToken('token', 'session-456');
@@ -425,7 +423,7 @@ describe('Reconnection Edge Cases', () => {
             const missedEvents = [
                 { type: 'CARD_REVEALED', data: { index: 5, type: 'red' }, version: 10 },
                 { type: 'CLUE_GIVEN', data: { word: 'ANIMAL', number: 2 }, version: 11 },
-                { type: 'TURN_ENDED', data: { previousTurn: 'red', currentTurn: 'blue' }, version: 12 }
+                { type: 'TURN_ENDED', data: { previousTurn: 'red', currentTurn: 'blue' }, version: 12 },
             ];
 
             const lastKnownVersion = 9;

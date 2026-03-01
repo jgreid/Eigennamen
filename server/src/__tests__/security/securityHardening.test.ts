@@ -37,8 +37,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' },
-                    address: '127.0.0.1'
-                }
+                    address: '127.0.0.1',
+                },
             };
 
             // Without trust proxy, should return direct address
@@ -54,8 +54,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' },
-                    address: '127.0.0.1'
-                }
+                    address: '127.0.0.1',
+                },
             };
 
             const ip = getClientIP(mockSocket);
@@ -70,8 +70,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': '203.0.113.50' },
-                    address: '10.0.0.1'
-                }
+                    address: '10.0.0.1',
+                },
             };
 
             const ip = getClientIP(mockSocket);
@@ -86,8 +86,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': '8.8.8.8' },
-                    address: '172.16.0.1'
-                }
+                    address: '172.16.0.1',
+                },
             };
 
             const ip = getClientIP(mockSocket);
@@ -102,8 +102,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': '192.0.2.1' },
-                    address: '10.0.0.1'
-                }
+                    address: '10.0.0.1',
+                },
             };
 
             const ip = getClientIP(mockSocket);
@@ -118,8 +118,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: {},
-                    address: '192.168.1.1'
-                }
+                    address: '192.168.1.1',
+                },
             };
 
             const ip = getClientIP(mockSocket);
@@ -134,8 +134,8 @@ describe('Trust Proxy Configuration', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': '  203.0.113.1  ,  198.51.100.1  ,  192.0.2.1  ' },
-                    address: '10.0.0.1'
-                }
+                    address: '10.0.0.1',
+                },
             };
 
             const ip = getClientIP(mockSocket);
@@ -184,7 +184,7 @@ describe('Input Validation Hardening', () => {
             for (const name of validNames) {
                 const result = schemas.roomJoinSchema.safeParse({
                     roomId: VALID_ROOM_ID,
-                    nickname: name
+                    nickname: name,
                 });
                 expect(result.success).toBe(true);
             }
@@ -196,13 +196,13 @@ describe('Input Validation Hardening', () => {
                 '<script>alert(1)</script>',
                 'user<img src=x>',
                 'name"; DROP TABLE',
-                'test@user.com'
+                'test@user.com',
             ];
 
             for (const name of maliciousNames) {
                 const result = schemas.roomJoinSchema.safeParse({
                     roomId: VALID_ROOM_ID,
-                    nickname: name
+                    nickname: name,
                 });
                 expect(result.success).toBe(false);
             }
@@ -212,7 +212,7 @@ describe('Input Validation Hardening', () => {
             // Control chars are stripped by removeControlChars transform
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: VALID_ROOM_ID,
-                nickname: 'test\x00null'  // Becomes 'testnull' after transform
+                nickname: 'test\x00null', // Becomes 'testnull' after transform
             });
             // Passes because control chars are removed, leaving valid 'testnull'
             expect(result.success).toBe(true);
@@ -221,7 +221,7 @@ describe('Input Validation Hardening', () => {
         test('rejects empty nicknames', () => {
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: VALID_ROOM_ID,
-                nickname: ''
+                nickname: '',
             });
             expect(result.success).toBe(false);
         });
@@ -229,7 +229,7 @@ describe('Input Validation Hardening', () => {
         test('rejects nicknames that are only whitespace', () => {
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: VALID_ROOM_ID,
-                nickname: '   '
+                nickname: '   ',
             });
             expect(result.success).toBe(false);
         });
@@ -238,7 +238,7 @@ describe('Input Validation Hardening', () => {
             const longName = 'a'.repeat(VALIDATION.NICKNAME_MAX_LENGTH + 1);
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: VALID_ROOM_ID,
-                nickname: longName
+                nickname: longName,
             });
             expect(result.success).toBe(false);
         });
@@ -252,7 +252,7 @@ describe('Input Validation Hardening', () => {
             for (const roomId of validIds) {
                 const result = schemas.roomJoinSchema.safeParse({
                     roomId,
-                    nickname: 'Player'
+                    nickname: 'Player',
                 });
                 expect(result.success).toBe(true);
             }
@@ -261,7 +261,7 @@ describe('Input Validation Hardening', () => {
         test('trims room ID whitespace', () => {
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: '  my-room  ',
-                nickname: 'Player'
+                nickname: 'Player',
             });
             expect(result.success).toBe(true);
             expect(result.data.roomId).toBe('my-room');
@@ -273,7 +273,7 @@ describe('Input Validation Hardening', () => {
             for (const roomId of invalidIds) {
                 const result = schemas.roomJoinSchema.safeParse({
                     roomId,
-                    nickname: 'Player'
+                    nickname: 'Player',
                 });
                 expect(result.success).toBe(false);
             }
@@ -282,7 +282,7 @@ describe('Input Validation Hardening', () => {
         test('accepts room IDs with hyphens and underscores', () => {
             const result = schemas.roomJoinSchema.safeParse({
                 roomId: 'my-game_123',
-                nickname: 'Player'
+                nickname: 'Player',
             });
             expect(result.success).toBe(true);
         });
@@ -293,7 +293,7 @@ describe('Input Validation Hardening', () => {
             for (const roomId of wrongLengths) {
                 const result = schemas.roomJoinSchema.safeParse({
                     roomId,
-                    nickname: 'Player'
+                    nickname: 'Player',
                 });
                 expect(result.success).toBe(false);
             }
@@ -303,14 +303,14 @@ describe('Input Validation Hardening', () => {
     describe('Team Name Validation', () => {
         test('accepts valid team names', () => {
             const result = schemas.roomSettingsSchema.safeParse({
-                teamNames: { red: 'Dragons', blue: 'Knights' }
+                teamNames: { red: 'Dragons', blue: 'Knights' },
             });
             expect(result.success).toBe(true);
         });
 
         test('rejects team names with special characters', () => {
             const result = schemas.roomSettingsSchema.safeParse({
-                teamNames: { red: '<script>', blue: 'Normal' }
+                teamNames: { red: '<script>', blue: 'Normal' },
             });
             expect(result.success).toBe(false);
         });
@@ -318,7 +318,7 @@ describe('Input Validation Hardening', () => {
         test('rejects team names exceeding max length', () => {
             const longName = 'a'.repeat(VALIDATION.TEAM_NAME_MAX_LENGTH + 1);
             const result = schemas.roomSettingsSchema.safeParse({
-                teamNames: { red: longName, blue: 'Normal' }
+                teamNames: { red: longName, blue: 'Normal' },
             });
             expect(result.success).toBe(false);
         });
@@ -334,7 +334,7 @@ describe('IP-Based Rate Limiting', () => {
 
     test('creates socket rate limiter with IP tracking', () => {
         const limits = {
-            'test:event': { window: 1000, max: 2 }
+            'test:event': { window: 1000, max: 2 },
         };
 
         const limiter = createSocketRateLimiter(limits);
@@ -346,7 +346,7 @@ describe('IP-Based Rate Limiting', () => {
 
     test('rate limits per socket', (done) => {
         const limits = {
-            'test:event': { window: 1000, max: 2 }
+            'test:event': { window: 1000, max: 2 },
         };
 
         const limiter = createSocketRateLimiter(limits);
@@ -355,7 +355,7 @@ describe('IP-Based Rate Limiting', () => {
         const mockSocket = {
             id: 'socket-1',
             clientIP: '192.168.1.1',
-            handshake: { address: '192.168.1.1' }
+            handshake: { address: '192.168.1.1' },
         };
 
         let callCount = 0;
@@ -377,7 +377,7 @@ describe('IP-Based Rate Limiting', () => {
 
     test('rate limits per IP across multiple sockets', (done) => {
         const limits = {
-            'test:event': { window: 1000, max: 1 } // 1 per socket, 3 per IP (multiplier=3)
+            'test:event': { window: 1000, max: 1 }, // 1 per socket, 3 per IP (multiplier=3)
         };
 
         const limiter = createSocketRateLimiter(limits);
@@ -387,7 +387,7 @@ describe('IP-Based Rate Limiting', () => {
         const sockets = Array.from({ length: 6 }, (_, i) => ({
             id: `socket-${i}`,
             clientIP: sameIP,
-            handshake: { address: sameIP }
+            handshake: { address: sameIP },
         }));
 
         let successCount = 0;
@@ -413,7 +413,7 @@ describe('IP-Based Rate Limiting', () => {
 
     test('tracks metrics correctly', () => {
         const limits = {
-            'test:event': { window: 1000, max: 10 }
+            'test:event': { window: 1000, max: 10 },
         };
 
         const limiter = createSocketRateLimiter(limits);
@@ -422,7 +422,7 @@ describe('IP-Based Rate Limiting', () => {
         const mockSocket = {
             id: 'socket-metrics',
             clientIP: '192.168.1.100',
-            handshake: { address: '192.168.1.100' }
+            handshake: { address: '192.168.1.100' },
         };
 
         // Make some requests
@@ -439,7 +439,7 @@ describe('IP-Based Rate Limiting', () => {
 
     test('cleans up socket entries on disconnect', () => {
         const limits = {
-            'test:event': { window: 60000, max: 10 }
+            'test:event': { window: 60000, max: 10 },
         };
 
         const limiter = createSocketRateLimiter(limits);
@@ -448,7 +448,7 @@ describe('IP-Based Rate Limiting', () => {
         const mockSocket = {
             id: 'socket-cleanup',
             clientIP: '192.168.1.200',
-            handshake: { address: '192.168.1.200' }
+            handshake: { address: '192.168.1.200' },
         };
 
         // Make request
@@ -475,10 +475,7 @@ describe('Session Security', () => {
         const { validate: isValidUuid } = require('uuid');
 
         test('accepts valid UUID session IDs', () => {
-            const validIds = [
-                '550e8400-e29b-41d4-a716-446655440000',
-                'f47ac10b-58cc-4372-a567-0e02b2c3d479'
-            ];
+            const validIds = ['550e8400-e29b-41d4-a716-446655440000', 'f47ac10b-58cc-4372-a567-0e02b2c3d479'];
 
             for (const id of validIds) {
                 expect(isValidUuid(id)).toBe(true);
@@ -486,13 +483,7 @@ describe('Session Security', () => {
         });
 
         test('rejects invalid session ID formats', () => {
-            const invalidIds = [
-                'not-a-uuid',
-                '12345',
-                '',
-                'sql-injection-attempt',
-                '<script>alert(1)</script>'
-            ];
+            const invalidIds = ['not-a-uuid', '12345', '', 'sql-injection-attempt', '<script>alert(1)</script>'];
 
             for (const id of invalidIds) {
                 expect(isValidUuid(id)).toBe(false);
@@ -549,8 +540,8 @@ describe('Session Security', () => {
             const mockSocket = {
                 handshake: {
                     headers: { 'x-forwarded-for': 'spoofed-ip' },
-                    address: '127.0.0.1'
-                }
+                    address: '127.0.0.1',
+                },
             };
 
             expect(getClientIP(mockSocket)).toBe('127.0.0.1');
@@ -562,8 +553,8 @@ describe('Session Security', () => {
             const mockSocket = {
                 handshake: {
                     headers: {},
-                    address: undefined
-                }
+                    address: undefined,
+                },
             };
 
             // Should not throw

@@ -24,7 +24,7 @@ import {
     copyToClipboard,
     generateGameSeed,
     formatGameTimestamp,
-    updateCharCounter
+    updateCharCounter,
 } from '../../frontend/utils';
 
 // ==================== Tests ====================
@@ -225,8 +225,7 @@ describe('encodeWordsForURL / decodeWordsFromURL', () => {
     });
 
     it('produces URL-safe output (no +, /, or = characters)', () => {
-        const words = ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'ELDERBERRY',
-            'FIG', 'GRAPE', 'HONEYDEW', 'KIWI', 'LEMON'];
+        const words = ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'ELDERBERRY', 'FIG', 'GRAPE', 'HONEYDEW', 'KIWI', 'LEMON'];
         const encoded = encodeWordsForURL(words);
         expect(encoded).not.toContain('+');
         expect(encoded).not.toContain('/');
@@ -262,10 +261,7 @@ describe('escapeWordDelimiter / unescapeWordDelimiter', () => {
     });
 
     it('round-trip preserves original string', () => {
-        const testCases = [
-            'simple', 'with|pipe', 'with\\backslash', 'with\\|both',
-            '|||', '\\\\\\', '', 'normal word'
-        ];
+        const testCases = ['simple', 'with|pipe', 'with\\backslash', 'with\\|both', '|||', '\\\\\\', '', 'normal word'];
         for (const original of testCases) {
             expect(unescapeWordDelimiter(escapeWordDelimiter(original))).toBe(original);
         }
@@ -369,7 +365,9 @@ describe('safeGetItem', () => {
 
     it('returns default when localStorage throws', () => {
         const original = Storage.prototype.getItem;
-        Storage.prototype.getItem = () => { throw new Error('SecurityError'); };
+        Storage.prototype.getItem = () => {
+            throw new Error('SecurityError');
+        };
         try {
             expect(safeGetItem('anyKey', 'safe-default')).toBe('safe-default');
         } finally {
@@ -388,7 +386,9 @@ describe('safeSetItem', () => {
 
     it('returns false when localStorage throws', () => {
         const original = Storage.prototype.setItem;
-        Storage.prototype.setItem = () => { throw new Error('QuotaExceeded'); };
+        Storage.prototype.setItem = () => {
+            throw new Error('QuotaExceeded');
+        };
         try {
             expect(safeSetItem('key', 'value')).toBe(false);
         } finally {
@@ -408,7 +408,9 @@ describe('safeRemoveItem', () => {
 
     it('returns false when localStorage throws', () => {
         const original = Storage.prototype.removeItem;
-        Storage.prototype.removeItem = () => { throw new Error('SecurityError'); };
+        Storage.prototype.removeItem = () => {
+            throw new Error('SecurityError');
+        };
         try {
             expect(safeRemoveItem('key')).toBe(false);
         } finally {
@@ -446,7 +448,7 @@ describe('copyToClipboard', () => {
         Object.defineProperty(navigator, 'clipboard', {
             value: originalClipboard,
             writable: true,
-            configurable: true
+            configurable: true,
         });
     });
 
@@ -455,7 +457,7 @@ describe('copyToClipboard', () => {
         Object.defineProperty(navigator, 'clipboard', {
             value: { writeText: writeTextMock },
             writable: true,
-            configurable: true
+            configurable: true,
         });
 
         const result = await copyToClipboard('hello');
@@ -467,7 +469,7 @@ describe('copyToClipboard', () => {
         Object.defineProperty(navigator, 'clipboard', {
             value: undefined,
             writable: true,
-            configurable: true
+            configurable: true,
         });
 
         // execCommand is deprecated and may not exist on jsdom's document type,
@@ -488,7 +490,7 @@ describe('copyToClipboard', () => {
         Object.defineProperty(navigator, 'clipboard', {
             value: { writeText: jest.fn().mockRejectedValue(new Error('Not allowed')) },
             writable: true,
-            configurable: true
+            configurable: true,
         });
 
         const execCommandMock = jest.fn().mockReturnValue(true);
@@ -503,7 +505,7 @@ describe('copyToClipboard', () => {
         Object.defineProperty(navigator, 'clipboard', {
             value: undefined,
             writable: true,
-            configurable: true
+            configurable: true,
         });
 
         (document as unknown as Record<string, unknown>).execCommand = () => {
@@ -539,11 +541,14 @@ describe('generateGameSeed', () => {
         Object.defineProperty(globalThis, 'crypto', {
             value: undefined,
             writable: true,
-            configurable: true
+            configurable: true,
         });
 
         try {
-            const mathRandomSpy = jest.spyOn(Math, 'random').mockReturnValueOnce(0.123456789).mockReturnValueOnce(0.987654321);
+            const mathRandomSpy = jest
+                .spyOn(Math, 'random')
+                .mockReturnValueOnce(0.123456789)
+                .mockReturnValueOnce(0.987654321);
             const seed = generateGameSeed();
             expect(typeof seed).toBe('string');
             expect(seed.length).toBeGreaterThan(0);
@@ -552,7 +557,7 @@ describe('generateGameSeed', () => {
             Object.defineProperty(globalThis, 'crypto', {
                 value: originalCrypto,
                 writable: true,
-                configurable: true
+                configurable: true,
             });
         }
     });

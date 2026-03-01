@@ -1,6 +1,6 @@
 {
   "name": "eigennamen-server",
-  "version": "4.0.0",
+  "version": "4.2.0",
   "description": "Real-time multiplayer server for Eigennamen",
   "main": "dist/index.js",
   "scripts": {
@@ -26,6 +26,8 @@
     "test:e2e:chromium": "npx playwright test --project=chromium",
     "test:e2e:install": "npx playwright install",
     "lint": "eslint --ext .ts src/",
+    "format": "prettier --write \"src/**/*.ts\" \"e2e/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"e2e/**/*.js\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.frontend.json",
     "setup": "../scripts/dev-setup.sh",
     "health": "../scripts/health-check.sh",
@@ -63,9 +65,11 @@
     "@typescript-eslint/parser": "^8.0.0",
     "esbuild": "^0.27.3",
     "eslint": "^10.0.1",
+    "eslint-config-prettier": "^10.1.8",
     "globals": "^17.3.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
+    "prettier": "^3.8.1",
     "socket.io-client": "^4.7.2",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.0",

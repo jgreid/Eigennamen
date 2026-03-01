@@ -13,7 +13,10 @@ jest.mock('../../services/auditService', () => ({
 }));
 
 jest.mock('../../utils/logger', () => ({
-    info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn()
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
 }));
 
 const auditService = require('../../services/auditService');
@@ -38,17 +41,13 @@ describe('Admin Audit Routes', () => {
 
     describe('GET /admin/api/audit', () => {
         it('should return audit logs and summary with defaults', async () => {
-            const mockLogs = [
-                { timestamp: '2024-01-01', event: 'login', severity: 'low' },
-            ];
+            const mockLogs = [{ timestamp: '2024-01-01', event: 'login', severity: 'low' }];
             const mockSummary = { total: 1, byCategory: { admin: 1 } };
 
             auditService.getAuditLogs.mockResolvedValue(mockLogs);
             auditService.getAuditSummary.mockResolvedValue(mockSummary);
 
-            const response = await request(app)
-                .get('/admin/api/audit')
-                .expect(200);
+            const response = await request(app).get('/admin/api/audit').expect(200);
 
             expect(response.body.logs).toEqual(mockLogs);
             expect(response.body.summary).toEqual(mockSummary);
@@ -63,9 +62,7 @@ describe('Admin Audit Routes', () => {
             auditService.getAuditLogs.mockResolvedValue([]);
             auditService.getAuditSummary.mockResolvedValue({});
 
-            await request(app)
-                .get('/admin/api/audit?category=security&limit=50&severity=high')
-                .expect(200);
+            await request(app).get('/admin/api/audit?category=security&limit=50&severity=high').expect(200);
 
             expect(auditService.getAuditLogs).toHaveBeenCalledWith({
                 category: 'security',
@@ -75,17 +72,13 @@ describe('Admin Audit Routes', () => {
         });
 
         it('should reject limit exceeding 1000', async () => {
-            const response = await request(app)
-                .get('/admin/api/audit?limit=5000')
-                .expect(400);
+            const response = await request(app).get('/admin/api/audit?limit=5000').expect(400);
 
             expect(response.body.error.code).toBe('VALIDATION_ERROR');
         });
 
         it('should reject non-numeric limit', async () => {
-            const response = await request(app)
-                .get('/admin/api/audit?limit=notanumber')
-                .expect(400);
+            const response = await request(app).get('/admin/api/audit?limit=notanumber').expect(400);
 
             expect(response.body.error.code).toBe('VALIDATION_ERROR');
         });
@@ -93,9 +86,7 @@ describe('Admin Audit Routes', () => {
         it('should return 500 when service throws', async () => {
             auditService.getAuditLogs.mockRejectedValue(new Error('Redis down'));
 
-            const response = await request(app)
-                .get('/admin/api/audit')
-                .expect(500);
+            const response = await request(app).get('/admin/api/audit').expect(500);
 
             expect(response.body.error.code).toBe('AUDIT_ERROR');
             expect(response.body.error.message).toBe('Failed to fetch audit logs');
@@ -109,9 +100,7 @@ describe('Admin Audit Routes', () => {
             auditService.getAuditLogs.mockResolvedValue([]);
             auditService.getAuditSummary.mockRejectedValue(new Error('summary error'));
 
-            const response = await request(app)
-                .get('/admin/api/audit')
-                .expect(500);
+            const response = await request(app).get('/admin/api/audit').expect(500);
 
             expect(response.body.error.code).toBe('AUDIT_ERROR');
         });

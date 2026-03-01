@@ -1,4 +1,3 @@
-
 import type { ErrorCode, SafeErrorCode } from '../types/errors';
 
 import { ERROR_CODES } from '../config/constants';
@@ -56,13 +55,13 @@ export class GameError extends Error {
         message: string;
         details: GameErrorDetails | null;
         timestamp: number;
-        } {
+    } {
         return {
             name: this.name,
             code: this.code,
             message: this.message,
             details: this.details,
-            timestamp: this.timestamp
+            timestamp: this.timestamp,
         };
     }
 
@@ -85,27 +84,15 @@ export class RoomError extends GameError {
     }
 
     static notFound(roomCode: string): RoomError {
-        return new RoomError(
-            ERROR_CODES.ROOM_NOT_FOUND,
-            'Room not found',
-            { roomCode }
-        );
+        return new RoomError(ERROR_CODES.ROOM_NOT_FOUND, 'Room not found', { roomCode });
     }
 
     static full(roomCode: string): RoomError {
-        return new RoomError(
-            ERROR_CODES.ROOM_FULL,
-            'Room is full',
-            { roomCode }
-        );
+        return new RoomError(ERROR_CODES.ROOM_FULL, 'Room is full', { roomCode });
     }
 
     static gameInProgress(roomCode: string): RoomError {
-        return new RoomError(
-            ERROR_CODES.GAME_IN_PROGRESS,
-            'A game is already in progress',
-            { roomCode }
-        );
+        return new RoomError(ERROR_CODES.GAME_IN_PROGRESS, 'A game is already in progress', { roomCode });
     }
 }
 
@@ -120,47 +107,27 @@ export class PlayerError extends GameError {
     }
 
     static notHost(): PlayerError {
-        return new PlayerError(
-            ERROR_CODES.NOT_HOST,
-            'Only the host can perform this action'
-        );
+        return new PlayerError(ERROR_CODES.NOT_HOST, 'Only the host can perform this action');
     }
 
     static notSpymaster(): PlayerError {
-        return new PlayerError(
-            ERROR_CODES.NOT_SPYMASTER,
-            'Only spymasters can perform this action'
-        );
+        return new PlayerError(ERROR_CODES.NOT_SPYMASTER, 'Only spymasters can perform this action');
     }
 
     static notClicker(): PlayerError {
-        return new PlayerError(
-            ERROR_CODES.NOT_CLICKER,
-            'Only clickers can perform this action'
-        );
+        return new PlayerError(ERROR_CODES.NOT_CLICKER, 'Only clickers can perform this action');
     }
 
     static notYourTurn(team: string): PlayerError {
-        return new PlayerError(
-            ERROR_CODES.NOT_YOUR_TURN,
-            "It's not your team's turn",
-            { team }
-        );
+        return new PlayerError(ERROR_CODES.NOT_YOUR_TURN, "It's not your team's turn", { team });
     }
 
     static notAuthorized(): PlayerError {
-        return new PlayerError(
-            ERROR_CODES.NOT_AUTHORIZED,
-            'Not authorized to perform this action'
-        );
+        return new PlayerError(ERROR_CODES.NOT_AUTHORIZED, 'Not authorized to perform this action');
     }
 
     static notFound(sessionId: string): PlayerError {
-        return new PlayerError(
-            ERROR_CODES.PLAYER_NOT_FOUND,
-            'Player not found',
-            { sessionId }
-        );
+        return new PlayerError(ERROR_CODES.PLAYER_NOT_FOUND, 'Player not found', { sessionId });
     }
 }
 
@@ -175,38 +142,24 @@ export class GameStateError extends GameError {
     }
 
     static cardAlreadyRevealed(index: number): GameStateError {
-        return new GameStateError(
-            ERROR_CODES.CARD_ALREADY_REVEALED,
-            'Card already revealed',
-            { index }
-        );
+        return new GameStateError(ERROR_CODES.CARD_ALREADY_REVEALED, 'Card already revealed', { index });
     }
 
     static gameOver(): GameStateError {
-        return new GameStateError(
-            ERROR_CODES.GAME_OVER,
-            'Game is already over'
-        );
+        return new GameStateError(ERROR_CODES.GAME_OVER, 'Game is already over');
     }
 
     static noActiveGame(): GameStateError {
-        return new GameStateError(
-            ERROR_CODES.GAME_NOT_STARTED,
-            'No active game'
-        );
+        return new GameStateError(ERROR_CODES.GAME_NOT_STARTED, 'No active game');
     }
 
     static corrupted(roomCode: string, context: GameErrorDetails = {}): GameStateError {
-        return new GameStateError(
-            ERROR_CODES.SERVER_ERROR,
-            'Game data corrupted, please start a new game',
-            {
-                roomCode,
-                recoverable: true,
-                suggestion: 'Start a new game to continue playing',
-                ...context
-            }
-        );
+        return new GameStateError(ERROR_CODES.SERVER_ERROR, 'Game data corrupted, please start a new game', {
+            roomCode,
+            recoverable: true,
+            suggestion: 'Start a new game to continue playing',
+            ...context,
+        });
     }
 }
 
@@ -221,18 +174,12 @@ export class ValidationError extends GameError {
     }
 
     static invalidCardIndex(index: number, max: number): ValidationError {
-        return new ValidationError(
-            `Invalid card index: must be 0-${max - 1}`,
-            { index, max }
-        );
+        return new ValidationError(`Invalid card index: must be 0-${max - 1}`, { index, max });
     }
 
     static noGuessesRemaining(): ValidationError {
-        return new ValidationError(
-            'No guesses remaining this turn'
-        );
+        return new ValidationError('No guesses remaining this turn');
     }
-
 }
 
 /**
@@ -257,14 +204,11 @@ export class ServerError extends GameError {
     }
 
     static concurrentModification(roomCode: string | null = null, operation: string | null = null): ServerError {
-        return new ServerError(
-            'Failed due to concurrent modifications, please try again',
-            {
-                roomCode: roomCode ?? undefined,
-                operation: operation ?? undefined,
-                retryable: true
-            }
-        );
+        return new ServerError('Failed due to concurrent modifications, please try again', {
+            roomCode: roomCode ?? undefined,
+            operation: operation ?? undefined,
+            retryable: true,
+        });
     }
 }
 
@@ -274,13 +218,25 @@ export class ServerError extends GameError {
  * with a generic message to prevent information disclosure.
  */
 export const SAFE_ERROR_CODES: readonly SafeErrorCode[] = [
-    'RATE_LIMITED', 'ROOM_NOT_FOUND', 'ROOM_FULL', 'ROOM_ALREADY_EXISTS', 'NOT_HOST',
-    'NOT_YOUR_TURN', 'GAME_OVER', 'INVALID_INPUT', 'CARD_ALREADY_REVEALED',
-    'NOT_SPYMASTER', 'NOT_CLICKER', 'NOT_AUTHORIZED', 'SESSION_EXPIRED',
-    'PLAYER_NOT_FOUND', 'GAME_IN_PROGRESS',
-    'CANNOT_SWITCH_TEAM_DURING_TURN', 'CANNOT_CHANGE_ROLE_DURING_TURN',
+    'RATE_LIMITED',
+    'ROOM_NOT_FOUND',
+    'ROOM_FULL',
+    'ROOM_ALREADY_EXISTS',
+    'NOT_HOST',
+    'NOT_YOUR_TURN',
+    'GAME_OVER',
+    'INVALID_INPUT',
+    'CARD_ALREADY_REVEALED',
+    'NOT_SPYMASTER',
+    'NOT_CLICKER',
+    'NOT_AUTHORIZED',
+    'SESSION_EXPIRED',
+    'PLAYER_NOT_FOUND',
+    'GAME_IN_PROGRESS',
+    'CANNOT_SWITCH_TEAM_DURING_TURN',
+    'CANNOT_CHANGE_ROLE_DURING_TURN',
     'SPYMASTER_CANNOT_CHANGE_TEAM',
-    'GAME_NOT_STARTED'
+    'GAME_NOT_STARTED',
 ] as const;
 
 /**
@@ -303,7 +259,7 @@ export function sanitizeErrorForClient(error: unknown): SanitizedError {
     if (error === null || typeof error !== 'object') {
         return {
             code: ERROR_CODES.SERVER_ERROR,
-            message: 'An unexpected error occurred'
+            message: 'An unexpected error occurred',
         };
     }
 
@@ -312,6 +268,6 @@ export function sanitizeErrorForClient(error: unknown): SanitizedError {
     const isSafe = (SAFE_ERROR_CODES as readonly string[]).includes(code);
     return {
         code,
-        message: isSafe ? (errorObj.message || 'An unexpected error occurred') : 'An unexpected error occurred'
+        message: isSafe ? errorObj.message || 'An unexpected error occurred' : 'An unexpected error occurred',
     };
 }

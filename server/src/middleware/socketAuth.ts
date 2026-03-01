@@ -41,7 +41,13 @@ async function authenticateSocket(socket: Socket, next: (err?: Error) => void): 
         }
 
         // Step 4: Handle JWT token verification with claims validation
-        handleJwtVerification(authSocket, auth.token, resolution.validatedSessionId, resolution.sessionValidation, currentIP);
+        handleJwtVerification(
+            authSocket,
+            auth.token,
+            resolution.validatedSessionId,
+            resolution.sessionValidation,
+            currentIP
+        );
 
         // Step 5: Map socket ID to session ID for this connection (with IP tracking for security)
         await playerService.setSocketMapping(authSocket.sessionId, socket.id, currentIP);
@@ -50,10 +56,9 @@ async function authenticateSocket(socket: Socket, next: (err?: Error) => void): 
             socketId: socket.id,
             sessionId: authSocket.sessionId,
             hasUserId: !!authSocket.userId,
-            clientIP: currentIP
+            clientIP: currentIP,
         });
         next();
-
     } catch (error) {
         logger.error('Socket authentication error:', error);
         next(new Error('Authentication failed'));
@@ -71,10 +76,4 @@ function requireAuth(socket: Socket, next: (err?: Error) => void): void {
     next();
 }
 
-export {
-    authenticateSocket,
-    requireAuth,
-    getClientIP,
-    validateSession,
-    validateOrigin
-};
+export { authenticateSocket, requireAuth, getClientIP, validateSession, validateOrigin };

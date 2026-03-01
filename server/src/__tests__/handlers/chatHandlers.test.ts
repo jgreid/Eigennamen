@@ -10,9 +10,12 @@
  */
 
 // Mock rate limit handler FIRST to bypass rate limiting
-const { SAFE_ERROR_CODES: mockSafeErrorCodes, createMockRateLimitHandler: mockCreateRateLimitHandler } = require('../helpers/mocks');
+const {
+    SAFE_ERROR_CODES: mockSafeErrorCodes,
+    createMockRateLimitHandler: mockCreateRateLimitHandler,
+} = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
-    createRateLimitedHandler: mockCreateRateLimitHandler(mockSafeErrorCodes)
+    createRateLimitedHandler: mockCreateRateLimitHandler(mockSafeErrorCodes),
 }));
 
 // Mock dependencies
@@ -22,7 +25,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const playerService = require('../../services/playerService');
@@ -45,13 +48,13 @@ describe('Chat Handlers', () => {
             emit: jest.fn(),
             on: jest.fn(),
             join: jest.fn(),
-            leave: jest.fn()
+            leave: jest.fn(),
         };
 
         // Create mock io with chaining
         mockIo = {
             to: jest.fn().mockReturnThis(),
-            emit: jest.fn()
+            emit: jest.fn(),
         };
 
         // Default player mock with roomCode for context handler
@@ -60,7 +63,7 @@ describe('Chat Handlers', () => {
             roomCode: 'TEST12',
             nickname: 'TestPlayer',
             team: 'red',
-            role: 'clicker'
+            role: 'clicker',
         });
         gameService.getGame.mockResolvedValue(null);
 
@@ -72,7 +75,7 @@ describe('Chat Handlers', () => {
     describe('Handler Registration', () => {
         test('registers chat:message handler', () => {
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             expect(messageHandler).toBeDefined();
         });
     });
@@ -83,23 +86,26 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Hello everyone!', teamOnly: false });
 
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
-            expect(mockIo.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
-                text: 'Hello everyone!',
-                teamOnly: false,
-                from: expect.objectContaining({
-                    sessionId: 'session-456',
-                    nickname: 'TestPlayer',
-                    team: 'red'
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'chat:message',
+                expect.objectContaining({
+                    text: 'Hello everyone!',
+                    teamOnly: false,
+                    from: expect.objectContaining({
+                        sessionId: 'session-456',
+                        nickname: 'TestPlayer',
+                        team: 'red',
+                    }),
                 })
-            }));
+            );
         });
 
         test('includes timestamp in message', async () => {
@@ -107,12 +113,12 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'blue'
+                team: 'blue',
             });
 
             const beforeTime = Date.now();
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Test message', teamOnly: false });
             const afterTime = Date.now();
 
@@ -126,19 +132,22 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'Spectator',
-                team: null
+                team: null,
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Spectator message', teamOnly: false });
 
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST12');
-            expect(mockIo.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
-                from: expect.objectContaining({
-                    team: null
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'chat:message',
+                expect.objectContaining({
+                    from: expect.objectContaining({
+                        team: null,
+                    }),
                 })
-            }));
+            );
         });
     });
 
@@ -148,16 +157,16 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'RedPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', nickname: 'RedPlayer', team: 'red' },
-                { sessionId: 'session-789', nickname: 'RedTeammate', team: 'red' }
+                { sessionId: 'session-789', nickname: 'RedTeammate', team: 'red' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Team strategy', teamOnly: true });
 
             // Should emit to each teammate individually
@@ -171,15 +180,15 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'LonePlayer',
-                team: 'red'
+                team: 'red',
             });
 
             playerService.getTeamMembers.mockResolvedValue([
-                { sessionId: 'session-456', nickname: 'LonePlayer', team: 'red' }
+                { sessionId: 'session-456', nickname: 'LonePlayer', team: 'red' },
             ]);
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Talking to myself', teamOnly: true });
 
             // Should only emit to self
@@ -192,11 +201,11 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'Spectator',
-                team: null
+                team: null,
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'No team message', teamOnly: true });
 
             // teamOnly && player.team is falsy, so should broadcast to room
@@ -210,11 +219,11 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: '<script>alert("xss")</script>', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
@@ -227,11 +236,11 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: '<img src=x onerror=alert(1)>',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Normal message', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
@@ -243,11 +252,11 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'Test&User',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Tom & Jerry', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
@@ -260,15 +269,15 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'Player',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
-            await messageHandler[1]({ text: "He said \"Hello\" and 'Goodbye'", teamOnly: false });
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
+            await messageHandler[1]({ text: 'He said "Hello" and \'Goodbye\'', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            expect(emittedMessage.text).toBe("He said \"Hello\" and 'Goodbye'");
+            expect(emittedMessage.text).toBe('He said "Hello" and \'Goodbye\'');
         });
     });
 
@@ -278,13 +287,16 @@ describe('Chat Handlers', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Hello', teamOnly: false });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'You must be in a room to perform this action'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                    message: 'You must be in a room to perform this action',
+                })
+            );
             expect(mockIo.emit).not.toHaveBeenCalled();
         });
 
@@ -292,25 +304,31 @@ describe('Chat Handlers', () => {
             playerService.getPlayer.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Hello', teamOnly: false });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'You must be in a room to perform this action'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                    message: 'You must be in a room to perform this action',
+                })
+            );
         });
 
         test('handles player service error gracefully', async () => {
             playerService.getPlayer.mockRejectedValue(new Error('Database connection failed'));
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Hello', teamOnly: false });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                message: 'An unexpected error occurred'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:error',
+                expect.objectContaining({
+                    message: 'An unexpected error occurred',
+                })
+            );
         });
 
         test('handles team members fetch error gracefully', async () => {
@@ -318,17 +336,20 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
             playerService.getTeamMembers.mockRejectedValue(new Error('Failed to fetch team'));
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Team message', teamOnly: true });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                message: 'An unexpected error occurred'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:error',
+                expect.objectContaining({
+                    message: 'An unexpected error occurred',
+                })
+            );
         });
 
         test('handles IO emit error gracefully for room broadcast', async () => {
@@ -336,7 +357,7 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             // Make emit throw an error
@@ -345,7 +366,7 @@ describe('Chat Handlers', () => {
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
 
             // Should not throw - error should be caught and logged
             await expect(messageHandler[1]({ text: 'Hello', teamOnly: false })).resolves.not.toThrow();
@@ -356,13 +377,13 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             playerService.getTeamMembers.mockResolvedValue([
                 { sessionId: 'session-456', team: 'red' },
                 { sessionId: 'session-789', team: 'red' },
-                { sessionId: 'session-101', team: 'red' }
+                { sessionId: 'session-101', team: 'red' },
             ]);
 
             let emitCount = 0;
@@ -374,7 +395,7 @@ describe('Chat Handlers', () => {
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Team message', teamOnly: true });
 
             // Should have tried to emit to all 3 teammates
@@ -388,11 +409,11 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
 
             // Empty data should fail validation
             await messageHandler[1]({});
@@ -405,11 +426,11 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Hello' });
 
             // Should broadcast to room (default behavior)
@@ -424,19 +445,22 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'RedPlayer',
                 team: 'red',
-                role: 'clicker'
+                role: 'clicker',
             });
             playerService.getTeamMembers.mockResolvedValue(null);
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Team message', teamOnly: true });
 
             // Should fall back to emitting just to the sender
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
-                text: 'Team message',
-                teamOnly: true
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:message',
+                expect.objectContaining({
+                    text: 'Team message',
+                    teamOnly: true,
+                })
+            );
         });
 
         test('falls back to sender-only emit when getTeamMembers returns non-array', async () => {
@@ -445,17 +469,20 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'RedPlayer',
                 team: 'red',
-                role: 'clicker'
+                role: 'clicker',
             });
             playerService.getTeamMembers.mockResolvedValue('invalid');
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Team message', teamOnly: true });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
-                text: 'Team message'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:message',
+                expect.objectContaining({
+                    text: 'Team message',
+                })
+            );
         });
     });
 
@@ -466,16 +493,19 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'Clicker',
                 team: 'red',
-                role: 'clicker'
+                role: 'clicker',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Secret spy chat', spectatorOnly: true });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                code: 'NOT_AUTHORIZED'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:error',
+                expect.objectContaining({
+                    code: 'NOT_AUTHORIZED',
+                })
+            );
             expect(mockIo.emit).not.toHaveBeenCalled();
         });
 
@@ -485,18 +515,21 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'Watcher',
                 team: null,
-                role: 'spectator'
+                role: 'spectator',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Spectator chat', spectatorOnly: true });
 
             expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
-            expect(mockIo.emit).toHaveBeenCalledWith('chat:message', expect.objectContaining({
-                text: 'Spectator chat',
-                spectatorOnly: true
-            }));
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'chat:message',
+                expect.objectContaining({
+                    text: 'Spectator chat',
+                    spectatorOnly: true,
+                })
+            );
         });
 
         test('spectator-only message does not broadcast to room', async () => {
@@ -505,11 +538,11 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'Watcher',
                 team: null,
-                role: 'spectator'
+                role: 'spectator',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Private', spectatorOnly: true });
 
             // Should only go to spectators room, not the general room
@@ -521,7 +554,7 @@ describe('Chat Handlers', () => {
     describe('Dedicated Spectator Chat Handler', () => {
         test('registers chat:spectator handler', () => {
             const handlers = mockSocket.on.mock.calls;
-            const spectatorHandler = handlers.find(h => h[0] === 'chat:spectator');
+            const spectatorHandler = handlers.find((h) => h[0] === 'chat:spectator');
             expect(spectatorHandler).toBeDefined();
         });
 
@@ -531,16 +564,19 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'Clicker',
                 team: 'red',
-                role: 'clicker'
+                role: 'clicker',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const spectatorHandler = handlers.find(h => h[0] === 'chat:spectator');
+            const spectatorHandler = handlers.find((h) => h[0] === 'chat:spectator');
             await spectatorHandler[1]({ message: 'Sneaky message' });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', expect.objectContaining({
-                code: 'NOT_AUTHORIZED'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'chat:error',
+                expect.objectContaining({
+                    code: 'NOT_AUTHORIZED',
+                })
+            );
         });
 
         test('spectator can send through dedicated spectator channel', async () => {
@@ -549,11 +585,11 @@ describe('Chat Handlers', () => {
                 roomCode: 'TEST12',
                 nickname: 'Watcher',
                 team: null,
-                role: 'spectator'
+                role: 'spectator',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const spectatorHandler = handlers.find(h => h[0] === 'chat:spectator');
+            const spectatorHandler = handlers.find((h) => h[0] === 'chat:spectator');
             await spectatorHandler[1]({ message: 'Go red team!' });
 
             expect(mockIo.to).toHaveBeenCalledWith('spectators:TEST12');
@@ -566,24 +602,26 @@ describe('Chat Handlers', () => {
                 sessionId: 'session-456',
                 roomCode: 'TEST12',
                 nickname: 'TestPlayer',
-                team: 'red'
+                team: 'red',
             });
 
             const handlers = mockSocket.on.mock.calls;
-            const messageHandler = handlers.find(h => h[0] === 'chat:message');
+            const messageHandler = handlers.find((h) => h[0] === 'chat:message');
             await messageHandler[1]({ text: 'Test', teamOnly: false });
 
             const emittedMessage = mockIo.emit.mock.calls[0][1];
-            expect(emittedMessage).toEqual(expect.objectContaining({
-                from: expect.objectContaining({
-                    sessionId: expect.any(String),
-                    nickname: expect.any(String),
-                    team: expect.any(String)
-                }),
-                text: expect.any(String),
-                teamOnly: expect.any(Boolean),
-                timestamp: expect.any(Number)
-            }));
+            expect(emittedMessage).toEqual(
+                expect.objectContaining({
+                    from: expect.objectContaining({
+                        sessionId: expect.any(String),
+                        nickname: expect.any(String),
+                        team: expect.any(String),
+                    }),
+                    text: expect.any(String),
+                    teamOnly: expect.any(Boolean),
+                    timestamp: expect.any(Number),
+                })
+            );
         });
     });
 });

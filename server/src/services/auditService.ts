@@ -93,10 +93,10 @@ export const AUDIT_EVENTS = {
     // Game events
     GAME_STARTED: 'game.started',
     GAME_ENDED: 'game.ended',
-    GAME_FORFEITED: 'game.forfeited'
+    GAME_FORFEITED: 'game.forfeited',
 } as const;
 
-export type AuditEventType = typeof AUDIT_EVENTS[keyof typeof AUDIT_EVENTS];
+export type AuditEventType = (typeof AUDIT_EVENTS)[keyof typeof AUDIT_EVENTS];
 
 // Audit log retention (7 days)
 const AUDIT_LOG_TTL = 7 * 24 * 60 * 60;
@@ -114,7 +114,7 @@ const AUDIT_SECURITY_KEY = `${AUDIT_KEY_PREFIX}:security`;
 const memoryLogs: Map<string, AuditLogEntry[]> = new Map([
     [AUDIT_LOG_KEY, []],
     [AUDIT_ADMIN_KEY, []],
-    [AUDIT_SECURITY_KEY, []]
+    [AUDIT_SECURITY_KEY, []],
 ]);
 
 /**
@@ -147,10 +147,7 @@ function memoryPush(key: string, entry: AuditLogEntry): void {
  * Get severity level for an event
  */
 function getSeverity(event: string): AuditSeverity {
-    const criticalEvents: string[] = [
-        AUDIT_EVENTS.SESSION_HIJACK_ATTEMPT,
-        AUDIT_EVENTS.ADMIN_ROOM_DELETE
-    ];
+    const criticalEvents: string[] = [AUDIT_EVENTS.SESSION_HIJACK_ATTEMPT, AUDIT_EVENTS.ADMIN_ROOM_DELETE];
 
     const highEvents: string[] = [
         AUDIT_EVENTS.ADMIN_LOGIN_FAILED,
@@ -158,14 +155,14 @@ function getSeverity(event: string): AuditSeverity {
         AUDIT_EVENTS.INVALID_TOKEN,
         AUDIT_EVENTS.SUSPICIOUS_ACTIVITY,
         AUDIT_EVENTS.ADMIN_PLAYER_KICK,
-        AUDIT_EVENTS.ADMIN_BROADCAST
+        AUDIT_EVENTS.ADMIN_BROADCAST,
     ];
 
     const mediumEvents: string[] = [
         AUDIT_EVENTS.RATE_LIMIT_HIT,
         AUDIT_EVENTS.ADMIN_LOGIN,
         AUDIT_EVENTS.ADMIN_ACTION,
-        AUDIT_EVENTS.PLAYER_KICKED
+        AUDIT_EVENTS.PLAYER_KICKED,
     ];
 
     if (criticalEvents.includes(event)) return 'critical';
@@ -186,10 +183,7 @@ function getAuditListKey(event: string): string {
 /**
  * Record an audit event
  */
-export async function logAuditEvent(
-    event: string,
-    details: AuditEventDetails = {}
-): Promise<void> {
+export async function logAuditEvent(event: string, details: AuditEventDetails = {}): Promise<void> {
     const timestamp = new Date().toISOString();
     const logEntry: AuditLogEntry = {
         timestamp,
@@ -198,16 +192,15 @@ export async function logAuditEvent(
         target: details.target || null,
         ip: details.ip || null,
         metadata: details.metadata || {},
-        severity: getSeverity(event)
+        severity: getSeverity(event),
     };
 
     // Always log to structured logger
-    const logLevel = logEntry.severity === 'critical' ? 'error' :
-        logEntry.severity === 'high' ? 'warn' : 'info';
+    const logLevel = logEntry.severity === 'critical' ? 'error' : logEntry.severity === 'high' ? 'warn' : 'info';
 
     logger[logLevel]('Audit event', {
         audit: true,
-        ...logEntry
+        ...logEntry,
     });
 
     // Store for queryability
@@ -229,7 +222,7 @@ export async function logAuditEvent(
                 Promise.all([
                     redis.lPush(listKey, logJson),
                     redis.lTrim(listKey, 0, MAX_LOGS_PER_CATEGORY - 1),
-                    redis.expire(listKey, AUDIT_LOG_TTL)
+                    redis.expire(listKey, AUDIT_LOG_TTL),
                 ]),
                 TIMEOUTS.REDIS_OPERATION,
                 'auditLog-store'
@@ -241,7 +234,7 @@ export async function logAuditEvent(
                     Promise.all([
                         redis.lPush(AUDIT_LOG_KEY, logJson),
                         redis.lTrim(AUDIT_LOG_KEY, 0, MAX_LOGS_PER_CATEGORY - 1),
-                        redis.expire(AUDIT_LOG_KEY, AUDIT_LOG_TTL)
+                        redis.expire(AUDIT_LOG_KEY, AUDIT_LOG_TTL),
                     ]),
                     TIMEOUTS.REDIS_OPERATION,
                     'auditLog-storeMain'
@@ -253,7 +246,7 @@ export async function logAuditEvent(
         logger.error('Failed to store audit log', {
             error: (error as Error).message,
             event,
-            actor: details.actor
+            actor: details.actor,
         });
     }
 }
@@ -282,14 +275,14 @@ export async function getAuditLogs(options: AuditLogOptions = {}): Promise<Audit
                 TIMEOUTS.REDIS_OPERATION,
                 'getAuditLogs-lRange'
             );
-            parsed = logs.map(log =>
-                tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null
-            ).filter((entry): entry is AuditLogEntry => entry !== null);
+            parsed = logs
+                .map((log) => tryParseJSON(log, auditLogEntrySchema, 'audit log entry') as AuditLogEntry | null)
+                .filter((entry): entry is AuditLogEntry => entry !== null);
         }
 
         // Filter by severity if specified
         if (severity) {
-            parsed = parsed.filter(log => log.severity === severity);
+            parsed = parsed.filter((log) => log.severity === severity);
         }
 
         return parsed;
@@ -315,11 +308,7 @@ export async function getAuditSummary(): Promise<AuditSummary> {
         } else {
             const redis: RedisClient = getRedis();
             [total, admin, security] = await withTimeout(
-                Promise.all([
-                    redis.lLen(AUDIT_LOG_KEY),
-                    redis.lLen(AUDIT_ADMIN_KEY),
-                    redis.lLen(AUDIT_SECURITY_KEY)
-                ]),
+                Promise.all([redis.lLen(AUDIT_LOG_KEY), redis.lLen(AUDIT_ADMIN_KEY), redis.lLen(AUDIT_SECURITY_KEY)]),
                 TIMEOUTS.REDIS_OPERATION,
                 'getAuditSummary-lLen'
             );
@@ -336,7 +325,7 @@ export async function getAuditSummary(): Promise<AuditSummary> {
             total,
             admin,
             security,
-            bySeverity
+            bySeverity,
         };
     } catch (error) {
         logger.error('Failed to get audit summary', { error: (error as Error).message });
@@ -345,7 +334,7 @@ export async function getAuditSummary(): Promise<AuditSummary> {
             admin: 0,
             security: 0,
             bySeverity: {},
-            error: (error as Error).message
+            error: (error as Error).message,
         };
     }
 }
@@ -356,10 +345,11 @@ export const audit = {
      * Log admin login
      */
     adminLogin: (ip: string, success: boolean = true): Promise<void> => {
-        return logAuditEvent(
-            success ? AUDIT_EVENTS.ADMIN_LOGIN : AUDIT_EVENTS.ADMIN_LOGIN_FAILED,
-            { actor: 'admin', ip, metadata: { success } }
-        );
+        return logAuditEvent(success ? AUDIT_EVENTS.ADMIN_LOGIN : AUDIT_EVENTS.ADMIN_LOGIN_FAILED, {
+            actor: 'admin',
+            ip,
+            metadata: { success },
+        });
     },
 
     /**
@@ -375,24 +365,19 @@ export const audit = {
             actor: 'admin',
             target,
             ip,
-            metadata: { action, ...metadata }
+            metadata: { action, ...metadata },
         });
     },
 
     /**
      * Log player kick by admin
      */
-    adminKickPlayer: (
-        roomCode: string,
-        playerId: string,
-        ip: string,
-        reason: string
-    ): Promise<void> => {
+    adminKickPlayer: (roomCode: string, playerId: string, ip: string, reason: string): Promise<void> => {
         return logAuditEvent(AUDIT_EVENTS.ADMIN_PLAYER_KICK, {
             actor: 'admin',
             target: `${roomCode}/${playerId}`,
             ip,
-            metadata: { roomCode, playerId, reason }
+            metadata: { roomCode, playerId, reason },
         });
     },
 
@@ -404,7 +389,7 @@ export const audit = {
             actor: 'admin',
             target: roomCode,
             ip,
-            metadata: { reason }
+            metadata: { reason },
         });
     },
 
@@ -415,22 +400,18 @@ export const audit = {
         return logAuditEvent(AUDIT_EVENTS.RATE_LIMIT_HIT, {
             actor: identifier,
             ip,
-            metadata: { event, identifier }
+            metadata: { event, identifier },
         });
     },
 
     /**
      * Log authentication failure
      */
-    authFailure: (
-        reason: string,
-        ip: string,
-        metadata: Record<string, unknown> = {}
-    ): Promise<void> => {
+    authFailure: (reason: string, ip: string, metadata: Record<string, unknown> = {}): Promise<void> => {
         return logAuditEvent(AUDIT_EVENTS.AUTH_FAILURE, {
             actor: 'unknown',
             ip,
-            metadata: { reason, ...metadata }
+            metadata: { reason, ...metadata },
         });
     },
 
@@ -446,7 +427,7 @@ export const audit = {
         return logAuditEvent(AUDIT_EVENTS.SUSPICIOUS_ACTIVITY, {
             actor,
             ip,
-            metadata: { description, ...metadata }
+            metadata: { description, ...metadata },
         });
     },
 
@@ -457,25 +438,20 @@ export const audit = {
         return logAuditEvent(AUDIT_EVENTS.ROOM_CREATED, {
             actor: hostSessionId,
             target: roomCode,
-            ip
+            ip,
         });
     },
 
     /**
      * Log player kick
      */
-    playerKicked: (
-        roomCode: string,
-        kickedBy: string,
-        kickedPlayer: string,
-        reason: string
-    ): Promise<void> => {
+    playerKicked: (roomCode: string, kickedBy: string, kickedPlayer: string, reason: string): Promise<void> => {
         return logAuditEvent(AUDIT_EVENTS.PLAYER_KICKED, {
             actor: kickedBy,
             target: `${roomCode}/${kickedPlayer}`,
-            metadata: { roomCode, kickedPlayer, reason }
+            metadata: { roomCode, kickedPlayer, reason },
         });
-    }
+    },
 };
 
 /**
@@ -486,4 +462,3 @@ export function clearMemoryLogs(): void {
         memoryLogs.set(key, []);
     }
 }
-

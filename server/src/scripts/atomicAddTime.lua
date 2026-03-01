@@ -1,3 +1,14 @@
+-- atomicAddTime.lua
+-- Description: Atomically adds time to a running (non-paused) timer and updates its TTL in Redis.
+--
+-- KEYS[1]: Timer key (e.g., `timer:room:ABC123`)
+-- ARGV[1]: Seconds to add
+-- ARGV[2]: Instance ID
+-- ARGV[3]: Current timestamp (ms)
+-- ARGV[4]: TTL buffer (seconds, default 60)
+--
+-- Returns: JSON `{endTime, duration, remainingSeconds}` on success, nil on error
+
 local timerKey = KEYS[1]
 local secondsToAdd = tonumber(ARGV[1])
 local instanceId = ARGV[2]

@@ -21,12 +21,7 @@ jest.mock('../../frontend/clientAccessor', () => ({
     isClientConnected: () => false,
 }));
 
-import {
-    initChat,
-    handleChatMessage,
-    showChatPanel,
-    hideChatPanel,
-} from '../../frontend/chat';
+import { initChat, handleChatMessage, showChatPanel, hideChatPanel } from '../../frontend/chat';
 
 function setupChatDOM() {
     document.body.innerHTML = `

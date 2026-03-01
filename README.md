@@ -2,12 +2,12 @@
 
 A web-based implementation of the popular board game Eigennamen, optimized for remote play over video conferencing or direct online multiplayer.
 
-**Version:** v4.0.0 | **License:** GPL v3.0
+**Version:** v4.1.0 | **License:** GPL v3.0
 
 ## Features
 
 - **Standalone or multiplayer** — Works offline with URL-based state or with real-time server
-- **Three game modes** — Classic, Blitz (30s turns), Duet (cooperative 2-player)
+- **Three game modes** — Classic, Duet (cooperative 2-player), Match (competitive multi-round scoring)
 - **Real-time multiplayer** — Synchronized game state via Socket.io with reconnection support
 - **URL-based game sharing** — All game state encoded in the URL for easy sharing
 - **Custom word lists** — Use your own themed word lists (with optional database persistence)
@@ -221,6 +221,7 @@ Works in all modern browsers:
 | [docs/SERVER_SPEC.md](docs/SERVER_SPEC.md) | API specification (REST + WebSocket) |
 | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) | Testing documentation and patterns |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide (Docker, Fly.io, Heroku, K8s) |
+| [docs/BACKUP_AND_DR.md](docs/BACKUP_AND_DR.md) | Backup strategy and disaster recovery |
 | [server/README.md](server/README.md) | Server setup and configuration |
 
 ## License

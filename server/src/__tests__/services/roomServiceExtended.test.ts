@@ -17,10 +17,10 @@ const mockRedis = {
     }),
     del: jest.fn(async (keys) => {
         const keysArray = Array.isArray(keys) ? keys : [keys];
-        keysArray.forEach(key => delete mockRedisStorage[key]);
+        keysArray.forEach((key) => delete mockRedisStorage[key]);
         return keysArray.length;
     }),
-    exists: jest.fn(async (key) => mockRedisStorage[key] ? 1 : 0),
+    exists: jest.fn(async (key) => (mockRedisStorage[key] ? 1 : 0)),
     expire: jest.fn().mockResolvedValue(1),
     sMembers: jest.fn(async (key) => {
         const data = mockRedisStorage[key];
@@ -49,23 +49,23 @@ const mockRedis = {
         }
         return 0;
     }),
-    mGet: jest.fn(async (keys) => keys.map(key => mockRedisStorage[key] || null)),
-    eval: jest.fn().mockResolvedValue(1)
+    mGet: jest.fn(async (keys) => keys.map((key) => mockRedisStorage[key] || null)),
+    eval: jest.fn().mockResolvedValue(1),
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../services/timerService', () => ({
-    stopTimer: jest.fn().mockResolvedValue()
+    stopTimer: jest.fn().mockResolvedValue(),
 }));
 
 // Mock playerService
@@ -78,14 +78,14 @@ jest.mock('../../services/playerService', () => ({
             isHost,
             team: null,
             role: 'clicker',
-            connected: true
+            connected: true,
         };
         mockPlayerStorage[sessionId] = player;
         return player;
     }),
     getPlayer: jest.fn(async (sessionId) => mockPlayerStorage[sessionId] || null),
     getPlayersInRoom: jest.fn(async (roomCode) => {
-        return Object.values(mockPlayerStorage).filter(p => p.roomCode === roomCode);
+        return Object.values(mockPlayerStorage).filter((p) => p.roomCode === roomCode);
     }),
     updatePlayer: jest.fn(async (sessionId, updates) => {
         if (mockPlayerStorage[sessionId]) {
@@ -110,14 +110,14 @@ jest.mock('../../services/playerService', () => ({
         isHost,
         connected: true,
         connectedAt: Date.now(),
-        lastSeen: Date.now()
-    }))
+        lastSeen: Date.now(),
+    })),
 }));
 
 // Mock gameService
 jest.mock('../../services/gameService', () => ({
     getGame: jest.fn().mockResolvedValue(null),
-    getGameStateForPlayer: jest.fn()
+    getGameStateForPlayer: jest.fn(),
 }));
 
 const { ERROR_CODES } = require('../../config/constants');
@@ -156,7 +156,7 @@ describe('Room Service', () => {
             const result = await roomService.createRoom('test-room', 'host-session-3', {
                 turnTimer: 90,
                 allowSpectators: false,
-                teamNames: { red: 'Team A', blue: 'Team B' }
+                teamNames: { red: 'Team A', blue: 'Team B' },
             });
 
             expect(result.room.settings.turnTimer).toBe(90);
@@ -167,13 +167,14 @@ describe('Room Service', () => {
         test('throws error when room already exists', async () => {
             mockRedis.eval.mockResolvedValue(0); // Room exists
 
-            await expect(roomService.createRoom('existing', 'host-session-4', {}))
-                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_ALREADY_EXISTS });
+            await expect(roomService.createRoom('existing', 'host-session-4', {})).rejects.toMatchObject({
+                code: ERROR_CODES.ROOM_ALREADY_EXISTS,
+            });
         });
 
         test('creates room with custom nickname', async () => {
             const result = await roomService.createRoom('my-room', 'host-session-5', {
-                nickname: 'GameMaster'
+                nickname: 'GameMaster',
             });
 
             expect(result.player.nickname).toBe('GameMaster');
@@ -187,7 +188,7 @@ describe('Room Service', () => {
                 roomId: 'test-room',
                 hostSessionId: 'host-1',
                 status: 'waiting',
-                settings: {}
+                settings: {},
             };
             mockRedisStorage['room:test-room'] = JSON.stringify(roomData);
 
@@ -212,7 +213,7 @@ describe('Room Service', () => {
                 roomId: 'Test-Room',
                 hostSessionId: 'host-1',
                 status: 'waiting',
-                settings: {}
+                settings: {},
             };
             mockRedisStorage['room:test-room'] = JSON.stringify(roomData);
 
@@ -229,7 +230,7 @@ describe('Room Service', () => {
                 roomId: 'game-room',
                 hostSessionId: 'host-1',
                 status: 'waiting',
-                settings: {}
+                settings: {},
             };
             mockRedisStorage['room:game-room'] = JSON.stringify(roomData);
             mockRedis.eval.mockResolvedValue(1);
@@ -244,15 +245,17 @@ describe('Room Service', () => {
         });
 
         test('throws when room not found', async () => {
-            await expect(roomService.joinRoom('notexist', 'player-1', 'Player1'))
-                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
+            await expect(roomService.joinRoom('notexist', 'player-1', 'Player1')).rejects.toMatchObject({
+                code: ERROR_CODES.ROOM_NOT_FOUND,
+            });
         });
 
         test('throws when room is full', async () => {
             mockRedis.eval.mockResolvedValue(0);
 
-            await expect(roomService.joinRoom('game-room', 'player-1', 'Player1'))
-                .rejects.toMatchObject({ code: ERROR_CODES.ROOM_FULL });
+            await expect(roomService.joinRoom('game-room', 'player-1', 'Player1')).rejects.toMatchObject({
+                code: ERROR_CODES.ROOM_FULL,
+            });
         });
 
         test('handles reconnection', async () => {
@@ -261,7 +264,7 @@ describe('Room Service', () => {
                 sessionId: 'player-1',
                 roomCode: 'game-room',
                 nickname: 'Player1',
-                connected: false
+                connected: false,
             };
 
             const result = await roomService.joinRoom('game-room', 'player-1', 'Player1');
@@ -283,7 +286,7 @@ describe('Room Service', () => {
                 roomId: 'leave-room',
                 hostSessionId: 'host-1',
                 status: 'waiting',
-                settings: {}
+                settings: {},
             };
             mockRedisStorage['room:leave-room'] = JSON.stringify(roomData);
 
@@ -291,13 +294,13 @@ describe('Room Service', () => {
                 sessionId: 'host-1',
                 roomCode: 'leave-room',
                 nickname: 'Host',
-                isHost: true
+                isHost: true,
             };
             mockPlayerStorage['player-1'] = {
                 sessionId: 'player-1',
                 roomCode: 'leave-room',
                 nickname: 'Player1',
-                isHost: false
+                isHost: false,
             };
         });
 
@@ -312,7 +315,7 @@ describe('Room Service', () => {
             // Simulate player-1 still in room after host leaves
             const playerService = require('../../services/playerService');
             playerService.getPlayersInRoom.mockResolvedValueOnce([
-                { sessionId: 'player-1', nickname: 'Player1', isHost: false }
+                { sessionId: 'player-1', nickname: 'Player1', isHost: false },
             ]);
 
             const result = await roomService.leaveRoom('leave-room', 'host-1');
@@ -325,9 +328,7 @@ describe('Room Service', () => {
         test('last player leaving deletes room', async () => {
             const playerService = require('../../services/playerService');
             // Must return [] for both calls: initial fetch + post-removal re-check
-            playerService.getPlayersInRoom
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([]);
+            playerService.getPlayersInRoom.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
             const result = await roomService.leaveRoom('leave-room', 'host-1');
 
@@ -357,9 +358,7 @@ describe('Room Service', () => {
             // Simulate Redis connection failure on get
             mockRedis.get.mockRejectedValueOnce(new Error('ECONNRESET'));
 
-            await expect(
-                roomService.leaveRoom('any-room', 'player-1')
-            ).rejects.toThrow('ECONNRESET');
+            await expect(roomService.leaveRoom('any-room', 'player-1')).rejects.toThrow('ECONNRESET');
         });
     });
 
@@ -373,22 +372,24 @@ describe('Room Service', () => {
                 settings: {
                     turnTimer: 60,
                     allowSpectators: true,
-                    teamNames: { red: 'Red', blue: 'Blue' }
-                }
+                    teamNames: { red: 'Red', blue: 'Blue' },
+                },
             };
             mockRedisStorage['room:settings-room'] = JSON.stringify(roomData);
         });
 
         test('updates settings successfully', async () => {
             // Mock Lua script result (updateSettings now uses atomic Lua script)
-            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
-                success: true,
-                settings: { turnTimer: 120, allowSpectators: false, teamNames: { red: 'Red', blue: 'Blue' } }
-            }));
+            mockRedis.eval.mockResolvedValueOnce(
+                JSON.stringify({
+                    success: true,
+                    settings: { turnTimer: 120, allowSpectators: false, teamNames: { red: 'Red', blue: 'Blue' } },
+                })
+            );
 
             const result = await roomService.updateSettings('settings-room', 'host-1', {
                 turnTimer: 120,
-                allowSpectators: false
+                allowSpectators: false,
             });
 
             expect(result.turnTimer).toBe(120);
@@ -396,13 +397,15 @@ describe('Room Service', () => {
         });
 
         test('updates team names', async () => {
-            mockRedis.eval.mockResolvedValueOnce(JSON.stringify({
-                success: true,
-                settings: { turnTimer: 60, allowSpectators: true, teamNames: { red: 'Dragons', blue: 'Knights' } }
-            }));
+            mockRedis.eval.mockResolvedValueOnce(
+                JSON.stringify({
+                    success: true,
+                    settings: { turnTimer: 60, allowSpectators: true, teamNames: { red: 'Dragons', blue: 'Knights' } },
+                })
+            );
 
             const result = await roomService.updateSettings('settings-room', 'host-1', {
-                teamNames: { red: 'Dragons', blue: 'Knights' }
+                teamNames: { red: 'Dragons', blue: 'Knights' },
             });
 
             expect(result.teamNames).toEqual({ red: 'Dragons', blue: 'Knights' });
@@ -411,17 +414,21 @@ describe('Room Service', () => {
         test('throws when not host', async () => {
             mockRedis.eval.mockResolvedValueOnce(JSON.stringify({ error: 'NOT_HOST' }));
 
-            await expect(roomService.updateSettings('settings-room', 'not-host', {
-                turnTimer: 90
-            })).rejects.toMatchObject({ code: ERROR_CODES.NOT_HOST });
+            await expect(
+                roomService.updateSettings('settings-room', 'not-host', {
+                    turnTimer: 90,
+                })
+            ).rejects.toMatchObject({ code: ERROR_CODES.NOT_HOST });
         });
 
         test('throws when room not found', async () => {
             mockRedis.eval.mockResolvedValueOnce(JSON.stringify({ error: 'ROOM_NOT_FOUND' }));
 
-            await expect(roomService.updateSettings('notexist', 'host-1', {
-                turnTimer: 90
-            })).rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
+            await expect(
+                roomService.updateSettings('notexist', 'host-1', {
+                    turnTimer: 90,
+                })
+            ).rejects.toMatchObject({ code: ERROR_CODES.ROOM_NOT_FOUND });
         });
     });
 
@@ -462,8 +469,8 @@ describe('Room Service', () => {
                         'room:test-room:players',
                         'room:test-room:game',
                         'room:test-room:team:red',
-                        'room:test-room:team:blue'
-                    ])
+                        'room:test-room:team:blue',
+                    ]),
                 })
             );
         });

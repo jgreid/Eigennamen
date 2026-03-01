@@ -15,7 +15,7 @@ import {
     ASSASSIN_CARDS,
     GAME,
     TIMER,
-    RESERVED_NAMES
+    RESERVED_NAMES,
 } from '../../frontend/constants';
 
 describe('Frontend Constants', () => {

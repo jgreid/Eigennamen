@@ -7,7 +7,9 @@ import * as playerService from '../../services/playerService';
 import type { Player } from '../../types';
 
 jest.mock('../../services/playerService');
-const mockedGetPlayersInRoom = playerService.getPlayersInRoom as jest.MockedFunction<typeof playerService.getPlayersInRoom>;
+const mockedGetPlayersInRoom = playerService.getPlayersInRoom as jest.MockedFunction<
+    typeof playerService.getPlayersInRoom
+>;
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
     return {
@@ -32,10 +34,33 @@ describe('player/stats', () => {
 
     describe('getSpectators', () => {
         it('returns connected spectators only', async () => {
-            const spectator1 = makePlayer({ sessionId: 's1', nickname: 'Alice', role: 'spectator', connected: true, team: null });
-            const spectator2 = makePlayer({ sessionId: 's2', nickname: 'Bob', role: 'spectator', connected: true, team: 'red' });
-            const disconnected = makePlayer({ sessionId: 's3', nickname: 'Charlie', role: 'spectator', connected: false });
-            const nonSpectator = makePlayer({ sessionId: 's4', nickname: 'Dave', role: 'clicker', team: 'blue', connected: true });
+            const spectator1 = makePlayer({
+                sessionId: 's1',
+                nickname: 'Alice',
+                role: 'spectator',
+                connected: true,
+                team: null,
+            });
+            const spectator2 = makePlayer({
+                sessionId: 's2',
+                nickname: 'Bob',
+                role: 'spectator',
+                connected: true,
+                team: 'red',
+            });
+            const disconnected = makePlayer({
+                sessionId: 's3',
+                nickname: 'Charlie',
+                role: 'spectator',
+                connected: false,
+            });
+            const nonSpectator = makePlayer({
+                sessionId: 's4',
+                nickname: 'Dave',
+                role: 'clicker',
+                team: 'blue',
+                connected: true,
+            });
 
             mockedGetPlayersInRoom.mockResolvedValue([spectator1, spectator2, disconnected, nonSpectator]);
 
@@ -69,9 +94,27 @@ describe('player/stats', () => {
         });
 
         it('preserves team affiliation in spectator info', async () => {
-            const redSpectator = makePlayer({ sessionId: 's1', nickname: 'Alice', role: 'spectator', team: 'red', connected: true });
-            const blueSpectator = makePlayer({ sessionId: 's2', nickname: 'Bob', role: 'spectator', team: 'blue', connected: true });
-            const nullTeamSpectator = makePlayer({ sessionId: 's3', nickname: 'Charlie', role: 'spectator', team: null, connected: true });
+            const redSpectator = makePlayer({
+                sessionId: 's1',
+                nickname: 'Alice',
+                role: 'spectator',
+                team: 'red',
+                connected: true,
+            });
+            const blueSpectator = makePlayer({
+                sessionId: 's2',
+                nickname: 'Bob',
+                role: 'spectator',
+                team: 'blue',
+                connected: true,
+            });
+            const nullTeamSpectator = makePlayer({
+                sessionId: 's3',
+                nickname: 'Charlie',
+                role: 'spectator',
+                team: null,
+                connected: true,
+            });
 
             mockedGetPlayersInRoom.mockResolvedValue([redSpectator, blueSpectator, nullTeamSpectator]);
 
@@ -113,9 +156,7 @@ describe('player/stats', () => {
         });
 
         it('returns 0 when no spectators', async () => {
-            mockedGetPlayersInRoom.mockResolvedValue([
-                makePlayer({ role: 'spymaster', team: 'red', connected: true }),
-            ]);
+            mockedGetPlayersInRoom.mockResolvedValue([makePlayer({ role: 'spymaster', team: 'red', connected: true })]);
 
             const count = await getSpectatorCount('ROOM01');
 
@@ -162,9 +203,7 @@ describe('player/stats', () => {
         });
 
         it('uses existingPlayers when provided (skips Redis)', async () => {
-            const players = [
-                makePlayer({ team: 'red', role: 'spymaster', nickname: 'Alice', connected: true }),
-            ];
+            const players = [makePlayer({ team: 'red', role: 'spymaster', nickname: 'Alice', connected: true })];
 
             const stats = await getRoomStats('ROOM01', players);
 

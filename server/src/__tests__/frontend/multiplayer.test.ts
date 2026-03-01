@@ -15,7 +15,7 @@ const mockShowToast = jest.fn();
 jest.mock('../../frontend/ui', () => ({
     openModal: mockOpenModal,
     closeModal: mockCloseModal,
-    showToast: mockShowToast
+    showToast: mockShowToast,
 }));
 
 jest.mock('../../frontend/state', () => ({
@@ -35,8 +35,8 @@ jest.mock('../../frontend/state', () => ({
         revealingCards: new Set(),
         revealTimeouts: new Map(),
         pendingRevealRAF: null,
-        isRevealingCard: false
-    }
+        isRevealingCard: false,
+    },
 }));
 
 jest.mock('../../frontend/i18n', () => ({
@@ -51,24 +51,24 @@ jest.mock('../../frontend/i18n', () => ({
             'multiplayer.joiningGame': 'Joining game...',
             'multiplayer.creatingGame': 'Creating game...',
             'multiplayer.gameCreatedShare': 'Game created!',
-            'multiplayer.connectedToGame': 'Connected to game'
+            'multiplayer.connectedToGame': 'Connected to game',
         };
         return map[key] || key;
-    })
+    }),
 }));
 
 jest.mock('../../frontend/utils', () => ({
     safeGetItem: jest.fn(() => ''),
-    safeSetItem: jest.fn()
+    safeSetItem: jest.fn(),
 }));
 
 jest.mock('../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
 
 jest.mock('../../frontend/roles', () => ({
     updateRoleBanner: jest.fn(),
-    updateControls: jest.fn()
+    updateControls: jest.fn(),
 }));
 
 jest.mock('../../frontend/constants', () => ({
@@ -80,7 +80,7 @@ jest.mock('../../frontend/constants', () => ({
     validateRoomCode: jest.fn((code) => {
         if (!code || code.length < 3) return { valid: false, error: 'Too short' };
         return { valid: true, error: null };
-    })
+    }),
 }));
 
 jest.mock('../../frontend/multiplayerUI', () => ({
@@ -94,7 +94,7 @@ jest.mock('../../frontend/multiplayerUI', () => ({
     closeForfeitConfirm: jest.fn(),
     forfeitGame: jest.fn(),
     closeKickConfirm: jest.fn(),
-    confirmKickPlayer: jest.fn()
+    confirmKickPlayer: jest.fn(),
 }));
 
 jest.mock('../../frontend/multiplayerSync', () => ({
@@ -105,28 +105,28 @@ jest.mock('../../frontend/multiplayerSync', () => ({
     updateURLWithRoomCode: jest.fn(),
     leaveMultiplayerMode: jest.fn(),
     cleanupMultiplayerListeners: jest.fn(),
-    clearRoomCodeFromURL: jest.fn()
+    clearRoomCodeFromURL: jest.fn(),
 }));
 
 jest.mock('../../frontend/stateMutations', () => ({
-    resetGameState: jest.fn()
+    resetGameState: jest.fn(),
 }));
 
 jest.mock('../../frontend/board', () => ({
-    renderBoard: jest.fn()
+    renderBoard: jest.fn(),
 }));
 
 jest.mock('../../frontend/game', () => ({
     updateScoreboard: jest.fn(),
-    updateTurnIndicator: jest.fn()
+    updateTurnIndicator: jest.fn(),
 }));
 
 jest.mock('../../frontend/multiplayerListeners', () => ({
-    setupMultiplayerListeners: jest.fn()
+    setupMultiplayerListeners: jest.fn(),
 }));
 
 jest.mock('../../frontend/clientAccessor', () => ({
-    isClientConnected: jest.fn(() => true)
+    isClientConnected: jest.fn(() => true),
 }));
 
 // Mock EigennamenClient global
@@ -136,14 +136,23 @@ jest.mock('../../frontend/clientAccessor', () => ({
     connect: jest.fn().mockResolvedValue(undefined),
     joinRoom: jest.fn().mockResolvedValue({ room: { code: 'TESTROOM' }, players: [] }),
     createRoom: jest.fn().mockResolvedValue({ room: { code: 'NEWROOM' }, players: [] }),
-    startGame: jest.fn()
+    startGame: jest.fn(),
 };
 
 import {
-    openMultiplayer, closeMultiplayer, setMpMode, setMpStatus,
-    setFieldError, clearFormErrors, onMultiplayerJoined,
-    cancelJoinOperation, cancelCreateOperation, cancelAllOperations,
-    handleMpAction, initMultiplayerModal, checkURLForRoomJoin
+    openMultiplayer,
+    closeMultiplayer,
+    setMpMode,
+    setMpStatus,
+    setFieldError,
+    clearFormErrors,
+    onMultiplayerJoined,
+    cancelJoinOperation,
+    cancelCreateOperation,
+    cancelAllOperations,
+    handleMpAction,
+    initMultiplayerModal,
+    checkURLForRoomJoin,
 } from '../../frontend/multiplayer';
 import { state } from '../../frontend/state';
 
@@ -281,7 +290,7 @@ describe('multiplayer module', () => {
 
             clearFormErrors();
 
-            ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach(id => {
+            ['join-error', 'join-nickname-error', 'create-error', 'create-nickname-error'].forEach((id) => {
                 expect(document.getElementById(id)!.textContent).toBe('');
             });
         });
@@ -304,7 +313,7 @@ describe('multiplayer module', () => {
         test('stores player list', () => {
             setupMultiplayerDOM();
             const players = [
-                { sessionId: 's1', nickname: 'Alice', team: 'red', role: null, isHost: true, connected: true }
+                { sessionId: 's1', nickname: 'Alice', team: 'red', role: null, isHost: true, connected: true },
             ];
             onMultiplayerJoined({ room: { code: 'R' }, players });
             expect(state.multiplayerPlayers).toEqual(players);
@@ -371,7 +380,8 @@ describe('multiplayer module', () => {
             (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.joinRoom.mockResolvedValue({
-                room: { code: 'TESTROOM' }, players: []
+                room: { code: 'TESTROOM' },
+                players: [],
             });
 
             await handleMpAction();
@@ -410,7 +420,8 @@ describe('multiplayer module', () => {
             (document.getElementById('create-room-id') as HTMLInputElement).value = 'NEWROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.createRoom.mockResolvedValue({
-                room: { code: 'NEWROOM' }, players: []
+                room: { code: 'NEWROOM' },
+                players: [],
             });
 
             await handleMpAction();
@@ -435,7 +446,8 @@ describe('multiplayer module', () => {
             (document.getElementById('join-room-id') as HTMLInputElement).value = 'MISSING';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.joinRoom.mockRejectedValue({
-                code: 'ROOM_NOT_FOUND', message: 'Room not found'
+                code: 'ROOM_NOT_FOUND',
+                message: 'Room not found',
             });
 
             await handleMpAction();
@@ -450,7 +462,8 @@ describe('multiplayer module', () => {
             (document.getElementById('join-room-id') as HTMLInputElement).value = 'FULLROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.joinRoom.mockRejectedValue({
-                code: 'ROOM_FULL', message: 'Room is full'
+                code: 'ROOM_FULL',
+                message: 'Room is full',
             });
 
             await handleMpAction();
@@ -466,7 +479,8 @@ describe('multiplayer module', () => {
             (document.getElementById('join-room-id') as HTMLInputElement).value = 'BADROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.joinRoom.mockRejectedValue({
-                code: 'INVALID_INPUT', message: 'Invalid room'
+                code: 'INVALID_INPUT',
+                message: 'Invalid room',
             });
 
             await handleMpAction();
@@ -482,7 +496,7 @@ describe('multiplayer module', () => {
             (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.joinRoom.mockRejectedValue({
-                message: 'Failed to connect to server'
+                message: 'Failed to connect to server',
             });
 
             await handleMpAction();
@@ -498,7 +512,7 @@ describe('multiplayer module', () => {
             (document.getElementById('join-room-id') as HTMLInputElement).value = 'TESTROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.joinRoom.mockRejectedValue({
-                message: 'Something weird'
+                message: 'Something weird',
             });
 
             await handleMpAction();
@@ -514,7 +528,8 @@ describe('multiplayer module', () => {
             (document.getElementById('create-room-id') as HTMLInputElement).value = 'EXISTINGROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.createRoom.mockRejectedValue({
-                code: 'ROOM_ALREADY_EXISTS', message: 'Room exists'
+                code: 'ROOM_ALREADY_EXISTS',
+                message: 'Room exists',
             });
 
             await handleMpAction();
@@ -530,7 +545,7 @@ describe('multiplayer module', () => {
             (document.getElementById('create-room-id') as HTMLInputElement).value = 'NEWROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.createRoom.mockRejectedValue({
-                message: 'Failed to connect'
+                message: 'Failed to connect',
             });
 
             await handleMpAction();
@@ -546,7 +561,7 @@ describe('multiplayer module', () => {
             (document.getElementById('create-room-id') as HTMLInputElement).value = 'NEWROOM';
             (global as any).EigennamenClient.isConnected.mockReturnValue(true);
             (global as any).EigennamenClient.createRoom.mockRejectedValue({
-                message: 'Unexpected error'
+                message: 'Unexpected error',
             });
 
             await handleMpAction();
@@ -563,7 +578,8 @@ describe('multiplayer module', () => {
             (global as any).EigennamenClient.isConnected.mockReturnValue(false);
             (global as any).EigennamenClient.connect.mockResolvedValue(undefined);
             (global as any).EigennamenClient.joinRoom.mockResolvedValue({
-                room: { code: 'TESTROOM' }, players: []
+                room: { code: 'TESTROOM' },
+                players: [],
             });
 
             await handleMpAction();
@@ -596,11 +612,7 @@ describe('multiplayer module', () => {
 
             jest.advanceTimersByTime(600);
 
-            expect(mockShowToast).toHaveBeenCalledWith(
-                expect.stringContaining('Game created!'),
-                'success',
-                8000
-            );
+            expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('Game created!'), 'success', 8000);
         });
 
         test('shows non-host connected toast', () => {
@@ -609,16 +621,20 @@ describe('multiplayer module', () => {
 
             jest.advanceTimersByTime(600);
 
-            expect(mockShowToast).toHaveBeenCalledWith(
-                'Connected to game',
-                'success'
-            );
+            expect(mockShowToast).toHaveBeenCalledWith('Connected to game', 'success');
         });
 
         test('uses result.you for syncing player state', () => {
             setupMultiplayerDOM();
             const { syncLocalPlayerState } = require('../../frontend/multiplayerSync');
-            const you = { sessionId: 's1', nickname: 'Me', team: 'red', role: 'spymaster', isHost: false, connected: true };
+            const you = {
+                sessionId: 's1',
+                nickname: 'Me',
+                team: 'red',
+                role: 'spymaster',
+                isHost: false,
+                connected: true,
+            };
             onMultiplayerJoined({ room: { code: 'R' }, players: [], you });
             expect(syncLocalPlayerState).toHaveBeenCalledWith(you);
         });

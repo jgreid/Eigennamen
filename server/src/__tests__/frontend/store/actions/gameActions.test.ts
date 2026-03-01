@@ -5,31 +5,47 @@
 jest.mock('../../../../frontend/state', () => ({
     state: {
         gameState: {
-            words: [], types: [], revealed: [],
-            currentTurn: 'red', redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null, seed: null,
-            currentClue: null, guessesUsed: 0, guessesAllowed: 0,
-            status: 'waiting', duetTypes: [],
-            timerTokens: 0, greenFound: 0, greenTotal: 0
+            words: [],
+            types: [],
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            currentClue: null,
+            guessesUsed: 0,
+            guessesAllowed: 0,
+            status: 'waiting',
+            duetTypes: [],
+            timerTokens: 0,
+            greenFound: 0,
+            greenTotal: 0,
         },
         gameMode: 'classic',
         boardInitialized: true,
         isRevealingCard: false,
         revealingCards: new Set<number>(),
         revealTimeouts: new Map<number, ReturnType<typeof setTimeout>>(),
-    }
+    },
 }));
 
 jest.mock('../../../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
 
 import { state } from '../../../../frontend/state';
 import { clearAllListeners } from '../../../../frontend/store/eventBus';
 import {
-    resetGame, setGameOver, syncScores, syncBoardData,
-    syncTurnAndMetadata, clearRevealTracking
+    resetGame,
+    setGameOver,
+    syncScores,
+    syncBoardData,
+    syncTurnAndMetadata,
+    clearRevealTracking,
 } from '../../../../frontend/store/actions/gameActions';
 
 function resetTestState(): void {
@@ -199,7 +215,7 @@ describe('syncTurnAndMetadata', () => {
             timerTokens: 3,
             greenFound: 5,
             greenTotal: 15,
-            gameMode: 'duet'
+            gameMode: 'duet',
         });
 
         expect(state.gameState.duetTypes).toEqual(['green', 'black']);

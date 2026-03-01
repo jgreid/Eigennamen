@@ -118,7 +118,7 @@ test.describe('ARIA Labels and Roles', () => {
 
             if (id) {
                 const label = page.locator(`label[for="${id}"]`);
-                const hasLabel = await label.count() > 0;
+                const hasLabel = (await label.count()) > 0;
                 expect(hasLabel || ariaLabel || ariaLabelledBy).toBeTruthy();
             }
         }
@@ -184,7 +184,7 @@ test.describe('Screen Reader Support', () => {
         const turnIndicator = page.locator(sel.turnIndicator);
 
         const ariaLive = await turnIndicator.getAttribute('aria-live');
-        const parentAriaLive = await turnIndicator.evaluate(el => {
+        const parentAriaLive = await turnIndicator.evaluate((el) => {
             const parent = el.closest('[aria-live]');
             return parent?.getAttribute('aria-live');
         });
@@ -196,7 +196,7 @@ test.describe('Screen Reader Support', () => {
         const scoreDisplay = page.locator(`${sel.redRemaining}, ${sel.blueRemaining}`).first();
 
         const ariaLive = await scoreDisplay.getAttribute('aria-live');
-        const parentAriaLive = await scoreDisplay.evaluate(el => {
+        const parentAriaLive = await scoreDisplay.evaluate((el) => {
             const parent = el.closest('[aria-live]');
             return parent?.getAttribute('aria-live');
         });
@@ -214,11 +214,11 @@ test.describe('Color Contrast and Visual', () => {
     test('cards have sufficient contrast', async ({ page }) => {
         const firstCard = page.locator(sel.boardCard).first();
 
-        const styles = await firstCard.evaluate(el => {
+        const styles = await firstCard.evaluate((el) => {
             const computed = window.getComputedStyle(el);
             return {
                 color: computed.color,
-                backgroundColor: computed.backgroundColor
+                backgroundColor: computed.backgroundColor,
             };
         });
 
@@ -230,19 +230,17 @@ test.describe('Color Contrast and Visual', () => {
         const firstCard = page.locator(sel.boardCard).first();
         await firstCard.focus();
 
-        const focusStyles = await firstCard.evaluate(el => {
+        const focusStyles = await firstCard.evaluate((el) => {
             const computed = window.getComputedStyle(el);
             return {
                 outline: computed.outline,
                 boxShadow: computed.boxShadow,
-                border: computed.border
+                border: computed.border,
             };
         });
 
         const hasFocusIndicator =
-            focusStyles.outline !== 'none' ||
-            focusStyles.boxShadow !== 'none' ||
-            focusStyles.border !== 'none';
+            focusStyles.outline !== 'none' || focusStyles.boxShadow !== 'none' || focusStyles.border !== 'none';
 
         expect(hasFocusIndicator).toBe(true);
     });

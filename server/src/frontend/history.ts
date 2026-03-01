@@ -8,10 +8,10 @@ import { getClient } from './clientAccessor.js';
 
 // Replay speed options (in milliseconds between moves)
 const REPLAY_SPEEDS: Record<string, number> = {
-    '0.5x': 3000,  // Slow
-    '1x': 1500,    // Normal (default)
-    '2x': 750,     // Fast
-    '4x': 375      // Very fast
+    '0.5x': 3000, // Slow
+    '1x': 1500, // Normal (default)
+    '2x': 750, // Fast
+    '4x': 375, // Very fast
 };
 let currentReplaySpeed = '1x';
 
@@ -63,7 +63,8 @@ export function renderGameHistory(games: GameHistoryEntry[]): void {
     for (const game of games) {
         const dateStr = formatGameTimestamp(game.timestamp || 0);
         const winner = game.winner || '';
-        const winnerName = (game.teamNames && winner ? game.teamNames[winner] : undefined) || (winner === 'red' ? 'Red' : 'Blue');
+        const winnerName =
+            (game.teamNames && winner ? game.teamNames[winner] : undefined) || (winner === 'red' ? 'Red' : 'Blue');
 
         const item = document.createElement('div');
         item.className = 'history-item';
@@ -177,14 +178,19 @@ export function renderReplayData(data: ReplayData): void {
     if (replayInfo) {
         replayInfo.innerHTML = '';
         const winnerBadge = document.createElement('span');
-        const replayWinnerClass = data.finalState?.winner === 'red' ? 'red' : (data.finalState?.winner === 'blue' ? 'blue' : '');
+        const replayWinnerClass =
+            data.finalState?.winner === 'red' ? 'red' : data.finalState?.winner === 'blue' ? 'blue' : '';
         winnerBadge.className = `winner-badge ${replayWinnerClass}`;
         const finalWinner = data.finalState?.winner || '';
-        const winnerTeamName = (data.teamNames && finalWinner ? data.teamNames[finalWinner] : undefined) || finalWinner || 'Unknown';
+        const winnerTeamName =
+            (data.teamNames && finalWinner ? data.teamNames[finalWinner] : undefined) || finalWinner || 'Unknown';
         winnerBadge.textContent = t('history.teamWins', { team: winnerTeamName });
         replayInfo.appendChild(winnerBadge);
         const durationSpan = document.createElement('span');
-        durationSpan.textContent = t('history.duration', { duration: formatDuration(data.duration || 0), moves: data.totalMoves || 0 });
+        durationSpan.textContent = t('history.duration', {
+            duration: formatDuration(data.duration || 0),
+            moves: data.totalMoves || 0,
+        });
         replayInfo.appendChild(durationSpan);
     }
 
@@ -233,11 +239,20 @@ export function renderReplayBoard(): void {
         const cols = 5; // 5x5 board
         let next = -1;
         switch (e.key) {
-            case 'ArrowRight': next = idx + 1; break;
-            case 'ArrowLeft':  next = idx - 1; break;
-            case 'ArrowDown':  next = idx + cols; break;
-            case 'ArrowUp':    next = idx - cols; break;
-            default: return;
+            case 'ArrowRight':
+                next = idx + 1;
+                break;
+            case 'ArrowLeft':
+                next = idx - 1;
+                break;
+            case 'ArrowDown':
+                next = idx + cols;
+                break;
+            case 'ArrowUp':
+                next = idx - cols;
+                break;
+            default:
+                return;
         }
         const target = board.querySelector(`[data-index="${next}"]`) as HTMLElement | null;
         if (target) {
@@ -326,7 +341,7 @@ export function renderReplayEventLog(): void {
         row.dataset.eventIndex = String(index);
 
         const teamSpan = document.createElement('span');
-        const eventTeamClass = team === 'red' ? 'red' : (team === 'blue' ? 'blue' : '');
+        const eventTeamClass = team === 'red' ? 'red' : team === 'blue' ? 'blue' : '';
         teamSpan.className = `event-team ${eventTeamClass}`;
         teamSpan.textContent = team.toUpperCase();
         row.appendChild(teamSpan);
@@ -357,7 +372,11 @@ export function updateReplayControls(): void {
     if (prevBtn) prevBtn.disabled = state.currentReplayIndex < 0;
     if (nextBtn) nextBtn.disabled = state.currentReplayIndex >= events.length - 1;
     if (playBtn) playBtn.innerHTML = state.replayPlaying ? '&#10074;&#10074;' : '&#9654;';
-    if (progressEl) progressEl.textContent = t('history.moveProgress', { current: state.currentReplayIndex + 1, total: events.length });
+    if (progressEl)
+        progressEl.textContent = t('history.moveProgress', {
+            current: state.currentReplayIndex + 1,
+            total: events.length,
+        });
 }
 
 // Use event delegation on the replay controls to avoid listener accumulation.
@@ -531,7 +550,10 @@ export async function checkURLForReplayLoad(): Promise<boolean> {
         if (client?.player?.sessionId) {
             headers['X-Session-Id'] = client.player.sessionId;
         }
-        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, { signal: controller.signal, headers });
+        const response = await fetch(`/api/replays/${encodeURIComponent(roomCode)}/${encodeURIComponent(replayId)}`, {
+            signal: controller.signal,
+            headers,
+        });
         clearTimeout(timeoutId);
         if (!response.ok) {
             if (response.status === 404) {

@@ -11,7 +11,7 @@ const {
     executeCardReveal,
     determineRevealOutcome,
     switchTurn,
-    buildRevealResult
+    buildRevealResult,
 } = require('../../services/game/revealEngine');
 
 const { ERROR_CODES } = require('../../config/constants');
@@ -21,7 +21,6 @@ const { ERROR_CODES } = require('../../config/constants');
 // =============================================================================
 
 describe('Decomposed Reveal Functions', () => {
-
     describe('validateCardIndex', () => {
         it('should accept valid indices 0-24', () => {
             expect(() => validateCardIndex(0)).not.toThrow();
@@ -64,7 +63,7 @@ describe('Decomposed Reveal Functions', () => {
             currentClue: { word: 'TEST', number: 2 },
             guessesAllowed: 3,
             guessesUsed: 0,
-            revealed: Array(25).fill(false)
+            revealed: Array(25).fill(false),
         };
 
         it('should pass when all preconditions are met', () => {
@@ -106,7 +105,7 @@ describe('Decomposed Reveal Functions', () => {
                 types: Array(25).fill('neutral'),
                 redScore: 0,
                 blueScore: 0,
-                guessesUsed: 0
+                guessesUsed: 0,
             };
 
             const type = executeCardReveal(game, 5);
@@ -124,7 +123,7 @@ describe('Decomposed Reveal Functions', () => {
                 types,
                 redScore: 2,
                 blueScore: 1,
-                guessesUsed: 0
+                guessesUsed: 0,
             };
 
             executeCardReveal(game, 5);
@@ -141,7 +140,7 @@ describe('Decomposed Reveal Functions', () => {
                 types,
                 redScore: 2,
                 blueScore: 1,
-                guessesUsed: 0
+                guessesUsed: 0,
             };
 
             executeCardReveal(game, 5);
@@ -158,7 +157,7 @@ describe('Decomposed Reveal Functions', () => {
                 types,
                 redScore: 2,
                 blueScore: 1,
-                guessesUsed: 0
+                guessesUsed: 0,
             };
 
             executeCardReveal(game, 5);
@@ -176,7 +175,7 @@ describe('Decomposed Reveal Functions', () => {
                 redScore: 3,
                 blueScore: 2,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             const outcome = determineRevealOutcome(game, 'assassin', 'red');
@@ -194,7 +193,7 @@ describe('Decomposed Reveal Functions', () => {
                 redScore: 9,
                 blueScore: 2,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             const outcome = determineRevealOutcome(game, 'red', 'red');
@@ -211,7 +210,7 @@ describe('Decomposed Reveal Functions', () => {
                 redScore: 3,
                 blueScore: 8,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             const outcome = determineRevealOutcome(game, 'blue', 'blue');
@@ -232,7 +231,7 @@ describe('Decomposed Reveal Functions', () => {
                 redScore: 3,
                 blueScore: 2,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             const outcome = determineRevealOutcome(game, 'blue', 'red');
@@ -254,7 +253,7 @@ describe('Decomposed Reveal Functions', () => {
                 redScore: 5,
                 blueScore: 2,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             const outcome = determineRevealOutcome(game, 'red', 'red');
@@ -275,7 +274,7 @@ describe('Decomposed Reveal Functions', () => {
                 redScore: 4,
                 blueScore: 2,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             const outcome = determineRevealOutcome(game, 'red', 'red');
@@ -292,7 +291,7 @@ describe('Decomposed Reveal Functions', () => {
                 currentTurn: 'red',
                 currentClue: { word: 'TEST' },
                 guessesUsed: 2,
-                guessesAllowed: 3
+                guessesAllowed: 3,
             };
 
             switchTurn(game);
@@ -308,7 +307,7 @@ describe('Decomposed Reveal Functions', () => {
                 currentTurn: 'blue',
                 currentClue: { word: 'TEST' },
                 guessesUsed: 2,
-                guessesAllowed: 3
+                guessesAllowed: 3,
             };
 
             switchTurn(game);
@@ -328,7 +327,7 @@ describe('Decomposed Reveal Functions', () => {
                 guessesAllowed: 3,
                 gameOver: false,
                 winner: null,
-                types: ['red', 'blue', 'neutral']
+                types: ['red', 'blue', 'neutral'],
             };
             const outcome = { turnEnded: true, endReason: null };
 
@@ -355,7 +354,7 @@ describe('Decomposed Reveal Functions', () => {
                 guessesAllowed: 3,
                 gameOver: true,
                 winner: 'red',
-                types: ['red', 'blue', 'assassin']
+                types: ['red', 'blue', 'assassin'],
             };
             const outcome = { turnEnded: true, endReason: 'completed' };
 
@@ -381,7 +380,7 @@ describe('GameError Classes', () => {
         GameStateError,
         ValidationError,
         RateLimitError,
-        ServerError
+        ServerError,
     } = require('../../errors/GameError');
 
     describe('GameError base class', () => {
@@ -509,5 +508,4 @@ describe('GameError Classes', () => {
             expect(error.message).toContain('concurrent modifications');
         });
     });
-
 });

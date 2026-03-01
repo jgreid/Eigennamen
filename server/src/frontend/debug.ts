@@ -12,7 +12,6 @@ export const debugEnabled = (): boolean => {
     }
 };
 
-
 interface StateHistoryEntry {
     timestamp: string;
     property: string;
@@ -34,7 +33,12 @@ function safeClone(obj: unknown): unknown {
     }
 }
 
-export function logStateChange(property: string, oldValue: unknown, newValue: unknown, source: string = 'unknown'): void {
+export function logStateChange(
+    property: string,
+    oldValue: unknown,
+    newValue: unknown,
+    source: string = 'unknown'
+): void {
     if (!debugEnabled()) return;
 
     const entry: StateHistoryEntry = {
@@ -43,7 +47,7 @@ export function logStateChange(property: string, oldValue: unknown, newValue: un
         oldValue: safeClone(oldValue),
         newValue: safeClone(newValue),
         source,
-        stack: new Error().stack?.split('\n').slice(2, 5).join('\n')
+        stack: new Error().stack?.split('\n').slice(2, 5).join('\n'),
     };
 
     stateHistory.push(entry);
@@ -51,13 +55,17 @@ export function logStateChange(property: string, oldValue: unknown, newValue: un
         stateHistory.shift();
     }
 
-    console.log(`%c[State] ${property}`, 'color: #4a9eff; font-weight: bold',
-        '\nFrom:', oldValue,
-        '\nTo:', newValue,
-        '\nSource:', source
+    console.log(
+        `%c[State] ${property}`,
+        'color: #4a9eff; font-weight: bold',
+        '\nFrom:',
+        oldValue,
+        '\nTo:',
+        newValue,
+        '\nSource:',
+        source
     );
 }
-
 
 type WatcherCallback = (oldValue: unknown, newValue: unknown) => void;
 const watchers: Map<string, WatcherCallback[]> = new Map();
@@ -74,7 +82,6 @@ export function watchState(property: string, callback: WatcherCallback): () => v
         if (idx >= 0) list.splice(idx, 1);
     };
 }
-
 
 /**
  * Create a recursive Proxy that logs property mutations.
@@ -106,15 +113,18 @@ export function createStateProxy<T extends object>(target: T, path: string = 'st
                 const watcherList = watchers.get(fullPath);
                 if (watcherList) {
                     for (const cb of watcherList) {
-                        try { cb(oldValue, value); } catch { /* watcher errors are non-fatal */ }
+                        try {
+                            cb(oldValue, value);
+                        } catch {
+                            /* watcher errors are non-fatal */
+                        }
                     }
                 }
             }
             return result;
-        }
+        },
     });
 }
-
 
 export function setState(state: AppState, property: string, value: unknown, source: string = 'unknown'): void {
     const parts = property.split('.');
@@ -135,10 +145,9 @@ export function setState(state: AppState, property: string, value: unknown, sour
     logStateChange(property, oldValue, value, source);
 }
 
-
 export function getStateHistory(property: string | null = null): StateHistoryEntry[] {
     if (property) {
-        return stateHistory.filter(entry => entry.property === property);
+        return stateHistory.filter((entry) => entry.property === property);
     }
     return [...stateHistory];
 }
@@ -165,7 +174,6 @@ export function dumpState(state: AppState): void {
     console.groupEnd();
 }
 
-
 /**
  * Subscribe to the store event bus for debug logging and watcher dispatch.
  * Called once from state.ts initialization. This bridges the new reactive
@@ -187,7 +195,11 @@ export function initDebugSubscriptions(): void {
         const watcherList = watchers.get(event.path);
         if (watcherList) {
             for (const cb of watcherList) {
-                try { cb(event.oldValue, event.newValue); } catch { /* non-fatal */ }
+                try {
+                    cb(event.oldValue, event.newValue);
+                } catch {
+                    /* non-fatal */
+                }
             }
         }
     });
@@ -205,10 +217,13 @@ export function attachDebugToWindow(rawState: AppState): void {
                 localStorage.removeItem('debug');
                 delete (window as Window).__eigennamenDebug;
                 console.log('%c[Debug] Disabled — reload to take full effect', 'color: #ff0000');
-            }
+            },
         };
 
-        console.log('%c[Eigennamen Debug Mode Active]', 'color: #4a9eff; font-weight: bold',
-            '\nUse window.__eigennamenDebug for debugging utilities');
+        console.log(
+            '%c[Eigennamen Debug Mode Active]',
+            'color: #4a9eff; font-weight: bold',
+            '\nUse window.__eigennamenDebug for debugging utilities'
+        );
     }
 }

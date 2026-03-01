@@ -1,4 +1,3 @@
-
 import type { Request, Response, NextFunction } from 'express';
 
 import logger from '../utils/logger';
@@ -36,8 +35,8 @@ function notFoundHandler(_req: Request, res: Response, _next: NextFunction): voi
     res.status(404).json({
         error: {
             code: 'NOT_FOUND',
-            message: 'The requested resource was not found'
-        }
+            message: 'The requested resource was not found',
+        },
     });
 }
 
@@ -72,35 +71,50 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
             [ERROR_CODES.CANNOT_SWITCH_TEAM_DURING_TURN]: 400,
             [ERROR_CODES.CANNOT_CHANGE_ROLE_DURING_TURN]: 400,
             [ERROR_CODES.SPYMASTER_CANNOT_CHANGE_TEAM]: 400,
-            [ERROR_CODES.PLAYER_NOT_FOUND]: 404
+            [ERROR_CODES.PLAYER_NOT_FOUND]: 404,
         };
 
-        // Strip internal identifiers from details before sending to client
+        // Allowlist of detail fields that are safe to expose to clients.
+        // Any field NOT in this list is stripped, preventing accidental
+        // disclosure when new internal fields are added to GameErrorDetails.
+        const ALLOWED_DETAIL_FIELDS = ['roomCode', 'team', 'index', 'max', 'recoverable', 'suggestion', 'retryable'];
+
         const rawDetails = (err as AppError).details;
-        let safeDetails = rawDetails;
+        let safeDetails: Record<string, unknown> | undefined;
         if (rawDetails && typeof rawDetails === 'object' && !Array.isArray(rawDetails)) {
-            const { sessionId: _s, roomId: _r, operation: _o, ...rest } = rawDetails as Record<string, unknown>;
-            safeDetails = Object.keys(rest).length > 0 ? rest : undefined;
+            const filtered: Record<string, unknown> = {};
+            for (const key of ALLOWED_DETAIL_FIELDS) {
+                if (key in (rawDetails as Record<string, unknown>)) {
+                    filtered[key] = (rawDetails as Record<string, unknown>)[key];
+                }
+            }
+            safeDetails = Object.keys(filtered).length > 0 ? filtered : undefined;
         }
 
         return res.status(statusMap[err.code] || 500).json({
             error: {
                 code: err.code,
                 message: err.message,
-                ...(safeDetails !== undefined && { details: safeDetails })
-            }
+                ...(safeDetails !== undefined && { details: safeDetails }),
+            },
         });
     }
 
     // Handle validation errors (Zod)
     if (err.name === 'ZodError') {
         const zodErr = err as ZodError;
+        // In production, strip field paths to avoid exposing schema structure.
+        // In development, keep full issue details for debugging convenience.
+        const issues =
+            process.env.NODE_ENV === 'production'
+                ? zodErr.issues.map((issue) => ({ message: issue.message }))
+                : zodErr.issues;
         return res.status(400).json({
             error: {
                 code: ERROR_CODES.INVALID_INPUT,
                 message: 'Validation error',
-                details: zodErr.issues
-            }
+                details: issues,
+            },
         });
     }
 
@@ -108,10 +122,8 @@ function errorHandler(err: AppError | ZodError, _req: Request, res: Response, _n
     return res.status(500).json({
         error: {
             code: ERROR_CODES.SERVER_ERROR,
-            message: process.env.NODE_ENV === 'production'
-                ? 'Internal server error'
-                : err.message
-        }
+            message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+        },
     });
 }
 

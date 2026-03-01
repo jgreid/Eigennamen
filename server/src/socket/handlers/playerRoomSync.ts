@@ -79,32 +79,38 @@ export async function syncSpectatorRoomMembership(
 
     const entry: LockEntry = { promise: Promise.resolve(), createdAt: Date.now(), settled: false };
 
-    const newLock = existingLock.then(async () => {
-        // Re-fetch current player state to ensure we have the latest team/role
-        const currentPlayer: Player | null = await playerService.getPlayer(sessionId);
-        if (!currentPlayer) return;
+    const newLock = existingLock
+        .then(async () => {
+            // Re-fetch current player state to ensure we have the latest team/role
+            const currentPlayer: Player | null = await playerService.getPlayer(sessionId);
+            if (!currentPlayer) return;
 
-        const spectatorRoom = `spectators:${roomCode}`;
+            const spectatorRoom = `spectators:${roomCode}`;
 
-        // Player should be in spectators room if:
-        // - They have no team, OR
-        // - Their role is 'spectator'
-        const shouldBeInSpectatorRoom = isPlayerSpectator(currentPlayer);
+            // Player should be in spectators room if:
+            // - They have no team, OR
+            // - Their role is 'spectator'
+            const shouldBeInSpectatorRoom = isPlayerSpectator(currentPlayer);
 
-        if (shouldBeInSpectatorRoom) {
-            socket.join(spectatorRoom);
-        } else {
-            socket.leave(spectatorRoom);
-        }
-    }).catch((err) => {
-        logger.warn(`syncSpectatorRoomMembership failed for ${sessionId}:`, err instanceof Error ? err.message : String(err));
-    }).finally(() => {
-        entry.settled = true;
-        // Clean up lock after completion — only if this entry is still the current one
-        if (roomSyncLocks.get(lockKey) === entry) {
-            roomSyncLocks.delete(lockKey);
-        }
-    });
+            if (shouldBeInSpectatorRoom) {
+                socket.join(spectatorRoom);
+            } else {
+                socket.leave(spectatorRoom);
+            }
+        })
+        .catch((err) => {
+            logger.warn(
+                `syncSpectatorRoomMembership failed for ${sessionId}:`,
+                err instanceof Error ? err.message : String(err)
+            );
+        })
+        .finally(() => {
+            entry.settled = true;
+            // Clean up lock after completion — only if this entry is still the current one
+            if (roomSyncLocks.get(lockKey) === entry) {
+                roomSyncLocks.delete(lockKey);
+            }
+        });
 
     entry.promise = newLock;
     roomSyncLocks.set(lockKey, entry);
@@ -122,9 +128,12 @@ export async function syncSpectatorRoomMembership(
         }),
         new Promise<void>((_, reject) => {
             timeoutId = setTimeout(() => reject(new Error(`Room sync mutex timeout for ${lockKey}`)), MUTEX_TIMEOUT);
-        })
+        }),
     ]).catch((err) => {
         if (timeoutId !== undefined) clearTimeout(timeoutId);
-        logger.warn(`syncSpectatorRoomMembership mutex timeout or error for ${sessionId}:`, err instanceof Error ? err.message : String(err));
+        logger.warn(
+            `syncSpectatorRoomMembership mutex timeout or error for ${sessionId}:`,
+            err instanceof Error ? err.message : String(err)
+        );
     });
 }

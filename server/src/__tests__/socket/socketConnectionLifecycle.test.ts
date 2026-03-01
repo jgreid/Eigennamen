@@ -8,11 +8,11 @@
 // Store mock state
 let mockRedisStorage = {};
 const mockPubClient = {
-    publish: jest.fn().mockResolvedValue(1)
+    publish: jest.fn().mockResolvedValue(1),
 };
 const mockSubClient = {
     subscribe: jest.fn().mockResolvedValue(),
-    unsubscribe: jest.fn().mockResolvedValue()
+    unsubscribe: jest.fn().mockResolvedValue(),
 };
 
 const mockRedis = {
@@ -23,10 +23,10 @@ const mockRedis = {
     }),
     del: jest.fn(async (keys) => {
         const keysArray = Array.isArray(keys) ? keys : [keys];
-        keysArray.forEach(key => delete mockRedisStorage[key]);
+        keysArray.forEach((key) => delete mockRedisStorage[key]);
         return keysArray.length;
     }),
-    exists: jest.fn(async (key) => mockRedisStorage[key] ? 1 : 0),
+    exists: jest.fn(async (key) => (mockRedisStorage[key] ? 1 : 0)),
     expire: jest.fn().mockResolvedValue(1),
     sMembers: jest.fn().mockResolvedValue([]),
     sAdd: jest.fn().mockResolvedValue(1),
@@ -35,22 +35,22 @@ const mockRedis = {
     unwatch: jest.fn().mockResolvedValue('OK'),
     multi: jest.fn(() => ({
         set: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([['OK']])
-    }))
+        exec: jest.fn().mockResolvedValue([['OK']]),
+    })),
 };
 
 // Mock modules
 jest.mock('../../config/redis', () => ({
     getRedis: () => mockRedis,
     getPubSubClients: () => ({ pubClient: mockPubClient, subClient: mockSubClient }),
-    isUsingMemoryMode: jest.fn().mockReturnValue(true)
+    isUsingMemoryMode: jest.fn().mockReturnValue(true),
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../services/timerService', () => ({
@@ -58,16 +58,16 @@ jest.mock('../../services/timerService', () => ({
         startTime: Date.now(),
         endTime: Date.now() + 60000,
         duration: 60,
-        remainingSeconds: 60
+        remainingSeconds: 60,
     }),
-    stopTimer: jest.fn().mockResolvedValue()
+    stopTimer: jest.fn().mockResolvedValue(),
 }));
 
 jest.mock('../../middleware/socketAuth', () => ({
     authenticateSocket: jest.fn((socket, next) => {
         socket.sessionId = socket.handshake?.auth?.sessionId || 'test-session';
         next();
-    })
+    }),
 }));
 
 jest.mock('../../socket/handlers/roomHandlers', () => jest.fn());
@@ -80,7 +80,7 @@ jest.mock('../../socket/rateLimitHandler', () => ({
     createRateLimitedHandler: jest.fn((socket, eventName, handler) => handler),
     getSocketRateLimiter: jest.fn(),
     startRateLimitCleanup: jest.fn(),
-    stopRateLimitCleanup: jest.fn()
+    stopRateLimitCleanup: jest.fn(),
 }));
 
 const http = require('http');
@@ -99,7 +99,7 @@ describe('Socket Connection Lifecycle', () => {
         httpServer = http.createServer();
         ioServer = new Server(httpServer, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         ioServer.use((socket, next) => {
@@ -133,7 +133,7 @@ describe('Socket Connection Lifecycle', () => {
 
             clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket'],
-                auth: { sessionId: 'client-session-123' }
+                auth: { sessionId: 'client-session-123' },
             });
         });
 
@@ -144,7 +144,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
         });
 
@@ -156,7 +156,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
         });
 
@@ -168,16 +168,18 @@ describe('Socket Connection Lifecycle', () => {
             ioServer.on('connection', () => {
                 connectionCount++;
                 if (connectionCount === targetConnections) {
-                    clients.forEach(c => c.disconnect());
+                    clients.forEach((c) => c.disconnect());
                     done();
                 }
             });
 
             for (let i = 0; i < targetConnections; i++) {
-                clients.push(Client(`http://localhost:${testPort}`, {
-                    transports: ['websocket'],
-                    auth: { sessionId: `session-${i}` }
-                }));
+                clients.push(
+                    Client(`http://localhost:${testPort}`, {
+                        transports: ['websocket'],
+                        auth: { sessionId: `session-${i}` },
+                    })
+                );
             }
         });
     });
@@ -192,7 +194,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
 
             clientSocket.on('connect', () => {
@@ -213,7 +215,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
 
             clientSocket.on('connect', () => {
@@ -230,7 +232,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
 
             clientSocket.on('connect', () => {
@@ -250,7 +252,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
         });
 
@@ -260,7 +262,7 @@ describe('Socket Connection Lifecycle', () => {
             expect(() => {
                 badClient = Client(`http://localhost:99999`, {
                     transports: ['websocket'],
-                    timeout: 100
+                    timeout: 100,
                 });
             }).not.toThrow();
             if (badClient) badClient.disconnect();
@@ -278,7 +280,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
         });
 
@@ -292,7 +294,7 @@ describe('Socket Connection Lifecycle', () => {
 
             clientSocket = Client(`http://localhost:${testPort}`, {
                 transports: ['websocket'],
-                auth: { sessionId: 'player-123' }
+                auth: { sessionId: 'player-123' },
             });
         });
 
@@ -306,7 +308,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
 
             clientSocket.on('connect', () => {
@@ -337,7 +339,7 @@ describe('Socket Connection Lifecycle', () => {
             });
 
             clientSocket = Client(`http://localhost:${testPort}`, {
-                transports: ['websocket']
+                transports: ['websocket'],
             });
 
             clientSocket.on('connect', () => {
@@ -406,17 +408,17 @@ describe('Timer Expire Callback Behavior', () => {
         gameService.getGame = jest.fn().mockResolvedValue({
             id: 'game-1',
             currentTurn: 'red',
-            gameOver: false
+            gameOver: false,
         });
 
         gameService.endTurn = jest.fn().mockResolvedValue({
             currentTurn: 'blue',
-            previousTurn: 'red'
+            previousTurn: 'red',
         });
 
         roomService.getRoom = jest.fn().mockResolvedValue({
             code: 'TEST12',
-            settings: { turnTimer: 60 }
+            settings: { turnTimer: 60 },
         });
 
         // Verify the game service works correctly
@@ -435,7 +437,7 @@ describe('Timer Expire Callback Behavior', () => {
             id: 'game-1',
             currentTurn: 'red',
             gameOver: true,
-            winner: 'blue'
+            winner: 'blue',
         });
 
         gameService.endTurn = jest.fn();
@@ -480,7 +482,7 @@ describe('Disconnect Handler Behavior', () => {
             roomCode: 'TEST12',
             team: 'red',
             isHost: false,
-            connected: true
+            connected: true,
         });
 
         playerService.handleDisconnect = jest.fn().mockResolvedValue();
@@ -502,26 +504,26 @@ describe('Disconnect Handler Behavior', () => {
             nickname: 'Host',
             roomCode: 'TEST12',
             isHost: true,
-            connected: true
+            connected: true,
         });
 
         playerService.getPlayersInRoom = jest.fn().mockResolvedValue([
             { sessionId: 'player-2', nickname: 'Player2', connected: true },
-            { sessionId: 'player-3', nickname: 'Player3', connected: true }
+            { sessionId: 'player-3', nickname: 'Player3', connected: true },
         ]);
 
         playerService.updatePlayer = jest.fn().mockResolvedValue({});
 
         roomService.getRoom = jest.fn().mockResolvedValue({
             code: 'TEST12',
-            hostSessionId: 'host-session'
+            hostSessionId: 'host-session',
         });
 
         const player = await playerService.getPlayer('host-session');
         expect(player.isHost).toBe(true);
 
         const players = await playerService.getPlayersInRoom('TEST12');
-        const connectedPlayers = players.filter(p => p.connected);
+        const connectedPlayers = players.filter((p) => p.connected);
 
         if (player.isHost && connectedPlayers.length > 0) {
             const newHost = connectedPlayers[0];
@@ -540,7 +542,7 @@ describe('Disconnect Handler Behavior', () => {
             sessionId: 'session-1',
             nickname: 'Player1',
             roomCode: null,
-            connected: true
+            connected: true,
         });
 
         const player = await playerService.getPlayer('session-1');

@@ -21,22 +21,22 @@ See the project README for WebSocket event documentation.
             `,
         license: {
             name: 'GPL-3.0',
-            url: 'https://www.gnu.org/licenses/gpl-3.0.en.html'
-        }
+            url: 'https://www.gnu.org/licenses/gpl-3.0.en.html',
+        },
     },
     servers: [
         {
             url: '/api',
-            description: 'API routes'
+            description: 'API routes',
         },
         {
             url: '/',
-            description: 'Root routes (health checks)'
-        }
+            description: 'Root routes (health checks)',
+        },
     ],
     tags: [
         { name: 'Health', description: 'Server health and monitoring endpoints' },
-        { name: 'Rooms', description: 'Game room management' }
+        { name: 'Rooms', description: 'Game room management' },
     ],
     components: {
         schemas: {
@@ -48,43 +48,43 @@ See the project README for WebSocket event documentation.
                         properties: {
                             code: {
                                 type: 'string',
-                                description: 'Error code for programmatic handling'
+                                description: 'Error code for programmatic handling',
                             },
                             message: {
                                 type: 'string',
-                                description: 'Human-readable error message'
-                            }
-                        }
-                    }
-                }
+                                description: 'Human-readable error message',
+                            },
+                        },
+                    },
+                },
             },
             HealthCheck: {
                 type: 'object',
                 properties: {
                     status: {
                         type: 'string',
-                        enum: ['ok', 'live', 'ready', 'degraded', 'error']
+                        enum: ['ok', 'live', 'ready', 'degraded', 'error'],
                     },
                     timestamp: {
                         type: 'string',
-                        format: 'date-time'
+                        format: 'date-time',
                     },
                     uptime: {
                         type: 'integer',
-                        description: 'Server uptime in seconds'
-                    }
-                }
+                        description: 'Server uptime in seconds',
+                    },
+                },
             },
             ReadinessCheck: {
                 type: 'object',
                 properties: {
                     status: {
                         type: 'string',
-                        enum: ['ready', 'degraded', 'error']
+                        enum: ['ready', 'degraded', 'error'],
                     },
                     timestamp: {
                         type: 'string',
-                        format: 'date-time'
+                        format: 'date-time',
                     },
                     checks: {
                         type: 'object',
@@ -93,19 +93,19 @@ See the project README for WebSocket event documentation.
                                 type: 'object',
                                 properties: {
                                     healthy: { type: 'boolean' },
-                                    mode: { type: 'string', enum: ['redis', 'memory'] }
-                                }
+                                    mode: { type: 'string', enum: ['redis', 'memory'] },
+                                },
                             },
                             pubsub: {
                                 type: 'object',
                                 properties: {
                                     healthy: { type: 'boolean' },
-                                    status: { type: 'string' }
-                                }
-                            }
-                        }
-                    }
-                }
+                                    status: { type: 'string' },
+                                },
+                            },
+                        },
+                    },
+                },
             },
             Metrics: {
                 type: 'object',
@@ -115,25 +115,25 @@ See the project README for WebSocket event documentation.
                         type: 'object',
                         properties: {
                             seconds: { type: 'integer' },
-                            startTime: { type: 'string', format: 'date-time' }
-                        }
+                            startTime: { type: 'string', format: 'date-time' },
+                        },
                     },
                     memory: {
                         type: 'object',
                         properties: {
                             heapUsed: { type: 'string' },
                             heapTotal: { type: 'string' },
-                            rss: { type: 'string' }
-                        }
+                            rss: { type: 'string' },
+                        },
                     },
                     redis: {
                         type: 'object',
                         properties: {
                             mode: { type: 'string' },
-                            healthy: { type: 'boolean' }
-                        }
-                    }
-                }
+                            healthy: { type: 'boolean' },
+                        },
+                    },
+                },
             },
             RoomInfo: {
                 type: 'object',
@@ -144,11 +144,11 @@ See the project README for WebSocket event documentation.
                             code: {
                                 type: 'string',
                                 pattern: '^[A-Z0-9]{6}$',
-                                description: '6-character room code'
+                                description: '6-character room code',
                             },
                             status: {
                                 type: 'string',
-                                enum: ['waiting', 'playing', 'finished']
+                                enum: ['waiting', 'playing', 'finished'],
                             },
                             settings: {
                                 type: 'object',
@@ -157,30 +157,30 @@ See the project README for WebSocket event documentation.
                                         type: 'object',
                                         properties: {
                                             red: { type: 'string' },
-                                            blue: { type: 'string' }
-                                        }
+                                            blue: { type: 'string' },
+                                        },
                                     },
-                                    allowSpectators: { type: 'boolean' }
-                                }
-                            }
-                        }
+                                    allowSpectators: { type: 'boolean' },
+                                },
+                            },
+                        },
                     },
                     playerCount: {
                         type: 'integer',
-                        description: 'Number of players in the room'
-                    }
-                }
+                        description: 'Number of players in the room',
+                    },
+                },
             },
             RoomExists: {
                 type: 'object',
                 properties: {
                     exists: {
                         type: 'boolean',
-                        description: 'Whether the room exists'
-                    }
-                }
-            }
-        }
+                        description: 'Whether the room exists',
+                    },
+                },
+            },
+        },
     },
     paths: {
         // Health endpoints
@@ -194,37 +194,38 @@ See the project README for WebSocket event documentation.
                         description: 'Server is healthy',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/HealthCheck' }
-                            }
-                        }
-                    }
-                }
-            }
+                                schema: { $ref: '#/components/schemas/HealthCheck' },
+                            },
+                        },
+                    },
+                },
+            },
         },
         '/health/ready': {
             get: {
                 tags: ['Health'],
                 summary: 'Readiness check',
-                description: 'Checks all dependencies (Redis, Pub/Sub). Returns 503 if any are unhealthy. Used by load balancers.',
+                description:
+                    'Checks all dependencies (Redis, Pub/Sub). Returns 503 if any are unhealthy. Used by load balancers.',
                 responses: {
                     '200': {
                         description: 'All dependencies healthy',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/ReadinessCheck' }
-                            }
-                        }
+                                schema: { $ref: '#/components/schemas/ReadinessCheck' },
+                            },
+                        },
                     },
                     '503': {
                         description: 'One or more dependencies unhealthy',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/ReadinessCheck' }
-                            }
-                        }
-                    }
-                }
-            }
+                                schema: { $ref: '#/components/schemas/ReadinessCheck' },
+                            },
+                        },
+                    },
+                },
+            },
         },
         '/health/live': {
             get: {
@@ -236,12 +237,12 @@ See the project README for WebSocket event documentation.
                         description: 'Process is alive',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/HealthCheck' }
-                            }
-                        }
-                    }
-                }
-            }
+                                schema: { $ref: '#/components/schemas/HealthCheck' },
+                            },
+                        },
+                    },
+                },
+            },
         },
         '/metrics': {
             get: {
@@ -253,20 +254,20 @@ See the project README for WebSocket event documentation.
                         description: 'Metrics retrieved successfully',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/Metrics' }
-                            }
-                        }
+                                schema: { $ref: '#/components/schemas/Metrics' },
+                            },
+                        },
                     },
                     '500': {
                         description: 'Failed to collect metrics',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/Error' }
-                            }
-                        }
-                    }
-                }
-            }
+                                schema: { $ref: '#/components/schemas/Error' },
+                            },
+                        },
+                    },
+                },
+            },
         },
         // Room endpoints
         '/api/rooms/{code}/exists': {
@@ -280,28 +281,28 @@ See the project README for WebSocket event documentation.
                         in: 'path',
                         required: true,
                         schema: { type: 'string', pattern: '^[A-Za-z0-9]{6}$' },
-                        description: '6-character room code (case-insensitive)'
-                    }
+                        description: '6-character room code (case-insensitive)',
+                    },
                 ],
                 responses: {
                     '200': {
                         description: 'Check completed',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/RoomExists' }
-                            }
-                        }
+                                schema: { $ref: '#/components/schemas/RoomExists' },
+                            },
+                        },
                     },
                     '400': {
                         description: 'Invalid room code format',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/Error' }
-                            }
-                        }
-                    }
-                }
-            }
+                                schema: { $ref: '#/components/schemas/Error' },
+                            },
+                        },
+                    },
+                },
+            },
         },
         '/api/rooms/{code}': {
             get: {
@@ -314,45 +315,49 @@ See the project README for WebSocket event documentation.
                         in: 'path',
                         required: true,
                         schema: { type: 'string', pattern: '^[A-Za-z0-9]{6}$' },
-                        description: '6-character room code (case-insensitive)'
-                    }
+                        description: '6-character room code (case-insensitive)',
+                    },
                 ],
                 responses: {
                     '200': {
                         description: 'Room info retrieved',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/RoomInfo' }
-                            }
-                        }
+                                schema: { $ref: '#/components/schemas/RoomInfo' },
+                            },
+                        },
                     },
                     '400': {
                         description: 'Invalid room code format',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/Error' }
-                            }
-                        }
+                                schema: { $ref: '#/components/schemas/Error' },
+                            },
+                        },
                     },
                     '404': {
                         description: 'Room not found',
                         content: {
                             'application/json': {
-                                schema: { $ref: '#/components/schemas/Error' }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+                                schema: { $ref: '#/components/schemas/Error' },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
 };
 
 export function setupSwagger(app: Express): void {
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-        customCss: '.swagger-ui .topbar { display: none }',
-        customSiteTitle: 'Eigennamen API Documentation'
-    }));
+    app.use(
+        '/api-docs',
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerSpec, {
+            customCss: '.swagger-ui .topbar { display: none }',
+            customSiteTitle: 'Eigennamen API Documentation',
+        })
+    );
 
     app.get('/api-docs.json', (_req: Request, res: Response) => {
         res.setHeader('Content-Type', 'application/json');

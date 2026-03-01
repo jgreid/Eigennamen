@@ -22,16 +22,8 @@ export interface RetryOptions {
  * @returns The result of the successful operation
  * @throws The last error if all retries are exhausted
  */
-export async function retryAsync<T>(
-    fn: () => Promise<T>,
-    options: RetryOptions = {}
-): Promise<T> {
-    const {
-        maxRetries = 3,
-        baseDelayMs = 50,
-        operationName = 'operation',
-        exponentialBackoff = true,
-    } = options;
+export async function retryAsync<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
+    const { maxRetries = 3, baseDelayMs = 50, operationName = 'operation', exponentialBackoff = true } = options;
 
     let lastError: Error = new Error(`${operationName} failed`);
 
@@ -46,13 +38,13 @@ export async function retryAsync<T>(
                 break;
             }
 
-            const delay = exponentialBackoff
-                ? baseDelayMs * Math.pow(2, attempt)
-                : baseDelayMs;
+            const delay = exponentialBackoff ? baseDelayMs * Math.pow(2, attempt) : baseDelayMs;
 
-            logger.warn(`${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${lastError.message}`);
+            logger.warn(
+                `${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${lastError.message}`
+            );
             // eslint-disable-next-line no-await-in-loop -- deliberate delay between retries
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise((resolve) => setTimeout(resolve, delay));
         }
     }
 

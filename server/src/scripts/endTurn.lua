@@ -1,3 +1,14 @@
+-- endTurn.lua
+-- Description: Atomically ends the current team's turn, switches to the other team, and records the action in history
+--
+-- KEYS[1]: Game key (e.g., `game:room:ABC123`)
+-- ARGV[1]: Player nickname
+-- ARGV[2]: Timestamp (ms)
+-- ARGV[3]: Max history entries
+-- ARGV[4]: Expected current turn team (race condition guard)
+--
+-- Returns: JSON `{success: true, previousTurn, currentTurn}` or `{error: 'CODE'}`
+
 local gameKey = KEYS[1]
 local playerNickname = ARGV[1]
 local timestamp = tonumber(ARGV[2])

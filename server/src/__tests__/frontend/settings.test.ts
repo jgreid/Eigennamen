@@ -15,7 +15,7 @@ const mockShowToast = jest.fn();
 jest.mock('../../frontend/ui', () => ({
     openModal: mockOpenModal,
     closeModal: mockCloseModal,
-    showToast: mockShowToast
+    showToast: mockShowToast,
 }));
 
 jest.mock('../../frontend/state', () => ({
@@ -25,51 +25,70 @@ jest.mock('../../frontend/state', () => ({
         wordSource: 'default',
         wordListMode: 'combined',
         language: 'en',
-        gameState: { status: 'waiting' }
+        gameState: { status: 'waiting' },
     },
     BOARD_SIZE: 25,
-    DEFAULT_WORDS: Array.from({ length: 50 }, (_, i) => `WORD${i}`)
+    DEFAULT_WORDS: Array.from({ length: 50 }, (_, i) => `WORD${i}`),
 }));
 
 jest.mock('../../frontend/i18n', () => ({
     t: jest.fn((key, params) => {
         if (key === 'wordList.usingDefault') return `Using ${params?.count} default words`;
-        if (key === 'wordList.customPlusDefault') return `${params?.custom} custom + ${params?.default} default = ${params?.total} total`;
+        if (key === 'wordList.customPlusDefault')
+            return `${params?.custom} custom + ${params?.default} default = ${params?.total} total`;
         if (key === 'wordList.zeroWords') return `Need at least ${params?.min} words`;
         if (key === 'wordList.tooFewWords') return `${params?.count} words (need ${params?.min})`;
         if (key === 'wordList.lowVariety') return `${params?.count} words (low variety)`;
         if (key === 'wordList.customWordCount') return `${params?.count} custom words`;
         return key;
-    })
+    }),
 }));
 
 jest.mock('../../frontend/game', () => ({
     updateURL: jest.fn(),
     updateScoreboard: jest.fn(),
-    updateTurnIndicator: jest.fn()
+    updateTurnIndicator: jest.fn(),
 }));
 
 jest.mock('../../frontend/utils', () => ({
     updateCharCounter: jest.fn(),
     safeGetItem: jest.fn((key, fallback) => {
-        try { return localStorage.getItem(key) ?? fallback ?? null; } catch { return fallback ?? null; }
+        try {
+            return localStorage.getItem(key) ?? fallback ?? null;
+        } catch {
+            return fallback ?? null;
+        }
     }),
     safeSetItem: jest.fn((key, value) => {
-        try { localStorage.setItem(key, value); } catch { /* ignore */ }
+        try {
+            localStorage.setItem(key, value);
+        } catch {
+            /* ignore */
+        }
     }),
     safeRemoveItem: jest.fn((key) => {
-        try { localStorage.removeItem(key); } catch { /* ignore */ }
-    })
+        try {
+            localStorage.removeItem(key);
+        } catch {
+            /* ignore */
+        }
+    }),
 }));
 
 jest.mock('../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
 import {
-    parseWords, openSettings, closeSettings, switchSettingsPanel,
-    updateWordCount, saveSettings, resetWords, loadLocalSettings,
-    initSettingsListeners
+    parseWords,
+    openSettings,
+    closeSettings,
+    switchSettingsPanel,
+    updateWordCount,
+    saveSettings,
+    resetWords,
+    loadLocalSettings,
+    initSettingsListeners,
 } from '../../frontend/settings';
 import { state, DEFAULT_WORDS } from '../../frontend/state';
 
@@ -206,13 +225,25 @@ describe('settings module', () => {
         });
 
         test('shows warning for low variety in custom mode', () => {
-            setupWordCountDOM('custom', Array(30).fill(0).map((_, i) => `WORD${i}`).join('\n'));
+            setupWordCountDOM(
+                'custom',
+                Array(30)
+                    .fill(0)
+                    .map((_, i) => `WORD${i}`)
+                    .join('\n')
+            );
             updateWordCount();
             expect(document.getElementById('word-count')!.className).toContain('warning');
         });
 
         test('shows normal count for sufficient custom words', () => {
-            setupWordCountDOM('custom', Array(60).fill(0).map((_, i) => `WORD${i}`).join('\n'));
+            setupWordCountDOM(
+                'custom',
+                Array(60)
+                    .fill(0)
+                    .map((_, i) => `WORD${i}`)
+                    .join('\n')
+            );
             updateWordCount();
             expect(document.getElementById('word-count')!.className).toBe('word-count');
         });
@@ -254,7 +285,7 @@ describe('settings module', () => {
             setupSaveSettingsDOM('Red', 'Blue', 'custom', words);
             saveSettings();
             expect(state.wordSource).toBe('custom');
-            expect(state.activeWords.every(w => w.startsWith('CUSTOM'))).toBe(true);
+            expect(state.activeWords.every((w) => w.startsWith('CUSTOM'))).toBe(true);
         });
 
         test('rejects custom mode with too few words', () => {

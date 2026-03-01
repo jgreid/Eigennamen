@@ -52,7 +52,7 @@ jest.mock('../../utils/logger', () => ({
 import { DistributedLock } from '../../utils/distributedLock';
 
 function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe('Distributed Lock Contention', () => {
@@ -200,9 +200,13 @@ describe('Distributed Lock Contention', () => {
             mockLocks.set('lock:held-key-2', 'permanent-holder');
 
             await expect(
-                lock.withLock('held-key-2', async () => {
-                    return 'should not reach here';
-                }, { maxRetries: 2, retryDelay: 10 })
+                lock.withLock(
+                    'held-key-2',
+                    async () => {
+                        return 'should not reach here';
+                    },
+                    { maxRetries: 2, retryDelay: 10 }
+                )
             ).rejects.toThrow('Failed to acquire lock');
         });
     });

@@ -1,3 +1,16 @@
+-- atomicSaveGameHistory.lua
+-- Description: Atomically saves a game history entry with TTL, adds it to a sorted index, and trims old entries
+--
+-- KEYS[1]: Game history entry key
+-- KEYS[2]: Game history index key
+-- ARGV[1]: Game data JSON
+-- ARGV[2]: History ID (UUID)
+-- ARGV[3]: Timestamp (seconds)
+-- ARGV[4]: History entry TTL (seconds)
+-- ARGV[5]: Max history entries to retain
+--
+-- Returns: Always 1
+
 local gameKey = KEYS[1]
 local indexKey = KEYS[2]
 local gameJson = ARGV[1]

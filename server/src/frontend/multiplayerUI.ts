@@ -5,7 +5,13 @@ import { VALIDATION, UI } from './constants.js';
 import { t } from './i18n.js';
 import { showChatPanel, hideChatPanel, initChat } from './chat.js';
 import { getClient, isClientConnected } from './clientAccessor.js';
-import type { ServerPlayerData, ServerRoomData, ServerGameData, RoomStats, SpectatorChatData } from './multiplayerTypes.js';
+import type {
+    ServerPlayerData,
+    ServerRoomData,
+    ServerGameData,
+    RoomStats,
+    SpectatorChatData,
+} from './multiplayerTypes.js';
 
 // Session ID pending kick confirmation (used by confirm-kick-modal)
 let pendingKickSessionId: string | null = null;
@@ -23,7 +29,11 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
 
     if (room) {
         if (codeEl) codeEl.textContent = room.code;
-        if (countEl) countEl.textContent = (players?.length === 1) ? t('multiplayer.playerCountOne') : t('multiplayer.playerCount', { count: players?.length || 1 });
+        if (countEl)
+            countEl.textContent =
+                players?.length === 1
+                    ? t('multiplayer.playerCountOne')
+                    : t('multiplayer.playerCount', { count: players?.length || 1 });
         if (indicator) indicator.classList.add('active');
 
         // Show multiplayer-only buttons row (history + forfeit)
@@ -39,7 +49,6 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         if (playersUl && players) {
             updatePlayerList(playersUl, players);
         }
-
     } else {
         if (indicator) indicator.classList.remove('active');
         if (playerListEl) playerListEl.style.display = 'none';
@@ -96,7 +105,8 @@ export function updatePlayerList(ul: HTMLUListElement, players: ServerPlayerData
 
         const roleSpan = document.createElement('span');
         roleSpan.className = 'player-role';
-        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
+        roleSpan.textContent =
+            (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
         info.appendChild(roleSpan);
 
         li.appendChild(info);
@@ -147,7 +157,7 @@ export function updateRoomSettingsNavVisibility(): void {
     const navItem = document.getElementById('nav-room-settings');
     if (navItem) {
         const isHost = getClient()?.player?.isHost;
-        navItem.style.display = (state.isMultiplayerMode && isHost) ? 'flex' : 'none';
+        navItem.style.display = state.isMultiplayerMode && isHost ? 'flex' : 'none';
     }
 }
 
@@ -301,7 +311,6 @@ export function sendSpectatorChat(message: string): void {
     EigennamenClient.sendSpectatorChat(message.trim());
 }
 
-
 /**
  * Show forfeit confirmation modal (host only, during active game)
  */
@@ -365,13 +374,10 @@ export function updateForfeitButton(): void {
     const forfeitBtn = document.getElementById('btn-forfeit');
     if (!forfeitBtn) return;
 
-    const shouldShow = state.isMultiplayerMode
-        && getClient()?.player?.isHost
-        && !state.gameState.gameOver;
+    const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
 
     forfeitBtn.style.display = shouldShow ? 'inline-block' : 'none';
 }
-
 
 /**
  * Initialize nickname edit UI event handlers
@@ -424,8 +430,18 @@ function saveNickname(): void {
     const input = document.getElementById('nickname-edit-input') as HTMLInputElement;
     const nickname = input?.value?.trim();
 
-    if (!nickname || nickname.length < VALIDATION.NICKNAME_MIN_LENGTH || nickname.length > VALIDATION.NICKNAME_MAX_LENGTH) {
-        showToast(t('multiplayer.nicknameLength', { min: VALIDATION.NICKNAME_MIN_LENGTH, max: VALIDATION.NICKNAME_MAX_LENGTH }), 'warning');
+    if (
+        !nickname ||
+        nickname.length < VALIDATION.NICKNAME_MIN_LENGTH ||
+        nickname.length > VALIDATION.NICKNAME_MAX_LENGTH
+    ) {
+        showToast(
+            t('multiplayer.nicknameLength', {
+                min: VALIDATION.NICKNAME_MIN_LENGTH,
+                max: VALIDATION.NICKNAME_MAX_LENGTH,
+            }),
+            'warning'
+        );
         return;
     }
 
@@ -437,7 +453,11 @@ function saveNickname(): void {
     if (isClientConnected()) {
         EigennamenClient.setNickname(nickname);
         // Update stored nickname
-        try { localStorage.setItem('eigennamen-nickname', nickname); } catch { /* ignore */ }
+        try {
+            localStorage.setItem('eigennamen-nickname', nickname);
+        } catch {
+            /* ignore */
+        }
         showToast(t('multiplayer.nicknameUpdated'), 'success', 2000);
     }
 
@@ -450,7 +470,6 @@ function cancelNicknameEdit(): void {
     if (form) form.style.display = 'none';
     if (editBtn) editBtn.style.display = '';
 }
-
 
 /**
  * Show the reconnection overlay banner with a timeout fallback.

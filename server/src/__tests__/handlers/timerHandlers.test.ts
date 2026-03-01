@@ -12,7 +12,7 @@ jest.mock('../../socket/socketFunctionProvider');
 const { SAFE_ERROR_CODES, createMockRateLimitHandler } = require('../helpers/mocks');
 jest.mock('../../socket/rateLimitHandler', () => ({
     createRateLimitedHandler: createMockRateLimitHandler(SAFE_ERROR_CODES),
-    socketRateLimiter: { getLimiter: jest.fn() }
+    socketRateLimiter: { getLimiter: jest.fn() },
 }));
 
 const playerService = require('../../services/playerService');
@@ -43,19 +43,19 @@ describe('Timer Handlers', () => {
             }),
             join: jest.fn(),
             leave: jest.fn(),
-            _handlers: {}
+            _handlers: {},
         };
 
         // Create mock io
         mockIo = {
             to: jest.fn().mockReturnThis(),
-            emit: jest.fn()
+            emit: jest.fn(),
         };
 
         // Setup default mocks
         getSocketFunctions.mockReturnValue({
             startTurnTimer: jest.fn(),
-            createTimerExpireCallback: jest.fn(() => jest.fn())
+            createTimerExpireCallback: jest.fn(() => jest.fn()),
         });
 
         // Default player mock with roomCode for context handler
@@ -63,11 +63,11 @@ describe('Timer Handlers', () => {
             sessionId: 'test-session-id',
             roomCode: 'TEST01',
             isHost: true,
-            nickname: 'HostPlayer'
+            nickname: 'HostPlayer',
         });
         gameService.getGame.mockResolvedValue({
             currentTurn: 'red',
-            gameOver: false
+            gameOver: false,
         });
 
         // Register handlers
@@ -84,7 +84,7 @@ describe('Timer Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'You must be in a room to perform this action'
+                message: 'You must be in a room to perform this action',
             });
         });
 
@@ -93,15 +93,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: false,
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
 
             const handler = mockSocket._handlers['timer:pause'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: 'NOT_HOST',
+                })
+            );
         });
 
         it('should pause timer successfully when host', async () => {
@@ -109,11 +112,11 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             timerService.pauseTimer.mockResolvedValue({
-                remainingSeconds: 45
+                remainingSeconds: 45,
             });
 
             const handler = mockSocket._handlers['timer:pause'];
@@ -121,10 +124,13 @@ describe('Timer Handlers', () => {
 
             expect(timerService.pauseTimer).toHaveBeenCalledWith('TEST01');
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST01');
-            expect(mockIo.emit).toHaveBeenCalledWith('timer:paused', expect.objectContaining({
-                roomCode: 'TEST01',
-                remainingSeconds: 45
-            }));
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'timer:paused',
+                expect.objectContaining({
+                    roomCode: 'TEST01',
+                    remainingSeconds: 45,
+                })
+            );
         });
 
         it('should emit error when no active timer', async () => {
@@ -132,7 +138,7 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             timerService.pauseTimer.mockResolvedValue(null);
@@ -143,7 +149,7 @@ describe('Timer Handlers', () => {
             // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
 
@@ -153,9 +159,12 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:pause'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: ERROR_CODES.SERVER_ERROR
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.SERVER_ERROR,
+                })
+            );
         });
     });
 
@@ -169,7 +178,7 @@ describe('Timer Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'You must be in a room to perform this action'
+                message: 'You must be in a room to perform this action',
             });
         });
 
@@ -178,15 +187,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: false,
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
 
             const handler = mockSocket._handlers['timer:resume'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: 'NOT_HOST',
+                })
+            );
         });
 
         it('should resume timer successfully when host', async () => {
@@ -194,13 +206,13 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             const endTime = Date.now() + 45000;
             timerService.resumeTimer.mockResolvedValue({
                 remainingSeconds: 45,
-                endTime: endTime
+                endTime: endTime,
             });
 
             const handler = mockSocket._handlers['timer:resume'];
@@ -208,11 +220,14 @@ describe('Timer Handlers', () => {
 
             expect(timerService.resumeTimer).toHaveBeenCalledWith('TEST01', expect.any(Function));
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST01');
-            expect(mockIo.emit).toHaveBeenCalledWith('timer:resumed', expect.objectContaining({
-                roomCode: 'TEST01',
-                remainingSeconds: 45,
-                endTime: endTime
-            }));
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'timer:resumed',
+                expect.objectContaining({
+                    roomCode: 'TEST01',
+                    remainingSeconds: 45,
+                    endTime: endTime,
+                })
+            );
         });
 
         it('should emit error when no paused timer', async () => {
@@ -220,7 +235,7 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             timerService.resumeTimer.mockResolvedValue(null);
@@ -231,7 +246,7 @@ describe('Timer Handlers', () => {
             // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
 
@@ -240,18 +255,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             const mockExpireCallback = jest.fn();
             getSocketFunctions.mockReturnValue({
                 startTurnTimer: jest.fn(),
-                createTimerExpireCallback: jest.fn(() => mockExpireCallback)
+                createTimerExpireCallback: jest.fn(() => mockExpireCallback),
             });
 
             timerService.resumeTimer.mockResolvedValue({
                 remainingSeconds: 45,
-                endTime: Date.now() + 45000
+                endTime: Date.now() + 45000,
             });
 
             const handler = mockSocket._handlers['timer:resume'];
@@ -273,7 +288,7 @@ describe('Timer Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'You must be in a room to perform this action'
+                message: 'You must be in a room to perform this action',
             });
         });
 
@@ -282,15 +297,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: false,
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
 
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 30 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: 'NOT_HOST',
+                })
+            );
         });
 
         it('should add time successfully when host', async () => {
@@ -298,13 +316,13 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             const endTime = Date.now() + 75000;
             timerService.addTime.mockResolvedValue({
                 remainingSeconds: 75,
-                endTime: endTime
+                endTime: endTime,
             });
 
             const handler = mockSocket._handlers['timer:addTime'];
@@ -312,12 +330,15 @@ describe('Timer Handlers', () => {
 
             expect(timerService.addTime).toHaveBeenCalledWith('TEST01', 30, expect.any(Function));
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST01');
-            expect(mockIo.emit).toHaveBeenCalledWith('timer:timeAdded', expect.objectContaining({
-                roomCode: 'TEST01',
-                secondsAdded: 30,
-                newEndTime: endTime,
-                remainingSeconds: 75
-            }));
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'timer:timeAdded',
+                expect.objectContaining({
+                    roomCode: 'TEST01',
+                    secondsAdded: 30,
+                    newEndTime: endTime,
+                    remainingSeconds: 75,
+                })
+            );
         });
 
         it('should reject invalid seconds (too low)', async () => {
@@ -325,15 +346,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 5 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                message: expect.stringContaining('10 seconds')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('10 seconds'),
+                })
+            );
         });
 
         it('should reject invalid seconds (too high)', async () => {
@@ -341,15 +365,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 500 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                message: expect.stringContaining('5 minutes')
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    message: expect.stringContaining('5 minutes'),
+                })
+            );
         });
 
         it('should emit error when no active timer', async () => {
@@ -357,7 +384,7 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             timerService.addTime.mockResolvedValue(null);
@@ -368,7 +395,7 @@ describe('Timer Handlers', () => {
             // Note: SERVER_ERROR is not in SAFE_ERROR_CODES, so message is sanitized
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.SERVER_ERROR,
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
     });
@@ -383,7 +410,7 @@ describe('Timer Handlers', () => {
 
             expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', {
                 code: ERROR_CODES.ROOM_NOT_FOUND,
-                message: 'You must be in a room to perform this action'
+                message: 'You must be in a room to perform this action',
             });
         });
 
@@ -392,15 +419,18 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: false,
-                nickname: 'TestPlayer'
+                nickname: 'TestPlayer',
             });
 
             const handler = mockSocket._handlers['timer:stop'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: 'NOT_HOST'
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: 'NOT_HOST',
+                })
+            );
         });
 
         it('should stop timer successfully when host', async () => {
@@ -408,7 +438,7 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             timerService.stopTimer.mockResolvedValue(undefined);
@@ -418,9 +448,12 @@ describe('Timer Handlers', () => {
 
             expect(timerService.stopTimer).toHaveBeenCalledWith('TEST01');
             expect(mockIo.to).toHaveBeenCalledWith('room:TEST01');
-            expect(mockIo.emit).toHaveBeenCalledWith('timer:stopped', expect.objectContaining({
-                roomCode: 'TEST01'
-            }));
+            expect(mockIo.emit).toHaveBeenCalledWith(
+                'timer:stopped',
+                expect.objectContaining({
+                    roomCode: 'TEST01',
+                })
+            );
         });
 
         it('should handle service errors gracefully', async () => {
@@ -428,7 +461,7 @@ describe('Timer Handlers', () => {
                 sessionId: 'test-session-id',
                 roomCode: 'TEST01',
                 isHost: true,
-                nickname: 'HostPlayer'
+                nickname: 'HostPlayer',
             });
 
             timerService.stopTimer.mockRejectedValue(new Error('Redis error'));
@@ -436,9 +469,12 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:stop'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: ERROR_CODES.SERVER_ERROR
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.SERVER_ERROR,
+                })
+            );
         });
     });
 
@@ -449,9 +485,12 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:pause'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: ERROR_CODES.ROOM_NOT_FOUND
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                })
+            );
         });
 
         it('should handle null player on resume', async () => {
@@ -460,9 +499,12 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:resume'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: ERROR_CODES.ROOM_NOT_FOUND
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                })
+            );
         });
 
         it('should handle null player on addTime', async () => {
@@ -471,9 +513,12 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:addTime'];
             await handler({ seconds: 30 });
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: ERROR_CODES.ROOM_NOT_FOUND
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                })
+            );
         });
 
         it('should handle null player on stop', async () => {
@@ -482,9 +527,12 @@ describe('Timer Handlers', () => {
             const handler = mockSocket._handlers['timer:stop'];
             await handler();
 
-            expect(mockSocket.emit).toHaveBeenCalledWith('timer:error', expect.objectContaining({
-                code: ERROR_CODES.ROOM_NOT_FOUND
-            }));
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'timer:error',
+                expect.objectContaining({
+                    code: ERROR_CODES.ROOM_NOT_FOUND,
+                })
+            );
         });
     });
 });

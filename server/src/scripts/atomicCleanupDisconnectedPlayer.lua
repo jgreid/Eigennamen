@@ -1,3 +1,11 @@
+-- atomicCleanupDisconnectedPlayer.lua
+-- Description: Atomically removes a disconnected player from their room and deletes their data, skipping if they reconnected.
+--
+-- KEYS[1]: Player key (e.g., `player:<sessionId>`)
+-- ARGV[1]: Session ID
+--
+-- Returns: Player JSON on success, `'RECONNECTED'` if player reconnected, nil on error
+
 local playerKey = KEYS[1]
 local sessionId = ARGV[1]
 

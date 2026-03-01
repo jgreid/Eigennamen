@@ -1,4 +1,3 @@
-
 import type { Request, Response, NextFunction } from 'express';
 
 import rateLimit from 'express-rate-limit';
@@ -22,11 +21,7 @@ interface RateLimitSocket {
     };
 }
 
-type RateLimiterMiddleware = (
-    socket: RateLimitSocket,
-    data: unknown,
-    next: (error?: Error) => void
-) => void;
+type RateLimiterMiddleware = (socket: RateLimitSocket, data: unknown, next: (error?: Error) => void) => void;
 
 interface LRUEntry {
     key: string;
@@ -70,15 +65,15 @@ const apiLimiter = rateLimit({
     message: {
         error: {
             code: 'RATE_LIMITED',
-            message: 'Too many requests, please try again later'
-        }
+            message: 'Too many requests, please try again later',
+        },
     },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req: Request, res: Response, _next: NextFunction, options: { message: unknown }) => {
         logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
-    }
+    },
 });
 
 const strictLimiter = rateLimit({
@@ -87,15 +82,15 @@ const strictLimiter = rateLimit({
     message: {
         error: {
             code: 'RATE_LIMITED',
-            message: 'Too many requests, please try again later'
-        }
+            message: 'Too many requests, please try again later',
+        },
     },
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req: Request, res: Response, _next: NextFunction, options: { message: unknown }) => {
         logger.warn(`Strict rate limit exceeded for IP: ${req.ip}`);
         res.status(429).json(options.message);
-    }
+    },
 });
 
 // IP multiplier: allows multiple users on same IP (3x per-socket limit)
@@ -280,7 +275,9 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         }
 
         if (removed > 0) {
-            logger.info(`LRU eviction: removed ${removed} oldest rate limit entries (was ${totalEntries}, now ${totalEntries - removed})`);
+            logger.info(
+                `LRU eviction: removed ${removed} oldest rate limit entries (was ${totalEntries}, now ${totalEntries - removed})`
+            );
         }
 
         return removed;
@@ -290,8 +287,8 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         try {
             const now = Date.now();
             const windows = Object.values(limits)
-                .map(l => l && typeof l.window === 'number' ? l.window : 0)
-                .filter(w => w > 0);
+                .map((l) => (l && typeof l.window === 'number' ? l.window : 0))
+                .filter((w) => w > 0);
             const maxWindow = windows.length > 0 ? Math.max(...windows) : 60000;
             const windowStart = now - maxWindow;
 
@@ -418,7 +415,7 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
             requestsPerMinute: uptimeMinutes > 0 ? Math.round(totalRequests / uptimeMinutes) : 0,
             topRequestedEvents,
             topBlockedEvents,
-            uptimeMinutes: Math.round(uptimeMinutes * 10) / 10
+            uptimeMinutes: Math.round(uptimeMinutes * 10) / 10,
         };
     };
 
@@ -439,12 +436,8 @@ function createSocketRateLimiter(limits: RateLimitConfigs): SocketRateLimiter {
         performLRUEviction,
         getSize,
         getMetrics,
-        resetMetrics
+        resetMetrics,
     };
 }
 
-export {
-    apiLimiter,
-    strictLimiter,
-    createSocketRateLimiter
-};
+export { apiLimiter, strictLimiter, createSocketRateLimiter };

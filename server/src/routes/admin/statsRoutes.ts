@@ -24,7 +24,7 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
             const memoryMode: boolean = isUsingMemoryMode();
             redisStatus = {
                 healthy,
-                mode: memoryMode ? 'memory' : 'redis'
+                mode: memoryMode ? 'memory' : 'redis',
             };
         } catch (error) {
             redisStatus.error = (error as Error).message;
@@ -56,7 +56,7 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
                     cursor = result.cursor;
                     iterations++;
                     // Filter to only room codes (excluding sub-keys like room:abc:players)
-                    roomCount += result.keys.filter(key => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
+                    roomCount += result.keys.filter((key) => /^room:[\p{L}\p{N}\-_]{3,20}$/u.test(key)).length;
                 } while (cursor !== 0 && iterations < MAX_SCAN_ITERATIONS);
                 if (iterations >= MAX_SCAN_ITERATIONS) {
                     logger.warn(`Stats SCAN hit iteration cap (${MAX_SCAN_ITERATIONS}), room count may be approximate`);
@@ -70,31 +70,31 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
             timestamp: new Date().toISOString(),
             uptime: {
                 seconds: Math.floor(process.uptime()),
-                formatted: formatUptime(process.uptime())
+                formatted: formatUptime(process.uptime()),
             },
             memory: {
                 heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
                 heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
                 rss: Math.round(memUsage.rss / 1024 / 1024),
-                external: Math.round(memUsage.external / 1024 / 1024)
+                external: Math.round(memUsage.external / 1024 / 1024),
             },
             connections: {
                 sockets: socketStats.connections,
-                activeRooms: roomCount
+                activeRooms: roomCount,
             },
             health: {
-                redis: redisStatus
+                redis: redisStatus,
             },
             metrics: {
                 counters: appMetrics.counters,
-                gauges: appMetrics.gauges
+                gauges: appMetrics.gauges,
             },
             instance: {
                 pid: process.pid,
                 nodeVersion: process.version,
                 flyAllocId: process.env.FLY_ALLOC_ID || null,
-                flyRegion: process.env.FLY_REGION || null
-            }
+                flyRegion: process.env.FLY_REGION || null,
+            },
         };
 
         res.json(stats);
@@ -103,8 +103,8 @@ router.get('/api/stats', async (req: AdminRequest, res: Response) => {
         res.status(500).json({
             error: {
                 code: 'STATS_ERROR',
-                message: 'Failed to fetch server statistics'
-            }
+                message: 'Failed to fetch server statistics',
+            },
         });
     }
 });
@@ -118,8 +118,8 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no'  // Disable nginx buffering
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
     });
 
     // Guard against writing to a closed connection. Without this flag,
@@ -139,15 +139,15 @@ router.get('/api/stats/stream', (req: AdminRequest, res: Response): void => {
                 memory: {
                     rss: Math.round(memUsage.rss / 1024 / 1024),
                     heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-                    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024)
+                    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
                 },
                 uptime: Math.round(process.uptime()),
-                redis: redisHealthy ? 'connected' : (isUsingMemoryMode() ? 'memory' : 'disconnected'),
+                redis: redisHealthy ? 'connected' : isUsingMemoryMode() ? 'memory' : 'disconnected',
                 metrics: {
                     counters: metrics.counters || {},
-                    gauges: metrics.gauges || {}
+                    gauges: metrics.gauges || {},
                 },
-                alerts: [] as string[]
+                alerts: [] as string[],
             };
 
             // Check alert thresholds

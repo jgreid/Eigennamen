@@ -71,7 +71,7 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
         nickname: player.nickname,
         team: player.team,
         role: player.role,
-        createdAt: Date.now()
+        createdAt: Date.now(),
     };
 
     // Atomic Lua script: either return the existing token or set both mappings
@@ -102,7 +102,7 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
     const result = await withTimeout(
         redis.eval(luaScript, {
             keys: [sessionKey, tokenKey],
-            arguments: [token, JSON.stringify(tokenData), String(ttl)]
+            arguments: [token, JSON.stringify(tokenData), String(ttl)],
         }),
         TIMEOUTS.REDIS_OPERATION,
         `reconnection-token-${sessionId}`
@@ -122,10 +122,7 @@ export async function generateReconnectionToken(sessionId: string): Promise<stri
  * Validate and consume a reconnection token
  * Secure reconnection via short-lived tokens
  */
-export async function validateRoomReconnectToken(
-    token: string,
-    sessionId: string
-): Promise<TokenValidationResult> {
+export async function validateRoomReconnectToken(token: string, sessionId: string): Promise<TokenValidationResult> {
     const redis: RedisClient = getRedis();
 
     if (!token || typeof token !== 'string') {
@@ -144,7 +141,11 @@ export async function validateRoomReconnectToken(
         return { valid: false, reason: 'TOKEN_EXPIRED_OR_INVALID' };
     }
 
-    const tokenData = tryParseJSON(tokenDataStr, reconnectionTokenSchema, `reconnection token for ${sessionId}`) as ReconnectionTokenData | null;
+    const tokenData = tryParseJSON(
+        tokenDataStr,
+        reconnectionTokenSchema,
+        `reconnection token for ${sessionId}`
+    ) as ReconnectionTokenData | null;
     if (!tokenData) {
         return { valid: false, reason: 'TOKEN_CORRUPTED' };
     }
@@ -155,7 +156,7 @@ export async function validateRoomReconnectToken(
     if (tokenData.sessionId !== sessionId) {
         logger.warn('Reconnection token session mismatch', {
             expectedSession: tokenData.sessionId,
-            providedSession: sessionId
+            providedSession: sessionId,
         });
         return { valid: false, reason: 'SESSION_MISMATCH' };
     }
@@ -173,7 +174,7 @@ export async function validateRoomReconnectToken(
             redis.del(`reconnect:session:${sessionId}`),
             TIMEOUTS.REDIS_OPERATION,
             `validateReconnectToken-delSession-${sessionId}`
-        )
+        ),
     ]);
 
     logger.info(`Reconnection token validated and consumed for session ${sessionId}`);
@@ -206,7 +207,7 @@ export async function invalidateRoomReconnectToken(sessionId: string): Promise<v
     const result = await withTimeout(
         redis.eval(INVALIDATE_TOKEN_SCRIPT, {
             keys: [`reconnect:session:${sessionId}`],
-            arguments: []
+            arguments: [],
         }),
         TIMEOUTS.REDIS_OPERATION,
         `invalidateReconnectToken-lua-${sessionId}`
@@ -278,26 +279,23 @@ export async function cleanupOrphanedReconnectionTokens(): Promise<number> {
  * Each cleanup uses an atomic Lua script, but we fire them concurrently
  * so node-redis can pipeline the requests in a single round-trip.
  */
-async function processBatchCleanup(
-    redis: RedisClient,
-    batch: { key: string; sessionId: string }[]
-): Promise<number> {
+async function processBatchCleanup(redis: RedisClient, batch: { key: string; sessionId: string }[]): Promise<number> {
     const results = await Promise.all(
         batch.map(({ key, sessionId }) =>
             withTimeout(
                 redis.eval(CLEANUP_ORPHANED_TOKEN_SCRIPT, {
                     keys: [key, `player:${sessionId}`],
-                    arguments: []
+                    arguments: [],
                 }),
                 TIMEOUTS.REDIS_OPERATION,
                 `cleanupOrphanedToken-lua-${sessionId}`
-            ).catch(err => {
+            ).catch((err) => {
                 logger.warn(`Failed to cleanup orphaned token for ${sessionId}:`, (err as Error).message);
                 return 0;
             })
         )
     );
-    return results.filter(r => r === 1).length;
+    return results.filter((r) => r === 1).length;
 }
 
 /**
@@ -341,10 +339,7 @@ export async function validateSocketAuthToken(sessionId: string, token?: string)
     }
 
     // Constant-time comparison to prevent timing attacks
-    const isValid = crypto.timingSafeEqual(
-        Buffer.from(storedToken, 'utf8'),
-        Buffer.from(token, 'utf8')
-    );
+    const isValid = crypto.timingSafeEqual(Buffer.from(storedToken, 'utf8'), Buffer.from(token, 'utf8'));
 
     if (isValid) {
         // CRITICAL FIX: Don't consume token here - let room:reconnect consume it

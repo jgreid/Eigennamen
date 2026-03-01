@@ -1,4 +1,3 @@
-
 import winston from 'winston';
 import fs from 'fs';
 import path from 'path';
@@ -41,7 +40,7 @@ const levels: Record<string, number> = {
     warn: 1,
     info: 2,
     http: 3,
-    debug: 4
+    debug: 4,
 };
 
 const level = (): string => {
@@ -51,9 +50,12 @@ const level = (): string => {
     }
     const env = process.env.NODE_ENV || 'development';
     switch (env) {
-        case 'production': return 'warn';
-        case 'test': return 'error';
-        default: return 'debug';
+        case 'production':
+            return 'warn';
+        case 'test':
+            return 'error';
+        default:
+            return 'debug';
     }
 };
 
@@ -62,7 +64,7 @@ const colors: Record<string, string> = {
     warn: 'yellow',
     info: 'green',
     http: 'magenta',
-    debug: 'cyan'
+    debug: 'cyan',
 };
 
 winston.addColors(colors);
@@ -95,18 +97,13 @@ const consoleFormat = winston.format.combine(
         delete extraFields.roomCode;
         delete extraFields.instanceId;
 
-        const extraStr = Object.keys(extraFields).length > 0
-            ? ` ${JSON.stringify(extraFields)}`
-            : '';
+        const extraStr = Object.keys(extraFields).length > 0 ? ` ${JSON.stringify(extraFields)}` : '';
 
         return `${timestamp} ${level}:${contextStr} ${message}${extraStr}`;
     })
 );
 
-const jsonFormat = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-);
+const jsonFormat = winston.format.combine(winston.format.timestamp(), winston.format.json());
 
 const getFormat = (): ReturnType<typeof winston.format.combine> => {
     if (process.env.LOG_FORMAT === 'json' || process.env.NODE_ENV === 'production') {
@@ -117,8 +114,8 @@ const getFormat = (): ReturnType<typeof winston.format.combine> => {
 
 const transports: InstanceType<typeof winston.transports.Console | typeof winston.transports.File>[] = [
     new winston.transports.Console({
-        format: getFormat()
-    })
+        format: getFormat(),
+    }),
 ];
 
 // Add file transports in production (if possible)
@@ -131,10 +128,10 @@ if (process.env.NODE_ENV === 'production') {
         }
 
         const LOG_ROTATION_CONFIG = {
-            maxsize: 10 * 1024 * 1024,  // 10MB per file
+            maxsize: 10 * 1024 * 1024, // 10MB per file
             maxFiles: 5,
             tailable: true,
-            zippedArchive: false
+            zippedArchive: false,
         };
 
         transports.push(
@@ -142,12 +139,12 @@ if (process.env.NODE_ENV === 'production') {
                 filename: 'logs/error.log',
                 level: 'error',
                 format: jsonFormat,
-                ...LOG_ROTATION_CONFIG
+                ...LOG_ROTATION_CONFIG,
             }),
             new winston.transports.File({
                 filename: 'logs/combined.log',
                 format: jsonFormat,
-                ...LOG_ROTATION_CONFIG
+                ...LOG_ROTATION_CONFIG,
             })
         );
     } catch (err) {
@@ -162,7 +159,7 @@ const winstonLogger: WinstonLogger = winston.createLogger({
     level: level(),
     levels,
     defaultMeta: { instanceId },
-    transports
+    transports,
 });
 
 const logger: Logger = {
@@ -191,11 +188,11 @@ const logger: Logger = {
             const errorMeta: ErrorMeta = {
                 message: metaOrError.message,
                 code: (metaOrError as Error & { code?: string }).code,
-                stack: metaOrError.stack
+                stack: metaOrError.stack,
             };
             return {
                 ...contextFields,
-                error: errorMeta
+                error: errorMeta,
             };
         }
 
@@ -203,7 +200,7 @@ const logger: Logger = {
         if (metaOrError && typeof metaOrError === 'object') {
             return {
                 ...contextFields,
-                ...(metaOrError as LogMeta)
+                ...(metaOrError as LogMeta),
             };
         }
 
@@ -211,7 +208,7 @@ const logger: Logger = {
         if (metaOrError !== undefined && metaOrError !== null) {
             return {
                 ...contextFields,
-                detail: metaOrError
+                detail: metaOrError,
             };
         }
 
@@ -221,13 +218,38 @@ const logger: Logger = {
     child(defaultMeta: LogMeta): ChildLogger {
         const parent = this;
         return {
-            error(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.error(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
-            warn(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.warn(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
-            info(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.info(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
-            http(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.http(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); },
-            debug(msg: string, meta: LogMeta | Error | unknown = {}): void { parent.debug(msg, { ...defaultMeta, ...(typeof meta === 'object' && meta !== null ? meta as LogMeta : { detail: meta }) }); }
+            error(msg: string, meta: LogMeta | Error | unknown = {}): void {
+                parent.error(msg, {
+                    ...defaultMeta,
+                    ...(typeof meta === 'object' && meta !== null ? (meta as LogMeta) : { detail: meta }),
+                });
+            },
+            warn(msg: string, meta: LogMeta | Error | unknown = {}): void {
+                parent.warn(msg, {
+                    ...defaultMeta,
+                    ...(typeof meta === 'object' && meta !== null ? (meta as LogMeta) : { detail: meta }),
+                });
+            },
+            info(msg: string, meta: LogMeta | Error | unknown = {}): void {
+                parent.info(msg, {
+                    ...defaultMeta,
+                    ...(typeof meta === 'object' && meta !== null ? (meta as LogMeta) : { detail: meta }),
+                });
+            },
+            http(msg: string, meta: LogMeta | Error | unknown = {}): void {
+                parent.http(msg, {
+                    ...defaultMeta,
+                    ...(typeof meta === 'object' && meta !== null ? (meta as LogMeta) : { detail: meta }),
+                });
+            },
+            debug(msg: string, meta: LogMeta | Error | unknown = {}): void {
+                parent.debug(msg, {
+                    ...defaultMeta,
+                    ...(typeof meta === 'object' && meta !== null ? (meta as LogMeta) : { detail: meta }),
+                });
+            },
         };
-    }
+    },
 };
 
 export default logger;

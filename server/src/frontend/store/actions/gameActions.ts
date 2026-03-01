@@ -80,11 +80,7 @@ export function syncScores(data: {
  * Sync board data (words, types, revealed) from server.
  * Returns true if the words changed (indicating a new game).
  */
-export function syncBoardData(serverGame: {
-    words?: string[];
-    types?: string[];
-    revealed?: boolean[];
-}): boolean {
+export function syncBoardData(serverGame: { words?: string[]; types?: string[]; revealed?: boolean[] }): boolean {
     if (!serverGame.words || !Array.isArray(serverGame.words)) return false;
 
     const MAX_BOARD_SIZE = 100;
@@ -94,14 +90,15 @@ export function syncBoardData(serverGame: {
         return false;
     }
 
-    const wordsChanged = !state.gameState.words ||
+    const wordsChanged =
+        !state.gameState.words ||
         state.gameState.words.length !== wordCount ||
         state.gameState.words.some((w: string, i: number) => w !== serverGame.words![i]);
 
     batch(() => {
         if (wordsChanged) {
             state.boardInitialized = false;
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
@@ -192,7 +189,7 @@ export function syncTurnAndMetadata(serverGame: {
  * Clear all card reveal tracking state.
  */
 export function clearRevealTracking(): void {
-    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
     state.isRevealingCard = false;

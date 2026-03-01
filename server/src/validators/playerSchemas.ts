@@ -5,15 +5,15 @@ import { removeControlChars } from '../utils/sanitize';
 import { createNicknameSchema } from './schemaHelpers';
 
 const playerTeamSchema = z.object({
-    team: z.enum(['red', 'blue']).nullable()
+    team: z.enum(['red', 'blue']).nullable(),
 });
 
 const playerRoleSchema = z.object({
-    role: z.enum(['spymaster', 'clicker', 'spectator'])
+    role: z.enum(['spymaster', 'clicker', 'spectator']),
 });
 
 const playerNicknameSchema = z.object({
-    nickname: createNicknameSchema()
+    nickname: createNicknameSchema(),
 });
 
 // Session ID regex - alphanumeric, hyphens, underscores (not strict UUID format)
@@ -21,26 +21,28 @@ const sessionIdRegex = /^[a-zA-Z0-9\-_]+$/;
 
 // Player kick schema (for player:kick)
 const playerKickSchema = z.object({
-    targetSessionId: z.string()
+    targetSessionId: z
+        .string()
         .min(1, 'Target session ID is required')
         .max(100, 'Session ID too long')
         .transform((val: string) => removeControlChars(val).trim())
-        .refine((val: string) => sessionIdRegex.test(val), 'Invalid session ID format')
+        .refine((val: string) => sessionIdRegex.test(val), 'Invalid session ID format'),
 });
 
 // Spectator join request schema
 const spectatorJoinRequestSchema = z.object({
-    team: z.enum(['red', 'blue'])
+    team: z.enum(['red', 'blue']),
 });
 
 // Spectator join approval/denial schema
 const spectatorJoinResponseSchema = z.object({
-    requesterId: z.string()
+    requesterId: z
+        .string()
         .min(1, 'Requester ID is required')
         .max(100, 'Requester ID too long')
         .transform((val: string) => removeControlChars(val).trim())
         .refine((val: string) => sessionIdRegex.test(val), 'Invalid requester ID format'),
-    approved: z.boolean()
+    approved: z.boolean(),
 });
 
 // Type exports for schema inference
@@ -57,5 +59,5 @@ export {
     playerNicknameSchema,
     playerKickSchema,
     spectatorJoinRequestSchema,
-    spectatorJoinResponseSchema
+    spectatorJoinResponseSchema,
 };

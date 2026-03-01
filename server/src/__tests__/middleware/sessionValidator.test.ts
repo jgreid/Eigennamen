@@ -18,38 +18,44 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 jest.mock('../../services/playerService', () => ({
     getPlayer: jest.fn(),
-    validateSocketAuthToken: jest.fn()
+    validateSocketAuthToken: jest.fn(),
 }));
 
 jest.mock('../../config/redis', () => ({
-    getRedis: jest.fn()
+    getRedis: jest.fn(),
 }));
 
 // Use realistic config values but keep IP_MISMATCH_ALLOWED testable
 let ipMismatchAllowed = false;
 jest.mock('../../config/constants', () => ({
     SESSION_SECURITY: {
-        get MAX_SESSION_AGE_MS() { return 8 * 60 * 60 * 1000; }, // 8 hours
-        get MAX_VALIDATION_ATTEMPTS_PER_IP() { return 20; },
-        get IP_MISMATCH_ALLOWED() { return ipMismatchAllowed; },
+        get MAX_SESSION_AGE_MS() {
+            return 8 * 60 * 60 * 1000;
+        }, // 8 hours
+        get MAX_VALIDATION_ATTEMPTS_PER_IP() {
+            return 20;
+        },
+        get IP_MISMATCH_ALLOWED() {
+            return ipMismatchAllowed;
+        },
         SESSION_ID_MIN_LENGTH: 36,
         RECONNECTION_TOKEN_TTL_SECONDS: 300,
-        RECONNECTION_TOKEN_LENGTH: 32
+        RECONNECTION_TOKEN_LENGTH: 32,
     },
     REDIS_TTL: {
-        SESSION_VALIDATION_WINDOW: 60  // 1 minute
+        SESSION_VALIDATION_WINDOW: 60, // 1 minute
     },
     ERROR_CODES: {
         SESSION_EXPIRED: 'SESSION_EXPIRED',
         SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
         SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
-        NOT_AUTHORIZED: 'NOT_AUTHORIZED'
-    }
+        NOT_AUTHORIZED: 'NOT_AUTHORIZED',
+    },
 }));
 
 const logger = require('../../utils/logger');
@@ -72,7 +78,7 @@ function createMockPlayer(overrides: Record<string, unknown> = {}) {
         lastSeen: Date.now(),
         createdAt: Date.now() - 1000, // 1 second ago
         lastIP: '192.168.1.1',
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -93,7 +99,7 @@ describe('Session Validator', () => {
         mockRedis = {
             eval: jest.fn().mockResolvedValue(1),
             incr: jest.fn().mockResolvedValue(1),
-            expire: jest.fn().mockResolvedValue(1)
+            expire: jest.fn().mockResolvedValue(1),
         };
         (getRedis as jest.Mock).mockReturnValue(mockRedis);
     });
@@ -110,33 +116,39 @@ describe('Session Validator', () => {
             debug: jest.fn(),
             info: jest.fn(),
             warn: jest.fn(),
-            error: jest.fn()
+            error: jest.fn(),
         }));
         jest.mock('../../services/playerService', () => ({
             getPlayer: jest.fn(),
-            validateSocketAuthToken: jest.fn()
+            validateSocketAuthToken: jest.fn(),
         }));
         jest.mock('../../config/redis', () => ({
-            getRedis: jest.fn()
+            getRedis: jest.fn(),
         }));
         jest.mock('../../config/constants', () => ({
             SESSION_SECURITY: {
-                get MAX_SESSION_AGE_MS() { return 8 * 60 * 60 * 1000; },
-                get MAX_VALIDATION_ATTEMPTS_PER_IP() { return 20; },
-                get IP_MISMATCH_ALLOWED() { return ipMismatchAllowed; },
+                get MAX_SESSION_AGE_MS() {
+                    return 8 * 60 * 60 * 1000;
+                },
+                get MAX_VALIDATION_ATTEMPTS_PER_IP() {
+                    return 20;
+                },
+                get IP_MISMATCH_ALLOWED() {
+                    return ipMismatchAllowed;
+                },
                 SESSION_ID_MIN_LENGTH: 36,
                 RECONNECTION_TOKEN_TTL_SECONDS: 300,
-                RECONNECTION_TOKEN_LENGTH: 32
+                RECONNECTION_TOKEN_LENGTH: 32,
             },
             REDIS_TTL: {
-                SESSION_VALIDATION_WINDOW: 60
+                SESSION_VALIDATION_WINDOW: 60,
             },
             ERROR_CODES: {
                 SESSION_EXPIRED: 'SESSION_EXPIRED',
                 SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
                 SESSION_VALIDATION_RATE_LIMITED: 'SESSION_VALIDATION_RATE_LIMITED',
-                NOT_AUTHORIZED: 'NOT_AUTHORIZED'
-            }
+                NOT_AUTHORIZED: 'NOT_AUTHORIZED',
+            },
         }));
 
         const mod = require('../../middleware/auth/sessionValidator');
@@ -146,7 +158,7 @@ describe('Session Validator', () => {
         mockRedis = {
             eval: jest.fn().mockResolvedValue(1),
             incr: jest.fn().mockResolvedValue(1),
-            expire: jest.fn().mockResolvedValue(1)
+            expire: jest.fn().mockResolvedValue(1),
         };
         (redis.getRedis as jest.Mock).mockReturnValue(mockRedis);
 
@@ -183,7 +195,7 @@ describe('Session Validator', () => {
                 expect.objectContaining({
                     clientIP: '192.168.1.1',
                     attempts: 21,
-                    maxAttempts: 20
+                    maxAttempts: 20,
                 })
             );
         });
@@ -206,7 +218,7 @@ describe('Session Validator', () => {
                 expect.stringContaining('INCR'),
                 expect.objectContaining({
                     keys: ['session:validation:10.0.0.1'],
-                    arguments: ['60']  // SESSION_VALIDATION_WINDOW
+                    arguments: ['60'], // SESSION_VALIDATION_WINDOW
                 })
             );
         });
@@ -426,7 +438,7 @@ describe('Session Validator', () => {
         });
 
         test('returns invalid for player with expired session (> 8 hours)', () => {
-            const nineHoursAgo = Date.now() - (9 * 60 * 60 * 1000);
+            const nineHoursAgo = Date.now() - 9 * 60 * 60 * 1000;
             const player = createMockPlayer({ createdAt: nineHoursAgo });
             const result = sessionValidator.validateSessionAge(player as any);
             expect(result.valid).toBe(false);
@@ -435,7 +447,7 @@ describe('Session Validator', () => {
 
         test('returns valid for session exactly at the age limit', () => {
             // Exactly 8 hours ago — should NOT be expired (> not >=)
-            const exactlyEightHours = Date.now() - (8 * 60 * 60 * 1000);
+            const exactlyEightHours = Date.now() - 8 * 60 * 60 * 1000;
             const player = createMockPlayer({ createdAt: exactlyEightHours });
             const result = sessionValidator.validateSessionAge(player as any);
             expect(result.valid).toBe(true);
@@ -464,7 +476,7 @@ describe('Session Validator', () => {
             // be treated as legacy (valid), not validated by connectedAt
             const player = createMockPlayer({
                 createdAt: undefined,
-                connectedAt: Date.now() - 1000
+                connectedAt: Date.now() - 1000,
             });
             const result = sessionValidator.validateSessionAge(player as any);
             expect(result.valid).toBe(true);
@@ -500,7 +512,7 @@ describe('Session Validator', () => {
                 expect.objectContaining({
                     sessionId: VALID_UUID,
                     previousIP: '192.168.1.1',
-                    currentIP: '10.0.0.99'
+                    currentIP: '10.0.0.99',
                 })
             );
         });
@@ -540,7 +552,7 @@ describe('Session Validator', () => {
         test('returns SESSION_EXPIRED when session is too old', async () => {
             mockRedis.eval.mockResolvedValue(1);
             const oldPlayer = createMockPlayer({
-                createdAt: Date.now() - (9 * 60 * 60 * 1000)
+                createdAt: Date.now() - 9 * 60 * 60 * 1000,
             });
             playerService.getPlayer.mockResolvedValue(oldPlayer);
 
@@ -597,9 +609,7 @@ describe('Session Validator', () => {
         test('returns true when no token provided and playerService accepts', async () => {
             playerService.validateSocketAuthToken.mockResolvedValue(true);
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, undefined, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, undefined, '10.0.0.1');
 
             expect(result).toBe(true);
             expect(playerService.validateSocketAuthToken).toHaveBeenCalledWith(VALID_UUID, undefined);
@@ -608,9 +618,7 @@ describe('Session Validator', () => {
         test('returns true when valid token provided and playerService accepts', async () => {
             playerService.validateSocketAuthToken.mockResolvedValue(true);
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, validToken, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, validToken, '10.0.0.1');
 
             expect(result).toBe(true);
         });
@@ -618,9 +626,7 @@ describe('Session Validator', () => {
         test('returns false for token with wrong length', async () => {
             const shortToken = 'abcdef1234';
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, shortToken, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, shortToken, '10.0.0.1');
 
             expect(result).toBe(false);
             expect(logger.warn).toHaveBeenCalledWith(
@@ -628,7 +634,7 @@ describe('Session Validator', () => {
                 expect.objectContaining({
                     sessionId: VALID_UUID,
                     tokenLength: shortToken.length,
-                    expectedLength: 64
+                    expectedLength: 64,
                 })
             );
             // playerService should NOT be called for invalid format
@@ -638,9 +644,7 @@ describe('Session Validator', () => {
         test('returns false for token with non-hex characters', async () => {
             const nonHexToken = 'g'.repeat(64); // 'g' is not hex
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, nonHexToken, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, nonHexToken, '10.0.0.1');
 
             expect(result).toBe(false);
             expect(playerService.validateSocketAuthToken).not.toHaveBeenCalled();
@@ -650,9 +654,7 @@ describe('Session Validator', () => {
             const upperHexToken = 'ABCDEF0123456789'.repeat(4); // 64 chars
             playerService.validateSocketAuthToken.mockResolvedValue(true);
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, upperHexToken, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, upperHexToken, '10.0.0.1');
 
             expect(result).toBe(true);
         });
@@ -660,9 +662,7 @@ describe('Session Validator', () => {
         test('returns false when playerService rejects the token', async () => {
             playerService.validateSocketAuthToken.mockResolvedValue(false);
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, validToken, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, validToken, '10.0.0.1');
 
             expect(result).toBe(false);
             expect(logger.warn).toHaveBeenCalledWith(
@@ -670,7 +670,7 @@ describe('Session Validator', () => {
                 expect.objectContaining({
                     sessionId: VALID_UUID,
                     hasToken: true,
-                    clientIP: '10.0.0.1'
+                    clientIP: '10.0.0.1',
                 })
             );
         });
@@ -678,15 +678,13 @@ describe('Session Validator', () => {
         test('returns false when no token and playerService rejects', async () => {
             playerService.validateSocketAuthToken.mockResolvedValue(false);
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, undefined, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, undefined, '10.0.0.1');
 
             expect(result).toBe(false);
             expect(logger.warn).toHaveBeenCalledWith(
                 'Reconnection token validation failed',
                 expect.objectContaining({
-                    hasToken: false
+                    hasToken: false,
                 })
             );
         });
@@ -697,9 +695,7 @@ describe('Session Validator', () => {
     // =========================================================================
     describe('resolveSessionId', () => {
         test('returns null session when no sessionId provided', async () => {
-            const result = await sessionValidator.resolveSessionId(
-                {}, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({}, '10.0.0.1');
 
             expect(result.validatedSessionId).toBeNull();
             expect(result.sessionValidation).toBeNull();
@@ -707,9 +703,7 @@ describe('Session Validator', () => {
         });
 
         test('returns null session for invalid UUID format', async () => {
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: 'not-a-valid-uuid' }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: 'not-a-valid-uuid' }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBeNull();
             expect(logger.warn).toHaveBeenCalledWith(
@@ -721,9 +715,7 @@ describe('Session Validator', () => {
         test('returns sessionId when player does not exist (fresh join)', async () => {
             playerService.getPlayer.mockResolvedValue(null);
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBe(VALID_UUID);
             expect(result.sessionValidation).toBeNull();
@@ -733,18 +725,16 @@ describe('Session Validator', () => {
         test('allows connected player reconnection from same IP', async () => {
             const player = createMockPlayer({
                 connected: true,
-                lastIP: '10.0.0.1'
+                lastIP: '10.0.0.1',
             });
             playerService.getPlayer.mockResolvedValue(player);
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBe(VALID_UUID);
             expect(result.sessionValidation).toEqual({
                 valid: true,
-                player
+                player,
             });
             expect(result.ipMismatch).toBe(false);
             expect(logger.info).toHaveBeenCalledWith(
@@ -756,13 +746,11 @@ describe('Session Validator', () => {
         test('allows connected player with no recorded IP', async () => {
             const player = createMockPlayer({
                 connected: true,
-                lastIP: undefined
+                lastIP: undefined,
             });
             playerService.getPlayer.mockResolvedValue(player);
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBe(VALID_UUID);
             expect(result.sessionValidation?.valid).toBe(true);
@@ -771,13 +759,11 @@ describe('Session Validator', () => {
         test('blocks connected player reconnection from different IP (hijack attempt)', async () => {
             const player = createMockPlayer({
                 connected: true,
-                lastIP: '192.168.1.1'
+                lastIP: '192.168.1.1',
             });
             playerService.getPlayer.mockResolvedValue(player);
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.99'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.99');
 
             expect(result.validatedSessionId).toBeNull();
             expect(result.sessionValidation).toBeNull();
@@ -786,7 +772,7 @@ describe('Session Validator', () => {
                 expect.objectContaining({
                     sessionId: VALID_UUID,
                     clientIP: '10.0.0.99',
-                    existingIP: '192.168.1.1'
+                    existingIP: '192.168.1.1',
                 })
             );
         });
@@ -795,15 +781,13 @@ describe('Session Validator', () => {
             const player = createMockPlayer({
                 connected: false,
                 lastIP: '10.0.0.1',
-                createdAt: Date.now() - 1000
+                createdAt: Date.now() - 1000,
             });
             // getPlayer is called twice: once in resolveSessionId, once in validateSession
             playerService.getPlayer.mockResolvedValue(player);
             mockRedis.eval.mockResolvedValue(1); // rate limit ok
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBe(VALID_UUID);
             expect(result.sessionValidation?.valid).toBe(true);
@@ -814,20 +798,18 @@ describe('Session Validator', () => {
             const expiredPlayer = createMockPlayer({
                 connected: false,
                 lastIP: '10.0.0.1',
-                createdAt: Date.now() - (9 * 60 * 60 * 1000)
+                createdAt: Date.now() - 9 * 60 * 60 * 1000,
             });
             playerService.getPlayer.mockResolvedValue(expiredPlayer);
             mockRedis.eval.mockResolvedValue(1);
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBeNull();
             expect(logger.warn).toHaveBeenCalledWith(
                 'Session validation failed',
                 expect.objectContaining({
-                    reason: 'SESSION_EXPIRED'
+                    reason: 'SESSION_EXPIRED',
                 })
             );
         });
@@ -837,9 +819,7 @@ describe('Session Validator', () => {
             playerService.getPlayer.mockResolvedValue(player);
             mockRedis.eval.mockResolvedValue(21); // exceeds rate limit
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.1');
 
             expect(result.validatedSessionId).toBeNull();
         });
@@ -847,14 +827,12 @@ describe('Session Validator', () => {
         test('truncates invalid session ID in log output', async () => {
             const longInvalidId = 'abcdefghijklmnop1234567890';
 
-            await sessionValidator.resolveSessionId(
-                { sessionId: longInvalidId }, '10.0.0.1'
-            );
+            await sessionValidator.resolveSessionId({ sessionId: longInvalidId }, '10.0.0.1');
 
             expect(logger.warn).toHaveBeenCalledWith(
                 'Invalid session ID format rejected',
                 expect.objectContaining({
-                    sessionId: 'abcdefghij...'
+                    sessionId: 'abcdefghij...',
                 })
             );
         });
@@ -864,14 +842,12 @@ describe('Session Validator', () => {
             const player = createMockPlayer({
                 connected: false,
                 lastIP: '192.168.1.1',
-                createdAt: Date.now() - 1000
+                createdAt: Date.now() - 1000,
             });
             playerService.getPlayer.mockResolvedValue(player);
             mockRedis.eval.mockResolvedValue(1);
 
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: VALID_UUID }, '10.0.0.99'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: VALID_UUID }, '10.0.0.99');
 
             expect(result.validatedSessionId).toBe(VALID_UUID);
             expect(result.ipMismatch).toBe(true);
@@ -883,9 +859,7 @@ describe('Session Validator', () => {
     // =========================================================================
     describe('edge cases', () => {
         test('empty string sessionId is treated as no session', async () => {
-            const result = await sessionValidator.resolveSessionId(
-                { sessionId: '' }, '10.0.0.1'
-            );
+            const result = await sessionValidator.resolveSessionId({ sessionId: '' }, '10.0.0.1');
             // Empty string is falsy so should take the "no session ID" path
             expect(result.validatedSessionId).toBeNull();
             expect(result.sessionValidation).toBeNull();
@@ -895,9 +869,7 @@ describe('Session Validator', () => {
             const mixedCaseToken = 'aAbBcCdD0011223344556677'.padEnd(64, 'f');
             playerService.validateSocketAuthToken.mockResolvedValue(true);
 
-            const result = await sessionValidator.validateRoomReconnectToken(
-                VALID_UUID, mixedCaseToken, '10.0.0.1'
-            );
+            const result = await sessionValidator.validateRoomReconnectToken(VALID_UUID, mixedCaseToken, '10.0.0.1');
 
             expect(result).toBe(true);
         });

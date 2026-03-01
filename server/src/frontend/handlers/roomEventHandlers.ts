@@ -4,17 +4,31 @@ import { updateRoleBanner, updateControls, revertAndClearRoleChange } from '../r
 import { renderBoard } from '../board.js';
 import { logger } from '../logger.js';
 import {
-    updateMpIndicator, updateForfeitButton, updateRoomSettingsNavVisibility,
-    showReconnectionOverlay, hideReconnectionOverlay, syncGameModeUI, syncTurnTimerUI
+    updateMpIndicator,
+    updateForfeitButton,
+    updateRoomSettingsNavVisibility,
+    showReconnectionOverlay,
+    hideReconnectionOverlay,
+    syncGameModeUI,
+    syncTurnTimerUI,
 } from '../multiplayerUI.js';
 import {
-    syncGameStateFromServer, syncLocalPlayerState, leaveMultiplayerMode,
-    detectOfflineChanges, domListenerCleanup
+    syncGameStateFromServer,
+    syncLocalPlayerState,
+    leaveMultiplayerMode,
+    detectOfflineChanges,
+    domListenerCleanup,
 } from '../multiplayerSync.js';
 import { batch } from '../store/batch.js';
 import type {
-    ServerPlayerData, HostChangedData, RoomWarningData, ReconnectionData,
-    SettingsUpdatedData, StatsUpdatedData, KickedData, PlayerKickedData
+    ServerPlayerData,
+    HostChangedData,
+    RoomWarningData,
+    ReconnectionData,
+    SettingsUpdatedData,
+    StatsUpdatedData,
+    KickedData,
+    PlayerKickedData,
 } from '../multiplayerTypes.js';
 import { updateSpectatorCount, updateRoomStats } from '../multiplayerUI.js';
 import { getClient } from '../clientAccessor.js';
@@ -30,7 +44,7 @@ export function registerRoomHandlers(): void {
         if (data.newHostSessionId) {
             state.multiplayerPlayers = state.multiplayerPlayers.map((p: ServerPlayerData) => ({
                 ...p,
-                isHost: p.sessionId === data.newHostSessionId
+                isHost: p.sessionId === data.newHostSessionId,
             }));
             updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         }
@@ -86,11 +100,11 @@ export function registerRoomHandlers(): void {
             // during resync, so pending entries in revealingCards are now stale.
             // Without this, cards clicked just before a resync become permanently
             // unclickable until the per-card timeout fires.
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
-            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+            document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 
             // Update all UI elements
             updateControls();
@@ -146,11 +160,11 @@ export function registerRoomHandlers(): void {
 
             // Clear stale reveal tracking — pending reveals from before
             // disconnect are no longer valid after reconnection.
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
-            document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+            document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
 
             updateControls();
             updateRoleBanner();
@@ -202,7 +216,9 @@ export function registerRoomHandlers(): void {
     // Handle another player being kicked
     EigennamenClient.on('playerKicked', (data: PlayerKickedData) => {
         // Update player list
-        state.multiplayerPlayers = state.multiplayerPlayers.filter((p: ServerPlayerData) => p.sessionId !== data.sessionId);
+        state.multiplayerPlayers = state.multiplayerPlayers.filter(
+            (p: ServerPlayerData) => p.sessionId !== data.sessionId
+        );
         updateMpIndicator({ code: EigennamenClient.getRoomCode() || '' }, state.multiplayerPlayers);
         // Refresh controls and board — kicked player may have held the active
         // clicker role, so remaining team members need UI updated for fallback.
@@ -234,7 +250,7 @@ export function registerRoomHandlers(): void {
 
     // Game mode radio button change handler — track for cleanup
     const gameModeRadios = document.querySelectorAll('input[name="gameMode"]');
-    gameModeRadios.forEach(radio => {
+    gameModeRadios.forEach((radio) => {
         const handler = (e: Event) => {
             if (!getClient()?.player?.isHost) return;
             const gameMode = (e.target as HTMLInputElement).value;

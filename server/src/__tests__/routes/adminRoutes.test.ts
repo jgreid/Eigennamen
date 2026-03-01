@@ -23,22 +23,24 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
         keys: jest.fn(async (pattern) => {
             const regex = new RegExp('^' + pattern.replace('*', '.*') + '$');
-            return Array.from(mockRedisStorage.keys()).filter(key => regex.test(key));
+            return Array.from(mockRedisStorage.keys()).filter((key) => regex.test(key));
         }),
         scan: jest.fn(async (cursor, options) => {
             const pattern = options?.MATCH || '*';
             const regex = new RegExp('^' + pattern.replace('*', '.*') + '$');
-            const keys = Array.from(mockRedisStorage.keys()).filter(key => regex.test(key));
+            const keys = Array.from(mockRedisStorage.keys()).filter((key) => regex.test(key));
             return { cursor: 0, keys };
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         sMembers: jest.fn(async (key) => {
             const set = mockRedisSets.get(key);
@@ -48,10 +50,15 @@ jest.mock('../../config/redis', () => {
             if (!mockRedisSets.has(key)) mockRedisSets.set(key, new Set());
             const set = mockRedisSets.get(key);
             let added = 0;
-            members.forEach(m => { if (!set.has(m)) { set.add(m); added++; } });
+            members.forEach((m) => {
+                if (!set.has(m)) {
+                    set.add(m);
+                    added++;
+                }
+            });
             return added;
         }),
-        eval: jest.fn(async () => 1)
+        eval: jest.fn(async () => 1),
     };
 
     return {
@@ -60,17 +67,16 @@ jest.mock('../../config/redis', () => {
         disconnectRedis: jest.fn(async () => {}),
         isRedisHealthy: jest.fn(async () => true),
         isUsingMemoryMode: jest.fn(() => true),
-        getPubSubClients: jest.fn(() => ({ pubClient: mockRedis, subClient: mockRedis }))
+        getPubSubClients: jest.fn(() => ({ pubClient: mockRedis, subClient: mockRedis })),
     };
 });
-
 
 // Mock logger
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock metrics
@@ -80,7 +86,7 @@ jest.mock('../../utils/metrics', () => ({
         instanceId: 'test',
         counters: {},
         gauges: {},
-        histograms: {}
+        histograms: {},
     })),
     incrementCounter: jest.fn(),
     setGauge: jest.fn(),
@@ -114,21 +120,21 @@ jest.mock('../../utils/metrics', () => ({
         TURN_DURATION: 'turn_duration_seconds',
         SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
         HTTP_REQUEST_DURATION: 'http_request_duration_ms',
-        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
-    }
+        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes',
+    },
 }));
 
 // Mock rate limit
 jest.mock('../../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next()
+    strictLimiter: (req, res, next) => next(),
 }));
 
 // Mock roomService for delete operations
 jest.mock('../../services/roomService', () => ({
     deleteRoom: jest.fn(async () => {}),
     getRoom: jest.fn(async (code) => mockRedisStorage.get(`room:${code}`)),
-    cleanupRoom: jest.fn(async () => {})
+    cleanupRoom: jest.fn(async () => {}),
 }));
 
 // Import after mocks
@@ -158,7 +164,7 @@ function createTestApp(adminPassword = null) {
     const mockIO = {
         fetchSockets: jest.fn(async () => [{ id: '1' }, { id: '2' }]),
         emit: jest.fn(),
-        to: jest.fn(() => ({ emit: jest.fn() }))
+        to: jest.fn(() => ({ emit: jest.fn() })),
     };
     app.set('io', mockIO);
 
@@ -184,9 +190,7 @@ describe('Admin Routes', () => {
         it('should return 401 when ADMIN_PASSWORD is not configured', async () => {
             const app = createTestApp(null);
 
-            const response = await request(app)
-                .get('/admin/api/stats')
-                .expect(401);
+            const response = await request(app).get('/admin/api/stats').expect(401);
 
             expect(response.body.error.code).toBe('ADMIN_NOT_CONFIGURED');
         });
@@ -194,9 +198,7 @@ describe('Admin Routes', () => {
         it('should return 401 when no authorization header is provided', async () => {
             const app = createTestApp(TEST_PASSWORD);
 
-            const response = await request(app)
-                .get('/admin/api/stats')
-                .expect(401);
+            const response = await request(app).get('/admin/api/stats').expect(401);
 
             expect(response.body.error.code).toBe('AUTH_REQUIRED');
             expect(response.headers['www-authenticate']).toBe('Basic realm="Admin Dashboard"');
@@ -275,20 +277,20 @@ describe('Admin Routes', () => {
                 timestamp: expect.any(String),
                 uptime: expect.objectContaining({
                     seconds: expect.any(Number),
-                    formatted: expect.any(String)
+                    formatted: expect.any(String),
                 }),
                 memory: expect.objectContaining({
                     heapUsed: expect.any(Number),
                     heapTotal: expect.any(Number),
-                    rss: expect.any(Number)
+                    rss: expect.any(Number),
                 }),
                 connections: expect.objectContaining({
                     sockets: expect.any(Number),
-                    activeRooms: expect.any(Number)
+                    activeRooms: expect.any(Number),
                 }),
                 health: expect.objectContaining({
-                    redis: expect.any(Object)
-                })
+                    redis: expect.any(Object),
+                }),
             });
         });
 
@@ -309,7 +311,7 @@ describe('Admin Routes', () => {
 
             expect(response.body.instance).toMatchObject({
                 pid: expect.any(Number),
-                nodeVersion: expect.any(String)
+                nodeVersion: expect.any(String),
             });
         });
 
@@ -350,14 +352,14 @@ describe('Admin Routes', () => {
                 hostSessionId: 'host-session-123',
                 hasPassword: false,
                 createdAt: Date.now(),
-                settings: { teamNames: { red: 'Red', blue: 'Blue' } }
+                settings: { teamNames: { red: 'Red', blue: 'Blue' } },
             };
             const room2 = {
                 code: 'XYZ789',
                 status: 'playing',
                 hostSessionId: 'host-session-456',
                 createdAt: Date.now() - 1000,
-                settings: { teamNames: { red: 'Fire', blue: 'Ice' }, turnTimer: 60 }
+                settings: { teamNames: { red: 'Fire', blue: 'Ice' }, turnTimer: 60 },
             };
 
             mockRedisStorage.set('room:ABC123', JSON.stringify(room1));
@@ -385,7 +387,7 @@ describe('Admin Routes', () => {
                 status: 'waiting',
                 hostSessionId: 'secret-host-id',
                 createdAt: Date.now(),
-                settings: { teamNames: { red: 'Red', blue: 'Blue' } }
+                settings: { teamNames: { red: 'Red', blue: 'Blue' } },
             };
             mockRedisStorage.set('room:SECRET', JSON.stringify(room));
 
@@ -417,11 +419,14 @@ describe('Admin Routes', () => {
 
             // Verify io.emit was called
             const io = app.get('io');
-            expect(io.emit).toHaveBeenCalledWith('admin:broadcast', expect.objectContaining({
-                message: 'Test broadcast message',
-                type: 'info',
-                from: 'admin'
-            }));
+            expect(io.emit).toHaveBeenCalledWith(
+                'admin:broadcast',
+                expect.objectContaining({
+                    message: 'Test broadcast message',
+                    type: 'info',
+                    from: 'admin',
+                })
+            );
         });
 
         it('should reject empty message', async () => {
@@ -464,9 +469,12 @@ describe('Admin Routes', () => {
                 .expect(200);
 
             const io = app.get('io');
-            expect(io.emit).toHaveBeenCalledWith('admin:broadcast', expect.objectContaining({
-                type: 'info'
-            }));
+            expect(io.emit).toHaveBeenCalledWith(
+                'admin:broadcast',
+                expect.objectContaining({
+                    type: 'info',
+                })
+            );
         });
 
         it('should trim whitespace from message', async () => {
@@ -477,9 +485,12 @@ describe('Admin Routes', () => {
                 .expect(200);
 
             const io = app.get('io');
-            expect(io.emit).toHaveBeenCalledWith('admin:broadcast', expect.objectContaining({
-                message: 'Trimmed message'
-            }));
+            expect(io.emit).toHaveBeenCalledWith(
+                'admin:broadcast',
+                expect.objectContaining({
+                    message: 'Trimmed message',
+                })
+            );
         });
 
         it('should return 503 when socket.io is not available', async () => {
@@ -513,7 +524,7 @@ describe('Admin Routes', () => {
                 status: 'waiting',
                 hostSessionId: 'host-session-123',
                 createdAt: Date.now(),
-                settings: {}
+                settings: {},
             };
             mockRedisStorage.set('room:delete', JSON.stringify(room));
 
@@ -532,7 +543,7 @@ describe('Admin Routes', () => {
                 status: 'playing',
                 hostSessionId: 'host-session-123',
                 createdAt: Date.now(),
-                settings: {}
+                settings: {},
             };
             mockRedisStorage.set('room:notify', JSON.stringify(room));
 
@@ -569,7 +580,7 @@ describe('Admin Routes', () => {
                 status: 'waiting',
                 hostSessionId: 'host-session-123',
                 createdAt: Date.now(),
-                settings: {}
+                settings: {},
             };
             mockRedisStorage.set('room:lower1', JSON.stringify(room));
 
@@ -590,16 +601,13 @@ describe('Admin Routes', () => {
             const originalSendFile = express.response.sendFile;
             let sentPath = null;
 
-            express.response.sendFile = function(filePath, callback) {
+            express.response.sendFile = function (filePath, callback) {
                 sentPath = filePath;
                 if (callback) callback(null);
                 this.status(200).send('Admin HTML');
             };
 
-            await request(app)
-                .get('/admin')
-                .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
-                .expect(200);
+            await request(app).get('/admin').set('Authorization', createAuthHeader('admin', TEST_PASSWORD)).expect(200);
 
             // Restore original
             express.response.sendFile = originalSendFile;
@@ -619,23 +627,26 @@ describe('Admin Routes', () => {
                 .expect(200);
 
             const io = testApp.get('io');
-            expect(io.emit).toHaveBeenCalledWith('admin:broadcast', expect.objectContaining({
-                from: 'superadmin'
-            }));
+            expect(io.emit).toHaveBeenCalledWith(
+                'admin:broadcast',
+                expect.objectContaining({
+                    from: 'superadmin',
+                })
+            );
         });
 
         it('should handle concurrent requests correctly', async () => {
             const app = createTestApp(TEST_PASSWORD);
 
-            const requests = Array(5).fill(null).map(() =>
-                request(app)
-                    .get('/admin/api/stats')
-                    .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
-            );
+            const requests = Array(5)
+                .fill(null)
+                .map(() =>
+                    request(app).get('/admin/api/stats').set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
+                );
 
             const responses = await Promise.all(requests);
 
-            responses.forEach(response => {
+            responses.forEach((response) => {
                 expect(response.status).toBe(200);
                 expect(response.body.timestamp).toBeDefined();
             });
@@ -651,7 +662,7 @@ describe('Uptime formatting', () => {
         const mockIO = {
             fetchSockets: jest.fn(async () => [{ id: '1' }, { id: '2' }]),
             emit: jest.fn(),
-            to: jest.fn(() => ({ emit: jest.fn() }))
+            to: jest.fn(() => ({ emit: jest.fn() })),
         };
         app.set('io', mockIO);
         app.use('/admin', adminRoutes);

@@ -14,20 +14,20 @@ jest.mock('../../config/constants', () => ({
         GAME_REVEAL: { points: 30, duration: 60 },
         PLAYER_SET_TEAM: { points: 10, duration: 60 },
         CHAT_MESSAGE: { points: 20, duration: 60 },
-        DEFAULT: { points: 50, duration: 60 }
+        DEFAULT: { points: 50, duration: 60 },
     },
     ERROR_CODES: {
         RATE_LIMITED: 'RATE_LIMITED',
         SERVER_ERROR: 'SERVER_ERROR',
-        ROOM_NOT_FOUND: 'ROOM_NOT_FOUND'
-    }
+        ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
+    },
 }));
 
 jest.mock('../../utils/logger', () => ({
     warn: jest.fn(),
     error: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock rateLimit module
@@ -39,8 +39,8 @@ jest.mock('../../middleware/rateLimit', () => ({
     createSocketRateLimiter: jest.fn().mockReturnValue({
         getLimiter: mockGetLimiter,
         cleanupSocket: mockCleanupSocket,
-        cleanupStale: mockCleanupStale
-    })
+        cleanupStale: mockCleanupStale,
+    }),
 }));
 
 const {
@@ -48,7 +48,7 @@ const {
     createRateLimitedHandler,
     getSocketRateLimiter,
     _startRateLimitCleanup,
-    stopRateLimitCleanup
+    stopRateLimitCleanup,
 } = require('../../socket/rateLimitHandler');
 
 const logger = require('../../utils/logger');
@@ -62,8 +62,8 @@ describe('Rate Limit Handler Extended Tests', () => {
             id: 'test-socket-' + Date.now(),
             emit: jest.fn(),
             handshake: {
-                address: '192.168.1.1'
-            }
+                address: '192.168.1.1',
+            },
         };
         // Reset the limiter mock for each test
         mockLimiter.mockImplementation((socket, data, callback) => callback(null));
@@ -74,13 +74,12 @@ describe('Rate Limit Handler Extended Tests', () => {
     });
 
     describe('createRateLimitedHandler Advanced Scenarios', () => {
-
         test('handles handler that returns null', async () => {
             const handler = jest.fn().mockResolvedValue(null);
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalled();
         });
@@ -90,7 +89,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
 
             await wrapped({ sync: true });
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalled();
         });
@@ -102,12 +101,13 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'player:setTeam', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             // Error with code but no message - should emit with that code
-            expect(mockSocket.emit).toHaveBeenCalledWith('player:error',
+            expect(mockSocket.emit).toHaveBeenCalledWith(
+                'player:error',
                 expect.objectContaining({
-                    code: 'EMPTY_MESSAGE'
+                    code: 'EMPTY_MESSAGE',
                 })
             );
         });
@@ -117,12 +117,12 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'chat:message', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             // String thrown should result in undefined code/message
             expect(mockSocket.emit).toHaveBeenCalledWith('chat:error', {
                 code: 'SERVER_ERROR',
-                message: 'An unexpected error occurred'
+                message: 'An unexpected error occurred',
             });
         });
 
@@ -132,7 +132,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:board:update', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             // Should use first part as error event prefix
             expect(mockSocket.emit).toHaveBeenCalledWith('game:error', expect.any(Object));
@@ -144,20 +144,19 @@ describe('Rate Limit Handler Extended Tests', () => {
                 array: [1, 2, { three: 3 }],
                 date: new Date().toISOString(),
                 nullable: null,
-                boolean: true
+                boolean: true,
             };
             const handler = jest.fn().mockResolvedValue(undefined);
             const wrapped = createRateLimitedHandler(mockSocket, 'game:reveal', handler);
 
             await wrapped(complexData);
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith(complexData);
         });
     });
 
     describe('Rate Limit Exceeded Handling', () => {
-
         test('emits rate limit error when limit exceeded', async () => {
             // Mock rate limiter to return error (limit exceeded)
             mockLimiter.mockImplementation((socket, data, callback) => {
@@ -168,12 +167,12 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'room:create', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).not.toHaveBeenCalled();
             expect(mockSocket.emit).toHaveBeenCalledWith('room:error', {
                 code: 'RATE_LIMITED',
-                message: 'Too many requests, please slow down'
+                message: 'Too many requests, please slow down',
             });
         });
 
@@ -186,16 +185,13 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:reveal', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
-            expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Rate limit exceeded')
-            );
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Rate limit exceeded'));
         });
     });
 
     describe('Socket Rate Limiter Instance', () => {
-
         test('getLimiter returns function for room events', () => {
             const limiter = socketRateLimiter.getLimiter('room:create');
             expect(mockGetLimiter).toHaveBeenCalledWith('room:create');
@@ -219,7 +215,6 @@ describe('Rate Limit Handler Extended Tests', () => {
     });
 
     describe('getSocketRateLimiter Export', () => {
-
         test('returned limiter has getLimiter method', () => {
             const limiter = getSocketRateLimiter();
             expect(typeof limiter.getLimiter).toBe('function');
@@ -232,13 +227,12 @@ describe('Rate Limit Handler Extended Tests', () => {
     });
 
     describe('Handler with Different Data Types', () => {
-
         test('handles undefined data', async () => {
             const handler = jest.fn().mockResolvedValue(undefined);
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
 
             await wrapped(undefined);
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith(undefined);
         });
@@ -248,7 +242,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
 
             await wrapped(null);
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith(null);
         });
@@ -258,7 +252,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
 
             await wrapped({});
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith({});
         });
@@ -268,7 +262,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:start', handler);
 
             await wrapped([1, 2, 3]);
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith([1, 2, 3]);
         });
@@ -278,7 +272,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'chat:message', handler);
 
             await wrapped('Hello, world!');
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith('Hello, world!');
         });
@@ -288,30 +282,25 @@ describe('Rate Limit Handler Extended Tests', () => {
             const wrapped = createRateLimitedHandler(mockSocket, 'game:reveal', handler);
 
             await wrapped(42);
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             expect(handler).toHaveBeenCalledWith(42);
         });
     });
 
     describe('Concurrent Handler Calls', () => {
-
         test('handles multiple concurrent calls', async () => {
             const handler = jest.fn().mockImplementation(async (data) => {
-                await new Promise(resolve => setTimeout(resolve, 5));
+                await new Promise((resolve) => setTimeout(resolve, 5));
                 return data;
             });
             const wrapped = createRateLimitedHandler(mockSocket, 'game:reveal', handler);
 
             // Make multiple concurrent calls
-            const promises = [
-                wrapped({ id: 1 }),
-                wrapped({ id: 2 }),
-                wrapped({ id: 3 })
-            ];
+            const promises = [wrapped({ id: 1 }), wrapped({ id: 2 }), wrapped({ id: 3 })];
 
             await Promise.all(promises);
-            await new Promise(resolve => setTimeout(resolve, 20));
+            await new Promise((resolve) => setTimeout(resolve, 20));
 
             expect(handler).toHaveBeenCalledTimes(3);
         });
@@ -326,7 +315,7 @@ describe('Rate Limit Handler Extended Tests', () => {
             await wrapped({ value: 'first' });
             await wrapped({ value: 'second' });
             await wrapped({ value: 'third' });
-            await new Promise(resolve => setTimeout(resolve, 20));
+            await new Promise((resolve) => setTimeout(resolve, 20));
 
             expect(receivedData).toContainEqual({ value: 'first' });
             expect(receivedData).toContainEqual({ value: 'second' });

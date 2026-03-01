@@ -11,7 +11,7 @@ import {
     END_TURN_SCRIPT,
     SET_ROLE_SCRIPT,
     HOST_TRANSFER_SCRIPT,
-    SAFE_TEAM_SWITCH_SCRIPT
+    SAFE_TEAM_SWITCH_SCRIPT,
 } from '../../scripts';
 
 describe('Lua Script Behavioral Contracts', () => {

@@ -64,7 +64,7 @@ function handleJwtVerification(
         logger.debug('JWT token verified for socket', {
             socketId: authSocket.id,
             userId: tokenResult.decoded.userId,
-            sessionId: tokenResult.decoded.sessionId
+            sessionId: tokenResult.decoded.sessionId,
         });
         return;
     }
@@ -73,7 +73,7 @@ function handleJwtVerification(
     logger.debug('JWT token validation failed for socket', {
         socketId: authSocket.id,
         errorCode: tokenResult.error,
-        errorMessage: tokenResult.message
+        errorMessage: tokenResult.message,
     });
 
     // Handle specific error cases
@@ -84,7 +84,7 @@ function handleJwtVerification(
         logger.warn('JWT claims mismatch detected', {
             socketId: authSocket.id,
             clientIP: currentIP,
-            sessionId: authSocket.sessionId
+            sessionId: authSocket.sessionId,
         });
     }
 }

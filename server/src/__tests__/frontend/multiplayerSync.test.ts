@@ -25,13 +25,25 @@ jest.mock('../../frontend/state', () => ({
         spymasterTeam: null,
         clickerTeam: null,
         gameState: {
-            words: [], types: [], revealed: [],
-            currentTurn: 'red', redScore: 0, blueScore: 0,
-            redTotal: 9, blueTotal: 8,
-            gameOver: false, winner: null, seed: null,
-            currentClue: null, guessesUsed: 0, guessesAllowed: 0,
-            status: 'waiting', duetTypes: [],
-            timerTokens: 0, greenFound: 0, greenTotal: 0
+            words: [],
+            types: [],
+            revealed: [],
+            currentTurn: 'red',
+            redScore: 0,
+            blueScore: 0,
+            redTotal: 9,
+            blueTotal: 8,
+            gameOver: false,
+            winner: null,
+            seed: null,
+            currentClue: null,
+            guessesUsed: 0,
+            guessesAllowed: 0,
+            status: 'waiting',
+            duetTypes: [],
+            timerTokens: 0,
+            greenFound: 0,
+            greenTotal: 0,
         },
         gameMode: 'classic',
         teamNames: { red: 'Red', blue: 'Blue' },
@@ -40,64 +52,74 @@ jest.mock('../../frontend/state', () => ({
         replayPlaying: false,
         replayInterval: null,
         cachedElements: {
-            board: null, roleBanner: null, turnIndicator: null,
-            endTurnBtn: null, spymasterBtn: null, clickerBtn: null,
-            redTeamBtn: null, blueTeamBtn: null, spectateBtn: null,
-            redRemaining: null, blueRemaining: null,
-            redTeamName: null, blueTeamName: null,
-            srAnnouncements: null, timerDisplay: null, timerValue: null
+            board: null,
+            roleBanner: null,
+            turnIndicator: null,
+            endTurnBtn: null,
+            spymasterBtn: null,
+            clickerBtn: null,
+            redTeamBtn: null,
+            blueTeamBtn: null,
+            spectateBtn: null,
+            redRemaining: null,
+            blueRemaining: null,
+            redTeamName: null,
+            blueTeamName: null,
+            srAnnouncements: null,
+            timerDisplay: null,
+            timerValue: null,
         },
-        clickerTeam: null
-    }
+        clickerTeam: null,
+    },
 }));
 jest.mock('../../frontend/board', () => ({
     renderBoard: jest.fn(),
-    detachResizeListener: jest.fn()
+    detachResizeListener: jest.fn(),
 }));
 jest.mock('../../frontend/game', () => ({
     updateScoreboard: jest.fn(),
     updateTurnIndicator: jest.fn(),
-    updateMatchScoreboard: jest.fn()
+    updateMatchScoreboard: jest.fn(),
 }));
 jest.mock('../../frontend/roles', () => ({
     updateRoleBanner: jest.fn(),
     updateControls: jest.fn(),
-    clearRoleChange: jest.fn()
+    clearRoleChange: jest.fn(),
 }));
 jest.mock('../../frontend/timer', () => ({
-    handleTimerStopped: jest.fn()
+    handleTimerStopped: jest.fn(),
 }));
 jest.mock('../../frontend/notifications', () => ({
-    setTabNotification: jest.fn()
+    setTabNotification: jest.fn(),
 }));
 jest.mock('../../frontend/multiplayerUI', () => ({
     updateMpIndicator: jest.fn(),
     updateForfeitButton: jest.fn(),
     updateRoomSettingsNavVisibility: jest.fn(),
     hideReconnectionOverlay: jest.fn(),
-    updateDuetUI: jest.fn()
+    updateDuetUI: jest.fn(),
 }));
 jest.mock('../../frontend/chat', () => ({
-    updateChatForRole: jest.fn()
+    updateChatForRole: jest.fn(),
 }));
 jest.mock('../../frontend/stateMutations', () => ({
     setPlayerRole: jest.fn(),
     clearPlayerRole: jest.fn(),
     resetGameState: jest.fn(),
-    validateTurn: jest.fn((v: string, fb: string) => (v === 'red' || v === 'blue') ? v : fb),
-    validateWinner: jest.fn((v: string | null) => (v === 'red' || v === 'blue') ? v : null),
-    validateGameMode: jest.fn((v: string) => (v === 'classic' || v === 'duet' || v === 'match') ? v : 'classic'),
-    validateArrayLength: jest.fn((_name: string, arr: unknown[], len: number) => arr?.length === len)
+    validateTurn: jest.fn((v: string, fb: string) => (v === 'red' || v === 'blue' ? v : fb)),
+    validateWinner: jest.fn((v: string | null) => (v === 'red' || v === 'blue' ? v : null)),
+    validateGameMode: jest.fn((v: string) => (v === 'classic' || v === 'duet' || v === 'match' ? v : 'classic')),
+    validateArrayLength: jest.fn((_name: string, arr: unknown[], len: number) => arr?.length === len),
 }));
 jest.mock('../../frontend/clientAccessor', () => ({
     getClient: jest.fn(() => null),
-    isClientConnected: jest.fn(() => false)
+    isClientConnected: jest.fn(() => false),
 }));
 jest.mock('../../frontend/accessibility', () => ({
-    removeKeyboardShortcuts: jest.fn()
+    removeKeyboardShortcuts: jest.fn(),
 }));
 jest.mock('../../frontend/logger', () => ({
-    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() }
+    logger: { warn: jest.fn(), error: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
 
 import { state } from '../../frontend/state';
@@ -116,7 +138,7 @@ import {
     updateURLWithRoomCode,
     cleanupDOMListeners,
     domListenerCleanup,
-    multiplayerEventNames
+    multiplayerEventNames,
 } from '../../frontend/multiplayerSync';
 import type { ReconnectionData, ServerPlayerData } from '../../frontend/multiplayerTypes';
 
@@ -137,13 +159,25 @@ function resetMockedState(): void {
     state.spymasterTeam = null;
     state.clickerTeam = null;
     state.gameState = {
-        words: [], types: [], revealed: [],
-        currentTurn: 'red', redScore: 0, blueScore: 0,
-        redTotal: 9, blueTotal: 8,
-        gameOver: false, winner: null, seed: null,
-        currentClue: null, guessesUsed: 0, guessesAllowed: 0,
-        status: 'waiting', duetTypes: [],
-        timerTokens: 0, greenFound: 0, greenTotal: 0
+        words: [],
+        types: [],
+        revealed: [],
+        currentTurn: 'red',
+        redScore: 0,
+        blueScore: 0,
+        redTotal: 9,
+        blueTotal: 8,
+        gameOver: false,
+        winner: null,
+        seed: null,
+        currentClue: null,
+        guessesUsed: 0,
+        guessesAllowed: 0,
+        status: 'waiting',
+        duetTypes: [],
+        timerTokens: 0,
+        greenFound: 0,
+        greenTotal: 0,
     } as typeof state.gameState;
     state.gameMode = 'classic';
     state.teamNames = { red: 'Red', blue: 'Blue' };
@@ -168,8 +202,8 @@ describe('multiplayerSync', () => {
                 game: {
                     words: ['APPLE', 'BANANA', 'CHERRY'],
                     types: ['red', 'blue', 'neutral'],
-                    revealed: [false, false, false]
-                }
+                    revealed: [false, false, false],
+                },
             };
 
             const changes = detectOfflineChanges(data);
@@ -184,14 +218,12 @@ describe('multiplayerSync', () => {
             const data: ReconnectionData = {
                 game: {
                     gameOver: true,
-                    winner: 'red'
-                }
+                    winner: 'red',
+                },
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toEqual(
-                expect.arrayContaining([expect.stringContaining('Red won')])
-            );
+            expect(changes).toEqual(expect.arrayContaining([expect.stringContaining('Red won')]));
         });
 
         it('detects game ended without a specific winner', () => {
@@ -200,8 +232,8 @@ describe('multiplayerSync', () => {
             const data: ReconnectionData = {
                 game: {
                     gameOver: true,
-                    winner: null
-                }
+                    winner: null,
+                },
             };
 
             const changes = detectOfflineChanges(data);
@@ -215,14 +247,12 @@ describe('multiplayerSync', () => {
             const data: ReconnectionData = {
                 game: {
                     currentTurn: 'blue',
-                    gameOver: false
-                }
+                    gameOver: false,
+                },
             };
 
             const changes = detectOfflineChanges(data);
-            expect(changes).toEqual(
-                expect.arrayContaining([expect.stringContaining("Blue's turn")])
-            );
+            expect(changes).toEqual(expect.arrayContaining([expect.stringContaining("Blue's turn")]));
         });
 
         it('does not report turn change when game is over', () => {
@@ -231,27 +261,27 @@ describe('multiplayerSync', () => {
             const data: ReconnectionData = {
                 game: {
                     currentTurn: 'blue',
-                    gameOver: true
-                }
+                    gameOver: true,
+                },
             };
 
             const changes = detectOfflineChanges(data);
             // Should not contain a turn change message (game over takes precedence)
-            const turnMessages = changes.filter(c => c.includes('turn'));
+            const turnMessages = changes.filter((c) => c.includes('turn'));
             expect(turnMessages).toHaveLength(0);
         });
 
         it('detects that players joined while offline', () => {
             state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true }
+                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
             ] as ServerPlayerData[];
 
             const data: ReconnectionData = {
                 players: [
                     { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
                     { sessionId: 'p2', nickname: 'Bob', team: null, role: null, isHost: false, connected: true },
-                    { sessionId: 'p3', nickname: 'Carol', team: null, role: null, isHost: false, connected: true }
-                ]
+                    { sessionId: 'p3', nickname: 'Carol', team: null, role: null, isHost: false, connected: true },
+                ],
             };
 
             const changes = detectOfflineChanges(data);
@@ -260,14 +290,14 @@ describe('multiplayerSync', () => {
 
         it('detects that a single player joined (singular form)', () => {
             state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true }
+                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
             ] as ServerPlayerData[];
 
             const data: ReconnectionData = {
                 players: [
                     { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
-                    { sessionId: 'p2', nickname: 'Bob', team: null, role: null, isHost: false, connected: true }
-                ]
+                    { sessionId: 'p2', nickname: 'Bob', team: null, role: null, isHost: false, connected: true },
+                ],
             };
 
             const changes = detectOfflineChanges(data);
@@ -278,13 +308,13 @@ describe('multiplayerSync', () => {
             state.multiplayerPlayers = [
                 { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
                 { sessionId: 'p2', nickname: 'Bob', team: null, role: null, isHost: false, connected: true },
-                { sessionId: 'p3', nickname: 'Carol', team: null, role: null, isHost: false, connected: true }
+                { sessionId: 'p3', nickname: 'Carol', team: null, role: null, isHost: false, connected: true },
             ] as ServerPlayerData[];
 
             const data: ReconnectionData = {
                 players: [
-                    { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true }
-                ]
+                    { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
+                ],
             };
 
             const changes = detectOfflineChanges(data);
@@ -301,18 +331,18 @@ describe('multiplayerSync', () => {
             state.gameState.gameOver = false;
             state.gameState.words = ['APPLE'];
             state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true }
+                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
             ] as ServerPlayerData[];
 
             const data: ReconnectionData = {
                 game: {
                     currentTurn: 'red',
                     gameOver: false,
-                    words: ['APPLE']
+                    words: ['APPLE'],
                 },
                 players: [
-                    { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true }
-                ]
+                    { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
+                ],
             };
 
             const changes = detectOfflineChanges(data);
@@ -388,7 +418,7 @@ describe('multiplayerSync', () => {
 
         it('clears multiplayer players list', () => {
             state.multiplayerPlayers = [
-                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true }
+                { sessionId: 'p1', nickname: 'Alice', team: null, role: null, isHost: true, connected: true },
             ] as ServerPlayerData[];
 
             resetMultiplayerState();
@@ -422,7 +452,7 @@ describe('multiplayerSync', () => {
                 team: 'red',
                 role: 'spymaster',
                 isHost: true,
-                connected: true
+                connected: true,
             };
 
             syncLocalPlayerState(player);
@@ -439,7 +469,7 @@ describe('multiplayerSync', () => {
                 team: null,
                 role: 'guesser',
                 isHost: false,
-                connected: true
+                connected: true,
             };
 
             syncLocalPlayerState(player);
@@ -587,7 +617,7 @@ describe('multiplayerSync', () => {
             cleanupMultiplayerListeners();
 
             // Should call off() for each event name
-            multiplayerEventNames.forEach(eventName => {
+            multiplayerEventNames.forEach((eventName) => {
                 expect(offFn).toHaveBeenCalledWith(eventName);
             });
             expect(state.multiplayerListenersSetup).toBe(false);
@@ -669,7 +699,7 @@ describe('multiplayerSync', () => {
                 words: ['A', 'B', 'C'],
                 types: ['red', 'blue', 'neutral'],
                 revealed: [false, true, false],
-                currentTurn: 'blue'
+                currentTurn: 'blue',
             };
 
             syncGameStateFromServer(serverGame as any);
@@ -687,7 +717,7 @@ describe('multiplayerSync', () => {
                 redScore: 3,
                 blueScore: 5,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             };
 
             syncGameStateFromServer(serverGame as any);
@@ -704,7 +734,7 @@ describe('multiplayerSync', () => {
                 types: ['red'],
                 revealed: [true],
                 gameOver: true,
-                winner: 'red'
+                winner: 'red',
             };
 
             syncGameStateFromServer(serverGame as any);
@@ -720,7 +750,7 @@ describe('multiplayerSync', () => {
             const serverGame = {
                 words: ['A'],
                 types: ['red'],
-                revealed: [false]
+                revealed: [false],
             };
 
             syncGameStateFromServer(serverGame as any);
@@ -736,16 +766,21 @@ describe('multiplayerSync', () => {
 
         it('syncs clue state', () => {
             syncGameStateFromServer({
-                words: ['A'], types: ['r'], revealed: [false],
-                currentClue: { word: 'fruit', number: 3 }
+                words: ['A'],
+                types: ['r'],
+                revealed: [false],
+                currentClue: { word: 'fruit', number: 3 },
             } as any);
             expect(state.gameState.currentClue).toEqual({ word: 'fruit', number: 3 });
         });
 
         it('syncs guess tracking state', () => {
             syncGameStateFromServer({
-                words: ['A'], types: ['r'], revealed: [false],
-                guessesUsed: 2, guessesAllowed: 4
+                words: ['A'],
+                types: ['r'],
+                revealed: [false],
+                guessesUsed: 2,
+                guessesAllowed: 4,
             } as any);
             expect(state.gameState.guessesUsed).toBe(2);
             expect(state.gameState.guessesAllowed).toBe(4);
@@ -753,12 +788,14 @@ describe('multiplayerSync', () => {
 
         it('syncs duet mode fields', () => {
             syncGameStateFromServer({
-                words: ['A'], types: ['r'], revealed: [false],
+                words: ['A'],
+                types: ['r'],
+                revealed: [false],
                 duetTypes: ['green', 'black', 'neutral'],
                 timerTokens: 7,
                 greenFound: 5,
                 greenTotal: 15,
-                gameMode: 'duet'
+                gameMode: 'duet',
             } as any);
 
             expect(state.gameState.duetTypes).toEqual(['green', 'black', 'neutral']);
@@ -775,12 +812,10 @@ describe('multiplayerSync', () => {
             syncGameStateFromServer({
                 words: oversizedWords,
                 types: Array(200).fill('red'),
-                revealed: Array(200).fill(false)
+                revealed: Array(200).fill(false),
             } as any);
 
-            expect(logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('rejected oversized words array')
-            );
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('rejected oversized words array'));
         });
 
         it('handles null serverGame gracefully', () => {
@@ -798,7 +833,7 @@ describe('multiplayerSync', () => {
             syncGameStateFromServer({
                 words: ['NEW'],
                 types: ['red'],
-                revealed: [false]
+                revealed: [false],
             } as any);
 
             expect(state.boardInitialized).toBe(false);
@@ -864,7 +899,7 @@ describe('multiplayerSync', () => {
     describe('multiplayerEventNames', () => {
         it('is an array of strings', () => {
             expect(Array.isArray(multiplayerEventNames)).toBe(true);
-            multiplayerEventNames.forEach(name => {
+            multiplayerEventNames.forEach((name) => {
                 expect(typeof name).toBe('string');
             });
         });

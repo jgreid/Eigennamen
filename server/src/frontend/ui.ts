@@ -3,7 +3,10 @@ import { escapeHTML } from './utils.js';
 import { UI } from './constants.js';
 
 // Store timer IDs for toast auto-dismiss without extending HTMLDivElement
-const toastTimers = new WeakMap<HTMLDivElement, { autoDismiss?: ReturnType<typeof setTimeout>; hide?: ReturnType<typeof setTimeout> }>();
+const toastTimers = new WeakMap<
+    HTMLDivElement,
+    { autoDismiss?: ReturnType<typeof setTimeout>; hide?: ReturnType<typeof setTimeout> }
+>();
 
 export function announceToScreenReader(message: string): void {
     const announcer = state.cachedElements.srAnnouncements;
@@ -41,7 +44,7 @@ export function showToast(message: string, type: string = 'error', duration: num
         error: '&#10060;',
         success: '&#10004;',
         warning: '&#9888;',
-        info: '&#8505;'
+        info: '&#8505;',
     };
 
     toast.innerHTML = `
@@ -59,7 +62,11 @@ export function showToast(message: string, type: string = 'error', duration: num
     }
 
     // Auto-dismiss after duration (store ID for cleanup in dismissToast)
-    const timers = { autoDismiss: setTimeout(() => { dismissToast(toast); }, duration) };
+    const timers = {
+        autoDismiss: setTimeout(() => {
+            dismissToast(toast);
+        }, duration),
+    };
     toastTimers.set(toast, timers);
 
     // Announce to screen readers with message type for context
@@ -146,7 +153,7 @@ export function openModal(modalId: string): void {
     }
 
     // Prevent duplicate entries for the same modal
-    const existingIndex = modalStack.findIndex(entry => entry.modal === modal);
+    const existingIndex = modalStack.findIndex((entry) => entry.modal === modal);
     if (existingIndex !== -1) {
         modalStack.splice(existingIndex, 1);
     }
@@ -155,7 +162,7 @@ export function openModal(modalId: string): void {
     // This preserves focus context when multiple modals are opened
     modalStack.push({
         modal: modal,
-        previousFocus: document.activeElement
+        previousFocus: document.activeElement,
     });
 
     state.activeModal = modal;
@@ -169,7 +176,9 @@ export function openModal(modalId: string): void {
     }
 
     // Focus first focusable element in modal
-    const focusableElements = modal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
+    const focusableElements = modal.querySelectorAll(
+        'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
+    );
     if (focusableElements.length > 0) {
         setTimeout(() => (focusableElements[0] as HTMLElement).focus(), 50);
     }
@@ -183,7 +192,7 @@ export function closeModal(modalId: string): void {
 
     // Pop modal from stack and restore previous focus
     // Find and remove this modal from the stack (it might not be at the top if closed out of order)
-    const stackIndex = modalStack.findIndex(entry => entry.modal === modal);
+    const stackIndex = modalStack.findIndex((entry) => entry.modal === modal);
     let previousFocus: Element | null = null;
 
     if (stackIndex !== -1) {
@@ -214,7 +223,9 @@ export function closeModal(modalId: string): void {
             (previousFocus as HTMLElement).focus();
         } else if (state.activeModal) {
             // Focus first focusable element in the now-active modal
-            const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
+            const focusableElements = state.activeModal.querySelectorAll(
+                'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
+            );
             if (focusableElements.length > 0) {
                 (focusableElements[0] as HTMLElement).focus();
             }
@@ -236,7 +247,9 @@ export function handleModalKeydown(e: KeyboardEvent): void {
 
     // Tab key focus trapping
     if (e.key === 'Tab') {
-        const focusableElements = state.activeModal.querySelectorAll('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
+        const focusableElements = state.activeModal.querySelectorAll(
+            'button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])'
+        );
         if (focusableElements.length === 0) return;
 
         const firstElement = focusableElements[0] as HTMLElement;

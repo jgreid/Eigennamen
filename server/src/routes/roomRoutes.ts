@@ -22,10 +22,10 @@ const roomExistsLimiter = rateLimit({
         res.status(429).json({
             error: {
                 code: 'RATE_LIMITED',
-                message: 'Too many requests. Please try again later.'
-            }
+                message: 'Too many requests. Please try again later.',
+            },
         });
-    }
+    },
 });
 
 /**
@@ -41,50 +41,59 @@ interface RoomRequest extends Request {
  * Check if room exists
  * GET /api/rooms/:code/exists
  */
-router.get('/:code/exists', roomExistsLimiter, validateParams(roomCodeSchema), async (req: RoomRequest, res: Response, next: NextFunction) => {
-    try {
-        const exists: boolean = await roomService.roomExists(req.params.code);
-        res.json({ exists });
-    } catch (error) {
-        next(error);
+router.get(
+    '/:code/exists',
+    roomExistsLimiter,
+    validateParams(roomCodeSchema),
+    async (req: RoomRequest, res: Response, next: NextFunction) => {
+        try {
+            const exists: boolean = await roomService.roomExists(req.params.code);
+            res.json({ exists });
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 /**
  * Get room info (public info only)
  * GET /api/rooms/:code
  */
-router.get('/:code', validateParams(roomCodeSchema), async (req: RoomRequest, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const room: Room | null = await roomService.getRoom(req.params.code);
+router.get(
+    '/:code',
+    validateParams(roomCodeSchema),
+    async (req: RoomRequest, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const room: Room | null = await roomService.getRoom(req.params.code);
 
-        if (!room) {
-            res.status(404).json({
-                error: {
-                    code: 'ROOM_NOT_FOUND',
-                    message: 'Room not found'
-                }
+            if (!room) {
+                res.status(404).json({
+                    error: {
+                        code: 'ROOM_NOT_FOUND',
+                        message: 'Room not found',
+                    },
+                });
+                return;
+            }
+
+            // Return public room info
+            const players: Player[] = await playerService.getPlayersInRoom(req.params.code);
+            res.json({
+                room: {
+                    code: room.code,
+                    status: room.status,
+                    settings: {
+                        teamNames: room.settings.teamNames,
+                        allowSpectators: room.settings.allowSpectators,
+                    },
+                },
+                playerCount: players.length,
             });
-            return;
+        } catch (error) {
+            next(error);
         }
-
-        // Return public room info
-        const players: Player[] = await playerService.getPlayersInRoom(req.params.code);
-        res.json({
-            room: {
-                code: room.code,
-                status: room.status,
-                settings: {
-                    teamNames: room.settings.teamNames,
-                    allowSpectators: room.settings.allowSpectators
-                }
-            },
-            playerCount: players.length
-        });
-    } catch (error) {
-        next(error);
     }
-});
+);
 
 export default router;
 

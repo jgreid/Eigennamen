@@ -18,7 +18,7 @@ jest.mock('../../config/redis', () => {
         zRemRangeByRank: jest.fn().mockResolvedValue(0),
         zRem: jest.fn().mockResolvedValue(0),
         zCard: jest.fn().mockResolvedValue(0),
-        expire: jest.fn().mockResolvedValue(1)
+        expire: jest.fn().mockResolvedValue(1),
     };
 
     // Mock multi/exec for pipeline
@@ -27,12 +27,12 @@ jest.mock('../../config/redis', () => {
         zAdd: jest.fn().mockReturnThis(),
         zRemRangeByRank: jest.fn().mockReturnThis(),
         expire: jest.fn().mockReturnThis(),
-        exec: jest.fn().mockResolvedValue([['OK'], [1], [0], [1]])
+        exec: jest.fn().mockResolvedValue([['OK'], [1], [0], [1]]),
     };
     mockRedis.multi.mockReturnValue(mockPipeline);
 
     return {
-        getRedis: () => mockRedis
+        getRedis: () => mockRedis,
     };
 });
 
@@ -41,7 +41,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     debug: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 const gameHistoryService = require('../../services/gameHistoryService');
@@ -69,13 +69,13 @@ describe('Game History Service', () => {
         });
 
         mockRedis.mGet.mockImplementation(async (keys) => {
-            return keys.map(key => storage[key] || null);
+            return keys.map((key) => storage[key] || null);
         });
 
         mockRedis.del.mockImplementation(async (keys) => {
             const keysArray = Array.isArray(keys) ? keys : [keys];
             let count = 0;
-            keysArray.forEach(key => {
+            keysArray.forEach((key) => {
                 if (storage[key]) {
                     delete storage[key];
                     count++;
@@ -111,7 +111,7 @@ describe('Game History Service', () => {
             if (options.WITHSCORES) {
                 return result;
             }
-            return result.map(item => item.value);
+            return result.map((item) => item.value);
         });
 
         mockRedis.zCard.mockImplementation(async (key) => {
@@ -122,9 +122,7 @@ describe('Game History Service', () => {
             if (!storage[`zset:${key}`]) return 0;
             const valuesToRemove = Array.isArray(values) ? values : [values];
             const before = storage[`zset:${key}`].length;
-            storage[`zset:${key}`] = storage[`zset:${key}`].filter(
-                item => !valuesToRemove.includes(item.value)
-            );
+            storage[`zset:${key}`] = storage[`zset:${key}`].filter((item) => !valuesToRemove.includes(item.value));
             return before - storage[`zset:${key}`].length;
         });
 
@@ -136,7 +134,7 @@ describe('Game History Service', () => {
             expire: jest.fn().mockReturnThis(),
             exec: jest.fn().mockImplementation(async () => {
                 return [['OK'], [1], [0], [1]];
-            })
+            }),
         };
         mockRedis.multi.mockReturnValue(mockPipeline);
     });
@@ -144,40 +142,81 @@ describe('Game History Service', () => {
     describe('saveGameResult', () => {
         // HARDENING FIX: Updated mock data to have valid 25 words and types
         const mockWords = [
-            'APPLE', 'BANANA', 'CHERRY', 'DATE', 'ELDERBERRY',
-            'FIG', 'GRAPE', 'HONEYDEW', 'IMBE', 'JACKFRUIT',
-            'KIWI', 'LEMON', 'MANGO', 'NECTARINE', 'ORANGE',
-            'PAPAYA', 'QUINCE', 'RASPBERRY', 'STRAWBERRY', 'TANGERINE',
-            'UGO', 'VANILLA', 'WATERMELON', 'XIMENIA', 'YAM'
+            'APPLE',
+            'BANANA',
+            'CHERRY',
+            'DATE',
+            'ELDERBERRY',
+            'FIG',
+            'GRAPE',
+            'HONEYDEW',
+            'IMBE',
+            'JACKFRUIT',
+            'KIWI',
+            'LEMON',
+            'MANGO',
+            'NECTARINE',
+            'ORANGE',
+            'PAPAYA',
+            'QUINCE',
+            'RASPBERRY',
+            'STRAWBERRY',
+            'TANGERINE',
+            'UGO',
+            'VANILLA',
+            'WATERMELON',
+            'XIMENIA',
+            'YAM',
         ];
         // 9 red, 8 blue, 7 neutral, 1 assassin
         const mockTypes = [
-            'red', 'red', 'red', 'red', 'red', 'red', 'red', 'red', 'red',
-            'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue',
-            'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral',
-            'assassin'
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'red',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'blue',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'neutral',
+            'assassin',
         ];
         const mockGameData = {
             id: 'game-123',
             seed: 'test-seed',
             words: mockWords,
             types: mockTypes,
-            revealed: Array(25).fill(false).map((_, i) => i < 2),
+            revealed: Array(25)
+                .fill(false)
+                .map((_, i) => i < 2),
             redScore: 1,
             blueScore: 1,
             redTotal: 9,
             blueTotal: 8,
             winner: 'red',
             gameOver: true,
-            clues: [
-                { team: 'red', word: 'FRUIT', number: 2, spymaster: 'Alice' }
-            ],
+            clues: [{ team: 'red', word: 'FRUIT', number: 2, spymaster: 'Alice' }],
             history: [
                 { action: 'clue', team: 'red', word: 'FRUIT', number: 2 },
-                { action: 'reveal', index: 0, word: 'APPLE', type: 'red' }
+                { action: 'reveal', index: 0, word: 'APPLE', type: 'red' },
             ],
             createdAt: Date.now() - 60000,
-            stateVersion: 10
+            stateVersion: 10,
         };
 
         test('saves game result with correct structure', async () => {
@@ -227,7 +266,7 @@ describe('Game History Service', () => {
         test('includes team names if provided', async () => {
             const gameWithTeamNames = {
                 ...mockGameData,
-                teamNames: { red: 'Fire', blue: 'Ice' }
+                teamNames: { red: 'Fire', blue: 'Ice' },
             };
 
             const result = await gameHistoryService.saveGameResult('ROOM1', gameWithTeamNames);
@@ -248,11 +287,11 @@ describe('Game History Service', () => {
             const games = [
                 { id: 'game-1', timestamp: 1000, finalState: { winner: 'red', redScore: 5, blueScore: 3 } },
                 { id: 'game-2', timestamp: 2000, finalState: { winner: 'blue', redScore: 4, blueScore: 6 } },
-                { id: 'game-3', timestamp: 3000, finalState: { winner: 'red', redScore: 9, blueScore: 7 } }
+                { id: 'game-3', timestamp: 3000, finalState: { winner: 'red', redScore: 9, blueScore: 7 } },
             ];
 
-            storage[`zset:gameHistoryIndex:ROOM1`] = games.map(g => ({ score: g.timestamp, value: g.id }));
-            games.forEach(g => {
+            storage[`zset:gameHistoryIndex:ROOM1`] = games.map((g) => ({ score: g.timestamp, value: g.id }));
+            games.forEach((g) => {
                 storage[`gameHistory:ROOM1:${g.id}`] = JSON.stringify({
                     ...g,
                     roomCode: 'ROOM1',
@@ -260,7 +299,7 @@ describe('Game History Service', () => {
                     endedAt: g.timestamp,
                     clues: [],
                     history: [],
-                    teamNames: { red: 'Red', blue: 'Blue' }
+                    teamNames: { red: 'Red', blue: 'Blue' },
                 });
             });
         });
@@ -327,16 +366,16 @@ describe('Game History Service', () => {
                 words: ['APPLE', 'BANANA'],
                 types: ['red', 'blue'],
                 seed: 'test-seed',
-                firstTeam: 'red'
+                firstTeam: 'red',
             },
             finalState: {
                 winner: 'red',
                 redScore: 5,
-                blueScore: 3
+                blueScore: 3,
             },
             clues: [],
             history: [],
-            teamNames: { red: 'Red', blue: 'Blue' }
+            teamNames: { red: 'Red', blue: 'Blue' },
         };
 
         beforeEach(() => {
@@ -378,27 +417,51 @@ describe('Game History Service', () => {
                 words: ['APPLE', 'BANANA', 'CHERRY'],
                 types: ['red', 'blue', 'neutral'],
                 seed: 'test-seed',
-                firstTeam: 'red'
+                firstTeam: 'red',
             },
             finalState: {
                 winner: 'red',
                 redScore: 2,
                 blueScore: 1,
                 redTotal: 9,
-                blueTotal: 8
+                blueTotal: 8,
             },
             clues: [
                 { team: 'red', word: 'FRUIT', number: 2, spymaster: 'Alice', timestamp: 2000 },
-                { team: 'blue', word: 'YELLOW', number: 1, spymaster: 'Bob', timestamp: 4000 }
+                { team: 'blue', word: 'YELLOW', number: 1, spymaster: 'Bob', timestamp: 4000 },
             ],
             history: [
                 { action: 'clue', team: 'red', word: 'FRUIT', number: 2, spymaster: 'Alice', timestamp: 2000 },
-                { action: 'reveal', index: 0, word: 'APPLE', type: 'red', team: 'red', player: 'Carol', timestamp: 2500 },
-                { action: 'reveal', index: 1, word: 'BANANA', type: 'blue', team: 'red', player: 'Carol', timestamp: 3000 },
+                {
+                    action: 'reveal',
+                    index: 0,
+                    word: 'APPLE',
+                    type: 'red',
+                    team: 'red',
+                    player: 'Carol',
+                    timestamp: 2500,
+                },
+                {
+                    action: 'reveal',
+                    index: 1,
+                    word: 'BANANA',
+                    type: 'blue',
+                    team: 'red',
+                    player: 'Carol',
+                    timestamp: 3000,
+                },
                 { action: 'clue', team: 'blue', word: 'YELLOW', number: 1, spymaster: 'Bob', timestamp: 4000 },
-                { action: 'reveal', index: 2, word: 'CHERRY', type: 'neutral', team: 'blue', player: 'Dave', timestamp: 4500 }
+                {
+                    action: 'reveal',
+                    index: 2,
+                    word: 'CHERRY',
+                    type: 'neutral',
+                    team: 'blue',
+                    player: 'Dave',
+                    timestamp: 4500,
+                },
             ],
-            teamNames: { red: 'Red', blue: 'Blue' }
+            teamNames: { red: 'Red', blue: 'Blue' },
         };
 
         beforeEach(() => {
@@ -435,7 +498,7 @@ describe('Game History Service', () => {
         test('includes clue event data correctly', async () => {
             const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-123');
 
-            const clueEvent = replay.events.find(e => e.type === 'clue');
+            const clueEvent = replay.events.find((e) => e.type === 'clue');
             expect(clueEvent.data.team).toBe('red');
             expect(clueEvent.data.word).toBe('FRUIT');
             expect(clueEvent.data.number).toBe(2);
@@ -445,7 +508,7 @@ describe('Game History Service', () => {
         test('includes reveal event data correctly', async () => {
             const replay = await gameHistoryService.getReplayEvents('ROOM1', 'game-123');
 
-            const revealEvent = replay.events.find(e => e.type === 'reveal');
+            const revealEvent = replay.events.find((e) => e.type === 'reveal');
             expect(revealEvent.data.index).toBe(0);
             expect(revealEvent.data.word).toBe('APPLE');
             expect(revealEvent.data.type).toBe('red');
@@ -486,7 +549,7 @@ describe('Game History Service', () => {
             storage[`zset:gameHistoryIndex:ROOM1`] = [
                 { score: 1000, value: 'game-1' },
                 { score: 2000, value: 'game-2' },
-                { score: 3000, value: 'game-3' }
+                { score: 3000, value: 'game-3' },
             ];
         });
 
@@ -517,7 +580,7 @@ describe('Game History Service', () => {
             // instead of {value, score} objects. extractEntry must handle both.
             mockRedis.zCard.mockResolvedValueOnce(2);
             mockRedis.zRange
-                .mockResolvedValueOnce(['game-oldest', '1000'])  // flat array for oldest
+                .mockResolvedValueOnce(['game-oldest', '1000']) // flat array for oldest
                 .mockResolvedValueOnce(['game-newest', '3000']); // flat array for newest
 
             const stats = await gameHistoryService.getHistoryStats('FLAT_ROOM');
@@ -555,7 +618,7 @@ describe('Game History Service', () => {
             storage[`zset:gameHistoryIndex:ROOM1`] = [
                 { score: 1000, value: 'old-game-1' },
                 { score: 2000, value: 'old-game-2' },
-                { score: 3000, value: 'old-game-3' }
+                { score: 3000, value: 'old-game-3' },
             ];
             storage['gameHistory:ROOM1:old-game-1'] = JSON.stringify({ id: 'old-game-1' });
             storage['gameHistory:ROOM1:old-game-2'] = JSON.stringify({ id: 'old-game-2' });
@@ -603,7 +666,7 @@ describe('Game History Service', () => {
             redTotal: 9,
             blueTotal: 8,
             winner: 'red',
-            gameOver: true
+            gameOver: true,
         };
 
         test('saveGameResult handles pipeline error gracefully', async () => {
@@ -612,7 +675,7 @@ describe('Game History Service', () => {
                 zAdd: jest.fn().mockReturnThis(),
                 zRemRangeByRank: jest.fn().mockReturnThis(),
                 expire: jest.fn().mockReturnThis(),
-                exec: jest.fn().mockRejectedValueOnce(new Error('Pipeline failed'))
+                exec: jest.fn().mockRejectedValueOnce(new Error('Pipeline failed')),
             };
             mockRedis.multi.mockReturnValue(mockPipeline);
 
@@ -651,8 +714,10 @@ describe('Game History Service', () => {
                 finalState: { winner: 'red' },
                 clues: [],
                 // history that has a getter which throws
-                get history() { throw new Error('Unexpected error'); },
-                teamNames: { red: 'Red', blue: 'Blue' }
+                get history() {
+                    throw new Error('Unexpected error');
+                },
+                teamNames: { red: 'Red', blue: 'Blue' },
             };
 
             // Mock get to return the stringified bad game which will parse
@@ -667,9 +732,9 @@ describe('Game History Service', () => {
                     endedAt: 5000,
                     initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
                     finalState: { winner: 'red' },
-                    clues: null,  // This is fine
+                    clues: null, // This is fine
                     history: null, // This will cause issues in buildReplayEvents
-                    teamNames: { red: 'Red', blue: 'Blue' }
+                    teamNames: { red: 'Red', blue: 'Blue' },
                 });
             });
 
@@ -688,7 +753,7 @@ describe('Game History Service', () => {
                     // Return valid game first (for getGameById)
                     return JSON.stringify({
                         id: 'game-err',
-                        roomCode: 'ROOM1'
+                        roomCode: 'ROOM1',
                     });
                 }
                 throw new Error('Unexpected Redis failure');
@@ -728,10 +793,8 @@ describe('Game History Service', () => {
                 initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
                 finalState: { winner: 'red', redScore: 1, blueScore: 0 },
                 clues: [],
-                history: [
-                    { action: 'endTurn', fromTeam: 'red', toTeam: 'blue', player: 'Alice', timestamp: 2000 }
-                ],
-                teamNames: { red: 'Red', blue: 'Blue' }
+                history: [{ action: 'endTurn', fromTeam: 'red', toTeam: 'blue', player: 'Alice', timestamp: 2000 }],
+                teamNames: { red: 'Red', blue: 'Blue' },
             };
 
             storage['gameHistory:ROOM1:game-endturn'] = JSON.stringify(gameWithEndTurn);
@@ -755,10 +818,8 @@ describe('Game History Service', () => {
                 initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
                 finalState: { winner: 'blue', redScore: 0, blueScore: 0 },
                 clues: [],
-                history: [
-                    { action: 'forfeit', forfeitingTeam: 'red', winner: 'blue', timestamp: 3000 }
-                ],
-                teamNames: { red: 'Red', blue: 'Blue' }
+                history: [{ action: 'forfeit', forfeitingTeam: 'red', winner: 'blue', timestamp: 3000 }],
+                teamNames: { red: 'Red', blue: 'Blue' },
             };
 
             storage['gameHistory:ROOM1:game-forfeit'] = JSON.stringify(gameWithForfeit);
@@ -781,10 +842,8 @@ describe('Game History Service', () => {
                 initialBoard: { words: ['A'], types: ['red'], seed: 'test', firstTeam: 'red' },
                 finalState: { winner: 'red', redScore: 1, blueScore: 0 },
                 clues: [],
-                history: [
-                    { action: 'customAction', customField: 'customValue', timestamp: 2000 }
-                ],
-                teamNames: { red: 'Red', blue: 'Blue' }
+                history: [{ action: 'customAction', customField: 'customValue', timestamp: 2000 }],
+                teamNames: { red: 'Red', blue: 'Blue' },
             };
 
             storage['gameHistory:ROOM1:game-unknown'] = JSON.stringify(gameWithUnknownAction);
@@ -807,7 +866,7 @@ describe('Game History Service', () => {
                 finalState: { winner: null, redScore: 0, blueScore: 0 },
                 clues: [],
                 history: [],
-                teamNames: { red: 'Red', blue: 'Blue' }
+                teamNames: { red: 'Red', blue: 'Blue' },
             };
 
             storage['gameHistory:ROOM1:game-empty'] = JSON.stringify(gameWithEmptyHistory);
@@ -829,9 +888,9 @@ describe('Game History Service', () => {
                 finalState: { winner: 'red', redScore: 1, blueScore: 0 },
                 clues: [],
                 history: [
-                    { action: 'reveal', index: 0, word: 'A', type: 'red' }  // No timestamp
+                    { action: 'reveal', index: 0, word: 'A', type: 'red' }, // No timestamp
                 ],
-                teamNames: { red: 'Red', blue: 'Blue' }
+                teamNames: { red: 'Red', blue: 'Blue' },
             };
 
             storage['gameHistory:ROOM1:game-notimestamp'] = JSON.stringify(gameWithMissingTimestamp);
@@ -847,13 +906,36 @@ describe('Game History Service', () => {
     describe('getFirstTeam edge cases', () => {
         test('returns red as fallback when totals are equal', async () => {
             // HARDENING FIX: Use valid 25 words and types for validation
-            const validWords = Array(25).fill('WORD').map((w, i) => `${w}${i}`);
+            const validWords = Array(25)
+                .fill('WORD')
+                .map((w, i) => `${w}${i}`);
             // 8 red, 8 blue, 8 neutral, 1 assassin (neither team has 9)
             const equalTypes = [
-                'red', 'red', 'red', 'red', 'red', 'red', 'red', 'red',
-                'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue',
-                'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral',
-                'assassin'
+                'red',
+                'red',
+                'red',
+                'red',
+                'red',
+                'red',
+                'red',
+                'red',
+                'blue',
+                'blue',
+                'blue',
+                'blue',
+                'blue',
+                'blue',
+                'blue',
+                'blue',
+                'neutral',
+                'neutral',
+                'neutral',
+                'neutral',
+                'neutral',
+                'neutral',
+                'neutral',
+                'neutral',
+                'assassin',
             ];
             const gameWithEqualTotals = {
                 id: 'game-equal',
@@ -862,10 +944,10 @@ describe('Game History Service', () => {
                 types: equalTypes,
                 redScore: 0,
                 blueScore: 0,
-                redTotal: 8,  // Neither team has 9
+                redTotal: 8, // Neither team has 9
                 blueTotal: 8,
                 winner: null,
-                gameOver: false
+                gameOver: false,
             };
 
             const result = await gameHistoryService.saveGameResult('ROOM1', gameWithEqualTotals);
@@ -948,7 +1030,7 @@ describe('Game History Service', () => {
             const history = [
                 { action: 'clue', team: 'red', word: 'ANIMAL', number: 2 },
                 { action: 'reveal', team: 'red', index: 0, type: 'red' },
-                { action: 'reveal', team: 'red', index: 5, type: 'blue' },  // wrong → turn switch
+                { action: 'reveal', team: 'red', index: 5, type: 'blue' }, // wrong → turn switch
                 { action: 'clue', team: 'blue', word: 'OCEAN', number: 1 },
                 { action: 'reveal', team: 'blue', index: 10, type: 'blue' },
                 { action: 'endTurn', fromTeam: 'blue', toTeam: 'red' },

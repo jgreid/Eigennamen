@@ -63,20 +63,60 @@ function expectedAriaLabel(word: string, isRevealed: boolean, type: string, inde
 
 /** Sample 25 words for a full board */
 const SAMPLE_WORDS: string[] = [
-    'AFRICA', 'AGENT', 'AIR', 'ALIEN', 'ALPS',
-    'AMAZON', 'AMBULANCE', 'AMERICA', 'ANGEL', 'ANTARCTICA',
-    'APPLE', 'ARM', 'ATLANTIS', 'AUSTRALIA', 'AZTEC',
-    'BACK', 'BALL', 'BAND', 'BANK', 'BAR',
-    'BARK', 'BAT', 'BATTERY', 'BEACH', 'BEAR',
+    'AFRICA',
+    'AGENT',
+    'AIR',
+    'ALIEN',
+    'ALPS',
+    'AMAZON',
+    'AMBULANCE',
+    'AMERICA',
+    'ANGEL',
+    'ANTARCTICA',
+    'APPLE',
+    'ARM',
+    'ATLANTIS',
+    'AUSTRALIA',
+    'AZTEC',
+    'BACK',
+    'BALL',
+    'BAND',
+    'BANK',
+    'BAR',
+    'BARK',
+    'BAT',
+    'BATTERY',
+    'BEACH',
+    'BEAR',
 ];
 
 /** Sample 25 types matching a standard game layout */
 const SAMPLE_TYPES: string[] = [
-    'red', 'red', 'red', 'red', 'red',
-    'red', 'red', 'red', 'red', 'blue',
-    'blue', 'blue', 'blue', 'blue', 'blue',
-    'blue', 'blue', 'neutral', 'neutral', 'neutral',
-    'neutral', 'neutral', 'neutral', 'neutral', 'assassin',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'red',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'blue',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'neutral',
+    'assassin',
 ];
 
 /** All cards unrevealed */
@@ -107,10 +147,7 @@ function createTestBoard(
         card.setAttribute('role', 'gridcell');
         const isRevealed = revealed[index];
         card.setAttribute('tabindex', isRevealed ? '-1' : '0');
-        card.setAttribute(
-            'aria-label',
-            expectedAriaLabel(word, isRevealed, types[index], index)
-        );
+        card.setAttribute('aria-label', expectedAriaLabel(word, isRevealed, types[index], index));
         if (isRevealed) {
             card.classList.add('revealed', types[index]);
         }

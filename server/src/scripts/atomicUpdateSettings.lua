@@ -1,3 +1,13 @@
+-- atomicUpdateSettings.lua
+-- Description: Atomically validates host identity and merges allowed settings updates into a room's configuration
+--
+-- KEYS[1]: Room key
+-- ARGV[1]: Session ID (to verify host)
+-- ARGV[2]: Settings updates JSON (allowed: teamNames, turnTimer, allowSpectators, gameMode)
+-- ARGV[3]: Room TTL (seconds)
+--
+-- Returns: JSON `{success: true, settings}` or `{error: 'CODE'}`
+
 local roomKey = KEYS[1]
 local sessionId = ARGV[1]
 local settingsJson = ARGV[2]

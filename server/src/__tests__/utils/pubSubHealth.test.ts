@@ -6,7 +6,7 @@ jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 const {
@@ -16,7 +16,7 @@ const {
     stopPingInterval,
     reset,
     FAILURE_THRESHOLD,
-    MAX_SILENCE_MS
+    MAX_SILENCE_MS,
 } = require('../../utils/pubSubHealth');
 
 describe('pubSubHealth', () => {
@@ -39,8 +39,8 @@ describe('pubSubHealth', () => {
             }),
             ping: jest.fn().mockResolvedValue('PONG'),
             _emit(event: string, ...args: unknown[]) {
-                (listeners[event] || []).forEach(cb => cb(...args));
-            }
+                (listeners[event] || []).forEach((cb) => cb(...args));
+            },
         };
     }
 

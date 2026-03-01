@@ -1,3 +1,11 @@
+-- atomicTimerStatus.lua
+-- Description: Retrieves the current status of a timer, calculating remaining time and detecting expiration during pause
+--
+-- KEYS[1]: Timer key
+-- ARGV[1]: Current timestamp (ms)
+--
+-- Returns: JSON timer object, or 'EXPIRED' if paused timer expired
+
 local timerKey = KEYS[1]
 local now = tonumber(ARGV[1])
 

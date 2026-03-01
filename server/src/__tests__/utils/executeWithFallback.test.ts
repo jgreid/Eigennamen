@@ -13,7 +13,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 import { executeWithFallback } from '../../utils/executeWithFallback';
@@ -29,7 +29,7 @@ describe('executeWithFallback', () => {
         const result = await executeWithFallback({
             lua: async () => 'lua-result',
             fallback: async () => 'fallback-result',
-            operationName: 'testOp'
+            operationName: 'testOp',
         });
 
         expect(result).toBe('lua-result');
@@ -38,9 +38,11 @@ describe('executeWithFallback', () => {
 
     test('calls fallback when Lua throws infrastructure error', async () => {
         const result = await executeWithFallback({
-            lua: async () => { throw new Error('NOSCRIPT No matching script'); },
+            lua: async () => {
+                throw new Error('NOSCRIPT No matching script');
+            },
             fallback: async () => 'fallback-result',
-            operationName: 'testOp'
+            operationName: 'testOp',
         });
 
         expect(result).toBe('fallback-result');
@@ -51,17 +53,23 @@ describe('executeWithFallback', () => {
 
     test('does not call fallback for application errors', async () => {
         class PlayerNotFoundError extends Error {
-            constructor() { super('Player not found'); }
+            constructor() {
+                super('Player not found');
+            }
         }
 
         const fallback = jest.fn();
 
-        await expect(executeWithFallback({
-            lua: async () => { throw new PlayerNotFoundError(); },
-            fallback,
-            operationName: 'testOp',
-            applicationErrors: [PlayerNotFoundError]
-        })).rejects.toThrow('Player not found');
+        await expect(
+            executeWithFallback({
+                lua: async () => {
+                    throw new PlayerNotFoundError();
+                },
+                fallback,
+                operationName: 'testOp',
+                applicationErrors: [PlayerNotFoundError],
+            })
+        ).rejects.toThrow('Player not found');
 
         expect(fallback).not.toHaveBeenCalled();
         expect(logger.warn).not.toHaveBeenCalled();
@@ -69,43 +77,59 @@ describe('executeWithFallback', () => {
 
     test('supports multiple application error classes', async () => {
         class NotFoundError extends Error {
-            constructor() { super('Not found'); }
+            constructor() {
+                super('Not found');
+            }
         }
         class CorruptedError extends Error {
-            constructor() { super('Corrupted'); }
+            constructor() {
+                super('Corrupted');
+            }
         }
 
         const fallback = jest.fn();
 
         // First application error class
-        await expect(executeWithFallback({
-            lua: async () => { throw new NotFoundError(); },
-            fallback,
-            operationName: 'testOp',
-            applicationErrors: [NotFoundError, CorruptedError]
-        })).rejects.toThrow('Not found');
+        await expect(
+            executeWithFallback({
+                lua: async () => {
+                    throw new NotFoundError();
+                },
+                fallback,
+                operationName: 'testOp',
+                applicationErrors: [NotFoundError, CorruptedError],
+            })
+        ).rejects.toThrow('Not found');
 
         // Second application error class
-        await expect(executeWithFallback({
-            lua: async () => { throw new CorruptedError(); },
-            fallback,
-            operationName: 'testOp',
-            applicationErrors: [NotFoundError, CorruptedError]
-        })).rejects.toThrow('Corrupted');
+        await expect(
+            executeWithFallback({
+                lua: async () => {
+                    throw new CorruptedError();
+                },
+                fallback,
+                operationName: 'testOp',
+                applicationErrors: [NotFoundError, CorruptedError],
+            })
+        ).rejects.toThrow('Corrupted');
 
         expect(fallback).not.toHaveBeenCalled();
     });
 
     test('propagates fallback errors when both Lua and fallback fail', async () => {
-        await expect(executeWithFallback({
-            lua: async () => { throw new Error('Lua failed'); },
-            fallback: async () => { throw new Error('Fallback also failed'); },
-            operationName: 'testOp'
-        })).rejects.toThrow('Fallback also failed');
+        await expect(
+            executeWithFallback({
+                lua: async () => {
+                    throw new Error('Lua failed');
+                },
+                fallback: async () => {
+                    throw new Error('Fallback also failed');
+                },
+                operationName: 'testOp',
+            })
+        ).rejects.toThrow('Fallback also failed');
 
-        expect(logger.warn).toHaveBeenCalledWith(
-            expect.stringContaining('Lua testOp failed')
-        );
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Lua testOp failed'));
     });
 
     test('works with void return type', async () => {
@@ -115,7 +139,7 @@ describe('executeWithFallback', () => {
         await executeWithFallback({
             lua,
             fallback,
-            operationName: 'voidOp'
+            operationName: 'voidOp',
         });
 
         expect(lua).toHaveBeenCalled();
@@ -125,9 +149,11 @@ describe('executeWithFallback', () => {
     test('defaults applicationErrors to empty array', async () => {
         // Any error should trigger fallback when no applicationErrors specified
         const result = await executeWithFallback({
-            lua: async () => { throw new TypeError('type error'); },
+            lua: async () => {
+                throw new TypeError('type error');
+            },
             fallback: async () => 'recovered',
-            operationName: 'testOp'
+            operationName: 'testOp',
         });
 
         expect(result).toBe('recovered');
@@ -135,9 +161,11 @@ describe('executeWithFallback', () => {
 
     test('includes error message in log', async () => {
         await executeWithFallback({
-            lua: async () => { throw new Error('ECONNRESET'); },
+            lua: async () => {
+                throw new Error('ECONNRESET');
+            },
             fallback: async () => 42,
-            operationName: 'removePlayer(abc123)'
+            operationName: 'removePlayer(abc123)',
         });
 
         expect(logger.warn).toHaveBeenCalledWith(

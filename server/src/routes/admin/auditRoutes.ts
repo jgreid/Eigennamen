@@ -8,7 +8,7 @@ import { getAuditLogs, getAuditSummary } from '../../services/auditService';
 const auditQuerySchema = z.object({
     category: z.enum(['admin', 'security', 'all']).default('all'),
     limit: z.coerce.number().int().min(1).max(1000).default(100),
-    severity: z.enum(['critical', 'high', 'medium', 'low']).nullable().default(null)
+    severity: z.enum(['critical', 'high', 'medium', 'low']).nullable().default(null),
 });
 
 const router: ExpressRouter = express.Router();
@@ -24,8 +24,8 @@ router.get('/api/audit', async (req: Request, res: Response) => {
                 error: {
                     code: 'VALIDATION_ERROR',
                     message: 'Invalid query parameters',
-                    details: parsed.error.issues.map(i => i.message)
-                }
+                    details: parsed.error.issues.map((i) => i.message),
+                },
             });
             return;
         }
@@ -34,22 +34,22 @@ router.get('/api/audit', async (req: Request, res: Response) => {
         const logs = await getAuditLogs({
             category,
             limit,
-            severity
+            severity,
         });
 
         const summary = await getAuditSummary();
 
         res.json({
             summary,
-            logs
+            logs,
         });
     } catch (error) {
         logger.error('Failed to fetch audit logs', { error: (error as Error).message });
         res.status(500).json({
             error: {
                 code: 'AUDIT_ERROR',
-                message: 'Failed to fetch audit logs'
-            }
+                message: 'Failed to fetch audit logs',
+            },
         });
     }
 });

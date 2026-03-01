@@ -8,7 +8,7 @@ const {
     withLock,
     withAutoExtend,
     RELEASE_LOCK_SCRIPT,
-    EXTEND_LOCK_SCRIPT
+    EXTEND_LOCK_SCRIPT,
 } = require('../../utils/distributedLock');
 
 // Mock Redis
@@ -17,11 +17,11 @@ const mockRedis = {
     get: jest.fn(),
     del: jest.fn(),
     exists: jest.fn(),
-    eval: jest.fn()
+    eval: jest.fn(),
 };
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 // Mock logger to reduce test noise
@@ -29,7 +29,7 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 describe('DistributedLock', () => {
@@ -44,14 +44,14 @@ describe('DistributedLock', () => {
                 lockTimeout: 5000,
                 retryDelay: 50,
                 maxRetries: 20,
-                maxRetryDelay: 500
+                maxRetryDelay: 500,
             });
         });
 
         it('should merge custom options with defaults', () => {
             const lock = new DistributedLock({
                 lockTimeout: 10000,
-                maxRetries: 10
+                maxRetries: 10,
             });
             expect(lock.config.lockTimeout).toBe(10000);
             expect(lock.config.maxRetries).toBe(10);
@@ -70,17 +70,16 @@ describe('DistributedLock', () => {
             expect(result.ownerId).toBeDefined();
             expect(typeof result.release).toBe('function');
             expect(typeof result.extend).toBe('function');
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'lock:test-lock',
-                expect.stringContaining(':'),
-                { NX: true, PX: 5000 }
-            );
+            expect(mockRedis.set).toHaveBeenCalledWith('lock:test-lock', expect.stringContaining(':'), {
+                NX: true,
+                PX: 5000,
+            });
         });
 
         it('should retry when lock is not available', async () => {
             mockRedis.set
-                .mockResolvedValueOnce(null)  // First try fails
-                .mockResolvedValueOnce(null)  // Second try fails
+                .mockResolvedValueOnce(null) // First try fails
+                .mockResolvedValueOnce(null) // Second try fails
                 .mockResolvedValueOnce('OK'); // Third try succeeds
 
             const lock = new DistributedLock({ retryDelay: 10, maxRetries: 5 });
@@ -106,17 +105,11 @@ describe('DistributedLock', () => {
             const lock = new DistributedLock();
             await lock.acquire('test-lock', { lockTimeout: 15000 });
 
-            expect(mockRedis.set).toHaveBeenCalledWith(
-                'lock:test-lock',
-                expect.any(String),
-                { NX: true, PX: 15000 }
-            );
+            expect(mockRedis.set).toHaveBeenCalledWith('lock:test-lock', expect.any(String), { NX: true, PX: 15000 });
         });
 
         it('should handle Redis errors during acquisition', async () => {
-            mockRedis.set
-                .mockRejectedValueOnce(new Error('Redis error'))
-                .mockResolvedValueOnce('OK');
+            mockRedis.set.mockRejectedValueOnce(new Error('Redis error')).mockResolvedValueOnce('OK');
 
             const lock = new DistributedLock({ retryDelay: 5, maxRetries: 5 });
             const result = await lock.acquire('test-lock');
@@ -133,10 +126,10 @@ describe('DistributedLock', () => {
             const released = await lock.release('lock:test', 'owner-123');
 
             expect(released).toBe(true);
-            expect(mockRedis.eval).toHaveBeenCalledWith(
-                RELEASE_LOCK_SCRIPT,
-                { keys: ['lock:test'], arguments: ['owner-123'] }
-            );
+            expect(mockRedis.eval).toHaveBeenCalledWith(RELEASE_LOCK_SCRIPT, {
+                keys: ['lock:test'],
+                arguments: ['owner-123'],
+            });
         });
 
         it('should return false when not owned', async () => {
@@ -166,10 +159,10 @@ describe('DistributedLock', () => {
             const extended = await lock.extend('lock:test', 'owner-123', 10000);
 
             expect(extended).toBe(true);
-            expect(mockRedis.eval).toHaveBeenCalledWith(
-                EXTEND_LOCK_SCRIPT,
-                { keys: ['lock:test'], arguments: ['owner-123', '10000'] }
-            );
+            expect(mockRedis.eval).toHaveBeenCalledWith(EXTEND_LOCK_SCRIPT, {
+                keys: ['lock:test'],
+                arguments: ['owner-123', '10000'],
+            });
         });
 
         it('should return false when not owned', async () => {

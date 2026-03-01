@@ -8,19 +8,16 @@ import { audit } from '../services/auditService';
  */
 function auditCsrfViolation(req: Request, reason: string): void {
     const clientIP = req.ip || req.socket?.remoteAddress || 'unknown';
-    audit.suspicious(
-        `CSRF violation: ${reason}`,
-        'anonymous',
-        clientIP,
-        {
+    audit
+        .suspicious(`CSRF violation: ${reason}`, 'anonymous', clientIP, {
             method: req.method,
             path: req.path,
             origin: req.headers['origin'] || null,
-            referer: req.headers['referer'] || null
-        }
-    ).catch((err: Error) => {
-        logger.debug('Failed to audit CSRF violation:', err.message);
-    });
+            referer: req.headers['referer'] || null,
+        })
+        .catch((err: Error) => {
+            logger.debug('Failed to audit CSRF violation:', err.message);
+        });
 }
 
 /**
@@ -48,8 +45,8 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
         return res.status(403).json({
             error: {
                 code: 'CSRF_VALIDATION_FAILED',
-                message: 'Missing required X-Requested-With header'
-            }
+                message: 'Missing required X-Requested-With header',
+            },
         });
     }
 
@@ -67,8 +64,8 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
                 return res.status(403).json({
                     error: {
                         code: 'CSRF_VALIDATION_FAILED',
-                        message: 'Cross-origin request blocked'
-                    }
+                        message: 'Cross-origin request blocked',
+                    },
                 });
             }
             return next();
@@ -84,8 +81,8 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
                     return res.status(403).json({
                         error: {
                             code: 'CSRF_VALIDATION_FAILED',
-                            message: 'Cross-origin request blocked'
-                        }
+                            message: 'Cross-origin request blocked',
+                        },
                     });
                 }
             } catch {
@@ -94,8 +91,8 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
                 return res.status(403).json({
                     error: {
                         code: 'CSRF_VALIDATION_FAILED',
-                        message: 'Invalid referer header'
-                    }
+                        message: 'Invalid referer header',
+                    },
                 });
             }
             return next();
@@ -107,8 +104,8 @@ function csrfProtection(req: Request, res: Response, next: NextFunction): Respon
         return res.status(403).json({
             error: {
                 code: 'CSRF_VALIDATION_FAILED',
-                message: 'Origin or Referer header required'
-            }
+                message: 'Origin or Referer header required',
+            },
         });
     }
 
@@ -124,14 +121,21 @@ function getAllowedOrigins(): string[] | null {
 
     if (!corsOrigin || corsOrigin === '*') {
         // CORS not configured or wildcard — rely on X-Requested-With header only.
-        if (process.env.NODE_ENV === 'production' && (!corsOrigin || corsOrigin === '*')) {
-            logger.warn('CSRF: CORS_ORIGIN not configured or set to wildcard — origin validation disabled. Set CORS_ORIGIN to your domain.');
+        // Log at warn in production (critical) and info in development (visible but not alarming).
+        if (process.env.NODE_ENV === 'production') {
+            logger.warn(
+                'CSRF: CORS_ORIGIN not configured or set to wildcard — origin validation disabled. Set CORS_ORIGIN to your domain.'
+            );
+        } else {
+            logger.info(
+                'CSRF: CORS_ORIGIN not configured — origin validation disabled. Only X-Requested-With header is enforced.'
+            );
         }
         return null;
     }
 
     // Parse comma-separated origins
-    return corsOrigin.split(',').map(o => o.trim());
+    return corsOrigin.split(',').map((o) => o.trim());
 }
 
 /**
@@ -143,7 +147,7 @@ function isOriginAllowed(origin: string, allowedOrigins: string[] | null): boole
         return true;
     }
 
-    return allowedOrigins.some(allowed => {
+    return allowedOrigins.some((allowed) => {
         if (allowed === origin) {
             return true;
         }

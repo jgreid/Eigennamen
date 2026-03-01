@@ -6,14 +6,24 @@ import type { AppState } from './stateTypes.js';
 
 // Re-export types so existing `import { X } from './state.js'` still works.
 export type {
-    AppState, GameState, TimerState, CachedElements,
-    NotificationPrefs, TeamNames, RoleChangeState, RoundResult
+    AppState,
+    GameState,
+    TimerState,
+    CachedElements,
+    NotificationPrefs,
+    TeamNames,
+    RoleChangeState,
+    RoundResult,
 } from './stateTypes.js';
 
 export {
-    BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS,
-    NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS,
-    ROLE_BANNER_CONFIG
+    BOARD_SIZE,
+    FIRST_TEAM_CARDS,
+    SECOND_TEAM_CARDS,
+    NEUTRAL_CARDS,
+    ASSASSIN_CARDS,
+    DEFAULT_WORDS,
+    ROLE_BANNER_CONFIG,
 } from './constants.js';
 
 export { logStateChange, getStateHistory, clearStateHistory, watchState } from './debug.js';
@@ -22,7 +32,7 @@ export { logStateChange, getStateHistory, clearStateHistory, watchState } from '
 import {
     setState as _setStateImpl,
     getStateSnapshot as _getSnapshotImpl,
-    dumpState as _dumpStateImpl
+    dumpState as _dumpStateImpl,
 } from './debug.js';
 export function setState(property: string, value: unknown, source: string = 'unknown'): void {
     _setStateImpl(_rawState, property, value, source);
@@ -34,14 +44,24 @@ export function dumpState(): void {
     _dumpStateImpl(_rawState);
 }
 
-
 const _rawState: AppState = {
     cachedElements: {
-        board: null, roleBanner: null, turnIndicator: null, endTurnBtn: null,
-        spymasterBtn: null, clickerBtn: null, redTeamBtn: null, blueTeamBtn: null,
-        spectateBtn: null, redRemaining: null, blueRemaining: null,
-        redTeamName: null, blueTeamName: null,
-        srAnnouncements: null, timerDisplay: null, timerValue: null
+        board: null,
+        roleBanner: null,
+        turnIndicator: null,
+        endTurnBtn: null,
+        spymasterBtn: null,
+        clickerBtn: null,
+        redTeamBtn: null,
+        blueTeamBtn: null,
+        spectateBtn: null,
+        redRemaining: null,
+        blueRemaining: null,
+        redTeamName: null,
+        blueTeamName: null,
+        srAnnouncements: null,
+        timerDisplay: null,
+        timerValue: null,
     },
     srAnnouncementTimeout: null,
     boardInitialized: false,
@@ -74,23 +94,45 @@ const _rawState: AppState = {
     roleChange: { phase: 'idle' },
 
     gameState: {
-        words: [], types: [], revealed: [],
-        currentTurn: 'red', redScore: 0, blueScore: 0,
-        redTotal: 9, blueTotal: 8,
-        gameOver: false, winner: null, seed: null,
-        customWords: false, currentClue: null,
-        guessesUsed: 0, guessesAllowed: 0, status: 'waiting',
-        duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0,
+        words: [],
+        types: [],
+        revealed: [],
+        currentTurn: 'red',
+        redScore: 0,
+        blueScore: 0,
+        redTotal: 9,
+        blueTotal: 8,
+        gameOver: false,
+        winner: null,
+        seed: null,
+        customWords: false,
+        currentClue: null,
+        guessesUsed: 0,
+        guessesAllowed: 0,
+        status: 'waiting',
+        duetTypes: [],
+        timerTokens: 0,
+        greenFound: 0,
+        greenTotal: 0,
         // Match mode
-        cardScores: [], revealedBy: [],
-        matchRound: 0, redMatchScore: 0, blueMatchScore: 0,
-        roundHistory: [], matchOver: false, matchWinner: null
+        cardScores: [],
+        revealedBy: [],
+        matchRound: 0,
+        redMatchScore: 0,
+        blueMatchScore: 0,
+        roundHistory: [],
+        matchOver: false,
+        matchWinner: null,
     },
 
     timerState: {
-        active: false, endTime: null, duration: null,
-        remainingSeconds: null, intervalId: null,
-        serverRemainingSeconds: null, countdownStartTime: null
+        active: false,
+        endTime: null,
+        duration: null,
+        remainingSeconds: null,
+        intervalId: null,
+        serverRemainingSeconds: null,
+        countdownStartTime: null,
     },
 
     notificationPrefs: { soundEnabled: false, tabNotificationEnabled: false },
@@ -116,7 +158,7 @@ const _rawState: AppState = {
     spectatorCount: 0,
     roomStats: null,
 
-    resyncInProgress: false
+    resyncInProgress: false,
 };
 
 // Always-on reactive proxy emits change events via the store event bus.
@@ -127,7 +169,6 @@ export const state: AppState = createReactiveProxy(_rawState);
 // Wire debug logging and legacy watchers to the event bus
 initDebugSubscriptions();
 attachDebugToWindow(_rawState);
-
 
 export function initCachedElements(): void {
     state.cachedElements.board = document.getElementById('board');

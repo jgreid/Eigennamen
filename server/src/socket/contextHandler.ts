@@ -15,24 +15,13 @@ export interface HandlerResult {
     [key: string]: unknown;
 }
 
-export type ContextHandlerFn<T = unknown> = (
-    ctx: PlayerContextResult,
-    validated: T
-) => Promise<HandlerResult | void>;
+export type ContextHandlerFn<T = unknown> = (ctx: PlayerContextResult, validated: T) => Promise<HandlerResult | void>;
 
-export type RoomHandlerFn<T = unknown> = (
-    ctx: RoomContext,
-    validated: T
-) => Promise<HandlerResult | void>;
+export type RoomHandlerFn<T = unknown> = (ctx: RoomContext, validated: T) => Promise<HandlerResult | void>;
 
-export type GameHandlerFn<T = unknown> = (
-    ctx: GameContext,
-    validated: T
-) => Promise<HandlerResult | void>;
+export type GameHandlerFn<T = unknown> = (ctx: GameContext, validated: T) => Promise<HandlerResult | void>;
 
-export type PreRoomHandlerFn<T = unknown> = (
-    validated: T
-) => Promise<void>;
+export type PreRoomHandlerFn<T = unknown> = (validated: T) => Promise<void>;
 
 type AckCallback = (response: { ok?: boolean; error?: boolean }) => void;
 type RateLimitedHandler = (data: unknown, ackCallback?: AckCallback) => Promise<void>;
@@ -46,7 +35,7 @@ function createContextHandler<T = unknown>(
     timeoutMs?: number
 ): RateLimitedHandler {
     return createRateLimitedHandler(socket, eventName, async (data: unknown): Promise<void> => {
-        const validated = schema ? validateInput(schema, data) as T : (data || {}) as T;
+        const validated = schema ? (validateInput(schema, data) as T) : ((data || {}) as T);
         const ctx: PlayerContextResult = await getPlayerContext(socket, contextOptions);
 
         // Snapshot previous player state before handler modifies it
@@ -75,7 +64,7 @@ function toRoomContext(ctx: PlayerContextResult): RoomContext {
         sessionId: ctx.sessionId,
         roomCode: ctx.roomCode as string,
         player: ctx.player as Player,
-        game: ctx.game
+        game: ctx.game,
     };
 }
 
@@ -88,7 +77,7 @@ function toGameContext(ctx: PlayerContextResult): GameContext {
         sessionId: ctx.sessionId,
         roomCode: ctx.roomCode as string,
         player: ctx.player as Player,
-        game: ctx.game as GameState
+        game: ctx.game as GameState,
     };
 }
 
@@ -100,8 +89,14 @@ function createRoomHandler<T = unknown>(
     handler: RoomHandlerFn<T>,
     timeoutMs?: number
 ): RateLimitedHandler {
-    return createContextHandler(socket, eventName, schema, { requireRoom: true },
-        (ctx, validated) => handler(toRoomContext(ctx), validated), timeoutMs);
+    return createContextHandler(
+        socket,
+        eventName,
+        schema,
+        { requireRoom: true },
+        (ctx, validated) => handler(toRoomContext(ctx), validated),
+        timeoutMs
+    );
 }
 
 /** Host-only operations */
@@ -112,10 +107,17 @@ function createHostHandler<T = unknown>(
     handler: RoomHandlerFn<T>,
     timeoutMs?: number
 ): RateLimitedHandler {
-    return createContextHandler(socket, eventName, schema, {
-        requireRoom: true,
-        requireHost: true
-    }, (ctx, validated) => handler(toRoomContext(ctx), validated), timeoutMs);
+    return createContextHandler(
+        socket,
+        eventName,
+        schema,
+        {
+            requireRoom: true,
+            requireHost: true,
+        },
+        (ctx, validated) => handler(toRoomContext(ctx), validated),
+        timeoutMs
+    );
 }
 
 /** Game operations (requires active game) */
@@ -126,10 +128,17 @@ function createGameHandler<T = unknown>(
     handler: GameHandlerFn<T>,
     timeoutMs?: number
 ): RateLimitedHandler {
-    return createContextHandler(socket, eventName, schema, {
-        requireRoom: true,
-        requireGame: true
-    }, (ctx, validated) => handler(toGameContext(ctx), validated), timeoutMs);
+    return createContextHandler(
+        socket,
+        eventName,
+        schema,
+        {
+            requireRoom: true,
+            requireGame: true,
+        },
+        (ctx, validated) => handler(toGameContext(ctx), validated),
+        timeoutMs
+    );
 }
 
 /** Pre-room operations (room:create, room:join) - no player context needed */
@@ -141,19 +150,9 @@ function createPreRoomHandler<T = unknown>(
     timeoutMs?: number
 ): RateLimitedHandler {
     return createRateLimitedHandler(socket, eventName, async (data: unknown): Promise<void> => {
-        const validated = schema ? validateInput(schema, data) as T : (data || {}) as T;
-        await withTimeout(
-            handler(validated),
-            timeoutMs ?? TIMEOUTS.SOCKET_HANDLER,
-            `handler:${eventName}`
-        );
+        const validated = schema ? (validateInput(schema, data) as T) : ((data || {}) as T);
+        await withTimeout(handler(validated), timeoutMs ?? TIMEOUTS.SOCKET_HANDLER, `handler:${eventName}`);
     });
 }
 
-export {
-    createContextHandler,
-    createRoomHandler,
-    createHostHandler,
-    createGameHandler,
-    createPreRoomHandler
-};
+export { createContextHandler, createRoomHandler, createHostHandler, createGameHandler, createPreRoomHandler };

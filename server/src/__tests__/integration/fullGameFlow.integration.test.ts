@@ -30,12 +30,14 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         incr: jest.fn(async (key) => {
             const current = parseInt(mockRedisStorage.get(key) || '0');
@@ -47,14 +49,21 @@ jest.mock('../../config/redis', () => {
             if (!mockRedisSets.has(key)) mockRedisSets.set(key, new Set());
             const set = mockRedisSets.get(key);
             let added = 0;
-            members.forEach(m => { if (!set.has(m)) { set.add(m); added++; } });
+            members.forEach((m) => {
+                if (!set.has(m)) {
+                    set.add(m);
+                    added++;
+                }
+            });
             return added;
         }),
         sRem: jest.fn(async (key, ...members) => {
             const set = mockRedisSets.get(key);
             if (!set) return 0;
             let removed = 0;
-            members.forEach(m => { if (set.delete(m)) removed++; });
+            members.forEach((m) => {
+                if (set.delete(m)) removed++;
+            });
             return removed;
         }),
         sMembers: jest.fn(async (key) => {
@@ -77,18 +86,21 @@ jest.mock('../../config/redis', () => {
         zRem: jest.fn(async (key, value) => {
             const zset = mockRedisSortedSets.get(key);
             if (!zset) return 0;
-            const idx = zset.findIndex(e => e.value === value);
-            if (idx !== -1) { zset.splice(idx, 1); return 1; }
+            const idx = zset.findIndex((e) => e.value === value);
+            if (idx !== -1) {
+                zset.splice(idx, 1);
+                return 1;
+            }
             return 0;
         }),
         zRangeByScore: jest.fn(async () => []),
         watch: jest.fn(async () => 'OK'),
         unwatch: jest.fn(async () => 'OK'),
-        mGet: jest.fn(async (keys) => keys.map(k => mockRedisStorage.get(k) || null)),
+        mGet: jest.fn(async (keys) => keys.map((k) => mockRedisStorage.get(k) || null)),
         multi: jest.fn(() => ({
             set: jest.fn().mockReturnThis(),
             del: jest.fn().mockReturnThis(),
-            exec: jest.fn(async () => [[null, 'OK']])
+            exec: jest.fn(async () => [[null, 'OK']]),
         })),
         eval: jest.fn(async (script, options) => {
             // Simulate atomic room creation script (includes host player creation)
@@ -165,7 +177,8 @@ jest.mock('../../config/redis', () => {
 
                 if (newSettings.teamNames !== undefined) room.settings.teamNames = newSettings.teamNames;
                 if (newSettings.turnTimer !== undefined) room.settings.turnTimer = newSettings.turnTimer;
-                if (newSettings.allowSpectators !== undefined) room.settings.allowSpectators = newSettings.allowSpectators;
+                if (newSettings.allowSpectators !== undefined)
+                    room.settings.allowSpectators = newSettings.allowSpectators;
                 if (newSettings.gameMode !== undefined) room.settings.gameMode = newSettings.gameMode;
 
                 mockRedisStorage.set(roomKey, JSON.stringify(room));
@@ -220,14 +233,16 @@ jest.mock('../../config/redis', () => {
         }),
         publish: jest.fn(async () => 0),
         subscribe: jest.fn(async () => {}),
-        duplicate: jest.fn(function() { return this; })
+        duplicate: jest.fn(function () {
+            return this;
+        }),
     };
 
     return {
         getRedis: () => mockRedis,
         getPubSubClients: () => ({ pubClient: mockRedis, subClient: mockRedis }),
         isUsingMemoryMode: () => true,
-        isRedisHealthy: async () => true
+        isRedisHealthy: async () => true,
     };
 });
 
@@ -236,14 +251,14 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock timer service
 jest.mock('../../services/timerService', () => ({
     startTimer: jest.fn(async () => ({ durationSeconds: 120, endTime: Date.now() + 120000 })),
     stopTimer: jest.fn(async () => {}),
-    getTimerStatus: jest.fn(async () => null)
+    getTimerStatus: jest.fn(async () => null),
 }));
 jest.mock('../../utils/distributedLock', () => ({
     withLock: jest.fn(async (_key, fn) => fn()),
@@ -268,7 +283,7 @@ describe('Full Game Flow Integration Tests', () => {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: false,
-                auth: { sessionId }
+                auth: { sessionId },
             });
 
             const timeout = setTimeout(() => {
@@ -304,7 +319,7 @@ describe('Full Game Flow Integration Tests', () => {
         httpServer = http.createServer();
         io = new Server(httpServer, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         socketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
@@ -363,7 +378,6 @@ describe('Full Game Flow Integration Tests', () => {
                 expect(tokenData.token).toBeDefined();
                 expect(tokenData.token.length).toBeGreaterThan(0);
                 expect(tokenData.sessionId).toBe(host.sessionId);
-
             } finally {
                 host.disconnect();
             }
@@ -395,7 +409,6 @@ describe('Full Game Flow Integration Tests', () => {
                 expect(room1Result.room.code).not.toBe(room2Result.room.code);
                 expect(room1Result.room.code).toBe('game-room-1');
                 expect(room2Result.room.code).toBe('game-room-2');
-
             } finally {
                 game1Host.disconnect();
                 game2Host.disconnect();
@@ -428,11 +441,11 @@ describe('Full Game Flow Integration Tests', () => {
 
                 host.emit('room:settings', {
                     teamNames: { red: 'Fire', blue: 'Ice' },
-                    turnTimer: 90
+                    turnTimer: 90,
                 });
 
                 const settledResults = await Promise.allSettled([hostUpdatePromise, playerUpdatePromise]);
-                const [hostResult, playerResult] = settledResults.map(r => {
+                const [hostResult, playerResult] = settledResults.map((r) => {
                     if (r.status === 'rejected') throw r.reason;
                     return r.value;
                 });
@@ -443,7 +456,6 @@ describe('Full Game Flow Integration Tests', () => {
                 expect(hostResult.settings.turnTimer).toBe(90);
 
                 expect(playerResult.settings).toEqual(hostResult.settings);
-
             } finally {
                 host.disconnect();
                 player.disconnect();
@@ -471,7 +483,6 @@ describe('Full Game Flow Integration Tests', () => {
                 const error = await errorPromise;
 
                 expect(error.code).toBe(ERROR_CODES.NOT_HOST);
-
             } finally {
                 host.disconnect();
                 player.disconnect();

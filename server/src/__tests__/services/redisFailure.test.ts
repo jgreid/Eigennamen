@@ -15,18 +15,17 @@ jest.mock('../../config/redis', () => ({
     getRedis: () => failingRedis,
     isRedisHealthy: jest.fn().mockResolvedValue(false),
     getPubSubClients: jest.fn().mockReturnValue({ pubClient: null, subClient: null }),
-    isUsingMemoryMode: jest.fn().mockReturnValue(false)
+    isUsingMemoryMode: jest.fn().mockReturnValue(false),
 }));
 
 jest.mock('../../utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
     info: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 describe('Service behavior when Redis is down', () => {
-
     describe('timerService', () => {
         const timerService = require('../../services/timerService');
 

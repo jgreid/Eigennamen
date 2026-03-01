@@ -13,7 +13,7 @@ const { createMockRedis, createMockLogger, createMockRoom, createMockGame } = re
 
 // Mock dependencies
 jest.mock('../../config/redis', () => ({
-    getRedis: jest.fn()
+    getRedis: jest.fn(),
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -26,13 +26,13 @@ jest.mock('../../utils/logger', () => ({
             debug: jest.fn(),
             info: jest.fn(),
             warn: jest.fn(),
-            error: jest.fn()
-        }))
+            error: jest.fn(),
+        })),
     })),
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
 const { getRedis } = require('../../config/redis');
@@ -53,9 +53,7 @@ describe('Error Scenarios', () => {
                 throw new Error('ETIMEDOUT');
             });
 
-            await expect(
-                gameService.getGame('TESTROOM')
-            ).rejects.toThrow('ETIMEDOUT');
+            await expect(gameService.getGame('TESTROOM')).rejects.toThrow('ETIMEDOUT');
         });
 
         test('propagates Redis timeout error during room retrieval', async () => {
@@ -63,9 +61,7 @@ describe('Error Scenarios', () => {
                 throw new Error('Connection timeout');
             });
 
-            await expect(
-                roomService.getRoom('TESTROOM')
-            ).rejects.toThrow('Connection timeout');
+            await expect(roomService.getRoom('TESTROOM')).rejects.toThrow('Connection timeout');
         });
 
         test('propagates Redis timeout error during player retrieval', async () => {
@@ -73,18 +69,14 @@ describe('Error Scenarios', () => {
                 throw new Error('ECONNREFUSED');
             });
 
-            await expect(
-                playerService.getPlayer('session-123')
-            ).rejects.toThrow('ECONNREFUSED');
+            await expect(playerService.getPlayer('session-123')).rejects.toThrow('ECONNREFUSED');
         });
 
         test('handles Redis connection reset during timer start', async () => {
             mockRedis.get.mockResolvedValue(null);
             mockRedis.set.mockRejectedValue(new Error('ECONNRESET'));
 
-            await expect(
-                timerService.startTimer('TESTROOM', 60)
-            ).rejects.toThrow();
+            await expect(timerService.startTimer('TESTROOM', 60)).rejects.toThrow();
         });
     });
 
@@ -109,10 +101,12 @@ describe('Error Scenarios', () => {
 
         test('throws on partially corrupted game data (missing required fields)', async () => {
             // Valid JSON but missing required id field
-            mockRedis.get.mockResolvedValue(JSON.stringify({
-                words: ['only', 'three', 'words'],
-                // Missing id, types, revealed, etc.
-            }));
+            mockRedis.get.mockResolvedValue(
+                JSON.stringify({
+                    words: ['only', 'three', 'words'],
+                    // Missing id, types, revealed, etc.
+                })
+            );
 
             await expect(gameService.getGame('TESTROOM')).rejects.toThrow('Game data corrupted');
         });
@@ -137,41 +131,31 @@ describe('Error Scenarios', () => {
             // createRoom uses redis.eval (atomic Lua script), not redis.set
             mockRedis.eval.mockRejectedValue(new Error('Redis write error'));
 
-            await expect(
-                roomService.createRoom('test-room', 'session-123', {})
-            ).rejects.toThrow();
+            await expect(roomService.createRoom('test-room', 'session-123', {})).rejects.toThrow();
         });
 
         test('player creation fails gracefully on Redis error', async () => {
             mockRedis.set.mockRejectedValue(new Error('Out of memory'));
 
-            await expect(
-                playerService.createPlayer('TESTROOM', 'session-123', 'TestPlayer')
-            ).rejects.toThrow();
+            await expect(playerService.createPlayer('TESTROOM', 'session-123', 'TestPlayer')).rejects.toThrow();
         });
 
         test('game creation fails when room does not exist', async () => {
             // Room lookup returns null
             mockRedis.get.mockResolvedValue(null);
 
-            await expect(
-                gameService.createGame('TESTROOM', {})
-            ).rejects.toThrow('Room not found');
+            await expect(gameService.createGame('TESTROOM', {})).rejects.toThrow('Room not found');
         });
     });
 
     describe('Concurrent Operation Errors', () => {
         test('handles race condition on room deletion', async () => {
             // First call returns room, second returns null (deleted)
-            mockRedis.get
-                .mockResolvedValueOnce(JSON.stringify(createMockRoom()))
-                .mockResolvedValueOnce(null);
+            mockRedis.get.mockResolvedValueOnce(JSON.stringify(createMockRoom())).mockResolvedValueOnce(null);
             mockRedis.del.mockResolvedValue(1);
 
             // Should not throw when room disappears mid-operation
-            await expect(
-                roomService.deleteRoom('TESTROOM')
-            ).resolves.not.toThrow();
+            await expect(roomService.deleteRoom('TESTROOM')).resolves.not.toThrow();
         });
     });
 
@@ -181,18 +165,14 @@ describe('Error Scenarios', () => {
                 throw new Error('ENOTFOUND');
             });
 
-            await expect(
-                gameService.getGame('TESTROOM')
-            ).rejects.toThrow('ENOTFOUND');
+            await expect(gameService.getGame('TESTROOM')).rejects.toThrow('ENOTFOUND');
         });
 
         test('throws on network error for writes', async () => {
             // createRoom uses redis.eval (atomic Lua script), not redis.set
             mockRedis.eval.mockRejectedValue(new Error('ENETUNREACH'));
 
-            await expect(
-                roomService.createRoom('test-room', 'session-123', {})
-            ).rejects.toThrow();
+            await expect(roomService.createRoom('test-room', 'session-123', {})).rejects.toThrow();
         });
     });
 
@@ -200,43 +180,33 @@ describe('Error Scenarios', () => {
         test('handles game action on non-existent game', async () => {
             mockRedis.get.mockResolvedValue(null);
 
-            await expect(
-                gameService.revealCard('NOROOM', 0, 'red')
-            ).rejects.toThrow();
+            await expect(gameService.revealCard('NOROOM', 0, 'red')).rejects.toThrow();
         });
 
         test('handles card reveal on already revealed card', async () => {
             mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'ALREADY_REVEALED' }));
 
-            await expect(
-                gameService.revealCard('TESTROOM', 0, 'red')
-            ).rejects.toThrow('Card already revealed');
+            await expect(gameService.revealCard('TESTROOM', 0, 'red')).rejects.toThrow('Card already revealed');
         });
 
         test('handles turn action on game over state', async () => {
             mockRedis.eval.mockResolvedValue(JSON.stringify({ error: 'GAME_OVER' }));
 
-            await expect(
-                gameService.revealCard('TESTROOM', 1, 'red')
-            ).rejects.toThrow('Game is already over');
+            await expect(gameService.revealCard('TESTROOM', 1, 'red')).rejects.toThrow('Game is already over');
         });
 
         test('handles invalid card index', async () => {
             const mockGame = createMockGame({ roomCode: 'TESTROOM' });
             mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
 
-            await expect(
-                gameService.revealCard('TESTROOM', 99, 'red')
-            ).rejects.toThrow();
+            await expect(gameService.revealCard('TESTROOM', 99, 'red')).rejects.toThrow();
         });
 
         test('handles negative card index', async () => {
             const mockGame = createMockGame({ roomCode: 'TESTROOM' });
             mockRedis.get.mockResolvedValue(JSON.stringify(mockGame));
 
-            await expect(
-                gameService.revealCard('TESTROOM', -1, 'red')
-            ).rejects.toThrow();
+            await expect(gameService.revealCard('TESTROOM', -1, 'red')).rejects.toThrow();
         });
     });
 
@@ -245,9 +215,7 @@ describe('Error Scenarios', () => {
             const oomError = new Error('OOM command not allowed when used memory > maxmemory');
             mockRedis.set.mockRejectedValue(oomError);
 
-            await expect(
-                gameService.createGame('TESTROOM', {})
-            ).rejects.toThrow();
+            await expect(gameService.createGame('TESTROOM', {})).rejects.toThrow();
         });
     });
 });
@@ -275,7 +243,7 @@ describe('Timer Service Error Scenarios', () => {
             endTime: Date.now() + 30000,
             isPaused: true,
             pausedAt: Date.now(),
-            remainingWhenPaused: 30
+            remainingWhenPaused: 30,
         });
         mockRedis.get.mockResolvedValue(pausedTimer);
 
@@ -290,7 +258,7 @@ describe('Timer Service Error Scenarios', () => {
             duration: 60,
             startTime: Date.now() - 30000,
             endTime: Date.now() + 30000,
-            isPaused: false
+            isPaused: false,
         });
         mockRedis.get.mockResolvedValue(activeTimer);
 
@@ -304,9 +272,7 @@ describe('Timer Service Error Scenarios', () => {
         mockRedis.del.mockResolvedValue(0);
 
         // Should not throw
-        await expect(
-            timerService.stopTimer('TESTROOM')
-        ).resolves.not.toThrow();
+        await expect(timerService.stopTimer('TESTROOM')).resolves.not.toThrow();
     });
 
     test('handles corrupted timer data', async () => {
@@ -328,9 +294,9 @@ describe('Player Service Error Scenarios', () => {
     test('throws when updating non-existent player', async () => {
         mockRedis.get.mockResolvedValue(null);
 
-        await expect(
-            playerService.updatePlayer('non-existent-session', { team: 'red' })
-        ).rejects.toThrow('Player not found');
+        await expect(playerService.updatePlayer('non-existent-session', { team: 'red' })).rejects.toThrow(
+            'Player not found'
+        );
     });
 
     test('handles removing non-existent player', async () => {
@@ -339,9 +305,7 @@ describe('Player Service Error Scenarios', () => {
         mockRedis.sRem.mockResolvedValue(0);
 
         // Should not throw
-        await expect(
-            playerService.removePlayer('non-existent-session')
-        ).resolves.not.toThrow();
+        await expect(playerService.removePlayer('non-existent-session')).resolves.not.toThrow();
     });
 
     test('handles getPlayersInRoom with empty room', async () => {
@@ -381,9 +345,7 @@ describe('Room Service Error Scenarios', () => {
         mockRedis.del.mockResolvedValue(0);
 
         // Should not throw
-        await expect(
-            roomService.deleteRoom('NOROOM')
-        ).resolves.not.toThrow();
+        await expect(roomService.deleteRoom('NOROOM')).resolves.not.toThrow();
     });
 
     test('handles getRoom when room does not exist', async () => {
@@ -397,8 +359,6 @@ describe('Room Service Error Scenarios', () => {
         // createRoom uses redis.eval (atomic Lua script), not redis.set
         mockRedis.eval.mockRejectedValue(new Error('Redis write failed'));
 
-        await expect(
-            roomService.createRoom('test-room', 'session-123', {})
-        ).rejects.toThrow('Redis write failed');
+        await expect(roomService.createRoom('test-room', 'session-123', {})).rejects.toThrow('Redis write failed');
     });
 });

@@ -26,7 +26,7 @@ import {
     CLEANUP_ORPHANED_TOKEN_SCRIPT,
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT,
-    ATOMIC_SAVE_GAME_HISTORY_SCRIPT
+    ATOMIC_SAVE_GAME_HISTORY_SCRIPT,
 } from '../../scripts';
 
 import fs from 'fs';
@@ -54,7 +54,7 @@ const ALL_SCRIPTS: Record<string, string> = {
     CLEANUP_ORPHANED_TOKEN_SCRIPT,
     RELEASE_LOCK_SCRIPT,
     EXTEND_LOCK_SCRIPT,
-    ATOMIC_SAVE_GAME_HISTORY_SCRIPT
+    ATOMIC_SAVE_GAME_HISTORY_SCRIPT,
 };
 
 describe('Lua Script Validation', () => {
@@ -69,14 +69,27 @@ describe('Lua Script Validation', () => {
 
     describe('file-based scripts exist on disk', () => {
         const fileScripts = [
-            'revealCard.lua', 'endTurn.lua', 'updatePlayer.lua',
-            'safeTeamSwitch.lua', 'setRole.lua', 'hostTransfer.lua',
-            'atomicCreateRoom.lua', 'atomicJoin.lua', 'atomicRefreshTtl.lua',
-            'atomicSetRoomStatus.lua', 'atomicRemovePlayer.lua',
-            'atomicCleanupDisconnectedPlayer.lua', 'atomicSetSocketMapping.lua',
-            'atomicUpdateSettings.lua', 'atomicAddTime.lua', 'atomicTimerStatus.lua',
-            'invalidateToken.lua', 'cleanupOrphanedToken.lua',
-            'atomicSaveGameHistory.lua', 'releaseLock.lua', 'extendLock.lua'
+            'revealCard.lua',
+            'endTurn.lua',
+            'updatePlayer.lua',
+            'safeTeamSwitch.lua',
+            'setRole.lua',
+            'hostTransfer.lua',
+            'atomicCreateRoom.lua',
+            'atomicJoin.lua',
+            'atomicRefreshTtl.lua',
+            'atomicSetRoomStatus.lua',
+            'atomicRemovePlayer.lua',
+            'atomicCleanupDisconnectedPlayer.lua',
+            'atomicSetSocketMapping.lua',
+            'atomicUpdateSettings.lua',
+            'atomicAddTime.lua',
+            'atomicTimerStatus.lua',
+            'invalidateToken.lua',
+            'cleanupOrphanedToken.lua',
+            'atomicSaveGameHistory.lua',
+            'releaseLock.lua',
+            'extendLock.lua',
         ];
 
         for (const filename of fileScripts) {
@@ -185,7 +198,7 @@ describe('Lua Script Validation', () => {
             'ATOMIC_SET_SOCKET_MAPPING_SCRIPT',
             'ATOMIC_UPDATE_SETTINGS_SCRIPT',
             'ATOMIC_ADD_TIME_SCRIPT',
-            'ATOMIC_TIMER_STATUS_SCRIPT'
+            'ATOMIC_TIMER_STATUS_SCRIPT',
         ] as const;
 
         for (const name of scriptsUsingJSON) {

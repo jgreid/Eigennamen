@@ -10,7 +10,7 @@ const {
     recordHistogram,
     getAllMetrics,
     resetMetrics,
-    pruneStaleMetrics
+    pruneStaleMetrics,
 } = require('../../utils/metrics');
 
 describe('pruneStaleMetrics', () => {

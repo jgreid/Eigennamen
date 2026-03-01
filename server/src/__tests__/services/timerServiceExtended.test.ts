@@ -13,7 +13,7 @@ const mockLogger = {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 };
 jest.mock('../../utils/logger', () => mockLogger);
 
@@ -30,11 +30,11 @@ jest.mock('../../config/redis', () => {
         exists: jest.fn().mockResolvedValue(0),
         eval: jest.fn().mockResolvedValue(null),
         scanIterator: jest.fn(),
-        _storage: {}
+        _storage: {},
     };
 
     return {
-        getRedis: () => mockRedis
+        getRedis: () => mockRedis,
     };
 });
 
@@ -91,7 +91,11 @@ describe('Timer Service Extended Tests', () => {
                 const timer = JSON.parse(timerData);
 
                 // Timer status script: 1 argument (now timestamp)
-                if (options.arguments.length === 1 && !isNaN(parseInt(options.arguments[0], 10)) && !script.includes('claimed')) {
+                if (
+                    options.arguments.length === 1 &&
+                    !isNaN(parseInt(options.arguments[0], 10)) &&
+                    !script.includes('claimed')
+                ) {
                     const now = parseInt(options.arguments[0], 10);
 
                     if (timer.paused && timer.pausedAt !== undefined && timer.remainingWhenPaused !== undefined) {
@@ -102,19 +106,24 @@ describe('Timer Service Extended Tests', () => {
                             return 'EXPIRED';
                         }
                         return JSON.stringify({
-                            startTime: timer.startTime, endTime: timer.endTime,
-                            duration: timer.duration, remainingSeconds: timer.remainingWhenPaused,
-                            expired: false, isPaused: true
+                            startTime: timer.startTime,
+                            endTime: timer.endTime,
+                            duration: timer.duration,
+                            remainingSeconds: timer.remainingWhenPaused,
+                            expired: false,
+                            isPaused: true,
                         });
                     }
 
                     const remainingMs = timer.endTime - now;
                     const expired = remainingMs <= 0;
                     return JSON.stringify({
-                        startTime: timer.startTime, endTime: timer.endTime,
+                        startTime: timer.startTime,
+                        endTime: timer.endTime,
                         duration: timer.duration,
                         remainingSeconds: expired ? 0 : Math.ceil(remainingMs / 1000),
-                        expired, isPaused: false
+                        expired,
+                        isPaused: false,
                     });
                 }
 
@@ -134,7 +143,7 @@ describe('Timer Service Extended Tests', () => {
                 // For addTime script
                 if (options.arguments && options.arguments.length >= 3) {
                     const secondsToAdd = parseInt(options.arguments[0], 10);
-                    const newEndTime = timer.endTime + (secondsToAdd * 1000);
+                    const newEndTime = timer.endTime + secondsToAdd * 1000;
                     const newDuration = Math.ceil((newEndTime - now) / 1000);
 
                     timer.endTime = newEndTime;
@@ -144,7 +153,7 @@ describe('Timer Service Extended Tests', () => {
                     return JSON.stringify({
                         endTime: newEndTime,
                         duration: newDuration,
-                        remainingSeconds: newDuration
+                        remainingSeconds: newDuration,
                     });
                 }
 
@@ -162,7 +171,6 @@ describe('Timer Service Extended Tests', () => {
                 }
             }
         });
-
     });
 
     afterEach(async () => {
@@ -178,7 +186,7 @@ describe('Timer Service Extended Tests', () => {
                 startTime: Date.now(),
                 endTime: Date.now() + 60000,
                 duration: 60,
-                instanceId: '123'
+                instanceId: '123',
             };
             mockRedis._storage['timer:PARSE_ERR'] = JSON.stringify(validTimer);
 
@@ -249,7 +257,7 @@ describe('Timer Service Extended Tests', () => {
                 roomCode: 'EXPIRED_ROOM',
                 startTime: Date.now() - 120000,
                 endTime: Date.now() - 60000, // Already expired
-                duration: 60
+                duration: 60,
             };
             mockRedis._storage['timer:EXPIRED_ROOM'] = JSON.stringify(timerData);
 

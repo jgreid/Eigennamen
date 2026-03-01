@@ -1,3 +1,15 @@
+-- atomicRefreshTtl.lua
+-- Description: Atomically refreshes the TTL on all Redis keys associated with a room (room, players, game, and team sets).
+--
+-- KEYS[1]: Room key
+-- KEYS[2]: Room players set key
+-- KEYS[3]: Game key
+-- KEYS[4]: Red team set key
+-- KEYS[5]: Blue team set key
+-- ARGV[1]: New TTL (seconds)
+--
+-- Returns: Always 1
+
 local roomKey = KEYS[1]
 local playersKey = KEYS[2]
 local gameKey = KEYS[3]

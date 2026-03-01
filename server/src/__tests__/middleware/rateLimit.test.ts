@@ -7,14 +7,10 @@ jest.mock('../../utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
 }));
 
-const {
-    apiLimiter,
-    strictLimiter,
-    createSocketRateLimiter
-} = require('../../middleware/rateLimit');
+const { apiLimiter, strictLimiter, createSocketRateLimiter } = require('../../middleware/rateLimit');
 
 describe('Rate Limit Middleware', () => {
     const mockLogger = require('../../utils/logger');
@@ -41,7 +37,7 @@ describe('Rate Limit Middleware', () => {
         const limits = {
             'room:create': { max: 5, window: 60000 },
             'game:reveal': { max: 10, window: 1000 },
-            'chat:message': { max: 20, window: 60000 }
+            'chat:message': { max: 20, window: 60000 },
         };
 
         let rateLimiter;
@@ -80,7 +76,7 @@ describe('Rate Limit Middleware', () => {
                 const middleware = rateLimiter.getLimiter('room:create');
                 const mockSocket = {
                     id: 'socket-123',
-                    clientIP: '127.0.0.1'
+                    clientIP: '127.0.0.1',
                 };
                 const next = jest.fn();
 
@@ -95,7 +91,7 @@ describe('Rate Limit Middleware', () => {
                 const middleware = rateLimiter.getLimiter('room:create');
                 const mockSocket = {
                     id: 'socket-456',
-                    clientIP: '127.0.0.2'
+                    clientIP: '127.0.0.2',
                 };
                 const next = jest.fn();
 
@@ -113,7 +109,7 @@ describe('Rate Limit Middleware', () => {
                 const middleware = rateLimiter.getLimiter('room:create');
                 const mockSocket = {
                     id: 'socket-789',
-                    clientIP: '192.168.1.1'
+                    clientIP: '192.168.1.1',
                 };
                 const next = jest.fn();
 
@@ -126,7 +122,7 @@ describe('Rate Limit Middleware', () => {
                 const middleware = rateLimiter.getLimiter('room:create');
                 const mockSocket = {
                     id: 'socket-abc',
-                    handshake: { address: '10.0.0.1' }
+                    handshake: { address: '10.0.0.1' },
                 };
                 const next = jest.fn();
 
@@ -138,7 +134,7 @@ describe('Rate Limit Middleware', () => {
             it('should use "unknown" IP when no IP available', () => {
                 const middleware = rateLimiter.getLimiter('room:create');
                 const mockSocket = {
-                    id: 'socket-def'
+                    id: 'socket-def',
                 };
                 const next = jest.fn();
 
@@ -153,7 +149,7 @@ describe('Rate Limit Middleware', () => {
                 const middleware = rateLimiter.getLimiter('room:create');
                 const mockSocket = {
                     id: 'cleanup-socket',
-                    clientIP: '127.0.0.1'
+                    clientIP: '127.0.0.1',
                 };
                 const next = jest.fn();
 
@@ -168,9 +164,7 @@ describe('Rate Limit Middleware', () => {
                 rateLimiter.cleanupSocket('cleanup-socket');
 
                 // Should log cleanup
-                expect(mockLogger.info).toHaveBeenCalledWith(
-                    expect.stringContaining('Cleaned up')
-                );
+                expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Cleaned up'));
             });
 
             it('should handle cleanup for non-existent socket', () => {
@@ -266,15 +260,13 @@ describe('Rate Limit Middleware', () => {
                 for (let i = 0; i < 30; i++) {
                     const mockSocket = {
                         id: `ip-socket-${i}`,
-                        clientIP: '192.168.1.100'
+                        clientIP: '192.168.1.100',
                     };
                     middleware(mockSocket, {}, next);
                 }
 
                 // Some calls should have been blocked due to IP limit
-                expect(mockLogger.warn).toHaveBeenCalledWith(
-                    expect.stringContaining('IP rate limit exceeded')
-                );
+                expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('IP rate limit exceeded'));
             });
         });
 
@@ -283,7 +275,7 @@ describe('Rate Limit Middleware', () => {
                 // Create limiter with generous per-event limits but default 300/min global
                 const highLimits = {
                     'event:a': { max: 200, window: 60000 },
-                    'event:b': { max: 200, window: 60000 }
+                    'event:b': { max: 200, window: 60000 },
                 };
                 const rl = createSocketRateLimiter(highLimits);
                 const next = jest.fn();
@@ -300,14 +292,12 @@ describe('Rate Limit Middleware', () => {
                     middlewareB({ id: `global-s2-${i}`, clientIP: '10.0.0.1' }, {}, next);
                 }
 
-                expect(mockLogger.warn).toHaveBeenCalledWith(
-                    expect.stringContaining('Global IP rate limit exceeded')
-                );
+                expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Global IP rate limit exceeded'));
             });
 
             it('should not block different IPs independently', () => {
                 const limits = {
-                    'test:event': { max: 200, window: 60000 }
+                    'test:event': { max: 200, window: 60000 },
                 };
                 const rl = createSocketRateLimiter(limits);
                 const middleware = rl.getLimiter('test:event');
@@ -342,7 +332,7 @@ describe('Rate Limit Middleware', () => {
             it('should track global blocks in blockedByIP metric', () => {
                 const highLimits = {
                     'event:a': { max: 200, window: 60000 },
-                    'event:b': { max: 200, window: 60000 }
+                    'event:b': { max: 200, window: 60000 },
                 };
                 const rl = createSocketRateLimiter(highLimits);
                 const next = jest.fn();
@@ -368,7 +358,7 @@ describe('Rate Limit Middleware', () => {
     describe('filterTimestampsInPlace', () => {
         it('should be used by rate limiter for performance', () => {
             const limits = {
-                'test:event': { max: 100, window: 1000 }
+                'test:event': { max: 100, window: 1000 },
             };
             const rateLimiter = createSocketRateLimiter(limits);
             const middleware = rateLimiter.getLimiter('test:event');
@@ -382,7 +372,7 @@ describe('Rate Limit Middleware', () => {
 
             // All should pass (under limit)
             expect(next).toHaveBeenCalledTimes(50);
-            const errorCalls = next.mock.calls.filter(call => call[0] instanceof Error);
+            const errorCalls = next.mock.calls.filter((call) => call[0] instanceof Error);
             expect(errorCalls.length).toBe(0);
         });
     });

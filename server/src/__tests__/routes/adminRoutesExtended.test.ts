@@ -12,7 +12,7 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock metrics
@@ -50,8 +50,8 @@ jest.mock('../../utils/metrics', () => ({
         TURN_DURATION: 'turn_duration_seconds',
         SOCKET_EVENT_LATENCY: 'socket_event_latency_ms',
         HTTP_REQUEST_DURATION: 'http_request_duration_ms',
-        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes'
-    }
+        WEBSOCKET_MESSAGE_SIZE: 'websocket_message_size_bytes',
+    },
 }));
 
 // Mock audit service
@@ -60,8 +60,8 @@ jest.mock('../../services/auditService', () => ({
         adminLogin: jest.fn(),
         adminAction: jest.fn(),
         adminKickPlayer: jest.fn(),
-        adminDeleteRoom: jest.fn()
-    }
+        adminDeleteRoom: jest.fn(),
+    },
 }));
 
 // Mock Redis
@@ -76,7 +76,9 @@ const mockRedis = {
     del: jest.fn(async (key) => {
         if (Array.isArray(key)) {
             let deleted = 0;
-            key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+            key.forEach((k) => {
+                if (mockRedisStorage.delete(k)) deleted++;
+            });
             return deleted;
         }
         return mockRedisStorage.delete(key) ? 1 : 0;
@@ -105,32 +107,32 @@ const mockRedis = {
     scanIterator: jest.fn(() => ({
         [Symbol.asyncIterator]: async function* () {
             // Empty iterator
-        }
-    }))
+        },
+    })),
 };
 
 jest.mock('../../config/redis', () => ({
     getRedis: jest.fn(() => mockRedis),
     isUsingMemoryMode: jest.fn(() => true),
-    isRedisHealthy: jest.fn(async () => true)
+    isRedisHealthy: jest.fn(async () => true),
 }));
 
 // Mock rate limiter
 jest.mock('../../middleware/rateLimit', () => ({
     apiLimiter: (req, res, next) => next(),
-    strictLimiter: (req, res, next) => next()
+    strictLimiter: (req, res, next) => next(),
 }));
 
 // Mock player service
 jest.mock('../../services/playerService', () => ({
-    removePlayer: jest.fn(async () => {})
+    removePlayer: jest.fn(async () => {}),
 }));
 
 // Mock room service
 jest.mock('../../services/roomService', () => ({
     deleteRoom: jest.fn(async () => {}),
     getRoom: jest.fn(async () => null),
-    cleanupRoom: jest.fn(async () => {})
+    cleanupRoom: jest.fn(async () => {}),
 }));
 
 // Import after mocks
@@ -165,7 +167,7 @@ describe('Admin Routes Extended Tests', () => {
             to: jest.fn().mockReturnThis(),
             in: jest.fn().mockReturnValue({ socketsLeave: jest.fn() }),
             emit: jest.fn(),
-            fetchSockets: jest.fn(async () => [])
+            fetchSockets: jest.fn(async () => []),
         };
 
         // Create Express app with admin routes
@@ -190,7 +192,7 @@ describe('Admin Routes Extended Tests', () => {
                 status: 'waiting',
                 hostSessionId: 'host-session-123',
                 settings: { turnTimer: 60, maxPlayers: 8 },
-                createdAt: Date.now()
+                createdAt: Date.now(),
             });
             mockRedisStorage.set(`room:${validRoomCode.toLowerCase()}`, roomData);
 
@@ -199,18 +201,24 @@ describe('Admin Routes Extended Tests', () => {
             mockRedisSets.set(`room:${validRoomCode.toLowerCase()}:players`, players);
 
             // Setup player data
-            mockRedisStorage.set('player:host-session-123', JSON.stringify({
-                nickname: 'HostPlayer',
-                team: 'red',
-                role: 'spymaster',
-                joinedAt: Date.now() - 10000
-            }));
-            mockRedisStorage.set('player:player-session-456', JSON.stringify({
-                nickname: 'Player2',
-                team: 'blue',
-                role: 'operative',
-                joinedAt: Date.now()
-            }));
+            mockRedisStorage.set(
+                'player:host-session-123',
+                JSON.stringify({
+                    nickname: 'HostPlayer',
+                    team: 'red',
+                    role: 'spymaster',
+                    joinedAt: Date.now() - 10000,
+                })
+            );
+            mockRedisStorage.set(
+                'player:player-session-456',
+                JSON.stringify({
+                    nickname: 'Player2',
+                    team: 'blue',
+                    role: 'operative',
+                    joinedAt: Date.now(),
+                })
+            );
         });
 
         it('should return room details with players', async () => {
@@ -231,7 +239,7 @@ describe('Admin Routes Extended Tests', () => {
 
         it('should return 400 for invalid room code format', async () => {
             const response = await request(app)
-                .get('/admin/api/rooms/ab/details')  // Too short
+                .get('/admin/api/rooms/ab/details') // Too short
                 .set('Authorization', createAuthHeader('admin', TEST_PASSWORD))
                 .expect(400);
 
@@ -279,21 +287,27 @@ describe('Admin Routes Extended Tests', () => {
 
         beforeEach(() => {
             // Setup room
-            mockRedisStorage.set(`room:${roomCode.toLowerCase()}`, JSON.stringify({
-                code: roomCode,
-                hostSessionId: hostId,
-                status: 'playing'
-            }));
+            mockRedisStorage.set(
+                `room:${roomCode.toLowerCase()}`,
+                JSON.stringify({
+                    code: roomCode,
+                    hostSessionId: hostId,
+                    status: 'playing',
+                })
+            );
 
             // Setup players set
             const players = new Set([hostId, playerId]);
             mockRedisSets.set(`room:${roomCode.toLowerCase()}:players`, players);
 
             // Setup player data
-            mockRedisStorage.set(`player:${playerId}`, JSON.stringify({
-                nickname: 'KickMe',
-                team: 'red'
-            }));
+            mockRedisStorage.set(
+                `player:${playerId}`,
+                JSON.stringify({
+                    nickname: 'KickMe',
+                    team: 'red',
+                })
+            );
         });
 
         it('should kick player successfully', async () => {
@@ -319,7 +333,10 @@ describe('Admin Routes Extended Tests', () => {
             expect(removePlayer).toHaveBeenCalledWith(playerId);
 
             // Verify metrics and audit
-            expect(incrementCounter).toHaveBeenCalledWith(METRIC_NAMES.PLAYER_KICKS, 1, { roomCode: roomCode.toLowerCase(), reason: 'admin' });
+            expect(incrementCounter).toHaveBeenCalledWith(METRIC_NAMES.PLAYER_KICKS, 1, {
+                roomCode: roomCode.toLowerCase(),
+                reason: 'admin',
+            });
             expect(audit.adminKickPlayer).toHaveBeenCalled();
         });
 
@@ -385,20 +402,26 @@ describe('Admin Routes Extended Tests', () => {
 
         beforeEach(() => {
             // Setup room
-            mockRedisStorage.set(`room:${roomCode.toLowerCase()}`, JSON.stringify({
-                code: roomCode,
-                hostSessionId: 'host-123',
-                status: 'waiting'
-            }));
+            mockRedisStorage.set(
+                `room:${roomCode.toLowerCase()}`,
+                JSON.stringify({
+                    code: roomCode,
+                    hostSessionId: 'host-123',
+                    status: 'waiting',
+                })
+            );
 
             // Setup players
             const players = new Set(['host-123', 'player-456']);
             mockRedisSets.set(`room:${roomCode.toLowerCase()}:players`, players);
 
             // Setup game data
-            mockRedisStorage.set(`game:${roomCode.toLowerCase()}`, JSON.stringify({
-                gameOver: false
-            }));
+            mockRedisStorage.set(
+                `game:${roomCode.toLowerCase()}`,
+                JSON.stringify({
+                    gameOver: false,
+                })
+            );
         });
 
         it('should delete room successfully', async () => {
@@ -473,7 +496,10 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle Redis errors in player kick', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host', status: 'waiting' }));
+            mockRedisStorage.set(
+                'room:testroom',
+                JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host', status: 'waiting' })
+            );
             mockRedis.sIsMember.mockRejectedValueOnce(new Error('Redis error'));
 
             const response = await request(app)
@@ -485,7 +511,10 @@ describe('Admin Routes Extended Tests', () => {
         });
 
         it('should handle errors in room deletion', async () => {
-            mockRedisStorage.set('room:testroom', JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host-session-123', status: 'waiting' }));
+            mockRedisStorage.set(
+                'room:testroom',
+                JSON.stringify({ code: 'TESTROOM', hostSessionId: 'host-session-123', status: 'waiting' })
+            );
 
             // Make roomService.deleteRoom throw
             const roomService = require('../../services/roomService');

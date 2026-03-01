@@ -39,28 +39,28 @@ describe('Issue #61: Team Switching Validation Logic', () => {
         expect(shouldBlockTeamSwitch(player, game)).toBe(false);
     });
 
-    it('should block spymaster from switching during their team\'s turn', () => {
+    it("should block spymaster from switching during their team's turn", () => {
         const player = { team: 'red', role: 'spymaster' };
         const game = { currentTurn: 'red', gameOver: false };
 
         expect(shouldBlockTeamSwitch(player, game)).toBe(true);
     });
 
-    it('should block clicker from switching during their team\'s turn', () => {
+    it("should block clicker from switching during their team's turn", () => {
         const player = { team: 'red', role: 'clicker' };
         const game = { currentTurn: 'red', gameOver: false };
 
         expect(shouldBlockTeamSwitch(player, game)).toBe(true);
     });
 
-    it('should allow spymaster to switch when not their team\'s turn', () => {
+    it("should allow spymaster to switch when not their team's turn", () => {
         const player = { team: 'red', role: 'spymaster' };
         const game = { currentTurn: 'blue', gameOver: false };
 
         expect(shouldBlockTeamSwitch(player, game)).toBe(false);
     });
 
-    it('should allow clicker to switch when not their team\'s turn', () => {
+    it("should allow clicker to switch when not their team's turn", () => {
         const player = { team: 'blue', role: 'clicker' };
         const game = { currentTurn: 'red', gameOver: false };
 
@@ -114,7 +114,7 @@ describe('Issue #59: Game State Validation', () => {
         const game = {
             gameOver: true,
             winner: 'red',
-            revealed: [false, false, false]
+            revealed: [false, false, false],
         };
 
         const result = validateReveal(game, 0);
@@ -125,7 +125,7 @@ describe('Issue #59: Game State Validation', () => {
     it('should reject reveal of already revealed card', () => {
         const game = {
             gameOver: false,
-            revealed: [true, false, false]
+            revealed: [true, false, false],
         };
 
         const result = validateReveal(game, 0);
@@ -136,7 +136,7 @@ describe('Issue #59: Game State Validation', () => {
     it('should reject reveal of invalid card index', () => {
         const game = {
             gameOver: false,
-            revealed: [false, false, false]
+            revealed: [false, false, false],
         };
 
         expect(validateReveal(game, -1).valid).toBe(false);
@@ -146,7 +146,7 @@ describe('Issue #59: Game State Validation', () => {
     it('should allow reveal of unrevealed card', () => {
         const game = {
             gameOver: false,
-            revealed: [true, false, false]
+            revealed: [true, false, false],
         };
 
         const result = validateReveal(game, 1);
@@ -214,7 +214,7 @@ describe('Card Reveal Outcome Logic', () => {
         expect(result.gameOver).toBe(false);
     });
 
-    it('should end game when revealing opponent\'s last card', () => {
+    it("should end game when revealing opponent's last card", () => {
         const result = determineRevealOutcome('blue', 'red', 5, 1);
 
         expect(result.turnEnded).toBe(true);

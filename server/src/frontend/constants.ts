@@ -1,6 +1,8 @@
 import {
-    NICKNAME_MIN_LENGTH, NICKNAME_MAX_LENGTH,
-    ROOM_CODE_MIN_LENGTH, ROOM_CODE_MAX_LENGTH,
+    NICKNAME_MIN_LENGTH,
+    NICKNAME_MAX_LENGTH,
+    ROOM_CODE_MIN_LENGTH,
+    ROOM_CODE_MAX_LENGTH,
     CHAT_MESSAGE_MAX_LENGTH,
     NICKNAME_REGEX as SHARED_NICKNAME_REGEX,
     ROOM_CODE_REGEX,
@@ -10,8 +12,10 @@ import {
     SECOND_TEAM_CARDS as SHARED_SECOND_TEAM_CARDS,
     NEUTRAL_CARDS as SHARED_NEUTRAL_CARDS,
     ASSASSIN_CARDS as SHARED_ASSASSIN_CARDS,
-    TIMER_MIN_TURN_SECONDS, TIMER_MAX_TURN_SECONDS, TIMER_DEFAULT_TURN_SECONDS,
-    DEFAULT_WORDS as SHARED_DEFAULT_WORDS
+    TIMER_MIN_TURN_SECONDS,
+    TIMER_MAX_TURN_SECONDS,
+    TIMER_DEFAULT_TURN_SECONDS,
+    DEFAULT_WORDS as SHARED_DEFAULT_WORDS,
 } from '../shared/index.js';
 
 /**
@@ -31,7 +35,7 @@ export const VALIDATION = {
     ROOM_CODE_MIN_LENGTH,
     ROOM_CODE_MAX_LENGTH,
     ROOM_CODE_PATTERN: ROOM_CODE_REGEX,
-    CHAT_MESSAGE_MAX_LENGTH
+    CHAT_MESSAGE_MAX_LENGTH,
 };
 
 /**
@@ -49,14 +53,14 @@ export const GAME = {
     RED_CARDS_FIRST: FIRST_TEAM_CARDS,
     BLUE_CARDS_FIRST: SECOND_TEAM_CARDS,
     NEUTRAL_CARDS,
-    ASSASSIN_CARDS
+    ASSASSIN_CARDS,
 };
 
 // Role banner configuration - maps role/team to CSS class and label
 export const ROLE_BANNER_CONFIG: Record<string, { red: string; blue: string; label: string }> = {
     spymaster: { red: 'spymaster-red', blue: 'spymaster-blue', label: 'Spymaster' },
     clicker: { red: 'clicker-red', blue: 'clicker-blue', label: 'Clicker' },
-    spectator: { red: 'spectator-red', blue: 'spectator-blue', label: 'Team' }
+    spectator: { red: 'spectator-red', blue: 'spectator-blue', label: 'Team' },
 };
 
 export const DEFAULT_WORDS: string[] = [...SHARED_DEFAULT_WORDS];
@@ -76,7 +80,7 @@ export const TIMER = {
 
     // Minimum and maximum turn time
     MIN_TURN_SECONDS: TIMER_MIN_TURN_SECONDS,
-    MAX_TURN_SECONDS: TIMER_MAX_TURN_SECONDS
+    MAX_TURN_SECONDS: TIMER_MAX_TURN_SECONDS,
 };
 
 /**
@@ -119,7 +123,7 @@ export const UI = {
     COPY_FEEDBACK_MS: 2000,
 
     // Multiplayer join modal close delay
-    MP_JOIN_CLOSE_DELAY_MS: 500
+    MP_JOIN_CLOSE_DELAY_MS: 500,
 };
 
 /**
@@ -132,7 +136,7 @@ export const CONNECTION = {
     RECONNECT_DELAY_MAX_MS: 5000,
 
     // Timeout for server operations
-    OPERATION_TIMEOUT_MS: 30000
+    OPERATION_TIMEOUT_MS: 30000,
 };
 
 /**

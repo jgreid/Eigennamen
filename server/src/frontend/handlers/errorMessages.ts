@@ -9,23 +9,25 @@ export function getErrorMessage(error: ServerErrorData): string {
 
     // Common error code mappings with actionable recovery hints
     const errorMessages: Record<string, string> = {
-        'RATE_LIMITED': 'Too many requests \u2014 wait a few seconds and try again',
-        'NOT_YOUR_TURN': "It's not your team's turn \u2014 wait for the other team to finish",
-        'NOT_CLICKER': 'Only the Clicker can reveal cards \u2014 select the Clicker role first',
-        'NOT_SPYMASTER': 'Only spymasters can perform this action',
-        'GAME_NOT_STARTED': 'Wait for the host to start the game',
-        'GAME_OVER': 'The game has ended \u2014 click New Game to play again',
-        'CARD_ALREADY_REVEALED': 'That card has already been revealed',
-        'TEAM_WOULD_BE_EMPTY': 'Cannot leave \u2014 your team needs at least one player',
-        'CANNOT_SWITCH_TEAM_DURING_TURN': "Cannot switch teams during your team's active turn \u2014 wait for the turn to end",
-        'CANNOT_CHANGE_ROLE_DURING_TURN': "Cannot change roles during your team's active turn \u2014 wait for the turn to end",
-        'SPYMASTER_CANNOT_CHANGE_TEAM': 'Spymasters cannot change teams during an active game',
-        'MUST_JOIN_TEAM': 'Join a team first by clicking a team score, then select a role',
-        'ROLE_TAKEN': 'That role is already taken \u2014 try the other role or wait for it to open',
-        'ROOM_NOT_FOUND': 'Room not found \u2014 it may have expired. Check the Room ID or create a new room',
-        'PLAYER_NOT_FOUND': 'Session expired \u2014 please refresh the page and rejoin',
-        'INVALID_INPUT': 'Invalid request \u2014 please check your input and try again',
-        'SERVER_ERROR': 'Server error \u2014 please try again in a moment'
+        RATE_LIMITED: 'Too many requests \u2014 wait a few seconds and try again',
+        NOT_YOUR_TURN: "It's not your team's turn \u2014 wait for the other team to finish",
+        NOT_CLICKER: 'Only the Clicker can reveal cards \u2014 select the Clicker role first',
+        NOT_SPYMASTER: 'Only spymasters can perform this action',
+        GAME_NOT_STARTED: 'Wait for the host to start the game',
+        GAME_OVER: 'The game has ended \u2014 click New Game to play again',
+        CARD_ALREADY_REVEALED: 'That card has already been revealed',
+        TEAM_WOULD_BE_EMPTY: 'Cannot leave \u2014 your team needs at least one player',
+        CANNOT_SWITCH_TEAM_DURING_TURN:
+            "Cannot switch teams during your team's active turn \u2014 wait for the turn to end",
+        CANNOT_CHANGE_ROLE_DURING_TURN:
+            "Cannot change roles during your team's active turn \u2014 wait for the turn to end",
+        SPYMASTER_CANNOT_CHANGE_TEAM: 'Spymasters cannot change teams during an active game',
+        MUST_JOIN_TEAM: 'Join a team first by clicking a team score, then select a role',
+        ROLE_TAKEN: 'That role is already taken \u2014 try the other role or wait for it to open',
+        ROOM_NOT_FOUND: 'Room not found \u2014 it may have expired. Check the Room ID or create a new room',
+        PLAYER_NOT_FOUND: 'Session expired \u2014 please refresh the page and rejoin',
+        INVALID_INPUT: 'Invalid request \u2014 please check your input and try again',
+        SERVER_ERROR: 'Server error \u2014 please try again in a moment',
     };
 
     // Check for exact code match first

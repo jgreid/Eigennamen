@@ -17,18 +17,18 @@ jest.mock('../../config/redis', () => {
             mockRedisStorage.set(key, value);
             return 'OK';
         }),
-        del: jest.fn(async (key) => mockRedisStorage.delete(key) ? 1 : 0),
+        del: jest.fn(async (key) => (mockRedisStorage.delete(key) ? 1 : 0)),
         incr: jest.fn(async (key) => {
             const current = parseInt(mockRedisStorage.get(key) || '0');
             mockRedisStorage.set(key, (current + 1).toString());
             return current + 1;
         }),
         expire: jest.fn(async () => 1),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0)
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
     };
     return {
         getRedis: jest.fn(() => mockRedis),
-        isUsingMemoryMode: jest.fn(() => true)
+        isUsingMemoryMode: jest.fn(() => true),
     };
 });
 
@@ -50,9 +50,7 @@ describe('Error Handler Middleware', () => {
         it('should return 404 with proper error format', async () => {
             app.use(notFoundHandler);
 
-            const response = await request(app)
-                .get('/nonexistent/route')
-                .expect(404);
+            const response = await request(app).get('/nonexistent/route').expect(404);
 
             expect(response.body.error).toBeDefined();
             expect(response.body.error.code).toBe('NOT_FOUND');
@@ -62,9 +60,7 @@ describe('Error Handler Middleware', () => {
         it('should return generic message without reflecting path', async () => {
             app.use(notFoundHandler);
 
-            const response = await request(app)
-                .post('/nonexistent')
-                .expect(404);
+            const response = await request(app).post('/nonexistent').expect(404);
 
             expect(response.body.error.message).toBe('The requested resource was not found');
             // Should NOT reflect the path or method back (prevents information leakage)
@@ -80,9 +76,7 @@ describe('Error Handler Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(404);
+            const response = await request(app).get('/test').expect(404);
 
             expect(response.body.error.code).toBe('ROOM_NOT_FOUND');
         });
@@ -93,9 +87,7 @@ describe('Error Handler Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(403);
+            const response = await request(app).get('/test').expect(403);
 
             expect(response.body.error.code).toBe('ROOM_FULL');
         });
@@ -106,9 +98,7 @@ describe('Error Handler Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(429);
+            const response = await request(app).get('/test').expect(429);
 
             expect(response.body.error.code).toBe('RATE_LIMITED');
         });
@@ -119,9 +109,7 @@ describe('Error Handler Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(403);
+            const response = await request(app).get('/test').expect(403);
 
             expect(response.body.error.code).toBe('NOT_AUTHORIZED');
         });
@@ -132,9 +120,7 @@ describe('Error Handler Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(400);
+            const response = await request(app).get('/test').expect(400);
 
             expect(response.body.error.code).toBe('INVALID_INPUT');
         });
@@ -142,35 +128,37 @@ describe('Error Handler Middleware', () => {
         it('should handle ZodError with 400', async () => {
             app.get('/test', (req, res, next) => {
                 const zodError = new ZodError([
-                    { code: 'invalid_type', expected: 'string', received: 'number', path: ['name'], message: 'Expected string' }
+                    {
+                        code: 'invalid_type',
+                        expected: 'string',
+                        received: 'number',
+                        path: ['name'],
+                        message: 'Expected string',
+                    },
                 ]);
                 next(zodError);
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(400);
+            const response = await request(app).get('/test').expect(400);
 
             expect(response.body.error.code).toBe('INVALID_INPUT');
             expect(response.body.error.message).toBe('Validation error');
         });
 
-        it('should include error details when present', async () => {
+        it('should include allowlisted error details when present', async () => {
             app.get('/test', (req, res, next) => {
                 next({
                     code: ERROR_CODES.INVALID_INPUT,
                     message: 'Validation failed',
-                    details: [{ field: 'name', issue: 'required' }]
+                    details: { roomCode: 'ABC123', recoverable: true },
                 });
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(400);
+            const response = await request(app).get('/test').expect(400);
 
-            expect(response.body.error.details).toEqual([{ field: 'name', issue: 'required' }]);
+            expect(response.body.error.details).toEqual({ roomCode: 'ABC123', recoverable: true });
         });
 
         it('should handle unknown errors with 500', async () => {
@@ -179,9 +167,7 @@ describe('Error Handler Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test')
-                .expect(500);
+            const response = await request(app).get('/test').expect(500);
 
             expect(response.body.error.code).toBe('SERVER_ERROR');
         });
@@ -201,9 +187,7 @@ describe('CSRF Protection Middleware', () => {
         it('should allow GET requests without headers', async () => {
             app.get('/test', (req, res) => res.json({ success: true }));
 
-            const response = await request(app)
-                .get('/test')
-                .expect(200);
+            const response = await request(app).get('/test').expect(200);
 
             expect(response.body.success).toBe(true);
         });
@@ -211,17 +195,13 @@ describe('CSRF Protection Middleware', () => {
         it('should allow HEAD requests without headers', async () => {
             app.head('/test', (req, res) => res.status(200).end());
 
-            await request(app)
-                .head('/test')
-                .expect(200);
+            await request(app).head('/test').expect(200);
         });
 
         it('should allow OPTIONS requests without headers', async () => {
             app.options('/test', (req, res) => res.status(200).end());
 
-            await request(app)
-                .options('/test')
-                .expect(200);
+            await request(app).options('/test').expect(200);
         });
     });
 
@@ -233,27 +213,19 @@ describe('CSRF Protection Middleware', () => {
         });
 
         it('should block POST without X-Requested-With header', async () => {
-            const response = await request(app)
-                .post('/test')
-                .send({ data: 'test' })
-                .expect(403);
+            const response = await request(app).post('/test').send({ data: 'test' }).expect(403);
 
             expect(response.body.error.code).toBe('CSRF_VALIDATION_FAILED');
         });
 
         it('should block PUT without X-Requested-With header', async () => {
-            const response = await request(app)
-                .put('/test')
-                .send({ data: 'test' })
-                .expect(403);
+            const response = await request(app).put('/test').send({ data: 'test' }).expect(403);
 
             expect(response.body.error.code).toBe('CSRF_VALIDATION_FAILED');
         });
 
         it('should block DELETE without X-Requested-With header', async () => {
-            const response = await request(app)
-                .delete('/test')
-                .expect(403);
+            const response = await request(app).delete('/test').expect(403);
 
             expect(response.body.error.code).toBe('CSRF_VALIDATION_FAILED');
         });
@@ -297,7 +269,7 @@ describe('Validation Middleware', () => {
         it('should return parsed data for valid input', () => {
             const schema = z.object({
                 name: z.string(),
-                age: z.number()
+                age: z.number(),
             });
 
             const result = validateInput(schema, { name: 'Test', age: 25 });
@@ -307,7 +279,7 @@ describe('Validation Middleware', () => {
 
         it('should throw error for invalid input', () => {
             const schema = z.object({
-                name: z.string()
+                name: z.string(),
             });
 
             expect(() => {
@@ -317,7 +289,7 @@ describe('Validation Middleware', () => {
 
         it('should throw error with INVALID_INPUT code', () => {
             const schema = z.object({
-                name: z.string()
+                name: z.string(),
             });
 
             try {
@@ -331,7 +303,7 @@ describe('Validation Middleware', () => {
         it('should include validation details in error', () => {
             const schema = z.object({
                 name: z.string(),
-                email: z.string().email()
+                email: z.string().email(),
             });
 
             try {
@@ -345,7 +317,7 @@ describe('Validation Middleware', () => {
 
         it('should handle empty input gracefully', () => {
             const schema = z.object({
-                name: z.string().optional()
+                name: z.string().optional(),
             });
 
             const result = validateInput(schema, {});
@@ -354,7 +326,7 @@ describe('Validation Middleware', () => {
 
         it('should handle null input', () => {
             const schema = z.object({
-                name: z.string().optional()
+                name: z.string().optional(),
             });
 
             const result = validateInput(schema, null);
@@ -365,7 +337,7 @@ describe('Validation Middleware', () => {
     describe('validateBody', () => {
         let app;
         const schema = z.object({
-            name: z.string().min(1)
+            name: z.string().min(1),
         });
 
         beforeEach(() => {
@@ -379,10 +351,7 @@ describe('Validation Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .post('/test')
-                .send({ name: 'Test' })
-                .expect(200);
+            const response = await request(app).post('/test').send({ name: 'Test' }).expect(200);
 
             expect(response.body.received).toBe('Test');
         });
@@ -393,10 +362,7 @@ describe('Validation Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .post('/test')
-                .send({ name: '' })
-                .expect(400);
+            const response = await request(app).post('/test').send({ name: '' }).expect(400);
 
             expect(response.body.error.code).toBe('INVALID_INPUT');
         });
@@ -405,7 +371,7 @@ describe('Validation Middleware', () => {
     describe('validateParams', () => {
         let app;
         const schema = z.object({
-            id: z.string().uuid()
+            id: z.string().uuid(),
         });
 
         beforeEach(() => {
@@ -419,9 +385,7 @@ describe('Validation Middleware', () => {
             app.use(errorHandler);
 
             const validUuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-            const response = await request(app)
-                .get(`/test/${validUuid}`)
-                .expect(200);
+            const response = await request(app).get(`/test/${validUuid}`).expect(200);
 
             expect(response.body.id).toBe(validUuid);
         });
@@ -432,9 +396,7 @@ describe('Validation Middleware', () => {
             });
             app.use(errorHandler);
 
-            const response = await request(app)
-                .get('/test/not-a-uuid')
-                .expect(400);
+            const response = await request(app).get('/test/not-a-uuid').expect(400);
 
             expect(response.body.error.code).toBe('INVALID_INPUT');
         });
@@ -445,7 +407,7 @@ describe('Socket Auth Middleware', () => {
     // Mock playerService
     jest.mock('../../services/playerService', () => ({
         getPlayer: jest.fn(),
-        setSocketMapping: jest.fn(async () => 'OK')
+        setSocketMapping: jest.fn(async () => 'OK'),
     }));
 
     const { getClientIP } = require('../../middleware/socketAuth');
@@ -459,8 +421,8 @@ describe('Socket Auth Middleware', () => {
             const socket = {
                 handshake: {
                     address: '192.168.1.1',
-                    headers: {}
-                }
+                    headers: {},
+                },
             };
 
             const ip = getClientIP(socket);
@@ -475,9 +437,9 @@ describe('Socket Auth Middleware', () => {
                 handshake: {
                     address: '127.0.0.1',
                     headers: {
-                        'x-forwarded-for': '203.0.113.50, 70.41.3.18'
-                    }
-                }
+                        'x-forwarded-for': '203.0.113.50, 70.41.3.18',
+                    },
+                },
             };
 
             const ip = getClientIP(socket);
@@ -496,9 +458,9 @@ describe('Socket Auth Middleware', () => {
                 handshake: {
                     address: '127.0.0.1',
                     headers: {
-                        'x-forwarded-for': '203.0.113.50'
-                    }
-                }
+                        'x-forwarded-for': '203.0.113.50',
+                    },
+                },
             };
 
             const ip = getClientIP(socket);
@@ -507,5 +469,4 @@ describe('Socket Auth Middleware', () => {
             process.env.TRUST_PROXY = originalEnv;
         });
     });
-
 });

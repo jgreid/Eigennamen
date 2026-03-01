@@ -1,3 +1,15 @@
+-- hostTransfer.lua
+-- Description: Atomically transfers host privileges from one player to another and updates the room record
+--
+-- KEYS[1]: Old host player key
+-- KEYS[2]: New host player key
+-- KEYS[3]: Room key
+-- ARGV[1]: New host session ID
+-- ARGV[2]: Player TTL (seconds)
+-- ARGV[3]: Current timestamp (ms)
+--
+-- Returns: JSON `{success: true, oldHost, newHost}` or `{success: false, reason}`
+
 local oldHostKey = KEYS[1]
 local newHostKey = KEYS[2]
 local roomKey = KEYS[3]

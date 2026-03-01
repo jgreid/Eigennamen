@@ -14,21 +14,21 @@ jest.mock('../../config/redis', () => {
         keys: jest.fn().mockResolvedValue([]),
         exists: jest.fn().mockResolvedValue(0),
         // Mock eval for atomic operations (Lua scripts)
-        eval: jest.fn().mockResolvedValue(null)
+        eval: jest.fn().mockResolvedValue(null),
     };
 
     const mockPubClient = {
-        publish: jest.fn().mockResolvedValue(1)
+        publish: jest.fn().mockResolvedValue(1),
     };
 
     const mockSubClient = {
         subscribe: jest.fn().mockResolvedValue(),
-        unsubscribe: jest.fn().mockResolvedValue()
+        unsubscribe: jest.fn().mockResolvedValue(),
     };
 
     return {
         getRedis: () => mockRedis,
-        getPubSubClients: () => ({ pubClient: mockPubClient, subClient: mockSubClient })
+        getPubSubClients: () => ({ pubClient: mockPubClient, subClient: mockSubClient }),
     };
 });
 
@@ -89,7 +89,8 @@ describe('Timer Service', () => {
                 // AddTime script passes 4 arguments (secondsToAdd, instanceId, now, ttlBuffer).
                 const isPauseTimerScript = typeof script === 'string' && script.includes('ALREADY_PAUSED');
                 const isResumeTimerScript = typeof script === 'string' && script.includes('NOT_PAUSED');
-                const isTimerStatusScript = options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
+                const isTimerStatusScript =
+                    options.arguments.length === 1 && !isResumeTimerScript && !isPauseTimerScript;
 
                 if (isPauseTimerScript) {
                     // Simulate ATOMIC_PAUSE_TIMER_SCRIPT
@@ -131,7 +132,11 @@ describe('Timer Service', () => {
                         const remainingMs = remainingSeconds * 1000;
                         if (pausedDurationMs >= remainingMs) {
                             delete mockRedis._storage[key];
-                            return JSON.stringify({ expired: true, pausedFor: pausedDurationMs, hadRemaining: remainingMs });
+                            return JSON.stringify({
+                                expired: true,
+                                pausedFor: pausedDurationMs,
+                                hadRemaining: remainingMs,
+                            });
                         }
                     }
 
@@ -155,7 +160,7 @@ describe('Timer Service', () => {
                             duration: timer.duration,
                             remainingSeconds: timer.remainingWhenPaused,
                             expired: false,
-                            isPaused: true
+                            isPaused: true,
                         });
                     }
 
@@ -169,7 +174,7 @@ describe('Timer Service', () => {
                         duration: timer.duration,
                         remainingSeconds,
                         expired,
-                        isPaused: false
+                        isPaused: false,
                     });
                 }
 
@@ -181,7 +186,7 @@ describe('Timer Service', () => {
                 if (remainingMs <= 0) return null;
 
                 const secondsToAdd = parseInt(options.arguments[0], 10);
-                const newEndTime = timer.endTime + (secondsToAdd * 1000);
+                const newEndTime = timer.endTime + secondsToAdd * 1000;
                 const newDuration = Math.ceil((newEndTime - now) / 1000);
 
                 // Update storage
@@ -192,7 +197,7 @@ describe('Timer Service', () => {
                 return JSON.stringify({
                     endTime: newEndTime,
                     duration: newDuration,
-                    remainingSeconds: newDuration
+                    remainingSeconds: newDuration,
                 });
             } catch {
                 return null;

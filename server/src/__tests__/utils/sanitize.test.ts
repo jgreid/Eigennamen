@@ -15,9 +15,7 @@ const {
 
 describe('sanitizeHtml', () => {
     test('escapes HTML angle brackets', () => {
-        expect(sanitizeHtml('<script>alert(1)</script>')).toBe(
-            '&lt;script&gt;alert(1)&lt;&#x2F;script&gt;'
-        );
+        expect(sanitizeHtml('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;&#x2F;script&gt;');
     });
 
     test('escapes ampersands', () => {
@@ -25,9 +23,7 @@ describe('sanitizeHtml', () => {
     });
 
     test('escapes double and single quotes', () => {
-        expect(sanitizeHtml('"hello" & \'world\'')).toBe(
-            '&quot;hello&quot; &amp; &#x27;world&#x27;'
-        );
+        expect(sanitizeHtml('"hello" & \'world\'')).toBe('&quot;hello&quot; &amp; &#x27;world&#x27;');
     });
 
     test('escapes forward slashes', () => {
@@ -132,4 +128,3 @@ describe('toEnglishUpperCase', () => {
         expect(toEnglishUpperCase(42)).toBe('');
     });
 });
-

@@ -1,9 +1,4 @@
-const {
-    getContext,
-    getCorrelationId,
-    getContextFields,
-    withContext,
-} = require('../../utils/correlationId');
+const { getContext, getCorrelationId, getContextFields, withContext } = require('../../utils/correlationId');
 
 describe('Correlation ID Utility', () => {
     describe('getContext', () => {
@@ -41,7 +36,7 @@ describe('Correlation ID Utility', () => {
                 correlationId: 'corr-123',
                 sessionId: 'sess-456',
                 roomCode: 'ROOM01',
-                instanceId: 'inst-789'
+                instanceId: 'inst-789',
             };
 
             withContext(context, () => {
@@ -49,7 +44,7 @@ describe('Correlation ID Utility', () => {
                     correlationId: 'corr-123',
                     sessionId: 'sess-456',
                     roomCode: 'ROOM01',
-                    instanceId: 'inst-789'
+                    instanceId: 'inst-789',
                 });
             });
         });
@@ -75,5 +70,4 @@ describe('Correlation ID Utility', () => {
             });
         });
     });
-
 });

@@ -5,22 +5,22 @@
  */
 
 jest.mock('../../services/playerService', () => ({
-    getPlayer: jest.fn()
+    getPlayer: jest.fn(),
 }));
 
 jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 jest.mock('../../utils/timeout', () => ({
-    TIMEOUTS: { GAME_ACTION: 500 }
+    TIMEOUTS: { GAME_ACTION: 500 },
 }));
 
 jest.mock('../../socket/playerContext', () => ({
-    isPlayerSpectator: jest.fn()
+    isPlayerSpectator: jest.fn(),
 }));
 
 const { syncSpectatorRoomMembership } = require('../../socket/handlers/playerRoomSync');
@@ -29,7 +29,7 @@ const { isPlayerSpectator } = require('../../socket/playerContext');
 
 const mockSocket = {
     join: jest.fn(),
-    leave: jest.fn()
+    leave: jest.fn(),
 };
 
 describe('syncSpectatorRoomMembership', () => {
@@ -45,7 +45,10 @@ describe('syncSpectatorRoomMembership', () => {
 
     test('joins spectator room when player is a spectator', async () => {
         playerService.getPlayer.mockResolvedValue({
-            sessionId: 'p1', team: null, role: 'spectator', roomCode: 'ROOM1'
+            sessionId: 'p1',
+            team: null,
+            role: 'spectator',
+            roomCode: 'ROOM1',
         });
         isPlayerSpectator.mockReturnValue(true);
 
@@ -59,7 +62,10 @@ describe('syncSpectatorRoomMembership', () => {
 
     test('leaves spectator room when player is not a spectator', async () => {
         playerService.getPlayer.mockResolvedValue({
-            sessionId: 'p2', team: 'red', role: 'clicker', roomCode: 'ROOM1'
+            sessionId: 'p2',
+            team: 'red',
+            role: 'clicker',
+            roomCode: 'ROOM1',
         });
         isPlayerSpectator.mockReturnValue(false);
 

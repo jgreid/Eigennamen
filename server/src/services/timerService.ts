@@ -6,7 +6,12 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
-import { ATOMIC_ADD_TIME_SCRIPT, ATOMIC_TIMER_STATUS_SCRIPT, ATOMIC_RESUME_TIMER_SCRIPT, ATOMIC_PAUSE_TIMER_SCRIPT } from '../scripts';
+import {
+    ATOMIC_ADD_TIME_SCRIPT,
+    ATOMIC_TIMER_STATUS_SCRIPT,
+    ATOMIC_RESUME_TIMER_SCRIPT,
+    ATOMIC_PAUSE_TIMER_SCRIPT,
+} from '../scripts';
 import { setGauge, incrementCounter, METRIC_NAMES } from '../utils/metrics';
 import { z } from 'zod';
 
@@ -14,7 +19,7 @@ import { z } from 'zod';
 const addTimeResultSchema = z.object({
     endTime: z.number(),
     duration: z.number(),
-    remainingSeconds: z.number()
+    remainingSeconds: z.number(),
 });
 
 // Zod schema for atomic resume timer Lua script result
@@ -23,13 +28,13 @@ const resumeTimerResultSchema = z.object({
     remainingSeconds: z.number().optional(),
     pausedFor: z.number().optional(),
     hadRemaining: z.number().optional(),
-    error: z.string().optional()
+    error: z.string().optional(),
 });
 
 // Zod schema for atomic pause timer Lua script result
 const pauseTimerResultSchema = z.object({
     remainingSeconds: z.number().optional(),
-    error: z.string().optional()
+    error: z.string().optional(),
 });
 
 // Zod schema for atomic timer status Lua script result
@@ -39,7 +44,7 @@ const timerStatusSchema = z.object({
     duration: z.number(),
     remainingSeconds: z.number(),
     expired: z.boolean(),
-    isPaused: z.boolean()
+    isPaused: z.boolean(),
 });
 
 /**
@@ -114,10 +119,7 @@ const TIMER_KEY_PREFIX = 'timer:';
 /**
  * Creates a timer expiration callback function
  */
-function createTimerExpirationCallback(
-    roomCode: string,
-    onExpire?: TimerExpireCallback
-): () => Promise<void> {
+function createTimerExpirationCallback(roomCode: string, onExpire?: TimerExpireCallback): () => Promise<void> {
     return async (): Promise<void> => {
         try {
             const redis: RedisClient = getRedis();
@@ -167,7 +169,7 @@ export async function startTimer(
     await stopTimer(roomCode);
 
     const startTime = Date.now();
-    const endTime = startTime + (durationSeconds * 1000);
+    const endTime = startTime + durationSeconds * 1000;
 
     // Store timer state in Redis
     const timerData: TimerState = {
@@ -175,7 +177,7 @@ export async function startTimer(
         startTime,
         endTime,
         duration: durationSeconds,
-        instanceId: process.pid.toString()
+        instanceId: process.pid.toString(),
     };
 
     await withTimeout(
@@ -189,10 +191,7 @@ export async function startTimer(
     );
 
     // Set up local timeout using shared expiration callback
-    const timeoutId = setTimeout(
-        createTimerExpirationCallback(roomCode, onExpire),
-        durationSeconds * 1000
-    );
+    const timeoutId = setTimeout(createTimerExpirationCallback(roomCode, onExpire), durationSeconds * 1000);
 
     // Evict oldest entry if map exceeds max size to prevent unbounded growth
     if (localTimers.size >= LOCAL_TIMERS_MAX_SIZE) {
@@ -208,7 +207,7 @@ export async function startTimer(
     localTimers.set(roomCode, {
         ...timerData,
         timeoutId,
-        onExpire
+        onExpire,
     });
 
     logger.info(`Timer started for room ${roomCode}: ${durationSeconds}s`);
@@ -217,7 +216,7 @@ export async function startTimer(
         startTime,
         endTime,
         duration: durationSeconds,
-        remainingSeconds: durationSeconds
+        remainingSeconds: durationSeconds,
     };
 }
 
@@ -253,14 +252,14 @@ export async function getTimerStatus(roomCode: string): Promise<TimerStatus | nu
     // Atomic Lua script: reads timer state and checks for expiration in one operation.
     // Prevents TOCTOU race in multi-instance deployments where another instance
     // could modify the timer between our GET and our expiration check.
-    const result = await withTimeout(
+    const result = (await withTimeout(
         redis.eval(ATOMIC_TIMER_STATUS_SCRIPT, {
             keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-            arguments: [Date.now().toString()]
+            arguments: [Date.now().toString()],
         }),
         TIMEOUTS.TIMER_OPERATION,
         `getTimerStatus-lua-${roomCode}`
-    ) as string | null;
+    )) as string | null;
 
     if (!result) {
         return null;
@@ -290,14 +289,14 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
     const redis: RedisClient = getRedis();
 
     try {
-        const resultStr = await withTimeout(
+        const resultStr = (await withTimeout(
             redis.eval(ATOMIC_PAUSE_TIMER_SCRIPT, {
                 keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-                arguments: [Date.now().toString(), REDIS_TTL.PAUSED_TIMER.toString()]
+                arguments: [Date.now().toString(), REDIS_TTL.PAUSED_TIMER.toString()],
             }),
             TIMEOUTS.TIMER_OPERATION,
             `pauseTimer-lua-${roomCode}`
-        ) as string | null;
+        )) as string | null;
 
         if (!resultStr) {
             return null; // No timer exists
@@ -339,10 +338,7 @@ export async function pauseTimer(roomCode: string): Promise<PauseResult | null> 
 /**
  * Resume a paused timer
  */
-export async function resumeTimer(
-    roomCode: string,
-    onExpire?: TimerExpireCallback
-): Promise<TimerInfo | null> {
+export async function resumeTimer(roomCode: string, onExpire?: TimerExpireCallback): Promise<TimerInfo | null> {
     const redis: RedisClient = getRedis();
 
     try {
@@ -351,7 +347,7 @@ export async function resumeTimer(
         const resultStr = await withTimeout(
             redis.eval(ATOMIC_RESUME_TIMER_SCRIPT, {
                 keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-                arguments: [Date.now().toString()]
+                arguments: [Date.now().toString()],
             }),
             TIMEOUTS.TIMER_OPERATION,
             `resumeTimer-lua-${roomCode}`
@@ -371,7 +367,9 @@ export async function resumeTimer(
         }
 
         if (result.expired) {
-            logger.info(`Timer for room ${roomCode} expired while paused (paused for ${Math.round((result.pausedFor || 0)/1000)}s, had ${Math.round((result.hadRemaining || 0)/1000)}s remaining), treating as expired`);
+            logger.info(
+                `Timer for room ${roomCode} expired while paused (paused for ${Math.round((result.pausedFor || 0) / 1000)}s, had ${Math.round((result.hadRemaining || 0) / 1000)}s remaining), treating as expired`
+            );
             localTimers.delete(roomCode);
 
             // Call expire callback if provided
@@ -388,7 +386,9 @@ export async function resumeTimer(
         // Resume with the original remaining time (pausing preserves time)
         const remainingSeconds = result.remainingSeconds;
         if (remainingSeconds === undefined || !Number.isFinite(remainingSeconds) || remainingSeconds <= 0) {
-            logger.warn(`Invalid remainingSeconds ${remainingSeconds} in resumeTimer for ${roomCode}, treating as expired`);
+            logger.warn(
+                `Invalid remainingSeconds ${remainingSeconds} in resumeTimer for ${roomCode}, treating as expired`
+            );
             return null;
         }
         return await startTimer(roomCode, remainingSeconds, onExpire);
@@ -433,17 +433,19 @@ async function addTimeLocal(
     const redis: RedisClient = getRedis();
 
     // Atomically add time to prevent race conditions
-    const result = await withTimeout(
-        redis.eval(
-            ATOMIC_ADD_TIME_SCRIPT,
-            {
-                keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
-                arguments: [secondsToAdd.toString(), process.pid.toString(), Date.now().toString(), TIMER_TTL_BUFFER.toString()]
-            }
-        ),
+    const result = (await withTimeout(
+        redis.eval(ATOMIC_ADD_TIME_SCRIPT, {
+            keys: [`${TIMER_KEY_PREFIX}${roomCode}`],
+            arguments: [
+                secondsToAdd.toString(),
+                process.pid.toString(),
+                Date.now().toString(),
+                TIMER_TTL_BUFFER.toString(),
+            ],
+        }),
         TIMEOUTS.TIMER_OPERATION,
         `addTimeLocal-lua-${roomCode}`
-    ) as string | null;
+    )) as string | null;
 
     if (!result) {
         return null;
@@ -469,16 +471,18 @@ async function addTimeLocal(
                 endTime: newTimer.endTime,
                 duration: newTimer.duration,
                 timeoutId,
-                onExpire
+                onExpire,
             });
         }
 
-        logger.info(`Added ${secondsToAdd}s to timer for room ${roomCode}, new remaining: ${newTimer.remainingSeconds}s`);
+        logger.info(
+            `Added ${secondsToAdd}s to timer for room ${roomCode}, new remaining: ${newTimer.remainingSeconds}s`
+        );
 
         return {
             endTime: newTimer.endTime,
             duration: newTimer.duration,
-            remainingSeconds: newTimer.remainingSeconds
+            remainingSeconds: newTimer.remainingSeconds,
         };
     } catch (e) {
         logger.error(`Error parsing addTime result for room ${roomCode}:`, e);
@@ -550,4 +554,3 @@ export function cleanupAllTimers(): void {
 
     logger.info('All local timers cleaned up');
 }
-

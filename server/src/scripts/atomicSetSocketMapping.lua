@@ -1,3 +1,16 @@
+-- atomicSetSocketMapping.lua
+-- Description: Atomically sets a socket-to-player mapping and updates the player's last IP and last seen timestamp
+--
+-- KEYS[1]: Player key
+-- KEYS[2]: Socket mapping key
+-- ARGV[1]: Socket ID
+-- ARGV[2]: Socket mapping TTL (seconds)
+-- ARGV[3]: Player TTL (seconds)
+-- ARGV[4]: Last IP address (can be empty)
+-- ARGV[5]: Current timestamp (ms)
+--
+-- Returns: 1 on success, nil if player not found
+
 local playerKey = KEYS[1]
 local socketKey = KEYS[2]
 local socketId = ARGV[1]

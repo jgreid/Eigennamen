@@ -7,9 +7,7 @@
  * - Match end conditions
  */
 
-const {
-    generateCardScores
-} = require('../../services/game/boardGenerator');
+const { generateCardScores } = require('../../services/game/boardGenerator');
 const { finalizeRound } = require('../../services/gameService');
 const {
     BOARD_SIZE,
@@ -20,7 +18,7 @@ const {
     BOARD_VALUE_MIN,
     BOARD_VALUE_MAX,
     ASSASSIN_SCORE_POOL,
-    CARD_SCORE_DISTRIBUTION
+    CARD_SCORE_DISTRIBUTION,
 } = require('../../config/constants');
 
 type AnyRecord = Record<string, any>;
@@ -29,7 +27,7 @@ type AnyRecord = Record<string, any>;
 let mockRedis: AnyRecord;
 
 jest.mock('../../config/redis', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -42,19 +40,14 @@ jest.mock('../../utils/logger', () => ({
             info: jest.fn(),
             debug: jest.fn(),
             warn: jest.fn(),
-            error: jest.fn()
-        }))
-    }
+            error: jest.fn(),
+        })),
+    },
 }));
 
 // Helper: create a standard types array for testing
 function createStandardTypes(): string[] {
-    const types = [
-        ...Array(9).fill('red'),
-        ...Array(8).fill('blue'),
-        ...Array(7).fill('neutral'),
-        'assassin'
-    ];
+    const types = [...Array(9).fill('red'), ...Array(8).fill('blue'), ...Array(7).fill('neutral'), 'assassin'];
     return types;
 }
 
@@ -159,7 +152,9 @@ describe('finalizeRound', () => {
             types: createStandardTypes(),
             revealed: Array(BOARD_SIZE).fill(true),
             cardScores: Array(BOARD_SIZE).fill(1),
-            revealedBy: Array(BOARD_SIZE).fill(null).map((_: null, i: number) => i < 12 ? 'red' : 'blue'),
+            revealedBy: Array(BOARD_SIZE)
+                .fill(null)
+                .map((_: null, i: number) => (i < 12 ? 'red' : 'blue')),
             redScore: 9,
             blueScore: 8,
             redTotal: 9,
@@ -172,7 +167,7 @@ describe('finalizeRound', () => {
             matchWinner: null,
             history: [],
             words: Array(BOARD_SIZE).fill('WORD'),
-            ...overrides
+            ...overrides,
         };
     }
 
@@ -193,7 +188,9 @@ describe('finalizeRound', () => {
         const game = createMatchGame({
             cardScores,
             revealedBy,
-            revealed: Array(BOARD_SIZE).fill(false).map((_: boolean, i: number) => i < 3)
+            revealed: Array(BOARD_SIZE)
+                .fill(false)
+                .map((_: boolean, i: number) => i < 3),
         });
 
         const result = finalizeRound(game);
@@ -219,7 +216,7 @@ describe('finalizeRound', () => {
         const game = createMatchGame({
             redMatchScore: 10,
             blueMatchScore: 5,
-            winner: 'red'
+            winner: 'red',
         });
         finalizeRound(game);
         expect(game.redMatchScore).toBeGreaterThan(10);
@@ -241,7 +238,7 @@ describe('finalizeRound', () => {
             // Make all cards revealed by red with score 1 so red gets enough points
             cardScores: Array(BOARD_SIZE).fill(1),
             revealedBy: Array(BOARD_SIZE).fill('red'),
-            revealed: Array(BOARD_SIZE).fill(true)
+            revealed: Array(BOARD_SIZE).fill(true),
         });
 
         finalizeRound(game);
@@ -261,7 +258,7 @@ describe('finalizeRound', () => {
             // Minimal card reveals
             cardScores: Array(BOARD_SIZE).fill(0),
             revealedBy: Array(BOARD_SIZE).fill(null),
-            revealed: Array(BOARD_SIZE).fill(false)
+            revealed: Array(BOARD_SIZE).fill(false),
         });
 
         finalizeRound(game);

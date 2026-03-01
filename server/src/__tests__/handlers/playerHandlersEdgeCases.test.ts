@@ -30,25 +30,34 @@ jest.mock('../../config/redis', () => {
         del: jest.fn(async (key) => {
             if (Array.isArray(key)) {
                 let deleted = 0;
-                key.forEach(k => { if (mockRedisStorage.delete(k)) deleted++; });
+                key.forEach((k) => {
+                    if (mockRedisStorage.delete(k)) deleted++;
+                });
                 return deleted;
             }
             return mockRedisStorage.delete(key) ? 1 : 0;
         }),
-        exists: jest.fn(async (key) => mockRedisStorage.has(key) ? 1 : 0),
+        exists: jest.fn(async (key) => (mockRedisStorage.has(key) ? 1 : 0)),
         expire: jest.fn(async () => 1),
         sAdd: jest.fn(async (key, ...members) => {
             if (!mockRedisSets.has(key)) mockRedisSets.set(key, new Set());
             const set = mockRedisSets.get(key);
             let added = 0;
-            members.forEach(m => { if (!set.has(m)) { set.add(m); added++; } });
+            members.forEach((m) => {
+                if (!set.has(m)) {
+                    set.add(m);
+                    added++;
+                }
+            });
             return added;
         }),
         sRem: jest.fn(async (key, ...members) => {
             const set = mockRedisSets.get(key);
             if (!set) return 0;
             let removed = 0;
-            members.forEach(m => { if (set.delete(m)) removed++; });
+            members.forEach((m) => {
+                if (set.delete(m)) removed++;
+            });
             return removed;
         }),
         sMembers: jest.fn(async (key) => {
@@ -65,11 +74,11 @@ jest.mock('../../config/redis', () => {
         }),
         watch: jest.fn(async () => 'OK'),
         unwatch: jest.fn(async () => 'OK'),
-        mGet: jest.fn(async (keys) => keys.map(k => mockRedisStorage.get(k) || null)),
+        mGet: jest.fn(async (keys) => keys.map((k) => mockRedisStorage.get(k) || null)),
         multi: jest.fn(() => ({
             set: jest.fn().mockReturnThis(),
             del: jest.fn().mockReturnThis(),
-            exec: jest.fn(async () => [[null, 'OK']])
+            exec: jest.fn(async () => [[null, 'OK']]),
         })),
         eval: jest.fn(async (script, options) => {
             // Simulate atomic room creation script
@@ -140,13 +149,15 @@ jest.mock('../../config/redis', () => {
             return null;
         }),
         publish: jest.fn(async () => 0),
-        duplicate: jest.fn(function() { return this; })
+        duplicate: jest.fn(function () {
+            return this;
+        }),
     };
 
     return {
         getRedis: () => mockRedis,
         getPubSubClients: () => ({ pubClient: mockRedis, subClient: mockRedis }),
-        isUsingMemoryMode: () => true
+        isUsingMemoryMode: () => true,
     };
 });
 
@@ -155,14 +166,14 @@ jest.mock('../../utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
-    debug: jest.fn()
+    debug: jest.fn(),
 }));
 
 // Mock timer service
 jest.mock('../../services/timerService', () => ({
     startTimer: jest.fn(async () => ({ durationSeconds: 120, endTime: Date.now() + 120000 })),
     stopTimer: jest.fn(async () => {}),
-    getTimerStatus: jest.fn(async () => null)
+    getTimerStatus: jest.fn(async () => null),
 }));
 jest.mock('../../utils/distributedLock', () => ({
     withLock: jest.fn(async (_key, fn) => fn()),
@@ -187,7 +198,7 @@ describe('Player Handlers Edge Cases', () => {
                 transports: ['websocket'],
                 timeout: CONNECTION_TIMEOUT,
                 reconnection: false,
-                auth: { sessionId }
+                auth: { sessionId },
             });
 
             const timeout = setTimeout(() => {
@@ -223,7 +234,7 @@ describe('Player Handlers Edge Cases', () => {
         httpServer = http.createServer();
         io = new Server(httpServer, {
             cors: { origin: '*' },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         socketRateLimiter = createSocketRateLimiter(RATE_LIMITS);
