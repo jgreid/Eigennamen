@@ -478,11 +478,6 @@
         0 0 0 4px #2980b9;
 }
 
-.utility-buttons-row {
-    display: flex;
-    gap: 4px;
-}
-
 /* ========== SECONDARY CONTROLS (compact icon+label strip) ========== */
 .secondary-controls {
     display: flex;
@@ -497,8 +492,8 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    padding: 5px 8px;
-    font-size: 0.7rem;
+    padding: 6px 8px;
+    font-size: 0.72rem;
     background: rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -592,9 +587,9 @@ button:focus-visible,
 }
 
 .btn-spectate {
-    background: rgba(108, 117, 125, 0.15);
+    background: rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(108, 117, 125, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     flex: 0 0 auto;
     width: 34px;
     padding: 6px;
@@ -606,13 +601,14 @@ button:focus-visible,
 }
 
 .btn-spectate:hover {
-    background: rgba(108, 117, 125, 0.3);
-    color: white;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .btn-spectate.active {
     background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
     color: white;
+    border-color: transparent;
     box-shadow:
         0 0 0 2px #fff,
         0 0 0 4px #6c757d;
@@ -647,18 +643,6 @@ button:focus-visible,
 
 .btn-end-turn.hidden {
     display: none;
-}
-
-.btn-settings {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    flex: 1;
-}
-
-.btn-settings:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.85);
 }
 
 /* Checkmark for active role buttons */
