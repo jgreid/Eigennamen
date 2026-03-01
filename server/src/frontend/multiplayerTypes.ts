@@ -203,6 +203,7 @@ export interface MatchOverData {
 
 export interface SpymasterViewData {
     types?: string[];
+    cardScores?: number[];
 }
 
 export interface PlayerJoinedData {

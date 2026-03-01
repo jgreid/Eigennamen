@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { logger } from './logger.js';
 const VALID_TEAMS = new Set(['red', 'blue']);
 const VALID_ROLES = new Set(['spymaster', 'clicker', 'spectator']);
-const VALID_GAME_MODES = new Set(['classic', 'blitz', 'duet', 'match']);
+const VALID_GAME_MODES = new Set(['classic', 'duet', 'match']);
 export function isValidTeam(value) {
     return typeof value === 'string' && VALID_TEAMS.has(value);
 }

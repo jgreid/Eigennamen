@@ -16,11 +16,18 @@ export function registerGameHandlers() {
         }
         // Full sync game state from server for new games
         if (data.game) {
+            // Clear stale reveal tracking from previous game before syncing new state.
+            // Without this, cards that were pending reveal in the old game would block
+            // clicks on the same indices in the new game.
+            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.clear();
+            state.revealingCards.clear();
+            state.isRevealingCard = false;
             syncGameStateFromServer(data.game);
             state.gameMode = data.gameMode || 'classic';
             updateDuetUI(data.game);
             updateForfeitButton();
-            const modeLabels = { blitz: 'Blitz game started!', duet: 'Duet game started!', match: 'Match started!', classic: 'New game started!' };
+            const modeLabels = { duet: 'Duet game started!', match: 'Match started!', classic: 'New game started!' };
             const label = modeLabels[data.gameMode || 'classic'] || 'New game started!';
             // All roles are reset to spectator on new game — guide players to pick a role
             showToast(`${label} Pick your team and role to play.`, 'success', 5000);
@@ -118,8 +125,16 @@ export function registerGameHandlers() {
     });
     // Handle spymaster view (card types for spymasters)
     EigennamenClient.on('spymasterView', (data) => {
+        let changed = false;
         if (data.types && Array.isArray(data.types)) {
             state.gameState.types = data.types;
+            changed = true;
+        }
+        if (data.cardScores && Array.isArray(data.cardScores)) {
+            state.gameState.cardScores = data.cardScores;
+            changed = true;
+        }
+        if (changed) {
             renderBoard();
         }
     });

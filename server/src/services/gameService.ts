@@ -464,6 +464,50 @@ export function finalizeRound(game: GameState): RoundResult {
 }
 
 /**
+ * Result of atomically finalizing a match round via executeGameTransaction.
+ */
+export interface MatchRoundFinalizationResult {
+    roundResult: RoundResult;
+    matchOver: boolean;
+    matchWinner: Team | null;
+    redMatchScore: number;
+    blueMatchScore: number;
+    roundHistory: RoundResult[];
+    matchRound: number;
+}
+
+/**
+ * Atomically finalize a completed round in match mode.
+ * Uses executeGameTransaction (optimistic locking) to prevent race conditions
+ * between concurrent game-over events (reveal vs forfeit).
+ *
+ * Returns null if the game is not in match mode.
+ */
+export async function finalizeMatchRound(roomCode: string): Promise<MatchRoundFinalizationResult | null> {
+    // Quick check to avoid unnecessary transaction for non-match games
+    const currentGame = await getGame(roomCode);
+    if (!currentGame || currentGame.gameMode !== 'match') return null;
+
+    const gameKey = `room:${roomCode}:game`;
+
+    return executeGameTransaction(gameKey, (game: GameState) => {
+        if (game.gameMode !== 'match') return null;
+
+        const roundResult = finalizeRound(game);
+        // game is mutated by finalizeRound; executeGameTransaction persists it
+        return {
+            roundResult,
+            matchOver: game.matchOver ?? false,
+            matchWinner: game.matchWinner ?? null,
+            redMatchScore: game.redMatchScore ?? 0,
+            blueMatchScore: game.blueMatchScore ?? 0,
+            roundHistory: game.roundHistory ?? [],
+            matchRound: game.matchRound ?? 1
+        };
+    }, 'finalizeMatchRound');
+}
+
+/**
  * Start the next round in a match.
  * Generates a new board with fresh words and scores, carrying forward match state.
  */
@@ -484,13 +528,18 @@ export async function startNextRound(
 
         const nextRound = (currentGame.matchRound ?? 1) + 1;
 
-        // Alternate first team by using the opposite of the previous round
         const seed = generateSeed();
         const numericSeed = hashString(seed);
 
         const { words, usedWordListId } = await resolveGameWords(roomCode, options);
         const boardWords = selectBoardWords(words, numericSeed);
         const layout = generateBoardLayout(numericSeed, false);
+
+        // Explicitly alternate first team based on previous round
+        const previousFirstTeam = currentGame.firstTeamHistory?.slice(-1)[0];
+        if (previousFirstTeam) {
+            layout.firstTeam = previousFirstTeam === 'red' ? 'blue' : 'red';
+        }
 
         const matchOptions: CreateGameOptions = {
             ...options,
