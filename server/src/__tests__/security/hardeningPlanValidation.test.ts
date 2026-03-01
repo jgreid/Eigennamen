@@ -19,9 +19,9 @@ describe('Phase 1.1: Timer Validation Mismatch', () => {
         expect(TIMER.MAX_TURN_SECONDS).toBe(600);
     });
 
-    test('server TIMER.MIN_TURN_SECONDS should be 30', () => {
+    test('server TIMER.MIN_TURN_SECONDS should be 20', () => {
         const { TIMER } = require('../../config/constants');
-        expect(TIMER.MIN_TURN_SECONDS).toBe(30);
+        expect(TIMER.MIN_TURN_SECONDS).toBe(20);
     });
 
     test('Zod roomSettingsSchema allows turnTimer up to 600', () => {
@@ -35,41 +35,42 @@ describe('Phase 1.1: Timer Validation Mismatch', () => {
         expect(result601.success).toBe(false);
     });
 
-    test('Zod roomSettingsSchema rejects turnTimer below 30', () => {
+    test('Zod roomSettingsSchema rejects turnTimer below 20', () => {
         const { roomSettingsSchema } = require('../../validators/schemas');
-        const result = roomSettingsSchema.safeParse({ turnTimer: 29 });
+        const result = roomSettingsSchema.safeParse({ turnTimer: 19 });
         expect(result.success).toBe(false);
     });
 
-    test('Zod roomCreateSchema enforces mode-specific timer limits', () => {
+    test('Zod roomCreateSchema enforces timer bounds', () => {
         const { roomCreateSchema } = require('../../validators/schemas');
 
-        // Classic mode allows up to 300s (not 600s global max)
-        const over300 = roomCreateSchema.safeParse({
+        // Accepts 600s (max)
+        const at600 = roomCreateSchema.safeParse({
             roomId: 'test-room',
             settings: { turnTimer: 600, gameMode: 'classic' }
         });
-        expect(over300.success).toBe(false);
+        expect(at600.success).toBe(true);
 
-        // Classic mode accepts 300s
-        const at300 = roomCreateSchema.safeParse({
+        // Accepts 20s (min)
+        const at20 = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 300, gameMode: 'classic' }
+            settings: { turnTimer: 20, gameMode: 'classic' }
         });
-        expect(at300.success).toBe(true);
+        expect(at20.success).toBe(true);
 
-        // Blitz mode forces exactly 30s
-        const blitzWrong = roomCreateSchema.safeParse({
+        // Rejects above max
+        const over600 = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 60, gameMode: 'blitz' }
+            settings: { turnTimer: 601, gameMode: 'classic' }
         });
-        expect(blitzWrong.success).toBe(false);
+        expect(over600.success).toBe(false);
 
-        const blitzCorrect = roomCreateSchema.safeParse({
+        // Rejects blitz (removed mode)
+        const blitz = roomCreateSchema.safeParse({
             roomId: 'test-room',
-            settings: { turnTimer: 30, gameMode: 'blitz' }
+            settings: { gameMode: 'blitz' }
         });
-        expect(blitzCorrect.success).toBe(true);
+        expect(blitz.success).toBe(false);
     });
 });
 
@@ -116,7 +117,7 @@ describe('Phase 7.3: Constants Centralization', () => {
     test('TIMER constants are accessible from constants.ts', () => {
         const { TIMER } = require('../../config/constants');
         expect(TIMER.DEFAULT_TURN_SECONDS).toBe(120);
-        expect(TIMER.MIN_TURN_SECONDS).toBe(30);
+        expect(TIMER.MIN_TURN_SECONDS).toBe(20);
         expect(TIMER.MAX_TURN_SECONDS).toBe(600);
         expect(TIMER.WARNING_SECONDS).toBe(30);
         expect(TIMER.TIMER_TTL_BUFFER_SECONDS).toBe(60);

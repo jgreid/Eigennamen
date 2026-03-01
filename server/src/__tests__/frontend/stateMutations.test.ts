@@ -66,7 +66,7 @@ function resetMockState(): void {
     state.gameState.timerTokens = 5;
     state.gameState.greenFound = 2;
     state.gameState.greenTotal = 15;
-    state.gameMode = 'blitz' as any;
+    state.gameMode = 'duet' as any;
 }
 
 beforeEach(() => {
@@ -161,8 +161,8 @@ describe('isValidGameMode', () => {
         expect(isValidGameMode('classic')).toBe(true);
     });
 
-    test('returns true for "blitz"', () => {
-        expect(isValidGameMode('blitz')).toBe(true);
+    test('returns false for "blitz" (removed mode)', () => {
+        expect(isValidGameMode('blitz')).toBe(false);
     });
 
     test('returns true for "duet"', () => {
@@ -479,8 +479,8 @@ describe('validateGameMode', () => {
         expect(validateGameMode('classic')).toBe('classic');
     });
 
-    test('returns "blitz" for "blitz"', () => {
-        expect(validateGameMode('blitz')).toBe('blitz');
+    test('returns "classic" for invalid "blitz"', () => {
+        expect(validateGameMode('blitz')).toBe('classic');
     });
 
     test('returns "duet" for "duet"', () => {

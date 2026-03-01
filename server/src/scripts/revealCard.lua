@@ -76,7 +76,7 @@ if isDuet then
         end
     end
 else
-    -- Classic/Blitz mode scoring
+    -- Classic mode scoring
     if cardType == 'red' then
         game.redScore = game.redScore + 1
     elseif cardType == 'blue' then
@@ -133,7 +133,7 @@ if isDuet then
         endReason = 'maxGuesses'
     end
 else
-    -- Classic/Blitz mode outcome logic
+    -- Classic mode outcome logic
     if cardType == 'assassin' then
         game.gameOver = true
         if previousTurn == 'red' then

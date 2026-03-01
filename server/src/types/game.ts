@@ -194,7 +194,7 @@ export interface GameState {
   stateVersion: number;
   /** When the game was created */
   createdAt: number;
-  /** Game mode (classic, blitz, duet, match) */
+  /** Game mode (classic, duet, match) */
   gameMode?: GameMode;
   // Duet mode fields (optional, only present in duet games)
   /** Side B's key card types (blue team's perspective) */
@@ -246,7 +246,7 @@ export interface CreateGameOptions {
   wordListId?: string;
   /** Custom words to use (takes precedence over wordListId) */
   wordList?: string[];
-  /** Game mode (classic, blitz, duet, match) */
+  /** Game mode (classic, duet, match) */
   gameMode?: GameMode;
   /** Match state to carry forward when starting next round */
   matchCarryOver?: {

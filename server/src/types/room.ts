@@ -36,7 +36,7 @@ export interface RoomSettings {
   allowSpectators: boolean;
   /** ID of word list to use */
   wordListId?: string | null;
-  /** Game mode (classic or blitz) */
+  /** Game mode (classic or duet) */
   gameMode: GameMode;
 }
 

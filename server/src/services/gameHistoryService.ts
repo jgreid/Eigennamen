@@ -92,6 +92,31 @@ export interface HistoryEntry {
 }
 
 /**
+ * Count clues from game history by counting distinct team segments in reveal entries.
+ * Each consecutive run of reveals by the same team represents one clue given.
+ * Clues are given verbally and not tracked in the clues array, so this is the
+ * authoritative way to count them.
+ */
+export function countCluesFromHistory(history: unknown[] | null | undefined): number {
+    if (!history || !Array.isArray(history) || history.length === 0) return 0;
+
+    let clueCount = 0;
+    let lastTeam: string | null = null;
+
+    for (const entry of history) {
+        const e = entry as Record<string, unknown>;
+        if (e.action === 'reveal' && typeof e.team === 'string') {
+            if (e.team !== lastTeam) {
+                clueCount++;
+                lastTeam = e.team;
+            }
+        }
+    }
+
+    return clueCount;
+}
+
+/**
  * Game data input for saving to history
  */
 export interface GameDataInput {
@@ -409,7 +434,7 @@ function deriveEndReason(game: GameHistoryEntry): EndReason {
 
 /**
  * Determine which team went first based on board data.
- * In classic/blitz mode, the first team has more cards (9 vs 8).
+ * In classic mode, the first team has more cards (9 vs 8).
  * Checks totals first (already computed), then falls back to counting
  * the types array directly for robustness against partial game data.
  */
@@ -487,7 +512,7 @@ export async function getGameHistory(
                     redTotal: game.finalState?.redTotal,
                     blueTotal: game.finalState?.blueTotal,
                     teamNames: game.teamNames,
-                    clueCount: game.clues?.length || 0,
+                    clueCount: countCluesFromHistory(game.history),
                     moveCount: game.history?.length || 0,
                     endReason: deriveEndReason(game),
                     duration: (game.endedAt || 0) - (game.startedAt || 0)
@@ -592,7 +617,7 @@ export async function getReplayEvents(
             // Metadata
             duration: game.endedAt - game.startedAt,
             totalMoves: game.history?.length || 0,
-            totalClues: game.clues?.length || 0
+            totalClues: countCluesFromHistory(game.history)
         };
 
         return replayData;

@@ -5,11 +5,11 @@ import { logger } from './logger.js';
 
 export type ValidTeam = 'red' | 'blue';
 export type ValidRole = 'spymaster' | 'clicker' | 'spectator';
-export type ValidGameMode = 'classic' | 'blitz' | 'duet' | 'match';
+export type ValidGameMode = 'classic' | 'duet' | 'match';
 
 const VALID_TEAMS = new Set<string>(['red', 'blue']);
 const VALID_ROLES = new Set<string>(['spymaster', 'clicker', 'spectator']);
-const VALID_GAME_MODES = new Set<string>(['classic', 'blitz', 'duet', 'match']);
+const VALID_GAME_MODES = new Set<string>(['classic', 'duet', 'match']);
 
 export function isValidTeam(value: unknown): value is ValidTeam {
     return typeof value === 'string' && VALID_TEAMS.has(value);

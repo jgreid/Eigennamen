@@ -162,12 +162,11 @@
     "gameModeHint": "Wähle, wie du spielen möchtest.",
     "classic": "Klassisch",
     "classicDesc": "Standard-Eigennamen-Regeln",
-    "blitz": "Blitz",
-    "blitzDesc": "Schnelle 30-Sekunden-Runden",
     "duet": "Duett",
     "duetDesc": "Kooperativer 2-Spieler-Modus",
     "match": "Match",
-    "matchDesc": "Mehrrundiges Match mit Kartenpunkten"
+    "matchDesc": "Mehrrundiges Match mit Kartenpunkten",
+    "turnTimer": "Rundenzeit"
   },
   "wordList": {
     "default": "Standardwörter",
@@ -235,7 +234,6 @@
   "toast": {
     "settingsUpdated": "Raumeinstellungen aktualisiert",
     "gameStarted": "Neues Spiel gestartet!",
-    "blitzGameStarted": "Blitz-Spiel gestartet!",
     "copied": "In die Zwischenablage kopiert!",
     "linkCopied": "Link kopiert!",
     "failedToCopy": "Kopieren fehlgeschlagen – bitte manuell kopieren",

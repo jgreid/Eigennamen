@@ -13,33 +13,16 @@ export const GAME_MODE_CONFIG = {
     classic: {
         label: 'Classic',
         description: 'Standard Eigennamen rules',
-        forcedTurnTimer: null,   // Timer is optional, set by host
-        minTurnTimer: 30,
-        maxTurnTimer: 300,
-        cooperative: false
-    },
-    blitz: {
-        label: 'Blitz',
-        description: 'Fast-paced 30-second turns',
-        forcedTurnTimer: 30,     // Always 30 seconds, cannot be changed
-        minTurnTimer: 30,
-        maxTurnTimer: 30,
         cooperative: false
     },
     duet: {
         label: 'Duet',
         description: 'Cooperative 2-player mode',
-        forcedTurnTimer: null,
-        minTurnTimer: 30,
-        maxTurnTimer: 300,
         cooperative: true
     },
     match: {
         label: 'Eigennamen',
         description: 'Multi-round match with card scoring',
-        forcedTurnTimer: null,
-        minTurnTimer: 30,
-        maxTurnTimer: 300,
         cooperative: false
     }
 } as const;

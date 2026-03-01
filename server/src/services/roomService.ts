@@ -16,8 +16,7 @@ import { normalizeRoomCode } from '../utils/sanitize';
 import {
     REDIS_TTL,
     ROOM_STATUS,
-    ERROR_CODES,
-    GAME_MODE_CONFIG
+    ERROR_CODES
 } from '../config/constants';
 import { RoomError, PlayerError, ServerError, GameStateError } from '../errors/GameError';
 import { tryParseJSON } from '../utils/parseJSON';
@@ -208,7 +207,6 @@ export async function updateSettings(
             arguments: [
                 sessionId,
                 JSON.stringify(sanitizedSettings),
-                GAME_MODE_CONFIG.blitz.forcedTurnTimer.toString(),
                 REDIS_TTL.ROOM.toString()
             ]
         }),

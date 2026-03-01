@@ -139,7 +139,6 @@ jest.mock('../../config/redis', () => {
                 const roomKey = options.keys[0];
                 const sessionId = options.arguments[0];
                 const newSettingsJson = options.arguments[1];
-                const blitzForcedTimer = parseInt(options.arguments[2]);
 
                 const roomData = mockRedisStorage.get(roomKey);
                 if (!roomData) return JSON.stringify({ error: 'ROOM_NOT_FOUND' });
@@ -154,10 +153,6 @@ jest.mock('../../config/redis', () => {
                 if (newSettings.turnTimer !== undefined) room.settings.turnTimer = newSettings.turnTimer;
                 if (newSettings.allowSpectators !== undefined) room.settings.allowSpectators = newSettings.allowSpectators;
                 if (newSettings.gameMode !== undefined) room.settings.gameMode = newSettings.gameMode;
-
-                if (room.settings.gameMode === 'blitz') {
-                    room.settings.turnTimer = blitzForcedTimer;
-                }
 
                 mockRedisStorage.set(roomKey, JSON.stringify(room));
                 return JSON.stringify({ success: true, settings: room.settings });

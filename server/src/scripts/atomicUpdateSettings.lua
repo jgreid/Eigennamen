@@ -1,8 +1,7 @@
 local roomKey = KEYS[1]
 local sessionId = ARGV[1]
 local settingsJson = ARGV[2]
-local blitzForcedTimer = tonumber(ARGV[3])
-local ttl = tonumber(ARGV[4])
+local ttl = tonumber(ARGV[3])
 
 local roomData = redis.call('GET', roomKey)
 if not roomData then
@@ -27,11 +26,6 @@ if newSettings.teamNames ~= nil then room.settings.teamNames = newSettings.teamN
 if newSettings.turnTimer ~= nil then room.settings.turnTimer = newSettings.turnTimer end
 if newSettings.allowSpectators ~= nil then room.settings.allowSpectators = newSettings.allowSpectators end
 if newSettings.gameMode ~= nil then room.settings.gameMode = newSettings.gameMode end
-
--- Enforce blitz constraints
-if room.settings.gameMode == 'blitz' then
-    room.settings.turnTimer = blitzForcedTimer
-end
 
 redis.call('SET', roomKey, cjson.encode(room), 'EX', ttl)
 

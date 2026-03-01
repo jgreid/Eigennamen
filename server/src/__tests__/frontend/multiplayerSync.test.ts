@@ -86,7 +86,7 @@ jest.mock('../../frontend/stateMutations', () => ({
     resetGameState: jest.fn(),
     validateTurn: jest.fn((v: string, fb: string) => (v === 'red' || v === 'blue') ? v : fb),
     validateWinner: jest.fn((v: string | null) => (v === 'red' || v === 'blue') ? v : null),
-    validateGameMode: jest.fn((v: string) => (v === 'classic' || v === 'blitz' || v === 'duet') ? v : 'classic'),
+    validateGameMode: jest.fn((v: string) => (v === 'classic' || v === 'duet' || v === 'match') ? v : 'classic'),
     validateArrayLength: jest.fn((_name: string, arr: unknown[], len: number) => arr?.length === len)
 }));
 jest.mock('../../frontend/clientAccessor', () => ({

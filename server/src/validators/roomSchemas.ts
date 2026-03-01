@@ -14,7 +14,7 @@ const roomCreateSchema = z.object({
         turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
         allowSpectators: z.boolean().optional(),
         wordListId: z.string().uuid().nullable().optional(),
-        gameMode: z.enum(['classic', 'blitz', 'duet']).optional().default('classic'),
+        gameMode: z.enum(['classic', 'duet', 'match']).optional().default('classic'),
         nickname: createNicknameSchema().optional()
     }).superRefine(validateModeTimer).optional().default({ gameMode: 'classic' as const })
 });
@@ -31,7 +31,7 @@ const roomSettingsSchema = z.object({
     }).optional(),
     turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
     allowSpectators: z.boolean().optional(),
-    gameMode: z.enum(['classic', 'blitz', 'duet']).optional()
+    gameMode: z.enum(['classic', 'duet', 'match']).optional()
 }).superRefine(validateModeTimer);
 
 // Reconnection token is 64 hex characters (32 bytes in hex)

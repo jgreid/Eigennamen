@@ -108,6 +108,7 @@ export interface TimerEventData {
 export interface SettingsUpdatedData {
     settings?: {
         gameMode?: string;
+        turnTimer?: number | null;
         [key: string]: unknown;
     };
 }
