@@ -1,16 +1,16 @@
 /* ========== TABLET/LAPTOP RESPONSIVE (768px - 1024px) ========== */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 240px;
-        min-width: 220px;
-        max-width: 260px;
+        width: 220px;
+        min-width: 200px;
+        max-width: 240px;
         padding: 6px 8px;
-        gap: 3px;
+        gap: 4px;
     }
 
     .role-banner {
-        padding: 4px 10px;
-        font-size: 0.8rem;
+        padding: 3px 8px;
+        font-size: 0.72rem;
     }
 
     .scoreboard {
@@ -18,25 +18,25 @@
     }
 
     .score {
-        padding: 6px 4px;
+        padding: 5px 4px;
     }
 
     .score .team-name {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
     }
 
     .score .count {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
 
     .turn-indicator {
-        padding: 4px 10px;
+        padding: 6px 10px;
         font-size: 0.8rem;
     }
 
     button {
-        padding: 6px 10px;
-        font-size: 0.72rem;
+        padding: 5px 8px;
+        font-size: 0.7rem;
     }
 
     .main-content {
@@ -48,12 +48,12 @@
     }
 
     h1, .game-title {
-        font-size: 1.4rem;
+        font-size: 1.2rem;
         letter-spacing: 2px;
     }
 
     .controls {
-        gap: 4px;
+        gap: 3px;
     }
 }
 

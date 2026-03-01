@@ -92,7 +92,11 @@ export function parseLuaResult<T = Record<string, unknown>>(
 
         // No schema — try raw JSON parse for error detection
         try {
-            const obj = JSON.parse(raw) as Record<string, unknown>;
+            const parsed = JSON.parse(raw);
+            if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                return { kind: 'sentinel', value: raw };
+            }
+            const obj = parsed as Record<string, unknown>;
             if (typeof obj.error === 'string') {
                 return { kind: 'error', code: obj.error, detail: String(obj.error) };
             }

@@ -258,13 +258,13 @@
     display: none;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.8);
+    gap: 5px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .multiplayer-indicator.active {
@@ -442,13 +442,13 @@
 /* ========== FORFEIT BUTTON ========== */
 .btn-forfeit {
     flex: 1;
-    padding: 10px 16px;
-    background: rgba(220, 53, 69, 0.15);
-    border: 1px solid rgba(220, 53, 69, 0.4);
-    color: #ff6b6b;
-    border-radius: 8px;
+    padding: 6px 10px;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.25);
+    color: rgba(255, 107, 107, 0.7);
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.72rem;
     font-weight: 500;
     transition: all 0.2s ease;
 }
@@ -573,24 +573,24 @@
 
 /* ========== D-1: CHAT PANEL ========== */
 .chat-panel {
-    margin-top: 8px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 4px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     overflow: hidden;
 }
 
 .chat-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
-    padding: 8px 12px;
+    padding: 5px 10px;
     background: transparent;
     border: none;
     color: inherit;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     text-align: left;
 }
 
@@ -624,10 +624,10 @@
 }
 
 .chat-messages {
-    height: 160px;
+    height: 130px;
     overflow-y: auto;
-    padding: 8px;
-    font-size: 0.8rem;
+    padding: 6px 8px;
+    font-size: 0.75rem;
     line-height: 1.4;
     scroll-behavior: smooth;
 }

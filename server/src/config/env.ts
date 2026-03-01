@@ -124,6 +124,10 @@ export function validateEnv(): boolean {
         if (process.env['CORS_ORIGIN'] === '*') {
             warnings.push('CORS_ORIGIN is set to "*" in production - consider restricting');
         }
+        if (process.env['ALLOW_IP_MISMATCH'] === 'true') {
+            warnings.push('SECURITY WARNING: ALLOW_IP_MISMATCH=true allows session reconnection from different IPs');
+            warnings.push('  - This widens the session hijacking window. Only enable if users frequently change IPs (mobile networks)');
+        }
     }
 
     // Validate LOG_LEVEL if provided (applies to all environments)
