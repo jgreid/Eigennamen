@@ -164,11 +164,11 @@
         "gameMode": "Game Mode",
         "gameModeHint": "Choose how you want to play.",
         "classic": "Vintage",
-        "classicDesc": "Standard Eigennamen rules",
+        "classicDesc": "Classic wordgame",
         "duet": "Duet",
-        "duetDesc": "Cooperative 2-player mode",
+        "duetDesc": "2 player co-op",
         "match": "Eigennamen",
-        "matchDesc": "Multi-round match with card scoring",
+        "matchDesc": "Multi-round scoring",
         "turnTimer": "Turn Timer"
     },
     "wordList": {

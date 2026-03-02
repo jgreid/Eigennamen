@@ -383,9 +383,9 @@ describe('resetGameState', () => {
         expect(state.gameState.greenTotal).toBe(0);
     });
 
-    test('resets gameMode to "classic"', () => {
+    test('resets gameMode to default "match"', () => {
         resetGameState();
-        expect(state.gameMode).toBe('classic');
+        expect(state.gameMode).toBe('match');
     });
 
     test('resets all fields in a single call from dirty state', () => {
@@ -421,7 +421,7 @@ describe('resetGameState', () => {
             matchOver: false,
             matchWinner: null,
         });
-        expect(state.gameMode).toBe('classic');
+        expect(state.gameMode).toBe('match');
     });
 });
 

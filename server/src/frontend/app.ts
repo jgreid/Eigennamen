@@ -109,7 +109,21 @@ function setupEventListeners(): void {
                 confirmNewGame();
                 break;
             case 'set-team':
-                setTeam(team ?? null);
+                // Toggle: clicking your own team puts you in spectator mode
+                if (team && state.playerTeam === team) {
+                    if (state.isMultiplayerMode && isClientConnected()) {
+                        setTeam(null);
+                    } else {
+                        state.spymasterTeam = null;
+                        state.clickerTeam = null;
+                        state.playerTeam = null;
+                        updateRoleBanner();
+                        updateControls();
+                        renderBoard();
+                    }
+                } else {
+                    setTeam(team ?? null);
+                }
                 break;
             case 'set-spymaster':
                 setSpymaster(team || '');

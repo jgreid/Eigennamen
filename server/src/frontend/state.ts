@@ -153,7 +153,7 @@ const _rawState: AppState = {
     localizedDefaultWords: null,
 
     colorBlindMode: false,
-    gameMode: 'classic',
+    gameMode: 'match',
 
     spectatorCount: 0,
     roomStats: null,

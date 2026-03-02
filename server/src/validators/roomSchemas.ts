@@ -17,11 +17,11 @@ const roomCreateSchema = z.object({
             turnTimer: z.number().int().min(TIMER.MIN_TURN_SECONDS).max(TIMER.MAX_TURN_SECONDS).nullable().optional(),
             allowSpectators: z.boolean().optional(),
             wordListId: z.string().uuid().nullable().optional(),
-            gameMode: z.enum(['classic', 'duet', 'match']).optional().default('classic'),
+            gameMode: z.enum(['classic', 'duet', 'match']).optional().default('match'),
             nickname: createNicknameSchema().optional(),
         })
         .optional()
-        .default({ gameMode: 'classic' as const }),
+        .default({ gameMode: 'match' as const }),
 });
 
 const roomJoinSchema = z.object({

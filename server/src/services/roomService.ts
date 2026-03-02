@@ -60,7 +60,7 @@ export async function createRoom(
             teamNames: { red: 'Red', blue: 'Blue' },
             turnTimer: null,
             allowSpectators: true,
-            gameMode: 'classic',
+            gameMode: 'match',
             ...cleanSettings,
         },
         createdAt: Date.now(),

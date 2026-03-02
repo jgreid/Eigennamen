@@ -164,11 +164,11 @@
         "gameMode": "Modo de juego",
         "gameModeHint": "Elige cómo quieres jugar.",
         "classic": "Vintage",
-        "classicDesc": "Reglas estándar de Eigennamen",
+        "classicDesc": "Juego de palabras clásico",
         "duet": "Dueto",
-        "duetDesc": "Modo cooperativo para 2 jugadores",
+        "duetDesc": "Cooperativo para 2",
         "match": "Eigennamen",
-        "matchDesc": "Partida multironda con puntuación de cartas",
+        "matchDesc": "Puntuación multironda",
         "turnTimer": "Temporizador de turno"
     },
     "wordList": {

@@ -86,7 +86,15 @@
       <!-- TOP STATUS BAR - Scores, Turn, Game State -->
       <header class="game-status-bar">
         <div class="status-bar-left">
-          <h1 class="game-title">Eigennamen</h1>
+          <button
+            type="button"
+            class="game-title-btn"
+            data-action="open-help"
+            title="Help & Rules"
+            aria-label="Eigennamen - Click for Help & Rules"
+          >
+            <h1 class="game-title">Eigennamen</h1>
+          </button>
         </div>
         <div class="status-bar-center">
           <!-- Scoreboard with clickable team names for team selection -->
@@ -98,7 +106,7 @@
               data-testid="team-red-btn"
               data-action="set-team"
               data-team="red"
-              title="Click to join Red team"
+              title="Click to join Red team (click again to spectate)"
             >
               <span id="red-team-name" class="team-name">Red</span>
               <span class="count"
@@ -108,30 +116,50 @@
             </button>
           </div>
 
-          <div
-            class="turn-indicator"
-            id="turn-indicator"
-            data-testid="turn-indicator"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <span class="turn-text">Red Team's Turn</span>
-            <span
-              class="timer-inline"
-              id="timer-display"
-              data-testid="timer-display"
-              role="timer"
+          <div class="center-info-stack">
+            <div
+              class="turn-indicator"
+              id="turn-indicator"
+              data-testid="turn-indicator"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
             >
-              <span class="timer-icon" aria-hidden="true">⏱️</span>
+              <span class="turn-text">Red Team's Turn</span>
               <span
-                class="timer-value"
-                id="timer-value"
-                aria-live="polite"
-                aria-atomic="true"
-                >--:--</span
+                class="timer-inline"
+                id="timer-display"
+                data-testid="timer-display"
+                role="timer"
               >
-            </span>
+                <span class="timer-icon" aria-hidden="true">⏱️</span>
+                <span
+                  class="timer-value"
+                  id="timer-value"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  >--:--</span
+                >
+              </span>
+            </div>
+            <!-- Match mode scores (inline in banner, hidden by default) -->
+            <div
+              class="match-scores-inline"
+              id="match-scoreboard"
+              style="display: none"
+              role="group"
+              aria-label="Eigennamen scores"
+            >
+              <span class="match-round">R<span id="match-round">1</span></span>
+              <span class="match-score red-match"
+                ><span id="red-match-score">0</span></span
+              >
+              <span class="match-separator">-</span>
+              <span class="match-score blue-match"
+                ><span id="blue-match-score">0</span></span
+              >
+              <span class="match-target">/ 42</span>
+            </div>
           </div>
 
           <div class="scoreboard" role="group" aria-label="Team scores">
@@ -142,7 +170,7 @@
               data-testid="team-blue-btn"
               data-action="set-team"
               data-team="blue"
-              title="Click to join Blue team"
+              title="Click to join Blue team (click again to spectate)"
             >
               <span id="blue-team-name" class="team-name">Blue</span>
               <span class="count"
@@ -256,25 +284,6 @@
 
       <!-- Mode-specific bars (shown below status bar when active) -->
       <div class="game-mode-bars">
-        <!-- Match mode scoreboard (hidden by default) -->
-        <div
-          class="match-scoreboard"
-          id="match-scoreboard"
-          style="display: none"
-          role="group"
-          aria-label="Eigennamen scores"
-        >
-          <span class="match-round">Round <span id="match-round">1</span></span>
-          <span class="match-score red-match"
-            ><span id="red-match-score">0</span></span
-          >
-          <span class="match-separator">-</span>
-          <span class="match-score blue-match"
-            ><span id="blue-match-score">0</span></span
-          >
-          <span class="match-target">First to 42</span>
-        </div>
-
         <!-- Duet mode cooperative info bar (hidden by default) -->
         <div class="duet-info-bar" id="duet-info-bar" style="display: none">
           <span class="duet-progress"
@@ -320,17 +329,6 @@
                 data-i18n="roles.clicker"
               >
                 Clicker
-              </button>
-              <button
-                type="button"
-                class="btn-spectate"
-                id="btn-spectate"
-                data-testid="spectator-btn"
-                data-action="spectate"
-                aria-label="Spectator"
-                title="Spectator"
-              >
-                <span aria-hidden="true">👁</span>
               </button>
             </div>
           </div>
@@ -651,13 +649,22 @@
                     <input
                       type="radio"
                       name="gameMode"
-                      value="classic"
+                      value="match"
                       checked
                     />
+                    <span class="game-mode-card match-mode-card">
+                      <strong data-i18n="roomSettings.match">Eigennamen</strong>
+                      <small data-i18n="roomSettings.matchDesc"
+                        >Multi-round scoring</small
+                      >
+                    </span>
+                  </label>
+                  <label class="game-mode-option">
+                    <input type="radio" name="gameMode" value="classic" />
                     <span class="game-mode-card">
                       <strong data-i18n="roomSettings.classic">Vintage</strong>
                       <small data-i18n="roomSettings.classicDesc"
-                        >Standard Eigennamen rules</small
+                        >Classic wordgame</small
                       >
                     </span>
                   </label>
@@ -666,16 +673,7 @@
                     <span class="game-mode-card duet-mode-card">
                       <strong data-i18n="roomSettings.duet">Duet</strong>
                       <small data-i18n="roomSettings.duetDesc"
-                        >Cooperative 2-player mode</small
-                      >
-                    </span>
-                  </label>
-                  <label class="game-mode-option">
-                    <input type="radio" name="gameMode" value="match" />
-                    <span class="game-mode-card match-mode-card">
-                      <strong data-i18n="roomSettings.match">Eigennamen</strong>
-                      <small data-i18n="roomSettings.matchDesc"
-                        >Multi-round match with card scoring</small
+                        >2 player co-op</small
                       >
                     </span>
                   </label>

@@ -94,28 +94,43 @@ export interface HistoryEntry {
 }
 
 /**
- * Count clues from game history by counting distinct team segments in reveal entries.
- * Each consecutive run of reveals by the same team represents one clue given.
- * Clues are given verbally and not tracked in the clues array, so this is the
- * authoritative way to count them.
+ * Count clues from game history based on turn starts.
+ * Every new turn starts with a clue (given verbally). We count turns by
+ * tracking when the active team changes — each change represents a new
+ * turn (and thus a new clue).
+ *
+ * If explicit `clue` entries exist in the history, we count those directly
+ * as the authoritative source.
  */
 export function countCluesFromHistory(history: unknown[] | null | undefined): number {
     if (!history || !Array.isArray(history) || history.length === 0) return 0;
 
-    let clueCount = 0;
-    let lastTeam: string | null = null;
+    // If explicit clue entries exist, count those directly
+    const clueEntries = history.filter((e) => (e as Record<string, unknown>).action === 'clue');
+    if (clueEntries.length > 0) return clueEntries.length;
+
+    // Otherwise, count turn starts by tracking team changes across all actions
+    let turnCount = 0;
+    let currentTeam: string | null = null;
 
     for (const entry of history) {
         const e = entry as Record<string, unknown>;
         if (e.action === 'reveal' && typeof e.team === 'string') {
-            if (e.team !== lastTeam) {
-                clueCount++;
-                lastTeam = e.team;
+            if (e.team !== currentTeam) {
+                turnCount++;
+                currentTeam = e.team;
+            }
+        } else if (e.action === 'endTurn' && typeof e.toTeam === 'string') {
+            // endTurn switches to a new team — only count if we haven't
+            // already counted this team from a subsequent reveal
+            if (e.toTeam !== currentTeam) {
+                turnCount++;
+                currentTeam = e.toTeam;
             }
         }
     }
 
-    return clueCount;
+    return turnCount;
 }
 
 /**

@@ -88,12 +88,12 @@ describe('Game Modes', () => {
             expect(result.data.settings.gameMode).toBe('match');
         });
 
-        test('roomCreateSchema defaults to classic mode', () => {
+        test('roomCreateSchema defaults to match mode', () => {
             const result = roomCreateSchema.safeParse({
                 roomId: 'test-room',
             });
             expect(result.success).toBe(true);
-            expect(result.data.settings.gameMode).toBe('classic');
+            expect(result.data.settings.gameMode).toBe('match');
         });
 
         test('roomCreateSchema rejects invalid game mode', () => {
@@ -159,7 +159,7 @@ describe('Game Modes', () => {
     });
 
     describe('Room Service - Game Mode Settings', () => {
-        test('room creation defaults to classic mode', async () => {
+        test('room creation defaults to match mode', async () => {
             const hostSessionId = 'host-session-123';
             mockRedis.eval = jest.fn(async () => 1);
             jest.spyOn(require('../../services/playerService'), 'createPlayer').mockResolvedValue(
@@ -168,7 +168,7 @@ describe('Game Modes', () => {
 
             const result = await roomService.createRoom('testroom', hostSessionId, {});
 
-            expect(result.room.settings.gameMode).toBe('classic');
+            expect(result.room.settings.gameMode).toBe('match');
         });
 
         test('room creation accepts duet mode', async () => {

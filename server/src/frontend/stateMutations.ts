@@ -89,7 +89,7 @@ export function resetGameState(): void {
     state.gameState.roundHistory = [];
     state.gameState.matchOver = false;
     state.gameState.matchWinner = null;
-    state.gameMode = 'classic';
+    state.gameMode = 'match';
 }
 
 /**
