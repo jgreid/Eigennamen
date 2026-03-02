@@ -349,7 +349,6 @@
 @media (max-width: 768px) {
     /* Ensure all buttons have adequate touch targets */
     .btn-secondary-action,
-    .btn-spectate,
     .btn-new-game,
     .btn-end-turn,
     .btn-cancel,

@@ -37,7 +37,6 @@ export interface CachedElements {
     clickerBtn: HTMLElement | null;
     redTeamBtn: HTMLElement | null;
     blueTeamBtn: HTMLElement | null;
-    spectateBtn: HTMLElement | null;
     redRemaining: HTMLElement | null;
     blueRemaining: HTMLElement | null;
     redTeamName: HTMLElement | null;

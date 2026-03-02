@@ -137,19 +137,6 @@ function setupEventListeners(): void {
             case 'set-clicker-current':
                 setClickerCurrent();
                 break;
-            case 'spectate':
-                // Spectate clears team affiliation and roles
-                if (state.isMultiplayerMode && isClientConnected()) {
-                    setTeam(null);
-                } else {
-                    state.spymasterTeam = null;
-                    state.clickerTeam = null;
-                    state.playerTeam = null;
-                    updateRoleBanner();
-                    updateControls();
-                    renderBoard();
-                }
-                break;
             case 'open-settings':
                 openSettings();
                 break;

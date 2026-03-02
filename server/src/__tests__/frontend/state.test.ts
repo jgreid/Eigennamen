@@ -98,7 +98,6 @@ function resetState(): void {
         clickerBtn: null,
         redTeamBtn: null,
         blueTeamBtn: null,
-        spectateBtn: null,
         redRemaining: null,
         blueRemaining: null,
         redTeamName: null,
@@ -202,7 +201,6 @@ describe('State initialization - Default values', () => {
         expect(elements.clickerBtn).toBeNull();
         expect(elements.redTeamBtn).toBeNull();
         expect(elements.blueTeamBtn).toBeNull();
-        expect(elements.spectateBtn).toBeNull();
         expect(elements.redRemaining).toBeNull();
         expect(elements.blueRemaining).toBeNull();
         expect(elements.redTeamName).toBeNull();
@@ -592,7 +590,6 @@ describe('initCachedElements()', () => {
             'btn-clicker',
             'btn-team-red',
             'btn-team-blue',
-            'btn-spectate',
             'red-remaining',
             'blue-remaining',
             'red-team-name',

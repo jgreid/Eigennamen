@@ -47,7 +47,6 @@ function setupRolesDOM() {
         <button id="btn-clicker">Clicker</button>
         <button id="btn-team-red">Red</button>
         <button id="btn-team-blue">Blue</button>
-        <button id="btn-spectate">Spectate</button>
         <div id="role-hint"></div>
         <div id="sr-announcements" aria-live="assertive"></div>
     `;
@@ -204,14 +203,6 @@ describe('updateControls', () => {
         const btn = document.getElementById('btn-team-blue')!;
         expect(btn.classList.contains('selected')).toBe(true);
         expect(btn.getAttribute('aria-pressed')).toBe('true');
-    });
-
-    test('highlights spectate button when unaffiliated', () => {
-        state.playerTeam = null;
-        updateControls();
-
-        const btn = document.getElementById('btn-spectate')!;
-        expect(btn.classList.contains('active')).toBe(true);
     });
 
     test('disables role buttons when not on a team', () => {
@@ -561,13 +552,6 @@ describe('updateControls (multiplayer scenarios)', () => {
         expect(clicker.classList.contains('loading')).toBe(true);
     });
 
-    test('shows loading on spectate button when changing to spectate', () => {
-        state.roleChange = { phase: 'changing_team', target: 'spectate', operationId: '1', revertFn: () => {} };
-        updateControls();
-
-        const spectate = document.getElementById('btn-spectate')!;
-        expect(spectate.classList.contains('loading')).toBe(true);
-    });
 });
 
 // ========== STANDALONE ROLE ANNOUNCEMENTS ==========

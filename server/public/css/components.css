@@ -569,26 +569,6 @@ button:focus-visible,
     letter-spacing: 0.3px;
 }
 
-.btn-spectate {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-spectate:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.btn-spectate.active {
-    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
-    color: white;
-    border-color: transparent;
-    box-shadow:
-        0 0 0 2px #fff,
-        0 0 0 4px #6c757d;
-}
-
 /* Action buttons row - End Turn and New Game */
 .action-buttons-row {
     display: flex;
@@ -629,14 +609,12 @@ button:focus-visible,
 
 /* Muted inactive role buttons */
 .btn-spymaster:not(.active),
-.btn-clicker:not(.active),
-.btn-spectate:not(.active) {
+.btn-clicker:not(.active) {
     opacity: 0.75;
 }
 
 .btn-spymaster:not(.active):hover,
-.btn-clicker:not(.active):hover,
-.btn-spectate:not(.active):hover {
+.btn-clicker:not(.active):hover {
     opacity: 1;
 }
 
