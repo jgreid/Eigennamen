@@ -113,6 +113,7 @@
                 ><span id="red-remaining" data-testid="red-remaining">9</span>
                 left</span
               >
+              <span class="team-count" id="team-red-count" style="display: none"></span>
             </button>
           </div>
 
@@ -177,6 +178,7 @@
                 ><span id="blue-remaining" data-testid="blue-remaining">8</span>
                 left</span
               >
+              <span class="team-count" id="team-blue-count" style="display: none"></span>
             </button>
           </div>
         </div>
@@ -331,6 +333,7 @@
                 Clicker
               </button>
             </div>
+            <div class="role-hint" id="role-hint"></div>
           </div>
 
           <div class="action-buttons-row">
@@ -347,6 +350,7 @@
             <button
               type="button"
               class="btn-new-game"
+              id="btn-new-game"
               data-testid="new-game-btn"
               data-action="confirm-new-game"
               data-i18n="game.newGame"
@@ -380,6 +384,18 @@
               <span class="btn-label" data-i18n="nav.playOnline"
                 >Play Online</span
               >
+            </button>
+            <button
+              type="button"
+              class="btn-secondary-action btn-spectate"
+              id="btn-spectate"
+              data-testid="spectator-btn"
+              data-action="spectate"
+              title="Watch the game as a spectator"
+              aria-label="Spectator"
+            >
+              <span class="btn-icon" aria-hidden="true">👁</span>
+              <span class="btn-label" data-i18n="roles.spectator">Spectator</span>
             </button>
             <button
               type="button"

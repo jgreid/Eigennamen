@@ -132,10 +132,17 @@ export function initPlayerListUI() {
 }
 // Show/hide room settings nav item based on multiplayer host status
 export function updateRoomSettingsNavVisibility() {
+    // Support legacy nav tab (if present)
     const navItem = document.getElementById('nav-room-settings');
     if (navItem) {
         const isHost = getClient()?.player?.isHost;
         navItem.style.display = state.isMultiplayerMode && isHost ? 'flex' : 'none';
+    }
+    // Show/hide inline game mode section in the merged Game panel
+    const gameModeSection = document.getElementById('settings-game-mode-section');
+    if (gameModeSection) {
+        const isHost = getClient()?.player?.isHost;
+        gameModeSection.style.display = state.isMultiplayerMode && isHost ? '' : 'none';
     }
 }
 // Sync game mode UI with server state

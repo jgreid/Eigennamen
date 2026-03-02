@@ -113,7 +113,7 @@ const _rawState = {
     language: 'en',
     localizedDefaultWords: null,
     colorBlindMode: false,
-    gameMode: 'classic',
+    gameMode: 'match',
     spectatorCount: 0,
     roomStats: null,
     resyncInProgress: false,

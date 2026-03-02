@@ -8,7 +8,7 @@ import { updateRoleBanner, updateControls, setTeam, setSpymaster, setClicker, se
 import { openMultiplayer, closeMultiplayer, initMultiplayerModal, initPlayerListUI, initNicknameEditUI, confirmForfeit, closeForfeitConfirm, forfeitGame, closeKickConfirm, confirmKickPlayer, } from './multiplayer.js';
 import { openGameHistory, closeGameHistory, setupHistoryEventDelegation, closeReplay, checkURLForReplayLoad, } from './history.js';
 import { isClientConnected } from './clientAccessor.js';
-import { openSettings, closeSettings, saveSettings, resetWords, initSettingsNav, loadLocalSettings, tryLoadWordlistFile, initSettingsListeners, } from './settings.js';
+import { openSettings, closeSettings, openHelp, closeHelp, saveSettings, resetWords, initSettingsNav, loadLocalSettings, tryLoadWordlistFile, initSettingsListeners, } from './settings.js';
 import { initI18n, setLanguage } from './i18n.js';
 import { initColorBlindMode, initKeyboardShortcuts } from './accessibility.js';
 import { logger } from './logger.js';
@@ -31,6 +31,7 @@ window.addEventListener('unhandledrejection', (event) => {
 setCardClickHandler(revealCard);
 // Register all modal close handlers
 registerModalCloseHandler('settings-modal', closeSettings);
+registerModalCloseHandler('help-modal', closeHelp);
 registerModalCloseHandler('confirm-modal', closeConfirm);
 registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
@@ -55,7 +56,23 @@ function setupEventListeners() {
                 confirmNewGame();
                 break;
             case 'set-team':
-                setTeam(team ?? null);
+                // Toggle: clicking your own team puts you in spectator mode
+                if (team && state.playerTeam === team) {
+                    if (state.isMultiplayerMode && isClientConnected()) {
+                        setTeam(null);
+                    }
+                    else {
+                        state.spymasterTeam = null;
+                        state.clickerTeam = null;
+                        state.playerTeam = null;
+                        updateRoleBanner();
+                        updateControls();
+                        renderBoard();
+                    }
+                }
+                else {
+                    setTeam(team ?? null);
+                }
                 break;
             case 'set-spymaster':
                 setSpymaster(team || '');
@@ -72,11 +89,9 @@ function setupEventListeners() {
             case 'spectate':
                 // Spectate clears team affiliation and roles
                 if (state.isMultiplayerMode && isClientConnected()) {
-                    // In multiplayer, sync to server by setting team to null
                     setTeam(null);
                 }
                 else {
-                    // Standalone mode: update local state directly
                     state.spymasterTeam = null;
                     state.clickerTeam = null;
                     state.playerTeam = null;
@@ -87,6 +102,12 @@ function setupEventListeners() {
                 break;
             case 'open-settings':
                 openSettings();
+                break;
+            case 'open-help':
+                openHelp();
+                break;
+            case 'close-help':
+                closeHelp();
                 break;
             case 'open-history':
                 openGameHistory();
