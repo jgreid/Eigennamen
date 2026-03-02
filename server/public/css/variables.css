@@ -91,6 +91,11 @@
     --font-family-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-family-display: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
     --font-size-base: 16px;
+    --font-size-xs: 0.65rem;
+    --font-size-sm: 0.75rem;
+    --font-size-md: 0.85rem;
+    --font-size-lg: 1rem;
+    --font-size-xl: 1.3rem;
     --line-height-base: 1.5;
 }
 

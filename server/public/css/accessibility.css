@@ -32,9 +32,9 @@
 .keyboard-hint {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    font-size: 0.7rem;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
     color: rgba(255, 255, 255, 0.35);
     margin-top: auto;
 }
@@ -42,7 +42,7 @@
 .keyboard-hint kbd {
     display: inline-block;
     padding: 1px 5px;
-    font-size: 0.65rem;
+    font-size: var(--font-size-xs);
     font-family: monospace;
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -66,13 +66,13 @@
     z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-sm);
     max-width: 400px;
 }
 
 .toast {
-    padding: 14px 20px;
-    border-radius: 10px;
+    padding: var(--spacing-md) 20px;
+    border-radius: var(--radius-md);
     color: white;
     font-size: 0.9rem;
     font-weight: 500;
