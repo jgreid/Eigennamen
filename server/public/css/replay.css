@@ -37,7 +37,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .history-empty {
@@ -83,8 +85,12 @@
     font-size: 1rem;
 }
 
-.history-item-winner.red { color: #ff6b6b; }
-.history-item-winner.blue { color: #74b9ff; }
+.history-item-winner.red {
+    color: #ff6b6b;
+}
+.history-item-winner.blue {
+    color: #74b9ff;
+}
 
 .history-item-date {
     font-size: 0.8rem;
@@ -100,8 +106,12 @@
     font-weight: 600;
 }
 
-.history-item-score .red-score { color: #ff6b6b; }
-.history-item-score .blue-score { color: #74b9ff; }
+.history-item-score .red-score {
+    color: #ff6b6b;
+}
+.history-item-score .blue-score {
+    color: #74b9ff;
+}
 
 .history-item-details {
     font-size: 0.75rem;
@@ -138,8 +148,12 @@
     font-weight: 600;
 }
 
-.replay-info .winner-badge.red { color: #ff6b6b; }
-.replay-info .winner-badge.blue { color: #74b9ff; }
+.replay-info .winner-badge.red {
+    color: #ff6b6b;
+}
+.replay-info .winner-badge.blue {
+    color: #74b9ff;
+}
 
 .replay-board-container {
     display: flex;
@@ -278,8 +292,12 @@
     min-width: 40px;
 }
 
-.replay-event .event-team.red { color: #ff6b6b; }
-.replay-event .event-team.blue { color: #74b9ff; }
+.replay-event .event-team.red {
+    color: #ff6b6b;
+}
+.replay-event .event-team.blue {
+    color: #74b9ff;
+}
 
 .replay-event .event-action {
     color: rgba(255, 255, 255, 0.7);
@@ -330,7 +348,7 @@
 /* Additional mobile touch improvements */
 @media (max-width: 768px) {
     /* Ensure all buttons have adequate touch targets */
-    .btn-settings,
+    .btn-secondary-action,
     .btn-spectate,
     .btn-new-game,
     .btn-end-turn,
@@ -372,12 +390,6 @@
         width: 100%;
         max-width: none;
     }
-
-    /* Utility buttons row stacking */
-    .utility-buttons-row {
-        gap: 8px;
-    }
-
 }
 
 /* Landscape mobile improvements */

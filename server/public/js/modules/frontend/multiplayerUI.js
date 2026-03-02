@@ -15,18 +15,21 @@ export function updateMpIndicator(room, players) {
     const countEl = document.getElementById('mp-player-count');
     const playerListEl = document.getElementById('mp-player-list');
     const playersUl = document.getElementById('mp-players-ul');
-    const mpExtraRow = document.getElementById('mp-extra-buttons-row');
+    const mpOnlyBtns = document.querySelectorAll('.mp-only-btn');
     if (room) {
         if (codeEl)
             codeEl.textContent = room.code;
         if (countEl)
-            countEl.textContent = (players?.length === 1) ? t('multiplayer.playerCountOne') : t('multiplayer.playerCount', { count: players?.length || 1 });
+            countEl.textContent =
+                players?.length === 1
+                    ? t('multiplayer.playerCountOne')
+                    : t('multiplayer.playerCount', { count: players?.length || 1 });
         if (indicator)
             indicator.classList.add('active');
-        // Show multiplayer-only buttons row (history + forfeit)
-        if (mpExtraRow) {
-            mpExtraRow.style.display = 'flex';
-        }
+        // Show multiplayer-only buttons (history + forfeit)
+        mpOnlyBtns.forEach((btn) => {
+            btn.style.display = '';
+        });
         // Show chat panel and initialize listeners (idempotent)
         showChatPanel();
         initChat();
@@ -41,9 +44,9 @@ export function updateMpIndicator(room, players) {
         if (playerListEl)
             playerListEl.style.display = 'none';
         // Hide multiplayer-only buttons when not in multiplayer mode
-        if (mpExtraRow) {
-            mpExtraRow.style.display = 'none';
-        }
+        mpOnlyBtns.forEach((btn) => {
+            btn.style.display = 'none';
+        });
         // Hide chat panel
         hideChatPanel();
     }
@@ -87,7 +90,8 @@ export function updatePlayerList(ul, players) {
         }
         const roleSpan = document.createElement('span');
         roleSpan.className = 'player-role';
-        roleSpan.textContent = (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
+        roleSpan.textContent =
+            (p.role ? `(${p.role})` : '') + (p.connected === false ? ` - ${t('multiplayer.offline')}` : '');
         info.appendChild(roleSpan);
         li.appendChild(info);
         if (amHost && !isMe) {
@@ -131,14 +135,15 @@ export function updateRoomSettingsNavVisibility() {
     const navItem = document.getElementById('nav-room-settings');
     if (navItem) {
         const isHost = getClient()?.player?.isHost;
-        navItem.style.display = (state.isMultiplayerMode && isHost) ? 'flex' : 'none';
+        navItem.style.display = state.isMultiplayerMode && isHost ? 'flex' : 'none';
     }
 }
 // Sync game mode UI with server state
 export function syncGameModeUI(gameMode) {
     if (!gameMode)
         return;
-    const radio = document.querySelector(`input[name="gameMode"][value="${gameMode}"]`);
+    const escapedMode = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(gameMode) : gameMode;
+    const radio = document.querySelector(`input[name="gameMode"][value="${escapedMode}"]`);
     if (radio)
         radio.checked = true;
 }
@@ -208,15 +213,6 @@ export function updateSpectatorCount(count) {
     }
     if (mpSpectatorInline) {
         mpSpectatorInline.style.display = count > 0 ? 'flex' : 'none';
-    }
-    // Legacy standalone element (kept for backwards compat)
-    const spectatorCountEl = document.getElementById('spectator-count');
-    const spectatorSection = document.getElementById('spectator-section');
-    if (spectatorCountEl) {
-        spectatorCountEl.textContent = String(count);
-    }
-    if (spectatorSection) {
-        spectatorSection.style.display = count > 0 ? 'flex' : 'none';
     }
     // Store in state for other components
     state.spectatorCount = count;
@@ -345,10 +341,8 @@ export function updateForfeitButton() {
     const forfeitBtn = document.getElementById('btn-forfeit');
     if (!forfeitBtn)
         return;
-    const shouldShow = state.isMultiplayerMode
-        && getClient()?.player?.isHost
-        && !state.gameState.gameOver;
-    forfeitBtn.style.display = shouldShow ? 'inline-block' : 'none';
+    const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
+    forfeitBtn.style.display = shouldShow ? '' : 'none';
 }
 /**
  * Initialize nickname edit UI event handlers
@@ -396,8 +390,13 @@ export function initNicknameEditUI() {
 function saveNickname() {
     const input = document.getElementById('nickname-edit-input');
     const nickname = input?.value?.trim();
-    if (!nickname || nickname.length < VALIDATION.NICKNAME_MIN_LENGTH || nickname.length > VALIDATION.NICKNAME_MAX_LENGTH) {
-        showToast(t('multiplayer.nicknameLength', { min: VALIDATION.NICKNAME_MIN_LENGTH, max: VALIDATION.NICKNAME_MAX_LENGTH }), 'warning');
+    if (!nickname ||
+        nickname.length < VALIDATION.NICKNAME_MIN_LENGTH ||
+        nickname.length > VALIDATION.NICKNAME_MAX_LENGTH) {
+        showToast(t('multiplayer.nicknameLength', {
+            min: VALIDATION.NICKNAME_MIN_LENGTH,
+            max: VALIDATION.NICKNAME_MAX_LENGTH,
+        }), 'warning');
         return;
     }
     if (!/^[a-zA-Z0-9\s\-_]+$/.test(nickname)) {
@@ -410,7 +409,9 @@ function saveNickname() {
         try {
             localStorage.setItem('eigennamen-nickname', nickname);
         }
-        catch { /* ignore */ }
+        catch {
+            /* ignore */
+        }
         showToast(t('multiplayer.nicknameUpdated'), 'success', 2000);
     }
     cancelNicknameEdit();

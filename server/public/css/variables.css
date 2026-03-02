@@ -64,6 +64,7 @@
     --spacing-xl: 24px;
 
     /* Border Radius */
+    --radius-xs: 6px;
     --radius-sm: 8px;
     --radius-md: 10px;
     --radius-lg: 12px;
@@ -80,7 +81,9 @@
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
 
     /* Z-Index Scale */
+    --z-overlay: 1100;
     --z-modal: 1000;
+    --z-toast: 2000;
     --z-dropdown: 100;
     --z-header: 50;
 

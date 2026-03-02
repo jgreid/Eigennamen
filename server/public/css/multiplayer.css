@@ -16,11 +16,6 @@
     font-size: 0.95rem;
 }
 
-.btn-cancel {
-    padding: 10px 16px;
-    font-size: 0.85rem;
-}
-
 /* ========== MULTIPLAYER MODAL STYLES ========== */
 .multiplayer-modal {
     text-align: center;
@@ -280,8 +275,13 @@
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .multiplayer-indicator .room-code-copy-btn {
@@ -441,16 +441,9 @@
 
 /* ========== FORFEIT BUTTON ========== */
 .btn-forfeit {
-    flex: 1;
-    padding: 6px 10px;
     background: rgba(220, 53, 69, 0.1);
-    border: 1px solid rgba(220, 53, 69, 0.25);
+    border-color: rgba(220, 53, 69, 0.25);
     color: rgba(255, 107, 107, 0.7);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.72rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
 }
 
 .btn-forfeit:hover {
@@ -545,7 +538,7 @@
     top: 0;
     left: 0;
     right: 0;
-    z-index: 10000;
+    z-index: var(--z-overlay);
     pointer-events: none;
 }
 
@@ -598,7 +591,7 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
-.chat-toggle[aria-expanded="true"] .chat-expand-icon {
+.chat-toggle[aria-expanded='true'] .chat-expand-icon {
     transform: rotate(180deg);
 }
 
@@ -665,9 +658,15 @@
     margin-right: 4px;
 }
 
-.chat-sender.red { color: var(--red-team, #e74c3c); }
-.chat-sender.blue { color: var(--blue-team, #3498db); }
-.chat-sender.spectator { color: rgba(255, 255, 255, 0.5); }
+.chat-sender.red {
+    color: var(--red-team, #e74c3c);
+}
+.chat-sender.blue {
+    color: var(--blue-team, #3498db);
+}
+.chat-sender.spectator {
+    color: rgba(255, 255, 255, 0.5);
+}
 
 .chat-message.spectator-message {
     opacity: 0.7;
@@ -748,11 +747,17 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes reconnectPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
 }
-

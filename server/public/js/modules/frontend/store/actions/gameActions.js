@@ -84,7 +84,7 @@ export function syncBoardData(serverGame) {
     batch(() => {
         if (wordsChanged) {
             state.boardInitialized = false;
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
@@ -157,7 +157,7 @@ export function syncTurnAndMetadata(serverGame) {
  * Clear all card reveal tracking state.
  */
 export function clearRevealTracking() {
-    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
     state.isRevealingCard = false;

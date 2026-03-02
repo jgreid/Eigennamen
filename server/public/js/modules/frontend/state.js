@@ -2,11 +2,11 @@ import { DEFAULT_WORDS } from './constants.js';
 import { attachDebugToWindow, initDebugSubscriptions } from './debug.js';
 import { createReactiveProxy } from './store/index.js';
 import { logger } from './logger.js';
-export { BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, ROLE_BANNER_CONFIG } from './constants.js';
+export { BOARD_SIZE, FIRST_TEAM_CARDS, SECOND_TEAM_CARDS, NEUTRAL_CARDS, ASSASSIN_CARDS, DEFAULT_WORDS, ROLE_BANNER_CONFIG, } from './constants.js';
 export { logStateChange, getStateHistory, clearStateHistory, watchState } from './debug.js';
 // These re-exports need the state reference curried in (debug.ts can't import
 // state.ts without a circular dependency, so it takes the state as a parameter).
-import { setState as _setStateImpl, getStateSnapshot as _getSnapshotImpl, dumpState as _dumpStateImpl } from './debug.js';
+import { setState as _setStateImpl, getStateSnapshot as _getSnapshotImpl, dumpState as _dumpStateImpl, } from './debug.js';
 export function setState(property, value, source = 'unknown') {
     _setStateImpl(_rawState, property, value, source);
 }
@@ -18,11 +18,22 @@ export function dumpState() {
 }
 const _rawState = {
     cachedElements: {
-        board: null, roleBanner: null, turnIndicator: null, endTurnBtn: null,
-        spymasterBtn: null, clickerBtn: null, redTeamBtn: null, blueTeamBtn: null,
-        spectateBtn: null, redRemaining: null, blueRemaining: null,
-        redTeamName: null, blueTeamName: null,
-        srAnnouncements: null, timerDisplay: null, timerValue: null
+        board: null,
+        roleBanner: null,
+        turnIndicator: null,
+        endTurnBtn: null,
+        spymasterBtn: null,
+        clickerBtn: null,
+        redTeamBtn: null,
+        blueTeamBtn: null,
+        spectateBtn: null,
+        redRemaining: null,
+        blueRemaining: null,
+        redTeamName: null,
+        blueTeamName: null,
+        srAnnouncements: null,
+        timerDisplay: null,
+        timerValue: null,
     },
     srAnnouncementTimeout: null,
     boardInitialized: false,
@@ -49,22 +60,44 @@ const _rawState = {
     playerTeam: null,
     roleChange: { phase: 'idle' },
     gameState: {
-        words: [], types: [], revealed: [],
-        currentTurn: 'red', redScore: 0, blueScore: 0,
-        redTotal: 9, blueTotal: 8,
-        gameOver: false, winner: null, seed: null,
-        customWords: false, currentClue: null,
-        guessesUsed: 0, guessesAllowed: 0, status: 'waiting',
-        duetTypes: [], timerTokens: 0, greenFound: 0, greenTotal: 0,
+        words: [],
+        types: [],
+        revealed: [],
+        currentTurn: 'red',
+        redScore: 0,
+        blueScore: 0,
+        redTotal: 9,
+        blueTotal: 8,
+        gameOver: false,
+        winner: null,
+        seed: null,
+        customWords: false,
+        currentClue: null,
+        guessesUsed: 0,
+        guessesAllowed: 0,
+        status: 'waiting',
+        duetTypes: [],
+        timerTokens: 0,
+        greenFound: 0,
+        greenTotal: 0,
         // Match mode
-        cardScores: [], revealedBy: [],
-        matchRound: 0, redMatchScore: 0, blueMatchScore: 0,
-        roundHistory: [], matchOver: false, matchWinner: null
+        cardScores: [],
+        revealedBy: [],
+        matchRound: 0,
+        redMatchScore: 0,
+        blueMatchScore: 0,
+        roundHistory: [],
+        matchOver: false,
+        matchWinner: null,
     },
     timerState: {
-        active: false, endTime: null, duration: null,
-        remainingSeconds: null, intervalId: null,
-        serverRemainingSeconds: null, countdownStartTime: null
+        active: false,
+        endTime: null,
+        duration: null,
+        remainingSeconds: null,
+        intervalId: null,
+        serverRemainingSeconds: null,
+        countdownStartTime: null,
     },
     notificationPrefs: { soundEnabled: false, tabNotificationEnabled: false },
     originalDocumentTitle: document.title,
@@ -83,7 +116,7 @@ const _rawState = {
     gameMode: 'classic',
     spectatorCount: 0,
     roomStats: null,
-    resyncInProgress: false
+    resyncInProgress: false,
 };
 // Always-on reactive proxy emits change events via the store event bus.
 // Debug logging (console output, history tracking) is still gated behind

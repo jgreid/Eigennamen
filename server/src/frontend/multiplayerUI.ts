@@ -25,7 +25,7 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
     const countEl = document.getElementById('mp-player-count');
     const playerListEl = document.getElementById('mp-player-list');
     const playersUl = document.getElementById('mp-players-ul') as HTMLUListElement;
-    const mpExtraRow = document.getElementById('mp-extra-buttons-row');
+    const mpOnlyBtns = document.querySelectorAll<HTMLElement>('.mp-only-btn');
 
     if (room) {
         if (codeEl) codeEl.textContent = room.code;
@@ -36,10 +36,10 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
                     : t('multiplayer.playerCount', { count: players?.length || 1 });
         if (indicator) indicator.classList.add('active');
 
-        // Show multiplayer-only buttons row (history + forfeit)
-        if (mpExtraRow) {
-            mpExtraRow.style.display = 'flex';
-        }
+        // Show multiplayer-only buttons (history + forfeit)
+        mpOnlyBtns.forEach((btn) => {
+            btn.style.display = '';
+        });
 
         // Show chat panel and initialize listeners (idempotent)
         showChatPanel();
@@ -53,9 +53,9 @@ export function updateMpIndicator(room: ServerRoomData | null, players: ServerPl
         if (indicator) indicator.classList.remove('active');
         if (playerListEl) playerListEl.style.display = 'none';
         // Hide multiplayer-only buttons when not in multiplayer mode
-        if (mpExtraRow) {
-            mpExtraRow.style.display = 'none';
-        }
+        mpOnlyBtns.forEach((btn) => {
+            btn.style.display = 'none';
+        });
 
         // Hide chat panel
         hideChatPanel();
@@ -376,7 +376,7 @@ export function updateForfeitButton(): void {
 
     const shouldShow = state.isMultiplayerMode && getClient()?.player?.isHost && !state.gameState.gameOver;
 
-    forfeitBtn.style.display = shouldShow ? 'inline-block' : 'none';
+    forfeitBtn.style.display = shouldShow ? '' : 'none';
 }
 
 /**

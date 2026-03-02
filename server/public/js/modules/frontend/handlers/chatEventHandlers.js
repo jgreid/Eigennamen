@@ -17,17 +17,21 @@ export function registerChatAndErrorHandlers() {
     // Game history events
     EigennamenClient.on('historyResult', (data) => {
         // Import dynamically to avoid circular dependency
-        import('../history.js').then(({ renderGameHistory }) => {
+        import('../history.js')
+            .then(({ renderGameHistory }) => {
             renderGameHistory(data.history || []);
-        }).catch((err) => {
+        })
+            .catch((err) => {
             logger.error('Failed to load history module:', err);
             showToast('Could not load game history', 'error');
         });
     });
     EigennamenClient.on('replayData', (data) => {
-        import('../history.js').then(({ renderReplayData }) => {
+        import('../history.js')
+            .then(({ renderReplayData }) => {
             renderReplayData(data);
-        }).catch((err) => {
+        })
+            .catch((err) => {
             logger.error('Failed to load history module:', err);
             showToast('Could not load replay data', 'error');
         });
@@ -41,7 +45,7 @@ export function registerChatAndErrorHandlers() {
         // Clear any in-progress card reveal flags
         state.revealingCards.clear();
         state.isRevealingCard = false;
-        document.querySelectorAll('.card.revealing').forEach(c => c.classList.remove('revealing'));
+        document.querySelectorAll('.card.revealing').forEach((c) => c.classList.remove('revealing'));
         // Map technical error codes to user-friendly messages
         showToast(getErrorMessage(error), 'error');
     });

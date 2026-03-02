@@ -18,7 +18,9 @@ function announceTimerThreshold(remaining) {
                 return;
             const label = threshold === 1 ? '1 second remaining' : `${threshold} seconds remaining`;
             el.textContent = '';
-            requestAnimationFrame(() => { el.textContent = label; });
+            requestAnimationFrame(() => {
+                el.textContent = label;
+            });
             return;
         }
     }

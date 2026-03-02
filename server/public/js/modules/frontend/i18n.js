@@ -14,7 +14,7 @@ export const LANGUAGES = {
     en: { name: 'English', flag: 'EN' },
     de: { name: 'Deutsch', flag: 'DE' },
     es: { name: 'Español', flag: 'ES' },
-    fr: { name: 'Français', flag: 'FR' }
+    fr: { name: 'Français', flag: 'FR' },
 };
 export const DEFAULT_LANGUAGE = 'en';
 const STORAGE_KEY = 'eigennamen-language';
@@ -106,9 +106,9 @@ export function getLanguage() {
  * @returns Translated string or key as fallback
  */
 export function t(key, params = {}) {
-    const value = getNestedValue(translations[currentLanguage], key)
-        || getNestedValue(translations[DEFAULT_LANGUAGE], key)
-        || key;
+    const value = getNestedValue(translations[currentLanguage], key) ||
+        getNestedValue(translations[DEFAULT_LANGUAGE], key) ||
+        key;
     if (typeof value !== 'string')
         return key;
     // Interpolate {{param}} placeholders with HTML escaping to prevent XSS
@@ -118,12 +118,18 @@ export function t(key, params = {}) {
         const raw = String(params[name]);
         return raw.replace(/[&<>"']/g, (ch) => {
             switch (ch) {
-                case '&': return '&amp;';
-                case '<': return '&lt;';
-                case '>': return '&gt;';
-                case '"': return '&quot;';
-                case "'": return '&#39;';
-                default: return ch;
+                case '&':
+                    return '&amp;';
+                case '<':
+                    return '&lt;';
+                case '>':
+                    return '&gt;';
+                case '"':
+                    return '&quot;';
+                case "'":
+                    return '&#39;';
+                default:
+                    return ch;
             }
         });
     });
@@ -133,7 +139,7 @@ export function t(key, params = {}) {
  */
 export function translatePage() {
     const elements = document.querySelectorAll('[data-i18n]');
-    elements.forEach(el => {
+    elements.forEach((el) => {
         const key = el.getAttribute('data-i18n');
         if (!key)
             return;
@@ -144,7 +150,7 @@ export function translatePage() {
     });
     // Handle data-i18n-placeholder for input elements
     const placeholders = document.querySelectorAll('[data-i18n-placeholder]');
-    placeholders.forEach(el => {
+    placeholders.forEach((el) => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (!key)
             return;
@@ -155,7 +161,7 @@ export function translatePage() {
     });
     // Handle data-i18n-title for title attributes
     const titles = document.querySelectorAll('[data-i18n-title]');
-    titles.forEach(el => {
+    titles.forEach((el) => {
         const key = el.getAttribute('data-i18n-title');
         if (!key)
             return;
@@ -183,9 +189,9 @@ export async function getLocalizedWordList(lang = currentLanguage) {
         const text = await response.text();
         return text
             .split('\n')
-            .map(w => w.trim())
-            .filter(w => w.length > 0 && !w.startsWith('#'))
-            .map(w => w.toUpperCase());
+            .map((w) => w.trim())
+            .filter((w) => w.length > 0 && !w.startsWith('#'))
+            .map((w) => w.toUpperCase());
     }
     catch {
         return null;
@@ -199,6 +205,8 @@ export async function getLocalizedWordList(lang = currentLanguage) {
 function getNestedValue(obj, path) {
     if (!obj || !path)
         return undefined;
-    return path.split('.').reduce((curr, key) => (curr && typeof curr === 'object') ? curr[key] : undefined, obj);
+    return path
+        .split('.')
+        .reduce((curr, key) => curr && typeof curr === 'object' ? curr[key] : undefined, obj);
 }
 //# sourceMappingURL=i18n.js.map

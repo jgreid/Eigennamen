@@ -19,7 +19,7 @@ export function registerGameHandlers() {
             // Clear stale reveal tracking from previous game before syncing new state.
             // Without this, cards that were pending reveal in the old game would block
             // clicks on the same indices in the new game.
-            state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
             state.isRevealingCard = false;
@@ -27,7 +27,11 @@ export function registerGameHandlers() {
             state.gameMode = data.gameMode || 'classic';
             updateDuetUI(data.game);
             updateForfeitButton();
-            const modeLabels = { duet: 'Duet game started!', match: 'Eigennamen started!', classic: 'New game started!' };
+            const modeLabels = {
+                duet: 'Duet game started!',
+                match: 'Eigennamen started!',
+                classic: 'New game started!',
+            };
             const label = modeLabels[data.gameMode || 'classic'] || 'New game started!';
             // All roles are reset to spectator on new game — guide players to pick a role
             showToast(`${label} Pick your team and role to play.`, 'success', 5000);
@@ -175,9 +179,7 @@ export function registerGameHandlers() {
 function showRoundSummary(roundResult, redMatchScore, blueMatchScore) {
     const roundWinner = roundResult.roundWinner;
     const winnerName = roundWinner === 'red' ? state.teamNames.red : state.teamNames.blue;
-    const bonusText = roundResult.redBonusAwarded || roundResult.blueBonusAwarded
-        ? ' (+7 bonus)'
-        : '';
+    const bonusText = roundResult.redBonusAwarded || roundResult.blueBonusAwarded ? ' (+7 bonus)' : '';
     const msg = `Round ${roundResult.roundNumber} complete! ${winnerName} wins${bonusText}. ` +
         `Match: ${state.teamNames.red} ${redMatchScore} - ${blueMatchScore} ${state.teamNames.blue}`;
     showToast(msg, 'info', 8000);

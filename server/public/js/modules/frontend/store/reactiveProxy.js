@@ -21,7 +21,8 @@ export function createReactiveProxy(target, path = 'state') {
             if (value !== null && typeof value === 'object' && typeof prop === 'string') {
                 // Don't proxy opaque host objects — they use internal slots
                 // that break under Proxy or need reference identity (DOM nodes).
-                if (value instanceof Set || value instanceof Map ||
+                if (value instanceof Set ||
+                    value instanceof Map ||
                     (typeof Node !== 'undefined' && value instanceof Node) ||
                     (typeof AudioContext !== 'undefined' && value instanceof AudioContext)) {
                     return value;
@@ -51,7 +52,7 @@ export function createReactiveProxy(target, path = 'state') {
                 enqueueOrEmit(event);
             }
             return result;
-        }
+        },
     });
 }
 //# sourceMappingURL=reactiveProxy.js.map

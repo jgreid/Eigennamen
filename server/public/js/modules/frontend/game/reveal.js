@@ -55,7 +55,7 @@ export function revealCard(index) {
         // would be pending which indicates lost server responses, not real reveals.
         if (state.revealingCards.size >= BOARD_SIZE) {
             logger.warn(`revealingCards Set at capacity (${state.revealingCards.size}), clearing stale entries`);
-            state.revealTimeouts.forEach(tid => clearTimeout(tid));
+            state.revealTimeouts.forEach((tid) => clearTimeout(tid));
             state.revealTimeouts.clear();
             state.revealingCards.clear();
         }
@@ -70,6 +70,7 @@ export function revealCard(index) {
                 const pendingCard = document.querySelector(`.card[data-index="${index}"]`);
                 if (pendingCard)
                     pendingCard.classList.remove('revealing');
+                showToast(t('game.revealTimeout'), 'warning');
             }
         }, UI.CARD_REVEAL_TIMEOUT_MS);
         state.revealTimeouts.set(index, timeoutId);
@@ -87,7 +88,7 @@ export function revealCard(index) {
     const type = state.gameState.types[index];
     // Track for animation
     state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
+    state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
     if (type === 'red') {
         state.gameState.redScore++;
     }
@@ -126,7 +127,12 @@ export function revealCard(index) {
     }, UI.ANIMATION_CLEAR_MS);
     // Screen reader announcement
     const word = state.gameState.words[index];
-    const typeNames = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
+    const typeNames = {
+        red: state.teamNames.red,
+        blue: state.teamNames.blue,
+        neutral: 'neutral',
+        assassin: 'assassin',
+    };
     const typeName = typeNames[type] || type;
     announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
     if (state.gameState.gameOver) {
@@ -165,7 +171,7 @@ export function revealCardFromServer(index, serverData = {}) {
     }
     // Track for animation (same as local reveal)
     state.lastRevealedIndex = index;
-    state.lastRevealedWasCorrect = (type === state.gameState.currentTurn);
+    state.lastRevealedWasCorrect = type === state.gameState.currentTurn;
     // Use server-provided scores if available, otherwise calculate locally
     if (typeof serverData.redScore === 'number') {
         state.gameState.redScore = serverData.redScore;
@@ -221,9 +227,12 @@ export function revealCardFromServer(index, serverData = {}) {
     if (state.gameState.revealedBy && serverData.currentTurn) {
         // The revealing team is the team that was on turn before any turn switch
         // Use previous turn (before server updated it) for attribution
-        state.gameState.revealedBy[index] = type === state.gameState.currentTurn
-            ? state.gameState.currentTurn
-            : (state.gameState.currentTurn === 'red' ? 'blue' : 'red');
+        state.gameState.revealedBy[index] =
+            type === state.gameState.currentTurn
+                ? state.gameState.currentTurn
+                : state.gameState.currentTurn === 'red'
+                    ? 'blue'
+                    : 'red';
     }
     // Batch DOM updates using requestAnimationFrame for better performance.
     // Store the rAF ID so it can be cancelled on room switch to prevent
@@ -240,7 +249,7 @@ export function revealCardFromServer(index, serverData = {}) {
 }
 export function showGameOverModal(_winner, _reason) {
     // Clear all pending reveal timeouts — game is over, no more reveals expected
-    state.revealTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+    state.revealTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     state.revealTimeouts.clear();
     state.revealingCards.clear();
     state.isRevealingCard = false;

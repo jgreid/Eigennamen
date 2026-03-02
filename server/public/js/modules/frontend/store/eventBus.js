@@ -47,7 +47,9 @@ export function emit(event) {
             try {
                 cb(event);
             }
-            catch { /* subscriber errors are non-fatal */ }
+            catch {
+                /* subscriber errors are non-fatal */
+            }
         }
     }
     // Wildcard listeners: check each parent prefix
@@ -61,7 +63,9 @@ export function emit(event) {
                 try {
                     cb(event);
                 }
-                catch { /* subscriber errors are non-fatal */ }
+                catch {
+                    /* subscriber errors are non-fatal */
+                }
             }
         }
     }

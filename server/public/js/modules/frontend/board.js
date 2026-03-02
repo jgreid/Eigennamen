@@ -28,7 +28,10 @@ function announceToScreenReader(message) {
     setTimeout(() => {
         el.textContent = message;
         // Clear after 3 seconds so subsequent identical messages are re-announced
-        srClearTimeout = setTimeout(() => { el.textContent = ''; srClearTimeout = null; }, 3000);
+        srClearTimeout = setTimeout(() => {
+            el.textContent = '';
+            srClearTimeout = null;
+        }, 3000);
     }, 50);
 }
 // Callback for card clicks - set via setCardClickHandler
@@ -108,7 +111,7 @@ export function canClickCards() {
     }
     // In multiplayer: any team member can click if clicker is disconnected
     if (state.playerTeam === state.gameState.currentTurn) {
-        const teamClicker = state.multiplayerPlayers.find(p => p.team === state.gameState.currentTurn && p.role === 'clicker');
+        const teamClicker = state.multiplayerPlayers.find((p) => p.team === state.gameState.currentTurn && p.role === 'clicker');
         // Allow if no clicker assigned or clicker is disconnected
         if (!teamClicker || !teamClicker.connected) {
             return true;
@@ -394,7 +397,12 @@ export function updateSingleCard(index) {
     const col = (index % 5) + 1;
     card.setAttribute('aria-label', buildCardAriaLabel(word, true, type, row, col));
     // Announce reveal to screen readers (localized)
-    const typeNames = { red: state.teamNames.red, blue: state.teamNames.blue, neutral: 'neutral', assassin: 'assassin' };
+    const typeNames = {
+        red: state.teamNames.red,
+        blue: state.teamNames.blue,
+        neutral: 'neutral',
+        assassin: 'assassin',
+    };
     const typeName = typeNames[type] || type;
     announceToScreenReader(t('game.wordRevealedAs', { word, type: typeName }));
     // Add animation class
