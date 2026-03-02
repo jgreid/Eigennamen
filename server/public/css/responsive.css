@@ -63,6 +63,16 @@
     .status-bar-left {
         display: none;
     }
+
+    /* Compact match scores on tablet */
+    .match-scores-inline {
+        font-size: 0.7rem;
+        gap: 4px;
+    }
+
+    .match-scores-inline .match-score {
+        font-size: 0.75rem;
+    }
 }
 
 /* ========== MOBILE RESPONSIVE (< 768px) ========== */
@@ -93,6 +103,20 @@
         justify-content: center;
         flex-wrap: wrap;
         gap: var(--spacing-xs);
+    }
+
+    /* Match scores compact on mobile */
+    .center-info-stack {
+        gap: 1px;
+    }
+
+    .match-scores-inline {
+        font-size: 0.65rem;
+        gap: 3px;
+    }
+
+    .match-scores-inline .match-score {
+        font-size: 0.7rem;
     }
 
     /* No sidebar on mobile - controls go inline */

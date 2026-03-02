@@ -21,7 +21,7 @@ jest.mock('../../frontend/state', () => ({
         },
         teamNames: { red: 'Red', blue: 'Blue' },
         clickerTeam: null,
-        gameMode: 'classic',
+        gameMode: 'match',
         cachedElements: {
             redRemaining: null,
             blueRemaining: null,
@@ -60,7 +60,7 @@ function resetState(): void {
     state.gameState.winner = null;
     state.teamNames = { red: 'Red', blue: 'Blue' };
     state.clickerTeam = null;
-    state.gameMode = 'classic';
+    state.gameMode = 'match';
     state.cachedElements.redRemaining = null;
     state.cachedElements.blueRemaining = null;
     state.cachedElements.redTeamName = null;
@@ -540,7 +540,7 @@ describe('updateTurnIndicator', () => {
         state.cachedElements.turnIndicator = indicator;
         state.gameState.gameOver = true;
         state.gameState.winner = null;
-        state.gameMode = 'classic';
+        state.gameMode = 'match';
 
         // No assassin revealed, so it goes to the else branch: t('game.winner', { team: winnerTeamName })
         // winner is null (not 'red'), so winnerTeamName = state.teamNames.blue

@@ -9,7 +9,7 @@ jest.mock('../../../frontend/state', () => ({
         playerTeam: null,
         isHost: false,
         isMultiplayerMode: false,
-        gameMode: 'classic',
+        gameMode: 'match',
         teamNames: { red: 'Red', blue: 'Blue' },
         multiplayerPlayers: [] as any[],
         gameState: {
@@ -54,7 +54,7 @@ function resetState(): void {
     state.playerTeam = null;
     state.isHost = false;
     state.isMultiplayerMode = false;
-    state.gameMode = 'classic';
+    state.gameMode = 'match';
     state.teamNames = { red: 'Red', blue: 'Blue' };
     state.multiplayerPlayers = [];
     state.gameState.words = [];

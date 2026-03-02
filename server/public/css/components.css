@@ -283,50 +283,7 @@
 
 /* ========== MATCH MODE ========== */
 
-/* Match scoreboard - cumulative scores across rounds */
-.match-scoreboard {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-xs) var(--spacing-md);
-    background: rgba(255, 215, 0, 0.06);
-    border: 1px solid rgba(255, 215, 0, 0.15);
-    border-radius: var(--radius-xs);
-    font-size: var(--font-size-sm);
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.match-scoreboard .match-round {
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.55);
-}
-
-.match-scoreboard .match-score {
-    font-weight: 700;
-    font-size: 0.95rem;
-    min-width: 20px;
-    text-align: center;
-}
-
-.match-scoreboard .red-match {
-    color: var(--color-red-light);
-}
-
-.match-scoreboard .blue-match {
-    color: var(--color-blue-light);
-}
-
-.match-scoreboard .match-separator {
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.match-scoreboard .match-target {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.6);
-    font-style: italic;
-}
+/* Match scores are now rendered inline in the status bar — see layout.css .match-scores-inline */
 
 /* Card score badges — visible score indicators */
 .card-score-badge {

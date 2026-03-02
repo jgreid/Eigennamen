@@ -25,7 +25,7 @@ jest.mock('../../../../frontend/state', () => ({
             greenFound: 0,
             greenTotal: 0,
         },
-        gameMode: 'classic',
+        gameMode: 'match',
         boardInitialized: true,
         isRevealingCard: false,
         revealingCards: new Set<number>(),

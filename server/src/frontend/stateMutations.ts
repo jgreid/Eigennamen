@@ -111,10 +111,10 @@ export function validateWinner(value: unknown): string | null {
 
 /**
  * Validate a gameMode value from server data.
- * Returns the value if valid, or 'classic'.
+ * Returns the value if valid, or 'match' (the default mode).
  */
 export function validateGameMode(value: unknown): ValidGameMode {
-    return isValidGameMode(value) ? value : 'classic';
+    return isValidGameMode(value) ? value : 'match';
 }
 
 /**

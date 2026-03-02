@@ -32,7 +32,7 @@ jest.mock('../../frontend/state', () => ({
             greenFound: 0,
             greenTotal: 0,
         },
-        gameMode: 'classic',
+        gameMode: 'match',
     },
 }));
 
@@ -508,40 +508,40 @@ describe('validateGameMode', () => {
         expect(validateGameMode('classic')).toBe('classic');
     });
 
-    test('returns "classic" for invalid "blitz"', () => {
-        expect(validateGameMode('blitz')).toBe('classic');
+    test('returns "match" for invalid "blitz"', () => {
+        expect(validateGameMode('blitz')).toBe('match');
     });
 
     test('returns "duet" for "duet"', () => {
         expect(validateGameMode('duet')).toBe('duet');
     });
 
-    test('returns "classic" for invalid string', () => {
-        expect(validateGameMode('ranked')).toBe('classic');
+    test('returns "match" for invalid string', () => {
+        expect(validateGameMode('ranked')).toBe('match');
     });
 
-    test('returns "classic" for null', () => {
-        expect(validateGameMode(null)).toBe('classic');
+    test('returns "match" for null', () => {
+        expect(validateGameMode(null)).toBe('match');
     });
 
-    test('returns "classic" for undefined', () => {
-        expect(validateGameMode(undefined)).toBe('classic');
+    test('returns "match" for undefined', () => {
+        expect(validateGameMode(undefined)).toBe('match');
     });
 
-    test('returns "classic" for a number', () => {
-        expect(validateGameMode(1)).toBe('classic');
+    test('returns "match" for a number', () => {
+        expect(validateGameMode(1)).toBe('match');
     });
 
-    test('returns "classic" for empty string', () => {
-        expect(validateGameMode('')).toBe('classic');
+    test('returns "match" for empty string', () => {
+        expect(validateGameMode('')).toBe('match');
     });
 
-    test('returns "classic" for uppercase "Classic"', () => {
-        expect(validateGameMode('Classic')).toBe('classic');
+    test('returns "match" for uppercase "Classic"', () => {
+        expect(validateGameMode('Classic')).toBe('match');
     });
 
-    test('returns "classic" for boolean', () => {
-        expect(validateGameMode(true)).toBe('classic');
+    test('returns "match" for boolean', () => {
+        expect(validateGameMode(true)).toBe('match');
     });
 });
 

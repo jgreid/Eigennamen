@@ -88,7 +88,7 @@ function resetState(): void {
     state.language = 'en';
     state.localizedDefaultWords = null;
     state.colorBlindMode = false;
-    state.gameMode = 'classic';
+    state.gameMode = 'match';
     state.cachedElements = {
         board: null,
         roleBanner: null,
@@ -233,8 +233,8 @@ describe('State initialization - Default values', () => {
         expect(state.colorBlindMode).toBe(false);
     });
 
-    it('state.gameMode defaults to "classic"', () => {
-        expect(state.gameMode).toBe('classic');
+    it('state.gameMode defaults to "match"', () => {
+        expect(state.gameMode).toBe('match');
     });
 
     it('state.currentMpMode defaults to "join"', () => {
