@@ -25,7 +25,7 @@ jest.mock('../../../../frontend/state', () => ({
             greenFound: 0,
             greenTotal: 0,
         },
-        gameMode: 'classic',
+        gameMode: 'match',
         boardInitialized: true,
         isRevealingCard: false,
         revealingCards: new Set<number>(),
@@ -93,7 +93,7 @@ describe('resetGame', () => {
         expect(state.gameState.seed).toBeNull();
         expect(state.gameState.currentClue).toBeNull();
         expect(state.gameState.guessesUsed).toBe(0);
-        expect(state.gameMode).toBe('classic');
+        expect(state.gameMode).toBe('match');
     });
 
     // Note: batch:complete event emission is tested in batch.test.ts

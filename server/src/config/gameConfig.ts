@@ -24,17 +24,17 @@ export type { GameMode } from '../shared';
 export const GAME_MODE_CONFIG = {
     classic: {
         label: 'Vintage',
-        description: 'Standard Eigennamen rules',
+        description: 'Classic wordgame',
         cooperative: false,
     },
     duet: {
         label: 'Duet',
-        description: 'Cooperative 2-player mode',
+        description: '2 player co-op',
         cooperative: true,
     },
     match: {
         label: 'Eigennamen',
-        description: 'Multi-round match with card scoring',
+        description: 'Multi-round scoring',
         cooperative: false,
     },
 } as const;

@@ -36,7 +36,7 @@ export function registerGameHandlers(): void {
             state.isRevealingCard = false;
 
             syncGameStateFromServer(data.game);
-            state.gameMode = data.gameMode || 'classic';
+            state.gameMode = data.gameMode || 'match';
             updateDuetUI(data.game);
             updateForfeitButton();
             const modeLabels: Record<string, string> = {
@@ -44,7 +44,7 @@ export function registerGameHandlers(): void {
                 match: 'Eigennamen started!',
                 classic: 'New game started!',
             };
-            const label = modeLabels[data.gameMode || 'classic'] || 'New game started!';
+            const label = modeLabels[data.gameMode || 'match'] || 'New game started!';
             // All roles are reset to spectator on new game — guide players to pick a role
             showToast(`${label} Pick your team and role to play.`, 'success', 5000);
         }

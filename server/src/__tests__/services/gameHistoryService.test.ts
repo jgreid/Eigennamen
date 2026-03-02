@@ -1004,11 +1004,12 @@ describe('Game History Service', () => {
         });
 
         test('handles history with only non-reveal entries', () => {
+            // A clue entry exists, so count is 1 (counts clue entries directly)
             const history = [
                 { action: 'clue', team: 'red', word: 'FRUIT', number: 2 },
                 { action: 'endTurn', fromTeam: 'red', toTeam: 'blue' },
             ];
-            expect(countCluesFromHistory(history)).toBe(0);
+            expect(countCluesFromHistory(history)).toBe(1);
         });
 
         test('handles reveal entries without team field', () => {

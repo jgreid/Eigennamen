@@ -109,7 +109,21 @@ function setupEventListeners(): void {
                 confirmNewGame();
                 break;
             case 'set-team':
-                setTeam(team ?? null);
+                // Toggle: clicking your own team puts you in spectator mode
+                if (team && state.playerTeam === team) {
+                    if (state.isMultiplayerMode && isClientConnected()) {
+                        setTeam(null);
+                    } else {
+                        state.spymasterTeam = null;
+                        state.clickerTeam = null;
+                        state.playerTeam = null;
+                        updateRoleBanner();
+                        updateControls();
+                        renderBoard();
+                    }
+                } else {
+                    setTeam(team ?? null);
+                }
                 break;
             case 'set-spymaster':
                 setSpymaster(team || '');
@@ -122,21 +136,6 @@ function setupEventListeners(): void {
                 break;
             case 'set-clicker-current':
                 setClickerCurrent();
-                break;
-            case 'spectate':
-                // Spectate clears team affiliation and roles
-                if (state.isMultiplayerMode && isClientConnected()) {
-                    // In multiplayer, sync to server by setting team to null
-                    setTeam(null);
-                } else {
-                    // Standalone mode: update local state directly
-                    state.spymasterTeam = null;
-                    state.clickerTeam = null;
-                    state.playerTeam = null;
-                    updateRoleBanner();
-                    updateControls();
-                    renderBoard();
-                }
                 break;
             case 'open-settings':
                 openSettings();

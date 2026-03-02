@@ -27,7 +27,7 @@ jest.mock('../../frontend/state', () => ({
         multiplayerPlayers: [],
         gameState: { gameOver: false, status: 'playing' },
         isHost: true,
-        gameMode: 'classic',
+        gameMode: 'match',
         spectatorCount: 0,
         roomStats: null,
     },
@@ -113,7 +113,7 @@ describe('multiplayerUI module', () => {
         state.currentRoomId = 'TESTROOM';
         state.gameState.gameOver = false;
         state.isHost = true;
-        state.gameMode = 'classic';
+        state.gameMode = 'match';
         state.spectatorCount = 0;
         document.body.innerHTML = '';
     });

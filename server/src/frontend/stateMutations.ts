@@ -89,7 +89,7 @@ export function resetGameState(): void {
     state.gameState.roundHistory = [];
     state.gameState.matchOver = false;
     state.gameState.matchWinner = null;
-    state.gameMode = 'classic';
+    state.gameMode = 'match';
 }
 
 /**
@@ -111,10 +111,10 @@ export function validateWinner(value: unknown): string | null {
 
 /**
  * Validate a gameMode value from server data.
- * Returns the value if valid, or 'classic'.
+ * Returns the value if valid, or 'match' (the default mode).
  */
 export function validateGameMode(value: unknown): ValidGameMode {
-    return isValidGameMode(value) ? value : 'classic';
+    return isValidGameMode(value) ? value : 'match';
 }
 
 /**

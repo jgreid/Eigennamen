@@ -8,7 +8,7 @@
 // Mock all imported modules before any imports
 jest.mock('../../frontend/state', () => ({
     state: {
-        gameMode: 'classic',
+        gameMode: 'match',
         isHost: false,
         isMultiplayerMode: true,
         multiplayerPlayers: [],
@@ -202,7 +202,7 @@ describe('Frontend Handler Registration', () => {
         // Reset state
         state.multiplayerPlayers = [];
         state.isHost = false;
-        state.gameMode = 'classic';
+        state.gameMode = 'match';
         state.isRevealingCard = false;
         state.revealingCards = new Set();
         state.revealTimeouts = new Map();

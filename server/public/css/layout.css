@@ -50,7 +50,6 @@
     display: none;
 }
 
-.game-mode-bars .match-scoreboard,
 .game-mode-bars .duet-info-bar {
     border-radius: 0;
     border-left: none;
@@ -93,6 +92,25 @@
 }
 
 /* ========== HEADER / TITLE ========== */
+.game-title-btn {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    transition: opacity var(--transition-fast);
+}
+
+.game-title-btn:hover {
+    opacity: 0.85;
+    transform: none;
+    box-shadow: none;
+}
+
+.game-title-btn:hover .game-title {
+    filter: drop-shadow(0 1px 4px rgba(201, 176, 55, 0.5));
+}
+
 .game-title {
     font-size: var(--font-size-xl);
     margin: 0;
@@ -107,6 +125,56 @@
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
     line-height: 1.1;
     white-space: nowrap;
+}
+
+/* ========== CENTER INFO STACK (Turn + Match Scores) ========== */
+.center-info-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* Inline match scores (inside banner, below turn indicator) */
+.match-scores-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+}
+
+.match-scores-inline .match-round {
+    font-weight: 600;
+    color: rgba(255, 215, 0, 0.8);
+}
+
+.match-scores-inline .match-score {
+    font-weight: 800;
+    font-size: var(--font-size-sm);
+    min-width: 16px;
+    text-align: center;
+}
+
+.match-scores-inline .red-match {
+    color: var(--color-red-light);
+}
+
+.match-scores-inline .blue-match {
+    color: var(--color-blue-light);
+}
+
+.match-scores-inline .match-separator {
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.match-scores-inline .match-target {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .version {

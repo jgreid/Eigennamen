@@ -45,7 +45,7 @@ jest.mock('../../frontend/state', () => ({
             greenFound: 0,
             greenTotal: 0,
         },
-        gameMode: 'classic',
+        gameMode: 'match',
         teamNames: { red: 'Red', blue: 'Blue' },
         currentReplayData: null,
         currentReplayIndex: -1,
@@ -108,7 +108,7 @@ jest.mock('../../frontend/stateMutations', () => ({
     resetGameState: jest.fn(),
     validateTurn: jest.fn((v: string, fb: string) => (v === 'red' || v === 'blue' ? v : fb)),
     validateWinner: jest.fn((v: string | null) => (v === 'red' || v === 'blue' ? v : null)),
-    validateGameMode: jest.fn((v: string) => (v === 'classic' || v === 'duet' || v === 'match' ? v : 'classic')),
+    validateGameMode: jest.fn((v: string) => (v === 'classic' || v === 'duet' || v === 'match' ? v : 'match')),
     validateArrayLength: jest.fn((_name: string, arr: unknown[], len: number) => arr?.length === len),
 }));
 jest.mock('../../frontend/clientAccessor', () => ({
@@ -179,7 +179,7 @@ function resetMockedState(): void {
         greenFound: 0,
         greenTotal: 0,
     } as typeof state.gameState;
-    state.gameMode = 'classic';
+    state.gameMode = 'match';
     state.teamNames = { red: 'Red', blue: 'Blue' };
 }
 

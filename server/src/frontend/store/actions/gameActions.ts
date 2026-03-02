@@ -36,7 +36,7 @@ export function resetGame(): void {
         state.gameState.timerTokens = 0;
         state.gameState.greenFound = 0;
         state.gameState.greenTotal = 0;
-        state.gameMode = 'classic';
+        state.gameMode = 'match';
     });
 }
 

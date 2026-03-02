@@ -83,7 +83,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
 
                     // Fetch room first to get gameMode for game creation
                     const room: Room | null = await roomService.getRoom(ctx.roomCode);
-                    const gameMode = room?.settings?.gameMode || 'classic';
+                    const gameMode = room?.settings?.gameMode || 'match';
 
                     const game: GameState = await gameService.createGame(ctx.roomCode, {
                         wordListId: validated.wordListId,
@@ -101,7 +101,7 @@ function gameHandlers(io: Server, socket: GameSocket): void {
                 const { game, room, players } = await withTimeout(gameSetupPromise, TIMEOUTS.GAME_ACTION, 'game:start');
 
                 // Include game mode in started event
-                const gameMode = room?.settings?.gameMode || 'classic';
+                const gameMode = room?.settings?.gameMode || 'match';
 
                 // Send game state to each player (all roles are now spectator)
                 safeEmitToPlayers(io, players, SOCKET_EVENTS.GAME_STARTED, (p: Player) => ({

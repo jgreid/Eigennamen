@@ -31,8 +31,8 @@
 
     /* Text Colors (WCAG AA: 4.5:1 minimum on dark backgrounds) */
     --color-text-primary: #ffffff;
-    --color-text-secondary: rgba(255, 255, 255, 0.78);
-    --color-text-muted: rgba(255, 255, 255, 0.6);
+    --color-text-secondary: rgba(255, 255, 255, 0.88);
+    --color-text-muted: rgba(255, 255, 255, 0.7);
 
     /* Color Blind Mode - Alternative Team Colors */
     --cb-red-primary: #dc3545;
@@ -91,11 +91,11 @@
     --font-family-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-family-display: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
     --font-size-base: 16px;
-    --font-size-xs: 0.65rem;
-    --font-size-sm: 0.75rem;
-    --font-size-md: 0.85rem;
-    --font-size-lg: 1rem;
-    --font-size-xl: 1.3rem;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.85rem;
+    --font-size-md: 0.95rem;
+    --font-size-lg: 1.15rem;
+    --font-size-xl: 1.4rem;
     --line-height-base: 1.5;
 }
 
@@ -107,11 +107,15 @@
 
 body {
     font-family: var(--font-family-primary);
-    background: linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-medium) 50%, var(--color-bg-light) 100%);
+    background: linear-gradient(
+        135deg,
+        var(--color-bg-dark) 0%,
+        var(--color-bg-medium) 50%,
+        var(--color-bg-light) 100%
+    );
     min-height: 100vh;
     padding: 0;
     color: var(--color-text-primary);
     font-size: var(--font-size-base);
     line-height: var(--line-height-base);
 }
-
