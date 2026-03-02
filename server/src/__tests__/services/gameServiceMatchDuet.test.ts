@@ -11,7 +11,7 @@
  * - startNextRound (complete coverage)
  */
 
-const { BOARD_SIZE, DEFAULT_WORDS, MATCH_TARGET, MATCH_WIN_MARGIN, ROUND_WIN_BONUS } = require('../../config/constants');
+const { BOARD_SIZE, DEFAULT_WORDS, MATCH_TARGET, ROUND_WIN_BONUS } = require('../../config/constants');
 
 // Mock Redis before requiring gameService
 const mockMultiResult = [['OK']];
@@ -48,7 +48,6 @@ jest.mock('../../utils/logger', () => mockLogger);
 
 const {
     createGame,
-    getGame,
     forfeitGame,
     finalizeRound,
     finalizeMatchRound,

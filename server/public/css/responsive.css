@@ -1,24 +1,19 @@
 /* ========== TABLET/LAPTOP RESPONSIVE (768px - 1024px) ========== */
 @media (max-width: 1024px) {
-    .sidebar {
-        width: 220px;
-        min-width: 200px;
-        max-width: 240px;
-        padding: 6px 8px;
-        gap: 4px;
+    .game-status-bar {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        gap: var(--spacing-sm);
+        min-height: 42px;
     }
 
-    .role-banner {
-        padding: 3px 8px;
-        font-size: 0.72rem;
-    }
-
-    .scoreboard {
-        gap: 4px;
+    .game-title {
+        font-size: 1rem;
+        letter-spacing: 2px;
     }
 
     .score {
-        padding: 5px 4px;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        min-width: 65px;
     }
 
     .score .team-name {
@@ -30,8 +25,21 @@
     }
 
     .turn-indicator {
-        padding: 6px 10px;
+        padding: var(--spacing-xs) var(--spacing-sm);
         font-size: 0.8rem;
+    }
+
+    .role-banner {
+        padding: 2px 6px;
+        font-size: 0.65rem;
+    }
+
+    .sidebar {
+        width: 180px;
+        min-width: 160px;
+        max-width: 200px;
+        padding: 4px 6px;
+        gap: 4px;
     }
 
     button {
@@ -47,14 +55,13 @@
         font-size: clamp(0.8rem, 2vw, 1.1rem);
     }
 
-    h1,
-    .game-title {
-        font-size: 1.2rem;
-        letter-spacing: 2px;
-    }
-
     .controls {
         gap: 3px;
+    }
+
+    /* Hide title text on tablets to save header space */
+    .status-bar-left {
+        display: none;
     }
 }
 
@@ -64,20 +71,89 @@
         flex-direction: column;
     }
 
+    /* Status bar stacks vertically on mobile */
+    .game-status-bar {
+        flex-wrap: wrap;
+        padding: var(--spacing-sm);
+        gap: var(--spacing-xs);
+    }
+
+    .status-bar-left {
+        display: none;
+    }
+
+    .status-bar-center {
+        order: -1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .status-bar-right {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: var(--spacing-xs);
+    }
+
+    /* No sidebar on mobile - controls go inline */
+    .game-body {
+        flex-direction: column;
+    }
+
     .sidebar {
         width: 100%;
         max-width: none;
-        height: auto;
         max-height: none;
         overflow: visible;
         position: relative;
         border-right: none;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 12px;
-        gap: 8px;
+        padding: 8px 12px;
+        gap: 6px;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
         background: rgba(15, 15, 26, 0.95);
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sidebar .controls {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .sidebar .role-controls,
+    .sidebar .action-buttons-row {
+        display: flex;
+        gap: 4px;
+    }
+
+    .sidebar .secondary-controls {
+        display: flex;
+        grid-template-columns: none;
+        gap: 4px;
+    }
+
+    /* Show labels on mobile for clarity */
+    .sidebar .btn-secondary-action .btn-label {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+        white-space: nowrap;
+    }
+
+    .sidebar .btn-secondary-action {
+        aspect-ratio: auto;
+        padding: 6px 10px;
+        gap: 4px;
     }
 
     .modal-overlay {
@@ -86,24 +162,16 @@
     }
 
     .main-content {
-        padding: 16px;
+        padding: 12px;
         min-height: auto;
     }
 
-    header {
-        margin-bottom: 4px;
-    }
-
-    h1 {
-        font-size: 1.4rem;
-    }
-
     .scoreboard {
-        gap: 10px;
+        gap: 6px;
     }
 
     .score {
-        padding: 10px 6px;
+        padding: 8px 6px;
     }
 
     .board {
@@ -119,7 +187,7 @@
 
     button {
         min-height: 44px;
-        padding: 12px 14px;
+        padding: 10px 12px;
     }
 
     .modal {
@@ -130,43 +198,10 @@
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Settings modal optimizations for tablet/mobile */
-    .settings-layout {
-        flex-direction: column;
-    }
-
-    .settings-sidebar {
-        width: 100%;
-        flex-direction: row;
-        border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 10px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .settings-nav {
-        flex-direction: row;
-        gap: 4px;
-    }
-
-    .settings-nav-item {
-        flex-direction: column;
-        padding: 8px 12px;
-        min-height: 44px;
-    }
-
-    .settings-nav-item .nav-icon {
-        font-size: 1.2rem;
-    }
-
-    .settings-nav-item .nav-text {
-        font-size: 0.7rem;
-    }
-
+    /* Settings modal optimizations for mobile */
     .settings-content {
         padding: 16px;
-        max-height: 50vh;
+        max-height: 60vh;
         overflow-y: auto;
     }
 
@@ -178,10 +213,37 @@
     .mode-btn {
         min-height: 60px;
     }
+
+    /* Chat panel full width on mobile */
+    .chat-panel {
+        width: 100%;
+    }
+
+    h1 {
+        font-size: 1.4rem;
+    }
 }
 
 /* ========== SMALL MOBILE (< 480px) ========== */
 @media (max-width: 480px) {
+    .game-status-bar {
+        padding: var(--spacing-xs);
+    }
+
+    .status-bar-center {
+        gap: var(--spacing-xs);
+    }
+
+    .score {
+        min-width: 55px;
+        padding: var(--spacing-xs);
+    }
+
+    .turn-indicator {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.75rem;
+    }
+
     .card {
         font-size: clamp(0.6rem, 3.5vw, 0.8rem);
         aspect-ratio: 1.4;
@@ -190,18 +252,8 @@
         min-height: 44px;
     }
 
-    .scoreboard {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .score {
-        width: 100%;
-        min-height: 44px;
-    }
-
     /* Ensure all interactive elements have minimum tap size */
-    .settings-nav-item,
+    .settings-tab,
     .mode-btn,
     .btn-kick,
     .btn-secondary,
@@ -231,8 +283,8 @@
 
     /* Improve multiplayer indicator on mobile */
     .multiplayer-indicator {
-        padding: 8px;
-        gap: 8px;
+        padding: 4px;
+        gap: 4px;
     }
 
     /* Toast notifications - position for mobile */

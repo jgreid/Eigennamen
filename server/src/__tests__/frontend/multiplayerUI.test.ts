@@ -511,6 +511,24 @@ describe('multiplayerUI module', () => {
 
             expect(document.getElementById('nav-room-settings')!.style.display).toBe('none');
         });
+
+        test('shows game mode section for multiplayer host', () => {
+            document.body.innerHTML = '<div id="settings-game-mode-section" style="display: none"></div>';
+            state.isMultiplayerMode = true;
+
+            updateRoomSettingsNavVisibility();
+
+            expect(document.getElementById('settings-game-mode-section')!.style.display).toBe('');
+        });
+
+        test('hides game mode section when not in multiplayer', () => {
+            document.body.innerHTML = '<div id="settings-game-mode-section" style="display: block"></div>';
+            state.isMultiplayerMode = false;
+
+            updateRoomSettingsNavVisibility();
+
+            expect(document.getElementById('settings-game-mode-section')!.style.display).toBe('none');
+        });
     });
 });
 

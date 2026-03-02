@@ -40,82 +40,79 @@
 
 /* Wide modals for settings */
 #settings-modal .modal {
-    max-width: 780px;
+    max-width: 600px;
     max-height: 85vh;
     width: 95%;
     padding: 0;
     overflow: hidden;
 }
 
-/* Settings layout with sidebar */
-.settings-layout {
+/* Settings top tabs */
+.settings-tabs {
     display: flex;
-    min-height: 420px;
-    max-height: calc(85vh - 60px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
 }
 
-.settings-sidebar {
-    width: 160px;
-    min-width: 160px;
-    background: rgba(0, 0, 0, 0.3);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    display: flex;
-    flex-direction: column;
-    padding: 12px 0;
-}
-
-.settings-nav {
+.settings-tab {
     flex: 1;
-}
-
-.settings-nav-item {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 10px 14px;
+    padding: 12px 16px;
     color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     border: none;
     background: transparent;
-    width: 100%;
-    text-align: left;
     transition: all 0.2s ease;
-    border-left: 3px solid transparent;
+    border-bottom: 3px solid transparent;
 }
 
-.settings-nav-item:hover {
+.settings-tab:hover {
     background: rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.9);
 }
 
-.settings-nav-item.active {
-    background: rgba(102, 126, 234, 0.15);
+.settings-tab.active {
     color: #667eea;
-    border-left-color: #667eea;
+    border-bottom-color: #667eea;
+    background: rgba(102, 126, 234, 0.08);
 }
 
-.settings-nav-item .nav-icon {
+.settings-tab .nav-icon {
     font-size: 1rem;
-    width: 20px;
-    text-align: center;
 }
 
 /* Settings content area */
 .settings-content {
-    flex: 1;
     padding: 20px 24px;
     overflow-y: auto;
+    max-height: calc(85vh - 110px);
 }
 
-.settings-content h2 {
-    margin-bottom: 16px;
-    font-size: 1.15rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+/* Section titles within merged Game panel */
+.settings-section-title {
+    font-size: 0.85rem;
+    color: #667eea;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    margin-top: 18px;
+    font-weight: 600;
+}
+
+.settings-section-title:first-child {
+    margin-top: 0;
+}
+
+/* Game mode inline section divider */
+.settings-game-mode-section {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .settings-panel {
@@ -425,48 +422,19 @@
     flex: 1;
 }
 
-/* Mobile responsive for settings */
-@media (max-width: 700px) {
-    .settings-layout {
-        flex-direction: column;
-        min-height: auto;
+/* Mobile responsive for settings tabs */
+@media (max-width: 500px) {
+    .settings-tab {
+        padding: 10px 12px;
+        font-size: 0.85rem;
     }
 
-    .settings-sidebar {
-        width: 100%;
-        min-width: auto;
-        flex-direction: row;
-        padding: 0;
-        border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .settings-nav {
-        display: flex;
-        overflow-x: auto;
-        flex: 1;
-    }
-
-    .settings-nav-item {
-        flex: 1;
-        padding: 12px 8px;
-        border-left: none;
-        border-bottom: 3px solid transparent;
-        justify-content: center;
-        min-width: 60px;
-    }
-
-    .settings-nav-item.active {
-        border-left-color: transparent;
-        border-bottom-color: #667eea;
-    }
-
-    .settings-nav-item .nav-text {
+    .settings-tab .nav-text {
         display: none;
     }
 
     .settings-content {
-        padding: 20px;
+        padding: 16px;
     }
 }
 
