@@ -409,6 +409,17 @@
               <span class="btn-icon" aria-hidden="true">🏳</span>
               <span class="btn-label" data-i18n="game.forfeit">Forfeit</span>
             </button>
+            <button
+              type="button"
+              class="btn-secondary-action"
+              data-testid="help-btn"
+              data-action="open-help"
+              title="Help & Rules"
+              aria-label="Help & Rules"
+            >
+              <span class="btn-icon" aria-hidden="true">❓</span>
+              <span class="btn-label" data-i18n="settings.help">Help</span>
+            </button>
           </div>
         </div>
 
@@ -509,238 +520,131 @@
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settings-modal" data-testid="settings-modal">
       <div class="modal">
-        <div class="settings-layout">
-          <!-- Sidebar Navigation -->
-          <aside class="settings-sidebar">
-            <nav class="settings-nav">
-              <button
-                type="button"
-                class="settings-nav-item active"
-                data-panel="teams"
-              >
-                <span class="nav-icon">👥</span>
-                <span class="nav-text" data-i18n="settings.teams">Teams</span>
-              </button>
-              <button
-                type="button"
-                class="settings-nav-item"
-                data-panel="words"
-              >
-                <span class="nav-icon">📝</span>
-                <span class="nav-text" data-i18n="settings.words">Words</span>
-              </button>
-              <button
-                type="button"
-                class="settings-nav-item"
-                data-panel="prefs"
-              >
-                <span class="nav-icon">⚙️</span>
-                <span class="nav-text" data-i18n="settings.preferences"
-                  >Prefs</span
+        <!-- Top tab navigation -->
+        <nav class="settings-tabs">
+          <button
+            type="button"
+            class="settings-tab active"
+            data-panel="game"
+          >
+            <span class="nav-icon">🎲</span>
+            <span class="nav-text" data-i18n="settings.game">Game</span>
+          </button>
+          <button
+            type="button"
+            class="settings-tab"
+            data-panel="prefs"
+          >
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-text" data-i18n="settings.preferences"
+              >Preferences</span
+            >
+          </button>
+        </nav>
+
+        <!-- Content Area -->
+        <div class="settings-content">
+          <!-- Game Panel (Teams + Words + Mode) -->
+          <div class="settings-panel active" id="panel-game">
+            <!-- Team Names Section -->
+            <h3 class="settings-section-title" data-i18n="settings.teams">
+              Team Names
+            </h3>
+            <div class="team-inputs-row">
+              <div class="modal-section">
+                <label for="red-name-input" data-i18n="teams.redTeam"
+                  >Red Team</label
                 >
-              </button>
-              <button
-                type="button"
-                class="settings-nav-item"
-                data-panel="room"
-                id="nav-room-settings"
-                style="display: none"
-              >
-                <span class="nav-icon">🎮</span>
-                <span class="nav-text" data-i18n="settings.gameMode">Mode</span>
-              </button>
-              <button type="button" class="settings-nav-item" data-panel="help">
-                <span class="nav-icon">❓</span>
-                <span class="nav-text" data-i18n="settings.help">Help</span>
-              </button>
-            </nav>
-          </aside>
-
-          <!-- Content Area -->
-          <div class="settings-content">
-            <!-- Teams Panel -->
-            <div class="settings-panel active" id="panel-teams">
-              <h2 data-i18n="settings.teams">Team Names</h2>
-              <p class="panel-description" data-i18n="settings.teamsDesc">
-                Customize team names for this game. Names are encoded in the
-                shareable link.
-              </p>
-              <div class="team-inputs-row">
-                <div class="modal-section">
-                  <label for="red-name-input" data-i18n="teams.redTeam"
-                    >Red Team</label
-                  >
-                  <input
-                    type="text"
-                    id="red-name-input"
-                    placeholder="Red"
-                    maxlength="32"
-                    data-counter="red-char-counter"
-                    data-max="32"
-                  />
-                  <div id="red-char-counter" class="char-counter">0/32</div>
-                </div>
-                <div class="modal-section">
-                  <label for="blue-name-input" data-i18n="teams.blueTeam"
-                    >Blue Team</label
-                  >
-                  <input
-                    type="text"
-                    id="blue-name-input"
-                    placeholder="Blue"
-                    maxlength="32"
-                    data-counter="blue-char-counter"
-                    data-max="32"
-                  />
-                  <div id="blue-char-counter" class="char-counter">0/32</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Words Panel -->
-            <div class="settings-panel" id="panel-words">
-              <h2 data-i18n="settings.words">Word List</h2>
-              <p class="panel-description" data-i18n="settings.wordsDesc">
-                Choose which words appear on the board. Custom words are encoded
-                in the shareable link.
-              </p>
-              <div class="modal-section wordlist-mode-section">
-                <div class="wordlist-mode-options">
-                  <label class="radio-option">
-                    <input
-                      type="radio"
-                      name="wordlist-mode"
-                      value="default"
-                      id="wordlist-mode-default"
-                    />
-                    <span>Default only <em>(400 classic words)</em></span>
-                  </label>
-                  <label class="radio-option">
-                    <input
-                      type="radio"
-                      name="wordlist-mode"
-                      value="combined"
-                      id="wordlist-mode-combined"
-                      checked
-                    />
-                    <span>Default + Custom <em>(combine both)</em></span>
-                  </label>
-                  <label class="radio-option">
-                    <input
-                      type="radio"
-                      name="wordlist-mode"
-                      value="custom"
-                      id="wordlist-mode-custom"
-                    />
-                    <span>Custom only <em>(min 25 words required)</em></span>
-                  </label>
-                </div>
+                <input
+                  type="text"
+                  id="red-name-input"
+                  placeholder="Red"
+                  maxlength="32"
+                  data-counter="red-char-counter"
+                  data-max="32"
+                />
+                <div id="red-char-counter" class="char-counter">0/32</div>
               </div>
               <div class="modal-section">
-                <label for="custom-words"
-                  >Custom words
-                  <span class="word-count-inline" id="word-count"
-                    >0 words</span
-                  ></label
+                <label for="blue-name-input" data-i18n="teams.blueTeam"
+                  >Blue Team</label
                 >
-                <textarea
-                  id="custom-words"
-                  placeholder="Enter words, one per line..."
-                ></textarea>
-                <div id="word-error" class="input-error">
-                  Need at least 25 custom words for "Custom only" mode.
-                </div>
+                <input
+                  type="text"
+                  id="blue-name-input"
+                  placeholder="Blue"
+                  maxlength="32"
+                  data-counter="blue-char-counter"
+                  data-max="32"
+                />
+                <div id="blue-char-counter" class="char-counter">0/32</div>
               </div>
             </div>
 
-            <!-- Preferences Panel -->
-            <div class="settings-panel" id="panel-prefs">
-              <h2 data-i18n="settings.preferences">Preferences</h2>
-              <div class="prefs-content">
-                <p class="panel-description" data-i18n="settings.prefsDesc">
-                  Customize your game experience. Settings are saved locally.
-                </p>
-
-                <div class="pref-group">
-                  <h3 data-i18n="settings.language">Language</h3>
-                  <select
-                    id="language-select"
-                    data-testid="language-select"
-                    class="language-select"
-                  >
-                    <option value="en">English</option>
-                    <option value="de">Deutsch</option>
-                    <option value="es">Español</option>
-                    <option value="fr">Français</option>
-                  </select>
-                </div>
-
-                <div class="pref-group">
-                  <h3 data-i18n="settings.accessibility">Accessibility</h3>
-                  <label class="toggle-label">
-                    <input
-                      type="checkbox"
-                      id="pref-colorblind"
-                      data-testid="colorblind-toggle"
-                      class="toggle-checkbox"
-                    />
-                    <span class="toggle-switch"></span>
-                    <span
-                      class="toggle-text"
-                      data-i18n="settings.colorBlindMode"
-                      >Color blind friendly mode (orange/blue with labels)</span
-                    >
-                  </label>
-                </div>
-
-                <div class="pref-group">
-                  <h3 data-i18n="settings.notifications">Notifications</h3>
-                  <label class="toggle-label">
-                    <input
-                      type="checkbox"
-                      id="pref-sound-notifications"
-                      class="toggle-checkbox"
-                    />
-                    <span class="toggle-switch"></span>
-                    <span class="toggle-text"
-                      >Sound notifications when it's your turn</span
-                    >
-                  </label>
-                  <label class="toggle-label">
-                    <input
-                      type="checkbox"
-                      id="pref-tab-notification"
-                      class="toggle-checkbox"
-                    />
-                    <span class="toggle-switch"></span>
-                    <span class="toggle-text"
-                      >Browser tab notification when it's your turn</span
-                    >
-                  </label>
-                </div>
-
-                <div class="pref-group">
-                  <button
-                    type="button"
-                    class="btn-test-sound"
-                    id="btn-test-sound"
-                  >
-                    🔊 Test Sound
-                  </button>
-                </div>
+            <!-- Word List Section -->
+            <h3 class="settings-section-title" data-i18n="settings.words">
+              Word List
+            </h3>
+            <div class="modal-section wordlist-mode-section">
+              <div class="wordlist-mode-options">
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    name="wordlist-mode"
+                    value="default"
+                    id="wordlist-mode-default"
+                  />
+                  <span>Default only <em>(400 classic words)</em></span>
+                </label>
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    name="wordlist-mode"
+                    value="combined"
+                    id="wordlist-mode-combined"
+                    checked
+                  />
+                  <span>Default + Custom <em>(combine both)</em></span>
+                </label>
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    name="wordlist-mode"
+                    value="custom"
+                    id="wordlist-mode-custom"
+                  />
+                  <span>Custom only <em>(min 25 words required)</em></span>
+                </label>
               </div>
             </div>
-
-            <!-- Game Mode Panel (Multiplayer Host Only) -->
-            <div class="settings-panel" id="panel-room">
-              <h2 data-i18n="roomSettings.gameMode">Game Mode</h2>
-              <p
-                class="panel-description"
-                data-i18n="roomSettings.gameModeHint"
+            <div class="modal-section">
+              <label for="custom-words"
+                >Custom words
+                <span class="word-count-inline" id="word-count"
+                  >0 words</span
+                ></label
               >
-                Choose how you want to play.
-              </p>
+              <textarea
+                id="custom-words"
+                placeholder="Enter words, one per line..."
+              ></textarea>
+              <div id="word-error" class="input-error">
+                Need at least 25 custom words for "Custom only" mode.
+              </div>
+            </div>
 
+            <!-- Game Mode Section (Multiplayer Host Only) -->
+            <div
+              class="settings-game-mode-section"
+              id="settings-game-mode-section"
+              style="display: none"
+            >
+              <h3
+                class="settings-section-title"
+                data-i18n="roomSettings.gameMode"
+              >
+                Game Mode
+              </h3>
               <div class="room-settings-content">
                 <div class="game-mode-selector">
                   <label class="game-mode-option">
@@ -802,128 +706,77 @@
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Help Panel (Rules + About) -->
-            <div class="settings-panel" id="panel-help">
-              <h2 data-i18n="settings.help">Help</h2>
-              <div class="rules-content compact">
-                <p class="rules-intro" data-i18n="rules.intro">
-                  Two teams race to find all their words. Spymasters give clues,
-                  Clickers reveal cards.
-                </p>
-                <div class="rules-grid">
-                  <div class="rules-card">
-                    <h4 data-i18n="rules.cardTypes">Card Types</h4>
-                    <div class="card-types">
-                      <span class="card-type red" data-i18n="rules.redCard"
-                        >■ Red Team</span
-                      >
-                      <span class="card-type blue" data-i18n="rules.blueCard"
-                        >● Blue Team</span
-                      >
-                      <span
-                        class="card-type neutral"
-                        data-i18n="rules.neutralCard"
-                        >◆ Neutral</span
-                      >
-                      <span
-                        class="card-type assassin"
-                        data-i18n="rules.assassinCard"
-                        >☠ Assassin</span
-                      >
-                    </div>
-                  </div>
-                  <div class="rules-card">
-                    <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
-                    <ol class="turn-flow">
-                      <li data-i18n="rules.step1">
-                        Spymaster gives a one-word clue + number
-                      </li>
-                      <li data-i18n="rules.step2">
-                        Clickers reveal cards matching the clue
-                      </li>
-                      <li data-i18n="rules.step3">
-                        Your color = keep going, Neutral/Enemy = turn ends
-                      </li>
-                      <li data-i18n="rules.step4">Assassin = instant loss!</li>
-                    </ol>
-                  </div>
-                </div>
-                <p class="rules-note" data-i18n="rules.note">
-                  Starting team finds 9 words, other team finds 8. First to find
-                  all wins!
-                </p>
-
-                <div class="rules-match-section">
-                  <h3 data-i18n="rules.matchTitle">Eigennamen Mode</h3>
-                  <p data-i18n="rules.matchIntro">
-                    A multi-round match where every card has a hidden point
-                    value. Teams play rounds until one reaches 42 points.
-                  </p>
-                  <div class="rules-grid">
-                    <div class="rules-card">
-                      <h4 data-i18n="rules.matchScoring">Card Scores</h4>
-                      <div class="card-types">
-                        <span
-                          class="card-type card-score-gold-text"
-                          data-i18n="rules.matchGold"
-                          >★ Gold (+3)</span
-                        >
-                        <span
-                          class="card-type card-score-silver-text"
-                          data-i18n="rules.matchSilver"
-                          >◆ Silver (+2)</span
-                        >
-                        <span
-                          class="card-type card-score-standard-text"
-                          data-i18n="rules.matchStandard"
-                          >● Standard (+1)</span
-                        >
-                        <span
-                          class="card-type card-score-blank-text"
-                          data-i18n="rules.matchBlank"
-                          >○ Blank (0)</span
-                        >
-                        <span
-                          class="card-type card-score-trap-text"
-                          data-i18n="rules.matchTrap"
-                          >✕ Trap (-1)</span
-                        >
-                      </div>
-                    </div>
-                    <div class="rules-card">
-                      <h4 data-i18n="rules.matchFlow">Match Flow</h4>
-                      <ol class="turn-flow">
-                        <li data-i18n="rules.matchStep1">
-                          Each round plays like a Vintage game
-                        </li>
-                        <li data-i18n="rules.matchStep2">
-                          When you reveal a card, your team earns its point
-                          value
-                        </li>
-                        <li data-i18n="rules.matchStep3">
-                          Round winner gets a +7 bonus
-                        </li>
-                        <li data-i18n="rules.matchStep4">
-                          First to 42 points (win by 3) wins!
-                        </li>
-                      </ol>
-                    </div>
-                  </div>
-                  <p class="rules-note" data-i18n="rules.matchNote">
-                    Only spymasters can see card scores before they are
-                    revealed. The assassin still ends the round instantly!
-                  </p>
-                </div>
+          <!-- Preferences Panel -->
+          <div class="settings-panel" id="panel-prefs">
+            <div class="prefs-content">
+              <div class="pref-group">
+                <h3 data-i18n="settings.language">Language</h3>
+                <select
+                  id="language-select"
+                  data-testid="language-select"
+                  class="language-select"
+                >
+                  <option value="en">English</option>
+                  <option value="de">Deutsch</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                </select>
               </div>
-              <div class="help-about-section">
-                <p class="about-intro" data-i18n="about.description">
-                  A free, open-source implementation of the popular board game.
-                </p>
-                <div class="credits">
-                  <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
-                  <p>Open source under GPL v3.0</p>
-                </div>
+
+              <div class="pref-group">
+                <h3 data-i18n="settings.accessibility">Accessibility</h3>
+                <label class="toggle-label">
+                  <input
+                    type="checkbox"
+                    id="pref-colorblind"
+                    data-testid="colorblind-toggle"
+                    class="toggle-checkbox"
+                  />
+                  <span class="toggle-switch"></span>
+                  <span
+                    class="toggle-text"
+                    data-i18n="settings.colorBlindMode"
+                    >Color blind friendly mode (orange/blue with labels)</span
+                  >
+                </label>
+              </div>
+
+              <div class="pref-group">
+                <h3 data-i18n="settings.notifications">Notifications</h3>
+                <label class="toggle-label">
+                  <input
+                    type="checkbox"
+                    id="pref-sound-notifications"
+                    class="toggle-checkbox"
+                  />
+                  <span class="toggle-switch"></span>
+                  <span class="toggle-text"
+                    >Sound notifications when it's your turn</span
+                  >
+                </label>
+                <label class="toggle-label">
+                  <input
+                    type="checkbox"
+                    id="pref-tab-notification"
+                    class="toggle-checkbox"
+                  />
+                  <span class="toggle-switch"></span>
+                  <span class="toggle-text"
+                    >Browser tab notification when it's your turn</span
+                  >
+                </label>
+              </div>
+
+              <div class="pref-group">
+                <button
+                  type="button"
+                  class="btn-test-sound"
+                  id="btn-test-sound"
+                >
+                  🔊 Test Sound
+                </button>
               </div>
             </div>
           </div>
@@ -957,6 +810,142 @@
             data-i18n="settings.saveAndApply"
           >
             Save & Apply
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Overlay (Rules + About) -->
+    <div class="modal-overlay" id="help-modal">
+      <div class="modal">
+        <h2 data-i18n="settings.help">Help</h2>
+        <div class="rules-content compact">
+          <p class="rules-intro" data-i18n="rules.intro">
+            Two teams race to find all their words. Spymasters give clues,
+            Clickers reveal cards.
+          </p>
+          <div class="rules-grid">
+            <div class="rules-card">
+              <h4 data-i18n="rules.cardTypes">Card Types</h4>
+              <div class="card-types">
+                <span class="card-type red" data-i18n="rules.redCard"
+                  >■ Red Team</span
+                >
+                <span class="card-type blue" data-i18n="rules.blueCard"
+                  >● Blue Team</span
+                >
+                <span
+                  class="card-type neutral"
+                  data-i18n="rules.neutralCard"
+                  >◆ Neutral</span
+                >
+                <span
+                  class="card-type assassin"
+                  data-i18n="rules.assassinCard"
+                  >☠ Assassin</span
+                >
+              </div>
+            </div>
+            <div class="rules-card">
+              <h4 data-i18n="rules.turnFlow">Turn Flow</h4>
+              <ol class="turn-flow">
+                <li data-i18n="rules.step1">
+                  Spymaster gives a one-word clue + number
+                </li>
+                <li data-i18n="rules.step2">
+                  Clickers reveal cards matching the clue
+                </li>
+                <li data-i18n="rules.step3">
+                  Your color = keep going, Neutral/Enemy = turn ends
+                </li>
+                <li data-i18n="rules.step4">Assassin = instant loss!</li>
+              </ol>
+            </div>
+          </div>
+          <p class="rules-note" data-i18n="rules.note">
+            Starting team finds 9 words, other team finds 8. First to find
+            all wins!
+          </p>
+
+          <div class="rules-match-section">
+            <h3 data-i18n="rules.matchTitle">Eigennamen Mode</h3>
+            <p data-i18n="rules.matchIntro">
+              A multi-round match where every card has a hidden point
+              value. Teams play rounds until one reaches 42 points.
+            </p>
+            <div class="rules-grid">
+              <div class="rules-card">
+                <h4 data-i18n="rules.matchScoring">Card Scores</h4>
+                <div class="card-types">
+                  <span
+                    class="card-type card-score-gold-text"
+                    data-i18n="rules.matchGold"
+                    >★ Gold (+3)</span
+                  >
+                  <span
+                    class="card-type card-score-silver-text"
+                    data-i18n="rules.matchSilver"
+                    >◆ Silver (+2)</span
+                  >
+                  <span
+                    class="card-type card-score-standard-text"
+                    data-i18n="rules.matchStandard"
+                    >● Standard (+1)</span
+                  >
+                  <span
+                    class="card-type card-score-blank-text"
+                    data-i18n="rules.matchBlank"
+                    >○ Blank (0)</span
+                  >
+                  <span
+                    class="card-type card-score-trap-text"
+                    data-i18n="rules.matchTrap"
+                    >✕ Trap (-1)</span
+                  >
+                </div>
+              </div>
+              <div class="rules-card">
+                <h4 data-i18n="rules.matchFlow">Match Flow</h4>
+                <ol class="turn-flow">
+                  <li data-i18n="rules.matchStep1">
+                    Each round plays like a Vintage game
+                  </li>
+                  <li data-i18n="rules.matchStep2">
+                    When you reveal a card, your team earns its point
+                    value
+                  </li>
+                  <li data-i18n="rules.matchStep3">
+                    Round winner gets a +7 bonus
+                  </li>
+                  <li data-i18n="rules.matchStep4">
+                    First to 42 points (win by 3) wins!
+                  </li>
+                </ol>
+              </div>
+            </div>
+            <p class="rules-note" data-i18n="rules.matchNote">
+              Only spymasters can see card scores before they are
+              revealed. The assassin still ends the round instantly!
+            </p>
+          </div>
+        </div>
+        <div class="help-about-section">
+          <p class="about-intro" data-i18n="about.description">
+            A free, open-source implementation of the popular board game.
+          </p>
+          <div class="credits">
+            <p>Eigennamen by Vlaada Chvátil (Czech Games Edition)</p>
+            <p>Open source under GPL v3.0</p>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button
+            type="button"
+            class="btn-cancel"
+            data-action="close-help"
+            data-i18n="settings.close"
+          >
+            Close
           </button>
         </div>
       </div>

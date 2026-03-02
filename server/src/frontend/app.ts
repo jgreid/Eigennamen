@@ -46,6 +46,8 @@ import { isClientConnected } from './clientAccessor.js';
 import {
     openSettings,
     closeSettings,
+    openHelp,
+    closeHelp,
     saveSettings,
     resetWords,
     initSettingsNav,
@@ -80,6 +82,7 @@ setCardClickHandler(revealCard);
 
 // Register all modal close handlers
 registerModalCloseHandler('settings-modal', closeSettings);
+registerModalCloseHandler('help-modal', closeHelp);
 registerModalCloseHandler('confirm-modal', closeConfirm);
 registerModalCloseHandler('game-over-modal', closeGameOver);
 registerModalCloseHandler('error-modal', closeError);
@@ -137,6 +140,12 @@ function setupEventListeners(): void {
                 break;
             case 'open-settings':
                 openSettings();
+                break;
+            case 'open-help':
+                openHelp();
+                break;
+            case 'close-help':
+                closeHelp();
                 break;
             case 'open-history':
                 openGameHistory();

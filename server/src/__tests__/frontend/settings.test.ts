@@ -165,28 +165,43 @@ describe('settings module', () => {
     });
 
     describe('switchSettingsPanel', () => {
-        test('activates correct panel and nav item', () => {
+        test('activates correct panel and tab', () => {
             document.body.innerHTML = `
-                <div class="settings-nav-item active" data-panel="teams"></div>
-                <div class="settings-nav-item" data-panel="words"></div>
-                <div class="settings-panel active" id="panel-teams"></div>
-                <div class="settings-panel" id="panel-words"></div>
+                <div class="settings-tab active" data-panel="game"></div>
+                <div class="settings-tab" data-panel="prefs"></div>
+                <div class="settings-panel active" id="panel-game"></div>
+                <div class="settings-panel" id="panel-prefs"></div>
                 <button id="btn-reset-words" style="display: none"></button>
             `;
 
-            switchSettingsPanel('words');
+            switchSettingsPanel('prefs');
 
-            expect(document.querySelector('[data-panel="words"]')!.classList.contains('active')).toBe(true);
-            expect(document.querySelector('[data-panel="teams"]')!.classList.contains('active')).toBe(false);
-            expect(document.getElementById('panel-words')!.classList.contains('active')).toBe(true);
-            expect(document.getElementById('panel-teams')!.classList.contains('active')).toBe(false);
+            expect(document.querySelector('[data-panel="prefs"]')!.classList.contains('active')).toBe(true);
+            expect(document.querySelector('[data-panel="game"]')!.classList.contains('active')).toBe(false);
+            expect(document.getElementById('panel-prefs')!.classList.contains('active')).toBe(true);
+            expect(document.getElementById('panel-game')!.classList.contains('active')).toBe(false);
         });
 
-        test('shows reset words button on words panel', () => {
+        test('also supports legacy settings-nav-item class', () => {
+            document.body.innerHTML = `
+                <div class="settings-nav-item active" data-panel="game"></div>
+                <div class="settings-nav-item" data-panel="prefs"></div>
+                <div class="settings-panel active" id="panel-game"></div>
+                <div class="settings-panel" id="panel-prefs"></div>
+                <button id="btn-reset-words" style="display: none"></button>
+            `;
+
+            switchSettingsPanel('prefs');
+
+            expect(document.querySelector('[data-panel="prefs"]')!.classList.contains('active')).toBe(true);
+            expect(document.querySelector('[data-panel="game"]')!.classList.contains('active')).toBe(false);
+        });
+
+        test('shows reset words button on game panel', () => {
             document.body.innerHTML = `
                 <button id="btn-reset-words" style="display: none"></button>
             `;
-            switchSettingsPanel('words');
+            switchSettingsPanel('game');
             expect(document.getElementById('btn-reset-words')!.style.display).toBe('');
         });
 
@@ -194,7 +209,7 @@ describe('settings module', () => {
             document.body.innerHTML = `
                 <button id="btn-reset-words" style="display: block"></button>
             `;
-            switchSettingsPanel('teams');
+            switchSettingsPanel('prefs');
             expect(document.getElementById('btn-reset-words')!.style.display).toBe('none');
         });
     });
@@ -382,10 +397,10 @@ function setupSettingsDOM(): void {
         <input type="radio" name="wordlist-mode" value="default">
         <div id="word-count"></div>
         <div id="word-error"></div>
-        <div class="settings-nav-item" data-panel="teams"></div>
-        <div class="settings-nav-item" data-panel="words"></div>
-        <div class="settings-panel" id="panel-teams"></div>
-        <div class="settings-panel" id="panel-words"></div>
+        <div class="settings-tab" data-panel="game"></div>
+        <div class="settings-tab" data-panel="prefs"></div>
+        <div class="settings-panel" id="panel-game"></div>
+        <div class="settings-panel" id="panel-prefs"></div>
     `;
 }
 

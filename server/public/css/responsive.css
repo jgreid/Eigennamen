@@ -198,43 +198,10 @@
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Settings modal optimizations for tablet/mobile */
-    .settings-layout {
-        flex-direction: column;
-    }
-
-    .settings-sidebar {
-        width: 100%;
-        flex-direction: row;
-        border-right: none;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 10px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .settings-nav {
-        flex-direction: row;
-        gap: 4px;
-    }
-
-    .settings-nav-item {
-        flex-direction: column;
-        padding: 8px 12px;
-        min-height: 44px;
-    }
-
-    .settings-nav-item .nav-icon {
-        font-size: 1.2rem;
-    }
-
-    .settings-nav-item .nav-text {
-        font-size: 0.7rem;
-    }
-
+    /* Settings modal optimizations for mobile */
     .settings-content {
         padding: 16px;
-        max-height: 50vh;
+        max-height: 60vh;
         overflow-y: auto;
     }
 
@@ -286,7 +253,7 @@
     }
 
     /* Ensure all interactive elements have minimum tap size */
-    .settings-nav-item,
+    .settings-tab,
     .mode-btn,
     .btn-kick,
     .btn-secondary,
