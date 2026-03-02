@@ -51,9 +51,9 @@
     --glass-blur: 10px;
 
     /* Layout */
-    --sidebar-width: 300px;
-    --sidebar-min-width: 280px;
-    --sidebar-max-width: 320px;
+    --sidebar-width: 200px;
+    --sidebar-min-width: 180px;
+    --sidebar-max-width: 220px;
     --max-content-width: 1800px;
 
     /* Spacing */

@@ -83,146 +83,179 @@
     </div>
 
     <div class="app-layout">
-      <!-- LEFT SIDEBAR - Controls & Info -->
-      <aside class="sidebar">
-        <header>
+      <!-- TOP STATUS BAR - Scores, Turn, Game State -->
+      <header class="game-status-bar">
+        <div class="status-bar-left">
           <h1 class="game-title">Eigennamen</h1>
-        </header>
-
-        <!-- Multiplayer Status Indicator -->
-        <div
-          class="multiplayer-indicator"
-          id="mp-indicator"
-          data-testid="mp-indicator"
-        >
-          <span class="status-dot"></span>
-          <button
-            type="button"
-            class="room-code-copy-btn"
-            id="btn-copy-room-id"
-            title="Click to copy room code"
-          >
-            Room:
-            <span class="room-code" id="mp-room-code" data-testid="room-code"
-              >----</span
+        </div>
+        <div class="status-bar-center">
+          <!-- Scoreboard with clickable team names for team selection -->
+          <div class="scoreboard" role="group" aria-label="Team scores">
+            <button
+              type="button"
+              class="score red"
+              id="btn-team-red"
+              data-testid="team-red-btn"
+              data-action="set-team"
+              data-team="red"
+              title="Click to join Red team"
             >
-          </button>
-          <button
-            type="button"
-            class="player-count-btn"
-            id="mp-player-count-btn"
-            title="Click to see players"
-            aria-label="Show player list"
-            aria-expanded="false"
-          >
-            <span id="mp-player-count" data-testid="player-count"
-              >0 players</span
-            >
-            <span class="expand-icon">▾</span>
-          </button>
-          <div
-            class="mp-spectator-inline"
-            id="mp-spectator-inline"
-            style="display: none"
-          >
-            <span class="spectator-icon" aria-hidden="true">👁</span>
-            <span><span id="mp-spectator-count">0</span> watching</span>
+              <span id="red-team-name" class="team-name">Red</span>
+              <span class="count"
+                ><span id="red-remaining" data-testid="red-remaining">9</span>
+                left</span
+              >
+            </button>
           </div>
-          <!-- Player list (expandable) -->
+
           <div
-            class="mp-player-list"
-            id="mp-player-list"
-            data-testid="player-list"
-            style="display: none"
+            class="turn-indicator"
+            id="turn-indicator"
+            data-testid="turn-indicator"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
           >
-            <ul id="mp-players-ul"></ul>
-            <div class="nickname-edit" id="nickname-edit">
-              <button
-                type="button"
-                class="btn-edit-nickname"
-                id="btn-edit-nickname"
-                title="Change your nickname"
+            <span class="turn-text">Red Team's Turn</span>
+            <span
+              class="timer-inline"
+              id="timer-display"
+              data-testid="timer-display"
+              role="timer"
+            >
+              <span class="timer-icon" aria-hidden="true">⏱️</span>
+              <span
+                class="timer-value"
+                id="timer-value"
+                aria-live="polite"
+                aria-atomic="true"
+                >--:--</span
               >
-                Edit Nickname
-              </button>
-              <div
-                class="nickname-edit-form"
-                id="nickname-edit-form"
-                style="display: none"
+            </span>
+          </div>
+
+          <div class="scoreboard" role="group" aria-label="Team scores">
+            <button
+              type="button"
+              class="score blue"
+              id="btn-team-blue"
+              data-testid="team-blue-btn"
+              data-action="set-team"
+              data-team="blue"
+              title="Click to join Blue team"
+            >
+              <span id="blue-team-name" class="team-name">Blue</span>
+              <span class="count"
+                ><span id="blue-remaining" data-testid="blue-remaining">8</span>
+                left</span
               >
-                <input
-                  type="text"
-                  id="nickname-edit-input"
-                  placeholder="New nickname"
-                  minlength="1"
-                  maxlength="30"
-                  autocomplete="off"
-                />
+            </button>
+          </div>
+        </div>
+        <div class="status-bar-right">
+          <div
+            class="role-banner"
+            id="role-banner"
+            data-testid="role-banner"
+            role="status"
+            aria-live="polite"
+          >
+            <!-- Filled by JS -->
+          </div>
+          <!-- Multiplayer Status Indicator (summary) -->
+          <div
+            class="multiplayer-indicator"
+            id="mp-indicator"
+            data-testid="mp-indicator"
+          >
+            <span class="status-dot"></span>
+            <button
+              type="button"
+              class="room-code-copy-btn"
+              id="btn-copy-room-id"
+              title="Click to copy room code"
+            >
+              Room:
+              <span class="room-code" id="mp-room-code" data-testid="room-code"
+                >----</span
+              >
+            </button>
+            <button
+              type="button"
+              class="player-count-btn"
+              id="mp-player-count-btn"
+              title="Click to see players"
+              aria-label="Show player list"
+              aria-expanded="false"
+            >
+              <span id="mp-player-count" data-testid="player-count"
+                >0 players</span
+              >
+              <span class="expand-icon">▾</span>
+            </button>
+            <div
+              class="mp-spectator-inline"
+              id="mp-spectator-inline"
+              style="display: none"
+            >
+              <span class="spectator-icon" aria-hidden="true">👁</span>
+              <span><span id="mp-spectator-count">0</span> watching</span>
+            </div>
+            <!-- Player list (expandable) -->
+            <div
+              class="mp-player-list"
+              id="mp-player-list"
+              data-testid="player-list"
+              style="display: none"
+            >
+              <ul id="mp-players-ul"></ul>
+              <div class="nickname-edit" id="nickname-edit">
                 <button
                   type="button"
-                  class="btn-nickname-save"
-                  id="btn-nickname-save"
-                  title="Save nickname"
+                  class="btn-edit-nickname"
+                  id="btn-edit-nickname"
+                  title="Change your nickname"
                 >
-                  Save
+                  Edit Nickname
                 </button>
-                <button
-                  type="button"
-                  class="btn-nickname-cancel"
-                  id="btn-nickname-cancel"
-                  title="Cancel"
+                <div
+                  class="nickname-edit-form"
+                  id="nickname-edit-form"
+                  style="display: none"
                 >
-                  Cancel
-                </button>
+                  <input
+                    type="text"
+                    id="nickname-edit-input"
+                    placeholder="New nickname"
+                    minlength="1"
+                    maxlength="30"
+                    autocomplete="off"
+                  />
+                  <button
+                    type="button"
+                    class="btn-nickname-save"
+                    id="btn-nickname-save"
+                    title="Save nickname"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-nickname-cancel"
+                    id="btn-nickname-cancel"
+                    title="Cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      </header>
 
-        <div
-          class="role-banner"
-          id="role-banner"
-          data-testid="role-banner"
-          role="status"
-          aria-live="polite"
-        >
-          <!-- Filled by JS -->
-        </div>
-
-        <!-- Scoreboard with clickable team names for team selection -->
-        <div class="scoreboard" role="group" aria-label="Team scores">
-          <button
-            type="button"
-            class="score red"
-            id="btn-team-red"
-            data-testid="team-red-btn"
-            data-action="set-team"
-            data-team="red"
-            title="Click to join Red team"
-          >
-            <span id="red-team-name" class="team-name">Red</span>
-            <span class="count"
-              ><span id="red-remaining" data-testid="red-remaining">9</span>
-              left</span
-            >
-          </button>
-          <button
-            type="button"
-            class="score blue"
-            id="btn-team-blue"
-            data-testid="team-blue-btn"
-            data-action="set-team"
-            data-team="blue"
-            title="Click to join Blue team"
-          >
-            <span id="blue-team-name" class="team-name">Blue</span>
-            <span class="count"
-              ><span id="blue-remaining" data-testid="blue-remaining">8</span>
-              left</span
-            >
-          </button>
-        </div>
-
+      <!-- Mode-specific bars (shown below status bar when active) -->
+      <div class="game-mode-bars">
         <!-- Match mode scoreboard (hidden by default) -->
         <div
           class="match-scoreboard"
@@ -254,39 +287,18 @@
             ><span id="duet-timer-tokens">9</span> tokens left</span
           >
         </div>
+      </div>
 
-        <div
-          class="turn-indicator"
-          id="turn-indicator"
-          data-testid="turn-indicator"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          <span class="turn-text">Red Team's Turn</span>
-          <span
-            class="timer-inline"
-            id="timer-display"
-            data-testid="timer-display"
-            role="timer"
+      <!-- GAME BODY - Sidebar + Board -->
+      <div class="game-body">
+        <!-- LEFT SIDEBAR - Controls Only -->
+        <aside class="sidebar">
+          <div
+            class="controls"
+            id="controls"
+            role="toolbar"
+            aria-label="Game controls"
           >
-            <span class="timer-icon" aria-hidden="true">⏱️</span>
-            <span
-              class="timer-value"
-              id="timer-value"
-              aria-live="polite"
-              aria-atomic="true"
-              >--:--</span
-            >
-          </span>
-        </div>
-
-        <div
-          class="controls"
-          id="controls"
-          role="toolbar"
-          aria-label="Game controls"
-        >
           <div class="role-controls" id="role-controls">
             <div class="role-buttons-row">
               <button
@@ -491,6 +503,7 @@
           </div>
         </div>
       </main>
+      </div><!-- /.game-body -->
     </div>
 
     <!-- Settings Modal -->

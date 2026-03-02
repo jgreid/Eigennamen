@@ -1,25 +1,84 @@
-/* ========== TWO-COLUMN DESKTOP LAYOUT ========== */
+/* ========== APP LAYOUT: Status Bar + Sidebar + Board ========== */
 .app-layout {
     display: flex;
+    flex-direction: column;
     min-height: 100vh;
     max-width: var(--max-content-width);
     margin: 0 auto;
 }
 
-/* Left Sidebar - Compact, fits viewport without scroll */
-.sidebar {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-min-width);
-    max-width: var(--sidebar-max-width);
+/* ========== TOP STATUS BAR ========== */
+.game-status-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
+    border-bottom: 1px solid var(--color-border-subtle);
     flex-shrink: 0;
-    padding: var(--spacing-sm) var(--spacing-md);
+    z-index: var(--z-header);
+    min-height: 48px;
+}
+
+.status-bar-left {
+    flex-shrink: 0;
+}
+
+.status-bar-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    min-width: 0;
+}
+
+.status-bar-right {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    min-width: 0;
+}
+
+/* ========== MODE-SPECIFIC BARS (Match/Duet) ========== */
+.game-mode-bars {
+    flex-shrink: 0;
+}
+
+.game-mode-bars:empty {
+    display: none;
+}
+
+.game-mode-bars .match-scoreboard,
+.game-mode-bars .duet-info-bar {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+}
+
+/* ========== GAME BODY: Sidebar + Main ========== */
+.game-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Left Sidebar - Slim controls panel */
+.sidebar {
+    width: 200px;
+    min-width: 180px;
+    max-width: 220px;
+    flex-shrink: 0;
+    padding: var(--spacing-sm) var(--spacing-sm);
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
     background: linear-gradient(180deg, rgba(15, 15, 26, 0.98) 0%, rgba(20, 20, 35, 0.95) 100%);
     border-right: 1px solid var(--color-border-subtle);
-    max-height: 100vh;
-    overflow: hidden;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* Right Main Area */
@@ -30,15 +89,10 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
+    min-height: calc(100vh - 48px);
 }
 
-/* ========== HEADER ========== */
-header {
-    text-align: center;
-    padding-bottom: 4px;
-}
-
+/* ========== HEADER / TITLE ========== */
 .game-title {
     font-size: var(--font-size-xl);
     margin: 0;
@@ -52,6 +106,7 @@ header {
     font-family: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
     line-height: 1.1;
+    white-space: nowrap;
 }
 
 .version {
