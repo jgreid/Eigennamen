@@ -414,20 +414,19 @@ test.describe('Eigennamen Multiplayer Gameplay', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Eigennamen Spectator Mode', () => {
-    test('spectator button is visible in standalone mode', async ({ page }) => {
+    test('team buttons are visible in standalone mode', async ({ page }) => {
         await page.goto('/');
 
-        const spectateBtn = page.locator(sel.spectatorBtn);
-        await expect(spectateBtn).toBeVisible();
+        const redBtn = page.locator(sel.teamRedBtn);
+        const blueBtn = page.locator(sel.teamBlueBtn);
+        await expect(redBtn).toBeVisible();
+        await expect(blueBtn).toBeVisible();
     });
 
-    test('spectator cannot reveal cards', async ({ page }) => {
+    test('unaffiliated player cannot reveal cards', async ({ page }) => {
         await page.goto('/');
 
-        // Click spectator button
-        const spectateBtn = page.locator(sel.spectatorBtn);
-        await spectateBtn.click();
-
+        // Player starts unaffiliated (no team selected) — equivalent to spectator
         // Try to click a card — it should not be revealed
         const card = page.locator(sel.boardCardUnrevealed).first();
         await card.click();

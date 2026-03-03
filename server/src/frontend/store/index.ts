@@ -28,5 +28,6 @@ export {
     isClickerFallback,
     canActAsClicker,
     isDuetMode,
+    isMatchMode,
     playerCount,
 } from './selectors.js';

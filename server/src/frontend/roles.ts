@@ -139,7 +139,6 @@ export function updateControls(): void {
     // Team selection (scoreboard buttons)
     const isRedTeam = state.playerTeam === 'red';
     const isBlueTeam = state.playerTeam === 'blue';
-    const isUnaffiliated = !state.playerTeam;
 
     if (redTeamBtn) {
         redTeamBtn.classList.toggle('selected', isRedTeam);
