@@ -171,20 +171,6 @@ export function isMatchMode(): boolean {
     return state.gameMode === 'match';
 }
 
-/**
- * Current match round number (0 if not in match).
- */
-export function matchRound(): number {
-    return state.gameState.matchRound ?? 0;
-}
-
-/**
- * Whether the overall match is over.
- */
-export function isMatchOver(): boolean {
-    return state.gameState.matchOver ?? false;
-}
-
 // ---- Multiplayer selectors ----
 
 /**

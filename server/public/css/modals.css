@@ -130,14 +130,6 @@
     margin-bottom: 14px;
 }
 
-/* Panel description text */
-.panel-description {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 16px;
-    line-height: 1.5;
-}
-
 /* Team inputs side by side */
 .team-inputs-row {
     display: grid;

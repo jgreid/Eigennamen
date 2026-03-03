@@ -28,7 +28,7 @@ const sel = {
     endTurnBtn: '[data-testid="end-turn-btn"]',
     spymasterBtn: '[data-testid="spymaster-btn"]',
     clickerBtn: '[data-testid="clicker-btn"]',
-    spectatorBtn: '[data-testid="spectator-btn"]',
+    // Spectator mode is now achieved by toggling team buttons (click team again to unassign)
     forfeitBtn: '[data-testid="forfeit-btn"]',
     historyBtn: '[data-testid="history-btn"]',
 
