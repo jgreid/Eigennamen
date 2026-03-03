@@ -38,7 +38,8 @@ if roomCode then
     end
 end
 
--- Delete player data
+-- Delete player data and orphaned socket mapping
 redis.call('DEL', playerKey)
+redis.call('DEL', 'session:' .. sessionId .. ':socket')
 
 return playerData

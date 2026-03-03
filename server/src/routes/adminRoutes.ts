@@ -15,9 +15,11 @@ import auditRouter from './admin/auditRoutes';
 
 const router: ExpressRouter = express.Router();
 
-// Pre-compute admin password hash at startup to avoid blocking the event loop
-// on every auth request. Only the submitted password needs hashing per request.
-const ADMIN_SCRYPT_SALT = 'eigennamen-admin-auth';
+// Derive salt from JWT_SECRET if available, otherwise use a static fallback.
+// This ensures identical passwords across deployments produce different hashes.
+const ADMIN_SCRYPT_SALT = process.env.JWT_SECRET
+    ? `eigennamen-admin-${crypto.createHash('sha256').update(process.env.JWT_SECRET).digest('hex').slice(0, 16)}`
+    : 'eigennamen-admin-auth';
 const cachedAdminHash: Buffer | null = process.env.ADMIN_PASSWORD
     ? crypto.scryptSync(process.env.ADMIN_PASSWORD, ADMIN_SCRYPT_SALT, 32)
     : null;

@@ -23,11 +23,17 @@ function validateInput<T>(schema: ZodSchema<T>, data: unknown): T {
     } catch (error) {
         if (error instanceof ZodError) {
             const zodError = error as ZodErrorType;
-            const message = zodError.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+            // In production, strip field paths to prevent schema structure disclosure
+            // (consistent with errorHandler.ts Zod handling)
+            const isProduction = process.env.NODE_ENV === 'production';
+            const issues = isProduction ? zodError.issues.map((e) => ({ message: e.message })) : zodError.issues;
+            const message = isProduction
+                ? zodError.issues.map((e) => e.message).join(', ')
+                : zodError.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
             const validationError: ValidationError = {
                 code: ERROR_CODES.INVALID_INPUT,
                 message: `Validation error: ${message}`,
-                details: zodError.issues,
+                details: issues as ZodIssue[],
             };
             throw validationError;
         }

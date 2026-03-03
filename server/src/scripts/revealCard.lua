@@ -3,6 +3,7 @@ local index = tonumber(ARGV[1])
 local timestamp = tonumber(ARGV[2])
 local playerNickname = ARGV[3]
 local maxHistoryEntries = tonumber(ARGV[4])
+if maxHistoryEntries == nil or maxHistoryEntries < 1 then maxHistoryEntries = 100 end
 -- Bug #4 fix: Add player team parameter for turn validation
 local playerTeam = ARGV[5]
 

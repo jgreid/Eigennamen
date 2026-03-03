@@ -68,7 +68,7 @@ export function shuffleWithSeed<T>(array: T[], seed: number): T[] {
     let currentSeed = seed;
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(seededRandom(currentSeed++) * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
     }
     return shuffled;
 }
@@ -78,7 +78,7 @@ export function generateGameSeed(): string {
     if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
         const array = new Uint32Array(2);
         crypto.getRandomValues(array);
-        return array[0].toString(36) + array[1].toString(36).substring(0, 4);
+        return array[0]!.toString(36) + array[1]!.toString(36).substring(0, 4);
     }
     // Fallback: Math.random (less secure but functional)
     return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
@@ -106,7 +106,7 @@ export function decodeWordsFromURL(encoded: string): string[] | null {
         let i = 0;
         while (i < decoded.length) {
             if (decoded[i] === '\\' && i + 1 < decoded.length) {
-                current += decoded[i] + decoded[i + 1];
+                current += decoded[i]! + decoded[i + 1]!;
                 i += 2;
             } else if (decoded[i] === '|') {
                 parts.push(current);

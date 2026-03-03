@@ -103,15 +103,39 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
     const now = Date.now();
 
     try {
-        // Get players due for cleanup
-        const toCleanup = await withTimeout(
-            redis.zRangeByScore('scheduled:player:cleanup', 0, now, { LIMIT: { offset: 0, count: limit } }),
+        // Atomically dequeue entries due for cleanup using ZRANGEBYSCORE + ZREM.
+        // This Lua script ensures that multiple instances don't process the same
+        // entries — each entry is removed before being returned.
+        const dequeueScript = `
+            local entries = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1], 'LIMIT', 0, tonumber(ARGV[2]))
+            if #entries == 0 then return {} end
+            for _, entry in ipairs(entries) do
+                redis.call('ZREM', KEYS[1], entry)
+            end
+            return entries
+        `;
+        const toCleanup = (await withTimeout(
+            redis.eval(dequeueScript, {
+                keys: ['scheduled:player:cleanup'],
+                arguments: [now.toString(), limit.toString()],
+            }),
             TIMEOUTS.REDIS_OPERATION,
-            'processScheduledCleanups-zRangeByScore'
-        );
+            'processScheduledCleanups-dequeue'
+        )) as string[];
 
-        if (toCleanup.length === 0) {
+        if (!toCleanup || toCleanup.length === 0) {
             return 0;
+        }
+
+        // Periodically trim ancient entries (>24h old) to prevent unbounded set growth
+        try {
+            const oneDayAgo = now - 24 * 60 * 60 * 1000;
+            await redis.eval("return redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])", {
+                keys: ['scheduled:player:cleanup'],
+                arguments: [oneDayAgo.toString()],
+            });
+        } catch {
+            // Non-critical cleanup
         }
 
         let cleanedUp = 0;
@@ -133,23 +157,13 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                 )) as string | null;
 
                 if (result === 'RECONNECTED') {
-                    // Player reconnected - skip removal, just clear schedule entry
+                    // Player reconnected - already dequeued from schedule by Lua above
                     logger.debug(`Skipping cleanup for reconnected player ${sessionId}`);
-                    await withTimeout(
-                        redis.zRem('scheduled:player:cleanup', entry),
-                        TIMEOUTS.REDIS_OPERATION,
-                        `processCleanups-zRem-reconnected-${sessionId}`
-                    );
                     continue;
                 }
 
                 if (!result) {
-                    // Player key already gone - just remove from schedule
-                    await withTimeout(
-                        redis.zRem('scheduled:player:cleanup', entry),
-                        TIMEOUTS.REDIS_OPERATION,
-                        `processCleanups-zRem-gone-${sessionId}`
-                    );
+                    // Player key already gone - already dequeued from schedule by Lua above
                     continue;
                 }
 
@@ -196,20 +210,10 @@ export async function processScheduledCleanups(limit: number = 50): Promise<numb
                     }
                 }
 
-                // Remove from cleanup schedule
-                await withTimeout(
-                    redis.zRem('scheduled:player:cleanup', entry),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `processCleanups-zRem-done-${sessionId}`
-                );
+                // Entry already removed from sorted set by dequeue Lua script above
             } catch (parseError) {
+                // Entry already removed from sorted set, just log the error
                 logger.error('Failed to parse cleanup entry:', (parseError as Error).message);
-                // Remove invalid entry
-                await withTimeout(
-                    redis.zRem('scheduled:player:cleanup', entry),
-                    TIMEOUTS.REDIS_OPERATION,
-                    'processCleanups-zRem-invalid'
-                );
             }
         }
         /* eslint-enable no-await-in-loop */

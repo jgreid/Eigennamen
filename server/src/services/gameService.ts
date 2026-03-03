@@ -27,7 +27,7 @@ import { GameStateError, ValidationError, PlayerError, RoomError } from '../erro
 import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { toEnglishUpperCase } from '../utils/sanitize';
 import { tryParseJSON } from '../utils/parseJSON';
-import { ATOMIC_SET_ROOM_STATUS_SCRIPT } from '../scripts';
+import { ATOMIC_PERSIST_GAME_STATE_SCRIPT } from '../scripts';
 import { withLock } from '../utils/distributedLock';
 import { retryAsync } from '../utils/retryAsync';
 import { notifyGameMutation } from '../socket/gameMutationNotifier';
@@ -175,39 +175,27 @@ function buildGameState(
 }
 
 /**
- * Persist game state to Redis and update room status.
+ * Persist game state to Redis and update room status atomically.
+ * Uses a Lua script to write game state, set room status to 'playing',
+ * and refresh players TTL in a single atomic operation.
  */
 async function persistGameState(redis: RedisClient, roomCode: string, game: GameState): Promise<void> {
-    await withTimeout(
-        redis.set(`room:${roomCode}:game`, JSON.stringify(game), { EX: REDIS_TTL.ROOM }),
-        TIMEOUTS.REDIS_OPERATION,
-        `createGame-saveGame-${roomCode}`
+    const result = await retryAsync(
+        () =>
+            withTimeout(
+                redis.eval(ATOMIC_PERSIST_GAME_STATE_SCRIPT, {
+                    keys: [`room:${roomCode}:game`, `room:${roomCode}`, `room:${roomCode}:players`],
+                    arguments: [JSON.stringify(game), REDIS_TTL.ROOM.toString()],
+                }),
+                TIMEOUTS.REDIS_OPERATION,
+                `persistGameState-lua-${roomCode}`
+            ),
+        { maxRetries: 2, baseDelayMs: 100, operationName: `persistGameState-${roomCode}` }
     );
 
-    // Atomically update room status to 'playing' via Lua to prevent TOCTOU race.
-    // Retries on transient failure since an incorrect room status causes data inconsistency.
-    try {
-        await retryAsync(
-            () =>
-                withTimeout(
-                    redis.eval(ATOMIC_SET_ROOM_STATUS_SCRIPT, {
-                        keys: [`room:${roomCode}`],
-                        arguments: ['playing', REDIS_TTL.ROOM.toString()],
-                    }),
-                    TIMEOUTS.REDIS_OPERATION,
-                    `setRoomStatus-lua-${roomCode}`
-                ),
-            { maxRetries: 2, baseDelayMs: 100, operationName: `setRoomStatus-${roomCode}` }
-        );
-    } catch (e) {
-        logger.error(`Failed to update room status for ${roomCode} after retries:`, (e as Error).message);
+    if (result === 'NO_ROOM') {
+        throw RoomError.notFound(roomCode);
     }
-
-    await withTimeout(
-        redis.expire(`room:${roomCode}:players`, REDIS_TTL.ROOM),
-        TIMEOUTS.REDIS_OPERATION,
-        `createGame-expirePlayers-${roomCode}`
-    );
 }
 
 /**
@@ -320,7 +308,9 @@ export async function revealCard(
 }
 
 /**
- * End the current turn — atomic Lua execution
+ * End the current turn — atomic Lua execution under distributed lock.
+ * The lock prevents double turn flip when timer expiration and player
+ * action fire simultaneously.
  */
 export async function endTurn(
     roomCode: string,
@@ -329,64 +319,77 @@ export async function endTurn(
 ): Promise<EndTurnResult> {
     const gameKey = `room:${roomCode}:game`;
 
-    const luaErrorMap: Record<string, Error> = {
-        NO_GAME: GameStateError.noActiveGame(),
-        GAME_OVER: GameStateError.gameOver(),
-        NOT_YOUR_TURN: PlayerError.notYourTurn(expectedTeam as Team),
-    };
+    return withLock(
+        `reveal:${roomCode}`,
+        async () => {
+            const luaErrorMap: Record<string, Error> = {
+                NO_GAME: GameStateError.noActiveGame(),
+                GAME_OVER: GameStateError.gameOver(),
+                NOT_YOUR_TURN: PlayerError.notYourTurn(expectedTeam as Team),
+            };
 
-    const result = await executeLuaScript<EndTurnResult>(
-        OPTIMIZED_END_TURN_SCRIPT,
-        gameKey,
-        [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
-        luaErrorMap,
-        `endTurn-${roomCode}`,
-        endTurnResultSchema
+            const result = await executeLuaScript<EndTurnResult>(
+                OPTIMIZED_END_TURN_SCRIPT,
+                gameKey,
+                [playerNickname, Date.now().toString(), MAX_HISTORY_ENTRIES.toString(), expectedTeam],
+                luaErrorMap,
+                `endTurn-${roomCode}`,
+                endTurnResultSchema
+            );
+            notifyGameMutation(roomCode);
+            return result;
+        },
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
-    notifyGameMutation(roomCode);
-    return result;
 }
 
 /**
- * Forfeit the game
+ * Forfeit the game under the same distributed lock used by reveal/endTurn,
+ * eliminating WATCH/MULTI contention with concurrent Lua operations.
  */
 export async function forfeitGame(roomCode: string, forfeitTeam?: Team): Promise<ForfeitResult> {
     const gameKey = `room:${roomCode}:game`;
 
-    const result = await executeGameTransaction(
-        gameKey,
-        (game: GameState) => {
-            if (game.gameOver) {
-                throw GameStateError.gameOver();
-            }
+    return withLock(
+        `reveal:${roomCode}`,
+        async () => {
+            const result = await executeGameTransaction(
+                gameKey,
+                (game: GameState) => {
+                    if (game.gameOver) {
+                        throw GameStateError.gameOver();
+                    }
 
-            const forfeitingTeam: Team =
-                forfeitTeam === 'red' || forfeitTeam === 'blue' ? forfeitTeam : game.currentTurn;
-            game.gameOver = true;
+                    const forfeitingTeam: Team =
+                        forfeitTeam === 'red' || forfeitTeam === 'blue' ? forfeitTeam : game.currentTurn;
+                    game.gameOver = true;
 
-            if (game.gameMode === 'duet') {
-                game.winner = null;
-            } else {
-                game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
-            }
+                    if (game.gameMode === 'duet') {
+                        game.winner = null;
+                    } else {
+                        game.winner = forfeitingTeam === 'red' ? 'blue' : 'red';
+                    }
 
-            addToHistory(game, {
-                action: 'forfeit',
-                forfeitingTeam,
-                winner: game.winner,
-                timestamp: Date.now(),
-            });
+                    addToHistory(game, {
+                        action: 'forfeit',
+                        forfeitingTeam,
+                        winner: game.winner,
+                        timestamp: Date.now(),
+                    });
 
-            return {
-                winner: game.winner,
-                forfeitingTeam,
-                allTypes: game.types,
-            };
+                    return {
+                        winner: game.winner,
+                        forfeitingTeam,
+                        allTypes: game.types,
+                    };
+                },
+                'forfeitGame'
+            );
+            notifyGameMutation(roomCode);
+            return result;
         },
-        'forfeitGame'
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
-    notifyGameMutation(roomCode);
-    return result;
 }
 
 /**
@@ -490,39 +493,44 @@ export interface MatchRoundFinalizationResult {
 
 /**
  * Atomically finalize a completed round in match mode.
- * Uses executeGameTransaction (optimistic locking) to prevent race conditions
- * between concurrent game-over events (reveal vs forfeit).
+ * Acquires the reveal lock to prevent contention with concurrent
+ * Lua-based operations (reveal, endTurn).
  *
  * Returns null if the game is not in match mode.
  */
 export async function finalizeMatchRound(roomCode: string): Promise<MatchRoundFinalizationResult | null> {
-    // Quick check to avoid unnecessary transaction for non-match games
+    // Quick check to avoid unnecessary lock acquisition for non-match games
     const currentGame = await getGame(roomCode);
     if (!currentGame || currentGame.gameMode !== 'match') return null;
 
-    const gameKey = `room:${roomCode}:game`;
+    return withLock(
+        `reveal:${roomCode}`,
+        async () => {
+            const gameKey = `room:${roomCode}:game`;
 
-    const result = await executeGameTransaction(
-        gameKey,
-        (game: GameState) => {
-            if (game.gameMode !== 'match') return null;
+            const result = await executeGameTransaction(
+                gameKey,
+                (game: GameState) => {
+                    if (game.gameMode !== 'match') return null;
 
-            const roundResult = finalizeRound(game);
-            // game is mutated by finalizeRound; executeGameTransaction persists it
-            return {
-                roundResult,
-                matchOver: game.matchOver ?? false,
-                matchWinner: game.matchWinner ?? null,
-                redMatchScore: game.redMatchScore ?? 0,
-                blueMatchScore: game.blueMatchScore ?? 0,
-                roundHistory: game.roundHistory ?? [],
-                matchRound: game.matchRound ?? 1,
-            };
+                    const roundResult = finalizeRound(game);
+                    return {
+                        roundResult,
+                        matchOver: game.matchOver ?? false,
+                        matchWinner: game.matchWinner ?? null,
+                        redMatchScore: game.redMatchScore ?? 0,
+                        blueMatchScore: game.blueMatchScore ?? 0,
+                        roundHistory: game.roundHistory ?? [],
+                        matchRound: game.matchRound ?? 1,
+                    };
+                },
+                'finalizeMatchRound'
+            );
+            if (result) notifyGameMutation(roomCode);
+            return result;
         },
-        'finalizeMatchRound'
+        { lockTimeout: LOCKS.CARD_REVEAL * 1000, maxRetries: 5 }
     );
-    if (result) notifyGameMutation(roomCode);
-    return result;
 }
 
 /**

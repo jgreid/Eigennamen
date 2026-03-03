@@ -97,7 +97,7 @@ export function updateRoleBanner(): void {
     // Use config if role/team are set, otherwise fallback to host/viewer
     // Validate team is 'red' or 'blue' before accessing teamNames
     if (role && team && (team === 'red' || team === 'blue') && ROLE_BANNER_CONFIG[role]) {
-        const config = ROLE_BANNER_CONFIG[role];
+        const config = ROLE_BANNER_CONFIG[role]!;
         banner.className = `role-banner ${config[team]}`;
         // Use nullish coalescing in case teamNames doesn't have the team key
         banner.innerHTML = `<strong>${escapeHTML(state.teamNames[team] || (team === 'red' ? 'Red' : 'Blue'))}</strong> ${escapeHTML(config.label)}${hostBadge}`;

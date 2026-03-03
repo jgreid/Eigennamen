@@ -15,7 +15,10 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "removeComments": false,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
   },
   "include": [
     "src/frontend/**/*.ts",

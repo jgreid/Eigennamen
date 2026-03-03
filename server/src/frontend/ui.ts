@@ -196,13 +196,13 @@ export function closeModal(modalId: string): void {
     let previousFocus: Element | null = null;
 
     if (stackIndex !== -1) {
-        const entry = modalStack.splice(stackIndex, 1)[0];
+        const entry = modalStack.splice(stackIndex, 1)[0]!;
         previousFocus = entry.previousFocus;
     }
 
     // Update activeModal to the next modal in stack (if any)
     if (modalStack.length > 0) {
-        state.activeModal = modalStack[modalStack.length - 1].modal;
+        state.activeModal = modalStack[modalStack.length - 1]!.modal;
     } else {
         state.activeModal = null;
 

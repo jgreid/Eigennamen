@@ -6,6 +6,7 @@ import { withTimeout, TIMEOUTS } from '../utils/timeout';
 import { TIMER, REDIS_TTL } from '../config/constants';
 import { tryParseJSON } from '../utils/parseJSON';
 import { ValidationError } from '../errors/GameError';
+import { withLock } from '../utils/distributedLock';
 import {
     ATOMIC_ADD_TIME_SCRIPT,
     ATOMIC_TIMER_STATUS_SCRIPT,
@@ -148,16 +149,16 @@ function createTimerExpirationCallback(roomCode: string, onExpire?: TimerExpireC
 }
 
 /**
- * Start a turn timer for a room
+ * Start a turn timer for a room.
+ * Uses a distributed lock to prevent two concurrent startTimer calls
+ * from creating duplicate local setTimeout callbacks.
  */
 export async function startTimer(
     roomCode: string,
     durationSeconds: number,
     onExpire?: TimerExpireCallback
 ): Promise<TimerInfo> {
-    const redis: RedisClient = getRedis();
-
-    // Validate duration bounds (consistent with addTime validation)
+    // Validate duration bounds before acquiring lock
     if (typeof durationSeconds !== 'number' || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
         throw new ValidationError('Invalid duration: must be a positive number');
     }
@@ -165,59 +166,74 @@ export async function startTimer(
         throw new ValidationError(`Invalid duration: cannot exceed ${TIMER.MAX_TURN_SECONDS} seconds`);
     }
 
-    // Clear any existing timer
-    await stopTimer(roomCode);
+    return withLock(
+        `timer:${roomCode}`,
+        async () => {
+            const redis: RedisClient = getRedis();
 
-    const startTime = Date.now();
-    const endTime = startTime + durationSeconds * 1000;
+            // Clear any existing timer
+            await stopTimer(roomCode);
 
-    // Store timer state in Redis
-    const timerData: TimerState = {
-        roomCode,
-        startTime,
-        endTime,
-        duration: durationSeconds,
-        instanceId: process.pid.toString(),
-    };
+            const startTime = Date.now();
+            const endTime = startTime + durationSeconds * 1000;
 
-    await withTimeout(
-        redis.set(
-            `${TIMER_KEY_PREFIX}${roomCode}`,
-            JSON.stringify(timerData),
-            { EX: durationSeconds + TIMER_TTL_BUFFER } // TTL slightly longer than timer duration
-        ),
-        TIMEOUTS.TIMER_OPERATION,
-        `startTimer-set-${roomCode}`
+            // Store timer state in Redis
+            const timerData: TimerState = {
+                roomCode,
+                startTime,
+                endTime,
+                duration: durationSeconds,
+                instanceId: process.pid.toString(),
+            };
+
+            await withTimeout(
+                redis.set(`${TIMER_KEY_PREFIX}${roomCode}`, JSON.stringify(timerData), {
+                    EX: durationSeconds + TIMER_TTL_BUFFER,
+                }),
+                TIMEOUTS.TIMER_OPERATION,
+                `startTimer-set-${roomCode}`
+            );
+
+            // Set up local timeout using shared expiration callback
+            const timeoutId = setTimeout(createTimerExpirationCallback(roomCode, onExpire), durationSeconds * 1000);
+
+            // Evict entry with earliest endTime if map exceeds max size
+            if (localTimers.size >= LOCAL_TIMERS_MAX_SIZE) {
+                let earliestKey: string | undefined;
+                let earliestEnd = Infinity;
+                for (const [key, timer] of localTimers) {
+                    if (timer.endTime < earliestEnd) {
+                        earliestEnd = timer.endTime;
+                        earliestKey = key;
+                    }
+                }
+                if (earliestKey) {
+                    const evicted = localTimers.get(earliestKey);
+                    if (evicted) clearTimeout(evicted.timeoutId);
+                    localTimers.delete(earliestKey);
+                    logger.warn(
+                        `Local timer map at capacity (${LOCAL_TIMERS_MAX_SIZE}), evicted earliest-ending entry: ${earliestKey}`
+                    );
+                }
+            }
+
+            localTimers.set(roomCode, {
+                ...timerData,
+                timeoutId,
+                onExpire,
+            });
+
+            logger.info(`Timer started for room ${roomCode}: ${durationSeconds}s`);
+
+            return {
+                startTime,
+                endTime,
+                duration: durationSeconds,
+                remainingSeconds: durationSeconds,
+            };
+        },
+        { lockTimeout: 3000, maxRetries: 5 }
     );
-
-    // Set up local timeout using shared expiration callback
-    const timeoutId = setTimeout(createTimerExpirationCallback(roomCode, onExpire), durationSeconds * 1000);
-
-    // Evict oldest entry if map exceeds max size to prevent unbounded growth
-    if (localTimers.size >= LOCAL_TIMERS_MAX_SIZE) {
-        const oldestKey = localTimers.keys().next().value;
-        if (oldestKey) {
-            const oldest = localTimers.get(oldestKey);
-            if (oldest) clearTimeout(oldest.timeoutId);
-            localTimers.delete(oldestKey);
-            logger.warn(`Local timer map at capacity (${LOCAL_TIMERS_MAX_SIZE}), evicted oldest entry: ${oldestKey}`);
-        }
-    }
-
-    localTimers.set(roomCode, {
-        ...timerData,
-        timeoutId,
-        onExpire,
-    });
-
-    logger.info(`Timer started for room ${roomCode}: ${durationSeconds}s`);
-
-    return {
-        startTime,
-        endTime,
-        duration: durationSeconds,
-        remainingSeconds: durationSeconds,
-    };
 }
 
 /**

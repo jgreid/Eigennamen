@@ -43,9 +43,9 @@ export async function initI18n(): Promise<void> {
         // localStorage unavailable (private browsing, storage quota, etc.)
     }
     const browserLang = navigator.language?.split('-')[0];
-    const detected = stored || (browserLang in LANGUAGES ? browserLang : DEFAULT_LANGUAGE);
+    const detected = stored || (browserLang && browserLang in LANGUAGES ? browserLang : DEFAULT_LANGUAGE);
 
-    await setLanguage(detected, false);
+    await setLanguage(detected ?? DEFAULT_LANGUAGE, false);
 }
 
 /**
@@ -121,8 +121,8 @@ export function getLanguage(): string {
  */
 export function t(key: string, params: Record<string, string | number> = {}): string {
     const value =
-        getNestedValue(translations[currentLanguage], key) ||
-        getNestedValue(translations[DEFAULT_LANGUAGE], key) ||
+        getNestedValue(translations[currentLanguage] ?? {}, key) ||
+        getNestedValue(translations[DEFAULT_LANGUAGE] ?? {}, key) ||
         key;
 
     if (typeof value !== 'string') return key;

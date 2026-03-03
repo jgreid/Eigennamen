@@ -117,8 +117,12 @@ export async function joinRoom(roomId: string, sessionId: string, nickname: stri
         throw new ServerError('Failed to create or retrieve player');
     }
 
+    // Re-read room data after join to avoid returning stale settings
+    // (room config may have changed between initial getRoom and Lua script execution)
+    const freshRoom = await getRoom(normalizedRoomId);
+
     return {
-        room,
+        room: freshRoom || room,
         players: await playerService.getPlayersInRoom(normalizedRoomId),
         game: gameState,
         player,

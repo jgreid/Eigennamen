@@ -38,13 +38,14 @@ export async function setTeam(sessionId: string, team: Team | null, checkEmpty: 
 
     const result = (await withTimeout(
         redis.eval(SAFE_TEAM_SWITCH_SCRIPT, {
-            keys: [`player:${sessionId}`, teamSetKey, roomCode],
+            keys: [`player:${sessionId}`, teamSetKey],
             arguments: [
                 teamValue,
                 sessionId,
                 REDIS_TTL.PLAYER.toString(),
                 Date.now().toString(),
                 checkEmpty.toString(),
+                roomCode,
             ],
         }),
         TIMEOUTS.REDIS_OPERATION,

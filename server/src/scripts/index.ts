@@ -68,6 +68,15 @@ export const CLEANUP_ORPHANED_TOKEN_SCRIPT: string = loadLua('cleanupOrphanedTok
 /** Atomic game history save. Performs SET + ZADD + ZREMRANGEBYRANK + EXPIRE in a single atomic operation */
 export const ATOMIC_SAVE_GAME_HISTORY_SCRIPT: string = loadLua('atomicSaveGameHistory.lua');
 
+/** Atomic game state persist + room status update + players TTL refresh */
+export const ATOMIC_PERSIST_GAME_STATE_SCRIPT: string = loadLua('atomicPersistGameState.lua');
+
+/** Atomic reconnection token validation and consumption (GETDEL pattern) */
+export const ATOMIC_VALIDATE_RECONNECT_TOKEN_SCRIPT: string = loadLua('atomicValidateReconnectToken.lua');
+
+/** Atomic reconnection token generation (returns existing if race) */
+export const ATOMIC_GENERATE_RECONNECT_TOKEN_SCRIPT: string = loadLua('atomicGenerateReconnectToken.lua');
+
 /** Safe lock release (only release if we own the lock) */
 export const RELEASE_LOCK_SCRIPT: string = loadLua('releaseLock.lua');
 
